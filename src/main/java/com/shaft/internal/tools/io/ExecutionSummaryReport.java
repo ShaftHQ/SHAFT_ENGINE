@@ -80,6 +80,7 @@ public class ExecutionSummaryReport {
                         .replace("${SKIPPED_DROPDOWN_OPTION}", StatusIcon.SKIPPED.getValue() + Status.SKIPPED.name())
                         .replace("${CASES_DETAILS}", detailsBuilder));
 
+        ReportManagerHelper.openExecutionSummaryReportAfterExecution();
         ReportManagerHelper.logExecutionSummary(String.valueOf(total), String.valueOf(passed), String.valueOf(failed), String.valueOf(skipped));
     }
 
