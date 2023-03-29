@@ -1,8 +1,8 @@
 package com.shaft.listeners.internal;
 
 import com.shaft.driver.DriverFactory;
-import com.shaft.internal.tools.io.CheckpointCounter;
-import com.shaft.internal.tools.io.ReportHelper;
+import com.shaft.tools.io.internal.CheckpointCounter;
+import com.shaft.tools.io.internal.ReportHelper;
 import org.testng.ITestContext;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterSuite;

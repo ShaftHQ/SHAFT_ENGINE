@@ -1,15 +1,15 @@
 package com.shaft.listeners;
 
-import com.shaft.internal.gui.image.ImageProcessingActions;
-import com.shaft.internal.properties.PropertiesHelper;
-import com.shaft.internal.tools.io.ExecutionSummaryReport;
-import com.shaft.internal.tools.io.IssueReporter;
-import com.shaft.internal.tools.io.ProjectStructureManager;
-import com.shaft.internal.tools.io.ReportManagerHelper;
-import com.shaft.internal.tools.security.GoogleTink;
+import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.listeners.internal.JiraHelper;
 import com.shaft.listeners.internal.RetryAnalyzer;
 import com.shaft.listeners.internal.TestNGListenerHelper;
+import com.shaft.properties.internal.PropertiesHelper;
+import com.shaft.tools.internal.security.GoogleTink;
+import com.shaft.tools.io.internal.ExecutionSummaryReport;
+import com.shaft.tools.io.internal.IssueReporter;
+import com.shaft.tools.io.internal.ProjectStructureManager;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Allure;
 import lombok.Getter;
 import org.testng.*;

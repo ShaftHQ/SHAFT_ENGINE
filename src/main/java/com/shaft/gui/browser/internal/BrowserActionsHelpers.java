@@ -1,12 +1,14 @@
 package com.shaft.gui.browser.internal;
 
 import com.google.common.net.InternetDomainName;
+import com.shaft.db.DatabaseActions;
 import com.shaft.driver.SHAFT;
-import com.shaft.internal.gui.image.ScreenshotManager;
-import com.shaft.internal.tools.io.ReportManagerHelper;
-import com.shaft.internal.tools.support.JavaHelper;
-import com.shaft.internal.tools.support.JavaScriptHelper;
+import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.tools.internal.support.JavaHelper;
+import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import lombok.SneakyThrows;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.Dimension;
@@ -19,7 +21,6 @@ import org.openqa.selenium.chromium.ChromiumDriver;
 import org.openqa.selenium.devtools.DevToolsException;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
-import org.testng.Assert;
 
 import java.awt.*;
 import java.io.File;
@@ -61,11 +62,7 @@ public class BrowserActionsHelpers {
     public static void failAction(WebDriver driver, String actionName, String testData,
                                   Exception... rootCauseException) {
         String message = reportActionResult(driver, actionName, testData, false, rootCauseException);
-        if (rootCauseException != null && rootCauseException.length >= 1) {
-            Assert.fail(message, rootCauseException[0]);
-        } else {
-            Assert.fail(message);
-        }
+        FailureReporter.fail(DatabaseActions.class, message, rootCauseException[0]);
     }
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData,
