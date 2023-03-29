@@ -1,6 +1,6 @@
 package com.shaft.driver.internal;
 
-import com.shaft.internal.validations.*;
+import com.shaft.validation.internal.*;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 

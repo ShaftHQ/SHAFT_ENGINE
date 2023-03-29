@@ -1,7 +1,7 @@
 package testPackage.locator;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.internal.gui.locator.Locator;
+import com.shaft.gui.internal.locator.Locator;
 import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;

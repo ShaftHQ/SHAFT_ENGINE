@@ -1,8 +1,8 @@
 package poms;
 
+import com.shaft.enums.internal.ClipboardAction;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.internal.enums.ClipboardAction;
 import com.shaft.validation.Validations;
 import lombok.Getter;
 import org.openqa.selenium.By;

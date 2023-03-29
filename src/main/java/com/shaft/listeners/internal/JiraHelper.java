@@ -1,7 +1,7 @@
 package com.shaft.listeners.internal;
 
-import com.shaft.internal.tools.io.ReportManagerHelper;
-import com.shaft.internal.tools.tms.XrayIntegrationHelper;
+import com.shaft.tools.internal.tms.XrayIntegrationHelper;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.*;
 import org.testng.IInvokedMethod;
 import org.testng.ITestNGMethod;
@@ -10,8 +10,8 @@ import org.testng.ITestResult;
 import java.lang.annotation.Annotation;
 import java.util.List;
 
-import static com.shaft.internal.tools.tms.XrayIntegrationHelper.createIssue;
-import static com.shaft.internal.tools.tms.XrayIntegrationHelper.link2Tickets;
+import static com.shaft.tools.internal.tms.XrayIntegrationHelper.createIssue;
+import static com.shaft.tools.internal.tms.XrayIntegrationHelper.link2Tickets;
 
 public class JiraHelper {
     public static void reportExecutionStatusToJira() {
