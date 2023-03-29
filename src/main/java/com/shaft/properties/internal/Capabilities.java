@@ -1,4 +1,4 @@
-package com.shaft.internal.properties;
+package com.shaft.properties.internal;
 
 import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;

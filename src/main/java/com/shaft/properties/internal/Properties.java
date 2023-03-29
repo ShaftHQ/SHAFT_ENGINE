@@ -1,7 +1,6 @@
 package com.shaft.properties.internal;
 import com.google.common.annotations.Beta;
 
-@SuppressWarnings({"GrazieInspection", "CommentedOutCode"})
 @Beta
 public class Properties {
     public static BrowserStack browserStack;

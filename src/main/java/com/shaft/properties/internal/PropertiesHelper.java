@@ -55,8 +55,8 @@ public class PropertiesHelper {
     }
 
     private static void overrideScreenShotTypeForAnimatedGIF() {
-        if(Boolean.valueOf(System.getProperty("createAnimatedGif").trim())){
-            System.setProperty("screenshotParams_screenshotType","Regular");
+        if (Boolean.parseBoolean(System.getProperty("createAnimatedGif").trim())) {
+            System.setProperty("screenshotParams_screenshotType", "Regular");
         }
     }
 

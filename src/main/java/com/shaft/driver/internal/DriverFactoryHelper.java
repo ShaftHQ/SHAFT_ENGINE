@@ -923,7 +923,7 @@ public class DriverFactoryHelper {
         PAGE_LOAD_TIMEOUT = Integer.parseInt(System.getProperty("pageLoadTimeout"));
         SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
         MOBILE_EMULATION = SHAFT.Properties.web.isMobileEmulation();
-        MOBILE_EMULATION_CUSTOM_DEVICE = SHAFT.Properties.web.mobileEmulation_isCustomDevice();
+        MOBILE_EMULATION_CUSTOM_DEVICE = SHAFT.Properties.web.mobileEmulationIsCustomDevice();
         LIGHTHOUSE_EXEUTION = Boolean.valueOf(System.getProperty("lightHouseExeution").trim());
     }
 }
