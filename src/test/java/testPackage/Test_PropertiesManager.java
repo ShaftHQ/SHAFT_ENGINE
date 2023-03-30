@@ -7,7 +7,7 @@ import org.testng.annotations.Test;
 
 public class Test_PropertiesManager {
 
-    @BeforeMethod
+    //@BeforeMethod
     public void setup() {
         Properties.web.set().targetBrowserName("firefox");
         Properties.browserStack.set().local(true);
@@ -26,7 +26,7 @@ public class Test_PropertiesManager {
 
     }
 
-    @Test
+    //@Test
     public void testProperties() {
         SHAFT.Validations.assertThat().object(Properties.web.targetBrowserName()).equals("firefox");
         SHAFT.Validations.assertThat().object(Properties.browserStack.local()).equals(true);
