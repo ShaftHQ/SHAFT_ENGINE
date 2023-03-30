@@ -7,14 +7,6 @@ import org.aeonbits.owner.ConfigFactory;
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/log4j2.properties", "file:src/main/resources/properties/default/log4j2.properties", "classpath:log4j2.properties"})
 public interface Log4j extends EngineProperties {
-    private static void setProperty(String key, String value) {
-        var updatedProps = new java.util.Properties();
-        updatedProps.setProperty(key, value);
-        Properties.log4j = ConfigFactory.create(Log4j.class, updatedProps);
-        // temporarily set the system property to support hybrid read/write mode
-        System.setProperty(key, value);
-        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
-    }
 
     @Key("name")
     @DefaultValue("PropertiesConfig")
@@ -87,85 +79,5 @@ public interface Log4j extends EngineProperties {
     @Key("logger.app.level")
     @DefaultValue("WARN")
     String loggerAppLevel();
-
-
-    default SetProperty set() {
-        return new SetProperty();
-    }
-
-    class SetProperty implements EngineProperties.SetProperty {
-        public void name(String value) {
-            setProperty("name", value);
-        }
-
-        public void appenderConsoleType(String value) {
-            setProperty("appender.console.type", value);
-        }
-
-        public void appenderConsoleName(String value) {
-            setProperty("appender.console.name", value);
-        }
-
-        public void appenderConsoleLayoutType(String value) {
-            setProperty("appender.console.layout.type", value);
-        }
-
-        public void appenderConsoleLayoutDisableAnsi(String value) {
-            setProperty("appender.console.layout.disableAnsi", value);
-        }
-
-        public void appenderConsoleLayoutPattern(String value) {
-            setProperty("appender.console.layout.pattern", value);
-        }
-
-        public void appenderConsoleFilterThresholdType(String value) {
-            setProperty("appender.console.filter.threshold.type", value);
-        }
-
-        public void appenderConsoleFilterThresholdLevel(String value) {
-            setProperty("appender.console.filter.threshold.level", value);
-        }
-
-        public void appenderFileType(String value) {
-            setProperty("appender.file.type", value);
-        }
-
-        public void appenderFileName(String value) {
-            setProperty("appender.file.name", value);
-        }
-
-        public void appenderFile_FileName(String value) {
-            setProperty("appender.file.fileName", value);
-        }
-
-        public void appenderFileLayoutType(String value) {
-            setProperty("appender.file.layout.type", value);
-        }
-
-        public void appenderFileLayoutPattern(String value) {
-            setProperty("appender.file.layout.pattern", value);
-        }
-
-        public void appenderFileFilterThresholdType(String value) {
-            setProperty("appender.file.filter.threshold.type", value);
-        }
-
-        public void appenderFileFilterThresholdLevel(String value) {
-            setProperty("appender.file.filter.threshold.type", value);
-        }
-
-        public void rootLogger(String value) {
-            setProperty("rootLogger", value);
-        }
-
-        public void loggerAppName(String value) {
-            setProperty("logger.app.name", value);
-        }
-
-        public void loggerAppLevel(String value) {
-            setProperty("logger.app.level", value);
-        }
-
-    }
 
 }
