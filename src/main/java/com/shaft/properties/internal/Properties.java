@@ -5,7 +5,6 @@ import com.google.common.annotations.Beta;
 public class Properties {
     public static BrowserStack browserStack;
     public static Cucumber cucumber;
-    public static Capabilities capabilities;
     public static Platform platform;
     public static Healenium healenium;
     public static Internal internal;
