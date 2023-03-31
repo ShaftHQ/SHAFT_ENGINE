@@ -5,6 +5,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.enums.internal.ClipboardAction;
 import com.shaft.enums.internal.ElementAction;
+import com.shaft.gui.browser.internal.BrowserActionsHelpers;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.gui.internal.image.ImageProcessingActions;
@@ -975,6 +976,11 @@ public class ElementActionsHelper {
             if (newScreenshot != null && !newScreenshot.equals(new ArrayList<>())) {
                 attachments.add(newScreenshot);
             }
+        }
+
+        if (driver != null && Boolean.FALSE.equals(passFailStatus)) {
+            List<Object> sourceAttachment = Arrays.asList("Element Action Exception - " + actionName, "Page Source", BrowserActionsHelpers.capturePageSnapshot(driver, true));
+            attachments.add(sourceAttachment);
         }
 
         if (rootCauseException != null && rootCauseException.length >= 1) {
