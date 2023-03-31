@@ -575,6 +575,7 @@ public enum HTMLHelper {
                     </div>
                     </div>
                     </div>
+                    <h6>If you need more information and extra debugging capabilities, please open the Allure report.<h6/>
                     </div>
                     <br><br>
                 </div>
