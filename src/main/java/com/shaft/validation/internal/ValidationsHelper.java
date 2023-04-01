@@ -3,6 +3,7 @@ package com.shaft.validation.internal;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.gui.browser.internal.BrowserActionsHelpers;
 import com.shaft.gui.browser.internal.FluentBrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
@@ -688,6 +689,12 @@ public class ValidationsHelper {
             // reset lastUsed variables
             lastUsedElementLocator = null;
             //}
+        }
+
+        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver().get() != null && Boolean.FALSE.equals(validationState.getValue())) {
+            // create a page source attachment in failure for WebDriver
+            List<Object> sourceAttachment = Arrays.asList(validationMethodName, "Page Source", BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get(), true));
+            attachments.add(sourceAttachment);
         }
 
         // attach failure reason
