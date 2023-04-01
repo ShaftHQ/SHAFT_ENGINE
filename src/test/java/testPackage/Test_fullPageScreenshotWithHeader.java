@@ -14,7 +14,7 @@ public class Test_fullPageScreenshotWithHeader {
 
     @Test(description = "TC001 - Navigate to URL and Assert page title")
     public void navigateToURLandAssertPageTitle() {
-        BrowserActions.navigateToURL(driver, "https://www.w3schools.com/howto/howto_js_sticky_header.asp");
+        BrowserActions.getInstance().navigateToURL("https://www.w3schools.com/howto/howto_js_sticky_header.asp");
 
         // element screenshot
         Validations.assertThat().element(driver,By.xpath("//div[@id='main']/h2")).exists().perform();
@@ -33,6 +33,6 @@ public class Test_fullPageScreenshotWithHeader {
 
     @AfterClass(alwaysRun = true)
     public void afterClass() {
-        BrowserActions.closeCurrentWindow(driver);
+        BrowserActions.getInstance().closeCurrentWindow();
     }
 }

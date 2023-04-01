@@ -1,9 +1,9 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
-import io.github.shafthq.shaft.tools.io.FailureReporter;
-import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
-import io.github.shafthq.shaft.tools.support.JavaHelper;
+import com.shaft.tools.internal.support.JavaHelper;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.restassured.path.json.JsonPath;
 import io.restassured.path.json.exception.JsonPathException;
 

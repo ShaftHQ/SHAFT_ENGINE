@@ -5,12 +5,13 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.jayway.jsonpath.JsonPath;
+import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.Validations;
 import eu.medsea.mimeutil.MimeUtil;
 import eu.medsea.mimeutil.MimeUtil2;
-import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
-import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.restassured.builder.MultiPartSpecBuilder;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.config.EncoderConfig;
@@ -34,7 +35,6 @@ import org.json.simple.parser.ParseException;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.JSONCompare;
 import org.skyscreamer.jsonassert.JSONCompareMode;
-import org.testng.Assert;
 
 import javax.xml.XMLConstants;
 import javax.xml.transform.OutputKeys;
@@ -96,11 +96,7 @@ public class RestActions {
     private static void failAction(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
                                    Throwable... rootCauseException) {
         String message = reportActionResult(actionName, testData, requestBody, specs, response, false, null, false, rootCauseException);
-        if (rootCauseException != null && rootCauseException.length >= 1) {
-            Assert.fail(message, rootCauseException[0]);
-        } else {
-            Assert.fail(message);
-        }
+        FailureReporter.fail(RestActions.class, message, rootCauseException[0]);
     }
 
     protected static void passAction(String testData) {

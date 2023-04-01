@@ -2,7 +2,7 @@ package com.shaft.tools.io;
 
 import org.apache.logging.log4j.Level;
 
-import static io.github.shafthq.shaft.tools.io.ReportManagerHelper.*;
+import static com.shaft.tools.io.internal.ReportManagerHelper.*;
 
 public class ReportManager {
 

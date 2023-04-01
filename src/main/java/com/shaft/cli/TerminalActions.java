@@ -5,10 +5,10 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.tools.io.ReportHelper;
-import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportHelper;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.commons.lang3.SystemUtils;
-import org.testng.Assert;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -267,11 +267,7 @@ public class TerminalActions {
 
     private void failAction(String actionName, String testData, Exception... rootCauseException) {
         String message = reportActionResult(actionName, testData, null, false, rootCauseException);
-        if (rootCauseException != null && rootCauseException.length >= 1) {
-            Assert.fail(message, rootCauseException[0]);
-        } else {
-            Assert.fail(message);
-        }
+        FailureReporter.fail(TerminalActions.class, message, rootCauseException[0]);
     }
 
     private void failAction(String testData, Exception... rootCauseException) {

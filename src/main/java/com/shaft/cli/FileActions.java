@@ -1,16 +1,16 @@
 package com.shaft.cli;
 
 import com.google.common.hash.Hashing;
+import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
-import io.github.shafthq.shaft.tools.support.JavaHelper;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.commons.lang3.SystemUtils;
 import org.sikuli.basics.FileManager;
-import org.testng.Assert;
 
 import java.io.*;
 import java.net.JarURLConnection;
@@ -620,11 +620,7 @@ public class FileActions {
 
     private void failAction(String actionName, String testData, Exception... rootCauseException) {
         String message = reportActionResult(actionName, testData, null, false, rootCauseException);
-        if (rootCauseException != null && rootCauseException.length >= 1) {
-            Assert.fail(message, rootCauseException[0]);
-        } else {
-            Assert.fail(message);
-        }
+        FailureReporter.fail(FileActions.class, message, rootCauseException[0]);
     }
 
     private String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus, Exception... rootCauseException) {

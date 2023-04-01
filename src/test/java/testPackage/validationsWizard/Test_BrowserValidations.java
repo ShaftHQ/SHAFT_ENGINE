@@ -25,7 +25,7 @@ public class Test_BrowserValidations {
     public void beforeClass() {
         driver = DriverFactory.getDriver();
         String url = "https://www.google.com/";
-        BrowserActions.navigateToURL(driver, url);
+        BrowserActions.getInstance().navigateToURL(url);
     }
 
     @AfterClass(alwaysRun = true)

@@ -95,9 +95,9 @@ public void afterClass(){
   by following these steps:
   <br/>- Open 'Edit Run/Debug Configurations' dialog > Edit Configurations... > Edit configuration templates...
   <br/>- Select <b>TestNG</b> > Listeners > and add these listeners one by one:
-  <br/>`io.github.shafthq.shaft.listeners.TestNGListener`
+  <br/>`com.shaft.listeners.TestNGListener`
   <br/>- Select <b>Cucumber Java</b> > Program Arguments > and add this argument:
-  <br/>`--plugin io.github.shafthq.shaft.listeners.CucumberFeatureListener`
+  <br/>`--plugin com.shaft.listeners.CucumberFeatureListener`
   <br/>- After saving the changes, remember to delete any old test runs you may have triggered by mistake before adding
   the needed config.
 

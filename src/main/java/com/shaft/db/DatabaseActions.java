@@ -1,9 +1,11 @@
 package com.shaft.db;
 
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
-import org.testng.Assert;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 
+import javax.sql.rowset.CachedRowSet;
+import javax.sql.rowset.RowSetProvider;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,7 +20,9 @@ public class DatabaseActions {
     private String dbName;
     private String username;
     private String password;
-    private String customConnectionString;
+    private final ThreadLocal<ResultSet> resultSetThreadLocal = new ThreadLocal<>();
+    private final ThreadLocal<Integer> rowCountThreadLocal = new ThreadLocal<>();
+    private String customConnectionString = "";
 
     /**
      * This constructor is used for initializing the database variables that are
@@ -46,6 +50,11 @@ public class DatabaseActions {
             failAction("Database Type: \"" + databaseType + "\", IP: \"" + ip + "\", Port: \"" + port + "\", Name: \""
                     + name + "\", Username: \"" + username + "\", Password: \"" + password + "\"");
         }
+    }
+
+    public static DatabaseActions getInstance(DatabaseType databaseType, String ip, String port, String name, String username,
+                                              String password) {
+        return new DatabaseActions(databaseType, ip, port, name, username, password);
     }
 
     /**
@@ -77,6 +86,11 @@ public class DatabaseActions {
         var resultSetString = getResultStringValue(resultSet, false);
         passAction();
         return resultSetString;
+    }
+
+    private static void failAction(String actionName, String testData, Exception... rootCauseException) {
+        String message = reportActionResult(actionName, testData, null, false, rootCauseException);
+        FailureReporter.fail(DatabaseActions.class, message, rootCauseException[0]);
     }
 
     /**
@@ -126,6 +140,10 @@ public class DatabaseActions {
         return str.toString().trim();
     }
 
+    public String getResult() {
+        return DatabaseActions.getResult(resultSetThreadLocal.get());
+    }
+
     /**
      * Returns a string value which represents the data of the target column
      *
@@ -155,6 +173,10 @@ public class DatabaseActions {
         return str.toString().trim();
     }
 
+    public String getRow(String columnName, String knownCellValue) {
+        return DatabaseActions.getRow(resultSetThreadLocal.get(), columnName, knownCellValue);
+    }
+
     /**
      * Returns the number of rows contained inside the provided resultSet
      *
@@ -178,6 +200,14 @@ public class DatabaseActions {
         return rowCount;
     }
 
+    public String getColumn(String columnName) {
+        return DatabaseActions.getColumn(resultSetThreadLocal.get(), columnName);
+    }
+
+    public int getRowCount() {
+        return rowCountThreadLocal.get();
+    }
+
     private static void passAction(String actionName, String testData, String queryResult) {
         reportActionResult(actionName, testData, queryResult, true);
     }
@@ -197,13 +227,18 @@ public class DatabaseActions {
         passAction(actionName, null, null);
     }
 
-    private static void failAction(String actionName, String testData, Exception... rootCauseException) {
-        String message = reportActionResult(actionName, testData, null, false, rootCauseException);
-        if (rootCauseException != null && rootCauseException.length >= 1) {
-            Assert.fail(message, rootCauseException[0]);
-        } else {
-            Assert.fail(message);
+    private void setRowCountForSelectStatement(ResultSet resultSet) {
+        var rowCount = 0;
+        try {
+            resultSet.beforeFirst();
+            if (resultSet.last()) {
+                rowCount = resultSet.getRow();
+                resultSet.beforeFirst(); // reset pointer
+            }
+        } catch (SQLException rootCauseException) {
+            failAction(rootCauseException);
         }
+        rowCountThreadLocal.set(rowCount);
     }
 
     private static void failAction(String testData, Exception... rootCauseException) {
@@ -314,18 +349,20 @@ public class DatabaseActions {
      */
     public ResultSet executeSelectQuery(String sql) {
         ResultSet resultSet = null;
-        try {
-            resultSet = createStatement(createConnection()).executeQuery(sql);
+        try (var connection = createConnection()) {
+            resultSet = createStatement(connection).executeQuery(sql);
+            if (resultSet != null) {
+                CachedRowSet crs = RowSetProvider.newFactory().createCachedRowSet();
+                crs.populate(resultSet);
+                resultSetThreadLocal.set(crs);
+                setRowCountForSelectStatement(crs);
+                passAction(getReportMessage("SELECT", sql), getResultStringValue(crs, true));
+            } else {
+                failAction("Null or no resultSet was returned from executing this query \"" + sql + "\"");
+            }
         } catch (SQLException | NullPointerException rootCauseException) {
             failAction(getReportMessage("SELECT", sql), rootCauseException);
         }
-
-        if (resultSet != null) {
-            passAction(getReportMessage("SELECT", sql), getResultStringValue(resultSet, true));
-        } else {
-            failAction("Null or no resultSet was returned from executing this query \"" + sql + "\"");
-        }
-
         return resultSet;
     }
 
@@ -341,12 +378,13 @@ public class DatabaseActions {
      */
     private int executeDataManipulationQueries(String sql, String queryType) {
         var affectedRows = 0;
-        try {
-            affectedRows = createStatement(createConnection()).executeUpdate(sql);
+        try (var connection = createConnection()) {
+            affectedRows = createStatement(connection).executeUpdate(sql);
             passAction(sql);
         } catch (SQLException | NullPointerException rootCauseException) {
             failAction(getReportMessage(queryType, sql), rootCauseException);
         }
+        rowCountThreadLocal.set(affectedRows);
         return affectedRows;
     }
 
@@ -362,6 +400,10 @@ public class DatabaseActions {
      */
     public int executeUpdateQuery(String sql) {
         return executeDataManipulationQueries(sql, "UPDATE");
+    }
+
+    public void executeDDLStatement(String sql) {
+        executeDataManipulationQueries(sql, "DDL");
     }
 
     /**
@@ -391,7 +433,6 @@ public class DatabaseActions {
      */
     public int executeDeleteQuery(String sql) {
         return executeDataManipulationQueries(sql, "DELETE");
-
     }
 
     private Connection createConnection() {

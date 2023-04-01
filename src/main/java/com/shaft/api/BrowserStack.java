@@ -3,9 +3,9 @@ package com.shaft.api;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.MutableCapabilities;
-import org.testng.Assert;
 
 import java.io.File;
 import java.util.*;
@@ -172,11 +172,7 @@ public class BrowserStack {
 
     private static void failAction(String testData, Throwable... rootCauseException) {
         String message = reportActionResult(Thread.currentThread().getStackTrace()[2].getMethodName(), testData, false, rootCauseException);
-        if (rootCauseException != null && rootCauseException.length >= 1) {
-            Assert.fail(message, rootCauseException[0]);
-        } else {
-            Assert.fail(message);
-        }
+        FailureReporter.fail(BrowserStack.class, message, rootCauseException[0]);
     }
 
     private static String reportActionResult(String actionName, String testData, Boolean passFailStatus, Throwable... rootCauseException) {
