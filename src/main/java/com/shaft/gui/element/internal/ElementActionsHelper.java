@@ -978,11 +978,11 @@ public class ElementActionsHelper {
             }
         }
 
-        if (driver != null && !SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().equalsIgnoreCase("Never")) {
+        if (driver != null && !SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Never")) {
             List<Object> sourceAttachment = Arrays.asList(actionName, "Page Source", BrowserActionsHelpers.capturePageSnapshot(driver, true));
-            if (SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().equalsIgnoreCase("Always")) {
+            if (SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Always")) {
                 attachments.add(sourceAttachment);
-            } else if (Boolean.FALSE.equals(passFailStatus) && SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().equalsIgnoreCase("FailuresOnly")) {
+            } else if (Boolean.FALSE.equals(passFailStatus) && SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("FailuresOnly")) {
                 attachments.add(sourceAttachment);
             }
         }
