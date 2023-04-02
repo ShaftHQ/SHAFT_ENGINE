@@ -1212,6 +1212,30 @@
                                         <p><strong>Hint:</strong> <br/>• Driver Session will attach one video whenever you end the driver session in the after method or after class.
                                             <br/>• Test Method will attach one video for every test method.                                        </span>
                                     </div>
+									
+									<!-- Form Name -->
+                                    <!-- <legend>&nbsp;Visual Validations:</legend>-->
+                                    <hr/>
+                                    <h4 style="text-align: center;"><b> Page Source <br/><br/></b>
+                                        <hr/>
+                                    </h4>
+                                    <br/>
+
+                                    <!-- Select Basic -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="whenToTakePageSourceSnapshot"> When to take Page Source Snapshot
+                                        </label>
+                                        <div class="col-md-4">
+                                            <select class="form-control" id="whenToTakePageSourceSnapshot"
+                                                    name="whenToTakePageSourceSnapshot">
+                                                <option value="Always">Always</option>
+                                                <option value="Never">Never</option>
+                                                <option value="ValidationPointsOnly">ValidationPointsOnly</option>
+                                                <option selected value="FailuresOnly">FailuresOnly</option>
+                                            </select>
+                                        </div>
+                                    </div>
 
                                     <!-- Button -->
                                     <div class="form-group">
@@ -3320,6 +3344,7 @@ for (i = 0; i < close.length; i++) {
         const animatedGif_frameDelay = $("input[name=animatedGif_frameDelay]").val();
         const videoParams_recordVideo = $("input[name=videoParams_recordVideo]:checked").val();
         const videoParams_scope = $("select[name=videoParams_scope]").val();
+		const whenToTakePageSourceSnapshot = $("select[name=whenToTakePageSourceSnapshot]").val();
 
         // This variable stores all the data.
         let data =
@@ -3334,7 +3359,8 @@ for (i = 0; i < close.length; i++) {
             'createAnimatedGif=' + createAnimatedGif + '\r\n' +
             'animatedGif_frameDelay=' + animatedGif_frameDelay + '\r\n' +
             'videoParams_recordVideo=' + videoParams_recordVideo + '\r\n' +
-            'videoParams_scope=' + videoParams_scope + '\r\n';
+            'videoParams_scope=' + videoParams_scope + '\r\n' +
+			'whenToTakePageSourceSnapshot=' + whenToTakePageSourceSnapshot + '\r\n';
 
         downloadFile(data, 'VisualValidations.properties');
         setTimeout(function(){ document.getElementById("VisualValidations.properties").style.opacity = "1"; }, 400);

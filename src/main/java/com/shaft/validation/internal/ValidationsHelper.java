@@ -2,6 +2,7 @@ package com.shaft.validation.internal;
 
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.gui.browser.internal.BrowserActionsHelpers;
 import com.shaft.gui.browser.internal.FluentBrowserActions;
@@ -691,10 +692,13 @@ public class ValidationsHelper {
             //}
         }
 
-        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver().get() != null && Boolean.FALSE.equals(validationState.getValue())) {
-            // create a page source attachment in failure for WebDriver
+        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver().get() != null  && !SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().equalsIgnoreCase("Never")) {
             List<Object> sourceAttachment = Arrays.asList(validationMethodName, "Page Source", BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get(), true));
-            attachments.add(sourceAttachment);
+            if (SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().equalsIgnoreCase("Always") || SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().equalsIgnoreCase("ValidationPointsOnly")) {
+                attachments.add(sourceAttachment);
+            } else if (Boolean.FALSE.equals(validationState.getValue()) && SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().equalsIgnoreCase("FailuresOnly")) {
+                attachments.add(sourceAttachment);
+            }
         }
 
         // attach failure reason

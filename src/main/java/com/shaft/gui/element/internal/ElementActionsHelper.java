@@ -978,9 +978,13 @@ public class ElementActionsHelper {
             }
         }
 
-        if (driver != null && Boolean.FALSE.equals(passFailStatus)) {
-            List<Object> sourceAttachment = Arrays.asList("Element Action Exception - " + actionName, "Page Source", BrowserActionsHelpers.capturePageSnapshot(driver, true));
-            attachments.add(sourceAttachment);
+        if (driver != null && !SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().equalsIgnoreCase("Never")) {
+            List<Object> sourceAttachment = Arrays.asList(actionName, "Page Source", BrowserActionsHelpers.capturePageSnapshot(driver, true));
+            if (SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().equalsIgnoreCase("Always")) {
+                attachments.add(sourceAttachment);
+            } else if (Boolean.FALSE.equals(passFailStatus) && SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().equalsIgnoreCase("FailuresOnly")) {
+                attachments.add(sourceAttachment);
+            }
         }
 
         if (rootCauseException != null && rootCauseException.length >= 1) {

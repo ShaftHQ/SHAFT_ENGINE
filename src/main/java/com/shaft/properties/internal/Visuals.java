@@ -65,6 +65,9 @@ public interface Visuals extends EngineProperties {
     @DefaultValue("DriverSession")
     String videoParamsScope();
 
+    @Key("whenToTakePageSourceSnapshot")
+    @DefaultValue("FailuresOnly")
+    String whenToTakePageSourceSnapshot();
 
     default SetProperty set() {
         return new SetProperty();
@@ -117,6 +120,10 @@ public interface Visuals extends EngineProperties {
 
         public void videoParamsScope(String value) {
             setProperty("videoParams_scope", value);
+        }
+
+        public void whenToTakePageSourceSnapshot(String value) {
+            setProperty("whenToTakePageSourceSnapshot", value);
         }
 
     }
