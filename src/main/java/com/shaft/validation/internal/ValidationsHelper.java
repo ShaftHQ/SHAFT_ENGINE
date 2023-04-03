@@ -2,7 +2,9 @@ package com.shaft.validation.internal;
 
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.gui.browser.internal.BrowserActionsHelpers;
 import com.shaft.gui.browser.internal.FluentBrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
@@ -688,6 +690,14 @@ public class ValidationsHelper {
             // reset lastUsed variables
             lastUsedElementLocator = null;
             //}
+        }
+
+        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver().get() != null && !SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Never")) {
+            if ((SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Always") || SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("ValidationPointsOnly"))
+                    || (Boolean.FALSE.equals(validationState.getValue()) && SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("FailuresOnly"))) {
+                List<Object> sourceAttachment = Arrays.asList(validationMethodName, "Page Source", BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get(), true));
+                attachments.add(sourceAttachment);
+            }
         }
 
         // attach failure reason
