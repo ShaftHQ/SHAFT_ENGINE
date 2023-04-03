@@ -692,11 +692,10 @@ public class ValidationsHelper {
             //}
         }
 
-        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver().get() != null  && !SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Never")) {
-            List<Object> sourceAttachment = Arrays.asList(validationMethodName, "Page Source", BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get(), true));
-            if (SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Always") || SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("ValidationPointsOnly")) {
-                attachments.add(sourceAttachment);
-            } else if (Boolean.FALSE.equals(validationState.getValue()) && SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("FailuresOnly")) {
+        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver().get() != null && !SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Never")) {
+            if ((SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Always") || SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("ValidationPointsOnly"))
+                    || (Boolean.FALSE.equals(validationState.getValue()) && SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("FailuresOnly"))) {
+                List<Object> sourceAttachment = Arrays.asList(validationMethodName, "Page Source", BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get(), true));
                 attachments.add(sourceAttachment);
             }
         }

@@ -979,10 +979,9 @@ public class ElementActionsHelper {
         }
 
         if (driver != null && !SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Never")) {
-            List<Object> sourceAttachment = Arrays.asList(actionName, "Page Source", BrowserActionsHelpers.capturePageSnapshot(driver, true));
-            if (SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Always")) {
-                attachments.add(sourceAttachment);
-            } else if (Boolean.FALSE.equals(passFailStatus) && SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("FailuresOnly")) {
+            if ((SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Always"))
+                    || (Boolean.FALSE.equals(passFailStatus) && SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("FailuresOnly"))) {
+                List<Object> sourceAttachment = Arrays.asList(actionName, "Page Source", BrowserActionsHelpers.capturePageSnapshot(driver, true));
                 attachments.add(sourceAttachment);
             }
         }
