@@ -505,7 +505,7 @@ public class DriverFactoryHelper {
             RemoteWebDriver remoteWebDriver = (RemoteWebDriver) webDriverManager.get()
                     .proxy(System.getProperty("com.SHAFT.proxySettings"))
                     .browserInDocker()
-                    .dockerShmSize("2gb")
+                    .dockerShmSize("2g")
                     .enableVnc()
                     .viewOnly()
                     .dockerScreenResolution(currentWindowSize.getWidth()+"x"+currentWindowSize.getHeight()+"x24")
