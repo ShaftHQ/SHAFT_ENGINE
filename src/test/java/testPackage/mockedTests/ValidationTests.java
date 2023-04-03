@@ -16,7 +16,7 @@ public class ValidationTests {
     @Test(description = "Assert that assertEquals works as expected when the two values are equal.")
     public void assertEquals_true_expectedToPass() {
         Validations.verifyThat().number(1).isEqualTo(1).perform();
-        Validations.assertThat().number(1).isEqualTo(1);
+        Validations.assertThat().number(1).isEqualTo(1).perform();
     }
 
     @Test
@@ -46,17 +46,20 @@ public class ValidationTests {
 
     @Test(expectedExceptions = {AssertionError.class})
     public void assertEquals_true_expectedToFail() {
-        Validations.assertThat().number(1).isEqualTo(2);
+        Validations.assertThat().number(1).isEqualTo(2).perform();
+        ;
     }
 
     @Test
     public void assertEquals_false_expectedToPass() {
-        Validations.assertThat().number(1).doesNotEqual(2);
+        Validations.assertThat().number(1).doesNotEqual(2).perform();
+        ;
     }
 
     @Test(expectedExceptions = {AssertionError.class})
     public void assertEquals_false_expectedToFail() {
-        Validations.assertThat().number(1).doesNotEqual(1);
+        Validations.assertThat().number(1).doesNotEqual(1).perform();
+        ;
     }
 
     @Test
@@ -70,13 +73,8 @@ public class ValidationTests {
     }
 
     @Test(expectedExceptions = {AssertionError.class})
-    public void assertComparativeRelation_greaterThanOrEquals_true_greaterThan_expectedToFail() {
-        Validations.assertThat().number(2).isGreaterThanOrEquals(1).perform();
-    }
-
-    @Test(expectedExceptions = {AssertionError.class})
     public void assertComparativeRelation_greaterThanOrEquals_true_equals_expectedToFail() {
-        Validations.assertThat().number(1).isGreaterThanOrEquals(0).perform();
+        Validations.assertThat().number(-1).isGreaterThanOrEquals(0).perform();
     }
 
     @Test
@@ -86,7 +84,7 @@ public class ValidationTests {
 
     @Test(expectedExceptions = {AssertionError.class})
     public void assertComparativeRelation_greaterThanOrEquals_false_greaterThan_expectedToFail() {
-        Validations.assertThat().number(1).isLessThan(2).perform();
+        Validations.assertThat().number(1).isGreaterThanOrEquals(2).perform();
     }
 
     @Test(groups = {"WebBased"})
@@ -116,7 +114,7 @@ public class ValidationTests {
 
     @Test(groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
     public void assertElementExists_false_multipleElementsFound_expectedToFail() {
-        driver.element().assertThat(By.xpath("//div")).doesNotExist().perform();
+        driver.element().assertThat(By.xpath("//input")).doesNotExist().perform();
     }
 
     @Test(groups = {"WebBased"})
@@ -176,7 +174,7 @@ public class ValidationTests {
     @Test(groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
     public void assertElementAttribute_false_literalComparison_expectedToFail() {
         driver.element().type(locator, "Automation");
-        driver.element().assertThat(locator).text().doesNotEqual("Automation123").perform();
+        driver.element().assertThat(locator).text().isEqualTo("Automation123").perform();
     }
 
     @Test(groups = {"WebBased"})
