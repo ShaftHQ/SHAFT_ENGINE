@@ -695,7 +695,14 @@ public class ValidationsHelper {
         if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver().get() != null && !SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Never")) {
             if ((SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Always") || SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("ValidationPointsOnly"))
                     || (Boolean.FALSE.equals(validationState.getValue()) && SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("FailuresOnly"))) {
-                List<Object> sourceAttachment = Arrays.asList(validationMethodName, "Page Source", BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get(), true));
+                var logMessage = "";
+                var pageSnapshot = BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get());
+                if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
+                    logMessage = "page snapshot";
+                } else if (pageSnapshot.startsWith("<html")) {
+                    logMessage = "page HTML";
+                }
+                List<Object> sourceAttachment = Arrays.asList(validationMethodName, logMessage, pageSnapshot);
                 attachments.add(sourceAttachment);
             }
         }

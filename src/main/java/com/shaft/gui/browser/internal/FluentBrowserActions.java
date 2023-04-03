@@ -89,7 +89,7 @@ public class FluentBrowserActions {
      */
     @SuppressWarnings("UnusedReturnValue")
     public FluentBrowserActions capturePageSnapshot() {
-        var serializedPageData = BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get(), true);
+        var serializedPageData = BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get());
         BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), serializedPageData);
         return this;
     }
@@ -726,7 +726,7 @@ public class FluentBrowserActions {
     @SuppressWarnings("UnusedReturnValue")
     public FluentBrowserActions captureSnapshot() {
         var logMessage = "";
-        var pageSnapshot = BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get(), true);
+        var pageSnapshot = BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get());
         if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
             logMessage = "Capture page snapshot";
         } else if (pageSnapshot.startsWith("<html")) {
