@@ -1,13 +1,15 @@
 package com.shaft.listeners.internal;
 
+import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.video.RecordManager;
-import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
+import org.openqa.selenium.Platform;
+import org.openqa.selenium.remote.Browser;
 import org.testng.*;
 import org.testng.internal.ConfigurationMethod;
 import org.testng.xml.XmlClass;
@@ -23,6 +25,7 @@ public class TestNGListenerHelper {
 
     private static final ArrayList<ITestResult> beforeMethods = new ArrayList<>();
     private static final ArrayList<ITestResult> afterMethods = new ArrayList<>();
+    private static final ThreadLocal<String> testName = new ThreadLocal<>();
 
     public static void setTotalNumberOfTests(ISuite testSuite) {
         // This condition checks to confirm that this is not a cucumber test runner instance
@@ -68,15 +71,22 @@ public class TestNGListenerHelper {
         }
     }
 
+    public static synchronized String getTestName() {
+        return testName.get();
+    }
+
+    public static synchronized void setTestName(ITestContext iTestContext) {
+        testName.set(iTestContext.getCurrentXmlTest().getName());
+    }
+
     public static void configureCrossBrowserExecution(List<XmlSuite> suites) {
-        if (System.getProperty("SHAFT.CrossBrowserMode") != null
-                && !"off".equals(System.getProperty("SHAFT.CrossBrowserMode"))) {
+        if (!"off".equals(SHAFT.Properties.platform.crossBrowserMode())) {
             suites.forEach(suite -> {
                 var firefox_test = (XmlTest) suite.getTests().get(0).clone();
                 firefox_test.setParameters(Map.of(
                         "executionAddress", "dockerized",
-                        "targetOperatingSystem", "Linux",
-                        "targetBrowserName", "MozillaFirefox"
+                        "targetOperatingSystem", Platform.LINUX.name(),
+                        "targetBrowserName", Browser.FIREFOX.browserName()
                 ));
                 firefox_test.setThreadCount(1);
                 firefox_test.setParallel(XmlSuite.ParallelMode.NONE);
@@ -85,8 +95,8 @@ public class TestNGListenerHelper {
                 var safari_test = (XmlTest) suite.getTests().get(0).clone();
                 safari_test.setParameters(Map.of(
                         "executionAddress", "dockerized",
-                        "targetOperatingSystem", "Linux",
-                        "targetBrowserName", "Safari"
+                        "targetOperatingSystem", Platform.LINUX.name(),
+                        "targetBrowserName", Browser.SAFARI.browserName()
                 ));
                 safari_test.setThreadCount(1);
                 safari_test.setParallel(XmlSuite.ParallelMode.NONE);
@@ -95,14 +105,14 @@ public class TestNGListenerHelper {
                 var chrome_test = (XmlTest) suite.getTests().get(0);
                 chrome_test.setParameters(Map.of(
                         "executionAddress", "dockerized",
-                        "targetOperatingSystem", "Linux",
-                        "targetBrowserName", "GoogleChrome"
+                        "targetOperatingSystem", Platform.LINUX.name(),
+                        "targetBrowserName", Browser.CHROME.browserName()
                 ));
                 chrome_test.setThreadCount(1);
                 chrome_test.setParallel(XmlSuite.ParallelMode.NONE);
                 chrome_test.setName(chrome_test.getName() + " - Chrome");
 
-                if (Properties.platform.crossBrowserMode().equals("parallelized")) {
+                if (SHAFT.Properties.platform.crossBrowserMode().equals("parallelized")) {
                     suite.setParallel(XmlSuite.ParallelMode.TESTS);
                     suite.setThreadCount(3);
                     System.setProperty("videoParams_recordVideo", "true");

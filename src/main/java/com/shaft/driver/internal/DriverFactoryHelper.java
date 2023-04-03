@@ -77,9 +77,9 @@ public class DriverFactoryHelper {
     @Getter(AccessLevel.PUBLIC) @Setter(AccessLevel.PUBLIC)
     private static Dimension currentWindowSize = new Dimension(1920,1080);
 
-    private static final long appiumServerInitializationTimeout = TimeUnit.MINUTES.toSeconds(10); // seconds
+    private static final long appiumServerInitializationTimeout = TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.timeoutForRemoteServerToBeUp()); // seconds
     private static final int appiumServerInitializationPollingInterval = 1; // seconds
-    private static final long remoteServerInstanceCreationTimeout = TimeUnit.MINUTES.toSeconds(10); // seconds
+    private static final long remoteServerInstanceCreationTimeout = TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.remoteServerInstanceCreationTimeout()); // seconds
     private static final int appiumServerPreparationPollingInterval = 1; // seconds
 
     private DriverFactoryHelper() {
@@ -505,7 +505,7 @@ public class DriverFactoryHelper {
             RemoteWebDriver remoteWebDriver = (RemoteWebDriver) webDriverManager.get()
                     .proxy(System.getProperty("com.SHAFT.proxySettings"))
                     .browserInDocker()
-                    .dockerShmSize("2gb")
+                    .dockerShmSize("2g")
                     .enableVnc()
                     .viewOnly()
                     .dockerScreenResolution(currentWindowSize.getWidth()+"x"+currentWindowSize.getHeight()+"x24")
@@ -573,16 +573,18 @@ public class DriverFactoryHelper {
     @Step("Setting up remote driver instance")
     private static void setRemoteDriverInstance(Capabilities capabilities) {
         // stage 1: ensure that the server is up and running
-        ReportManager.logDiscrete("Attempting to connect to remote server for up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + "min.");
-        try {
-            TARGET_HUB_URL = TARGET_HUB_URL.contains("0.0.0.0") ? TARGET_HUB_URL.replace("0.0.0.0", "localhost") : TARGET_HUB_URL;
-            if (Properties.flags.forceCheckStatusOfRemoteServer()) {
-                var statusCode = attemptRemoteServerPing();
-                ReportManager.logDiscrete("Remote server is online, established successful connection with status code: " + statusCode + ".");
-            }
+        if (SHAFT.Properties.timeouts.waitForRemoteServerToBeUp()) {
+            ReportManager.logDiscrete("Attempting to connect to remote server for up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + "min.");
+            try {
+                TARGET_HUB_URL = TARGET_HUB_URL.contains("0.0.0.0") ? TARGET_HUB_URL.replace("0.0.0.0", "localhost") : TARGET_HUB_URL;
+                if (Properties.flags.forceCheckStatusOfRemoteServer()) {
+                    var statusCode = attemptRemoteServerPing();
+                    ReportManager.logDiscrete("Remote server is online, established successful connection with status code: " + statusCode + ".");
+                }
             } catch (Throwable throwable) {
-            ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
-            failAction("Failed to connect to remote server.", throwable);
+                ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
+                failAction("Failed to connect to remote server.", throwable);
+            }
         }
 
         // stage 2: create remove driver instance (requires some time with dockerized appium)

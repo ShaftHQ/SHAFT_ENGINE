@@ -504,7 +504,7 @@ public enum HTMLHelper {
                         
             <body>
             <center>
-            	<img src="${LOGO_URL}" alt="SHAFT logo" width="200" height="100" id="logo">
+            	<img src="${LOGO_URL}" alt="SHAFT logo" height="100" id="logo">
                 <h1>Execution Summary Report</h1>
                 <br>
                 <div class="content">

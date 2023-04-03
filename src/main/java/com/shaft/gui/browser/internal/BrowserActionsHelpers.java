@@ -62,7 +62,11 @@ public class BrowserActionsHelpers {
     public static void failAction(WebDriver driver, String actionName, String testData,
                                   Exception... rootCauseException) {
         String message = reportActionResult(driver, actionName, testData, false, rootCauseException);
-        FailureReporter.fail(DatabaseActions.class, message, rootCauseException[0]);
+        if (rootCauseException != null && rootCauseException.length > 0) {
+            FailureReporter.fail(DatabaseActions.class, message, rootCauseException[0]);
+        } else {
+            FailureReporter.fail(message);
+        }
     }
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData,

@@ -611,7 +611,7 @@ public class FluentBrowserActions {
     public Cookie getCookie(String cookieName) {
         Cookie cookie = DriverFactoryHelper.getDriver().get().manage().getCookieNamed(cookieName);
         if (cookie == null) {
-            BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), "Get Cookie", cookieName);
+            BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), "Get Cookie: " + cookieName);
         }
         return cookie;
     }
