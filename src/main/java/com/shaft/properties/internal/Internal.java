@@ -21,7 +21,7 @@ public interface Internal extends EngineProperties {
     }
 
     @Key("shaftEngineVersion")
-    @DefaultValue("SHAFT Engine v7.1.20230321")
+    @DefaultValue("SHAFT Engine v7.2.20230403")
     String shaftEngineVersion();
 
     @Key("watermarkImagePath")
