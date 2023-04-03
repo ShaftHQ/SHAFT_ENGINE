@@ -124,9 +124,10 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      * </ul>
      */
     @Override
-    public void beforeInvocation(IInvokedMethod method, ITestResult iTestResult, ITestContext context) {
+    public void beforeInvocation(IInvokedMethod method, ITestResult iTestResult, ITestContext iTestContext) {
         xmlTest = method.getTestMethod().getXmlTest();
         JiraHelper.prepareTestResultAttributes(method, iTestResult);
+        TestNGListenerHelper.setTestName(iTestContext);
         TestNGListenerHelper.logTestInformation(iTestResult);
         TestNGListenerHelper.failFast(iTestResult);
         TestNGListenerHelper.skipTestsWithLinkedIssues(iTestResult);
