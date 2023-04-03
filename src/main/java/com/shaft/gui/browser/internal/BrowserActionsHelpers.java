@@ -248,7 +248,6 @@ public class BrowserActionsHelpers {
             if (driver instanceof ChromiumDriver chromiumDriver) {
                 var result = chromiumDriver.executeCdpCommand("Page.captureSnapshot", new HashMap<>());
                 serializedPageData = (String) ((Map<String, ?>) result).get("data");
-
             } else {
                 // get page source
                 serializedPageData = driver.getPageSource();
