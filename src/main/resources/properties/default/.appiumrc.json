@@ -17,32 +17,28 @@
       "uiautomator2"
     ],
     "use-plugins": [
-      "device-farm",
-      "appium-dashboard",
       "images"
     ],
     "plugin": {
       "device-farm": {
         "platform": "both",
-        "remote": [
-          {
-            "cloudName": "browserstack",
-            "url": "http://hub-cloud.browserstack.com/wd/hub",
-            "devices": [
-              {
-                "deviceName": "Google Pixel 7",
-                "os_version": "13.0",
-                "platform": "android"
-              },
-              {
-                "deviceName": "iPhone 14",
-                "os_version": "16",
-                "platform": "ios"
-              }
-            ]
-          },
-          "http://127.0.0.1:4723"
-        ]
+        "hub": "http://localhost:4723",
+        "cloud": {
+          "cloudName": "browserstack",
+          "url": "http://hub-cloud.browserstack.com/wd/hub",
+          "devices": [
+            {
+              "deviceName": "Google Pixel 7",
+              "os_version": "13.0",
+              "platform": "android"
+            },
+            {
+              "deviceName": "iPhone 14",
+              "os_version": "16",
+              "platform": "ios"
+            }
+          ]
+        }
       }
     }
   }
