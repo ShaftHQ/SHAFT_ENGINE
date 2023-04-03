@@ -9,12 +9,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 public class ExecutionSummaryReport {
-
     private static final HashMap<Integer, ArrayList<?>> casesDetails = new HashMap<>();
-
     private static final HashMap<Integer, ArrayList<?>> validations = new HashMap<>();
     private static int passedValidations = 0;
     private static int failedValidations = 0;
+    private static final String SHAFT_LOGO_URL = "https://github.com/ShaftHQ/SHAFT_ENGINE/raw/main/src/main/resources/images/shaft.png";
 
     public static void casesDetailsIncrement(String caseSuite, String caseName, String caseDescription,String errorMessage, String status, Boolean hasIssue) {
         ArrayList<String> entry = new ArrayList<>();
@@ -54,7 +53,7 @@ public class ExecutionSummaryReport {
         SHAFT.CLI.file().writeToFile(System.getProperty("executionSummaryReportFolderPath"),
                 "ExecutionSummaryReport_" + new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa").format(System.currentTimeMillis()) + ".html",
                 HTMLHelper.EXECUTION_SUMMARY.getValue()
-                        .replace("${LOGO_URL}", SHAFT.Properties.internal.watermarkImagePath())
+                        .replace("${LOGO_URL}", SHAFT_LOGO_URL)
                         .replace("${DATE}", new SimpleDateFormat("dd/MM/yyyy").format(endTime))
                         .replace("${START_TIME}", new SimpleDateFormat("HH:mm:ss").format(startTime))
                         .replace("${END_TIME}", new SimpleDateFormat("HH:mm:ss").format(endTime))
