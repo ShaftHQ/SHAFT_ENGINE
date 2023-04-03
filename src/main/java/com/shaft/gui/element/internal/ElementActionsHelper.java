@@ -46,6 +46,7 @@ public class ElementActionsHelper {
     private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 100; // milliseconds
     private static final boolean FORCE_CHECK_FOR_ELEMENT_VISIBILITY = Boolean
             .parseBoolean(System.getProperty("forceCheckForElementVisibility").trim());
+    private static final String WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim();
 
     private ElementActionsHelper() {
         throw new IllegalStateException("Utility class");
@@ -978,10 +979,17 @@ public class ElementActionsHelper {
             }
         }
 
-        if (driver != null && !SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Never")) {
-            if ((SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Always"))
-                    || (Boolean.FALSE.equals(passFailStatus) && SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("FailuresOnly"))) {
-                List<Object> sourceAttachment = Arrays.asList(actionName, "Page Source", BrowserActionsHelpers.capturePageSnapshot(driver, true));
+        if (driver != null && !WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Never")) {
+            if ((WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Always"))
+                    || (Boolean.FALSE.equals(passFailStatus) && WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("FailuresOnly"))) {
+                var logMessage = "";
+                var pageSnapshot = BrowserActionsHelpers.capturePageSnapshot(driver);
+                if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
+                    logMessage = "page snapshot";
+                } else if (pageSnapshot.startsWith("<html")) {
+                    logMessage = "page HTML";
+                }
+                List<Object> sourceAttachment = Arrays.asList(actionName, logMessage, pageSnapshot);
                 attachments.add(sourceAttachment);
             }
         }

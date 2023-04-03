@@ -37,6 +37,7 @@ public class ValidationsHelper {
     private static final Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
     private static List<String> verificationFailuresList = new ArrayList<>();
     private static AssertionError verificationError = null;
+    private static final String WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim();
 
     private ValidationsHelper() {
         throw new IllegalStateException("Utility class");
@@ -692,10 +693,17 @@ public class ValidationsHelper {
             //}
         }
 
-        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver().get() != null && !SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Never")) {
-            if ((SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Always") || SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("ValidationPointsOnly"))
-                    || (Boolean.FALSE.equals(validationState.getValue()) && SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("FailuresOnly"))) {
-                List<Object> sourceAttachment = Arrays.asList(validationMethodName, "Page Source", BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get(), true));
+        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver().get() != null && !WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Never")) {
+            if ((WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Always") || WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("ValidationPointsOnly"))
+                    || (Boolean.FALSE.equals(validationState.getValue()) && WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("FailuresOnly"))) {
+                var logMessage = "";
+                var pageSnapshot = BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get());
+                if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
+                    logMessage = "page snapshot";
+                } else if (pageSnapshot.startsWith("<html")) {
+                    logMessage = "page HTML";
+                }
+                List<Object> sourceAttachment = Arrays.asList(validationMethodName, logMessage, pageSnapshot);
                 attachments.add(sourceAttachment);
             }
         }

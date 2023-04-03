@@ -246,14 +246,12 @@ public class BrowserActionsHelpers {
         return driver.manage().window().getSize();
     }
 
-    public static String capturePageSnapshot(WebDriver driver, boolean isSupportedDriver) {
+    public static String capturePageSnapshot(WebDriver driver) {
         var serializedPageData = "";
         try {
-            if (isSupportedDriver) {
-                if (driver instanceof ChromiumDriver chromiumDriver) {
-                    var result = chromiumDriver.executeCdpCommand("Page.captureSnapshot", new HashMap<>());
-                    serializedPageData = (String) ((Map<String, ?>) result).get("data");
-                }
+            if (driver instanceof ChromiumDriver chromiumDriver) {
+                var result = chromiumDriver.executeCdpCommand("Page.captureSnapshot", new HashMap<>());
+                serializedPageData = (String) ((Map<String, ?>) result).get("data");
             } else {
                 // get page source
                 serializedPageData = driver.getPageSource();
@@ -261,11 +259,11 @@ public class BrowserActionsHelpers {
             return serializedPageData;
         } catch (BiDiException | DevToolsException exception) {
             ReportManagerHelper.logDiscrete(exception);
-            return capturePageSnapshot(driver, false);
+            return capturePageSnapshot(driver);
         } catch (WebDriverException webDriverException) {
             // unknown error: unhandled inspector error: {"code":-32000,"message":"Failed to generate MHTML"
             // try again but just get the regular page source this time
-            return capturePageSnapshot(driver, false);
+            return capturePageSnapshot(driver);
         } catch (Exception rootCauseException) {
             failAction(driver, serializedPageData, rootCauseException);
             return serializedPageData;
@@ -273,7 +271,7 @@ public class BrowserActionsHelpers {
     }
 
     public static void attachPageSnapshot(WebDriver driver) {
-        var pageSnapshot = capturePageSnapshot(driver, true);
+        var pageSnapshot = capturePageSnapshot(driver);
         if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
             ReportManagerHelper.attach("Final Page Snapshot", ReportManagerHelper.getTestMethodName(), pageSnapshot);
         } else if (pageSnapshot.startsWith("<html")) {
