@@ -261,6 +261,9 @@ public class ElementActionsHelper {
                 return element.getAttribute(TextDetectionStrategy.CONTENT.getValue());
             }
             case SEND_KEYS -> element.sendKeys((CharSequence) parameter);
+            case IS_DISPLAYED -> {
+                return String.valueOf(element.isDisplayed());
+            }
         }
         return "";
     }
@@ -735,6 +738,10 @@ public class ElementActionsHelper {
 
     public static List<Object> performActionAgainstUniqueElement(WebDriver driver, By elementLocator, Object... action) {
         return identifyUniqueElement(driver, elementLocator, true, action);
+    }
+
+    public static List<Object> performActionAgainstUniqueElementIgnoringVisibility(WebDriver driver, By elementLocator, Object... action) {
+        return identifyUniqueElement(driver, elementLocator, false, action);
     }
 
     public static List<Object> identifyUniqueElement(WebDriver driver, By elementLocator) {
