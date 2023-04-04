@@ -508,6 +508,7 @@ public class DriverFactoryHelper {
                     .dockerShmSize("2g")
                     .enableVnc()
                     .viewOnly()
+                    .avoidUseChromiumDriverSnap()
                     .dockerScreenResolution(currentWindowSize.getWidth()+"x"+currentWindowSize.getHeight()+"x24")
 //                    .dockerVolumes("\\local\\path:\\container\\path")
                     .enableRecording()

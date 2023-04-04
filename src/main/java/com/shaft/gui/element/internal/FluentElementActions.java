@@ -1040,31 +1040,26 @@ public class FluentElementActions {
         ReportManager.logDiscrete("Waiting for element to be present; elementLocator \"" + elementLocator + "\", isExpectedToBeVisible\"" + isExpectedToBeVisible + "\"...");
         String reportMessage = "waited for the element's state of visibility to be (" + isExpectedToBeVisible
                 + "). Element locator (" + ElementActionsHelper.formatLocatorToString(elementLocator) + ")";
-        int elementCountIgnoringVisibility = Integer.parseInt(ElementActionsHelper.getMatchingElementsInformation(DriverFactoryHelper.getDriver().get(), elementLocator, 1, false).get(0).toString());
         try {
-            if (elementCountIgnoringVisibility >= 1) {
-                boolean isDisplayed = ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).isDisplayed();
-                //element is present
-                if (isExpectedToBeVisible == isDisplayed) {
-                    //either expected to be visible and is displayed, or not expected to be visible and not displayed
-                    ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver().get(), elementLocator));
-                } else //noinspection ConstantValue
-                    if (!isExpectedToBeVisible && isDisplayed) {
-                        // Element is displayed and needed to wait until it's invisible
-                        if (ElementActionsHelper.waitForElementInvisibility(elementLocator)) {
-                            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver().get(), elementLocator));
-                        } else {
-                            // Element still exists after timeout
-                            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), reportMessage, elementLocator);
-                        }
+            var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator, ElementAction.IS_DISPLAYED));
+            boolean isDisplayed = Boolean.parseBoolean(elementInformation.getActionResult());
+            //element is present
+            if (isExpectedToBeVisible == isDisplayed) {
+                //either expected to be visible and is displayed, or not expected to be visible and not displayed
+                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementInformation.getElementName());
+            } else //noinspection ConstantValue
+                if (!isExpectedToBeVisible && isDisplayed) {
+                    // Element is displayed and needed to wait until it's invisible
+                    if (ElementActionsHelper.waitForElementInvisibility(elementLocator)) {
+                        ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementInformation.getElementName());
                     } else {
-                        // Element is not displayed
+                        // Element still exists after timeout
                         ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), reportMessage, elementLocator);
                     }
-            } else {
-                //action should fail because the element doesn't exist
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), reportMessage, elementLocator);
-            }
+                } else {
+                    // Element is not displayed
+                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), reportMessage, elementLocator);
+                }
         } catch (AssertionError assertionError) {
             // in case element was not found
             ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), reportMessage, null, assertionError);
