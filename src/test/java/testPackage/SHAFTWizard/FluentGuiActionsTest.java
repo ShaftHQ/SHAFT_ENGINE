@@ -45,7 +45,7 @@ public class FluentGuiActionsTest {
                 .type(password_input, validPassword).and()
                 .type(passwordConfirm_input, validPassword).and()
                 .click(register_button).and()
-                .assertThat(confirmationText_label).text().isEqualTo("email=" + validEmail + "&psw=" + validPassword + "&psw-repeat=" + validPassword + " ")
+                .assertThat(confirmationText_label).text().isEqualTo("xxxemail=" + validEmail + "&psw=" + validPassword + "&psw-repeat=" + validPassword + " ")
                 .withCustomReportMessage("Confirming that the same data used to register is displayed successfully.").perform();
         // Note: using a custom report message is always helpful to make the report more business readable
 
