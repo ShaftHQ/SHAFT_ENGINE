@@ -385,13 +385,16 @@ public class FluentBrowserActions {
                 case REFRESH -> DriverFactoryHelper.getDriver().get().navigate().refresh();
             }
             JavaScriptWaitManager.waitForLazyLoading();
-            if (!navigationAction.equals(NavigationAction.REFRESH))
+            if (!navigationAction.equals(NavigationAction.REFRESH)) {
                 BrowserActionsHelpers.waitUntilURLIsNot(DriverFactoryHelper.getDriver().get(), initialURL);
-            newURL = DriverFactoryHelper.getDriver().get().getCurrentUrl();
-            if (!newURL.equals(initialURL)) {
-                BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), newURL);
+                newURL = DriverFactoryHelper.getDriver().get().getCurrentUrl();
+                if (!newURL.equals(initialURL)) {
+                    BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), newURL);
+                } else {
+                    BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), newURL);
+                }
             } else {
-                BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), newURL);
+                BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), newURL);
             }
         } catch (Exception rootCauseException) {
             BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), newURL, rootCauseException);

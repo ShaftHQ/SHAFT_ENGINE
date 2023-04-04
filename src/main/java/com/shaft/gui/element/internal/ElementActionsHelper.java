@@ -264,6 +264,8 @@ public class ElementActionsHelper {
             case IS_DISPLAYED -> {
                 return String.valueOf(element.isDisplayed());
             }
+            case SET_VALUE_USING_JAVASCRIPT ->
+                    ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].value='" + parameter + "';", element);
         }
         return "";
     }
@@ -453,8 +455,7 @@ public class ElementActionsHelper {
                     ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].value='" + value + "';"
                             , (elementInformation.getFirstElement()));
                 } catch (WebDriverException webDriverException) {
-                    ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].value='" + value + "';"
-                            , ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator()).get(1));
+                    ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.SET_VALUE_USING_JAVASCRIPT, value);
                 }
             }
             return true;
