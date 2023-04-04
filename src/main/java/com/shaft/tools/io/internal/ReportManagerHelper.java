@@ -19,6 +19,7 @@ import com.shaft.tools.io.ReportManager;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
 import io.qameta.allure.model.Status;
+import io.qameta.allure.model.StatusDetails;
 import lombok.Getter;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -642,15 +643,14 @@ public class ReportManagerHelper {
     }
 
     @Step("{logText}")
-    static void writeStepToReport(String logText, List<List<Object>> attachments) {
+    static void writeStepToReport(String logText, List<List<Object>> attachments, CheckpointStatus status) {
         createLogEntry(logText, false);
         if (attachments != null && !attachments.isEmpty()) {
             attachments.forEach(attachment -> {
                 if (attachment != null && !attachment.isEmpty() && attachment.get(2).getClass().toString().toLowerCase().contains("string")
                         && !attachment.get(2).getClass().toString().contains("StringInputStream")) {
                     if (!attachment.get(2).toString().isEmpty()) {
-                        attach(attachment.get(0).toString(), attachment.get(1).toString(),
-                                attachment.get(2).toString());
+                        attach(attachment.get(0).toString(), attachment.get(1).toString(), attachment.get(2).toString());
                     }
                 } else if (attachment != null && !attachment.isEmpty()) {
                     if (attachment.get(2) instanceof byte[]) {
@@ -658,6 +658,17 @@ public class ReportManagerHelper {
                     } else {
                         attach(attachment.get(0).toString(), attachment.get(1).toString(), (InputStream) attachment.get(2));
                     }
+                }
+                if (status.equals(CheckpointStatus.FAIL)) {
+                    Allure.getLifecycle().updateStep(update -> {
+                        update.setStatus(Status.FAILED);
+                        if (attachment != null && !attachment.isEmpty() && attachment.get(2) != null) {
+                            String trace = update.getStatusDetails() == null ? attachment.get(2).toString() : update.getStatusDetails().getTrace() + System.lineSeparator() + attachment.get(2).toString();
+                            StatusDetails details = update.getStatusDetails() == null ? new StatusDetails() : update.getStatusDetails();
+                            details.setTrace(trace.trim());
+                            update.setStatusDetails(details);
+                        }
+                    });
                 }
             });
         }
@@ -975,7 +986,8 @@ public class ReportManagerHelper {
                 }
             } else {
                 if (attachments != null && !attachments.isEmpty() && (attachments.size() > 1 || (attachments.get(0) != null && !attachments.get(0).isEmpty()))) {
-                    writeStepToReport(logText, attachments);
+                    CheckpointStatus status = (logText.toLowerCase().contains("passed")) ? CheckpointStatus.PASS : CheckpointStatus.FAIL;
+                    writeStepToReport(logText, attachments, status);
                 } else {
                     writeStepToReport(logText);
                 }
@@ -1002,7 +1014,7 @@ public class ReportManagerHelper {
                 ExecutionSummaryReport.validationsIncrement(status);
             } else {
                 if (attachments != null && !attachments.isEmpty() && !attachments.get(0).isEmpty()) {
-                    writeStepToReport(logText, attachments);
+                    writeStepToReport(logText, attachments, status);
                 } else {
                     writeStepToReport(logText);
                 }

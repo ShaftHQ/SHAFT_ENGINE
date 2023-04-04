@@ -23,8 +23,14 @@ public class Test_AttributeWait {
         driver.browser()
                 .navigateToURL(URL);
         driver.element()
-                .click(buttonStart)
-                .waitToAttribute(divFinish, "style", "");
+                .click(buttonStart);
+
+        try {
+            driver.element().waitToAttribute(divFinish, "style", "");
+        } catch (org.openqa.selenium.TimeoutException timeoutException) {
+            // this is thrown in case of local execution via Safari on the pipeline as it handles the html attributes differently
+            driver.element().waitToAttribute(divFinish, "style", "null");
+        }
 
         driver.assertThat()
                 .element(divFinish)

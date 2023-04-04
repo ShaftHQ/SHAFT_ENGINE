@@ -24,7 +24,10 @@ import io.appium.java_client.remote.options.UnhandledPromptBehavior;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.qameta.allure.Step;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.SneakyThrows;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -74,8 +77,8 @@ public class DriverFactoryHelper {
     private static DesiredCapabilities appiumCapabilities;
     @Getter(AccessLevel.PUBLIC)
     private static boolean killSwitch = false;
-    @Getter(AccessLevel.PUBLIC) @Setter(AccessLevel.PUBLIC)
-    private static Dimension currentWindowSize = new Dimension(1920,1080);
+    @Getter(AccessLevel.PUBLIC)
+    private static final Dimension TARGET_WINDOW_SIZE = new Dimension(1920, 1080);
 
     private static final long appiumServerInitializationTimeout = TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.timeoutForRemoteServerToBeUp()); // seconds
     private static final int appiumServerInitializationPollingInterval = 1; // seconds
@@ -292,7 +295,7 @@ public class DriverFactoryHelper {
                 && !Platform.MAC.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             options.addArguments("--start-maximized");
         } else {
-            options.addArguments("--window-position=0,0", "--window-size="+currentWindowSize.getWidth()+","+currentWindowSize.getHeight());
+            options.addArguments("--window-position=0,0", "--window-size=" + TARGET_WINDOW_SIZE.getWidth() + "," + TARGET_WINDOW_SIZE.getHeight());
         }
 
         // https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
@@ -509,7 +512,7 @@ public class DriverFactoryHelper {
                     .enableVnc()
                     .viewOnly()
                     .avoidUseChromiumDriverSnap()
-                    .dockerScreenResolution(currentWindowSize.getWidth()+"x"+currentWindowSize.getHeight()+"x24")
+                    .dockerScreenResolution(TARGET_WINDOW_SIZE.getWidth() + "x" + TARGET_WINDOW_SIZE.getHeight() + "x24")
 //                    .dockerVolumes("\\local\\path:\\container\\path")
                     .enableRecording()
                     .dockerRecordingOutput(System.getProperty("video.folder"))
@@ -892,7 +895,7 @@ public class DriverFactoryHelper {
             }
 
             if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
-                driver.get().manage().window().setSize(new Dimension(currentWindowSize.getWidth(), currentWindowSize.getHeight()));
+                driver.get().manage().window().setSize(new Dimension(TARGET_WINDOW_SIZE.getWidth(), TARGET_WINDOW_SIZE.getHeight()));
             }
 
             if (!isMobileExecution) {
@@ -919,12 +922,12 @@ public class DriverFactoryHelper {
 
     public static void initializeSystemProperties() {
         PropertiesHelper.postProcessing();
-        AUTO_MAXIMIZE = Boolean.valueOf(System.getProperty("autoMaximizeBrowserWindow").trim());
-        HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
+        AUTO_MAXIMIZE = SHAFT.Properties.flags.autoMaximizeBrowserWindow();
+        HEADLESS_EXECUTION = SHAFT.Properties.web.headlessExecution();
         EXECUTION_ADDRESS = SHAFT.Properties.platform.executionAddress();
         TARGET_HUB_URL = (EXECUTION_ADDRESS.trim().toLowerCase().startsWith("http")) ? EXECUTION_ADDRESS : "http://" + EXECUTION_ADDRESS + "/";
-        PAGE_LOAD_TIMEOUT = Integer.parseInt(System.getProperty("pageLoadTimeout"));
-        SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
+        PAGE_LOAD_TIMEOUT = SHAFT.Properties.timeouts.pageLoadTimeout();
+        SCRIPT_TIMEOUT = SHAFT.Properties.timeouts.scriptExecutionTimeout();
         MOBILE_EMULATION = SHAFT.Properties.web.isMobileEmulation();
         MOBILE_EMULATION_CUSTOM_DEVICE = SHAFT.Properties.web.mobileEmulationIsCustomDevice();
         LIGHTHOUSE_EXEUTION = Boolean.valueOf(System.getProperty("lightHouseExeution").trim());
