@@ -7,11 +7,10 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class Test_AttributeWait {
-    private SHAFT.GUI.WebDriver driver;
-
     private final String URL = "https://the-internet.herokuapp.com/dynamic_loading/1";
     private final By buttonStart = By.cssSelector("#start button");
     private final By divFinish = By.id("finish");
+    private SHAFT.GUI.WebDriver driver;
 
     @BeforeMethod
     void setup() {
@@ -20,40 +19,26 @@ public class Test_AttributeWait {
 
     @Test
     void testWaitToAttribute() {
-        driver.browser()
-                .navigateToURL(URL);
-        driver.element()
-                .click(buttonStart);
-
-        try {
+        driver.browser().navigateToURL(URL);
+        driver.element().click(buttonStart);
+        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase("safari")) {
+            driver.element().waitToAttribute(divFinish, "style", "display: none;");
+        } else {
             driver.element().waitToAttribute(divFinish, "style", "");
-        } catch (org.openqa.selenium.TimeoutException timeoutException) {
-            // this is thrown in case of local execution via Safari on the pipeline as it handles the html attributes differently
-            driver.element().waitToAttribute(divFinish, "style", "null");
         }
-
-        driver.assertThat()
-                .element(divFinish)
-                .isVisible()
-                .perform();
+        driver.assertThat().element(divFinish).isVisible().perform();
     }
 
     @Test(expectedExceptions = AssertionError.class)
     void testWaitToAttributeWithWrongAttribute() {
-        driver.browser()
-                .navigateToURL(URL);
-        driver.element()
-                .click(buttonStart)
-                .waitToAttribute(divFinish, "name", "test");
+        driver.browser().navigateToURL(URL);
+        driver.element().click(buttonStart).waitToAttribute(divFinish, "name", "test");
     }
 
     @Test(expectedExceptions = AssertionError.class)
     void testWaitToAttributeWithWrongAttributeValue() {
-        driver.browser()
-                .navigateToURL(URL);
-        driver.element()
-                .click(buttonStart)
-                .waitToAttribute(divFinish, "style", "test");
+        driver.browser().navigateToURL(URL);
+        driver.element().click(buttonStart).waitToAttribute(divFinish, "style", "test");
     }
 
     @AfterMethod
