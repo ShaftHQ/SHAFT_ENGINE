@@ -1,6 +1,7 @@
 package com.shaft.properties.internal;
 
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.ConfigFactory;
 import org.apache.commons.io.FileUtils;
@@ -44,13 +45,20 @@ public class PropertiesHelper {
         Properties.testNG=ConfigFactory.create(TestNG.class);
         Properties.log4j=ConfigFactory.create(Log4j.class);
         Properties.visuals=ConfigFactory.create(Visuals.class);
-        Properties.timeouts=ConfigFactory.create(Timeouts.class);
+        Properties.timeouts = ConfigFactory.create(Timeouts.class);
     }
 
     public static void postProcessing() {
         overrideTargetOperatingSystemForLocalExecution();
+        overrideScreenMaximizationForRemoteExecution();
         overrideScreenShotTypeForAnimatedGIF();
         setMobilePlatform();
+    }
+
+    private static void overrideScreenMaximizationForRemoteExecution() {
+        if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local")) {
+            SHAFT.Properties.flags.set().autoMaximizeBrowserWindow(false);
+        }
     }
 
     private static void overrideScreenShotTypeForAnimatedGIF() {

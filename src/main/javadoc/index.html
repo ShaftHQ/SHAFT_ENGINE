@@ -1702,7 +1702,7 @@
                                         <div class="col-md-4" id="forceCheckTextWasTypedCorrectly">
                                             <div class="radio-inline">
                                                 <label for="forceCheckTextWasTypedCorrectly-0">
-                                                    <input checked="checked" id="forceCheckTextWasTypedCorrectly-0"
+                                                    <input id="forceCheckTextWasTypedCorrectly-0"
                                                            name="forceCheckTextWasTypedCorrectly" type="radio"
                                                            value="true">
                                                     Enabled
@@ -1710,7 +1710,7 @@
                                             </div>
                                             <div class="radio-inline">
                                                 <label for="forceCheckTextWasTypedCorrectly-1">
-                                                    <input id="forceCheckTextWasTypedCorrectly-1"
+                                                    <input checked="checked" id="forceCheckTextWasTypedCorrectly-1"
                                                            name="forceCheckTextWasTypedCorrectly" type="radio"
                                                            value="false">
                                                     Disabled
@@ -3218,7 +3218,8 @@ for (i = 0; i < close.length; i++) {
         var SHAFT_CrossBrowserMode = $("input[name=SHAFT_CrossBrowserMode]:checked").val();
         var executionAddress;
         // Get the data from each element on the form.
-        if ($("input[name=executionAddress]:checked").val() == "remote") {
+        if ($("input[name=executionAddress]:checked").val() == "remote"
+        || $("input[name=executionAddress]:checked").val() == "custom") {
             executionAddress = $("input[name=executionAddress-remote]").val();
         } else {
             executionAddress = $("input[name=executionAddress]:checked").val();

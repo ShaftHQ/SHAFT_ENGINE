@@ -713,6 +713,10 @@ public class ValidationsHelper {
             List<Object> failureReasonAttachment = Arrays.asList("Validation Test Data", "Failure Reason",
                     ReportManagerHelper.formatStackTraceToLogEntry(failureReason));
             attachments.add(failureReasonAttachment);
+        } else if (Boolean.FALSE.equals(validationState.getValue())) {
+            List<Object> failureReasonAttachment = Arrays.asList("Validation Test Data", "Failure Reason",
+                    ReportManagerHelper.formatStackTraceToLogEntry(new AssertionError(message)));
+            attachments.add(failureReasonAttachment);
         }
 
         // create the log entry with or without attachments
@@ -732,7 +736,6 @@ public class ValidationsHelper {
                     } else {
                         FailureReporter.fail(message.toString());
                     }
-
                 }
             }
             case SOFT_ASSERT -> {

@@ -1,58 +1,74 @@
 # Playing with K8s on Windows
 
 - upgrade all existing apps (optional)
-    ```shell
-    winget upgrade --silent --force --unknown --all
-    ```
+
+```shell
+winget upgrade --silent --force --all --include-unknown
+```
+
 - install helm
-    ```shell
-    winget search helm
-    winget install Helm.Helm
-    ```
+
+```shell
+winget search helm
+```
+
+```shell
+winget install Helm.Helm
+```
+
 - restart powershell (close all windows and reopen)
-- install keda
-    ```shell
-    #https://keda.sh/docs/2.10/deploy/#install
-    helm repo add kedacore https://kedacore.github.io/charts
-    ```
-    ```shell
-    helm repo update
-    ```
-    ```shell
-    kubectl create namespace selenium-grid
-    ```
-    ```shell
-    helm install keda kedacore/keda --namespace selenium-grid
-    ```
-    ```shell
-    kubectl config set-context --current --namespace=selenium-grid
-    ```
-- install selenium-grid
-    ```shell
-    # https://github.com/SeleniumHQ/docker-selenium/tree/trunk/charts/selenium-grid
-    helm repo add docker-selenium https://www.selenium.dev/docker-selenium
-    ```
-    ```shell
-    helm repo update
-    ```
-    ```shell
-    # Install distributed grid latest version
-    helm install selenium-grid docker-selenium/selenium-grid --set isolateComponents=true
-    ```
-    ```shell
-    # Updating Selenium-Grid release
-    helm upgrade selenium-grid docker-selenium/selenium-grid
-    ```
+- install keda # https://keda.sh/docs/2.10/deploy/#install
+
+```shell
+helm repo add kedacore https://kedacore.github.io/charts
+```
+
+```shell
+helm repo update
+```
+
+```shell
+kubectl create namespace selenium-grid
+```
+
+```shell
+helm install keda kedacore/keda --namespace selenium-grid
+```
+
+```shell
+kubectl config set-context --current --namespace=selenium-grid
+```
+
+- install selenium-grid # https://github.com/SeleniumHQ/docker-selenium/tree/trunk/charts/selenium-grid
+
+```shell
+helm repo add docker-selenium https://www.selenium.dev/docker-selenium
+```
+
+```shell
+helm repo update
+```
+
+```shell
+# Install distributed grid latest version
+helm install selenium-grid docker-selenium/selenium-grid --set isolateComponents=true
+```
+
+```shell
+# Updating Selenium-Grid release
+helm upgrade selenium-grid docker-selenium/selenium-grid
+```
+
 - make grid reachable
-    - get pod name
-        ```shell
-        #kubectl get pods --all-namespaces
-        kubectl get pods --selector="app=selenium-router" --output=template --template="{{with index .items 0}}{{.metadata.name}}{{end}}"
-        ```
-    - port forward the pod (ex. selenium-hub-dcf9dfb5b-vcbzg OR selenium-router-6757cddb8f-lbvfv)
-        ```shell
-        kubectl port-forward selenium-router-6757cddb8f-v29kj 4444:4444
-        ```
+  - get pod name
+      ```shell
+      #kubectl get pods --all-namespaces
+      kubectl get pods --selector="app=selenium-router" --output=template --template="{{with index .items 0}}{{.metadata.name}}{{end}}"
+      ```
+  - port forward the pod (ex. selenium-hub-dcf9dfb5b-vcbzg OR selenium-router-6757cddb8f-lbvfv)
+      ```shell
+      kubectl port-forward selenium-router-6757cddb8f-v29kj 4444:4444
+      ```
     - validate that grid is reachable
         ```shell
         curl http://localhost:4444

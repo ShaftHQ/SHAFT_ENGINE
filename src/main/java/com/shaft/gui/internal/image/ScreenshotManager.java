@@ -563,8 +563,8 @@ public class ScreenshotManager {
                 gifRelativePathWithFileName = SCREENSHOT_FOLDER_PATH + SCREENSHOT_FOLDER_NAME + gifFileName;
 
                 // get the width and height of the current window of the browser
-                var height =  DriverFactoryHelper.getCurrentWindowSize().getHeight();
-                var width = DriverFactoryHelper.getCurrentWindowSize().getWidth();
+                var height = DriverFactoryHelper.getTARGET_WINDOW_SIZE().getHeight();
+                var width = DriverFactoryHelper.getTARGET_WINDOW_SIZE().getWidth();
 
                 // grab the output image type from the first image in the sequence
                 BufferedImage firstImage = ImageIO.read(new ByteArrayInputStream(screenshot));
