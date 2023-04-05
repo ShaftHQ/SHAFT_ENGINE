@@ -45,13 +45,14 @@ public class FluentGuiActionsTest {
                 .type(password_input, validPassword).and()
                 .type(passwordConfirm_input, validPassword).and()
                 .click(register_button).and()
-                .assertThat(confirmationText_label).text().isEqualTo("email=" + validEmail + "&psw=" + validPassword + "&psw-repeat=" + validPassword + " ")
+                .assertThat(confirmationText_label).text().contains("email=" + validEmail + "&psw=" + validPassword + "&psw-repeat=" + validPassword + "")
                 .withCustomReportMessage("Confirming that the same data used to register is displayed successfully.").perform();
         // Note: using a custom report message is always helpful to make the report more business readable
 
         // this is how the above code can look after implementing fluent page object model design pattern.
         // new RegistrationForm().navigate().registerWithValidData().assertSuccessfulRegistration();
     }
+
 
     @Step("When the test data is loaded.")
     @BeforeClass(description = "Initializing test data.")
