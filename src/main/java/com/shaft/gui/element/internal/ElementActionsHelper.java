@@ -216,9 +216,9 @@ public class ElementActionsHelper {
                         var len = action != null ? action.length : 0;
                         switch (len) {
                             case 1 ->
-                                    elementInformation.setActionResult(performAction(elementInformation.getFirstElement(), (ElementAction) action[0], ""));
+                                    elementInformation.setActionResult(performAction(elementInformation, (ElementAction) action[0], ""));
                             case 2 ->
-                                    elementInformation.setActionResult(performAction(elementInformation.getFirstElement(), (ElementAction) action[0], action[1]));
+                                    elementInformation.setActionResult(performAction(elementInformation, (ElementAction) action[0], action[1]));
                         }
                         return elementInformation.toList();
                         // int numberOfFoundElements
@@ -247,25 +247,25 @@ public class ElementActionsHelper {
         }
     }
 
-    private static String performAction(WebElement element, ElementAction action, Object parameter) {
+    private static String performAction(ElementInformation elementInformation, ElementAction action, Object parameter) {
         switch (action) {
-            case CLEAR -> element.clear();
-            case BACKSPACE -> element.sendKeys(Keys.BACK_SPACE);
+            case CLEAR -> elementInformation.getFirstElement().clear();
+            case BACKSPACE -> elementInformation.getFirstElement().sendKeys(Keys.BACK_SPACE);
             case GET_TEXT -> {
-                return element.getText();
+                return elementInformation.getFirstElement().getText();
             }
             case GET_VALUE -> {
-                return element.getAttribute(TextDetectionStrategy.VALUE.getValue());
+                return elementInformation.getFirstElement().getAttribute(TextDetectionStrategy.VALUE.getValue());
             }
             case GET_CONTENT -> {
-                return element.getAttribute(TextDetectionStrategy.CONTENT.getValue());
+                return elementInformation.getFirstElement().getAttribute(TextDetectionStrategy.CONTENT.getValue());
             }
-            case SEND_KEYS -> element.sendKeys((CharSequence) parameter);
+            case SEND_KEYS -> elementInformation.getFirstElement().sendKeys((CharSequence) parameter);
             case IS_DISPLAYED -> {
-                return String.valueOf(element.isDisplayed());
+                return String.valueOf(elementInformation.getFirstElement().isDisplayed());
             }
             case SET_VALUE_USING_JAVASCRIPT ->
-                    ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].value='" + parameter + "';", element);
+                    ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].value=\"" + parameter + "\";", elementInformation.getFirstElement());
         }
         return "";
     }
@@ -641,7 +641,7 @@ public class ElementActionsHelper {
     private static String readTextBasedOnSuccessfulLocationStrategy(ElementInformation elementInformation, TextDetectionStrategy successfulTextLocationStrategy) {
         String temp;
         switch (successfulTextLocationStrategy) {
-            case TEXT -> {
+            case TEXT, UNDEFINED -> {
                 try {
                     temp = (elementInformation.getFirstElement()).getText();
                 } catch (WebDriverException webDriverException) {
@@ -708,6 +708,7 @@ public class ElementActionsHelper {
         clearBeforeTyping(elementInformation, successfulTextLocationStrategy);
         var adjustedTargetText = targetText != null && targetText != "" ? targetText : "";
         performType(elementInformation, adjustedTargetText);
+        //sometimes the text is returned as empty
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckTextWasTypedCorrectly")))) {
             String actualText = confirmTypingWasSuccessful(elementInformation, successfulTextLocationStrategy);
             if (adjustedTargetText.equals(actualText) || OBFUSCATED_STRING.repeat(adjustedTargetText.length()).equals(actualText)) {

@@ -34,7 +34,7 @@ public interface Flags extends EngineProperties {
     boolean forceCheckElementLocatorIsUnique();
 
     @Key("forceCheckTextWasTypedCorrectly")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean forceCheckTextWasTypedCorrectly();
 
     @Key("attemptClearBeforeTypingUsingBackspace")
