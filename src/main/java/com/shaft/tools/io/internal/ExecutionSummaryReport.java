@@ -70,9 +70,6 @@ public class ExecutionSummaryReport {
                 .replace("${CASES_PASSED}", String.valueOf(passed))
                 .replace("${CASES_FAILED}", String.valueOf(failed))
                 .replace("${CASES_SKIPPED}", String.valueOf(skipped))
-                .replace("${VALIDATION_PASSED_PERCENTAGE_PIE}", String.valueOf(passedValidations * 360d / validations.size()))
-                .replace("${VALIDATION_PASSED_PERCENTAGE}", String.valueOf(new DecimalFormat("0.00").format((float) passedValidations * 100 / validations.size())))
-                .replace("${VALIDATION_TOTAL}", String.valueOf(validations.size()))
                 .replace("${VALIDATION_PASSED}", String.valueOf(passedValidations))
                 .replace("${VALIDATION_FAILED}", String.valueOf(failedValidations))
                 .replace("${TOTAL_ISSUES}", String.valueOf(ReportManagerHelper.getIssueCounter()))
@@ -83,15 +80,26 @@ public class ExecutionSummaryReport {
                 .replace("${FAILED_DROPDOWN_OPTION}", StatusIcon.FAILED.getValue() + Status.FAILED.name())
                 .replace("${SKIPPED_DROPDOWN_OPTION}", StatusIcon.SKIPPED.getValue() + Status.SKIPPED.name())
                 .replace("${CASES_DETAILS}", detailsBuilder);
-
         if (total > 0) {
-            report = report.replace("${CASES_PASSED_PERCENTAGE}", String.valueOf(new DecimalFormat("0.00").format((float) passed * 100 / total)))
+            report = report
+                    .replace("${CASES_PASSED_PERCENTAGE}", String.valueOf(new DecimalFormat("0.00").format((float) passed * 100 / total)))
                     .replace("${CASES_PASSED_PERCENTAGE_PIE}", String.valueOf(passed * 100 / total))
                     .replace("${CASES_FAILED_PERCENTAGE_PIE}", String.valueOf((failed * 100 / total) + (passed * 100 / total)));
         } else {
             report = report.replace("${CASES_PASSED_PERCENTAGE}", String.valueOf(total))
                     .replace("${CASES_PASSED_PERCENTAGE_PIE}", String.valueOf(total))
                     .replace("${CASES_FAILED_PERCENTAGE_PIE}", String.valueOf(total));
+        }
+        if (validations.size() > 0) {
+            report = report
+                    .replace("${VALIDATION_PASSED_PERCENTAGE_PIE}", String.valueOf(passedValidations * 360d / validations.size()))
+                    .replace("${VALIDATION_PASSED_PERCENTAGE}", String.valueOf(new DecimalFormat("0.00").format((float) passedValidations * 100 / validations.size())))
+                    .replace("${VALIDATION_TOTAL}", String.valueOf(validations.size()));
+        } else {
+            report = report
+                    .replace("${VALIDATION_PASSED_PERCENTAGE_PIE}", String.valueOf(validations.size()))
+                    .replace("${VALIDATION_PASSED_PERCENTAGE}", String.valueOf(validations.size()))
+                    .replace("${VALIDATION_TOTAL}", String.valueOf(validations.size()));
         }
         return report;
     }
