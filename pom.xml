@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>7.2.20230403</version> <!-- UPDATE internal.properties -->
+    <version>7.2.20230406</version> <!-- UPDATE internal.properties -->
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/ShaftHQ/SHAFT_ENGINE</url>
@@ -746,8 +746,7 @@
                     </archive>
                     <includes>
                         <include>com/**/*</include>
-                        <include>io/**/*</include>
-                        <include>resources/**/*</include>
+                        <include>resources/properties/default/*</include>
                     </includes>
                 </configuration>
             </plugin>
@@ -813,7 +812,6 @@
                     </archive>
                     <includes>
                         <include>com/**</include>
-                        <include>io/**</include>
                     </includes>
                 </configuration>
             </plugin>

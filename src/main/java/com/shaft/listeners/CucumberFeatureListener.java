@@ -16,6 +16,7 @@
 package com.shaft.listeners;
 
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.listeners.internal.TestNGListenerHelper;
@@ -188,7 +189,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         lastStartedScenarioName = scenarioDefinition.getName();
         ReportManagerHelper.setTestCaseName(lastStartedScenarioName);
         ReportManagerHelper.setTestCaseDescription(scenarioDefinition.getDescription());
-        if (Boolean.parseBoolean(System.getProperty("generateExtentReports").trim())) {
+        if (SHAFT.Properties.reporting.generateExtentReports()) {
             ReportManagerHelper.extentReportsCreateTest(feature.getName(), feature.getDescription());
         }
         var testCase = event.getTestCase();
@@ -207,7 +208,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         //custom code
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
-            if (System.getProperty("videoParams_scope").trim().equals("TestMethod")) {
+            if (SHAFT.Properties.visuals.videoParamsScope().equals("TestMethod")) {
                 RecordManager.attachVideoRecording();
             }
             ScreenshotManager.attachAnimatedGif();

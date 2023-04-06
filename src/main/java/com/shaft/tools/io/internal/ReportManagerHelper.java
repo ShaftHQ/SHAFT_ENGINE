@@ -72,7 +72,6 @@ public class ReportManagerHelper {
     @Getter
     private static String extentReportFileName = "";
     private static boolean generateExtentReports = true;
-    private static String executionSummaryReportFolderPath = "";
 
     private ReportManagerHelper() {
         throw new IllegalStateException("Utility class");
@@ -196,7 +195,7 @@ public class ReportManagerHelper {
     public static void initializeAllureReportingEnvironment() {
         ReportManager.logDiscrete("Initializing Allure Reporting Environment...");
         ReportHelper.disableLogging();
-        allureResultsFolderPath = System.getProperty("allureResultsFolderPath").trim();
+        allureResultsFolderPath = SHAFT.Properties.paths.allureResults();
         cleanAllureResultsDirectory();
         downloadAndExtractAllureBinaries();
         writeGenerateReportShellFilesToProjectDirectory();
@@ -215,14 +214,13 @@ public class ReportManagerHelper {
         }
         System.setOut(new PrintStream(new LogRedirector(logger, Level.INFO)));
         System.setErr(new PrintStream(new LogRedirector(logger, Level.WARN)));
-        String engineVersion = "Powered by "
-                + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME);
+        String engineVersion = "Powered by " + SHAFT.Properties.internal.shaftEngineVersion();
         createImportantReportEntry(engineVersion);
     }
 
     public static void logEngineClosure() {
         String copyrights = "This test run was powered by "
-                + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "\n"
+                + SHAFT.Properties.internal.shaftEngineVersion() + "\n"
                 + "SHAFT Engine is *and will always be* 100% FREE for commercial and private use\n"
                 + "in compliance with the MIT license\n"
                 + "https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE";
@@ -356,7 +354,7 @@ public class ReportManagerHelper {
 
     public static void openAllureReportAfterExecution() {
         String commandToOpenAllureReport;
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openAllureReportAfterExecution").trim()))) {
+        if (Boolean.TRUE.equals(SHAFT.Properties.reporting.openAllureReportAfterExecution())) {
             if (SystemUtils.IS_OS_WINDOWS) {
                 commandToOpenAllureReport = ("generate_allure_report.bat");
             } else {
@@ -367,7 +365,7 @@ public class ReportManagerHelper {
     }
 
     public static void generateAllureReportArchive() {
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))) {
+        if (Boolean.TRUE.equals(SHAFT.Properties.reporting.generateAllureReportArchive())) {
             ReportManager.logDiscrete("Generating Allure Report Archive...");
             ReportHelper.disableLogging();
             writeOpenReportShellFilesToGeneratedDirectory();
@@ -435,11 +433,11 @@ public class ReportManagerHelper {
     }
 
     public static void initializeExtentReportingEnvironment() {
-        generateExtentReports = Boolean.parseBoolean(System.getProperty("generateExtentReports").trim());
+        generateExtentReports = SHAFT.Properties.reporting.generateExtentReports();
         if (generateExtentReports) {
             ReportManager.logDiscrete("Initializing Extent Reporting Environment...");
             ReportHelper.disableLogging();
-            extentReportsFolderPath = System.getProperty("extentReportsFolderPath").trim();
+            extentReportsFolderPath = SHAFT.Properties.paths.extentReports();
             cleanExtentReportsDirectory();
             extentReportFileName = extentReportsFolderPath + "ExtentReports_" + (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis()) + ".html";
 
@@ -459,8 +457,7 @@ public class ReportManagerHelper {
     }
 
     private static void cleanExtentReportsDirectory() {
-        if (Boolean.TRUE.equals(
-                Boolean.valueOf(System.getProperty("cleanExtentReportsDirectoryBeforeExecution")))) {
+        if (SHAFT.Properties.reporting.cleanExtentReportsDirectoryBeforeExecution()) {
             FileActions.getInstance().deleteFolder(extentReportsFolderPath.substring(0, extentReportsFolderPath.length() - 1));
         }
 
@@ -787,8 +784,7 @@ public class ReportManagerHelper {
 
     private static void cleanAllureResultsDirectory() {
         // clean allure-results directory before execution
-        if (Boolean.TRUE.equals(
-                Boolean.valueOf(System.getProperty("cleanAllureResultsDirectoryBeforeExecution")))) {
+        if (SHAFT.Properties.reporting.cleanAllureResultsDirectoryBeforeExecution()) {
             try {
                 FileActions.getInstance().deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
             } catch (Exception t) {
@@ -828,14 +824,14 @@ public class ReportManagerHelper {
             }
         }
         propertiesFileBuilder.append("</environment>");
-        FileActions.getInstance().writeToFile(System.getProperty("allureResultsFolderPath"), "environment.xml",
+        FileActions.getInstance().writeToFile(SHAFT.Properties.paths.allureResults(), "environment.xml",
                 RestActions.formatXML(propertiesFileBuilder.toString()));
     }
 
     private static void downloadAndExtractAllureBinaries() {
         // extract allure from jar file to src/main/resources directory if it doesn't
         // already exist
-        String allureVersion = System.getProperty(ALLURE_VERSION_PROPERTY_NAME);
+        String allureVersion = SHAFT.Properties.internal.allureVersion();
         allureBinaryPath = allureExtractionLocation + "allure-" + allureVersion + File.separator + "bin" + File.separator + "allure";
         if (!FileActions.getInstance().doesFileExist(allureBinaryPath)) {
             try {
@@ -863,7 +859,7 @@ public class ReportManagerHelper {
     }
 
     private static void writeGenerateReportShellFilesToProjectDirectory() {
-        String allureVersion = System.getProperty(ALLURE_VERSION_PROPERTY_NAME);
+        String allureVersion = SHAFT.Properties.internal.allureVersion();
         // create generate_allure_report.sh or generate_allure_report.bat
         List<String> commandsToServeAllureReport;
         if (SystemUtils.IS_OS_WINDOWS) {
@@ -915,7 +911,7 @@ public class ReportManagerHelper {
         // create Unix-based sh file
         commandsToOpenAllureReport = Arrays.asList("#!/bin/bash",
                 "parent_path=$( cd '$(dirname '${BASH_SOURCE[0]}')' ; pwd -P )",
-                "cd '$parent_path/allure/allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "/bin/'",
+                "cd '$parent_path/allure/allure-" + SHAFT.Properties.internal.allureVersion() + "/bin/'",
                 "bash allure serve '$parent_path/allure-results'", "exit");
         FileActions.getInstance().writeToFile("generatedReport/", "open_allure_report.sh", commandsToOpenAllureReport);
 
@@ -924,7 +920,7 @@ public class ReportManagerHelper {
                 ":: If you're using a portable Java version, uncomment the below two lines and update them to use the correct path",
                 ":: set JAVA_HOME=" + System.getProperty("java.home"),
                 ":: set path=%JAVA_HOME%\\bin;%path%",
-                "set path=allure\\allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "\\bin;%path%",
+                "set path=allure\\allure-" + SHAFT.Properties.internal.allureVersion() + "\\bin;%path%",
                 "allure serve allure-results", "pause", "exit");
         FileActions.getInstance().writeToFile("generatedReport/", "open_allure_report.bat", commandsToOpenAllureReport);
     }
@@ -932,7 +928,7 @@ public class ReportManagerHelper {
     private static void writeAllureReportToGeneratedDirectory() {
         // add correct file extension based on target OS
         String commandToCreateAllureReport;
-        allureBinaryPath = allureExtractionLocation + "allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME)
+        allureBinaryPath = allureExtractionLocation + "allure-" + SHAFT.Properties.internal.allureVersion()
                 + "/bin/allure";
 
         if (SystemUtils.IS_OS_WINDOWS) {
@@ -957,13 +953,13 @@ public class ReportManagerHelper {
     }
 
     public static void cleanExecutionSummaryReportDirectory() {
-        executionSummaryReportFolderPath = System.getProperty("executionSummaryReportFolderPath");
+        String executionSummaryReportFolderPath = SHAFT.Properties.paths.executionSummaryReport();
         FileActions.getInstance().deleteFolder(executionSummaryReportFolderPath.substring(0, executionSummaryReportFolderPath.length() - 1));
     }
 
     public static void openExecutionSummaryReportAfterExecution() {
         if (SHAFT.Properties.reporting.openExecutionSummaryReportAfterExecution()) {
-            SHAFT.CLI.terminal().performTerminalCommand(".\\" + System.getProperty("executionSummaryReportFolderPath") + "ExecutionSummaryReport_*.html");
+            SHAFT.CLI.terminal().performTerminalCommand(".\\" + SHAFT.Properties.paths.executionSummaryReport() + "ExecutionSummaryReport_*.html");
         }
     }
 

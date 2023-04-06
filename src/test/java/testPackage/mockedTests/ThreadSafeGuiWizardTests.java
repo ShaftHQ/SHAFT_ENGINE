@@ -10,7 +10,7 @@ public class ThreadSafeGuiWizardTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     private static final ThreadLocal<SHAFT.TestData.JSON> testData = new ThreadLocal<>();
     private final By locator = SHAFT.GUI.Locator.hasTagName("input").build();
-    private String defaultElementIdentificationTimeout;
+    private int defaultElementIdentificationTimeout;
 
     @Test
     public void test() {
@@ -94,15 +94,15 @@ public class ThreadSafeGuiWizardTests {
 //        SHAFT.Properties.platform.set().targetPlatform(Platform.LINUX.name());
 //        SHAFT.Properties.web.set().targetBrowserName(Browser.CHROME.browserName());
 
-        defaultElementIdentificationTimeout = System.getProperty("defaultElementIdentificationTimeout");
-        System.setProperty("defaultElementIdentificationTimeout", "2");
+        defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
         driver.set(SHAFT.GUI.WebDriver.getInstance());
         testData.set(new SHAFT.TestData.JSON("simpleJSON.json"));
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        System.setProperty("defaultElementIdentificationTimeout", defaultElementIdentificationTimeout);
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultElementIdentificationTimeout);
         driver.get().quit();
         driver.remove();
     }

@@ -25,7 +25,7 @@ public class DriverFactory {
      */
     public static WebDriver getDriver() {
         readLastMinuteUpdatedProperties();
-        if (System.getProperty("executionAddress").contains("browserstack")) {
+        if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("browserstack")) {
             return getBrowserStackDriver(new MutableCapabilities());
         } else {
             DriverFactoryHelper.initializeDriver();
@@ -129,7 +129,7 @@ public class DriverFactory {
     public static App getSikuliApp(String applicationName) {
 //        DriverFactoryHelper.initializeSystemProperties();
         var myapp = new App(applicationName);
-        myapp.waitForWindow(Integer.parseInt(System.getProperty("browserNavigationTimeout")));
+        myapp.waitForWindow(SHAFT.Properties.timeouts.browserNavigationTimeout());
         myapp.focus();
         ReportManager.log("Opened app: [" + myapp.getName() + "]...");
         return myapp;

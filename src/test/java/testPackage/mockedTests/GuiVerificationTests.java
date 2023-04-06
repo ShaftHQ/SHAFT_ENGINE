@@ -9,7 +9,7 @@ import org.testng.annotations.Test;
 public class GuiVerificationTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     private final By locator = SHAFT.GUI.Locator.hasTagName("input").build();
-    private String defaultElementIdentificationTimeout;
+    private int defaultElementIdentificationTimeout;
 
     @Test
     public void test_textTrimmed1() {
@@ -32,8 +32,8 @@ public class GuiVerificationTests {
     @BeforeMethod(alwaysRun = true)
     public void beforeMethod() {
         SHAFT.Properties.web.set().headlessExecution(true);
-        defaultElementIdentificationTimeout = System.getProperty("defaultElementIdentificationTimeout");
-        System.setProperty("defaultElementIdentificationTimeout", "2");
+        defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
         driver.set(SHAFT.GUI.WebDriver.getInstance());
         String testElement = "data:text/html,<input type=\"text\"><br><br>";
         driver.get().browser().navigateToURL(testElement);
@@ -41,7 +41,7 @@ public class GuiVerificationTests {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        System.setProperty("defaultElementIdentificationTimeout", defaultElementIdentificationTimeout);
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultElementIdentificationTimeout);
         driver.get().quit();
     }
 }

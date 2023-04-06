@@ -9,6 +9,7 @@ import com.assertthat.selenium_shutterbug.core.CaptureElement;
 import com.assertthat.selenium_shutterbug.core.Shutterbug;
 import com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesException;
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -594,7 +595,7 @@ public class ImageProcessingActions {
             } else {
                 ReportManager.logDiscrete("Failed to load OpenCV. Try installing the binaries manually https://opencv.org/releases/, switching element highlighting to JavaScript...");
             }
-            System.setProperty("screenshotParams_highlightMethod", "JavaScript");
+            SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("JavaScript");
         }
     }
 

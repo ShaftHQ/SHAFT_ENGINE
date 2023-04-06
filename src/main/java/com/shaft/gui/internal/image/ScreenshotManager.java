@@ -2,6 +2,7 @@ package com.shaft.gui.internal.image;
 
 import com.epam.healenium.SelfHealingDriver;
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
@@ -35,18 +36,21 @@ import java.util.Date;
 import java.util.List;
 
 public class ScreenshotManager {
-    private static final String SCREENSHOT_FOLDER_PATH = System.getProperty("allureResultsFolderPath").trim()
-            + "/screenshots/";
+    private static final String SCREENSHOT_FOLDER_PATH = SHAFT.Properties.paths.allureResults() + "/screenshots/";
     private static final String SCREENSHOT_FOLDER_NAME = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
-    private static final String SCREENSHOT_PARAMS_WHEN_TO_TAKE_A_SCREENSHOT = System
-            .getProperty("screenshotParams_whenToTakeAScreenshot");
-    private static final Boolean SCREENSHOT_PARAMS_HIGHLIGHT_ELEMENTS = Boolean
-            .valueOf(System.getProperty("screenshotParams_highlightElements"));
-    private static final String SCREENSHOT_PARAMS_SKIPPED_ELEMENTS_FROM_SCREENSHOT = System
-            .getProperty("screenshotParams_skippedElementsFromScreenshot");
+    private static final String SCREENSHOT_PARAMS_WHEN_TO_TAKE_A_SCREENSHOT = SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot();
+    private static final Boolean SCREENSHOT_PARAMS_HIGHLIGHT_ELEMENTS = SHAFT.Properties.visuals.screenshotParamsHighlightElements();
+    private static final String SCREENSHOT_PARAMS_SKIPPED_ELEMENTS_FROM_SCREENSHOT = SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot();
+    private static final Float SCREENSHOT_PARAMS_WATERMARK_OPACITY = SHAFT.Properties.visuals.screenshotParamsWatermarkOpacity();
+    private static final Boolean SCREENSHOT_PARAMS_WATERMARK = SHAFT.Properties.visuals.screenshotParamsWatermark();
+    private static final int RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION = 1;
+    private static final Boolean CREATE_GIF = SHAFT.Properties.visuals.createAnimatedGif();
+    private static Screenshots SCREENSHOT_PARAMS_SCREENSHOT_TYPE = setScreenshotType();
+    private static final int GIF_FRAME_DELAY = SHAFT.Properties.visuals.animatedGifFrameDelay();
+    private static String SCREENSHOT_PARAMS_HIGHLIGHT_METHOD = SHAFT.Properties.visuals.screenshotParamsHighlightMethod();
 
     private static Screenshots setScreenshotType() {
-        switch (System.getProperty("screenshotParams_screenshotType").toLowerCase().trim()) {
+        switch (SHAFT.Properties.visuals.screenshotParamsScreenshotType().toLowerCase()) {
             case "element" -> {
                 return Screenshots.ELEMENT;
             }
@@ -61,17 +65,6 @@ public class ScreenshotManager {
             }
         }
     }
-
-    private static final Float SCREENSHOT_PARAMS_WATERMARK_OPACITY = Float
-            .valueOf(System.getProperty("screenshotParams_watermarkOpacity").trim());
-    private static final int RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION = 1;
-    private static final Boolean SCREENSHOT_PARAMS_WATERMARK = Boolean
-            .valueOf(System.getProperty("screenshotParams_watermark").trim());
-    private static Screenshots SCREENSHOT_PARAMS_SCREENSHOT_TYPE = setScreenshotType();
-    private static String SCREENSHOT_PARAMS_HIGHLIGHT_METHOD = System
-            .getProperty("screenshotParams_highlightMethod");
-    private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
-    private static final int GIF_FRAME_DELAY = Integer.parseInt(System.getProperty("animatedGif_frameDelay").trim());
     private static final int GIF_SIZE = 1280;
     // TODO: parameterize the detailed gif value
     private static final Boolean DETAILED_GIF = true;

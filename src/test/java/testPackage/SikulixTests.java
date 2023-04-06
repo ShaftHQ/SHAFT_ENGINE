@@ -2,6 +2,7 @@ package testPackage;
 
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;
@@ -17,7 +18,6 @@ public class SikulixTests {
     //@Test
     @SuppressWarnings("CommentedOutCode")
     public void sampleWithSeleniumWebDriver() {
-        WebDriver driver = DriverFactory.getDriver();
         new BrowserActions().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
 //        byte[] searchTextBox = ScreenshotManager.takeElementScreenshot(driver, By.xpath("//input[@name='q']"));
 //        ElementActions.performSikuliAction(searchTextBox).type("SHAFT_Engine trial using SikuliX1" + Key.ENTER);
@@ -30,7 +30,7 @@ public class SikulixTests {
     public void sampleWithSeleniumAndYoutube() {
         WebDriver driver = DriverFactory.getDriver();
         BrowserActions.getInstance().navigateToURL("https://www.youtube.com/watch?v=6FbpNgZ8fZ8&t=2s");
-        String pathToTargetElementImage = System.getProperty("testDataFolderPath") + "sikulixElements/youtube.png";
+        String pathToTargetElementImage = SHAFT.Properties.paths.properties() + "sikulixElements/youtube.png";
         ElementActions.getInstance().performSikuliAction().click(pathToTargetElementImage);
         Validations.assertThat().browser(driver).url().isEqualTo("https://www.youtube.com/").perform();
     }
@@ -53,7 +53,7 @@ public class SikulixTests {
 
     //@AfterClass(alwaysRun = true)
     public void closeApplication() {
-    	DriverFactory.closeSikuliApp(calculator);
+        DriverFactory.closeSikuliApp(calculator);
     }
 
 }

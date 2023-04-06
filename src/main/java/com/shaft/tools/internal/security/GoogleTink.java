@@ -12,6 +12,7 @@ import com.google.crypto.tink.prf.PrfConfig;
 import com.google.crypto.tink.signature.SignatureConfig;
 import com.google.crypto.tink.streamingaead.StreamingAeadConfig;
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -33,10 +34,10 @@ public class GoogleTink {
 
 
     public static void initialize() {
-        keysetFilename = System.getProperty("tinkey.keysetFilename");
-        masterKeyUri = System.getProperty("tinkey.kms.masterKeyUri");
-        kms = System.getProperty("tinkey.kms.serverType");
-        credentialPath = System.getProperty("tinkey.kms.credentialPath");
+        keysetFilename = SHAFT.Properties.tinkey.keysetFilename();
+        masterKeyUri = SHAFT.Properties.tinkey.kmsMasterKeyUri();
+        kms = SHAFT.Properties.tinkey.kmsServerType();
+        credentialPath = SHAFT.Properties.tinkey.kmsCredentialPath();
         if (!"".equals(keysetFilename)) {
             try {
                 DeterministicAeadConfig.register();

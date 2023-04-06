@@ -1,5 +1,6 @@
 package com.shaft.gui.element;
 
+import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.gui.browser.internal.FluentBrowserActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
@@ -40,7 +41,7 @@ public class AlertActions {
 
     private static void waitForAlertToBePresent() {
         try {
-            (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofSeconds(Integer.parseInt(System.getProperty("defaultElementIdentificationTimeout"))))).until(ExpectedConditions.alertIsPresent());
+            (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofSeconds(SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()))).until(ExpectedConditions.alertIsPresent());
             DriverFactoryHelper.getDriver().get().switchTo().alert();
             ReportManager.logDiscrete("Alert is present");
         } catch (Exception rootCauseException) {

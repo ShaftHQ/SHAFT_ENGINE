@@ -4,6 +4,7 @@ import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportHelper;
@@ -310,7 +311,7 @@ public class TerminalActions {
         // refactor long command for dockerized execution
         if (isDockerizedTerminal()) {
             command.insert(0, "docker exec -u " + dockerUsername + " -i " + dockerName + " timeout "
-                    + Integer.parseInt(System.getProperty("dockerCommandTimeout")) + " sh -c '");
+                    + SHAFT.Properties.timeouts.dockerCommandTimeout() + " sh -c '");
             command.append("'");
         }
         return command.toString();
@@ -379,7 +380,7 @@ public class TerminalActions {
                         logs.append(line);
                     }
                     // Wait for the process to complete
-                    localProcess.waitFor(Long.parseLong(System.getProperty("shellSessionTimeout")), TimeUnit.MINUTES);
+                    localProcess.waitFor(SHAFT.Properties.timeouts.shellSessionTimeout(), TimeUnit.MINUTES);
                     // Retrieve the exit status of the executed command and destroy open sessions
                     exitStatuses.append(localProcess.exitValue());
                 } else {
@@ -393,7 +394,7 @@ public class TerminalActions {
                             asynchronousProcessExecution.shutdownNow();
                         }
                     }, 0, TimeUnit.SECONDS);
-                    if (!asynchronousProcessExecution.awaitTermination(Long.parseLong(System.getProperty("shellSessionTimeout")), TimeUnit.MINUTES)) {
+                    if (!asynchronousProcessExecution.awaitTermination(SHAFT.Properties.timeouts.shellSessionTimeout(), TimeUnit.MINUTES)) {
                         asynchronousProcessExecution.shutdownNow();
                     }
                 }
@@ -407,7 +408,7 @@ public class TerminalActions {
     private List<String> executeRemoteCommand(List<String> commands, String longCommand) {
         StringBuilder logs = new StringBuilder();
         StringBuilder exitStatuses = new StringBuilder();
-        int sessionTimeout = Integer.parseInt(System.getProperty("shellSessionTimeout")) * 1000;
+        int sessionTimeout = Integer.parseInt(String.valueOf(SHAFT.Properties.timeouts.shellSessionTimeout() * 1000));
         // remote execution
         ReportManager.logDiscrete(
                 "Attempting to perform the following command remotely. Command: \"" + longCommand + "\"");

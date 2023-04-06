@@ -22,55 +22,55 @@ public interface Timeouts extends EngineProperties {
 
     @Key("lazyLoadingTimeout")
     @DefaultValue("30")
-    Integer lazyLoadingTimeout();
+    int lazyLoadingTimeout();
 
     @Key("browserNavigationTimeout")
     @DefaultValue("60")
-    Integer browserNavigationTimeout();
+    int browserNavigationTimeout();
 
     @Key("pageLoadTimeout")
     @DefaultValue("60")
-    Integer pageLoadTimeout();
+    int pageLoadTimeout();
 
     @Key("scriptExecutionTimeout")
     @DefaultValue("30")
-    Integer scriptExecutionTimeout();
+    int scriptExecutionTimeout();
 
     @Key("defaultElementIdentificationTimeout")
     @DefaultValue("60")
-    Integer defaultElementIdentificationTimeout();
+    int defaultElementIdentificationTimeout();
 
     @Key("apiSocketTimeout")
     @DefaultValue("30")
-    Integer apiSocketTimeout();
+    int apiSocketTimeout();
 
     @Key("apiConnectionTimeout")
     @DefaultValue("30")
-    Integer apiConnectionTimeout();
+    int apiConnectionTimeout();
 
     @Key("apiConnectionManagerTimeout")
     @DefaultValue("30")
-    Integer apiConnectionManagerTimeout();
+    int apiConnectionManagerTimeout();
 
     @Key("shellSessionTimeout")
     @DefaultValue("30")
-    Integer shellSessionTimeout();
+    long shellSessionTimeout();
 
     @Key("dockerCommandTimeout")
     @DefaultValue("30")
-    Integer dockerCommandTimeout();
+    int dockerCommandTimeout();
 
     @Key("databaseLoginTimeout")
     @DefaultValue("30")
-    Integer databaseLoginTimeout();
+    int databaseLoginTimeout();
 
     @Key("databaseNetworkTimeout")
     @DefaultValue("30")
-    Integer databaseNetworkTimeout();
+    int databaseNetworkTimeout();
 
     @Key("databaseQueryTimeout")
     @DefaultValue("30")
-    Integer databaseQueryTimeout();
+    int databaseQueryTimeout();
 
     @Key("waitForRemoteServerToBeUp")
     @DefaultValue("false")
@@ -78,11 +78,11 @@ public interface Timeouts extends EngineProperties {
 
     @Key("timeoutForRemoteServerToBeUp")
     @DefaultValue("10")
-    Integer timeoutForRemoteServerToBeUp();
+    int timeoutForRemoteServerToBeUp();
 
     @Key("remoteServerInstanceCreationTimeout")
     @DefaultValue("10")
-    Integer remoteServerInstanceCreationTimeout();
+    int remoteServerInstanceCreationTimeout();
 
     default SetProperty set() {
         return new SetProperty();
@@ -125,7 +125,7 @@ public interface Timeouts extends EngineProperties {
             setProperty("apiConnectionManagerTimeout", String.valueOf(value));
         }
 
-        public void shellSessionTimeout(int value) {
+        public void shellSessionTimeout(long value) {
             setProperty("shellSessionTimeout", String.valueOf(value));
         }
 

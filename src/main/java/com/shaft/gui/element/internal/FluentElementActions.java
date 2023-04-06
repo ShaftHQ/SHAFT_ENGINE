@@ -2,6 +2,7 @@ package com.shaft.gui.element.internal;
 
 import com.google.common.base.Throwables;
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.enums.internal.ClipboardAction;
@@ -293,7 +294,7 @@ public class FluentElementActions {
         try {
             var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
             boolean wasActionPerformed;
-            if (System.getProperty("targetOperatingSystem").contains("Mac")) {
+            if (SHAFT.Properties.platform.targetPlatform().equals(Platform.MAC.name())) {
                 wasActionPerformed = ElementActionsHelper.performClipboardActions(DriverFactoryHelper.getDriver().get(), action, Keys.COMMAND);
             } else {
                 wasActionPerformed = ElementActionsHelper.performClipboardActions(DriverFactoryHelper.getDriver().get(), action, Keys.CONTROL);

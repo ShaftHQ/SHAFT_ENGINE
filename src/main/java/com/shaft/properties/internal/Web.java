@@ -38,15 +38,15 @@ public interface Web extends EngineProperties {
 
     @Key("mobileEmulation.width")
     @DefaultValue("")
-    String mobileEmulationWidth();
+    int mobileEmulationWidth();
 
     @Key("mobileEmulation.height")
     @DefaultValue("")
-    String mobileEmulationHeight();
+    int mobileEmulationHeight();
 
     @Key("mobileEmulation.pixelRatio")
-    @DefaultValue("")
-    String mobileEmulationPixelRatio();
+    @DefaultValue("1.0")
+    double mobileEmulationPixelRatio();
 
     @Key("mobileEmulation.userAgent")
     @DefaultValue("")
@@ -55,6 +55,14 @@ public interface Web extends EngineProperties {
     @Key("baseURL")
     @DefaultValue("")
     String baseURL();
+
+    @Key("lightHouseExecution")
+    @DefaultValue("false")
+    boolean lightHouseExecution();
+
+    @Key("lightHouseExecution.port")
+    @DefaultValue("8888")
+    int lightHouseExecutionPort();
 
     default SetProperty set() {
         return new SetProperty();
@@ -88,20 +96,28 @@ public interface Web extends EngineProperties {
             setProperty("mobileEmulation.deviceName", value);
         }
 
-        public void mobileEmulationWidth(String value) {
-            setProperty("mobileEmulation.width", value);
+        public void mobileEmulationWidth(int value) {
+            setProperty("mobileEmulation.width", String.valueOf(value));
         }
 
-        public void mobileEmulationHeight(String value) {
-            setProperty("mobileEmulation.height", value);
+        public void mobileEmulationHeight(int value) {
+            setProperty("mobileEmulation.height", String.valueOf(value));
         }
 
-        public void mobileEmulationPixelRatio(String value) {
-            setProperty("mobileEmulation.pixelRatio", value);
+        public void mobileEmulationPixelRatio(double value) {
+            setProperty("mobileEmulation.pixelRatio", String.valueOf(value));
         }
 
         public void mobileEmulationUserAgent(String value) {
             setProperty("mobileEmulation.userAgent", value);
+        }
+
+        public void lightHouseExecution(String value) {
+            setProperty("lightHouseExecution", value);
+        }
+
+        public void lightHouseExecutionPort(String value) {
+            setProperty("lightHouseExecution.port", value);
         }
     }
 

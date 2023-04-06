@@ -17,7 +17,6 @@ public class IOSBasicInteractionsTest {
     @Test
     public void test() {
         ElementActions.getInstance().performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
-        System.setProperty("forceCheckTextWasTypedCorrectly", "false");
         ElementActions.getInstance().type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
         Validations.assertThat()
                 .element(driver, AppiumBy.accessibilityId("Text Output"))
@@ -39,14 +38,14 @@ public class IOSBasicInteractionsTest {
 
 //         local appium server (for local and GitHub actions execution)
         SHAFT.Properties.platform.set().executionAddress("localhost:4723");
-        SHAFT.Properties.mobile.set().app(System.getProperty("testDataFolderPath") + "apps/BStackSampleApp.ipa");
+        SHAFT.Properties.mobile.set().app(SHAFT.Properties.paths.properties() + "apps/BStackSampleApp.ipa");
 
         // remote browserstack server (new app version)
 //        SHAFT.Properties.platform.set().executionAddress("browserstack");
 //        SHAFT.Properties.browserStack.set().platformVersion("14");
 //        SHAFT.Properties.browserStack.set().deviceName("iPhone 12 Pro Max");
 //        SHAFT.Properties.browserStack.set().appName("TestApp");
-//        SHAFT.Properties.browserStack.set().appRelativeFilePath(System.getProperty("testDataFolderPath") + "apps/BStackSampleApp.ipa");
+//        SHAFT.Properties.browserStack.set().appRelativeFilePath(SHAFT.Properties.paths.properties() + "apps/BStackSampleApp.ipa");
 //        SHAFT.Properties.browserStack.set().appUrl("");
 
         // remote browserstack server (existing app version)

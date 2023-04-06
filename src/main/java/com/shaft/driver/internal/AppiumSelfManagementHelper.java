@@ -34,7 +34,7 @@ public class AppiumSelfManagementHelper {
 
     private AppiumSelfManagementHelper() {
         SHAFT.Properties.platform.set().executionAddress("localhost:4723");
-        System.setProperty("videoParams_recordVideo", "true");
+        SHAFT.Properties.visuals.set().videoParamsRecordVideo(true);
         // TODO: check if user has admin access
         // TODO: create a list to manage URLs for other OSs
 

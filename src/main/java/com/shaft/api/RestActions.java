@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.jayway.jsonpath.JsonPath;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -76,7 +77,7 @@ public class RestActions {
     }
 
     public RestActions(String serviceURI) {
-        initializeSystemProperties(System.getProperty("apiConnectionTimeout") == null);
+        initializeSystemProperties();
         headerAuthorization = "";
         this.serviceURI = serviceURI;
         sessionCookies = new HashMap<>();
@@ -835,16 +836,13 @@ public class RestActions {
         }
     }
 
-    private static void initializeSystemProperties(boolean readPropertyFilesBeforeInitializing) {
-        HTTP_SOCKET_TIMEOUT = Integer.parseInt(System.getProperty("apiSocketTimeout"));
+    private static void initializeSystemProperties() {
+        HTTP_SOCKET_TIMEOUT = SHAFT.Properties.timeouts.apiSocketTimeout();
         // timeout between two consecutive data packets in seconds
-        HTTP_CONNECTION_TIMEOUT = Integer.parseInt(System.getProperty("apiConnectionTimeout"));
+        HTTP_CONNECTION_TIMEOUT = SHAFT.Properties.timeouts.apiConnectionTimeout();
         // timeout until a connection is established in seconds
-        HTTP_CONNECTION_MANAGER_TIMEOUT = Integer
-                .parseInt(System.getProperty("apiConnectionManagerTimeout"));
-
-        AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = Boolean.parseBoolean(System.getProperty("automaticallyAssertResponseStatusCode"));
-
+        HTTP_CONNECTION_MANAGER_TIMEOUT = SHAFT.Properties.timeouts.apiConnectionManagerTimeout();
+        AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = SHAFT.Properties.flags.automaticallyAssertResponseStatusCode();
     }
 
     /**
