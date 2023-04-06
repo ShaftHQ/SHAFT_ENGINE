@@ -590,10 +590,9 @@ public enum HTMLHelper {
                                 });
                             });
             				$("#searchDropDown").on("change", function(){
-            					var value = $(this).val().toLowerCase();
+            					var value = $(this).val();
             					 $("#table tr").filter(function() {
-                                    $(this).toggle($(this).text()
-                                    .toLowerCase().indexOf(value) > -1)
+                                    $(this).toggle($(this).text().indexOf(value) > -1)
                                 });
             				});
                         });
