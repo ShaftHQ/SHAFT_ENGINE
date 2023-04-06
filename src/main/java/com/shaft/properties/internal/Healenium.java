@@ -18,7 +18,7 @@ public interface Healenium extends EngineProperties {
 
     @Key("recovery-tries")
     @DefaultValue("1")
-    String recoveryTries();
+    int recoveryTries();
 
     @Key("score-cap")
     @DefaultValue("0.5")
@@ -34,19 +34,19 @@ public interface Healenium extends EngineProperties {
 
     @Key("serverPort")
     @DefaultValue("7878")
-    String serverPort();
+    int serverPort();
 
     @Key("imitatePort")
     @DefaultValue("8000")
-    String imitatePort();
+    int imitatePort();
 
     default SetProperty set() {
         return new SetProperty();
     }
 
     class SetProperty implements EngineProperties.SetProperty {
-        public void recoveryTries(String value) {
-            setProperty("recovery-tries", value);
+        public void recoveryTries(int value) {
+            setProperty("recovery-tries", String.valueOf(value));
         }
 
         public void scoreCap(String value) {
@@ -61,12 +61,12 @@ public interface Healenium extends EngineProperties {
             setProperty("serverHost", value);
         }
 
-        public void serverPort(String value) {
-            setProperty("serverPort", value);
+        public void serverPort(int value) {
+            setProperty("serverPort", String.valueOf(value));
         }
 
-        public void imitatePort(String value) {
-            setProperty("imitatePort", value);
+        public void imitatePort(int value) {
+            setProperty("imitatePort", String.valueOf(value));
         }
 
     }

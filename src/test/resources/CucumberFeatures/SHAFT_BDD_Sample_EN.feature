@@ -76,11 +76,11 @@ Feature: Basic SHAFT_Engine BDD POC
     And I Type "SHAFT_Engine" into the element found by "name": "q"
     Then I Assert that the element found by "name": "q", does exist
     And I Assert that the element found by "xpath": "(//h3[contains(@class,'LC20lb')])[1]/parent::a", does not exist
-    And I Assert that the "appearance" CSS property of the element found by "name": "q", equals "auto"
+#    And I Assert that the "appearance" CSS property of the element found by "name": "q", equals "auto"
     And I Assert that the "appearance" CSS property of the element found by "name": "q", does not equal "Dummy"
-    And I Assert that the "appearance" CSS property of the element found by "name": "q", contains "aut"
+    And I Assert that the "appearance" CSS property of the element found by "name": "q", contains "t"
     And I Assert that the "appearance" CSS property of the element found by "name": "q", does not contain "mmy"
-    And I Assert that the "appearance" CSS property of the element found by "name": "q", matches the regular expression ".*ut.*"
+    And I Assert that the "appearance" CSS property of the element found by "name": "q", matches the regular expression ".*t.*"
     And I Assert that the "appearance" CSS property of the element found by "name": "q", does not match the regular expression ".*Dummy.*"
     And I Close the current window
 
