@@ -27,6 +27,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.openqa.selenium.Platform;
 import org.testng.ITestResult;
 import org.testng.Reporter;
 
@@ -959,7 +960,11 @@ public class ReportManagerHelper {
 
     public static void openExecutionSummaryReportAfterExecution() {
         if (SHAFT.Properties.reporting.openExecutionSummaryReportAfterExecution()) {
-            SHAFT.CLI.terminal().performTerminalCommand(".\\" + SHAFT.Properties.paths.executionSummaryReport() + "ExecutionSummaryReport_*.html");
+            if (Platform.LINUX.name().equals(SHAFT.Properties.platform.targetPlatform()) || Platform.MAC.name().equals(SHAFT.Properties.platform.targetPlatform())) {
+                SHAFT.CLI.terminal().performTerminalCommand("open ./" + SHAFT.Properties.paths.executionSummaryReport() + "ExecutionSummaryReport_*.html");
+            }else{
+                SHAFT.CLI.terminal().performTerminalCommand(".\\" + SHAFT.Properties.paths.executionSummaryReport() + "ExecutionSummaryReport_*.html");
+            }
         }
     }
 
