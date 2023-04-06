@@ -11,7 +11,7 @@ import org.testng.annotations.Test;
 public class ValidationTests {
     private final By locator = SHAFT.GUI.Locator.hasTagName("input").build();
     private SHAFT.GUI.WebDriver driver;
-    private String defaultElementIdentificationTimeout;
+    private int defaultElementIdentificationTimeout;
 
     @Test(description = "Assert that assertEquals works as expected when the two values are equal.")
     public void assertEquals_true_expectedToPass() {
@@ -235,14 +235,14 @@ public class ValidationTests {
 
     @AfterMethod(onlyForGroups = {"WebBased"}, alwaysRun = true)
     public void afterMethod() {
-        System.setProperty("defaultElementIdentificationTimeout", defaultElementIdentificationTimeout);
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultElementIdentificationTimeout);
         driver.quit();
     }
 
     @BeforeMethod(onlyForGroups = {"WebBased"})
     public void beforeMethod() {
-        defaultElementIdentificationTimeout = System.getProperty("defaultElementIdentificationTimeout");
-        System.setProperty("defaultElementIdentificationTimeout", "2");
+        defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
         driver = SHAFT.GUI.WebDriver.getInstance();
         String testElement = "data:text/html,<input type=\"text\"><br><br>";
         driver.browser().navigateToURL(testElement);

@@ -1,5 +1,6 @@
 package com.shaft.gui.browser.internal;
 
+import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -28,8 +29,8 @@ public class JavaScriptWaitManager {
     private static void setDriver(WebDriver driver) {
         jsWaitDriver.set(driver);
         jsExec = (JavascriptExecutor) jsWaitDriver.get();
-        WAIT_FOR_LAZY_LOADING = Boolean.parseBoolean(System.getProperty("waitForLazyLoading"));
-        WAIT_DURATION_INTEGER = Integer.parseInt(System.getProperty("lazyLoadingTimeout"));
+        WAIT_FOR_LAZY_LOADING = SHAFT.Properties.timeouts.waitForLazyLoading();
+        WAIT_DURATION_INTEGER = SHAFT.Properties.timeouts.lazyLoadingTimeout();
     }
 
     /**

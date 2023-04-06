@@ -18,38 +18,38 @@ public interface Tinkey extends EngineProperties {
 
     @Key("tinkey.keysetFilename")
     @DefaultValue("")
-    String tinkeyKeysetFilename();
+    String keysetFilename();
 
     @Key("tinkey.kms.serverType")
     @DefaultValue("")
-    String tinkeyKmsServerType();
+    String kmsServerType();
 
     @Key("tinkey.kms.credentialPath")
     @DefaultValue("")
-    String tinkeyKmsCredentialPath();
+    String kmsCredentialPath();
 
     @Key("tinkey.kms.masterKeyUri")
     @DefaultValue("")
-    String tinkeyKmsMasterKeyUri();
+    String kmsMasterKeyUri();
 
     default SetProperty set() {
         return new SetProperty();
     }
 
     class SetProperty implements EngineProperties.SetProperty {
-        public void tinkeyKeysetFilename(String value) {
+        public void keysetFilename(String value) {
             setProperty("tinkey.keysetFilename", value);
         }
 
-        public void tinkeyKmsServerType(String value) {
+        public void kmsServerType(String value) {
             setProperty("tinkey.kms.serverType", value);
         }
 
-        public void tinkeyKmsCredentialPath(String value) {
+        public void kmsCredentialPath(String value) {
             setProperty("tinkey.kms.credentialPath", value);
         }
 
-        public void tinkeyKmsMasterKeyUri(String value) {
+        public void kmsMasterKeyUri(String value) {
             setProperty("tinkey.kms.masterKeyUri", value);
         }
     }

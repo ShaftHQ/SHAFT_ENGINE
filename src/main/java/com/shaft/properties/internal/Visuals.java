@@ -27,7 +27,7 @@ public interface Visuals extends EngineProperties {
 
     @Key("screenshotParams_screenshotType")
     @DefaultValue("FullPage")
-    String screenshotParams_screenshotType();
+    String screenshotParamsScreenshotType();
 
     @Key("screenshotParams_highlightElements")
     @DefaultValue("true")
@@ -47,7 +47,7 @@ public interface Visuals extends EngineProperties {
 
     @Key("screenshotParams_watermarkOpacity")
     @DefaultValue("0.2")
-    String screenshotParamsWatermarkOpacity();
+    float screenshotParamsWatermarkOpacity();
 
     @Key("createAnimatedGif")
     @DefaultValue("false")
@@ -55,7 +55,7 @@ public interface Visuals extends EngineProperties {
 
     @Key("animatedGif_frameDelay")
     @DefaultValue("500")
-    String animatedGifFrameDelay();
+    int animatedGifFrameDelay();
 
     @Key("videoParams_recordVideo")
     @DefaultValue("false")
@@ -82,7 +82,7 @@ public interface Visuals extends EngineProperties {
             setProperty("screenshotParams_whenToTakeAScreenshot", value);
         }
 
-        public void screenshotParams_screenshotType(String value) {
+        public void screenshotParamsScreenshotType(String value) {
             setProperty("screenshotParams_screenshotType", value);
         }
 
@@ -102,16 +102,16 @@ public interface Visuals extends EngineProperties {
             setProperty("screenshotParams_watermark", String.valueOf(value));
         }
 
-        public void screenshotParamsWatermarkOpacity(String value) {
-            setProperty("screenshotParams_watermarkOpacity", value);
+        public void screenshotParamsWatermarkOpacity(float value) {
+            setProperty("screenshotParams_watermarkOpacity", String.valueOf(value));
         }
 
         public void createAnimatedGif(boolean value) {
             setProperty("createAnimatedGif", String.valueOf(value));
         }
 
-        public void animatedGifFrameDelay(String value) {
-            setProperty("animatedGif_frameDelay", value);
+        public void animatedGifFrameDelay(int value) {
+            setProperty("animatedGif_frameDelay", String.valueOf(value));
         }
 
         public void videoParamsRecordVideo(boolean value) {

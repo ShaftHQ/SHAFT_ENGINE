@@ -1,6 +1,7 @@
 package com.shaft.tools.internal.support;
 
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.testng.Assert;
 
@@ -215,7 +216,7 @@ public class JavaHelper {
                 //remove extra slash at the beginning if applicable
                 relativePath = relativePath.substring(1);
             }
-            var testDataFolderPath = System.getProperty("testDataFolderPath");
+            var testDataFolderPath = SHAFT.Properties.paths.testData();
             if (relativePath.contains(testDataFolderPath)) {
                 return relativePath;
             }

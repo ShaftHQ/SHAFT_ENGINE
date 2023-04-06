@@ -62,8 +62,8 @@ public class PropertiesHelper {
     }
 
     private static void overrideScreenShotTypeForAnimatedGIF() {
-        if (Boolean.parseBoolean(System.getProperty("createAnimatedGif").trim())) {
-            System.setProperty("screenshotParams_screenshotType", "Regular");
+        if (SHAFT.Properties.visuals.createAnimatedGif()) {
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
         }
     }
 

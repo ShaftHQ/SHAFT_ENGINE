@@ -115,8 +115,8 @@ public class TestNGListenerHelper {
                 if (SHAFT.Properties.platform.crossBrowserMode().equals("parallelized")) {
                     suite.setParallel(XmlSuite.ParallelMode.TESTS);
                     suite.setThreadCount(3);
-                    System.setProperty("videoParams_recordVideo", "true");
-                    System.setProperty("screenshotParams_screenshotType", "Regular");
+                    SHAFT.Properties.visuals.set().videoParamsRecordVideo(true);
+                    SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
                 }
             });
 //        } else {

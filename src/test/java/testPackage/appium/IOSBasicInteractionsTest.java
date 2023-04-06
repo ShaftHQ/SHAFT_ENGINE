@@ -17,7 +17,6 @@ public class IOSBasicInteractionsTest {
     @Test
     public void test() {
         ElementActions.getInstance().performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
-        System.setProperty("forceCheckTextWasTypedCorrectly", "false");
         ElementActions.getInstance().type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
         Validations.assertThat()
                 .element(driver, AppiumBy.accessibilityId("Text Output"))

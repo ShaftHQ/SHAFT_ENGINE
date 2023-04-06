@@ -32,8 +32,8 @@ import java.util.List;
 import java.util.*;
 
 public class BrowserActionsHelpers {
-    private static final Boolean HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
-    private static final int NAVIGATION_TIMEOUT_INTEGER = Integer.parseInt(System.getProperty("browserNavigationTimeout").trim());
+    private static final Boolean HEADLESS_EXECUTION = SHAFT.Properties.web.headlessExecution();
+    private static final int NAVIGATION_TIMEOUT_INTEGER = SHAFT.Properties.timeouts.browserNavigationTimeout();
 
     public static void passAction(String testData) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
@@ -159,7 +159,7 @@ public class BrowserActionsHelpers {
             failAction(driver, targetUrl, rootCauseException);
         }
 
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckNavigationWasSuccessful"))) && !targetUrl.contains("\n")) {
+        if (SHAFT.Properties.flags.forceCheckNavigationWasSuccessful() && !targetUrl.contains("\n")) {
             checkNavigationWasSuccessful(driver, initialURL, targetUrl, targetUrlAfterRedirection);
         }
     }

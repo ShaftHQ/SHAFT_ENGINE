@@ -73,7 +73,7 @@ public final class PropertyFileManager {
 
     private static void manageSafariBrowser() {
         if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
-            System.setProperty("screenshotParams_screenshotType", "Regular");
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
         }
     }
 
@@ -171,20 +171,20 @@ public final class PropertyFileManager {
         String maximumPerformanceMode = System.getProperty("maximumPerformanceMode");
         switch (maximumPerformanceMode) {
             case "true", "1", "2" -> {
-                System.setProperty("aiPoweredSelfHealingElementIdentification", String.valueOf(false));
-                System.setProperty("autoMaximizeBrowserWindow", String.valueOf(true));
-                System.setProperty("screenshotParams_whenToTakeAScreenshot", "ValidationPointsOnly");
-                System.setProperty("screenshotParams_highlightElements", String.valueOf(true));
-                System.setProperty("screenshotParams_highlightMethod", "AI");
-                System.setProperty("screenshotParams_screenshotType", "Regular");
-                System.setProperty("screenshotParams_watermark", String.valueOf(true));
-                System.setProperty("createAnimatedGif", String.valueOf(false));
-                System.setProperty("videoParams_recordVideo", String.valueOf(false));
-                System.setProperty("debugMode", String.valueOf(false));
-                System.setProperty("captureClickedElementText", String.valueOf(false));
-                System.setProperty("headlessExecution", String.valueOf(false));
+                SHAFT.Properties.healenium.set().healEnabled(false);
+                SHAFT.Properties.flags.set().autoMaximizeBrowserWindow(false);
+                SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
+                SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(true);
+                SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("AI");
+                SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
+                SHAFT.Properties.visuals.set().screenshotParamsWatermark(true);
+                SHAFT.Properties.visuals.set().createAnimatedGif(false);
+                SHAFT.Properties.visuals.set().videoParamsRecordVideo(false);
+                SHAFT.Properties.reporting.set().debugMode(false);
+                SHAFT.Properties.reporting.set().captureElementName(false);
+                SHAFT.Properties.web.set().headlessExecution(false);
                 if ("2".equals(maximumPerformanceMode) && !DriverFactory.DriverType.SAFARI.getValue().equals(SHAFT.Properties.web.targetBrowserName())) {
-                    System.setProperty("headlessExecution", String.valueOf(true));
+                    SHAFT.Properties.web.set().headlessExecution(true);
                 }
             }
             case "false", "0" -> {

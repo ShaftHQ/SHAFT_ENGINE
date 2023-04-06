@@ -1,6 +1,7 @@
 package testPackage;
 
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ExcelFileManager;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterClass;
@@ -48,8 +49,7 @@ public class Test_google {
 
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
-        System.setProperty("testDataFilePath", System.getProperty("testDataFolderPath")+"testSuite01/TestData.xlsx");
-        testDataReader = new ExcelFileManager(System.getProperty("testDataFilePath"));
+        testDataReader = new ExcelFileManager(SHAFT.Properties.paths.testData() + "testSuite01/TestData.xlsx");
         driver = DriverFactory.getDriver();
     }
 
