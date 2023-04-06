@@ -1,8 +1,6 @@
 package com.shaft.properties.internal;
 
-import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
-import org.aeonbits.owner.ConfigFactory;
 
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/TestNG.properties", "file:src/main/resources/properties/default/TestNG.properties", "classpath:TestNG.properties",})
@@ -10,26 +8,26 @@ public interface TestNG extends EngineProperties {
 
     @Key("setParallel")
     @DefaultValue("NONE")
-    String setParallel();
+    String parallel();
 
     @Key("setThreadCount")
     @DefaultValue("1")
-    String setThreadCount();
+    String threadCount();
 
     @Key("setVerbose")
     @DefaultValue("1")
-    String setVerbose();
+    String verbose();
 
     @Key("setPreserveOrder")
     @DefaultValue("true")
-    boolean setPreserveOrder();
+    boolean preserveOrder();
 
     @Key("setGroupByInstances")
     @DefaultValue("true")
-    boolean setGroupByInstances();
+    boolean groupByInstances();
 
     @Key("setDataProviderThreadCount")
     @DefaultValue("1")
-    String setDataProviderThreadCount();
+    String dataProviderThreadCount();
 
 }

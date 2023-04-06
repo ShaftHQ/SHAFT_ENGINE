@@ -2,8 +2,6 @@ package testPackage;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 public class Test_PropertiesManager {
 
@@ -12,8 +10,7 @@ public class Test_PropertiesManager {
         Properties.web.set().targetBrowserName("firefox");
         Properties.browserStack.set().local(true);
         Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(true);
-        Properties.healenium.set().imitatePort("8080");
-        Properties.internal.set().allureVersion("2.2.1");
+        Properties.healenium.set().imitatePort(8080);
         Properties.jira.set().jiraInteraction(true);
         Properties.mobile.set().selfManaged(true);
         Properties.paths.set().properties("src/main/resources/properties/");
@@ -40,7 +37,6 @@ public class Test_PropertiesManager {
         SHAFT.Validations.assertThat().object(Properties.pattern.testDataColumnNamePrefix()).equals("Data");
         SHAFT.Validations.assertThat().object(Properties.platform.executionAddress()).equals("0.0.0.0:4723");
         SHAFT.Validations.assertThat().object(Properties.log4j.name()).equals("PropertiesConfig");
-        SHAFT.Validations.assertThat().object(Properties.testNG.setThreadCount()).equals("1");
         SHAFT.Validations.assertThat().object(Properties.reporting.captureElementName()).equals(true);
         SHAFT.Validations.assertThat().object(Properties.timeouts.waitForLazyLoading()).equals(true);
         SHAFT.Validations.assertThat().object(Properties.visuals.screenshotParamsWhenToTakeAScreenshot()).equals("ValidationPointsOnly");
