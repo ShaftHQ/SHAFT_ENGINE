@@ -550,9 +550,9 @@ public enum HTMLHelper {
                     </b>
                     <select id='searchDropDown'>
                         <option value="">Status</option>
-                    	<option value='passed'>${PASSED_DROPDOWN_OPTION}</option>
-                    	<option value='failed'>${FAILED_DROPDOWN_OPTION}</option>
-                    	<option value='skipped'>${SKIPPED_DROPDOWN_OPTION}</option>
+                    	<option value='${PASSED_DROPDOWN_OPTION}'>${PASSED_DROPDOWN_OPTION}</option>
+                    	<option value='${FAILED_DROPDOWN_OPTION}'>${FAILED_DROPDOWN_OPTION}</option>
+                    	<option value='${SKIPPED_DROPDOWN_OPTION}'>${SKIPPED_DROPDOWN_OPTION}</option>
                     </select>
                     <br>
                     </div>
@@ -590,10 +590,9 @@ public enum HTMLHelper {
                                 });
                             });
             				$("#searchDropDown").on("change", function(){
-            					var value = $(this).val().toLowerCase();
+            					var value = $(this).val();
             					 $("#table tr").filter(function() {
-                                    $(this).toggle($(this).text()
-                                    .toLowerCase().indexOf(value) > -1)
+                                    $(this).toggle($(this).text().indexOf(value) > -1)
                                 });
             				});
                         });
