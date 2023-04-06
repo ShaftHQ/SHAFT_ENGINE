@@ -2,16 +2,17 @@ package testPackage;
 
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.validation.Validations;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
 
-public class Test_TerminalActions {
+public class TerminalActionsTests {
     @Test(enabled = false)
     public void local_copy() {
         String fileName = "generate_allure_report.sh";
-        String shellResponse = "";
+        String shellResponse;
         TerminalActions terminalSession = new TerminalActions();
         shellResponse = FileActions.getInstance().copyFile(terminalSession, FileActions.getInstance().getAbsolutePath(""),
                 FileActions.getInstance().getAbsolutePath("copiedFiles"), fileName);
@@ -24,7 +25,7 @@ public class Test_TerminalActions {
     @Test(enabled = false)
     public void remote_list() {
         TerminalActions terminalSession = new TerminalActions("35.184.27.139", 22, "incorta",
-                System.getProperty("testDataFolderPath"), "newAutomationEnvironment.key");
+                SHAFT.Properties.paths.properties(), "newAutomationEnvironment.key");
         String shellResponse = FileActions.getInstance().listFilesInDirectory(terminalSession, "");
         Validations.assertThat().object(shellResponse).contains("backup").perform();
 
@@ -35,8 +36,8 @@ public class Test_TerminalActions {
     @Test(enabled = false)
     public void remoteDockerized_list() {
         TerminalActions terminalSession = new TerminalActions("35.184.27.139", 22, "incorta",
-                System.getProperty("testDataFolderPath"), "newAutomationEnvironment.key", "analytics-mysql", "incorta");
-        String shellResponse = "";
+                SHAFT.Properties.paths.properties(), "newAutomationEnvironment.key", "analytics-mysql", "incorta");
+        String shellResponse;
 
         shellResponse = FileActions.getInstance().listFilesInDirectory(terminalSession, "");
         Validations.assertThat().object(shellResponse).contains("bin").perform();
@@ -51,7 +52,7 @@ public class Test_TerminalActions {
     @Test
     public void local_singleTerminalCommand() {
         TerminalActions terminalSession = new TerminalActions();
-        String shellResponse = "";
+        String shellResponse;
 
         shellResponse = terminalSession.performTerminalCommand("ls");
         Validations.assertThat().object(shellResponse).contains("README.md").perform();
@@ -60,7 +61,7 @@ public class Test_TerminalActions {
     @Test
     public void local_chainedTerminalCommands() {
         TerminalActions terminalSession = new TerminalActions();
-        String shellResponse = "";
+        String shellResponse;
 
         shellResponse = terminalSession
                 .performTerminalCommands(Arrays.asList("ls /home/incorta-mohab/git/qa/src/test/resources",
@@ -71,8 +72,8 @@ public class Test_TerminalActions {
     @Test
     public void remote_singleTerminalCommand() {
         TerminalActions terminalSession = new TerminalActions("35.184.27.139", 22, "incorta",
-                System.getProperty("testDataFolderPath"), "newAutomationEnvironment.key");
-        String shellResponse = "";
+                SHAFT.Properties.paths.properties(), "newAutomationEnvironment.key");
+        String shellResponse;
 
         shellResponse = terminalSession.performTerminalCommand("ls /home/incorta/Automation_latest_Tenant_bkp");
         Validations.assertThat().object(shellResponse).contains("content").perform();
@@ -81,8 +82,8 @@ public class Test_TerminalActions {
     @Test
     public void remote_chainedTerminalCommands() {
         TerminalActions terminalSession = new TerminalActions("35.184.27.139", 22, "incorta",
-                System.getProperty("testDataFolderPath"), "newAutomationEnvironment.key");
-        String shellResponse = "";
+                SHAFT.Properties.paths.properties(), "newAutomationEnvironment.key");
+        String shellResponse;
 
         shellResponse = terminalSession
                 .performTerminalCommands(Arrays.asList("cd /home/incorta/Automation_latest_Tenant_bkp", "ls"));
@@ -92,8 +93,8 @@ public class Test_TerminalActions {
     @Test
     public void remoteDockerized_singleTerminalCommand() {
         TerminalActions terminalSession = new TerminalActions("35.184.27.139", 22, "incorta",
-                System.getProperty("testDataFolderPath"), "newAutomationEnvironment.key", "analytics-mysql", "incorta");
-        String shellResponse = "";
+                SHAFT.Properties.paths.properties(), "newAutomationEnvironment.key", "analytics-mysql", "incorta");
+        String shellResponse;
 
         shellResponse = terminalSession
                 .performTerminalCommand("ls /home/incorta/IncortaAnalytics_Analytics_Mysql/IncortaNode/bin");
@@ -103,8 +104,8 @@ public class Test_TerminalActions {
     @Test
     public void remoteDockerized_chainedTerminalCommands() {
         TerminalActions terminalSession = new TerminalActions("35.184.27.139", 22, "incorta",
-                System.getProperty("testDataFolderPath"), "newAutomationEnvironment.key", "analytics-mysql", "incorta");
-        String shellResponse = "";
+                SHAFT.Properties.paths.properties(), "newAutomationEnvironment.key", "analytics-mysql", "incorta");
+        String shellResponse;
 
         shellResponse = terminalSession.performTerminalCommands(
                 Arrays.asList("cd /home/incorta/IncortaAnalytics_Analytics_Mysql/IncortaNode/bin", "ls"));
