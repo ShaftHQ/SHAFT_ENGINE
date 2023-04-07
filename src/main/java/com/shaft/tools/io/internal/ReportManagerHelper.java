@@ -960,11 +960,10 @@ public class ReportManagerHelper {
 
     public static void openExecutionSummaryReportAfterExecution() {
         if (SHAFT.Properties.reporting.openExecutionSummaryReportAfterExecution()) {
-            if (Platform.WINDOWS.name().equals(SHAFT.Properties.platform.targetPlatform())) {
+            if (SystemUtils.IS_OS_WINDOWS) {
                 SHAFT.CLI.terminal().performTerminalCommand(".\\" + SHAFT.Properties.paths.executionSummaryReport() + "ExecutionSummaryReport_*.html");
-            }else{
+            } else {
                 SHAFT.CLI.terminal().performTerminalCommand("open ./" + SHAFT.Properties.paths.executionSummaryReport() + "ExecutionSummaryReport_*.html");
-
             }
         }
     }
