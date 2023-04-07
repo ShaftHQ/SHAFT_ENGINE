@@ -5,13 +5,13 @@ public class demo {
 //    @Test
 //    public void test_encryptSingleFile(){
 //        GoogleTink.initialize();
-//        GoogleTink.encrypt(SHAFT.Properties.paths.properties(), "simpleJSON.json");
+//        GoogleTink.encrypt(SHAFT.Properties.paths.testData(), "simpleJSON.json");
 //    }
 //
 //    @Test
 //    public void test_decryptSingleFile(){
 //        GoogleTink.initialize();
-//        GoogleTink.decrypt(SHAFT.Properties.paths.properties(), "simpleJSON.json");
+//        GoogleTink.decrypt(SHAFT.Properties.paths.testData(), "simpleJSON.json");
 //    }
 //
 //    @Test

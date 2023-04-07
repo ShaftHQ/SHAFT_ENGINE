@@ -10,7 +10,7 @@ public class JSONFileManagerTests {
 
     @Test
     public void readStringFromJson() {
-        testDataJSON = new JSONFileManager(SHAFT.Properties.paths.properties() + "simpleJSON.json");
+        testDataJSON = new JSONFileManager(SHAFT.Properties.paths.testData() + "simpleJSON.json");
         Validations.assertThat().object(testDataJSON.getTestData("x.name")).equals("Mohab Mohie");
     }
 }

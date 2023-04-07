@@ -19,9 +19,9 @@ public class JsonActionsTests {
     @Test
     public void f() throws IOException, ParseException, JSONException {
         String expectedResponse = new String(
-                Files.readAllBytes(Paths.get(SHAFT.Properties.paths.properties() + "JsonFileTest2.json")));
+                Files.readAllBytes(Paths.get(SHAFT.Properties.paths.testData() + "JsonFileTest2.json")));
         String actualResponse = new String(
-                Files.readAllBytes(Paths.get(SHAFT.Properties.paths.properties() + "JsonFileTest.json")));
+                Files.readAllBytes(Paths.get(SHAFT.Properties.paths.testData() + "JsonFileTest.json")));
 
         JSONObject expectedJsonObject = (JSONObject) (new JSONParser()).parse(expectedResponse);
         JSONObject actualJsonObject = (JSONObject) (new JSONParser()).parse(actualResponse);
@@ -38,9 +38,9 @@ public class JsonActionsTests {
     @Test
     public void f2() throws IOException, ParseException, JSONException {
         String expectedResponse = new String(
-                Files.readAllBytes(Paths.get(SHAFT.Properties.paths.properties() + "JsonFileTest2.json")));
+                Files.readAllBytes(Paths.get(SHAFT.Properties.paths.testData() + "JsonFileTest2.json")));
         String actualResponse = new String(
-                Files.readAllBytes(Paths.get(SHAFT.Properties.paths.properties() + "JsonFileTest.json")));
+                Files.readAllBytes(Paths.get(SHAFT.Properties.paths.testData() + "JsonFileTest.json")));
 
         JSONObject expectedJsonObject = (JSONObject) (new JSONParser()).parse(expectedResponse);
         JSONObject actualJsonObject = (JSONObject) (new JSONParser()).parse(actualResponse);

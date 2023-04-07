@@ -60,7 +60,7 @@ public class GoogleTink {
 
     public static void encrypt() {
         if (!"".equals(keysetFilename)) {
-            String relativeFolderPath = System.getProperty("testDataFolderPath");
+            String relativeFolderPath = SHAFT.Properties.paths.testData();
             ReportManager.logDiscrete("Loading test data files from target directory \"" + relativeFolderPath + "\" to be encrypted...");
             System.setProperty("disableLogging", "true");
             var filesList = FileActions.getInstance().getFileList(relativeFolderPath);
@@ -72,7 +72,7 @@ public class GoogleTink {
 
     public static void decrypt() {
         if (!"".equals(keysetFilename)) {
-            String relativeFolderPath = System.getProperty("testDataFolderPath");
+            String relativeFolderPath = SHAFT.Properties.paths.testData();
             ReportManager.logDiscrete("Loading test data files from target directory \"" + relativeFolderPath + "\" to be decrypted...");
             System.setProperty("disableLogging", "true");
             var filesList = FileActions.getInstance().getFileList(relativeFolderPath);

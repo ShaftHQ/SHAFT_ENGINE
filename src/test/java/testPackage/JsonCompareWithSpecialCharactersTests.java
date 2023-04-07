@@ -10,7 +10,7 @@ import org.testng.annotations.Test;
 public class JsonCompareWithSpecialCharactersTests {
     @Test
     public void specialCharacters() {
-        String referenceJsonFilePath = SHAFT.Properties.paths.properties() + "specialCharacters.json";
+        String referenceJsonFilePath = SHAFT.Properties.paths.testData() + "specialCharacters.json";
         Response response = (new ResponseBuilder()).setBody(FileActions.getInstance().readFile(referenceJsonFilePath))
                 .setStatusCode(200).build();
         Validations.verifyThat().response(response).isEqualToFileContent(referenceJsonFilePath).perform();
@@ -18,7 +18,7 @@ public class JsonCompareWithSpecialCharactersTests {
 
     @Test
     public void specialCharacters_assertion() {
-        String referenceJsonFilePath = SHAFT.Properties.paths.properties() + "specialCharacters.json";
+        String referenceJsonFilePath = SHAFT.Properties.paths.testData() + "specialCharacters.json";
         Response response = (new ResponseBuilder()).setBody(FileActions.getInstance().readFile(referenceJsonFilePath))
                 .setStatusCode(200).build();
         Validations.assertThat().response(response).containsFileContent(referenceJsonFilePath)
