@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.restassured.config.RestAssuredConfig;
@@ -27,15 +28,15 @@ import static io.restassured.config.EncoderConfig.encoderConfig;
 
 public class XrayIntegrationHelper {
 
-    private static String _JiraAuthorization =System.getProperty("authorization").trim();
-    private static final String authType= System.getProperty("authType").trim()+" ";
-    private static final String _ProjectKey = System.getProperty("projectKey").trim();
+    private static final String authType = SHAFT.Properties.jira.authType() + " ";
+    private static final String _ProjectKey = SHAFT.Properties.jira.projectKey();
+    private static String _JiraAuthorization = SHAFT.Properties.jira.authorization();
     private static String _TestExecutionID = null;
 
     private static void setup() {
-        baseURI = System.getProperty("jiraUrl");
-        if(authType.equals("Basic "))
-            _JiraAuthorization=Base64.getEncoder().encodeToString(_JiraAuthorization.getBytes());
+        baseURI = SHAFT.Properties.jira.url();
+        if (authType.equals("Basic "))
+            _JiraAuthorization = Base64.getEncoder().encodeToString(_JiraAuthorization.getBytes());
         given()
                 .config(RestAssuredConfig.config().sslConfig(SSLConfig.sslConfig().allowAllHostnames()))
                 .relaxedHTTPSValidation();
@@ -172,7 +173,7 @@ public class XrayIntegrationHelper {
                                     .replaceAll("[^a-zA-Z0-9.?=*$%@#&!<>|\\{\\}\\[\\]\"' /]", "")
                                     .replaceAll("\"", "'")
                             )
-                            .replace("${ASSIGNEE_NAME}", System.getProperty("assignee"))
+                            .replace("${ASSIGNEE_NAME}", SHAFT.Properties.jira.assignee())
                     )
                     .post("/rest/api/2/issue")
                     .then().log().all().extract().response();

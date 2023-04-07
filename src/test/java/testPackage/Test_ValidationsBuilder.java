@@ -2,6 +2,7 @@ package testPackage;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.Validations;
@@ -169,7 +170,7 @@ public class Test_ValidationsBuilder {
 
     //@Test
     public void restValidations() {
-        String referenceJsonFilePath = System.getProperty("jsonFolderPath") + "specialCharacters.json";
+        String referenceJsonFilePath = SHAFT.Properties.paths.testData() + "specialCharacters.json";
         Response response = (new ResponseBuilder()).setBody(FileActions.getInstance().readFile(referenceJsonFilePath))
                 .setStatusCode(200).build();
 

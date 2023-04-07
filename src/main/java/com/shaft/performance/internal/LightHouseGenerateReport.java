@@ -2,6 +2,7 @@ package com.shaft.performance.internal;
 
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
+import com.shaft.driver.SHAFT;
 import org.apache.commons.lang3.SystemUtils;
 import org.openqa.selenium.WebDriver;
 
@@ -13,27 +14,27 @@ import java.util.List;
 
 public class LightHouseGenerateReport {
     WebDriver driver;
-    String PortNum;
+    int PortNum;
     String PageName;
     public LightHouseGenerateReport(WebDriver driver) {
         this.driver = driver;
         }
 
     public void generateLightHouseReport() {
-        PortNum=System.getProperty("lightHouseExeution.port");
-        PageName=getPageName();
+        PortNum = SHAFT.Properties.performance.port();
+        PageName = getPageName();
 
         String commandToGenerateLightHouseReport;
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("lightHouseExeution").trim()))) {
+        if (SHAFT.Properties.performance.isEnabled()) {
             if (SystemUtils.IS_OS_WINDOWS) {
-                commandToGenerateLightHouseReport = ("cmd.exe /c node GenerateLHScript.js --url=\"" +driver.getCurrentUrl()+ "\" --port="+ PortNum + " --reportName=" + PageName + " ");
-                commandToGenerateLightHouseReport=commandToGenerateLightHouseReport.replace("&","N898");
+                commandToGenerateLightHouseReport = ("cmd.exe /c node GenerateLHScript.js --url=\"" + driver.getCurrentUrl() + "\" --port=" + PortNum + " --reportName=" + PageName + " ");
+                commandToGenerateLightHouseReport = commandToGenerateLightHouseReport.replace("&", "N898");
             } else {
-                commandToGenerateLightHouseReport = ("node GenerateLHScript.js --url=\""+ driver.getCurrentUrl()+ "\" --port=" + PortNum + " --reportName=" + PageName +" ");
-                commandToGenerateLightHouseReport=commandToGenerateLightHouseReport.replace("&","N898");
+                commandToGenerateLightHouseReport = ("node GenerateLHScript.js --url=\"" + driver.getCurrentUrl() + "\" --port=" + PortNum + " --reportName=" + PageName + " ");
+                commandToGenerateLightHouseReport = commandToGenerateLightHouseReport.replace("&", "N898");
             }
             //TerminalActions.getInstance(true, true).performTerminalCommand(commandToGenerateLightHouseReport);
-            ( new TerminalActions()).performTerminalCommand(commandToGenerateLightHouseReport);
+            (new TerminalActions()).performTerminalCommand(commandToGenerateLightHouseReport);
             writeReportPathToFilesInProjectDirectory(PageName);
             openLighthouseReportWhileExecution();
         }
@@ -41,14 +42,14 @@ public class LightHouseGenerateReport {
 
         public  void openLighthouseReportWhileExecution() {
             String commandToOpenLighthouseReport;
-            if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openLighthouseReportWhileExecution").trim()))) {
+            if (SHAFT.Properties.reporting.openLighthouseReportWhileExecution()) {
                 if (SystemUtils.IS_OS_WINDOWS) {
                     commandToOpenLighthouseReport = ("cmd.exe /c node OpenLHReport.js");
                 } else {
                     commandToOpenLighthouseReport = ("node OpenLHReport.js");
                 }
 //                TerminalActions.getInstance(true, true).performTerminalCommand(commandToOpenLighthouseReport);
-                ( new TerminalActions()).performTerminalCommand(commandToOpenLighthouseReport);
+                (new TerminalActions()).performTerminalCommand(commandToOpenLighthouseReport);
             }
     }
 

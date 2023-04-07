@@ -237,7 +237,7 @@ public class ScreenshotManager {
 
     public static byte[] takeFullPageScreenshot(WebDriver driver) {
         try {
-            if (!System.getProperty("setParallel").equals("NONE")) {
+            if (!SHAFT.Properties.testNG.parallel().equals("NONE")) {
                 //in case of parallel execution, force regular screenshots
                 return takeViewportScreenshot(driver);
             } else if (SCREENSHOT_PARAMS_SKIPPED_ELEMENTS_FROM_SCREENSHOT.length() > 0) {

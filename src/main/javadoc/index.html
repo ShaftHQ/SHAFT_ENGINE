@@ -793,7 +793,7 @@
                                         <p><strong>Hint:</strong> <br/>• The absolute local path or remote http URL to a .ipa file (IOS), .app folder (IOS Simulator), .apk file (Android) or .apks file (Android App Bundle), or a .zip file containing one of these.
                                             <br/>• e.g., <a>/abs/path/to/my.apk</a> or <a>http://myapp.com/app.ipa</a>
                                             <br/>• You can set this capability programmatically in your setup configuration method like so:
-                                            <br/><code>System.setProperty("mobile_app", FileActions.getAbsolutePath("relativePath/to/myApp/", "myApp.apk"));</code>
+                                            <br/><code>SHAFT.Properties.mobile.set().app("relativePath/to/myApp.apk");</code>
                                             <br/>• This capability is not required for Android if you specify the App Package and App Activity Name (see below).
                                             <br/>• Leave empty if automating a Web app instead.                                        </span>
                                     </div>

@@ -9,7 +9,7 @@ public class PDFTests {
 
     @Test
     public void testPDF1() {
-        var actualFile = PdfFileManager.readFileContent(SHAFT.Properties.paths.properties() + "sample.pdf");
+        var actualFile = PdfFileManager.readFileContent(SHAFT.Properties.paths.testData() + "sample.pdf");
         var expectedData = "A Simple PDF File";
         Validations.assertThat()
                 .object(actualFile)
@@ -22,7 +22,7 @@ public class PDFTests {
     public void testPDF2(){
         var expectedData = "A Simple PDF File";
         Validations.assertThat()
-                .file(SHAFT.Properties.paths.properties(), "sample.pdf")
+                .file(SHAFT.Properties.paths.testData(), "sample.pdf")
                 .content()
                 .contains(expectedData)
                 .withCustomReportMessage("Checking to see that the pdf file contains [" + expectedData + "]")

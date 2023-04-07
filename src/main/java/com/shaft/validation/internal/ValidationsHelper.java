@@ -34,7 +34,7 @@ public class ValidationsHelper {
     //TODO: implement element attribute and element exists validations for sikuli actions
     static final ThreadLocal<ArrayList<String>> optionalCustomLogMessage = new ThreadLocal<>();
     private static By lastUsedElementLocator = null;
-    private static final Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
+    private static final Boolean discreetLoggingState = SHAFT.Properties.reporting.alwaysLogDiscreetly();
     private static List<String> verificationFailuresList = new ArrayList<>();
     private static AssertionError verificationError = null;
     private static final String WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim();

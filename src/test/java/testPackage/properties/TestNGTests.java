@@ -5,11 +5,11 @@ import org.testng.annotations.Test;
 
 public class TestNGTests {
     String parallel;
-    String threadCount;
-    String verbose;
+    int threadCount;
+    int verbose;
     boolean preserveOrder;
     boolean groupByInstances;
-    String dataProviderThreadCount;
+    int dataProviderThreadCount;
 
     @Test
     public void test() {

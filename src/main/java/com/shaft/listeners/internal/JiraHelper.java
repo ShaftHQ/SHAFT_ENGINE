@@ -1,5 +1,6 @@
 package com.shaft.listeners.internal;
 
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.tms.XrayIntegrationHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.*;
@@ -15,17 +16,17 @@ import static com.shaft.tools.internal.tms.XrayIntegrationHelper.link2Tickets;
 
 public class JiraHelper {
     public static void reportExecutionStatusToJira() {
-        if (System.getProperty("jiraInteraction").trim().equalsIgnoreCase("true")
-                && System.getProperty("reportTestCasesExecution").trim().equalsIgnoreCase("true")) {
+        if (SHAFT.Properties.jira.isEnabled() && SHAFT.Properties.jira.reportTestCasesExecution()) {
             try {
-                if (System.getProperty("reportPath").contains("testng-results.xml")) {
-                    XrayIntegrationHelper.importTestNGResults(System.getProperty("reportPath"));
-                } else if (System.getProperty("reportPath").contains("cucumber.json")) {
-                    XrayIntegrationHelper.importCucumberResults(System.getProperty("reportPath"));
+                var reportPath = SHAFT.Properties.jira.reportPath();
+                if (reportPath.contains("testng-results.xml")) {
+                    XrayIntegrationHelper.importTestNGResults(reportPath);
+                } else if (reportPath.contains("cucumber.json")) {
+                    XrayIntegrationHelper.importCucumberResults(reportPath);
                 }
 
-                XrayIntegrationHelper.renameTestExecutionSuit(System.getProperty("ExecutionName"),
-                        System.getProperty("ExecutionDescription"));
+                XrayIntegrationHelper.renameTestExecutionSuit(SHAFT.Properties.jira.executionName(),
+                        SHAFT.Properties.jira.executionDescription());
 
             } catch (Exception e) {
                 ReportManagerHelper.logDiscrete(e);
@@ -63,8 +64,8 @@ public class JiraHelper {
      */
     public static void reportBugsToJIRA(List<String> attachments, String logText, ITestResult iTestResult, ITestNGMethod iTestNGMethod) {
         if (!iTestResult.isSuccess()
-                && System.getProperty("jiraInteraction").trim().equals("true")
-                && System.getProperty("ReportBugs").trim().equals("true")) {
+                && SHAFT.Properties.jira.isEnabled()
+                && SHAFT.Properties.jira.reportBugs()) {
             String bugID = createIssue(attachments, ReportManagerHelper.getTestMethodName(), logText);
             if (bugID != null
                     && iTestNGMethod.isTest() && iTestNGMethod.getConstructorOrMethod().getMethod().isAnnotationPresent(TmsLink.class))

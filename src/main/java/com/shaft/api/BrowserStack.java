@@ -125,7 +125,8 @@ public class BrowserStack {
         String testData = "Username: " + username + ", Password: " + password + ", Operating System: " + os + ", Operating System Version: " + osVersion;
         // set properties
         SHAFT.Properties.platform.set().executionAddress(username + ":" + password + "@" + hubUrl);
-        System.setProperty("browserName", SHAFT.Properties.web.targetBrowserName());
+        SHAFT.Properties.mobile.set().browserName(SHAFT.Properties.web.targetBrowserName());
+//        System.setProperty("browserName", SHAFT.Properties.web.targetBrowserName());
 
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
         var browserVersion = SHAFT.Properties.browserStack.browserVersion();

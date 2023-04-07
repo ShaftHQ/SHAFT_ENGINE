@@ -20,7 +20,7 @@ public class MatchJsonSchemaTests {
 
         Validations.assertThat()
                 .response(res)
-                .matchesSchema(SHAFT.Properties.paths.properties() + "schema.json")
+                .matchesSchema(SHAFT.Properties.paths.testData() + "schema.json")
                 .perform();
 
     }

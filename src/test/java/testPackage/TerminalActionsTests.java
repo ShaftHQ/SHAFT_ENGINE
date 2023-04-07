@@ -25,7 +25,7 @@ public class TerminalActionsTests {
     @Test(enabled = false)
     public void remote_list() {
         TerminalActions terminalSession = new TerminalActions("35.184.27.139", 22, "incorta",
-                SHAFT.Properties.paths.properties(), "newAutomationEnvironment.key");
+                SHAFT.Properties.paths.testData(), "newAutomationEnvironment.key");
         String shellResponse = FileActions.getInstance().listFilesInDirectory(terminalSession, "");
         Validations.assertThat().object(shellResponse).contains("backup").perform();
 
@@ -36,7 +36,7 @@ public class TerminalActionsTests {
     @Test(enabled = false)
     public void remoteDockerized_list() {
         TerminalActions terminalSession = new TerminalActions("35.184.27.139", 22, "incorta",
-                SHAFT.Properties.paths.properties(), "newAutomationEnvironment.key", "analytics-mysql", "incorta");
+                SHAFT.Properties.paths.testData(), "newAutomationEnvironment.key", "analytics-mysql", "incorta");
         String shellResponse;
 
         shellResponse = FileActions.getInstance().listFilesInDirectory(terminalSession, "");
@@ -72,7 +72,7 @@ public class TerminalActionsTests {
     @Test
     public void remote_singleTerminalCommand() {
         TerminalActions terminalSession = new TerminalActions("35.184.27.139", 22, "incorta",
-                SHAFT.Properties.paths.properties(), "newAutomationEnvironment.key");
+                SHAFT.Properties.paths.testData(), "newAutomationEnvironment.key");
         String shellResponse;
 
         shellResponse = terminalSession.performTerminalCommand("ls /home/incorta/Automation_latest_Tenant_bkp");
@@ -82,7 +82,7 @@ public class TerminalActionsTests {
     @Test
     public void remote_chainedTerminalCommands() {
         TerminalActions terminalSession = new TerminalActions("35.184.27.139", 22, "incorta",
-                SHAFT.Properties.paths.properties(), "newAutomationEnvironment.key");
+                SHAFT.Properties.paths.testData(), "newAutomationEnvironment.key");
         String shellResponse;
 
         shellResponse = terminalSession
@@ -93,7 +93,7 @@ public class TerminalActionsTests {
     @Test
     public void remoteDockerized_singleTerminalCommand() {
         TerminalActions terminalSession = new TerminalActions("35.184.27.139", 22, "incorta",
-                SHAFT.Properties.paths.properties(), "newAutomationEnvironment.key", "analytics-mysql", "incorta");
+                SHAFT.Properties.paths.testData(), "newAutomationEnvironment.key", "analytics-mysql", "incorta");
         String shellResponse;
 
         shellResponse = terminalSession
@@ -104,7 +104,7 @@ public class TerminalActionsTests {
     @Test
     public void remoteDockerized_chainedTerminalCommands() {
         TerminalActions terminalSession = new TerminalActions("35.184.27.139", 22, "incorta",
-                SHAFT.Properties.paths.properties(), "newAutomationEnvironment.key", "analytics-mysql", "incorta");
+                SHAFT.Properties.paths.testData(), "newAutomationEnvironment.key", "analytics-mysql", "incorta");
         String shellResponse;
 
         shellResponse = terminalSession.performTerminalCommands(

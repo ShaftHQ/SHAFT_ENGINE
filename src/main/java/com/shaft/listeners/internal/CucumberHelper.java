@@ -1,6 +1,7 @@
 package com.shaft.listeners.internal;
 
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.security.GoogleTink;
@@ -15,13 +16,13 @@ public class CucumberHelper {
     public static void shaftSetup() {
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
-            System.setProperty("disableLogging", "true");
             PropertiesHelper.initialize();
+            SHAFT.Properties.reporting.set().disableLogging(true);
             ProjectStructureManager.initialize();
             TestNGListenerHelper.configureJVMProxy();
             GoogleTink.initialize();
             GoogleTink.decrypt();
-            System.setProperty("disableLogging", "false");
+            SHAFT.Properties.reporting.set().disableLogging(false);
 
             ReportManagerHelper.logEngineVersion();
             ImageProcessingActions.loadOpenCV();
@@ -32,8 +33,8 @@ public class CucumberHelper {
             ReportHelper.attachImportantLinks();
             ReportHelper.attachPropertyFiles();
 
-            ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
-            ReportManagerHelper.setDebugMode(Boolean.valueOf(System.getProperty("debugMode")));
+            ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
+            ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
         }
     }
 

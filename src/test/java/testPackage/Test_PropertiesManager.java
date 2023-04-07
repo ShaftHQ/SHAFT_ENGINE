@@ -31,7 +31,7 @@ public class Test_PropertiesManager {
         SHAFT.Validations.assertThat().object(Properties.flags.clickUsingJavascriptWhenWebDriverClickFails()).equals(true);
         SHAFT.Validations.assertThat().object(Properties.healenium.imitatePort()).equals("8080");
         SHAFT.Validations.assertThat().object(Properties.internal.allureVersion()).equals("2.2.1");
-        SHAFT.Validations.assertThat().object(Properties.jira.jiraInteraction()).equals(true);
+        SHAFT.Validations.assertThat().object(Properties.jira.isEnabled()).equals(true);
         SHAFT.Validations.assertThat().object(Properties.mobile.selfManaged()).equals(true);
         SHAFT.Validations.assertThat().object(Properties.paths.properties()).equals("src/main/resources/properties/");
         SHAFT.Validations.assertThat().object(Properties.pattern.testDataColumnNamePrefix()).equals("Data");

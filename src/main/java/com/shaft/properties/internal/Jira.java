@@ -18,11 +18,11 @@ public interface Jira extends EngineProperties {
 
     @Key("jiraInteraction")
     @DefaultValue("false")
-    boolean jiraInteraction();
+    boolean isEnabled();
 
     @Key("jiraUrl")
     @DefaultValue("https://")
-    String jiraUrl();
+    String url();
 
     @Key("projectKey")
     @DefaultValue("")
@@ -31,6 +31,10 @@ public interface Jira extends EngineProperties {
     @Key("authorization")
     @DefaultValue(":")
     String authorization();
+
+    @Key("authType")
+    @DefaultValue("basic")
+    String authType();
 
     @Key("reportTestCasesExecution")
     @DefaultValue("false")
@@ -83,6 +87,10 @@ public interface Jira extends EngineProperties {
 
         public void authorization(String value) {
             setProperty("authorization", value);
+        }
+
+        public void authType(String value) {
+            setProperty("authType", value);
         }
 
         public void reportTestCasesExecution(boolean value) {

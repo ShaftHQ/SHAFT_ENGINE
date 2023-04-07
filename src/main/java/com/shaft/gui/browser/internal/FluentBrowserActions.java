@@ -1,6 +1,7 @@
 package com.shaft.gui.browser.internal;
 
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.enums.internal.NavigationAction;
@@ -252,7 +253,7 @@ public class FluentBrowserActions {
      */
     public FluentBrowserActions navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
         String modifiedTargetUrl = targetUrl;
-        var baseUrl = System.getProperty("baseURL").trim();
+        var baseUrl = SHAFT.Properties.web.baseURL();
 
         if (!baseUrl.isBlank() && targetUrl.startsWith("./")) {
             // valid use case for baseURL property ==> property is not blank && the target url starts with ./
@@ -321,7 +322,7 @@ public class FluentBrowserActions {
     public FluentBrowserActions navigateToURLWithBasicAuthentication(String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
         try {
             String domainName = BrowserActionsHelpers.getDomainNameFromURL(targetUrl);
-            if (System.getProperty("executionAddress").equals("local")) {
+            if (SHAFT.Properties.platform.executionAddress().equals("local")) {
                 Predicate<URI> uriPredicate = uri -> uri.getHost().contains(domainName);
                 ((HasAuthentication) DriverFactoryHelper.getDriver().get()).register(uriPredicate, UsernameAndPassword.of(username, password));
             } else {
@@ -444,9 +445,9 @@ public class FluentBrowserActions {
         initialWindowSize = DriverFactoryHelper.getDriver().get().manage().window().getSize();
         ReportManager.logDiscrete("Initial window size: " + initialWindowSize.toString());
 
-        String targetBrowserName = System.getProperty("targetBrowserName").trim();
-        String targetOperatingSystem = System.getProperty("targetOperatingSystem").trim();
-        String executionAddress = System.getProperty("executionAddress").trim();
+        String targetBrowserName = SHAFT.Properties.web.targetBrowserName();
+        String targetOperatingSystem = SHAFT.Properties.platform.targetPlatform();
+        String executionAddress = SHAFT.Properties.platform.executionAddress();
 
         // try selenium WebDriver maximize
         currentWindowSize = BrowserActionsHelpers.attemptMaximizeUsingSeleniumWebDriver(DriverFactoryHelper.getDriver().get(), executionAddress, targetBrowserName,
@@ -533,8 +534,8 @@ public class FluentBrowserActions {
         Dimension initialWindowSize = DriverFactoryHelper.getDriver().get().manage().window().getSize();
         ReportManager.logDiscrete("Initial Windows Size: " + initialWindowSize.width + "x" + initialWindowSize.height);
 
-        if (!System.getProperty("executionAddress").trim().equalsIgnoreCase("local")
-                && System.getProperty("headlessExecution").trim().equalsIgnoreCase("true")) {
+        if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local")
+                && SHAFT.Properties.web.headlessExecution()) {
             maximizeWindow();
         } else {
             DriverFactoryHelper.getDriver().get().manage().window().fullscreen();

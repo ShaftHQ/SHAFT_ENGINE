@@ -19,7 +19,7 @@ public interface Visuals extends EngineProperties {
 
     @Key("screenshotParams_scalingFactor")
     @DefaultValue("1")
-    String screenshotParamsScalingFactor();
+    double screenshotParamsScalingFactor();
 
     @Key("screenshotParams_whenToTakeAScreenshot")
     @DefaultValue("ValidationPointsOnly")
