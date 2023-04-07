@@ -143,14 +143,14 @@ public class TestNGListenerHelper {
 
     public static void configureTestNGProperties(List<XmlSuite> suites) {
         suites.forEach(suite -> {
-            suite.setPreserveOrder(Boolean.valueOf(System.getProperty("setPreserveOrder")));
-            suite.setGroupByInstances(Boolean.parseBoolean(System.getProperty("setGroupByInstances")));
-            suite.setVerbose(Integer.parseInt(System.getProperty("setVerbose")));
-            suite.setParallel(XmlSuite.ParallelMode.valueOf(System.getProperty("setParallel")));
-            suite.setThreadCount(Integer.parseInt(System.getProperty("setThreadCount")));
-            suite.setDataProviderThreadCount(Integer.parseInt(System.getProperty("setDataProviderThreadCount")));
+            suite.setPreserveOrder(SHAFT.Properties.testNG.preserveOrder());
+            suite.setGroupByInstances(SHAFT.Properties.testNG.groupByInstances());
+            suite.setVerbose(SHAFT.Properties.testNG.verbose());
+            suite.setParallel(XmlSuite.ParallelMode.valueOf(SHAFT.Properties.testNG.parallel()));
+            suite.setThreadCount(SHAFT.Properties.testNG.threadCount());
+            suite.setDataProviderThreadCount(SHAFT.Properties.testNG.dataProviderThreadCount());
 
-            if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
+            if (SHAFT.Properties.reporting.debugMode()) {
                 ReportManager.log("getPreserveOrder: " + suite.getPreserveOrder());
                 ReportManager.log("getDataProviderThreadCount: " + suite.getDataProviderThreadCount());
                 ReportManager.log("getThreadCount: " + suite.getThreadCount());
@@ -188,7 +188,7 @@ public class TestNGListenerHelper {
     }
 
     public static void configureJVMProxy() {
-        String PROXY_SERVER_SETTINGS = System.getProperty("com.SHAFT.proxySettings");
+        String PROXY_SERVER_SETTINGS = SHAFT.Properties.platform.proxy();
         if (!PROXY_SERVER_SETTINGS.equals("")) {
             String[] proxyHostPort = PROXY_SERVER_SETTINGS.split(":");
             System.setProperty("http.proxyHost", proxyHostPort[0]);
@@ -206,7 +206,7 @@ public class TestNGListenerHelper {
         if (!Arrays.asList("suiteSetup", "suiteTeardown", "classTeardown").contains(iTestNGMethod.getMethodName())) {
             List<String> attachments = new ArrayList<>();
             String attachment;
-            if (System.getProperty("videoParams_scope").trim().equals("TestMethod")) {
+            if (SHAFT.Properties.visuals.videoParamsScope().equals("TestMethod")) {
                 RecordManager.attachVideoRecording();
                 attachment = RecordManager.getVideoRecordingFilePath();
                 if (!attachment.equals(""))
@@ -237,7 +237,7 @@ public class TestNGListenerHelper {
     }
 
     public static void skipTestsWithLinkedIssues(ITestResult iTestResult) {
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("skipTestsWithLinkedIssues")))) {
+        if (SHAFT.Properties.flags.skipTestsWithLinkedIssues()) {
             var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
             Issue issue = method.getAnnotation(Issue.class);
             if (issue != null) {
@@ -259,11 +259,7 @@ public class TestNGListenerHelper {
     public static Boolean testHasIssueAnnotation(ITestResult iTestResult) {
         var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
         Issue issue = method.getAnnotation(Issue.class);
-        Boolean hasIssue = false;
-        if (issue != null) {
-            hasIssue = true;
-        }
-        return hasIssue;
+        return issue != null;
     }
 
     public static void failFast(ITestResult iTestResult) {

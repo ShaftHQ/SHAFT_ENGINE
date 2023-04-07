@@ -168,9 +168,9 @@ public final class PropertyFileManager {
      * </ul>
      */
     private static void manageMaximumPerformanceMode() {
-        String maximumPerformanceMode = System.getProperty("maximumPerformanceMode");
+        int maximumPerformanceMode = SHAFT.Properties.flags.maximumPerformanceMode();
         switch (maximumPerformanceMode) {
-            case "true", "1", "2" -> {
+            case 1, 2 -> {
                 SHAFT.Properties.healenium.set().healEnabled(false);
                 SHAFT.Properties.flags.set().autoMaximizeBrowserWindow(false);
                 SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
@@ -183,11 +183,11 @@ public final class PropertyFileManager {
                 SHAFT.Properties.reporting.set().debugMode(false);
                 SHAFT.Properties.reporting.set().captureElementName(false);
                 SHAFT.Properties.web.set().headlessExecution(false);
-                if ("2".equals(maximumPerformanceMode) && !DriverFactory.DriverType.SAFARI.getValue().equals(SHAFT.Properties.web.targetBrowserName())) {
+                if (maximumPerformanceMode == 2 && !DriverFactory.DriverType.SAFARI.getValue().equals(SHAFT.Properties.web.targetBrowserName())) {
                     SHAFT.Properties.web.set().headlessExecution(true);
                 }
             }
-            case "false", "0" -> {
+            case 0 -> {
                 // do nothing
             }
         }

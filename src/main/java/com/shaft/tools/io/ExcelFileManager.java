@@ -1,5 +1,6 @@
 package com.shaft.tools.io;
 
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -200,7 +201,7 @@ public class ExcelFileManager {
         row = null;
         cell = null;
         excelFilePath = "";
-        testDataColumnNamePrefix = System.getProperty("testDataColumnNamePrefix");
+        testDataColumnNamePrefix = SHAFT.Properties.pattern.testDataColumnNamePrefix();
     }
 
     private int getRowNumberFromRowName(String sheetName, String rowName) {

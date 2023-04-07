@@ -38,11 +38,11 @@ public class ReportHelper {
     }
 
     public static void enableLogging() {
-        System.setProperty("disableLogging", "false");
+        SHAFT.Properties.reporting.set().disableLogging(false);
     }
 
     public static void disableLogging() {
-        System.setProperty("disableLogging", "true");
+        SHAFT.Properties.reporting.set().disableLogging(true);
     }
 
     public static void attachPropertyFiles() {

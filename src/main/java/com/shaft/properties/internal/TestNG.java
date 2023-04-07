@@ -12,11 +12,11 @@ public interface TestNG extends EngineProperties {
 
     @Key("setThreadCount")
     @DefaultValue("1")
-    String threadCount();
+    int threadCount();
 
     @Key("setVerbose")
     @DefaultValue("1")
-    String verbose();
+    Integer verbose();
 
     @Key("setPreserveOrder")
     @DefaultValue("true")
@@ -28,6 +28,6 @@ public interface TestNG extends EngineProperties {
 
     @Key("setDataProviderThreadCount")
     @DefaultValue("1")
-    String dataProviderThreadCount();
+    int dataProviderThreadCount();
 
 }

@@ -15,10 +15,10 @@ public class Test_threadSafe_grid4 {
 
 //    @BeforeClass
     @SuppressWarnings({"CommentedOutCode", "EmptyMethod"})
-    public void setupRemoteParallelExecution(){
-//        System.setProperty("executionAddress","localhost:4444");
-//        System.setProperty("targetOperatingSystem","Linux");
-//        System.setProperty("maximumPerformanceMode","2");
+    public void setupRemoteParallelExecution() {
+//        SHAFT.Properties.platform.set().executionAddress("localhost:4444");
+//        SHAFT.Properties.platform.set().targetPlatform(Platform.LINUX.name());
+//        SHAFT.Properties.flags.set().maximumPerformanceMode(2);
     }
 
 //    @Test

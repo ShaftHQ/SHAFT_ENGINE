@@ -62,9 +62,9 @@ public class GoogleTink {
         if (!"".equals(keysetFilename)) {
             String relativeFolderPath = SHAFT.Properties.paths.testData();
             ReportManager.logDiscrete("Loading test data files from target directory \"" + relativeFolderPath + "\" to be encrypted...");
-            System.setProperty("disableLogging", "true");
+            SHAFT.Properties.reporting.set().disableLogging(true);
             var filesList = FileActions.getInstance().getFileList(relativeFolderPath);
-            System.setProperty("disableLogging", "false");
+            SHAFT.Properties.reporting.set().disableLogging(false);
             filesList.forEach(file -> encrypt(file.getParent() + File.separator, file.getName()));
             ReportManager.log("Successfully Encrypted the test data directory \"" + relativeFolderPath + "\".");
         }
@@ -74,9 +74,9 @@ public class GoogleTink {
         if (!"".equals(keysetFilename)) {
             String relativeFolderPath = SHAFT.Properties.paths.testData();
             ReportManager.logDiscrete("Loading test data files from target directory \"" + relativeFolderPath + "\" to be decrypted...");
-            System.setProperty("disableLogging", "true");
+            SHAFT.Properties.reporting.set().disableLogging(true);
             var filesList = FileActions.getInstance().getFileList(relativeFolderPath);
-            System.setProperty("disableLogging", "false");
+            SHAFT.Properties.reporting.set().disableLogging(false);
             filesList.forEach(file -> decrypt(file.getParent() + File.separator, file.getName()));
             ReportManager.log("Successfully Decrypted the test data directory \"" + relativeFolderPath + "\".");
         }

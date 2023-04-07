@@ -64,6 +64,10 @@ public interface Reporting extends EngineProperties {
     @DefaultValue("true")
     boolean openExecutionSummaryReportAfterExecution();
 
+    @Key("disableLogging")
+    @DefaultValue("true")
+    boolean disableLogging();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -120,6 +124,10 @@ public interface Reporting extends EngineProperties {
 
         public void openExecutionSummaryReportAfterExecution(boolean value) {
             setProperty("openExecutionSummaryReportAfterExecution", String.valueOf(value));
+        }
+
+        public void disableLogging(boolean value) {
+            setProperty("disableLogging", String.valueOf(value));
         }
 
     }

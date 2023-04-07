@@ -3,6 +3,7 @@ package com.shaft.gui.internal.video;
 import com.automation.remarks.video.RecorderFactory;
 import com.automation.remarks.video.recorder.IVideoRecorder;
 import com.automation.remarks.video.recorder.VideoRecorder;
+import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -28,7 +29,7 @@ import java.util.Base64;
 import static com.automation.remarks.video.RecordingUtils.doVideoProcessing;
 
 public class RecordManager {
-    private static final Boolean RECORD_VIDEO = Boolean.valueOf(System.getProperty("videoParams_recordVideo").trim());
+    private static final Boolean RECORD_VIDEO = SHAFT.Properties.visuals.videoParamsRecordVideo();
     private static final ThreadLocal<IVideoRecorder> recorder = new ThreadLocal<>();
     private static final ThreadLocal<WebDriver> videoDriver = new ThreadLocal<>();
     private static boolean isRecordingStarted = false;
@@ -63,8 +64,8 @@ public class RecordManager {
 
     public static void startVideoRecording() {
         if (Boolean.TRUE.equals(RECORD_VIDEO)
-                && System.getProperty("executionAddress").trim().equals("local")
-                && Boolean.FALSE.equals(Boolean.valueOf(System.getProperty("headlessExecution").trim()))
+                && SHAFT.Properties.platform.executionAddress().equals("local")
+                && !SHAFT.Properties.web.headlessExecution()
                 && recorder.get() == null) {
             recorder.set(RecorderFactory.getRecorder(VideoRecorder.conf().recorderType()));
             recorder.get().start();

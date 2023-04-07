@@ -417,7 +417,7 @@ public class DriverFactoryHelper {
         }
         ReportManager.logDiscrete(initialLog + ".");
 
-        var proxy = System.getProperty("com.SHAFT.proxySettings");
+        var proxy = SHAFT.Properties.platform.proxy();
 
         try {
             switch (driverType) {
@@ -507,7 +507,7 @@ public class DriverFactoryHelper {
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\". We only support Chrome, Edge, Firefox, and Safari in this dockerized mode.");
             }
             RemoteWebDriver remoteWebDriver = (RemoteWebDriver) webDriverManager.get()
-                    .proxy(System.getProperty("com.SHAFT.proxySettings"))
+                    .proxy(SHAFT.Properties.platform.proxy())
                     .browserInDocker()
                     .dockerShmSize("2g")
                     .enableVnc()
@@ -516,7 +516,7 @@ public class DriverFactoryHelper {
                     .dockerScreenResolution(TARGET_WINDOW_SIZE.getWidth() + "x" + TARGET_WINDOW_SIZE.getHeight() + "x24")
 //                    .dockerVolumes("\\local\\path:\\container\\path")
                     .enableRecording()
-                    .dockerRecordingOutput(System.getProperty("video.folder"))
+                    .dockerRecordingOutput(SHAFT.Properties.paths.video())
                     .create();
             remoteWebDriver.setFileDetector(new LocalFileDetector());
 //            driver.set(ThreadGuard.protect(remoteWebDriver));
@@ -717,7 +717,7 @@ public class DriverFactoryHelper {
             }
             case APPIUM_CHROME, APPIUM_CHROMIUM -> {
                 ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
-                WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
+                WebDriverManager.chromedriver().browserVersion(SHAFT.Properties.mobile.browserVersion()).setup();
                 appiumDesiredCapabilities.setCapability("chromedriverExecutable",
                         WebDriverManager.chromedriver().getDownloadedDriverPath());
                 setRemoteDriverInstance(appiumDesiredCapabilities);
@@ -734,7 +734,8 @@ public class DriverFactoryHelper {
         ReportManager.log("Successfully Opened \"" + JavaHelper.convertToSentenceCase(driverName) + "\".");
     }
     private static void attachWebDriverLogs() {
-        if (Boolean.parseBoolean(System.getProperty("captureWebDriverLogs"))) {
+        // TODO: capture logs and record video in case of retrying failed test
+        if (SHAFT.Properties.reporting.captureWebDriverLogs()) {
             try {
                 var driverLogs = driver.get().manage().logs();
                 driverLogs.getAvailableLogTypes().forEach(logType -> {
@@ -834,8 +835,8 @@ public class DriverFactoryHelper {
             AppiumSelfManagementHelper.setupAppiumSelfManagedExecutionPrerequisites();
         }
 
-        var mobile_browserName = System.getProperty("mobile_browserName");
-        String targetBrowserName = System.getProperty("targetBrowserName");
+        var mobile_browserName = SHAFT.Properties.mobile.browserName();
+        String targetBrowserName = SHAFT.Properties.web.targetBrowserName();
 
         // it's null in case of native cucumber execution
         if (Reporter.getCurrentTestResult() != null) {
@@ -853,7 +854,7 @@ public class DriverFactoryHelper {
     }
 
     public static void initializeDriver(MutableCapabilities customDriverOptions) {
-        var mobile_browserName = System.getProperty("mobile_browserName");
+        var mobile_browserName = SHAFT.Properties.mobile.browserName();
         String targetBrowserName;
 
         var overridingBrowserName = Reporter.getCurrentTestResult().getTestContext().getCurrentXmlTest().getParameter("targetBrowserName");

@@ -27,7 +27,6 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
-import org.openqa.selenium.Platform;
 import org.testng.ITestResult;
 import org.testng.Reporter;
 
@@ -324,7 +323,7 @@ public class ReportManagerHelper {
     }
 
     public static void attachEngineLog(String executionEndTimestamp) {
-        if (Boolean.FALSE.equals(Boolean.parseBoolean(System.getProperty("disableLogging")))) {
+        if (!SHAFT.Properties.reporting.disableLogging()) {
             String engineLogCreated = "Successfully created attachment '" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
                     + "Execution log" + "'";
             var initialLoggingState = ReportManagerHelper.getDiscreteLogging();
@@ -531,7 +530,7 @@ public class ReportManagerHelper {
     }
 
     public static void createLogEntry(String logText, Level loglevel) {
-        if (Boolean.FALSE.equals(Boolean.parseBoolean(System.getProperty("disableLogging")))) {
+        if (SHAFT.Properties.reporting != null && !SHAFT.Properties.reporting.disableLogging()) {
             String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
             if (logText == null) {
                 logText = "null";
@@ -546,7 +545,7 @@ public class ReportManagerHelper {
     }
 
     private static void createLogEntry(String logText, boolean addToConsoleLog) {
-        if (Boolean.FALSE.equals(Boolean.parseBoolean(System.getProperty("disableLogging")))) {
+        if (!SHAFT.Properties.reporting.disableLogging()) {
             String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
             if (logText == null) {
                 logText = "null";
@@ -617,7 +616,7 @@ public class ReportManagerHelper {
      */
 //    @Step("{logText}")
     public static void writeStepToReport(String logText) {
-        if (Boolean.FALSE.equals(Boolean.parseBoolean(System.getProperty("disableLogging")))) {
+        if (!SHAFT.Properties.reporting.disableLogging()) {
             createLogEntry(logText, true);
             Allure.step(logText, getAllureStepStatus(logText));
         }
@@ -969,7 +968,7 @@ public class ReportManagerHelper {
     }
 
     public static void log(String logText, List<List<Object>> attachments) {
-        if (Boolean.FALSE.equals(Boolean.parseBoolean(System.getProperty("disableLogging")))) {
+        if (!SHAFT.Properties.reporting.disableLogging()) {
             if (!logText.toLowerCase().contains("failed") && getDiscreteLogging() && isInternalStep()) {
                 createLogEntry(logText, Level.INFO);
                 if (attachments != null && !attachments.isEmpty() && (attachments.size() > 1 || (attachments.get(0) != null && !attachments.get(0).isEmpty()))) {
@@ -1001,7 +1000,7 @@ public class ReportManagerHelper {
         CheckpointType type = (logText.toLowerCase().contains("verification")) ? CheckpointType.VERIFICATION : CheckpointType.ASSERTION;
 
         if (type.equals(CheckpointType.VERIFICATION) && status.equals(CheckpointStatus.FAIL)
-                || Boolean.FALSE.equals(Boolean.parseBoolean(System.getProperty("disableLogging")))) {
+                || !SHAFT.Properties.reporting.disableLogging()) {
             if (customLogMessages != null && customLogMessages.size() > 0 && !"".equals(customLogMessages.get(0).trim())) {
                 String customLogText = customLogMessages.get(0);
                 if (status == CheckpointStatus.PASS) {
