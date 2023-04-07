@@ -46,6 +46,8 @@ public class PropertiesHelper {
         Properties.log4j=ConfigFactory.create(Log4j.class);
         Properties.visuals=ConfigFactory.create(Visuals.class);
         Properties.timeouts = ConfigFactory.create(Timeouts.class);
+        Properties.performance = ConfigFactory.create(Performance.class);
+
     }
 
     public static void postProcessing() {
