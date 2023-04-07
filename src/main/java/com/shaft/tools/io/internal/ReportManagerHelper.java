@@ -130,7 +130,7 @@ public class ReportManagerHelper {
         }
         if (!listOfOpenIssuesForPassedTests.isEmpty()) {
             listOfOpenIssuesForPassedTests.forEach(issue -> {
-                if (!issue.get(3).trim().equals("")) {
+                if (issue.get(3)!=null && !issue.get(3).trim().equals("")) {
                     logIssue("Test Method '" + issue.get(0) + "." + issue.get(1)
                             + "' passed. Please validate and close this open issue '" + issue.get(2) + "': '"
                             + issue.get(3) + "'.\n");
