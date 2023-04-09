@@ -19,7 +19,7 @@ public interface Flags extends EngineProperties {
 
     @Key("retryMaximumNumberOfAttempts")
     @DefaultValue("0")
-    String retryMaximumNumberOfAttempts();
+    int retryMaximumNumberOfAttempts();
 
     @Key("autoMaximizeBrowserWindow")
     @DefaultValue("true")
@@ -34,7 +34,7 @@ public interface Flags extends EngineProperties {
     boolean forceCheckElementLocatorIsUnique();
 
     @Key("forceCheckTextWasTypedCorrectly")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean forceCheckTextWasTypedCorrectly();
 
     @Key("attemptClearBeforeTypingUsingBackspace")
@@ -63,7 +63,7 @@ public interface Flags extends EngineProperties {
 
     @Key("maximumPerformanceMode")
     @DefaultValue("0")
-    String maximumPerformanceMode();
+    int maximumPerformanceMode();
 
     @Key("skipTestsWithLinkedIssues")
     @DefaultValue("false")
@@ -74,8 +74,8 @@ public interface Flags extends EngineProperties {
     }
 
     class SetProperty implements EngineProperties.SetProperty {
-        public void retryMaximumNumberOfAttempts(String value) {
-            setProperty("retryMaximumNumberOfAttempts", value);
+        public void retryMaximumNumberOfAttempts(int value) {
+            setProperty("retryMaximumNumberOfAttempts", String.valueOf(value));
         }
 
         public void autoMaximizeBrowserWindow(boolean value) {
@@ -118,8 +118,8 @@ public interface Flags extends EngineProperties {
             setProperty("automaticallyAssertResponseStatusCode", String.valueOf(value));
         }
 
-        public void maximumPerformanceMode(String value) {
-            setProperty("maximumPerformanceMode", value);
+        public void maximumPerformanceMode(int value) {
+            setProperty("maximumPerformanceMode", String.valueOf(value));
         }
 
         public void skipTestsWithLinkedIssues(boolean value) {

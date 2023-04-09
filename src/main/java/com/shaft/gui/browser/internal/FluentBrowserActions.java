@@ -1,8 +1,10 @@
 package com.shaft.gui.browser.internal;
 
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.driver.internal.WizardHelpers;
+import com.shaft.enums.internal.NavigationAction;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.TouchActions;
@@ -89,7 +91,7 @@ public class FluentBrowserActions {
      */
     @SuppressWarnings("UnusedReturnValue")
     public FluentBrowserActions capturePageSnapshot() {
-        var serializedPageData = BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get(), true);
+        var serializedPageData = BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get());
         BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), serializedPageData);
         return this;
     }
@@ -251,7 +253,7 @@ public class FluentBrowserActions {
      */
     public FluentBrowserActions navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
         String modifiedTargetUrl = targetUrl;
-        var baseUrl = System.getProperty("baseURL").trim();
+        var baseUrl = SHAFT.Properties.web.baseURL();
 
         if (!baseUrl.isBlank() && targetUrl.startsWith("./")) {
             // valid use case for baseURL property ==> property is not blank && the target url starts with ./
@@ -304,6 +306,7 @@ public class FluentBrowserActions {
             } else {
                 // already on the same page
                 DriverFactoryHelper.getDriver().get().navigate().refresh();
+                JavaScriptWaitManager.waitForLazyLoading();
                 if (ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver().get(), By.tagName("html")) == 1) {
                     BrowserActionsHelpers.confirmThatWebsiteIsNotDown(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
                     BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
@@ -319,7 +322,7 @@ public class FluentBrowserActions {
     public FluentBrowserActions navigateToURLWithBasicAuthentication(String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
         try {
             String domainName = BrowserActionsHelpers.getDomainNameFromURL(targetUrl);
-            if (System.getProperty("executionAddress").equals("local")) {
+            if (SHAFT.Properties.platform.executionAddress().equals("local")) {
                 Predicate<URI> uriPredicate = uri -> uri.getHost().contains(domainName);
                 ((HasAuthentication) DriverFactoryHelper.getDriver().get()).register(uriPredicate, UsernameAndPassword.of(username, password));
             } else {
@@ -351,41 +354,48 @@ public class FluentBrowserActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions navigateBack() {
-        String initialURL;
-        var newURL = "";
-        try {
-            initialURL = DriverFactoryHelper.getDriver().get().getCurrentUrl();
-            DriverFactoryHelper.getDriver().get().navigate().back();
-            BrowserActionsHelpers.waitUntilURLIsNot(DriverFactoryHelper.getDriver().get(), initialURL);
-            newURL = DriverFactoryHelper.getDriver().get().getCurrentUrl();
-            if (!newURL.equals(initialURL)) {
-                BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), newURL);
-            } else {
-                BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), newURL);
-            }
-        } catch (Exception rootCauseException) {
-            BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), newURL, rootCauseException);
-        }
-        return this;
+        return performNavigationAction(NavigationAction.BACK);
     }
 
     /**
      * Navigates one step forward from the browsers history
+     *
      * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions navigateForward() {
+        return performNavigationAction(NavigationAction.FORWARD);
+    }
+
+    /**
+     * Attempts to refresh the current page
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    public FluentBrowserActions refreshCurrentPage() {
+        return performNavigationAction(NavigationAction.REFRESH);
+    }
+
+    private FluentBrowserActions performNavigationAction(NavigationAction navigationAction) {
         String initialURL;
         var newURL = "";
         try {
             initialURL = DriverFactoryHelper.getDriver().get().getCurrentUrl();
-            DriverFactoryHelper.getDriver().get().navigate().forward();
+            switch (navigationAction) {
+                case FORWARD -> DriverFactoryHelper.getDriver().get().navigate().forward();
+                case BACK -> DriverFactoryHelper.getDriver().get().navigate().back();
+                case REFRESH -> DriverFactoryHelper.getDriver().get().navigate().refresh();
+            }
             JavaScriptWaitManager.waitForLazyLoading();
-            BrowserActionsHelpers.waitUntilURLIsNot(DriverFactoryHelper.getDriver().get(), initialURL);
-            newURL = DriverFactoryHelper.getDriver().get().getCurrentUrl();
-            if (!newURL.equals(initialURL)) {
-                BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), newURL);
+            if (!navigationAction.equals(NavigationAction.REFRESH)) {
+                BrowserActionsHelpers.waitUntilURLIsNot(DriverFactoryHelper.getDriver().get(), initialURL);
+                newURL = DriverFactoryHelper.getDriver().get().getCurrentUrl();
+                if (!newURL.equals(initialURL)) {
+                    BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), newURL);
+                } else {
+                    BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), newURL);
+                }
             } else {
-                BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), newURL);
+                BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), newURL);
             }
         } catch (Exception rootCauseException) {
             BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), newURL, rootCauseException);
@@ -393,15 +403,6 @@ public class FluentBrowserActions {
         return this;
     }
 
-    /**
-     * Attempts to refresh the current page
-     * @return a self-reference to be used to chain actions
-     */
-    public FluentBrowserActions refreshCurrentPage() {
-        DriverFactoryHelper.getDriver().get().navigate().refresh();
-        BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), getPageSource());
-        return this;
-    }
 
     /**
      * Closes the current browser window
@@ -444,9 +445,9 @@ public class FluentBrowserActions {
         initialWindowSize = DriverFactoryHelper.getDriver().get().manage().window().getSize();
         ReportManager.logDiscrete("Initial window size: " + initialWindowSize.toString());
 
-        String targetBrowserName = System.getProperty("targetBrowserName").trim();
-        String targetOperatingSystem = System.getProperty("targetOperatingSystem").trim();
-        String executionAddress = System.getProperty("executionAddress").trim();
+        String targetBrowserName = SHAFT.Properties.web.targetBrowserName();
+        String targetOperatingSystem = SHAFT.Properties.platform.targetPlatform();
+        String executionAddress = SHAFT.Properties.platform.executionAddress();
 
         // try selenium WebDriver maximize
         currentWindowSize = BrowserActionsHelpers.attemptMaximizeUsingSeleniumWebDriver(DriverFactoryHelper.getDriver().get(), executionAddress, targetBrowserName,
@@ -533,8 +534,8 @@ public class FluentBrowserActions {
         Dimension initialWindowSize = DriverFactoryHelper.getDriver().get().manage().window().getSize();
         ReportManager.logDiscrete("Initial Windows Size: " + initialWindowSize.width + "x" + initialWindowSize.height);
 
-        if (!System.getProperty("executionAddress").trim().equalsIgnoreCase("local")
-                && System.getProperty("headlessExecution").trim().equalsIgnoreCase("true")) {
+        if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local")
+                && SHAFT.Properties.web.headlessExecution()) {
             maximizeWindow();
         } else {
             DriverFactoryHelper.getDriver().get().manage().window().fullscreen();
@@ -557,6 +558,7 @@ public class FluentBrowserActions {
         try {
             var handleBeforeNavigation = DriverFactoryHelper.getDriver().get().getWindowHandle();
             DriverFactoryHelper.getDriver().get().switchTo().newWindow(WindowType.TAB).navigate().to(url);
+            JavaScriptWaitManager.waitForLazyLoading();
             var handleAfterNavigation = DriverFactoryHelper.getDriver().get().getWindowHandle();
             if (!handleBeforeNavigation.equals(handleAfterNavigation)) {
                 ReportManager.logDiscrete("Old Tab Handle: \"" + handleBeforeNavigation + "\", New Tab handle : \"" + handleAfterNavigation + "\"");
@@ -611,7 +613,7 @@ public class FluentBrowserActions {
     public Cookie getCookie(String cookieName) {
         Cookie cookie = DriverFactoryHelper.getDriver().get().manage().getCookieNamed(cookieName);
         if (cookie == null) {
-            BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), "Get Cookie", cookieName);
+            BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), "Get Cookie: " + cookieName);
         }
         return cookie;
     }
@@ -726,7 +728,7 @@ public class FluentBrowserActions {
     @SuppressWarnings("UnusedReturnValue")
     public FluentBrowserActions captureSnapshot() {
         var logMessage = "";
-        var pageSnapshot = BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get(), true);
+        var pageSnapshot = BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get());
         if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
             logMessage = "Capture page snapshot";
         } else if (pageSnapshot.startsWith("<html")) {

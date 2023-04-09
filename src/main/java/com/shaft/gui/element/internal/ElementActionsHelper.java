@@ -41,11 +41,10 @@ import java.util.*;
 public class ElementActionsHelper {
     public static final String OBFUSCATED_STRING = "•";
     private static final boolean GET_ELEMENT_HTML = true; //TODO: expose parameter
-    private static long DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = Integer
-            .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim()) * 1000L; //milliseconds
+    private static final boolean FORCE_CHECK_FOR_ELEMENT_VISIBILITY = SHAFT.Properties.flags.forceCheckForElementVisibility();
     private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 100; // milliseconds
-    private static final boolean FORCE_CHECK_FOR_ELEMENT_VISIBILITY = Boolean
-            .parseBoolean(System.getProperty("forceCheckForElementVisibility").trim());
+    private static long DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L; //milliseconds
+    private static final String WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim();
 
     private ElementActionsHelper() {
         throw new IllegalStateException("Utility class");
@@ -54,8 +53,7 @@ public class ElementActionsHelper {
     public static int waitForElementPresenceWithReducedTimeout(WebDriver driver, By elementLocator) {
         DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = 300; //this is used for faster mobile native scrolling. default for ios is 200 and for android is 250, this covers both
         var numberOfFoundElements = waitForElementPresence(driver, elementLocator);
-        DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = Integer
-                .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim()) * 1000L;
+        DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L;
         return Integer.parseInt(numberOfFoundElements.get(0).toString());
     }
 
@@ -197,7 +195,7 @@ public class ElementActionsHelper {
                             elementInformation.setInnerHTML(targetElement.getAttribute("innerHTML"));
                         }
 
-                        if (Boolean.TRUE.equals(Boolean.parseBoolean(System.getProperty("captureElementName")))) {
+                        if (SHAFT.Properties.reporting.captureElementName()) {
                             var elementName = formatLocatorToString(elementLocator);
                             try {
                                 var accessibleName = targetElement.getAccessibleName();
@@ -215,9 +213,9 @@ public class ElementActionsHelper {
                         var len = action != null ? action.length : 0;
                         switch (len) {
                             case 1 ->
-                                    elementInformation.setActionResult(performAction(elementInformation.getFirstElement(), (ElementAction) action[0], ""));
+                                    elementInformation.setActionResult(performAction(elementInformation, (ElementAction) action[0], ""));
                             case 2 ->
-                                    elementInformation.setActionResult(performAction(elementInformation.getFirstElement(), (ElementAction) action[0], action[1]));
+                                    elementInformation.setActionResult(performAction(elementInformation, (ElementAction) action[0], action[1]));
                         }
                         return elementInformation.toList();
                         // int numberOfFoundElements
@@ -246,20 +244,25 @@ public class ElementActionsHelper {
         }
     }
 
-    private static String performAction(WebElement element, ElementAction action, Object parameter) {
+    private static String performAction(ElementInformation elementInformation, ElementAction action, Object parameter) {
         switch (action) {
-            case CLEAR -> element.clear();
-            case BACKSPACE -> element.sendKeys(Keys.BACK_SPACE);
+            case CLEAR -> elementInformation.getFirstElement().clear();
+            case BACKSPACE -> elementInformation.getFirstElement().sendKeys(Keys.BACK_SPACE);
             case GET_TEXT -> {
-                return element.getText();
+                return elementInformation.getFirstElement().getText();
             }
             case GET_VALUE -> {
-                return element.getAttribute(TextDetectionStrategy.VALUE.getValue());
+                return elementInformation.getFirstElement().getAttribute(TextDetectionStrategy.VALUE.getValue());
             }
             case GET_CONTENT -> {
-                return element.getAttribute(TextDetectionStrategy.CONTENT.getValue());
+                return elementInformation.getFirstElement().getAttribute(TextDetectionStrategy.CONTENT.getValue());
             }
-            case SEND_KEYS -> element.sendKeys((CharSequence) parameter);
+            case SEND_KEYS -> elementInformation.getFirstElement().sendKeys((CharSequence) parameter);
+            case IS_DISPLAYED -> {
+                return String.valueOf(elementInformation.getFirstElement().isDisplayed());
+            }
+            case SET_VALUE_USING_JAVASCRIPT ->
+                    ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].value=\"" + parameter + "\";", elementInformation.getFirstElement());
         }
         return "";
     }
@@ -297,7 +300,7 @@ public class ElementActionsHelper {
 
 
     public static boolean waitForElementToBeClickable(WebDriver driver, By elementLocator, String actionToExecute) {
-        var clickUsingJavascriptWhenWebDriverClickFails = Boolean.parseBoolean(System.getProperty("clickUsingJavascriptWhenWebDriverClickFails"));
+        var clickUsingJavascriptWhenWebDriverClickFails = SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails();
 
         if (!DriverFactoryHelper.isMobileNativeExecution()) {
             try {
@@ -449,8 +452,7 @@ public class ElementActionsHelper {
                     ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].value='" + value + "';"
                             , (elementInformation.getFirstElement()));
                 } catch (WebDriverException webDriverException) {
-                    ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].value='" + value + "';"
-                            , ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator()).get(1));
+                    ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.SET_VALUE_USING_JAVASCRIPT, value);
                 }
             }
             return true;
@@ -563,7 +565,7 @@ public class ElementActionsHelper {
     }
 
     public static String getElementName(WebDriver driver, By elementLocator) {
-        if (Boolean.TRUE.equals(Boolean.parseBoolean(System.getProperty("captureElementName")))) {
+        if (SHAFT.Properties.reporting.captureElementName()) {
             try {
                 var accessibleName = ((WebElement) identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getAccessibleName();
                 if (accessibleName != null && !accessibleName.isBlank()) {
@@ -586,7 +588,7 @@ public class ElementActionsHelper {
             performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.CLEAR);
         }
         // attempt clear using letter by letter backspace
-        var attemptClearBeforeTypingUsingBackspace = Boolean.parseBoolean(System.getProperty("attemptClearBeforeTypingUsingBackspace"));
+        var attemptClearBeforeTypingUsingBackspace = SHAFT.Properties.flags.attemptClearBeforeTypingUsingBackspace();
         if (attemptClearBeforeTypingUsingBackspace) {
             String elementText = readTextBasedOnSuccessfulLocationStrategy(elementInformation, successfulTextLocationStrategy);
             for (var ignored : elementText.toCharArray()) {
@@ -636,7 +638,7 @@ public class ElementActionsHelper {
     private static String readTextBasedOnSuccessfulLocationStrategy(ElementInformation elementInformation, TextDetectionStrategy successfulTextLocationStrategy) {
         String temp;
         switch (successfulTextLocationStrategy) {
-            case TEXT -> {
+            case TEXT, UNDEFINED -> {
                 try {
                     temp = (elementInformation.getFirstElement()).getText();
                 } catch (WebDriverException webDriverException) {
@@ -697,13 +699,14 @@ public class ElementActionsHelper {
 
     public static String typeWrapper(ElementInformation elementInformation, String targetText) {
         TextDetectionStrategy successfulTextLocationStrategy = TextDetectionStrategy.UNDEFINED;
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckTextWasTypedCorrectly")))) {
+        if (SHAFT.Properties.flags.forceCheckTextWasTypedCorrectly()) {
             successfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(elementInformation);
         }
         clearBeforeTyping(elementInformation, successfulTextLocationStrategy);
-        var adjustedTargetText = targetText != null && targetText != "" ? targetText : "";
+        var adjustedTargetText = targetText != null && !targetText.equals("") ? targetText : "";
         performType(elementInformation, adjustedTargetText);
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckTextWasTypedCorrectly")))) {
+        //sometimes the text is returned as empty
+        if (SHAFT.Properties.flags.forceCheckTextWasTypedCorrectly()) {
             String actualText = confirmTypingWasSuccessful(elementInformation, successfulTextLocationStrategy);
             if (adjustedTargetText.equals(actualText) || OBFUSCATED_STRING.repeat(adjustedTargetText.length()).equals(actualText)) {
                 return adjustedTargetText;
@@ -736,6 +739,10 @@ public class ElementActionsHelper {
         return identifyUniqueElement(driver, elementLocator, true, action);
     }
 
+    public static List<Object> performActionAgainstUniqueElementIgnoringVisibility(WebDriver driver, By elementLocator, Object... action) {
+        return identifyUniqueElement(driver, elementLocator, false, action);
+    }
+
     public static List<Object> identifyUniqueElement(WebDriver driver, By elementLocator) {
         return identifyUniqueElement(driver, elementLocator, true);
     }
@@ -761,8 +768,7 @@ public class ElementActionsHelper {
                     return matchingElementsInformation;
                 }
                 default -> {
-                    if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique")))
-                            && !(elementLocator instanceof RelativeLocator.RelativeBy)) {
+                    if (SHAFT.Properties.flags.forceCheckElementLocatorIsUnique() && !(elementLocator instanceof RelativeLocator.RelativeBy)) {
                         FailureReporter.fail("multiple elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"");
                     }
                     return matchingElementsInformation;
@@ -978,10 +984,17 @@ public class ElementActionsHelper {
             }
         }
 
-        if (driver != null && !SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Never")) {
-            if ((SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("Always"))
-                    || (Boolean.FALSE.equals(passFailStatus) && SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim().equalsIgnoreCase("FailuresOnly"))) {
-                List<Object> sourceAttachment = Arrays.asList(actionName, "Page Source", BrowserActionsHelpers.capturePageSnapshot(driver, true));
+        if (driver != null && !WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Never")) {
+            if ((WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Always"))
+                    || (Boolean.FALSE.equals(passFailStatus) && WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("FailuresOnly"))) {
+                var logMessage = "";
+                var pageSnapshot = BrowserActionsHelpers.capturePageSnapshot(driver);
+                if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
+                    logMessage = "page snapshot";
+                } else if (pageSnapshot.startsWith("<html")) {
+                    logMessage = "page HTML";
+                }
+                List<Object> sourceAttachment = Arrays.asList(actionName, logMessage, pageSnapshot);
                 attachments.add(sourceAttachment);
             }
         }

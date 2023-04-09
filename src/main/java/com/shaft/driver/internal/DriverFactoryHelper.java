@@ -24,7 +24,10 @@ import io.appium.java_client.remote.options.UnhandledPromptBehavior;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.qameta.allure.Step;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.SneakyThrows;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -56,7 +59,7 @@ public class DriverFactoryHelper {
     private static String TARGET_HUB_URL;
     private static Boolean MOBILE_EMULATION;
     private static Boolean MOBILE_EMULATION_CUSTOM_DEVICE;
-    private static Boolean LIGHTHOUSE_EXEUTION;
+    private static Boolean LIGHTHOUSE_EXECUTION;
     private static final String WEB_DRIVER_MANAGER_MESSAGE = "Identifying OS/Driver combination and selecting the correct driver version automatically. Please note that if a new driver executable will be downloaded it may take some time...";
     private static final String WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE = "Identifying target OS/Browser and setting up the dockerized environment automatically. Please note that if a new docker container will be downloaded it may take some time...";
     private static int PAGE_LOAD_TIMEOUT;
@@ -74,12 +77,12 @@ public class DriverFactoryHelper {
     private static DesiredCapabilities appiumCapabilities;
     @Getter(AccessLevel.PUBLIC)
     private static boolean killSwitch = false;
-    @Getter(AccessLevel.PUBLIC) @Setter(AccessLevel.PUBLIC)
-    private static Dimension currentWindowSize = new Dimension(1920,1080);
+    @Getter(AccessLevel.PUBLIC)
+    private static final Dimension TARGET_WINDOW_SIZE = new Dimension(1920, 1080);
 
-    private static final long appiumServerInitializationTimeout = TimeUnit.MINUTES.toSeconds(10); // seconds
+    private static final long appiumServerInitializationTimeout = TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.timeoutForRemoteServerToBeUp()); // seconds
     private static final int appiumServerInitializationPollingInterval = 1; // seconds
-    private static final long remoteServerInstanceCreationTimeout = TimeUnit.MINUTES.toSeconds(10); // seconds
+    private static final long remoteServerInstanceCreationTimeout = TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.remoteServerInstanceCreationTimeout()); // seconds
     private static final int appiumServerPreparationPollingInterval = 1; // seconds
 
     private DriverFactoryHelper() {
@@ -95,7 +98,7 @@ public class DriverFactoryHelper {
 
         var isMobileExecution = Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())
                 || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform());
-        var isNativeExecution = System.getProperty("mobile_browserName") == null || System.getProperty("mobile_browserName").isBlank();
+        var isNativeExecution = SHAFT.Properties.mobile.browserName().isBlank();
         return isMobileExecution && isNativeExecution;
     }
 
@@ -107,7 +110,7 @@ public class DriverFactoryHelper {
     public static boolean isMobileWebExecution() {
         var isMobileExecution = Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())
                 || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform());
-        var isNativeExecution = System.getProperty("mobile_browserName") == null || System.getProperty("mobile_browserName").isBlank();
+        var isNativeExecution = SHAFT.Properties.mobile.browserName().isBlank();
         return isMobileExecution && !isNativeExecution;
     }
 
@@ -124,7 +127,7 @@ public class DriverFactoryHelper {
 
     public static void closeDriver() {
         if (driver.get() != null) {
-            if (System.getProperty("videoParams_scope").trim().equals("DriverSession")) {
+            if (SHAFT.Properties.visuals.videoParamsScope().equals("DriverSession")) {
                 RecordManager.attachVideoRecording();
             }
             try {
@@ -132,7 +135,7 @@ public class DriverFactoryHelper {
                 BrowserActionsHelpers.attachPageSnapshot(driver.get());
 
                 //if dockerized wdm.quit the relevant one
-                if (System.getProperty("executionAddress").contains("dockerized")) {
+                if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("dockerized")) {
                     var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver.get());
                     webDriverManager.get().quit(driver.get());
                     RecordManager.attachVideoRecording(pathToRecording);
@@ -176,11 +179,11 @@ public class DriverFactoryHelper {
         return DriverType.CHROME;
     }
     private static void setDriverOptions(DriverType driverType, MutableCapabilities customDriverOptions) {
-        String downloadsFolderPath = FileActions.getInstance().getAbsolutePath(System.getProperty("downloadsFolderPath"));
+        String downloadsFolderPath = FileActions.getInstance().getAbsolutePath(SHAFT.Properties.paths.downloads());
 
         //get proxy server
         // Proxy server settings | testing behind a proxy
-        String proxyServerSettings = System.getProperty("com.SHAFT.proxySettings");
+        String proxyServerSettings = SHAFT.Properties.platform.proxy();
 
         //https://github.com/GoogleChrome/chrome-launcher/blob/master/docs/chrome-flags-for-tools.md#--enable-automation
         switch (driverType) {
@@ -282,8 +285,9 @@ public class DriverFactoryHelper {
             options.addArguments("--headless=new");
         }
         // Add if condtion to start the new session if flag=true on specific port
-        if (Boolean.TRUE.equals(LIGHTHOUSE_EXEUTION)) {
-            options.addArguments("--remote-debugging-port=" + System.getProperty("lightHouseExeution.port") + "");
+        if (Boolean.TRUE.equals(LIGHTHOUSE_EXECUTION)) {
+            // TODO: implement lighthouse in the configuration manager and properties manager
+            options.addArguments("--remote-debugging-port=" + SHAFT.Properties.web.lightHouseExecutionPort());
             options.addArguments("--no-sandbox");
         }
         if (Boolean.TRUE.equals(AUTO_MAXIMIZE)
@@ -292,7 +296,7 @@ public class DriverFactoryHelper {
                 && !Platform.MAC.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             options.addArguments("--start-maximized");
         } else {
-            options.addArguments("--window-position=0,0", "--window-size="+currentWindowSize.getWidth()+","+currentWindowSize.getHeight());
+            options.addArguments("--window-position=0,0", "--window-size=" + TARGET_WINDOW_SIZE.getWidth() + "," + TARGET_WINDOW_SIZE.getHeight());
         }
 
         // https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
@@ -360,26 +364,26 @@ public class DriverFactoryHelper {
             options.setProxy(new Proxy().setHttpProxy(proxy).setSslProxy(proxy));
         }
         //add logging preferences if enabled
-        if (Boolean.parseBoolean(System.getProperty("captureWebDriverLogs"))) {
+        if (SHAFT.Properties.reporting.captureWebDriverLogs()) {
             options.setCapability("goog:loggingPrefs", configureLoggingPreferences());
         }
         // Mobile Emulation
         if (Boolean.TRUE.equals(MOBILE_EMULATION) && isWebExecution()) {
             Map<String, Object> mobileEmulation = new HashMap<>();
-            if (Boolean.FALSE.equals(MOBILE_EMULATION_CUSTOM_DEVICE) && (!System.getProperty("mobileEmulation.deviceName").equals(""))) {
-                mobileEmulation.put("deviceName", System.getProperty("mobileEmulation.deviceName"));
+            if (Boolean.FALSE.equals(MOBILE_EMULATION_CUSTOM_DEVICE) && (!SHAFT.Properties.web.mobileEmulationDeviceName().equals(""))) {
+                mobileEmulation.put("deviceName", SHAFT.Properties.web.mobileEmulationDeviceName());
             } else if (Boolean.TRUE.equals(MOBILE_EMULATION_CUSTOM_DEVICE)) {
-                if ((!System.getProperty("mobileEmulation.width").equals("")) && (!System.getProperty("mobileEmulation.height").equals(""))) {
+                if ((SHAFT.Properties.web.mobileEmulationWidth() != 0) && (SHAFT.Properties.web.mobileEmulationHeight() != 0)) {
                     Map<String, Object> deviceMetrics = new HashMap<>();
-                    deviceMetrics.put("width", Integer.valueOf(System.getProperty("mobileEmulation.width")));
-                    deviceMetrics.put("height", Integer.valueOf(System.getProperty("mobileEmulation.height")));
-                    if (!System.getProperty("mobileEmulation.pixelRatio").equals("")) {
-                        deviceMetrics.put("pixelRatio", Float.valueOf(System.getProperty("mobileEmulation.pixelRatio")));
+                    deviceMetrics.put("width", SHAFT.Properties.web.mobileEmulationWidth());
+                    deviceMetrics.put("height", SHAFT.Properties.web.mobileEmulationHeight());
+                    if (SHAFT.Properties.web.mobileEmulationPixelRatio() != 0) {
+                        deviceMetrics.put("pixelRatio", SHAFT.Properties.web.mobileEmulationPixelRatio());
                     }
                     mobileEmulation.put("deviceMetrics", deviceMetrics);
                 }
-                if (!System.getProperty("mobileEmulation.userAgent").equals("")) {
-                    mobileEmulation.put("userAgent", System.getProperty("mobileEmulation.userAgent"));
+                if (!SHAFT.Properties.web.mobileEmulationUserAgent().equals("")) {
+                    mobileEmulation.put("userAgent", SHAFT.Properties.web.mobileEmulationUserAgent());
                 }
             }
             options.setExperimentalOption("mobileEmulation", mobileEmulation);
@@ -413,7 +417,7 @@ public class DriverFactoryHelper {
         }
         ReportManager.logDiscrete(initialLog + ".");
 
-        var proxy = System.getProperty("com.SHAFT.proxySettings");
+        var proxy = SHAFT.Properties.platform.proxy();
 
         try {
             switch (driverType) {
@@ -503,15 +507,16 @@ public class DriverFactoryHelper {
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\". We only support Chrome, Edge, Firefox, and Safari in this dockerized mode.");
             }
             RemoteWebDriver remoteWebDriver = (RemoteWebDriver) webDriverManager.get()
-                    .proxy(System.getProperty("com.SHAFT.proxySettings"))
+                    .proxy(SHAFT.Properties.platform.proxy())
                     .browserInDocker()
-                    .dockerShmSize("2gb")
+                    .dockerShmSize("2g")
                     .enableVnc()
                     .viewOnly()
-                    .dockerScreenResolution(currentWindowSize.getWidth()+"x"+currentWindowSize.getHeight()+"x24")
+                    .avoidUseChromiumDriverSnap()
+                    .dockerScreenResolution(TARGET_WINDOW_SIZE.getWidth() + "x" + TARGET_WINDOW_SIZE.getHeight() + "x24")
 //                    .dockerVolumes("\\local\\path:\\container\\path")
                     .enableRecording()
-                    .dockerRecordingOutput(System.getProperty("video.folder"))
+                    .dockerRecordingOutput(SHAFT.Properties.paths.video())
                     .create();
             remoteWebDriver.setFileDetector(new LocalFileDetector());
 //            driver.set(ThreadGuard.protect(remoteWebDriver));
@@ -543,7 +548,7 @@ public class DriverFactoryHelper {
         if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())
                 || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             if (appiumCapabilities == null) {
-                appiumCapabilities = initializeMobileDesiredCapabilities(appiumCapabilities);
+                appiumCapabilities = initializeMobileDesiredCapabilities(null);
             } else {
                 appiumCapabilities.merge(initializeMobileDesiredCapabilities(appiumCapabilities));
             }
@@ -573,16 +578,18 @@ public class DriverFactoryHelper {
     @Step("Setting up remote driver instance")
     private static void setRemoteDriverInstance(Capabilities capabilities) {
         // stage 1: ensure that the server is up and running
-        ReportManager.logDiscrete("Attempting to connect to remote server for up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + "min.");
-        try {
-            TARGET_HUB_URL = TARGET_HUB_URL.contains("0.0.0.0") ? TARGET_HUB_URL.replace("0.0.0.0", "localhost") : TARGET_HUB_URL;
-            if (Properties.flags.forceCheckStatusOfRemoteServer()) {
-                var statusCode = attemptRemoteServerPing();
-                ReportManager.logDiscrete("Remote server is online, established successful connection with status code: " + statusCode + ".");
-            }
+        if (SHAFT.Properties.timeouts.waitForRemoteServerToBeUp()) {
+            ReportManager.logDiscrete("Attempting to connect to remote server for up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + "min.");
+            try {
+                TARGET_HUB_URL = TARGET_HUB_URL.contains("0.0.0.0") ? TARGET_HUB_URL.replace("0.0.0.0", "localhost") : TARGET_HUB_URL;
+                if (Properties.flags.forceCheckStatusOfRemoteServer()) {
+                    var statusCode = attemptRemoteServerPing();
+                    ReportManager.logDiscrete("Remote server is online, established successful connection with status code: " + statusCode + ".");
+                }
             } catch (Throwable throwable) {
-            ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
-            failAction("Failed to connect to remote server.", throwable);
+                ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
+                failAction("Failed to connect to remote server.", throwable);
+            }
         }
 
         // stage 2: create remove driver instance (requires some time with dockerized appium)
@@ -600,7 +607,7 @@ public class DriverFactoryHelper {
                 ((AppiumDriver) driver.get()).setSetting(Setting.MJPEG_SCALING_FACTOR, 25);
                 ((AppiumDriver) driver.get()).setSetting(Setting.MJPEG_SERVER_SCREENSHOT_QUALITY, 100);
                 ((AppiumDriver) driver.get()).setSetting("mjpegBilinearFiltering", true);
-                // ((AppiumDrver) driver.get()).setSetting("limitXPathContextScope", false);
+                // ((AppiumDriver) driver.get()).setSetting("limitXPathContextScope", false);
 //                ((AppiumDriver) driver).setSetting("disableIdLocatorAutocompletion", true);
 //        https://github.com/appium/appium-uiautomator2-driver#mobile-deeplink
 //        http://code2test.com/appium-tutorial/how-to-use-uiselector-in-appium/
@@ -710,7 +717,7 @@ public class DriverFactoryHelper {
             }
             case APPIUM_CHROME, APPIUM_CHROMIUM -> {
                 ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
-                WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
+                WebDriverManager.chromedriver().browserVersion(SHAFT.Properties.mobile.browserVersion()).setup();
                 appiumDesiredCapabilities.setCapability("chromedriverExecutable",
                         WebDriverManager.chromedriver().getDownloadedDriverPath());
                 setRemoteDriverInstance(appiumDesiredCapabilities);
@@ -727,7 +734,8 @@ public class DriverFactoryHelper {
         ReportManager.log("Successfully Opened \"" + JavaHelper.convertToSentenceCase(driverName) + "\".");
     }
     private static void attachWebDriverLogs() {
-        if (Boolean.parseBoolean(System.getProperty("captureWebDriverLogs"))) {
+        // TODO: capture logs and record video in case of retrying failed test
+        if (SHAFT.Properties.reporting.captureWebDriverLogs()) {
             try {
                 var driverLogs = driver.get().manage().logs();
                 driverLogs.getAvailableLogTypes().forEach(logType -> {
@@ -783,39 +791,39 @@ public class DriverFactoryHelper {
                 desiredCapabilities.setCapability("appium:printPageSourceOnFindFailure", true);
 
             if(Desiredcapabilities.getCapability("appium:disableWindowAnimation") == null)
-            desiredCapabilities.setCapability("appium:disableWindowAnimation", true);
+                desiredCapabilities.setCapability("appium:disableWindowAnimation", true);
 
             if(Desiredcapabilities.getCapability("appium:forceAppLaunch") == null)
-            desiredCapabilities.setCapability("appium:forceAppLaunch", true);
+                desiredCapabilities.setCapability("appium:forceAppLaunch", true);
 
             if(Desiredcapabilities.getCapability("appium:autoGrantPermissions") == null)
-            desiredCapabilities.setCapability("appium:autoGrantPermissions", true);
+                desiredCapabilities.setCapability("appium:autoGrantPermissions", true);
 
 //            desiredCapabilities.setCapability("appium:otherApps", ",,,");
 
             if(Desiredcapabilities.getCapability("appium:allowTestPackages") == null)
-            desiredCapabilities.setCapability("appium:allowTestPackages", true);
+                desiredCapabilities.setCapability("appium:allowTestPackages", true);
 
             if(Desiredcapabilities.getCapability("appium:enforceAppInstall") == null)
-            desiredCapabilities.setCapability("appium:enforceAppInstall", false);
+                desiredCapabilities.setCapability("appium:enforceAppInstall", false);
 
             if(Desiredcapabilities.getCapability("appium:clearDeviceLogsOnStart") == null)
-            desiredCapabilities.setCapability("appium:clearDeviceLogsOnStart", true);
+                desiredCapabilities.setCapability("appium:clearDeviceLogsOnStart", true);
 
             if(Desiredcapabilities.getCapability("appium:ignoreHiddenApiPolicyError") == null)
-            desiredCapabilities.setCapability("appium:ignoreHiddenApiPolicyError", true);
+                desiredCapabilities.setCapability("appium:ignoreHiddenApiPolicyError", true);
 
             if(Desiredcapabilities.getCapability("appium:isHeadless") == null)
-            desiredCapabilities.setCapability("appium:isHeadless", true);
+                desiredCapabilities.setCapability("appium:isHeadless", true);
 
             if(Desiredcapabilities.getCapability("appium:noSign") == null)
-            desiredCapabilities.setCapability("appium:noSign", true);
+                desiredCapabilities.setCapability("appium:noSign", true);
 
             if(Desiredcapabilities.getCapability("appium:enableWebviewDetailsCollection") == null)
-            desiredCapabilities.setCapability("appium:enableWebviewDetailsCollection", true);
+                desiredCapabilities.setCapability("appium:enableWebviewDetailsCollection", true);
 
             if(Desiredcapabilities.getCapability("appium:showChromedriverLog") == null)
-            desiredCapabilities.setCapability("appium:showChromedriverLog", true);
+                desiredCapabilities.setCapability("appium:showChromedriverLog", true);
         }
         return desiredCapabilities;
     }
@@ -827,8 +835,8 @@ public class DriverFactoryHelper {
             AppiumSelfManagementHelper.setupAppiumSelfManagedExecutionPrerequisites();
         }
 
-        var mobile_browserName = System.getProperty("mobile_browserName");
-        String targetBrowserName = System.getProperty("targetBrowserName");
+        var mobile_browserName = SHAFT.Properties.mobile.browserName();
+        String targetBrowserName = SHAFT.Properties.web.targetBrowserName();
 
         // it's null in case of native cucumber execution
         if (Reporter.getCurrentTestResult() != null) {
@@ -846,7 +854,7 @@ public class DriverFactoryHelper {
     }
 
     public static void initializeDriver(MutableCapabilities customDriverOptions) {
-        var mobile_browserName = System.getProperty("mobile_browserName");
+        var mobile_browserName = SHAFT.Properties.mobile.browserName();
         String targetBrowserName;
 
         var overridingBrowserName = Reporter.getCurrentTestResult().getTestContext().getCurrentXmlTest().getParameter("targetBrowserName");
@@ -889,7 +897,7 @@ public class DriverFactoryHelper {
             }
 
             if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
-                driver.get().manage().window().setSize(new Dimension(currentWindowSize.getWidth(), currentWindowSize.getHeight()));
+                driver.get().manage().window().setSize(new Dimension(TARGET_WINDOW_SIZE.getWidth(), TARGET_WINDOW_SIZE.getHeight()));
             }
 
             if (!isMobileExecution) {
@@ -907,7 +915,7 @@ public class DriverFactoryHelper {
             FailureReporter.fail(DriverFactoryHelper.class, "Unhandled Exception with Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".", e);
         }
 
-        if (Boolean.parseBoolean(System.getProperty("heal-enabled").trim())) {
+        if (SHAFT.Properties.healenium.healEnabled()) {
             ReportManager.logDiscrete("Initializing Healenium's Self Healing Driver...");
 //            driver.set(ThreadGuard.protect(SelfHealingDriver.create(driver.get())));
             driver.set(SelfHealingDriver.create(driver.get()));
@@ -916,14 +924,14 @@ public class DriverFactoryHelper {
 
     public static void initializeSystemProperties() {
         PropertiesHelper.postProcessing();
-        AUTO_MAXIMIZE = Boolean.valueOf(System.getProperty("autoMaximizeBrowserWindow").trim());
-        HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
+        AUTO_MAXIMIZE = SHAFT.Properties.flags.autoMaximizeBrowserWindow();
+        HEADLESS_EXECUTION = SHAFT.Properties.web.headlessExecution();
         EXECUTION_ADDRESS = SHAFT.Properties.platform.executionAddress();
         TARGET_HUB_URL = (EXECUTION_ADDRESS.trim().toLowerCase().startsWith("http")) ? EXECUTION_ADDRESS : "http://" + EXECUTION_ADDRESS + "/";
-        PAGE_LOAD_TIMEOUT = Integer.parseInt(System.getProperty("pageLoadTimeout"));
-        SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
+        PAGE_LOAD_TIMEOUT = SHAFT.Properties.timeouts.pageLoadTimeout();
+        SCRIPT_TIMEOUT = SHAFT.Properties.timeouts.scriptExecutionTimeout();
         MOBILE_EMULATION = SHAFT.Properties.web.isMobileEmulation();
         MOBILE_EMULATION_CUSTOM_DEVICE = SHAFT.Properties.web.mobileEmulationIsCustomDevice();
-        LIGHTHOUSE_EXEUTION = Boolean.valueOf(System.getProperty("lightHouseExeution").trim());
+        LIGHTHOUSE_EXECUTION = SHAFT.Properties.web.lightHouseExecution();
     }
 }

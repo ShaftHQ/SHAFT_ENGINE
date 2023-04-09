@@ -1,6 +1,7 @@
 package com.shaft.cli;
 
 import com.google.common.hash.Hashing;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.tools.io.ReportManager;
@@ -10,6 +11,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.commons.lang3.SystemUtils;
+import org.openqa.selenium.Platform;
 import org.sikuli.basics.FileManager;
 
 import java.io.*;
@@ -519,7 +521,7 @@ public class FileActions {
     public boolean zipFiles(String srcFolder, String destZipFile) {
         boolean result = false;
         try (var fileWalker = Files.walk(Paths.get(srcFolder))) {
-            if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
+            if (SHAFT.Properties.reporting.debugMode()) {
                 var log = new StringBuilder();
                 fileWalker.filter(Files::isRegularFile)
                         .forEach(filePath -> {
@@ -669,7 +671,7 @@ public class FileActions {
     }
 
     private boolean isTargetOSUnixBased() {
-        if (System.getProperty("executionAddress").trim().equals("local")) {
+        if (SHAFT.Properties.platform.executionAddress().equals("local")) {
             // local execution
             if (SystemUtils.IS_OS_WINDOWS) {
                 return false;
@@ -681,10 +683,10 @@ public class FileActions {
             }
         } else {
             // remote execution
-            String targetOS = System.getProperty("targetOperatingSystem");
-            if ("Windows".equals(targetOS)) {
+            String targetOS = SHAFT.Properties.platform.targetPlatform();
+            if (Platform.WINDOWS.name().equals(targetOS)) {
                 return false;
-            } else if ("Linux".equals(targetOS) || "Mac".equals(targetOS)) {
+            } else if (Platform.LINUX.name().equals(targetOS) || Platform.MAC.name().equals(targetOS)) {
                 return true;
             } else {
                 ReportManager.logDiscrete("Unsupported OS type, will assume it's unix based.");

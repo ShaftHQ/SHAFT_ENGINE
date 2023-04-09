@@ -18,60 +18,71 @@ public interface Timeouts extends EngineProperties {
 
     @Key("waitForLazyLoading")
     @DefaultValue("true")
-    boolean waitForLazyLoading();
+    Boolean waitForLazyLoading();
 
     @Key("lazyLoadingTimeout")
     @DefaultValue("30")
-    String lazyLoadingTimeout();
+    int lazyLoadingTimeout();
 
     @Key("browserNavigationTimeout")
     @DefaultValue("60")
-    String browserNavigationTimeout();
+    int browserNavigationTimeout();
 
     @Key("pageLoadTimeout")
     @DefaultValue("60")
-    String pageLoadTimeout();
+    int pageLoadTimeout();
 
     @Key("scriptExecutionTimeout")
     @DefaultValue("30")
-    boolean scriptExecutionTimeout();
+    int scriptExecutionTimeout();
 
     @Key("defaultElementIdentificationTimeout")
     @DefaultValue("60")
-    String defaultElementIdentificationTimeout();
+    int defaultElementIdentificationTimeout();
 
     @Key("apiSocketTimeout")
     @DefaultValue("30")
-    String apiSocketTimeout();
+    int apiSocketTimeout();
 
     @Key("apiConnectionTimeout")
     @DefaultValue("30")
-    boolean apiConnectionTimeout();
+    int apiConnectionTimeout();
 
     @Key("apiConnectionManagerTimeout")
     @DefaultValue("30")
-    String apiConnectionManagerTimeout();
+    int apiConnectionManagerTimeout();
 
     @Key("shellSessionTimeout")
     @DefaultValue("30")
-    boolean shellSessionTimeout();
+    long shellSessionTimeout();
 
     @Key("dockerCommandTimeout")
     @DefaultValue("30")
-    String dockerCommandTimeout();
+    int dockerCommandTimeout();
 
     @Key("databaseLoginTimeout")
     @DefaultValue("30")
-    boolean databaseLoginTimeout();
+    int databaseLoginTimeout();
 
     @Key("databaseNetworkTimeout")
     @DefaultValue("30")
-    String databaseNetworkTimeout();
+    int databaseNetworkTimeout();
 
     @Key("databaseQueryTimeout")
     @DefaultValue("30")
-    String databaseQueryTimeout();
+    int databaseQueryTimeout();
 
+    @Key("waitForRemoteServerToBeUp")
+    @DefaultValue("false")
+    Boolean waitForRemoteServerToBeUp();
+
+    @Key("timeoutForRemoteServerToBeUp")
+    @DefaultValue("10")
+    int timeoutForRemoteServerToBeUp();
+
+    @Key("remoteServerInstanceCreationTimeout")
+    @DefaultValue("10")
+    int remoteServerInstanceCreationTimeout();
 
     default SetProperty set() {
         return new SetProperty();
@@ -82,58 +93,69 @@ public interface Timeouts extends EngineProperties {
             setProperty("waitForLazyLoading", String.valueOf(value));
         }
 
-        public void lazyLoadingTimeout(String value) {
-            setProperty("lazyLoadingTimeout", value);
+        public void lazyLoadingTimeout(int value) {
+            setProperty("lazyLoadingTimeout", String.valueOf(value));
         }
 
-        public void browserNavigationTimeout(String value) {
-            setProperty("browserNavigationTimeout", value);
+        public void browserNavigationTimeout(int value) {
+            setProperty("browserNavigationTimeout", String.valueOf(value));
         }
 
-        public void pageLoadTimeout(String value) {
-            setProperty("pageLoadTimeout", value);
+        public void pageLoadTimeout(int value) {
+            setProperty("pageLoadTimeout", String.valueOf(value));
         }
 
-        public void scriptExecutionTimeout(String value) {
-            setProperty("scriptExecutionTimeout", value);
+        public void scriptExecutionTimeout(int value) {
+            setProperty("scriptExecutionTimeout", String.valueOf(value));
         }
 
-        public void defaultElementIdentificationTimeout(String value) {
-            setProperty("defaultElementIdentificationTimeout", value);
+        public void defaultElementIdentificationTimeout(int value) {
+            setProperty("defaultElementIdentificationTimeout", String.valueOf(value));
         }
 
-        public void apiSocketTimeout(String value) {
-            setProperty("apiSocketTimeout", value);
+        public void apiSocketTimeout(int value) {
+            setProperty("apiSocketTimeout", String.valueOf(value));
         }
 
-        public void apiConnectionTimeout(String value) {
-            setProperty("apiConnectionTimeout", value);
+        public void apiConnectionTimeout(int value) {
+            setProperty("apiConnectionTimeout", String.valueOf(value));
         }
 
-        public void apiConnectionManagerTimeout(String value) {
-            setProperty("apiConnectionManagerTimeout", value);
+        public void apiConnectionManagerTimeout(int value) {
+            setProperty("apiConnectionManagerTimeout", String.valueOf(value));
         }
 
-        public void shellSessionTimeout(String value) {
-            setProperty("shellSessionTimeout", value);
+        public void shellSessionTimeout(long value) {
+            setProperty("shellSessionTimeout", String.valueOf(value));
         }
 
-        public void dockerCommandTimeout(String value) {
-            setProperty("dockerCommandTimeout", value);
+        public void dockerCommandTimeout(int value) {
+            setProperty("dockerCommandTimeout", String.valueOf(value));
         }
 
-        public void databaseLoginTimeout(String value) {
-            setProperty("databaseLoginTimeout", value);
+        public void databaseLoginTimeout(int value) {
+            setProperty("databaseLoginTimeout", String.valueOf(value));
         }
 
-        public void databaseNetworkTimeout(String value) {
-            setProperty("databaseNetworkTimeout", value);
+        public void databaseNetworkTimeout(int value) {
+            setProperty("databaseNetworkTimeout", String.valueOf(value));
         }
 
-        public void databaseQueryTimeout(String value) {
-            setProperty("databaseQueryTimeout", value);
+        public void databaseQueryTimeout(int value) {
+            setProperty("databaseQueryTimeout", String.valueOf(value));
         }
 
+        public void waitForRemoteServerToBeUp(boolean value) {
+            setProperty("waitForRemoteServerToBeUp", String.valueOf(value));
+        }
+
+        public void timeoutForRemoteServerToBeUp(int value) {
+            setProperty("timeoutForRemoteServerToBeUp", String.valueOf(value));
+        }
+
+        public void remoteServerInstanceCreationTimeout(int value) {
+            setProperty("remoteServerInstanceCreationTimeout", String.valueOf(value));
+        }
 
     }
 

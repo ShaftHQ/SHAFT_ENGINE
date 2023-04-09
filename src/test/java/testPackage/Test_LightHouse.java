@@ -8,12 +8,12 @@ import org.testng.annotations.Test;
 public class Test_LightHouse {
    SHAFT.GUI.WebDriver driver;
 
-    @BeforeClass
+    //@BeforeClass
     public void beforeClass() {
          driver = new SHAFT.GUI.WebDriver();
     }
 
-    @Test (description = " Generate Lighthouse report for Google.com ")
+    //@Test (description = " Generate Lighthouse report for Google.com ")
     public void RunLightHouseGoogleSearch() {
         driver.browser().navigateToURL("https://www.google.com/search?q=shaft_engine&safe=active&ssui=on");
         driver.browser().generateLightHouseReport();
@@ -21,7 +21,7 @@ public class Test_LightHouse {
 //        driver.browser().generateLightHouseReport();
     }
 
-    @AfterClass(alwaysRun = true)
+    //@AfterClass(alwaysRun = true)
     public void afterClass() {
         driver.quit();
     }

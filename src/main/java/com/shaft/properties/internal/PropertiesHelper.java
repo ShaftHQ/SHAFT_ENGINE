@@ -1,6 +1,7 @@
 package com.shaft.properties.internal;
 
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.ConfigFactory;
 import org.apache.commons.io.FileUtils;
@@ -44,18 +45,27 @@ public class PropertiesHelper {
         Properties.testNG=ConfigFactory.create(TestNG.class);
         Properties.log4j=ConfigFactory.create(Log4j.class);
         Properties.visuals=ConfigFactory.create(Visuals.class);
-        Properties.timeouts=ConfigFactory.create(Timeouts.class);
+        Properties.timeouts = ConfigFactory.create(Timeouts.class);
+        Properties.performance = ConfigFactory.create(Performance.class);
+
     }
 
     public static void postProcessing() {
         overrideTargetOperatingSystemForLocalExecution();
+        overrideScreenMaximizationForRemoteExecution();
         overrideScreenShotTypeForAnimatedGIF();
         setMobilePlatform();
     }
 
+    private static void overrideScreenMaximizationForRemoteExecution() {
+        if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local")) {
+            SHAFT.Properties.flags.set().autoMaximizeBrowserWindow(false);
+        }
+    }
+
     private static void overrideScreenShotTypeForAnimatedGIF() {
-        if (Boolean.parseBoolean(System.getProperty("createAnimatedGif").trim())) {
-            System.setProperty("screenshotParams_screenshotType", "Regular");
+        if (SHAFT.Properties.visuals.createAnimatedGif()) {
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
         }
     }
 

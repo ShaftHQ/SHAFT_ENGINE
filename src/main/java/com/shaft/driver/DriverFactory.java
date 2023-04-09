@@ -7,8 +7,10 @@ import com.shaft.db.DatabaseActions;
 import com.shaft.db.DatabaseActions.DatabaseType;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.listeners.TestNGListener;
+import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.ReportManager;
 import org.openqa.selenium.MutableCapabilities;
+import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.Browser;
 import org.sikuli.script.App;
@@ -23,7 +25,7 @@ public class DriverFactory {
      */
     public static WebDriver getDriver() {
         readLastMinuteUpdatedProperties();
-        if (System.getProperty("executionAddress").contains("browserstack")) {
+        if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("browserstack")) {
             return getBrowserStackDriver(new MutableCapabilities());
         } else {
             DriverFactoryHelper.initializeDriver();
@@ -73,6 +75,12 @@ public class DriverFactory {
         // it's null in case of Cucumber native feature file execution
         if (TestNGListener.getXmlTest() != null) {
             System.getProperties().putAll(TestNGListener.getXmlTest().getAllParameters());
+            var testName = TestNGListenerHelper.getTestName().toLowerCase();
+            if (testName.contains("firefox")
+                    || testName.contains("chrome")
+                    || testName.contains("safari")) {
+                SHAFT.Properties.platform.set().targetPlatform(Platform.LINUX.name());
+            }
         }
     }
 
@@ -121,7 +129,7 @@ public class DriverFactory {
     public static App getSikuliApp(String applicationName) {
 //        DriverFactoryHelper.initializeSystemProperties();
         var myapp = new App(applicationName);
-        myapp.waitForWindow(Integer.parseInt(System.getProperty("browserNavigationTimeout")));
+        myapp.waitForWindow(SHAFT.Properties.timeouts.browserNavigationTimeout());
         myapp.focus();
         ReportManager.log("Opened app: [" + myapp.getName() + "]...");
         return myapp;

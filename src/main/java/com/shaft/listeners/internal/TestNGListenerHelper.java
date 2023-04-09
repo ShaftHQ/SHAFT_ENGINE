@@ -1,13 +1,15 @@
 package com.shaft.listeners.internal;
 
+import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.video.RecordManager;
-import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
+import org.openqa.selenium.Platform;
+import org.openqa.selenium.remote.Browser;
 import org.testng.*;
 import org.testng.internal.ConfigurationMethod;
 import org.testng.xml.XmlClass;
@@ -23,6 +25,7 @@ public class TestNGListenerHelper {
 
     private static final ArrayList<ITestResult> beforeMethods = new ArrayList<>();
     private static final ArrayList<ITestResult> afterMethods = new ArrayList<>();
+    private static final ThreadLocal<String> testName = new ThreadLocal<>();
 
     public static void setTotalNumberOfTests(ISuite testSuite) {
         // This condition checks to confirm that this is not a cucumber test runner instance
@@ -68,15 +71,22 @@ public class TestNGListenerHelper {
         }
     }
 
+    public static synchronized String getTestName() {
+        return testName.get();
+    }
+
+    public static synchronized void setTestName(ITestContext iTestContext) {
+        testName.set(iTestContext.getCurrentXmlTest().getName());
+    }
+
     public static void configureCrossBrowserExecution(List<XmlSuite> suites) {
-        if (System.getProperty("SHAFT.CrossBrowserMode") != null
-                && !"off".equals(System.getProperty("SHAFT.CrossBrowserMode"))) {
+        if (!"off".equals(SHAFT.Properties.platform.crossBrowserMode())) {
             suites.forEach(suite -> {
                 var firefox_test = (XmlTest) suite.getTests().get(0).clone();
                 firefox_test.setParameters(Map.of(
                         "executionAddress", "dockerized",
-                        "targetOperatingSystem", "Linux",
-                        "targetBrowserName", "MozillaFirefox"
+                        "targetOperatingSystem", Platform.LINUX.name(),
+                        "targetBrowserName", Browser.FIREFOX.browserName()
                 ));
                 firefox_test.setThreadCount(1);
                 firefox_test.setParallel(XmlSuite.ParallelMode.NONE);
@@ -85,8 +95,8 @@ public class TestNGListenerHelper {
                 var safari_test = (XmlTest) suite.getTests().get(0).clone();
                 safari_test.setParameters(Map.of(
                         "executionAddress", "dockerized",
-                        "targetOperatingSystem", "Linux",
-                        "targetBrowserName", "Safari"
+                        "targetOperatingSystem", Platform.LINUX.name(),
+                        "targetBrowserName", Browser.SAFARI.browserName()
                 ));
                 safari_test.setThreadCount(1);
                 safari_test.setParallel(XmlSuite.ParallelMode.NONE);
@@ -95,18 +105,18 @@ public class TestNGListenerHelper {
                 var chrome_test = (XmlTest) suite.getTests().get(0);
                 chrome_test.setParameters(Map.of(
                         "executionAddress", "dockerized",
-                        "targetOperatingSystem", "Linux",
-                        "targetBrowserName", "GoogleChrome"
+                        "targetOperatingSystem", Platform.LINUX.name(),
+                        "targetBrowserName", Browser.CHROME.browserName()
                 ));
                 chrome_test.setThreadCount(1);
                 chrome_test.setParallel(XmlSuite.ParallelMode.NONE);
                 chrome_test.setName(chrome_test.getName() + " - Chrome");
 
-                if (Properties.platform.crossBrowserMode().equals("parallelized")) {
+                if (SHAFT.Properties.platform.crossBrowserMode().equals("parallelized")) {
                     suite.setParallel(XmlSuite.ParallelMode.TESTS);
                     suite.setThreadCount(3);
-                    System.setProperty("videoParams_recordVideo", "true");
-                    System.setProperty("screenshotParams_screenshotType", "Regular");
+                    SHAFT.Properties.visuals.set().videoParamsRecordVideo(true);
+                    SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
                 }
             });
 //        } else {
@@ -133,14 +143,14 @@ public class TestNGListenerHelper {
 
     public static void configureTestNGProperties(List<XmlSuite> suites) {
         suites.forEach(suite -> {
-            suite.setPreserveOrder(Boolean.valueOf(System.getProperty("setPreserveOrder")));
-            suite.setGroupByInstances(Boolean.parseBoolean(System.getProperty("setGroupByInstances")));
-            suite.setVerbose(Integer.parseInt(System.getProperty("setVerbose")));
-            suite.setParallel(XmlSuite.ParallelMode.valueOf(System.getProperty("setParallel")));
-            suite.setThreadCount(Integer.parseInt(System.getProperty("setThreadCount")));
-            suite.setDataProviderThreadCount(Integer.parseInt(System.getProperty("setDataProviderThreadCount")));
+            suite.setPreserveOrder(SHAFT.Properties.testNG.preserveOrder());
+            suite.setGroupByInstances(SHAFT.Properties.testNG.groupByInstances());
+            suite.setVerbose(SHAFT.Properties.testNG.verbose());
+            suite.setParallel(XmlSuite.ParallelMode.valueOf(SHAFT.Properties.testNG.parallel()));
+            suite.setThreadCount(SHAFT.Properties.testNG.threadCount());
+            suite.setDataProviderThreadCount(SHAFT.Properties.testNG.dataProviderThreadCount());
 
-            if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
+            if (SHAFT.Properties.reporting.debugMode()) {
                 ReportManager.log("getPreserveOrder: " + suite.getPreserveOrder());
                 ReportManager.log("getDataProviderThreadCount: " + suite.getDataProviderThreadCount());
                 ReportManager.log("getThreadCount: " + suite.getThreadCount());
@@ -178,7 +188,7 @@ public class TestNGListenerHelper {
     }
 
     public static void configureJVMProxy() {
-        String PROXY_SERVER_SETTINGS = System.getProperty("com.SHAFT.proxySettings");
+        String PROXY_SERVER_SETTINGS = SHAFT.Properties.platform.proxy();
         if (!PROXY_SERVER_SETTINGS.equals("")) {
             String[] proxyHostPort = PROXY_SERVER_SETTINGS.split(":");
             System.setProperty("http.proxyHost", proxyHostPort[0]);
@@ -196,7 +206,7 @@ public class TestNGListenerHelper {
         if (!Arrays.asList("suiteSetup", "suiteTeardown", "classTeardown").contains(iTestNGMethod.getMethodName())) {
             List<String> attachments = new ArrayList<>();
             String attachment;
-            if (System.getProperty("videoParams_scope").trim().equals("TestMethod")) {
+            if (SHAFT.Properties.visuals.videoParamsScope().equals("TestMethod")) {
                 RecordManager.attachVideoRecording();
                 attachment = RecordManager.getVideoRecordingFilePath();
                 if (!attachment.equals(""))
@@ -227,7 +237,7 @@ public class TestNGListenerHelper {
     }
 
     public static void skipTestsWithLinkedIssues(ITestResult iTestResult) {
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("skipTestsWithLinkedIssues")))) {
+        if (SHAFT.Properties.flags.skipTestsWithLinkedIssues()) {
             var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
             Issue issue = method.getAnnotation(Issue.class);
             if (issue != null) {
@@ -249,11 +259,7 @@ public class TestNGListenerHelper {
     public static Boolean testHasIssueAnnotation(ITestResult iTestResult) {
         var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
         Issue issue = method.getAnnotation(Issue.class);
-        Boolean hasIssue = false;
-        if (issue != null) {
-            hasIssue = true;
-        }
-        return hasIssue;
+        return issue != null;
     }
 
     public static void failFast(ITestResult iTestResult) {

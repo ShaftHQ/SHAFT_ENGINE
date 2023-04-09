@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.jayway.jsonpath.JsonPath;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -76,7 +77,7 @@ public class RestActions {
     }
 
     public RestActions(String serviceURI) {
-        initializeSystemProperties(System.getProperty("apiConnectionTimeout") == null);
+        initializeSystemProperties();
         headerAuthorization = "";
         this.serviceURI = serviceURI;
         sessionCookies = new HashMap<>();
@@ -589,21 +590,24 @@ public class RestActions {
             } else {
                 requestBodyAttachment.add("API Request");
                 switch (identifyBodyObjectType(requestBody)) {
-                    case 1 ->
-                            // json
-                            requestBodyAttachment.add("JSON Body");
-                    case 2 ->
-                            // xml
-                            requestBodyAttachment.add("XML Body");
-                    case 3, 4 ->
-                            // I don't remember... may be binary
-                            // binary... probably
-                            requestBodyAttachment.add("Body");
-                    default -> {
+                    case 1 -> {
+                        // json
+                        requestBodyAttachment.add("JSON Body");
+                        requestBodyAttachment.add(parseBodyToJson(requestBody));
                     }
-                    // unreachable code
+                    case 2 -> {
+                        // xml
+                        requestBodyAttachment.add("XML Body");
+                        requestBodyAttachment.add(formatXML(String.valueOf(requestBody)));
+                    }
+                    case 3, 4 -> {
+                        // I don't remember... may be binary
+                        // binary... probably
+                        requestBodyAttachment.add("Body");
+                        requestBodyAttachment.add(parseBodyToJson(requestBody));
+                    }
+                    default -> requestBodyAttachment.add(parseBodyToJson(requestBody));
                 }
-                requestBodyAttachment.add(parseBodyToJson(requestBody));
                 return requestBodyAttachment;
             }
         }
@@ -623,21 +627,24 @@ public class RestActions {
             } else {
                 responseBodyAttachment.add("API Response");
                 switch (identifyBodyObjectType(responseBody)) {
-                    case 1 ->
-                            // json
-                            responseBodyAttachment.add("JSON Body");
-                    case 2 ->
-                            // xml
-                            responseBodyAttachment.add("XML Body");
-                    case 3, 4 ->
-                            // I don't remember... may be binary
-                            // binary... probably
-                            responseBodyAttachment.add("Body");
-                    default -> {
+                    case 1 -> {
+                        // json
+                        responseBodyAttachment.add("JSON Body");
+                        responseBodyAttachment.add(parseBodyToJson(responseBody));
                     }
-                    // unreachable code
+                    case 2 -> {
+                        // xml
+                        responseBodyAttachment.add("XML Body");
+                        responseBodyAttachment.add(formatXML(String.valueOf(responseBody)));
+                    }
+                    case 3, 4 -> {
+                        // I don't remember... may be binary
+                        // binary... probably
+                        responseBodyAttachment.add("Body");
+                        responseBodyAttachment.add(parseBodyToJson(responseBody));
+                    }
+                    default -> responseBodyAttachment.add(parseBodyToJson(responseBody));
                 }
-                responseBodyAttachment.add(parseBodyToJson(responseBody));
                 return responseBodyAttachment;
             }
         }
@@ -829,16 +836,13 @@ public class RestActions {
         }
     }
 
-    private static void initializeSystemProperties(boolean readPropertyFilesBeforeInitializing) {
-        HTTP_SOCKET_TIMEOUT = Integer.parseInt(System.getProperty("apiSocketTimeout"));
+    private static void initializeSystemProperties() {
+        HTTP_SOCKET_TIMEOUT = SHAFT.Properties.timeouts.apiSocketTimeout();
         // timeout between two consecutive data packets in seconds
-        HTTP_CONNECTION_TIMEOUT = Integer.parseInt(System.getProperty("apiConnectionTimeout"));
+        HTTP_CONNECTION_TIMEOUT = SHAFT.Properties.timeouts.apiConnectionTimeout();
         // timeout until a connection is established in seconds
-        HTTP_CONNECTION_MANAGER_TIMEOUT = Integer
-                .parseInt(System.getProperty("apiConnectionManagerTimeout"));
-
-        AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = Boolean.parseBoolean(System.getProperty("automaticallyAssertResponseStatusCode"));
-
+        HTTP_CONNECTION_MANAGER_TIMEOUT = SHAFT.Properties.timeouts.apiConnectionManagerTimeout();
+        AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = SHAFT.Properties.flags.automaticallyAssertResponseStatusCode();
     }
 
     /**

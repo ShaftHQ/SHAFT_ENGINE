@@ -2,12 +2,13 @@ package testPackage;
 
 import com.shaft.api.RestActions;
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import com.shaft.validation.Validations;
 import io.restassured.response.Response;
 import org.testng.annotations.Test;
 
 
-public class Test_MatchJsonSchema {
+public class MatchJsonSchemaTests {
 
     @Test
     public void checkAPI_ResponseSchema() {
@@ -19,7 +20,7 @@ public class Test_MatchJsonSchema {
 
         Validations.assertThat()
                 .response(res)
-                .matchesSchema(System.getProperty("testDataFolderPath") + "schema.json")
+                .matchesSchema(SHAFT.Properties.paths.testData() + "schema.json")
                 .perform();
 
     }

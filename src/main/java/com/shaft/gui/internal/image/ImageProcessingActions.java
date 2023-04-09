@@ -9,6 +9,7 @@ import com.assertthat.selenium_shutterbug.core.CaptureElement;
 import com.assertthat.selenium_shutterbug.core.Shutterbug;
 import com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesException;
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -21,8 +22,10 @@ import org.opencv.highgui.HighGui;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Platform;
 import org.openqa.selenium.UnsupportedCommandException;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.remote.Browser;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -148,19 +151,15 @@ public class ImageProcessingActions {
                 yPos = elementLocation.getY();
 
         // IOS Native | macOS Browser | Linux Browser scaled | -> Repositioning
-        if (System.getProperty("targetOperatingSystem").equals("iOS")
-                || System.getProperty("targetOperatingSystem").equals("Mac")
+        if (SHAFT.Properties.platform.targetPlatform().equals(Platform.IOS.name())
+                || SHAFT.Properties.platform.targetPlatform().equals(Platform.MAC.name())
                 || (
-                System.getProperty("targetOperatingSystem").equals("Linux")
-                        && System.getProperty("screenshotParams_scalingFactor") != null
-                        && !System.getProperty("screenshotParams_scalingFactor").isEmpty()
-                        && !System.getProperty("screenshotParams_scalingFactor").equals("1")
+                SHAFT.Properties.platform.targetPlatform().equals(Platform.LINUX.name())
+                        && SHAFT.Properties.visuals.screenshotParamsScalingFactor() != Double.parseDouble("1")
         )
                 || (
-                System.getProperty("targetOperatingSystem").equals("Linux")
-                        && System.getProperty("screenshotParams_scalingFactor") != null
-                        && !System.getProperty("screenshotParams_scalingFactor").isEmpty()
-                        && !System.getProperty("screenshotParams_scalingFactor").equals("1")
+                SHAFT.Properties.platform.targetPlatform().equals(Platform.LINUX.name())
+                        && SHAFT.Properties.visuals.screenshotParamsScalingFactor() != Double.parseDouble("1")
         )
         ) {
             elementHeight *= 2;
@@ -170,25 +169,23 @@ public class ImageProcessingActions {
         }
 
         // IOS Browser Repositioning
-        if (System.getProperty("targetOperatingSystem").equals("iOS") && System.getProperty("mobile_browserName").equals("Safari")) {
+        if (SHAFT.Properties.platform.targetPlatform().equals(Platform.IOS.name()) && SHAFT.Properties.mobile.browserName().equals(Browser.SAFARI.browserName())) {
             yPos += elementHeight + 2 * outlineThickness;
         }
 
         // Android Browser Repositioning
-        if (System.getProperty("targetOperatingSystem").equals("Android") && System.getProperty("mobile_appPackage").equals("com.android.chrome")) {
+        if (SHAFT.Properties.platform.targetPlatform().equals(Platform.ANDROID.name()) && SHAFT.Properties.mobile.appPackage().equals("com.android.chrome")) {
             yPos += 2 * outlineThickness;
         }
 
         // MacOS Browser Repositioning
-        if (System.getProperty("targetOperatingSystem").equals("Mac")) {
+        if (SHAFT.Properties.platform.targetPlatform().equals(Platform.MAC.name())) {
             yPos += 2 * outlineThickness;
         }
 
         // Windows Browser Repositioning
-        if (System.getProperty("targetOperatingSystem").equals("Windows")
-                && System.getProperty("screenshotParams_scalingFactor") != null
-                && !System.getProperty("screenshotParams_scalingFactor").isEmpty()) {
-            double scalingFactor = Double.parseDouble(System.getProperty("screenshotParams_scalingFactor"));
+        if (SHAFT.Properties.platform.targetPlatform().equals(Platform.WINDOWS.name())) {
+            double scalingFactor = SHAFT.Properties.visuals.screenshotParamsScalingFactor();
             elementHeight *= scalingFactor;
             elementWidth *= scalingFactor;
             xPos *= scalingFactor;
@@ -230,7 +227,7 @@ public class ImageProcessingActions {
         Imgproc.Sobel(imgGaussianBlur, imgSobel, -1, 1, 0);
         Imgproc.threshold(imgSobel, imgThreshold, 0, 255, CV_THRESH_OTSU + CV_THRESH_BINARY);
 
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
+        if (SHAFT.Properties.reporting.debugMode()) {
             FileActions.getInstance().createFolder("target/openCV/temp/");
             String timestamp = String.valueOf(System.currentTimeMillis());
             Imgcodecs.imwrite("target/openCV/temp/" + timestamp + "_1_True_Image.png", img);
@@ -301,7 +298,7 @@ public class ImageProcessingActions {
                 var accuracyMessage = "Match accuracy is " + (int) Math.round(matchAccuracy * 100) + "% and threshold is " + (int) Math.round(threshold * 100) + "%.";
                 ReportManager.logDiscrete(accuracyMessage);
 
-                if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
+                if (SHAFT.Properties.reporting.debugMode()) {
                     // debugging
                     try {
                         FileActions.getInstance().createFolder("target/openCV/");
@@ -458,7 +455,7 @@ public class ImageProcessingActions {
             public void close() {
             }
         });
-        eyes.setApiKey(System.getProperty("applitoolsApiKey"));
+        eyes.setApiKey(SHAFT.Properties.paths.applitoolsApiKey());
         MatchLevel targetMatchLevel = MatchLevel.STRICT;
         switch (visualValidationEngine) {
             // https://help.applitools.com/hc/en-us/articles/360007188591-Match-Levels
@@ -471,14 +468,14 @@ public class ImageProcessingActions {
         eyes.setMatchLevel(targetMatchLevel);
         // Define the OS and hosting application to identify the baseline.
         if (DriverFactoryHelper.isMobileNativeExecution()) {
-            eyes.setHostOS(System.getProperty("mobile_platformName") + "_" + System.getProperty("mobile_platformVersion"));
+            eyes.setHostOS(SHAFT.Properties.mobile.platformName() + "_" + SHAFT.Properties.mobile.platformVersion());
             eyes.setHostApp("NativeMobileExecution");
         } else if (DriverFactoryHelper.isMobileWebExecution()) {
-            eyes.setHostOS(System.getProperty("mobile_platformName") + "_" + System.getProperty("mobile_platformVersion"));
-            eyes.setHostApp(System.getProperty("mobile_browserName"));
+            eyes.setHostOS(SHAFT.Properties.mobile.platformName() + "_" + SHAFT.Properties.mobile.platformVersion());
+            eyes.setHostApp(SHAFT.Properties.mobile.browserName());
         } else {
-            eyes.setHostOS(System.getProperty("targetOperatingSystem"));
-            eyes.setHostApp(System.getProperty("targetBrowserName"));
+            eyes.setHostOS(SHAFT.Properties.platform.targetPlatform());
+            eyes.setHostApp(SHAFT.Properties.web.targetBrowserName());
         }
         try {
             eyes.open("SHAFT_Engine", ReportManagerHelper.getCallingMethodFullName());
@@ -594,7 +591,7 @@ public class ImageProcessingActions {
             } else {
                 ReportManager.logDiscrete("Failed to load OpenCV. Try installing the binaries manually https://opencv.org/releases/, switching element highlighting to JavaScript...");
             }
-            System.setProperty("screenshotParams_highlightMethod", "JavaScript");
+            SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("JavaScript");
         }
     }
 

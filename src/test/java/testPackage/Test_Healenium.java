@@ -2,6 +2,7 @@ package testPackage;
 
 import com.epam.healenium.SelfHealingDriver;
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Validations;
@@ -69,7 +70,7 @@ public class Test_Healenium {
 
     @BeforeMethod
     public void beforeMethod(){
-        System.setProperty("heal-enabled", "true");
+        SHAFT.Properties.healenium.set().healEnabled(true);
         driver = DriverFactory.getDriver();
     }
 

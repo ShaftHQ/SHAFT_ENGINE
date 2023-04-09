@@ -2,6 +2,7 @@ package com.shaft.driver.internal;
 
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -32,7 +33,8 @@ public class AppiumSelfManagementHelper {
     private final String subPathToPlatform = "platform-tools";
 
     private AppiumSelfManagementHelper() {
-        System.setProperty("videoParams_recordVideo", "true");
+        SHAFT.Properties.platform.set().executionAddress("localhost:4723");
+        SHAFT.Properties.visuals.set().videoParamsRecordVideo(true);
         // TODO: check if user has admin access
         // TODO: create a list to manage URLs for other OSs
 
@@ -303,6 +305,12 @@ public class AppiumSelfManagementHelper {
         TerminalActions.getInstance(true, true)
                 .performTerminalCommands(Arrays.asList("cd " + Properties.paths.properties()
                         , "appium --config .appiumrc.json"));
+
+        // TODO: Refactor to run the below four commands where applicable
+        //  npm uninstall --global appium --drivers=xcuitest,uiautomator2 --plugins=images,device-farm,appium-dashboard --global
+        //  npm install appium@next --drivers=xcuitest,uiautomator2 --plugins=images --force --foreground-scripts=true --global
+        //  appium plugin install --source=npm appium-device-farm
+        //  appium plugin install --source=npm appium-dashboard
 
         ReportManager.log("Appium Device Farm is now up and running: http://" + Properties.platform.executionAddress() + "/dashboard/");
     }

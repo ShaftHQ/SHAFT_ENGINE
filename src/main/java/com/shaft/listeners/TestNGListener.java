@@ -1,5 +1,6 @@
 package com.shaft.listeners;
 
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.listeners.internal.JiraHelper;
 import com.shaft.listeners.internal.RetryAnalyzer;
@@ -41,16 +42,16 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onExecutionStart() {
         ReportManagerHelper.setDiscreteLogging(true);
-        System.setProperty("disableLogging", "true");
+        PropertiesHelper.initialize();
+        SHAFT.Properties.reporting.set().disableLogging(true);
         //TODO: Enable Properties Helper and refactor the old PropertyFileManager to read any unmapped user properties in a specific directory
         Allure.getLifecycle();
         Reporter.setEscapeHtml(false);
-        PropertiesHelper.initialize();
         ProjectStructureManager.initialize();
         TestNGListenerHelper.configureJVMProxy();
         GoogleTink.initialize();
         GoogleTink.decrypt();
-        System.setProperty("disableLogging", "false");
+        SHAFT.Properties.reporting.set().disableLogging(false);
 
         ReportManagerHelper.logEngineVersion();
         ImageProcessingActions.loadOpenCV();
@@ -59,8 +60,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ReportManagerHelper.initializeAllureReportingEnvironment();
         ReportManagerHelper.initializeExtentReportingEnvironment();
 
-        ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
-        ReportManagerHelper.setDebugMode(Boolean.valueOf(System.getProperty("debugMode")));
+        ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
+        ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
     }
 
     /**
@@ -124,9 +125,10 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      * </ul>
      */
     @Override
-    public void beforeInvocation(IInvokedMethod method, ITestResult iTestResult, ITestContext context) {
+    public void beforeInvocation(IInvokedMethod method, ITestResult iTestResult, ITestContext iTestContext) {
         xmlTest = method.getTestMethod().getXmlTest();
         JiraHelper.prepareTestResultAttributes(method, iTestResult);
+        TestNGListenerHelper.setTestName(iTestContext);
         TestNGListenerHelper.logTestInformation(iTestResult);
         TestNGListenerHelper.failFast(iTestResult);
         TestNGListenerHelper.skipTestsWithLinkedIssues(iTestResult);
@@ -149,7 +151,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         IssueReporter.updateTestStatusInCaseOfVerificationFailure(iTestResult);
         IssueReporter.updateIssuesLog(iTestResult);
         TestNGListenerHelper.updateConfigurationMethodLogs(iTestResult);
-        ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
+        ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
     }
 
     /**

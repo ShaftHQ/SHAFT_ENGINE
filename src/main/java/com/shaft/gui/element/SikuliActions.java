@@ -1,5 +1,6 @@
 package com.shaft.gui.element;
 
+import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.internal.ElementActionsHelper;
@@ -349,7 +350,7 @@ public class SikuliActions {
 
     private Pattern prepareElementPattern(byte[] targetElement) throws IOException {
         if (applicationWindow != null) {
-            applicationWindow.waitForWindow(Integer.parseInt(System.getProperty("browserNavigationTimeout")));
+            applicationWindow.waitForWindow(SHAFT.Properties.timeouts.browserNavigationTimeout());
             applicationWindow.focus();
         }
         Pattern elementPattern = new Pattern();
@@ -368,7 +369,7 @@ public class SikuliActions {
         Settings.DebugLogs = true;
         Settings.LogTime = true;
         screen = new Screen();
-        screen.setAutoWaitTimeout(Double.parseDouble(System.getProperty("defaultElementIdentificationTimeout")));
+        screen.setAutoWaitTimeout(SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
         RecordManager.startVideoRecording();
     }
 
