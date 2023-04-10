@@ -262,7 +262,7 @@ public class ElementActionsHelper {
                 return String.valueOf(elementInformation.getFirstElement().isDisplayed());
             }
             case SET_VALUE_USING_JAVASCRIPT ->
-                    ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].value=\"" + parameter + "\";", elementInformation.getFirstElement());
+                    ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].value = \"arguments[1]\";", elementInformation.getFirstElement(), parameter);
         }
         return "";
     }
@@ -435,8 +435,7 @@ public class ElementActionsHelper {
     public static boolean setValueUsingJavascript(By elementLocator, String value) {
         try {
             if (DriverFactoryHelper.isWebExecution()) {
-                ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].value='" + value + "';"
-                        , ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1));
+                performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator, ElementAction.SET_VALUE_USING_JAVASCRIPT, value);
             }
             return true;
         } catch (Exception e) {
@@ -449,8 +448,7 @@ public class ElementActionsHelper {
         try {
             if (DriverFactoryHelper.isWebExecution()) {
                 try {
-                    ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].value='" + value + "';"
-                            , (elementInformation.getFirstElement()));
+                    ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].value = \"arguments[1]\";", elementInformation.getFirstElement(), value);
                 } catch (WebDriverException webDriverException) {
                     ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.SET_VALUE_USING_JAVASCRIPT, value);
                 }
