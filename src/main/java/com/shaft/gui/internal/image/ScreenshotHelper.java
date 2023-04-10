@@ -131,14 +131,13 @@ public class ScreenshotHelper {
         }
         if (skipElements != null) {
             for (WebElement skipElement : skipElements) {
-                ((JavascriptExecutor) driver).executeScript("arguments[0].style.display = '" + display + "';",
-                        skipElement);
+                ((JavascriptExecutor) driver).executeScript("arguments[0].style.display = \"arguments[1]\";", skipElement, display);
             }
         }
     }
 
     private static void scrollVerticallyTo(WebDriver driver, int scroll) {
-        ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, " + scroll + ");");
+        ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, \"arguments[0]\");", scroll);
         try {
             waitUntilItIsScrolledToPosition(driver, scroll);
         } catch (Exception e) {
