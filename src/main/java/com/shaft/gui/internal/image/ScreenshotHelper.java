@@ -131,7 +131,7 @@ public class ScreenshotHelper {
         }
         if (skipElements != null) {
             for (WebElement skipElement : skipElements) {
-                ((JavascriptExecutor) driver).executeScript("arguments[0].style.display = \"arguments[1]\";", skipElement, display);
+                ((JavascriptExecutor) driver).executeScript("arguments[0].style.display = arguments[1];", skipElement, display);
             }
         }
     }
