@@ -485,6 +485,50 @@ public class FileActions {
         }
     }
 
+    public void copyFileFromJar(String sourceFolderPath, String destinationFolderPath, String fileName) {
+        try {
+            URL url = new URL(sourceFolderPath.replace("file:", "jar:file:"));
+            JarURLConnection jarConnection = (JarURLConnection) url.openConnection();
+            JarFile jarFile = jarConnection.getJarFile();
+
+            /*
+             * Iterate all entries in the jar file.
+             */
+            for (Enumeration<JarEntry> e = jarFile.entries(); e.hasMoreElements(); ) {
+
+                JarEntry jarEntry = e.nextElement();
+                String jarEntryName = jarEntry.getName();
+                String jarConnectionEntryName = jarConnection.getEntryName();
+
+                /*
+                 * Extract files only if they match the path.
+                 */
+                if (jarEntryName.startsWith(jarConnectionEntryName) && jarEntryName.contains(fileName)) {
+
+                    String filename = jarEntryName.startsWith(jarConnectionEntryName) ? jarEntryName.substring(jarConnectionEntryName.length()) : jarEntryName;
+                    File currentFile = new File(destinationFolderPath, filename);
+                    if (!currentFile.toPath().normalize().startsWith(new File(destinationFolderPath).toPath())) {
+                        throw new Exception("Bad zip entry");
+                    }
+                    if (jarEntry.isDirectory()) {
+                        boolean success = currentFile.mkdirs();
+                        if (success) {
+                            ReportManager.logDiscrete("Directory Created successfully...");
+                        }
+                    } else {
+                        InputStream is = jarFile.getInputStream(jarEntry);
+                        OutputStream out = FileUtils.openOutputStream(currentFile);
+                        IOUtils.copy(is, out);
+                        is.close();
+                        out.close();
+                    }
+                }
+            }
+        } catch (Exception rootCauseException) {
+            failAction(rootCauseException);
+        }
+    }
+
     public void deleteFolder(String folderPath) {
         File directory = new File(folderPath);
         try {
