@@ -4,6 +4,7 @@ import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.commons.lang3.SystemUtils;
 import org.openqa.selenium.WebDriver;
 
@@ -41,8 +42,8 @@ public class LightHouseGenerateReport {
             (new TerminalActions()).performTerminalCommand(commandToGenerateLightHouseReport);
             writeReportPathToFilesInProjectDirectory(PageName);
              openLighthouseReportWhileExecution();
-
             SHAFT.Report.report("Lighthouse Report Generated successfully");
+            SHAFT.Report.attach("LightHouse HTML", "Report",  FileActions.getInstance().readFile("lighthouse-reports/"+PageName+".html"));
         }
     }
 
