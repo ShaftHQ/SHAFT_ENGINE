@@ -13,7 +13,8 @@ public interface Reporting extends EngineProperties {
         Properties.reporting = ConfigFactory.create(Reporting.class, updatedProps);
         // temporarily set the system property to support hybrid read/write mode
         System.setProperty(key, value);
-        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
+        if (!key.equals("disableLogging"))
+            ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
 
     @Key("captureElementName")

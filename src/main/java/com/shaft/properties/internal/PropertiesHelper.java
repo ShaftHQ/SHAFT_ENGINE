@@ -101,21 +101,27 @@ public class PropertiesHelper {
             propertiesFolderPath = DEFAULT_PROPERTIES_FOLDER_PATH;
         }
 
+        boolean isExternalRun = propertiesFolderPath.contains("file:");
+
         // always override default properties
-        if (propertiesFolderPath.contains("file:")) {
+        if (isExternalRun) {
             FileActions.getInstance().copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
         } else {
             FileActions.getInstance().copyFolder(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
         }
 
         // override target properties only if they do not exist
-        if (!FileActions.getInstance().doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + "/path.properties")) {
-            if (propertiesFolderPath.contains("file:")) {
-                FileActions.getInstance().copyFolderFromJar(propertiesFolderPath, TARGET_PROPERTIES_FOLDER_PATH);
-            } else {
-                FileActions.getInstance().copyFolder(propertiesFolderPath, TARGET_PROPERTIES_FOLDER_PATH);
-            }
-        }
+        var finalPropertiesFolderPath = propertiesFolderPath;
+        Arrays.asList("/cucumber.properties", "/customWebdriverCapabilities.properties", "/log4j2.properties", "/TestNG.properties")
+                .forEach(file -> {
+                    if (!FileActions.getInstance().doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + file)) {
+                        if (isExternalRun) {
+                            FileActions.getInstance().copyFileFromJar(finalPropertiesFolderPath, TARGET_PROPERTIES_FOLDER_PATH, file.replace("/", ""));
+                        } else {
+                            FileActions.getInstance().copyFile(finalPropertiesFolderPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);
+                        }
+                    }
+                });
     }
 
     private static void attachPropertyFiles() {
