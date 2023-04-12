@@ -1,51 +1,54 @@
 package testPackage;
 
-import com.shaft.driver.DriverFactory;
-import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.element.ElementActions;
-import com.shaft.validation.Validations;
+import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 public class iFrameTest {
-    // Declaring webdriver and excelreader instances
-    WebDriver driver;
+    SHAFT.GUI.WebDriver driver;
+    By iframe_1 = By.name("iframe1");
+    By iframe_2 = By.name("iframe2");
+    String testPage = "data:text/html,<script>var result;</script><button alt='Google' onclick='result=\"Clicked\"'>Go</button>\n" +
+            "<html>\n" +
+            "  <head>\n" +
+            "    <title>Nested iFrames Example</title>\n" +
+            "  </head>\n" +
+            "  <body>\n" +
+            "    <h1>Parent Frame</h1>\n" +
+            "    <iframe src=\"data:text/html;base64,PCFET0NUWVBFIGh0bWw+DQo8aHRtbD4NCiAgPGhlYWQ+DQogICAgPHRpdGxlPkNoaWxkIGlGcmFtZSAoRnJhbWUgQSk8L3RpdGxlPg0KICA8L2hlYWQ+DQogIDxib2R5Pg0KICAgIDxoMj5DaGlsZCBpRnJhbWUgKEZyYW1lIEEpPC9oMj4NCiAgICAgIDxpZnJhbWUgc3JjPSJQQ0ZFVDBOVVdWQkZJR2gwYld3K0RRbzhhSFJ0YkQ0TkNpQWdQR2hsWVdRK0RRb2dJQ0FnUEhScGRHeGxQa05vYVd4a0lHbEdjbUZ0WlNBb1JuSmhiV1VnUWlrOEwzUnBkR3hsUGcwS0lDQThMMmhsWVdRK0RRb2dJRHhpYjJSNVBnMEtJQ0FnSUR4b016NURhR2xzWkNCcFJuSmhiV1VnS0VaeVlXMWxJRUlwUEM5b016NE5DaUFnSUNBOGNENVVhR2x6SUdseklIUm9aU0JwYm01bGNtMXZjM1FnYVdaeVlXMWxMand2Y0Q0TkNpQWdQQzlpYjJSNVBnMEtQQzlvZEcxc1BnPT0iIG5hbWU9ImlmcmFtZTIiPjwvaWZyYW1lPg0KICA8L2JvZHk+DQo8L2h0bWw+\" name=\"iframe1\"></iframe>\n" +
+            "  </body>\n" +
+            "</html>";
 
-    //@Test(priority = 0, description = "TC001 - Navigate to URL and assert element exists inside iframe")
-    public void navigateToURLandAssertElementExists() {
-        BrowserActions.getInstance().navigateToURL("https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe");
-        // directly find elmeent - expected to fail
-        By goButton = By.id("goButton");
-        // Verifications.verifyElementExists(driver, goButton, true);
-        // switch to frame manually, then find element, then switch out - expected to
-        // pass
-        By elementInMainPage = By.id("Result");
-        By iframe_1 = By.id("frame_Example1");
-        By iframe_2 = By.xpath("//iframe[@title='iframe example 1']");
-        ElementActions.getInstance().switchToIframe(iframe_1);
-        ElementActions.getInstance().switchToIframe(iframe_2);
-        Validations.verifyThat().element(driver, goButton).exists().perform();
-        ElementActions.getInstance().switchToDefaultContent();
-        Validations.verifyThat().element(driver, elementInMainPage).exists().perform();
+    @Test()
+    public void switchToIframeAndParentFrame() {
+        driver.browser().navigateToURL(testPage);
+        driver.browser().switchToIframe(iframe_1);
+        var currentFrame = driver.browser().getCurrentFrame();
+        driver.browser().switchToDefaultContent();
+        var currentFrameAfterSwitchingBackToParentFrame = driver.browser().getCurrentFrame();
+        SHAFT.Validations.assertThat().object(currentFrameAfterSwitchingBackToParentFrame).doesNotEqual(currentFrame);
+    }
 
-        // attempt to switch out while already out
-        ElementActions.getInstance().switchToDefaultContent();
-
-        // identify iframe dynamically, then switch in and out??
-        // goButton = By.xpath("//iframe[@title='iframe example
-        // 1']//button[@id='goButton']");
-        // Verifications.verifyElementExists(driver, goButton, true);
+    @Test()
+    public void switchToIframeAndParentFrame2() {
+        driver.browser().navigateToURL(testPage);
+        driver.browser().switchToIframe(iframe_1);
+        driver.browser().switchToIframe(iframe_2);
+        var currentFrame = driver.browser().getCurrentFrame();
+        driver.browser().switchToParentFrame();
+        var currentFrameAfterSwitchingBackToParentFrame = driver.browser().getCurrentFrame();
+        SHAFT.Validations.assertThat().object(currentFrameAfterSwitchingBackToParentFrame).doesNotEqual(currentFrame);
     }
 
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
-        driver = DriverFactory.getDriver();
+        driver = new SHAFT.GUI.WebDriver();
     }
 
     @AfterClass(alwaysRun = true)
     public void afterClass() {
-        BrowserActions.getInstance().closeCurrentWindow();
+        driver.quit();
     }
 }
