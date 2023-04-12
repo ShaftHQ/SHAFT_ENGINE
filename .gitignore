@@ -25,5 +25,5 @@ debug.log
 /src/main/resources/properties/*
 /lighthouse-reports/*
 /lighthouse-reports
-/GenerateLHScript.js
-/OpenLHReport.js
+GenerateLHScript.js
+OpenLHReport.js
