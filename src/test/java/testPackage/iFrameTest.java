@@ -28,7 +28,7 @@ public class iFrameTest {
         var currentFrame = driver.browser().getCurrentFrame();
         driver.browser().switchToDefaultContent();
         var currentFrameAfterSwitchingBackToParentFrame = driver.browser().getCurrentFrame();
-        SHAFT.Validations.assertThat().object(currentFrameAfterSwitchingBackToParentFrame).doesNotEqual(currentFrame);
+        SHAFT.Validations.assertThat().object(currentFrameAfterSwitchingBackToParentFrame).doesNotEqual(currentFrame).perform();
     }
 
     @Test()
@@ -39,7 +39,7 @@ public class iFrameTest {
         var currentFrame = driver.browser().getCurrentFrame();
         driver.browser().switchToParentFrame();
         var currentFrameAfterSwitchingBackToParentFrame = driver.browser().getCurrentFrame();
-        SHAFT.Validations.assertThat().object(currentFrameAfterSwitchingBackToParentFrame).doesNotEqual(currentFrame);
+        SHAFT.Validations.assertThat().object(currentFrameAfterSwitchingBackToParentFrame).doesNotEqual(currentFrame).perform();
     }
 
     @BeforeClass // Set-up method, to be run once before the first test
