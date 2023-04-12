@@ -57,7 +57,7 @@ public interface Reporting extends EngineProperties {
     boolean attachExtentReportsToAllureReport();
 
     @Key("openLighthouseReportWhileExecution")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean openLighthouseReportWhileExecution();
 
     @Key("openExecutionSummaryReportAfterExecution")
