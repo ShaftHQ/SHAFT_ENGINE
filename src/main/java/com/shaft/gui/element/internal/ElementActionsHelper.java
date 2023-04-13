@@ -1,13 +1,14 @@
 package com.shaft.gui.element.internal;
 
+import com.google.common.base.Throwables;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.enums.internal.ClipboardAction;
 import com.shaft.enums.internal.ElementAction;
 import com.shaft.gui.browser.internal.BrowserActionsHelpers;
-import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.SikuliActions;
+import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
@@ -31,6 +32,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.sikuli.script.App;
 import org.sikuli.script.Pattern;
 import org.sikuli.script.Screen;
+import org.testng.Assert;
 
 import java.awt.*;
 import java.time.Duration;
@@ -758,16 +760,16 @@ public class ElementActionsHelper {
             switch (Integer.parseInt(matchingElementsInformation.get(0).toString())) {
                 case 0 -> {
                     if (matchingElementsInformation.size() > 2 && matchingElementsInformation.get(2) instanceof Throwable) {
-                        FailureReporter.fail(ElementActions.class, "zero elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"", (Throwable) matchingElementsInformation.get(2));
+                        FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element using this locator \"" + formatLocatorToString(elementLocator) + "\"", (Throwable) matchingElementsInformation.get(2));
                     }
-                    FailureReporter.fail("zero elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"");
+                    FailureReporter.fail("Failed to identify unique element using this locator \"" + formatLocatorToString(elementLocator) + "\"");
                 }
                 case 1 -> {
                     return matchingElementsInformation;
                 }
                 default -> {
                     if (SHAFT.Properties.flags.forceCheckElementLocatorIsUnique() && !(elementLocator instanceof RelativeLocator.RelativeBy)) {
-                        FailureReporter.fail("multiple elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"");
+                        FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", new MultipleElementsFoundException("Multiple elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\""));
                     }
                     return matchingElementsInformation;
                 }
@@ -908,18 +910,19 @@ public class ElementActionsHelper {
             message = createReportMessage(actionName, testData, elementName, false);
             ReportManager.logDiscrete(message);
         } else {
-            if (rootCauseException.length >= 1) {
+            if (rootCauseException.length >= 1 && rootCauseException[0].getClass() != MultipleElementsFoundException.class && rootCauseException[0].getClass() != NoSuchElementException.class) {
                 message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false, rootCauseException[0]);
             } else {
                 message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false);
             }
         }
+        Assert.fail(message);
 
-        if (rootCauseException.length >= 1) {
-            FailureReporter.fail(ElementActions.class, message, rootCauseException[0]);
-        } else {
-            FailureReporter.fail(message);
-        }
+//        if (rootCauseException.length >= 1) {
+//            FailureReporter.fail(ElementActions.class, message, rootCauseException[0]);
+//        } else {
+//            FailureReporter.fail(message);
+//        }
     }
 
     @SuppressWarnings("SpellCheckingInspection")
@@ -1014,6 +1017,11 @@ public class ElementActionsHelper {
                                              List<List<Object>> screenshots, String elementName, Boolean passFailStatus, Throwable... rootCauseException) {
         String message = createReportMessage(actionName, testData, elementName, passFailStatus);
         List<List<Object>> attachments = createReportAttachments(driver, actionName, testData, elementLocator, screenshots, passFailStatus, rootCauseException);
+
+        if (message.contains("Failed") && rootCauseException != null) {
+            String rootCause = " Root cause: \"" + Throwables.getRootCause(rootCauseException[0]).getClass().getName() + ": " + Throwables.getRootCause(rootCauseException[0]).getLocalizedMessage().split("\n")[0] + "\"";
+            message += rootCause;
+        }
 
         if (attachments != null && !attachments.equals(new ArrayList<>())) {
             ReportManagerHelper.log(message, attachments);

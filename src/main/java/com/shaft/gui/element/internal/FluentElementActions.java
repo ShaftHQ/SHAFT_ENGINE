@@ -12,6 +12,7 @@ import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.gui.element.TouchActions;
+import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -846,7 +847,8 @@ public class FluentElementActions {
             }
         } catch (Throwable throwable) {
             // it has to be throwable so that it can catch any underlying assertion error
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+            var rootCause = Throwables.getRootCause(throwable).getClass();
+            if (rootCause.equals(org.openqa.selenium.NoSuchElementException.class) || rootCause.equals(MultipleElementsFoundException.class)) {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
             } else {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
