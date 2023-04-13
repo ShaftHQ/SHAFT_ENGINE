@@ -1,6 +1,7 @@
 package com.shaft.tools.io.internal;
 
 import com.google.common.base.Throwables;
+import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import org.testng.Assert;
@@ -28,7 +29,8 @@ public class FailureReporter {
                         JavaHelper.convertToSentenceCase(actionName),
                 "Exception Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(throwable));
         attachments.add(actualValueAttachment);
-        ReportManagerHelper.log(message + rootCause, attachments);
+        if (failedFileManager != ElementActionsHelper.class)
+            ReportManagerHelper.log(message + rootCause, attachments);
         Assert.fail(message + rootCause, throwable);
     }
 
