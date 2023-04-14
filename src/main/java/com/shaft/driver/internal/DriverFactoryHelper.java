@@ -429,32 +429,32 @@ public class DriverFactoryHelper {
                 case FIREFOX -> {
                     ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
 //                    driver.set(ThreadGuard.protect(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create()));
-                    driver.set(new FirefoxDriver(ffOptions));
-//                    driver.set(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create());
+ //                   driver.set(new FirefoxDriver(ffOptions));
+                    driver.set(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create());
                 }
                 case IE -> {
                     ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
 //                    driver.set(ThreadGuard.protect(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create()));
-                    driver.set(new InternetExplorerDriver(ieOptions));
-//                    driver.set(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create());
+ //                   driver.set(new InternetExplorerDriver(ieOptions));
+                    driver.set(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create());
                 }
                 case CHROME -> {
                     ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
 //                    driver.set(ThreadGuard.protect(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create()));
-                    driver.set(new ChromeDriver(chOptions));
-//                    driver.set(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create());
+ //                   driver.set(new ChromeDriver(chOptions));
+                 driver.set(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create());
                 }
                 case EDGE -> {
                     ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
 //                    driver.set(ThreadGuard.protect(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create()));
-                    driver.set(new EdgeDriver(edOptions));
-//                    driver.set(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create());
+//                    driver.set(new EdgeDriver(edOptions));
+                    driver.set(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create());
                 }
                 case SAFARI -> {
                     ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
 //                    driver.set(ThreadGuard.protect(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create()));
-                    driver.set(new SafariDriver(sfOptions));
-//                    driver.set(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create());
+ //                   driver.set(new SafariDriver(sfOptions));
+                    driver.set(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create());
                 }
                 default ->
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
