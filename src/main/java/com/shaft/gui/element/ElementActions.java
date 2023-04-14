@@ -546,31 +546,6 @@ public class ElementActions extends FluentElementActions {
     }
 
     /**
-     * Switches focus to default content, is mainly used in coordination with
-     * {@link #switchToIframe(WebDriver, By)} to exit any iFrame layer and go back
-     * to the main page
-     *
-     * @param driver the current instance of Selenium WebDriver
-     */
-    @Deprecated
-    public static void switchToDefaultContent(WebDriver driver) {
-        FluentElementActions.getInstance().switchToDefaultContent();
-    }
-
-    /**
-     * Switches focus to a certain iFrame, is mainly used to navigate inside any iFrame
-     * layer and go back to the main page
-     *
-     * @param driver         the current instance of Selenium WebDriver
-     * @param elementLocator the locator of the iFrame webElement under test (By
-     *                       xpath, id, selector, name ...etc)
-     */
-    @Deprecated
-    public static void switchToIframe(WebDriver driver, By elementLocator) {
-        FluentElementActions.getInstance().switchToIframe(elementLocator);
-    }
-
-    /**
      * Checks if there is any text in an element, clears it, then types the required
      * string into the target element.
      *
