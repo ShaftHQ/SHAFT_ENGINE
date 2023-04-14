@@ -109,13 +109,8 @@ public class ElementActionsHelper {
     }
 
     public static boolean waitForElementInvisibility(By elementLocator) {
-        try {
-            (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
-                    .until(ExpectedConditions.invisibilityOfElementLocated(elementLocator));
-        } catch (TimeoutException e) {
-            ReportManagerHelper.logDiscrete(e);
-            return false;
-        }
+        (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
+                .until(ExpectedConditions.invisibilityOfElementLocated(elementLocator));
         return true;
     }
 
@@ -572,6 +567,14 @@ public class ElementActionsHelper {
                     return accessibleName;
                 }
             } catch (Throwable throwable) {
+                var rootCause = Throwables.getRootCause(throwable).getClass();
+
+                if (rootCause.equals(NoSuchElementException.class)
+                        || rootCause.equals(InvalidSelectorException.class)
+                        || rootCause.equals(MultipleElementsFoundException.class)) {
+
+                    throw throwable;
+                }
                 //happens on some elements that show unhandled inspector error
                 //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
                 //ignore
@@ -889,9 +892,12 @@ public class ElementActionsHelper {
                 isFoundInStacktrace(ValidationsHelper.class, rootCauseException[0])
                         && isFoundInStacktrace(ElementActionsHelper.class, rootCauseException[0]));
 
-        String elementName = "";
-        if (elementLocator != null) {
-            elementName = formatLocatorToString(elementLocator);
+        String elementName = elementLocator != null ? formatLocatorToString(elementLocator) : "";
+        if (elementLocator != null
+                && (rootCauseException.length >= 1
+                && Throwables.getRootCause(rootCauseException[0]).getClass() != MultipleElementsFoundException.class
+                && Throwables.getRootCause(rootCauseException[0]).getClass() != NoSuchElementException.class
+                && Throwables.getRootCause(rootCauseException[0]).getClass() != InvalidSelectorException.class)) {
             try {
                 var accessibleName = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getAccessibleName();
                 if (accessibleName != null && !accessibleName.isBlank()) {
@@ -910,9 +916,10 @@ public class ElementActionsHelper {
             message = createReportMessage(actionName, testData, elementName, false);
             ReportManager.logDiscrete(message);
         } else {
-            if (rootCauseException.length >= 1 && rootCauseException[0].getClass() != MultipleElementsFoundException.class && rootCauseException[0].getClass() != NoSuchElementException.class) {
+            if (rootCauseException.length >= 1) {
                 message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false, rootCauseException[0]);
             } else {
+                elementLocator = null;
                 message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false);
             }
         }
@@ -1018,7 +1025,7 @@ public class ElementActionsHelper {
         String message = createReportMessage(actionName, testData, elementName, passFailStatus);
         List<List<Object>> attachments = createReportAttachments(driver, actionName, testData, elementLocator, screenshots, passFailStatus, rootCauseException);
 
-        if (message.contains("Failed") && rootCauseException != null) {
+        if (message.contains("Failed") && rootCauseException != null && rootCauseException.length > 0) {
             String rootCause = " Root cause: \"" + Throwables.getRootCause(rootCauseException[0]).getClass().getName() + ": " + Throwables.getRootCause(rootCauseException[0]).getLocalizedMessage().split("\n")[0] + "\"";
             message += rootCause;
         }
