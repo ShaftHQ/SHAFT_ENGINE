@@ -1,6 +1,5 @@
 package com.shaft.gui.element;
 
-import com.google.common.base.Throwables;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.gui.browser.internal.FluentBrowserActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
@@ -269,11 +268,7 @@ public class ElementActions extends FluentElementActions {
             return elementSize;
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
         }
         return null;
     }
@@ -295,11 +290,7 @@ public class ElementActions extends FluentElementActions {
             return elementTagName;
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
         }
         return null;
     }
@@ -458,11 +449,7 @@ public class ElementActions extends FluentElementActions {
             passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), key, null, elementName);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), key, null, throwable);
-            } else {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), key, elementLocator, throwable);
-            }
         }
     }
 
@@ -543,31 +530,6 @@ public class ElementActions extends FluentElementActions {
     @Deprecated
     public static void submitFormUsingJavaScript(WebDriver driver, By elementLocator) {
         FluentElementActions.getInstance().submitFormUsingJavaScript(elementLocator);
-    }
-
-    /**
-     * Switches focus to default content, is mainly used in coordination with
-     * {@link #switchToIframe(WebDriver, By)} to exit any iFrame layer and go back
-     * to the main page
-     *
-     * @param driver the current instance of Selenium WebDriver
-     */
-    @Deprecated
-    public static void switchToDefaultContent(WebDriver driver) {
-        FluentElementActions.getInstance().switchToDefaultContent();
-    }
-
-    /**
-     * Switches focus to a certain iFrame, is mainly used to navigate inside any iFrame
-     * layer and go back to the main page
-     *
-     * @param driver         the current instance of Selenium WebDriver
-     * @param elementLocator the locator of the iFrame webElement under test (By
-     *                       xpath, id, selector, name ...etc)
-     */
-    @Deprecated
-    public static void switchToIframe(WebDriver driver, By elementLocator) {
-        FluentElementActions.getInstance().switchToIframe(elementLocator);
     }
 
     /**

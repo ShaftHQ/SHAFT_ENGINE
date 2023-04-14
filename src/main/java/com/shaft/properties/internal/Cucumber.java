@@ -1,11 +1,9 @@
 package com.shaft.properties.internal;
 
-import com.shaft.tools.io.ReportManager;
-import org.aeonbits.owner.Config.Sources;
-import org.aeonbits.owner.ConfigFactory;
+import org.aeonbits.owner.Config;
 
 @SuppressWarnings("unused")
-@Sources({"system:properties", "file:src/main/resources/properties/cucumber.properties", "file:src/main/resources/properties/default/cucumber.properties", "classpath:cucumber.properties"})
+@Config.Sources({"system:properties", "file:src/main/resources/properties/cucumber.properties", "file:src/main/resources/properties/default/cucumber.properties", "classpath:cucumber.properties"})
 public interface Cucumber extends EngineProperties {
 
     @Key("cucumber.ansi-colors.disabled")

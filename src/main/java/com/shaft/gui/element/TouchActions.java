@@ -1,6 +1,5 @@
 package com.shaft.gui.element;
 
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.shaft.driver.SHAFT;
@@ -194,11 +193,8 @@ public class TouchActions {
             }
             ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
         } catch (Throwable throwable) {
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
+            // has to be throwable to catch assertion errors in case element was not found
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
         }
         return this;
     }
@@ -236,11 +232,8 @@ public class TouchActions {
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
             }
         } catch (Throwable throwable) {
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
+            // has to be throwable to catch assertion errors in case element was not found
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
         }
         return this;
     }
@@ -278,11 +271,8 @@ public class TouchActions {
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
             }
         } catch (Throwable throwable) {
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
+            // has to be throwable to catch assertion errors in case element was not found
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
         }
         return this;
     }
@@ -420,11 +410,8 @@ public class TouchActions {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), reportMessage, sourceElementLocator);
             }
         } catch (Throwable throwable) {
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), sourceElementLocator, throwable);
-            }
+            // has to be throwable to catch assertion errors in case element was not found
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), sourceElementLocator, throwable);
         }
         return this;
     }
@@ -464,11 +451,8 @@ public class TouchActions {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), reportMessage, elementLocator);
             }
         } catch (Throwable throwable) {
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
+            // has to be throwable to catch assertion errors in case element was not found
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
         }
         return this;
     }
@@ -589,11 +573,8 @@ public class TouchActions {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments, exception);
             }
         } catch (Throwable throwable) {
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), scrollableElementLocator, throwable);
-            }
+            // has to be throwable to catch assertion errors in case element was not found
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), scrollableElementLocator, throwable);
         }
         return this;
     }
@@ -630,11 +611,8 @@ public class TouchActions {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), targetElementLocator, e);
             }
         } catch (Throwable throwable) {
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), scrollableElementLocator, throwable);
-            }
+            // has to be throwable to catch assertion errors in case element was not found
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), scrollableElementLocator, throwable);
         }
         return this;
     }

@@ -166,7 +166,7 @@ public class FileActions {
      *                                           created on the remote machine to
      *                                           extract a file from inside a
      *                                           docker, and will be deleted
-     *                                           afterwards
+     *                                           afterward
      * @return a string that holds the SHA256 checksum for the target file
      */
     public String getFileChecksum(TerminalActions terminalSession, String targetFileFolderPath,
@@ -207,7 +207,7 @@ public class FileActions {
      *                                           created on the remote machine to
      *                                           extract a file from inside a
      *                                           docker, and will be deleted
-     *                                           afterwards
+     *                                           afterward
      * @return a string that holds the full absolute path (inside a temporary
      * folder) for the file that was copied to the local machine
      */
