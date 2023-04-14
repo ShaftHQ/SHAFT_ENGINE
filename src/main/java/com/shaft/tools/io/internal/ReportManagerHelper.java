@@ -572,7 +572,7 @@ public class ReportManagerHelper {
         augmentedText.append(System.lineSeparator());
         Arrays.stream(log.split("\n")).toList().forEach(line -> {
             var trailingSpacing = "";
-            var spaces = Math.round(144 - line.trim().length()) / 2;
+            var spaces = Math.round((float) (144 - line.trim().length()) / 2);
             if (spaces > 0) {
                 lineByLine.append(" ".repeat(spaces));
                 trailingSpacing = lineByLine.toString();

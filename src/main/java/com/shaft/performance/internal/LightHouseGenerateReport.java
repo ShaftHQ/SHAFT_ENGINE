@@ -30,17 +30,16 @@ public class LightHouseGenerateReport {
 
             if (SystemUtils.IS_OS_WINDOWS) {
                 commandToGenerateLightHouseReport = ("cmd.exe /c node GenerateLHScript.js --url=\"" + driver.getCurrentUrl() + "\" --port=" + PortNum + " --reportName=" + PageName + " ");
-                commandToGenerateLightHouseReport = commandToGenerateLightHouseReport.replace("&", "N898");
             } else {
                 commandToGenerateLightHouseReport = ("node GenerateLHScript.js --url=\"" + driver.getCurrentUrl() + "\" --port=" + PortNum + " --reportName=" + PageName + " ");
-                commandToGenerateLightHouseReport = commandToGenerateLightHouseReport.replace("&", "N898");
             }
+            commandToGenerateLightHouseReport = commandToGenerateLightHouseReport.replace("&", "N898");
             //TerminalActions.getInstance(true, true).performTerminalCommand(commandToGenerateLightHouseReport);
             (new TerminalActions()).performTerminalCommand(commandToGenerateLightHouseReport);
             writeReportPathToFilesInProjectDirectory(PageName);
-             openLighthouseReportWhileExecution();
+            openLighthouseReportWhileExecution();
             SHAFT.Report.report("Lighthouse Report Generated successfully");
-            SHAFT.Report.attach("LightHouse HTML", "Report",  FileActions.getInstance().readFile("lighthouse-reports/"+PageName+".html"));
+            SHAFT.Report.attach("LightHouse HTML", "Report", FileActions.getInstance().readFile("lighthouse-reports/" + PageName + ".html"));
         }
     }
 
@@ -75,85 +74,90 @@ public class LightHouseGenerateReport {
     public void writeNodeScriptFileInProjectDirectory() {
         List<String> commandsToServeLHReport;
         if (SystemUtils.IS_OS_WINDOWS) {
-            commandsToServeLHReport = List.of("import puppeteer from 'puppeteer';\n" +
-                    "import fs from 'fs';\n" +
-                    "import lighthouse from 'lighthouse';\n" +
-                    "import optimist from 'optimist';\n" +
-                    "var argv =optimist.argv;\n" +
-                    "import open from 'open';\n" +
-                    "import path from 'path';\n" +
-                    "const __dirname = path.resolve();\n" +
-                    "import desktopConfig from 'lighthouse/core/config/desktop-config.js';\n" +
-                    "// -------- Configs ----------\n" +
-                    "var text = argv.url;\n" +
-                "var Url = text.replaceAll(\"N898\", \"&\");\n" +
-                "//Url=Url.replace(\"'&'\", \"&\");\n" +
-                "var Port = argv.port;\n" +
-                "var LogLevel='info';\n" +
-                "var OutputType='html'; // html , json\n" +
-                "var ReportName=argv.reportName;\n" +
-                "\n" +
-                "//----------------------------\n" +
-                "\n" +
-                "(async() => {\n" +
-                "\n" +
-                "// Use Puppeteer to connect to the opened session by port\n" +
-                "   const browserURL = 'http://127.0.0.1:'+Port;\n" +
-                "   const browser = await puppeteer.connect({browserURL});\n" +
-                "    \n" +
-                "// Lighthouse connect to the opened page and genrate the report.\n" +
-                "  const options = {logLevel:LogLevel ,output: OutputType, port:Port};\n" +
-                "  const runnerResult = await lighthouse(Url,options,desktopConfig);\n" +
-                "\n" +
-                "    // `Genrate the report output as HTML or JSON\n" +
-                "  const reportHtml = runnerResult.report;\n" +
-                "    // save the report in node.js path\n" +
-                "    fs.writeFileSync(__dirname +'/lighthouse-reports/'+ReportName+'.'+OutputType, reportHtml);\n" +
-                "    // Disconnect from the session\n" +
-                "    await browser.disconnect();\n" +
-                "//    await open(__dirname +'/lighthouse-reports/'+ReportName+'.'+OutputType);\n" +
-                "\n" +
-                "})();\n"); }
+            commandsToServeLHReport = List.of("""
+                    import puppeteer from 'puppeteer';
+                    import fs from 'fs';
+                    import lighthouse from 'lighthouse';
+                    import optimist from 'optimist';
+                    var argv =optimist.argv;
+                    import open from 'open';
+                    import path from 'path';
+                    const __dirname = path.resolve();
+                    import desktopConfig from 'lighthouse/core/config/desktop-config.js';
+                    // -------- Configs ----------
+                    var text = argv.url;
+                    var Url = text.replaceAll("N898", "&");
+                    //Url=Url.replace("'&'", "&");
+                    var Port = argv.port;
+                    var LogLevel='info';
+                    var OutputType='html'; // html , json
+                    var ReportName=argv.reportName;
+
+                    //----------------------------
+
+                    (async() => {
+
+                    // Use Puppeteer to connect to the opened session by port
+                       const browserURL = 'http://127.0.0.1:'+Port;
+                       const browser = await puppeteer.connect({browserURL});
+                       \s
+                    // Lighthouse connect to the opened page and genrate the report.
+                      const options = {logLevel:LogLevel ,output: OutputType, port:Port};
+                      const runnerResult = await lighthouse(Url,options,desktopConfig);
+
+                        // `Genrate the report output as HTML or JSON
+                      const reportHtml = runnerResult.report;
+                        // save the report in node.js path
+                        fs.writeFileSync(__dirname +'/lighthouse-reports/'+ReportName+'.'+OutputType, reportHtml);
+                        // Disconnect from the session
+                        await browser.disconnect();
+                    //    await open(__dirname +'/lighthouse-reports/'+ReportName+'.'+OutputType);
+
+                    })();
+                    """);
+        }
         else {
-            commandsToServeLHReport = List.of("import puppeteer from 'puppeteer';\n" +
-                    "import fs from 'fs';\n" +
-                    "import lighthouse from 'lighthouse';\n" +
-                    "import optimist from 'optimist';\n" +
-                    "var argv =optimist.argv;\n" +
-                    "import open from 'open';\n" +
-                    "import path from 'path';\n" +
-                    "const __dirname = path.resolve();\n" +
-                    "import desktopConfig from 'lighthouse/lighthouse-core/config/desktop-config.js';\n" +
-                    "// -------- Configs ----------\n" +
-                    "var text = argv.url;\n" +
-                    "var Url = text.replaceAll(\"N898\", \"&\");\n" +
-                    "//Url=Url.replace(\"'&'\", \"&\");\n" +
-                    "var Port = argv.port;\n" +
-                    "var LogLevel='info';\n" +
-                    "var OutputType='html'; argv.outputType; // html , json\n" +
-                    "var ReportName=argv.reportName;\n" +
-                    "\n" +
-                    "//----------------------------\n" +
-                    "\n" +
-                    "(async() => {\n" +
-                    "\n" +
-                    "// Use Puppeteer to connect to the opened session by port\n" +
-                    "   const browserURL = 'http://127.0.0.1:'+Port;\n" +
-                    "   const browser = await puppeteer.connect({browserURL});\n" +
-                    "    \n" +
-                    "// Lighthouse connect to the opened page and genrate the report.\n" +
-                    "  const options = {logLevel:LogLevel ,output: OutputType, port:Port};\n" +
-                    "  const runnerResult = await lighthouse(Url,options,desktopConfig);\n" +
-                    "\n" +
-                    "    // `Genrate the report output as HTML or JSON\n" +
-                    "  const reportHtml = runnerResult.report;\n" +
-                    "    // save the report in node.js path\n" +
-                    "    fs.writeFileSync(__dirname +'/lighthouse-reports/'+ReportName+'.'+OutputType, reportHtml);\n" +
-                    "    // Disconnect from the session\n" +
-                    "    await browser.disconnect();\n" +
-                    "//    await open(__dirname +'/lighthouse-reports/'+ReportName+'.'+OutputType);\n" +
-                    "\n" +
-                    "})();\n");
+            commandsToServeLHReport = List.of("""
+                    import puppeteer from 'puppeteer';
+                    import fs from 'fs';
+                    import lighthouse from 'lighthouse';
+                    import optimist from 'optimist';
+                    var argv =optimist.argv;
+                    import open from 'open';
+                    import path from 'path';
+                    const __dirname = path.resolve();
+                    import desktopConfig from 'lighthouse/lighthouse-core/config/desktop-config.js';
+                    // -------- Configs ----------
+                    var text = argv.url;
+                    var Url = text.replaceAll("N898", "&");
+                    //Url=Url.replace("'&'", "&");
+                    var Port = argv.port;
+                    var LogLevel='info';
+                    var OutputType='html'; argv.outputType; // html , json
+                    var ReportName=argv.reportName;
+
+                    //----------------------------
+
+                    (async() => {
+
+                    // Use Puppeteer to connect to the opened session by port
+                       const browserURL = 'http://127.0.0.1:'+Port;
+                       const browser = await puppeteer.connect({browserURL});
+                       \s
+                    // Lighthouse connect to the opened page and genrate the report.
+                      const options = {logLevel:LogLevel ,output: OutputType, port:Port};
+                      const runnerResult = await lighthouse(Url,options,desktopConfig);
+
+                        // `Genrate the report output as HTML or JSON
+                      const reportHtml = runnerResult.report;
+                        // save the report in node.js path
+                        fs.writeFileSync(__dirname +'/lighthouse-reports/'+ReportName+'.'+OutputType, reportHtml);
+                        // Disconnect from the session
+                        await browser.disconnect();
+                    //    await open(__dirname +'/lighthouse-reports/'+ReportName+'.'+OutputType);
+
+                    })();
+                    """);
         }
         FileActions.getInstance().writeToFile("", "GenerateLHScript.js", commandsToServeLHReport);
     }

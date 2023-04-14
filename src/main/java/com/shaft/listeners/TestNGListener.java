@@ -26,12 +26,11 @@ import java.util.List;
 public class TestNGListener implements IAlterSuiteListener, IAnnotationTransformer,
         IExecutionListener, ISuiteListener, IInvokedMethodListener, ITestListener {
 
-    private static final List<ITestNGMethod> passedTests = new ArrayList<ITestNGMethod>();
-    private static final List<ITestNGMethod> failedTests = new ArrayList<ITestNGMethod>();
-    private static final List<ITestNGMethod> skippedTests = new ArrayList<ITestNGMethod>();
+    private static final List<ITestNGMethod> passedTests = new ArrayList<>();
+    private static final List<ITestNGMethod> failedTests = new ArrayList<>();
+    private static final List<ITestNGMethod> skippedTests = new ArrayList<>();
 
     private static long executionStartTime;
-    private static long executionEndTime;
 
     @Getter
     private static XmlTest xmlTest;
@@ -164,7 +163,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         GoogleTink.encrypt();
         ReportManagerHelper.generateAllureReportArchive();
         ReportManagerHelper.openAllureReportAfterExecution();
-        executionEndTime = System.currentTimeMillis();
+        long executionEndTime = System.currentTimeMillis();
         ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
         ReportManagerHelper.logEngineClosure();
     }

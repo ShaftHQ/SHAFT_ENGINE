@@ -919,8 +919,7 @@ public class ElementActionsHelper {
             if (rootCauseException.length >= 1) {
                 message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false, rootCauseException[0]);
             } else {
-                elementLocator = null;
-                message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false);
+                message = reportActionResult(driver, actionName, testData, null, screenshots, elementName, false);
             }
         }
         Assert.fail(message);
