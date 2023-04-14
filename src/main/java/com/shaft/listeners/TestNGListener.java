@@ -26,9 +26,9 @@ import java.util.List;
 public class TestNGListener implements IAlterSuiteListener, IAnnotationTransformer,
         IExecutionListener, ISuiteListener, IInvokedMethodListener, ITestListener {
 
-    private static List<ITestNGMethod> passedTests = new ArrayList<ITestNGMethod>();
-    private static List<ITestNGMethod> failedTests = new ArrayList<ITestNGMethod>();
-    private static List<ITestNGMethod> skippedTests = new ArrayList<ITestNGMethod>();
+    private static final List<ITestNGMethod> passedTests = new ArrayList<ITestNGMethod>();
+    private static final List<ITestNGMethod> failedTests = new ArrayList<ITestNGMethod>();
+    private static final List<ITestNGMethod> skippedTests = new ArrayList<ITestNGMethod>();
 
     private static long executionStartTime;
     private static long executionEndTime;

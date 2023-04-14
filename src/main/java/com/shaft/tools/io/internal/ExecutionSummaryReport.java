@@ -111,7 +111,7 @@ public class ExecutionSummaryReport {
     public enum StatusIcon {
         PASSED("&#9989; "), FAILED("&#10060; "), SKIPPED("&#128679; ");
 
-        private String value;
+        private final String value;
 
         StatusIcon(String type) {
             this.value = type;

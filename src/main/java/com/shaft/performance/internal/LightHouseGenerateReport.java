@@ -3,15 +3,12 @@ package com.shaft.performance.internal;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
-import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.commons.lang3.SystemUtils;
 import org.openqa.selenium.WebDriver;
 
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.List;
 
 public class LightHouseGenerateReport {
@@ -67,29 +64,28 @@ public class LightHouseGenerateReport {
 
     public void writeReportPathToFilesInProjectDirectory(String pageName) {
     List<String> commandsToServeLHReport;
-        commandsToServeLHReport = Arrays.asList(
+        commandsToServeLHReport = List.of(
                 "import open from 'open';\n" +
-                "import path from 'path';\n" +
-                "const __dirname = path.resolve();\n" +
-                "await open(__dirname +'/lighthouse-reports/"+pageName+".html');\n" +
-                "");
+                        "import path from 'path';\n" +
+                        "const __dirname = path.resolve();\n" +
+                        "await open(__dirname +'/lighthouse-reports/" + pageName + ".html');\n");
         FileActions.getInstance().writeToFile("", "OpenLHReport.js", commandsToServeLHReport);
     }
 
     public void writeNodeScriptFileInProjectDirectory() {
         List<String> commandsToServeLHReport;
         if (SystemUtils.IS_OS_WINDOWS) {
-        commandsToServeLHReport = Arrays.asList("import puppeteer from 'puppeteer';\n" +
-                "import fs from 'fs';\n" +
-                "import lighthouse from 'lighthouse';\n" +
-                "import optimist from 'optimist';\n" +
-                "var argv =optimist.argv;\n" +
-                "import open from 'open';\n" +
-                "import path from 'path';\n" +
-                "const __dirname = path.resolve();\n" +
-                "import desktopConfig from 'lighthouse/core/config/desktop-config.js';\n" +
-                "// -------- Configs ----------\n" +
-                "var text = argv.url;\n" +
+            commandsToServeLHReport = List.of("import puppeteer from 'puppeteer';\n" +
+                    "import fs from 'fs';\n" +
+                    "import lighthouse from 'lighthouse';\n" +
+                    "import optimist from 'optimist';\n" +
+                    "var argv =optimist.argv;\n" +
+                    "import open from 'open';\n" +
+                    "import path from 'path';\n" +
+                    "const __dirname = path.resolve();\n" +
+                    "import desktopConfig from 'lighthouse/core/config/desktop-config.js';\n" +
+                    "// -------- Configs ----------\n" +
+                    "var text = argv.url;\n" +
                 "var Url = text.replaceAll(\"N898\", \"&\");\n" +
                 "//Url=Url.replace(\"'&'\", \"&\");\n" +
                 "var Port = argv.port;\n" +
@@ -119,7 +115,7 @@ public class LightHouseGenerateReport {
                 "\n" +
                 "})();\n"); }
         else {
-            commandsToServeLHReport = Arrays.asList("import puppeteer from 'puppeteer';\n" +
+            commandsToServeLHReport = List.of("import puppeteer from 'puppeteer';\n" +
                     "import fs from 'fs';\n" +
                     "import lighthouse from 'lighthouse';\n" +
                     "import optimist from 'optimist';\n" +
