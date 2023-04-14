@@ -924,12 +924,6 @@ public class ElementActionsHelper {
             }
         }
         Assert.fail(message);
-
-//        if (rootCauseException.length >= 1) {
-//            FailureReporter.fail(ElementActions.class, message, rootCauseException[0]);
-//        } else {
-//            FailureReporter.fail(message);
-//        }
     }
 
     @SuppressWarnings("SpellCheckingInspection")

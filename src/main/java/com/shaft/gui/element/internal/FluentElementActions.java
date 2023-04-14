@@ -775,6 +775,54 @@ public class FluentElementActions {
     }
 
     /**
+     * Switches focus to a certain iFrame, is mainly used in coordination with
+     * {@link #switchToDefaultContent()} to navigate inside any iFrame
+     * layer and go back to the main page
+     *
+     * @param elementLocator the locator of the iFrame webElement under test (By
+     *                       xpath, id, selector, name ...etc)
+     * @return a self-reference to be used to chain actions
+     */
+    public FluentElementActions switchToIframe(By elementLocator) {
+        try {
+            DriverFactoryHelper.getDriver().get().switchTo().frame(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)));
+            // note to self: remove elementLocator in case of bug in screenshot manager
+            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
+            ReportManagerHelper.setDiscreteLogging(true);
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(elementLocator), null, null);
+            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+        }
+        return this;
+    }
+
+    /**
+     * Switches focus to default content, is mainly used in coordination with
+     * {@link #switchToIframe(By)} to exit any iFrame layer and go back
+     * to the main page
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @SuppressWarnings("UnusedReturnValue")
+    public FluentElementActions switchToDefaultContent() {
+        try {
+            DriverFactoryHelper.getDriver().get().switchTo().defaultContent();
+            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
+            ReportManagerHelper.setDiscreteLogging(true);
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
+        } catch (Exception rootCauseException) {
+//            failAction(DriverFactoryHelper.getDriver().get(), null, rootCauseException);
+        }
+        // if there is no last used driver or no drivers in the drivers list, do
+        // nothing...
+//        return new FluentElementActions(Objects.requireNonNull(DriverFactoryHelper.getDriver()).get());
+        return this;
+    }
+
+    /**
      * Checks if there is any text in an element, clears it, then types the required
      * string into the target element.
      *
@@ -789,10 +837,8 @@ public class FluentElementActions {
             var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator));
             String actualResult = ElementActionsHelper.typeWrapper(elementInformation, text);
             var elementName = elementInformation.getElementName();
-            if (actualResult != null && actualResult.equals(text)) {
+            if (actualResult.equals(text)) {
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
-            } else if (actualResult == null) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator);
             } else {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), "Expected to type: \"" + text + "\", but ended up with: \"" + actualResult + "\"",
                         elementLocator);
@@ -896,10 +942,8 @@ public class FluentElementActions {
             var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator));
             String actualResult = ElementActionsHelper.typeWrapper(elementInformation, text);
             var elementName = (String) elementInformation.getElementName();
-            if (actualResult != null && actualResult.equals(text)) {
+            if (actualResult.equals(text)) {
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), ElementActionsHelper.OBFUSCATED_STRING.repeat(text.length()), null, elementName);
-            } else if (actualResult == null) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator);
             } else {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), "Expected to type: \"" + text + "\", but ended up with: \""
                         + actualResult + "\"", elementLocator);
