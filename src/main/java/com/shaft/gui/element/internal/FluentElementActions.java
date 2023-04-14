@@ -1,6 +1,5 @@
 package com.shaft.gui.element.internal;
 
-import com.google.common.base.Throwables;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
@@ -129,11 +128,7 @@ public class FluentElementActions {
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
         }
         return null;
     }
@@ -201,11 +196,7 @@ public class FluentElementActions {
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, "", screenshot, elementName);
             } catch (Throwable throwable) {
                 // has to be throwable to catch assertion errors in case element was not found
-                if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-                } else {
                     ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-                }
             }
         }
         return this;
@@ -271,11 +262,7 @@ public class FluentElementActions {
             ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, "", screenshot, elementName);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
         }
         return this;
     }
@@ -332,11 +319,7 @@ public class FluentElementActions {
             ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, elementName);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
         }
         return this;
     }
@@ -391,12 +374,8 @@ public class FluentElementActions {
                 }
             }
         } catch (Throwable throwable) {
-            //has to be throwable to catch element not found exception
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), sourceElementLocator, throwable);
-            }
+            // has to be throwable to catch assertion errors in case element was not found
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), sourceElementLocator, throwable);
         }
         return this;
     }
@@ -488,11 +467,7 @@ public class FluentElementActions {
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
         }
         return null;
     }
@@ -520,11 +495,7 @@ public class FluentElementActions {
             return elementCssProperty;
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
         }
         return null;
 
@@ -625,13 +596,7 @@ public class FluentElementActions {
             return elementText;
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            var rootCauseClassName = Throwables.getRootCause(throwable).getClass().getName();
-            if (rootCauseClassName.equals(org.openqa.selenium.NoSuchElementException.class.getName())
-                    || rootCauseClassName.equals(org.openqa.selenium.InvalidSelectorException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
         }
         return null;
     }
@@ -680,11 +645,7 @@ public class FluentElementActions {
             ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
         }
         return this;
     }
@@ -724,11 +685,7 @@ public class FluentElementActions {
             ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, key.name(), screenshot, elementName);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), key.name(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), key.name(), elementLocator, throwable);
-            }
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), key.name(), elementLocator, throwable);
         }
         return this;
     }
@@ -766,11 +723,7 @@ public class FluentElementActions {
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), text, null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), text, elementLocator, throwable);
-            }
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), text, elementLocator, throwable);
         }
         return this;
     }
@@ -822,6 +775,54 @@ public class FluentElementActions {
     }
 
     /**
+     * Switches focus to a certain iFrame, is mainly used in coordination with
+     * {@link #switchToDefaultContent()} to navigate inside any iFrame
+     * layer and go back to the main page
+     *
+     * @param elementLocator the locator of the iFrame webElement under test (By
+     *                       xpath, id, selector, name ...etc)
+     * @return a self-reference to be used to chain actions
+     */
+    public FluentElementActions switchToIframe(By elementLocator) {
+        try {
+            DriverFactoryHelper.getDriver().get().switchTo().frame(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)));
+            // note to self: remove elementLocator in case of bug in screenshot manager
+            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
+            ReportManagerHelper.setDiscreteLogging(true);
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(elementLocator), null, null);
+            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+        }
+        return this;
+    }
+
+    /**
+     * Switches focus to default content, is mainly used in coordination with
+     * {@link #switchToIframe(By)} to exit any iFrame layer and go back
+     * to the main page
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @SuppressWarnings("UnusedReturnValue")
+    public FluentElementActions switchToDefaultContent() {
+        try {
+            DriverFactoryHelper.getDriver().get().switchTo().defaultContent();
+            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
+            ReportManagerHelper.setDiscreteLogging(true);
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
+        } catch (Exception rootCauseException) {
+//            failAction(DriverFactoryHelper.getDriver().get(), null, rootCauseException);
+        }
+        // if there is no last used driver or no drivers in the drivers list, do
+        // nothing...
+//        return new FluentElementActions(Objects.requireNonNull(DriverFactoryHelper.getDriver()).get());
+        return this;
+    }
+
+    /**
      * Checks if there is any text in an element, clears it, then types the required
      * string into the target element.
      *
@@ -836,21 +837,15 @@ public class FluentElementActions {
             var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator));
             String actualResult = ElementActionsHelper.typeWrapper(elementInformation, text);
             var elementName = elementInformation.getElementName();
-            if (actualResult != null && actualResult.equals(text)) {
+            if (actualResult.equals(text)) {
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
-            } else if (actualResult == null) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator);
             } else {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), "Expected to type: \"" + text + "\", but ended up with: \"" + actualResult + "\"",
                         elementLocator);
             }
         } catch (Throwable throwable) {
-            // it has to be throwable so that it can catch any underlying assertion error
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
+            // has to be throwable to catch assertion errors in case element was not found
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
         }
         return this;
     }
@@ -874,11 +869,7 @@ public class FluentElementActions {
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
         }
         return this;
     }
@@ -930,11 +921,7 @@ public class FluentElementActions {
             ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, internalAbsoluteFilePath, screenshot, elementName);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
         }
         return this;
     }
@@ -955,21 +942,15 @@ public class FluentElementActions {
             var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator));
             String actualResult = ElementActionsHelper.typeWrapper(elementInformation, text);
             var elementName = (String) elementInformation.getElementName();
-            if (actualResult != null && actualResult.equals(text)) {
+            if (actualResult.equals(text)) {
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), ElementActionsHelper.OBFUSCATED_STRING.repeat(text.length()), null, elementName);
-            } else if (actualResult == null) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator);
             } else {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), "Expected to type: \"" + text + "\", but ended up with: \""
                         + actualResult + "\"", elementLocator);
             }
         } catch (Throwable throwable) {
-            // it has to be throwable so that it can catch any underlying assertion error
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
+            // has to be throwable to catch assertion errors in case element was not found
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
         }
         return this;
     }
@@ -987,7 +968,7 @@ public class FluentElementActions {
 
     public FluentElementActions waitToBeReady(By elementLocator, boolean isExpectedToBeVisible) {
         ReportManager.logDiscrete("Waiting for element to be present; elementLocator \"" + elementLocator + "\", isExpectedToBeVisible\"" + isExpectedToBeVisible + "\"...");
-        String reportMessage = "waited for the element's state of visibility to be (" + isExpectedToBeVisible
+        String reportMessage = "Waited for the element's state of visibility to be (" + isExpectedToBeVisible
                 + "). Element locator (" + ElementActionsHelper.formatLocatorToString(elementLocator) + ")";
         try {
             var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator, ElementAction.IS_DISPLAYED));
@@ -1009,9 +990,9 @@ public class FluentElementActions {
                     // Element is not displayed
                     ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), reportMessage, elementLocator);
                 }
-        } catch (AssertionError assertionError) {
-            // in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), reportMessage, null, assertionError);
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), reportMessage, null, throwable);
         }
         return this;
     }
@@ -1103,11 +1084,7 @@ public class FluentElementActions {
             return isDisplayed;
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
         }
         return false;
     }

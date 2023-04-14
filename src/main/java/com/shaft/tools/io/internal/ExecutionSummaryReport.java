@@ -97,9 +97,9 @@ public class ExecutionSummaryReport {
                     .replace("${VALIDATION_TOTAL}", String.valueOf(validations.size()));
         } else {
             report = report
-                    .replace("${VALIDATION_PASSED_PERCENTAGE_PIE}", String.valueOf(validations.size()))
-                    .replace("${VALIDATION_PASSED_PERCENTAGE}", String.valueOf(validations.size()))
-                    .replace("${VALIDATION_TOTAL}", String.valueOf(validations.size()));
+                    .replace("${VALIDATION_PASSED_PERCENTAGE_PIE}", String.valueOf(0))
+                    .replace("${VALIDATION_PASSED_PERCENTAGE}", String.valueOf(0))
+                    .replace("${VALIDATION_TOTAL}", String.valueOf(0));
         }
         return report;
     }
@@ -111,7 +111,7 @@ public class ExecutionSummaryReport {
     public enum StatusIcon {
         PASSED("&#9989; "), FAILED("&#10060; "), SKIPPED("&#128679; ");
 
-        private String value;
+        private final String value;
 
         StatusIcon(String type) {
             this.value = type;

@@ -1,8 +1,6 @@
 package com.shaft.properties.internal;
 
-import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
-import org.aeonbits.owner.ConfigFactory;
 
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/log4j2.properties", "file:src/main/resources/properties/default/log4j2.properties", "classpath:log4j2.properties"})
