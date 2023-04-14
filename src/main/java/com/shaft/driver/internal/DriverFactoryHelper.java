@@ -287,7 +287,7 @@ public class DriverFactoryHelper {
         // Add if condtion to start the new session if flag=true on specific port
         if (Boolean.TRUE.equals(LIGHTHOUSE_EXECUTION)) {
             // TODO: implement lighthouse in the configuration manager and properties manager
-            options.addArguments("--remote-debugging-port=" + SHAFT.Properties.web.lightHouseExecutionPort());
+            options.addArguments("--remote-debugging-port=" + SHAFT.Properties.performance.port());
             options.addArguments("--no-sandbox");
         }
         if (Boolean.TRUE.equals(AUTO_MAXIMIZE)
@@ -932,6 +932,6 @@ public class DriverFactoryHelper {
         SCRIPT_TIMEOUT = SHAFT.Properties.timeouts.scriptExecutionTimeout();
         MOBILE_EMULATION = SHAFT.Properties.web.isMobileEmulation();
         MOBILE_EMULATION_CUSTOM_DEVICE = SHAFT.Properties.web.mobileEmulationIsCustomDevice();
-        LIGHTHOUSE_EXECUTION = SHAFT.Properties.web.lightHouseExecution();
+        LIGHTHOUSE_EXECUTION = SHAFT.Properties.performance.isEnabled();
     }
 }
