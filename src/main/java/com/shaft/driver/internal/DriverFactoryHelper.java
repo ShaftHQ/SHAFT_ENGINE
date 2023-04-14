@@ -422,7 +422,7 @@ public class DriverFactoryHelper {
         }
         ReportManager.logDiscrete(initialLog + ".");
 
-//        var proxy = SHAFT.Properties.platform.proxy();
+        var proxy = SHAFT.Properties.platform.proxy();
 
         try {
             switch (driverType) {
