@@ -50,4 +50,18 @@ public class ShadowDomTest {
             driver.quit();
         }
     }
+
+    @Test
+    public void shaftLocator_2() {
+        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
+                || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
+            LocatorBuilder.setMode(Locators.CSS);
+            driver.browser().navigateToURL("https://usercentrics.com");
+            By shadowDom = By.id("usercentrics-root");
+            By shadowElement = SHAFT.GUI.Locator.hasTagName("button")
+                    .hasAttribute("data-testid", "uc-accept-all-button")
+                    .insideShadowDom(shadowDom).build();
+            driver.element().click(shadowElement);
+        }
+    }
 }

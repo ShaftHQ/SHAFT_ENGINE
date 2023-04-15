@@ -167,37 +167,19 @@ public class FluentElementActions {
         if (DriverFactoryHelper.isMobileNativeExecution()) {
             new TouchActions(DriverFactoryHelper.getDriver().get()).tap(elementLocator);
         } else {
-            // Waits for the element to be clickable, and then clicks it.
+            //rewriting click logic to optimize performance and fully support shadowDom elements
+            // get screenshot before doing anything to be attached in animated GIF (if any) or if screenshots are set to always
+            List<Object> screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator, "click", null, true);
+            ElementInformation elementInformation = new ElementInformation();
             try {
-                var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
-                try {
-                    // adding hover before clicking an element to enable styles to show in the
-                    // execution screenshots and to solve issues clicking on certain elements.
-                    (new Actions(DriverFactoryHelper.getDriver().get())).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1))).perform();
-                } catch (Exception t) {
-//                    ReportManagerHelper.logDiscrete(t);
-                }
-                List<Object> screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator, "click", null, true);
-                // takes screenshot before clicking the element out of view
-                // wait for element to be clickable
-                try {
-                    WebElement element = (WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1);
-                    //noinspection ResultOfMethodCallIgnored
-                    Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(DriverFactoryHelper.getDriver().get(), elementLocator, "click"));
-                } catch (Exception exception) {
-                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, exception);
-                }
-                // issue: if performing a navigation after clicking on the login button,
-                // navigation is triggered immediately and hence it fails.
-                // solution: wait for any possible navigation that may be triggered by this
-                // click action to conclude
-                // removed to enhance performance, and replaced with a process to assert after
-                // every navigation
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, "", screenshot, elementName);
+                // try performing move to element followed by click
+                elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator, ElementAction.CLICK));
             } catch (Throwable throwable) {
-                // has to be throwable to catch assertion errors in case element was not found
-                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
             }
+            // get element name
+            var elementName = elementInformation.getElementName();
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, "", screenshot, elementName);
         }
         return this;
     }
