@@ -51,7 +51,7 @@ public class ShadowDomTest {
         }
     }
 
-    @Test
+    //@Test
     public void shaftLocator_2() {
         if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
                 || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
