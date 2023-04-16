@@ -66,7 +66,7 @@ public interface Visuals extends EngineProperties {
     String videoParamsScope();
 
     @Key("whenToTakePageSourceSnapshot")
-    @DefaultValue("FailuresOnly")
+    @DefaultValue("Never")
     String whenToTakePageSourceSnapshot();
 
     default SetProperty set() {
