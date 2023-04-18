@@ -112,19 +112,20 @@ public class BrowserActionsHelpers {
     }
 
     public static void confirmThatWebsiteIsNotDown(WebDriver driver, String targetUrl) {
-        List<String> navigationErrorMessages = Arrays.asList("This site can’t be reached", "Unable to connect",
-                "Safari Can’t Connect to the Server", "This page can't be displayed", "Invalid URL",
-                "<head></head><body></body>");
-        //TODO: get page loop outside the foreach loop
-        try {
-            navigationErrorMessages.forEach(errorMessage -> {
-                var pageSource = driver.getPageSource();
-                if (pageSource != null && pageSource.contains(errorMessage)) {
-                    failAction(driver, "Error message: \"" + errorMessage + "\", Target URL: \"" + targetUrl + "\"");
-                }
-            });
-        } catch (org.openqa.selenium.JavascriptException javascriptException) {
-            // this happens in some cases with local execution on windows
+        if (SHAFT.Properties.flags.forceCheckNavigationWasSuccessful()) {
+            List<String> navigationErrorMessages = Arrays.asList("This site can’t be reached", "Unable to connect",
+                    "Safari Can’t Connect to the Server", "This page can't be displayed", "Invalid URL",
+                    "<head></head><body></body>");
+            //TODO: get page loop outside the foreach loop
+            try {
+                navigationErrorMessages.forEach(errorMessage -> {
+                    var pageSource = driver.getPageSource();
+                    if (pageSource != null && pageSource.contains(errorMessage)) {
+                        failAction(driver, "Error message: \"" + errorMessage + "\", Target URL: \"" + targetUrl + "\"");
+                    }
+                });
+            } catch (org.openqa.selenium.JavascriptException javascriptException) {
+                // this happens in some cases with local execution on windows
             /*
             Caused by: org.openqa.selenium.JavascriptException: javascript error: Cannot read properties of null (reading 'outerHTML')
             (Session info: chrome=111.0.5563.111)
@@ -133,9 +134,10 @@ public class BrowserActionsHelpers {
             Driver info: org.openqa.selenium.chrome.ChromeDriver
             Command: [3650f46d33000b7ed76f29f53d7810b6, getPageSource {}]
             */
-            // try again
-            JavaScriptWaitManager.waitForLazyLoading();
-            confirmThatWebsiteIsNotDown(driver, targetUrl);
+                // try again
+                JavaScriptWaitManager.waitForLazyLoading();
+                confirmThatWebsiteIsNotDown(driver, targetUrl);
+            }
         }
     }
 
