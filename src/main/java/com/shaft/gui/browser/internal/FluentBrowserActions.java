@@ -296,13 +296,23 @@ public class FluentBrowserActions {
                 // navigate to new url
                 BrowserActionsHelpers.navigateToNewURL(DriverFactoryHelper.getDriver().get(), initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
                 JavaScriptWaitManager.waitForLazyLoading();
+                if (SHAFT.Properties.flags.forceCheckNavigationWasSuccessful() && !targetUrl.contains("\n")) {
+
+var pageSource = DriverFactoryHelper.getDriver().get().getPageSource();
+        
                 if ((ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver().get(), By.tagName("html")) == 1)
-                        && (!DriverFactoryHelper.getDriver().get().getPageSource().equalsIgnoreCase(initialSource))) {
+                        && pageSource != null
+
+&& (!pageSource.equalsIgnoreCase(initialSource))) {
                     BrowserActionsHelpers.confirmThatWebsiteIsNotDown(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
                     BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
                 } else {
                     BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
                 }
+                }
+                BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
+
+                
             } else {
                 // already on the same page
                 DriverFactoryHelper.getDriver().get().navigate().refresh();
