@@ -15,7 +15,6 @@ import java.time.Duration;
 import java.util.Objects;
 
 public class JavaScriptWaitManager {
-    private static boolean WAIT_FOR_LAZY_LOADING;
     private static int WAIT_DURATION_INTEGER;
     private static final String TARGET_DOCUMENT_READY_STATE = "complete";
     private static final ThreadLocal<WebDriver> jsWaitDriver = new ThreadLocal<>();
@@ -29,7 +28,6 @@ public class JavaScriptWaitManager {
     private static void setDriver(WebDriver driver) {
         jsWaitDriver.set(driver);
         jsExec = (JavascriptExecutor) jsWaitDriver.get();
-        WAIT_FOR_LAZY_LOADING = SHAFT.Properties.timeouts.waitForLazyLoading();
         WAIT_DURATION_INTEGER = SHAFT.Properties.timeouts.lazyLoadingTimeout();
     }
 
@@ -38,7 +36,7 @@ public class JavaScriptWaitManager {
      */
     public static void waitForLazyLoading() {
         setDriver(DriverFactoryHelper.getDriver().get());
-        if (Boolean.TRUE.equals(WAIT_FOR_LAZY_LOADING)
+        if (SHAFT.Properties.timeouts.waitForLazyLoading()
                 && !DriverFactoryHelper.isMobileNativeExecution()) {
             try {
                 waitForJQueryLoadIfDefined();

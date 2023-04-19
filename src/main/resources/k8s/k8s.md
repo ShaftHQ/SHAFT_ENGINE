@@ -60,16 +60,22 @@ helm upgrade selenium-grid docker-selenium/selenium-grid
 ```
 
 - make grid reachable
+  - ensure pods are running (proceed after all are "Running", it will take some time if your machine is downloading new
+    containers)
+      ```shell
+      kubectl get pods
+      ```
   - get pod name
       ```shell
       #kubectl get pods --all-namespaces
       kubectl get pods --selector="app=selenium-router" --output=template --template="{{with index .items 0}}{{.metadata.name}}{{end}}"
       ```
-  - port forward the pod (ex. selenium-hub-dcf9dfb5b-vcbzg OR selenium-router-6757cddb8f-lbvfv)
+  - port forward the pod, keep this command running (ex. selenium-hub-dcf9dfb5b-vcbzg OR
+    selenium-router-5f6bcfb596-sslwl)
       ```shell
-      kubectl port-forward selenium-router-6757cddb8f-v29kj 4444:4444
+      kubectl port-forward selenium-router-5f6bcfb596-sslwl 4444:4444
       ```
-    - validate that grid is reachable
+    - validate that grid is reachable (Note: VNC password is "secret")
         ```shell
         curl http://localhost:4444
         ```
@@ -86,18 +92,18 @@ helm upgrade selenium-grid docker-selenium/selenium-grid
     ```shell
     kubectl apply -f ./selenium-grid-firefox-scaledobject.yaml
     ```
-- validate auto-scaling by confirming all three scaled objects are ready
+- validate auto-scaling by confirming all three scaled objects have "READY=True"
     ```shell
     kubectl get scaledobjects --all-namespaces
     ```
-- get logs
+- get logs from keda-operator node
     ```shell
     kubectl get pods -n keda
     ```
     ```shell
-    kubectl logs -n keda keda-operator-68686748d8-27w8k -c keda-operator
+    kubectl logs -n keda keda-operator-68686748d8-6bthv -c keda-operator
     ```
-- teardown
+- teardown (wait till each step is completed before proceeding to the next one)
     ```shell
     kubectl delete scaledobjects --all
     ```
@@ -113,7 +119,6 @@ helm upgrade selenium-grid docker-selenium/selenium-grid
     ```shell
     kubectl delete namespace selenium-grid
     ```
-- burn everything to the ground
     ```shell
     helm del $(helm ls --all --short)
     ```

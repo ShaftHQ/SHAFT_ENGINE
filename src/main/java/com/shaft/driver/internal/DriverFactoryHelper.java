@@ -30,21 +30,16 @@ import lombok.NonNull;
 import lombok.SneakyThrows;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
-import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.chromium.ChromiumOptions;
-import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
-import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxDriverLogLevel;
 import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.firefox.FirefoxProfile;
-import org.openqa.selenium.ie.InternetExplorerDriver;
 import org.openqa.selenium.ie.InternetExplorerOptions;
 import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.remote.*;
-import org.openqa.selenium.safari.SafariDriver;
 import org.openqa.selenium.safari.SafariOptions;
 import org.testng.Reporter;
 
@@ -208,7 +203,7 @@ public class DriverFactoryHelper {
                     ffOptions.addArguments("-headless");
                 }
                 ffOptions.setLogLevel(FirefoxDriverLogLevel.WARN);
-                ffOptions.setPageLoadStrategy(PageLoadStrategy.NONE);
+                ffOptions.setPageLoadStrategy(PageLoadStrategy.EAGER);
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 //Add Proxy Setting if found
