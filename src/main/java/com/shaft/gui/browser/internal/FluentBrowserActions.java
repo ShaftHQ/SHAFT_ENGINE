@@ -284,33 +284,47 @@ public class FluentBrowserActions {
         }
         try {
             JavaScriptWaitManager.waitForLazyLoading();
-            String initialSource = DriverFactoryHelper.getDriver().get().getPageSource();
             String initialURL = DriverFactoryHelper.getDriver().get().getCurrentUrl();
             // remove trailing slash which may cause comparing the current and target urls
             // to fail
             if (initialURL.endsWith("/")) {
                 initialURL = initialURL.substring(0, initialURL.length() - 1);
             }
-            ReportManager.logDiscrete("Initial URL: \"" + initialURL + "\"");
-            if (!initialURL.equals(modifiedTargetUrl)) {
-                // navigate to new url
-                BrowserActionsHelpers.navigateToNewURL(DriverFactoryHelper.getDriver().get(), initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
-                JavaScriptWaitManager.waitForLazyLoading();
-                if ((ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver().get(), By.tagName("html")) == 1)
-                        && (!DriverFactoryHelper.getDriver().get().getPageSource().equalsIgnoreCase(initialSource))) {
-                    BrowserActionsHelpers.confirmThatWebsiteIsNotDown(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
+
+            if (SHAFT.Properties.flags.forceCheckNavigationWasSuccessful() && !targetUrl.contains("\n")) {
+                String initialSource = DriverFactoryHelper.getDriver().get().getPageSource();
+                ReportManager.logDiscrete("Initial URL: \"" + initialURL + "\"");
+                if (!initialURL.equals(modifiedTargetUrl)) {
+                    // navigate to new url
+                    BrowserActionsHelpers.navigateToNewUrl(DriverFactoryHelper.getDriver().get(), initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
+                    JavaScriptWaitManager.waitForLazyLoading();
+                    var pageSource = DriverFactoryHelper.getDriver().get().getPageSource();
+                    if ((ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver().get(), By.tagName("html")) == 1)
+                            && pageSource != null
+                            && (!pageSource.equalsIgnoreCase(initialSource))) {
+                        BrowserActionsHelpers.confirmThatWebsiteIsNotDown(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
+                        BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
+                    } else {
+                        BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
+                    }
                     BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
                 } else {
-                    BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
+                    // already on the same page
+                    DriverFactoryHelper.getDriver().get().navigate().refresh();
+                    JavaScriptWaitManager.waitForLazyLoading();
+                    if (ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver().get(), By.tagName("html")) == 1) {
+                        BrowserActionsHelpers.confirmThatWebsiteIsNotDown(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
+                        BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
+                    }
                 }
             } else {
-                // already on the same page
-                DriverFactoryHelper.getDriver().get().navigate().refresh();
-                JavaScriptWaitManager.waitForLazyLoading();
-                if (ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver().get(), By.tagName("html")) == 1) {
-                    BrowserActionsHelpers.confirmThatWebsiteIsNotDown(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
-                    BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
+                if (!initialURL.equals(modifiedTargetUrl)) {
+                    BrowserActionsHelpers.navigateToNewUrl(DriverFactoryHelper.getDriver().get(), initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
+                } else {
+                    DriverFactoryHelper.getDriver().get().navigate().refresh();
                 }
+                JavaScriptWaitManager.waitForLazyLoading();
+                BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
             }
         } catch (Exception rootCauseException) {
             BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl, rootCauseException);
@@ -321,7 +335,7 @@ public class FluentBrowserActions {
     @SuppressWarnings("UnusedReturnValue")
     public FluentBrowserActions navigateToURLWithBasicAuthentication(String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
         try {
-            String domainName = BrowserActionsHelpers.getDomainNameFromURL(targetUrl);
+            String domainName = BrowserActionsHelpers.getDomainNameFromUrl(targetUrl);
             if (SHAFT.Properties.platform.executionAddress().equals("local")) {
                 Predicate<URI> uriPredicate = uri -> uri.getHost().contains(domainName);
                 ((HasAuthentication) DriverFactoryHelper.getDriver().get()).register(uriPredicate, UsernameAndPassword.of(username, password));
@@ -344,7 +358,7 @@ public class FluentBrowserActions {
             }
         } catch (Exception e) {
             ReportManagerHelper.logDiscrete(e);
-            targetUrl = BrowserActionsHelpers.formatURLForBasicAuthentication(username, password, targetUrl);
+            targetUrl = BrowserActionsHelpers.formatUrlForBasicAuthentication(username, password, targetUrl);
         }
         return navigateToURL(targetUrl, targetUrlAfterAuthentication);
     }
@@ -387,15 +401,15 @@ public class FluentBrowserActions {
             }
             JavaScriptWaitManager.waitForLazyLoading();
             if (!navigationAction.equals(NavigationAction.REFRESH)) {
-                BrowserActionsHelpers.waitUntilURLIsNot(DriverFactoryHelper.getDriver().get(), initialURL);
+                BrowserActionsHelpers.waitUntilUrlIsNot(DriverFactoryHelper.getDriver().get(), initialURL);
                 newURL = DriverFactoryHelper.getDriver().get().getCurrentUrl();
                 if (!newURL.equals(initialURL)) {
-                    BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), newURL);
+                    BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), "Navigate " + navigationAction + " to " + newURL);
                 } else {
                     BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), newURL);
                 }
             } else {
-                BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), newURL);
+                BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), "Navigate " + navigationAction + " to " + newURL);
             }
         } catch (Exception rootCauseException) {
             BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), newURL, rootCauseException);
