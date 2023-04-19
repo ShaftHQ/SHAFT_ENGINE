@@ -46,7 +46,7 @@ public class ElementActionsHelper {
     private static final boolean FORCE_CHECK_FOR_ELEMENT_VISIBILITY = SHAFT.Properties.flags.forceCheckForElementVisibility();
     private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 100; // milliseconds
     private static long DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L; //milliseconds
-    private static final String WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim();
+    private static final String WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot();
 
     private ElementActionsHelper() {
         throw new IllegalStateException("Utility class");
@@ -154,7 +154,8 @@ public class ElementActionsHelper {
                     .ignoreAll(getExpectedExceptions(isValidToCheckForVisibility))
                     .until(nestedDriver -> {
                         WebElement targetElement;
-                        if (formatLocatorToString(elementLocator).toLowerCase().contains("shadow") && ShadowLocatorBuilder.shadowDomLocator != null) {
+                        if (ShadowLocatorBuilder.shadowDomLocator != null
+                                && ShadowLocatorBuilder.cssSelector == elementLocator) {
                             targetElement = nestedDriver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElement(ShadowLocatorBuilder.cssSelector);
                         } else {
                             targetElement = nestedDriver.findElement(elementLocator);
@@ -179,7 +180,8 @@ public class ElementActionsHelper {
                             }
                         }
                         var elementInformation = new ElementInformation();
-                        if (formatLocatorToString(elementLocator).toLowerCase().contains("shadow") && ShadowLocatorBuilder.shadowDomLocator != null) {
+                        if (ShadowLocatorBuilder.shadowDomLocator != null
+                                && ShadowLocatorBuilder.cssSelector == elementLocator) {
                             elementInformation.setNumberOfFoundElements(nestedDriver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElements(ShadowLocatorBuilder.cssSelector).size());
                         } else {
                             elementInformation.setNumberOfFoundElements(nestedDriver.findElements(elementLocator).size());
@@ -243,6 +245,23 @@ public class ElementActionsHelper {
 
     private static String performAction(ElementInformation elementInformation, ElementAction action, Object parameter) {
         switch (action) {
+            case CLICK -> {
+                //move to element
+                try {
+                    (new Actions(DriverFactoryHelper.getDriver().get())).moveToElement(elementInformation.getFirstElement()).perform();
+                } catch (Throwable throwable) {
+                    //ignored
+                }
+                try {
+                    elementInformation.getFirstElement().click();
+                } catch (Throwable throwable) {
+                    if (DriverFactoryHelper.isWebExecution() && SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails()) {
+                        if (DriverFactoryHelper.isWebExecution()) {
+                            ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].click();", elementInformation.getFirstElement());
+                        }
+                    }
+                }
+            }
             case CLEAR -> elementInformation.getFirstElement().clear();
             case BACKSPACE -> elementInformation.getFirstElement().sendKeys(Keys.BACK_SPACE);
             case GET_TEXT -> {
@@ -316,20 +335,13 @@ public class ElementActionsHelper {
                         .ignoreAll(expectedExceptions)
                         .until(nestedDriver -> {
                             if (!actionToExecute.isEmpty()) {
-                                switch (actionToExecute.toLowerCase()) {
-                                    case "click" ->
-                                            ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).click();
-                                    case "clickandhold" ->
-                                            (new Actions(driver)).clickAndHold(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).build().perform();
+                                if (actionToExecute.equalsIgnoreCase("clickandhold")) {
+                                    (new Actions(driver)).clickAndHold(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).build().perform();
                                 }
                             }
                             return true;
                         });
             } catch (org.openqa.selenium.TimeoutException e) {
-                if (clickUsingJavascriptWhenWebDriverClickFails && actionToExecute.equalsIgnoreCase("click")) {
-                    ElementActionsHelper.clickUsingJavascript(driver, elementLocator);
-                    return true;
-                }
                 ReportManagerHelper.logDiscrete(e);
                 return false;
             }

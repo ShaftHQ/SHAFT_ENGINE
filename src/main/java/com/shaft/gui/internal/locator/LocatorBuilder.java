@@ -3,7 +3,6 @@ package com.shaft.gui.internal.locator;
 import lombok.Getter;
 import lombok.Setter;
 import org.openqa.selenium.By;
-import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.locators.RelativeLocator;
 
 import java.util.ArrayList;
@@ -16,9 +15,6 @@ public class LocatorBuilder {
     private String tagName = "*";
     private ArrayList<String> parameters = new ArrayList<>();
     private String order = "";
-    @Getter
-    @Setter
-    static WebElement shadowElement;
     @Setter
     private static Locators mode = Locators.XPATH;
 
@@ -147,6 +143,6 @@ public class LocatorBuilder {
     }
 
     public ShadowLocatorBuilder insideShadowDom(By shadowDomLocator) {
-        return new ShadowLocatorBuilder(this, shadowDomLocator, By.cssSelector(buildSelectorExpression()));
+        return new ShadowLocatorBuilder(shadowDomLocator, By.cssSelector(buildSelectorExpression()));
     }
 }
