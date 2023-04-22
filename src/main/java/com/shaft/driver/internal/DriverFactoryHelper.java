@@ -30,17 +30,17 @@ import lombok.NonNull;
 import lombok.SneakyThrows;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
-import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.chrome.*;
 import org.openqa.selenium.chromium.ChromiumOptions;
-import org.openqa.selenium.edge.EdgeOptions;
-import org.openqa.selenium.firefox.FirefoxDriverLogLevel;
-import org.openqa.selenium.firefox.FirefoxOptions;
-import org.openqa.selenium.firefox.FirefoxProfile;
-import org.openqa.selenium.ie.InternetExplorerOptions;
+import org.openqa.selenium.edge.*;
+import org.openqa.selenium.firefox.*;
+
+
+import org.openqa.selenium.ie.*;
 import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.remote.*;
-import org.openqa.selenium.safari.SafariOptions;
+import org.openqa.selenium.safari.*;
 import org.testng.Reporter;
 
 import java.net.MalformedURLException;
