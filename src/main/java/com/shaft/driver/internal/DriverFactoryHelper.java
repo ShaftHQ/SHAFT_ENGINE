@@ -30,21 +30,16 @@ import lombok.NonNull;
 import lombok.SneakyThrows;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
-import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.chromium.ChromiumOptions;
-import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
-import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxDriverLogLevel;
 import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.firefox.FirefoxProfile;
-import org.openqa.selenium.ie.InternetExplorerDriver;
 import org.openqa.selenium.ie.InternetExplorerOptions;
 import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.remote.*;
-import org.openqa.selenium.safari.SafariDriver;
 import org.openqa.selenium.safari.SafariOptions;
 import org.testng.Reporter;
 
@@ -415,44 +410,33 @@ public class DriverFactoryHelper {
         }
         ReportManager.logDiscrete(initialLog + ".");
 
-//        var proxy = SHAFT.Properties.platform.proxy();
+        var proxy = SHAFT.Properties.platform.proxy();
 
         try {
             switch (driverType) {
                 case FIREFOX -> {
                     ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
-//                    driver.set(ThreadGuard.protect(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create()));
-                    driver.set(new FirefoxDriver(ffOptions));
-//                    driver.set(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create());
+                    driver.set(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create());
                 }
                 case IE -> {
                     ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
-//                    driver.set(ThreadGuard.protect(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create()));
-                    driver.set(new InternetExplorerDriver(ieOptions));
-//                    driver.set(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create());
+                    driver.set(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create());
                 }
                 case CHROME -> {
                     ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
-//                    driver.set(ThreadGuard.protect(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create()));
-                    driver.set(new ChromeDriver(chOptions));
-//                 driver.set(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create());
+                    driver.set(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create());
                 }
                 case EDGE -> {
                     ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
-//                    driver.set(ThreadGuard.protect(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create()));
-                    driver.set(new EdgeDriver(edOptions));
-//                    driver.set(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create());
+                    driver.set(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create());
                 }
                 case SAFARI -> {
                     ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
-//                    driver.set(ThreadGuard.protect(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create()));
-                    driver.set(new SafariDriver(sfOptions));
-//                    driver.set(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create());
+                    driver.set(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create());
                 }
                 default ->
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
             }
-//            ReportManager.log("Successfully Opened " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".");
             ReportManager.log(initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".");
         } catch (SessionNotCreatedException | WebDriverManagerException exception) {
             if (driverType.equals(DriverType.SAFARI)
