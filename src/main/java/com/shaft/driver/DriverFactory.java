@@ -97,7 +97,6 @@ public class DriverFactory {
             if ("".equals(SHAFT.Properties.browserStack.appRelativeFilePath())) {
                 // this means it's a web execution (desktop or mobile)
                 if (DriverFactoryHelper.isMobileWebExecution()) {
-                    // TODO: support web mobile execution
                     browserStackOptions = BrowserStack.setupMobileWebExecution().merge(browserStackOptions);
                 } else {
                     // desktop web

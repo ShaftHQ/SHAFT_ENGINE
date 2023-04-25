@@ -746,18 +746,17 @@ public class DriverFactoryHelper {
             caps.forEach((capabilityName, value) -> {
                 if (!value.trim().equals("")) {
                     if (Arrays.asList("true", "false").contains(value.trim().toLowerCase())) {
-                        desiredCapabilities.setCapability(capabilityName.split("mobile_")[1], Boolean.valueOf(value));
+                        desiredCapabilities.setCapability(capabilityName.replace("mobile_", "appium:"), Boolean.valueOf(value));
                     } else if (StringUtils.isStrictlyNumeric(value.trim())) {
-                        desiredCapabilities.setCapability(capabilityName.split("mobile_")[1], Integer.valueOf(value));
+                        desiredCapabilities.setCapability(capabilityName.replace("mobile_", "appium:"), Integer.valueOf(value));
                     } else {
-                        desiredCapabilities.setCapability(capabilityName.split("mobile_")[1], value);
+                        desiredCapabilities.setCapability(capabilityName.replace("mobile_", "appium:"), value);
                     }
                 }
             });
         }
 
         if (isMobileWebExecution()) {
-            //TODO: support custom driver options here in case the browser is chrome
             //https://chromedriver.chromium.org/capabilities
             desiredCapabilities.setCapability("browserName", SHAFT.Properties.mobile.browserName());
             desiredCapabilities.setCapability("pageLoadStrategy", PageLoadStrategy.NONE);
