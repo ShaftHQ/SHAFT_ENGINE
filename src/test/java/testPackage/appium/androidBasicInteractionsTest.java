@@ -148,6 +148,7 @@ public class androidBasicInteractionsTest {
     @SuppressWarnings("CommentedOutCode")
     @BeforeMethod
     public void setup() {
+        System.setProperty("mobile_autoGrantPermissions", "true");
         // common attributes
         SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
         SHAFT.Properties.mobile.set().automationName(AutomationName.ANDROID_UIAUTOMATOR2);

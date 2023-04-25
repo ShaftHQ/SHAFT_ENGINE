@@ -2,35 +2,49 @@ package testPackage.appium;
 
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
-import org.openqa.selenium.Keys;
-import org.openqa.selenium.WebDriver;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import org.testng.asserts.SoftAssert;
-import poms.GoogleSearch;
 
 public class MobileWebTest {
     SHAFT.GUI.WebDriver driver;
     SHAFT.TestData.JSON testData;
 
-    By searchBox = GoogleSearch.getSearchBox_textField();
-    By resultStats = By.id("result-stats");
-
     @Test
     public void test() {
-        driver.browser().navigateToURL("https://www.google.com/");
-        driver.verifyThat().browser().title().isEqualTo("Google").perform();
+        driver.element().type(By.id("et_pb_contact_name_0"), "TEST_NAME")
+                .type(By.id("et_pb_contact_email_0"), "email@email.email")
+                .type(By.id("et_pb_contact_message_0"), """
+                        This is a long message
+                        it will have line breaks
+                        and special characters ...######$%^&&*!!""")
+                .type(By.id("et_pb_contact_name_1"), "TEST_NAME")
+                .type(By.id("et_pb_contact_email_1"), "email@email.email")
+                .type(By.id("et_pb_contact_message_1"), """
+                        This is a long message
+                        it will have line breaks
+                        and special characters ...######$%^&&*!!""")
+                .type(By.id("et_pb_contact_name_2"), "TEST_NAME")
+                .type(By.id("et_pb_contact_email_2"), "email@email.email")
+                .type(By.id("et_pb_contact_message_2"), """
+                        This is a long message
+                        it will have line breaks
+                        and special characters ...######$%^&&*!!""")
+                .captureScreenshot(By.id("et_pb_contact_message_2"))
+                .and().browser().captureScreenshot()
+                .and().assertThat().url().contains("ultimateqa").perform();
     }
 
-    //@Test
-    public void test_nativeDriver() {
-        WebDriver nativeWebDriver = driver.getDriver();
-        nativeWebDriver.navigate().to("https://www.google.com/");
-        new SoftAssert().assertEquals(nativeWebDriver.getTitle(), "Google");
-        nativeWebDriver.findElement(searchBox).sendKeys(testData.getTestData("searchQuery") + Keys.ENTER);
-        Assert.assertNotEquals(nativeWebDriver.findElement(resultStats).getText(), "");
+    @BeforeMethod
+    public void beforeMethod() {
+        driver = new SHAFT.GUI.WebDriver();
+        driver.browser().navigateToURL("https://ultimateqa.com/complicated-page");
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void afterMethod() {
+        driver.quit();
     }
 
     @SuppressWarnings("CommentedOutCode")
@@ -56,29 +70,23 @@ public class MobileWebTest {
 ////        SHAFT.Properties.platform.set().executionAddress("localhost:4725");
 ////        SHAFT.Properties.mobile.set().app("");
 //
-//        // remote browserstack server (common for web execution)
+        // remote browserstack server (common for web execution)
 //        SHAFT.Properties.platform.set().executionAddress("browserstack");
 //        SHAFT.Properties.browserStack.set().appName("");
 //        SHAFT.Properties.browserStack.set().appRelativeFilePath("");
 //        SHAFT.Properties.browserStack.set().appUrl("");
 //
-//        // remote browserstack server (android) [NATIVE SAMSUNG BROWSER] || [CHROME]
+        // remote browserstack server (android) [NATIVE SAMSUNG BROWSER] || [CHROME]
 //        SHAFT.Properties.browserStack.set().osVersion("13.0");
 //        SHAFT.Properties.browserStack.set().deviceName("Samsung Galaxy S23");
 //        SHAFT.Properties.mobile.set().browserName(Browser.CHROME.browserName());
-////        SHAFT.Properties.mobile.set().browserName("samsung");
+//        SHAFT.Properties.mobile.set().browserName("samsung");
 //
 //        // remote browserstack server (ios) [SAFARI BROWSER]
 //        SHAFT.Properties.browserStack.set().osVersion("16");
 //        SHAFT.Properties.browserStack.set().deviceName("iPhone 14");
 //        SHAFT.Properties.mobile.set().browserName(Browser.SAFARI.browserName());
 
-        driver = new SHAFT.GUI.WebDriver();
         testData = new SHAFT.TestData.JSON("simpleJSON.json");
-    }
-
-    @AfterClass(alwaysRun = true)
-    public void afterClass() {
-        driver.quit();
     }
 }
