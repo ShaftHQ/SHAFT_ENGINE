@@ -575,7 +575,7 @@ jobs:
     runs-on: macOS-12
     timeout-minutes: 45
     if: ${{ always() }}
-    needs: [ MacOSX_Safari_Cucumber_BrowserStack, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack ]
+    needs: [ MacOSX_Safari_Cucumber_BrowserStack, MacOSX_Safari_BrowserStack, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack ]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
