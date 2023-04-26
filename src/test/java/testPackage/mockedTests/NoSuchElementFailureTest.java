@@ -22,6 +22,13 @@ public class NoSuchElementFailureTest {
         driver.element().click(By.xpath("//input[@id='noSuchElement']"));
     }
 
+    @Test(expectedExceptions = {AssertionError.class})
+    public void clickUsingJS() {
+        driver.browser().navigateToURL(mockedHTML);
+        driver.element().clickUsingJavascript(By.xpath("//input[@id='noSuchElement']"));
+    }
+
+
     @BeforeMethod
     void beforeMethod() {
         driver = SHAFT.GUI.WebDriver.getInstance();
