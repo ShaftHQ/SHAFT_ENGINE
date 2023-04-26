@@ -42,7 +42,7 @@ public interface Flags extends EngineProperties {
     boolean attemptClearBeforeTypingUsingBackspace();
 
     @Key("forceCheckNavigationWasSuccessful")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean forceCheckNavigationWasSuccessful();
 
     @Key("respectBuiltInWaitsInNativeMode")

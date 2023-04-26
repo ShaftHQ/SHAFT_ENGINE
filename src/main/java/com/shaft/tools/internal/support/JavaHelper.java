@@ -2,6 +2,7 @@ package com.shaft.tools.internal.support;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
+import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.testng.Assert;
 
@@ -91,6 +92,7 @@ public class JavaHelper {
      */
     public static int compareTwoObjects(Object expectedValue, Object actualValue, int comparisonType,
                                         Boolean validationType) {
+        ReportManager.logDiscrete("Expected \"" + expectedValue + "\", and actual \"" + actualValue + "\"");
         if ("null".equals(expectedValue)) {
             expectedValue = null;
         }

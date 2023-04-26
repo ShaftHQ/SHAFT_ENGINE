@@ -112,19 +112,20 @@ public class BrowserActionsHelpers {
     }
 
     public static void confirmThatWebsiteIsNotDown(WebDriver driver, String targetUrl) {
-        List<String> navigationErrorMessages = Arrays.asList("This site can’t be reached", "Unable to connect",
-                "Safari Can’t Connect to the Server", "This page can't be displayed", "Invalid URL",
-                "<head></head><body></body>");
-        //TODO: get page loop outside the foreach loop
-        try {
-            navigationErrorMessages.forEach(errorMessage -> {
-                var pageSource = driver.getPageSource();
-                if (pageSource != null && pageSource.contains(errorMessage)) {
-                    failAction(driver, "Error message: \"" + errorMessage + "\", Target URL: \"" + targetUrl + "\"");
-                }
-            });
-        } catch (org.openqa.selenium.JavascriptException javascriptException) {
-            // this happens in some cases with local execution on windows
+        if (SHAFT.Properties.flags.forceCheckNavigationWasSuccessful()) {
+            List<String> navigationErrorMessages = Arrays.asList("This site can’t be reached", "Unable to connect",
+                    "Safari Can’t Connect to the Server", "This page can't be displayed", "Invalid URL",
+                    "<head></head><body></body>");
+            //TODO: get page loop outside the foreach loop
+            try {
+                navigationErrorMessages.forEach(errorMessage -> {
+                    var pageSource = driver.getPageSource();
+                    if (pageSource != null && pageSource.contains(errorMessage)) {
+                        failAction(driver, "Error message: \"" + errorMessage + "\", Target URL: \"" + targetUrl + "\"");
+                    }
+                });
+            } catch (org.openqa.selenium.JavascriptException javascriptException) {
+                // this happens in some cases with local execution on windows
             /*
             Caused by: org.openqa.selenium.JavascriptException: javascript error: Cannot read properties of null (reading 'outerHTML')
             (Session info: chrome=111.0.5563.111)
@@ -133,13 +134,14 @@ public class BrowserActionsHelpers {
             Driver info: org.openqa.selenium.chrome.ChromeDriver
             Command: [3650f46d33000b7ed76f29f53d7810b6, getPageSource {}]
             */
-            // try again
-            JavaScriptWaitManager.waitForLazyLoading();
-            confirmThatWebsiteIsNotDown(driver, targetUrl);
+                // try again
+                JavaScriptWaitManager.waitForLazyLoading();
+                confirmThatWebsiteIsNotDown(driver, targetUrl);
+            }
         }
     }
 
-    public static void navigateToNewURL(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
+    public static void navigateToNewUrl(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
         var internalURL = targetUrl;
         try {
             if (targetUrl.startsWith(SHAFT.Properties.paths.testData())) {
@@ -166,15 +168,15 @@ public class BrowserActionsHelpers {
 
     public static void checkNavigationWasSuccessful(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
         if (!targetUrl.equals(targetUrlAfterRedirection)) {
-            waitUntilURLIsNot(driver, initialURL);
+            waitUntilUrlIsNot(driver, initialURL);
         } else {
-            waitUntilURLIsNot(driver, initialURL);
+            waitUntilUrlIsNot(driver, initialURL);
             var modifiedTargetUrlAfterRedirection = (targetUrlAfterRedirection.startsWith("./")) ? targetUrl : targetUrlAfterRedirection;
-            waitUntilURLContains(driver, modifiedTargetUrlAfterRedirection);
+            waitUntilUrlContains(driver, modifiedTargetUrlAfterRedirection);
         }
     }
 
-    public static void waitUntilURLIsNot(WebDriver driver, String initialURL) {
+    public static void waitUntilUrlIsNot(WebDriver driver, String initialURL) {
         try {
             (new WebDriverWait(driver, Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER))).until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
         } catch (TimeoutException rootCauseException) {
@@ -182,7 +184,7 @@ public class BrowserActionsHelpers {
         }
     }
 
-    private static void waitUntilURLContains(WebDriver driver, String targetURL) {
+    private static void waitUntilUrlContains(WebDriver driver, String targetURL) {
         try {
             (new WebDriverWait(driver, Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER))).until(ExpectedConditions.urlContains(targetURL));
         } catch (TimeoutException rootCauseException) {
@@ -280,7 +282,7 @@ public class BrowserActionsHelpers {
     }
 
     @SneakyThrows
-    public static String formatURLForBasicAuthentication(String username, String password, String targetUrl) {
+    public static String formatUrlForBasicAuthentication(String username, String password, String targetUrl) {
         if (targetUrl.startsWith("https://")) {
             return new URI("https://" + URLEncoder.encode(username, StandardCharsets.UTF_8) + ":" + URLEncoder.encode(password, StandardCharsets.UTF_8) + "@" + targetUrl.substring("https://".length())).toString();
         } else {
@@ -289,7 +291,7 @@ public class BrowserActionsHelpers {
     }
 
     @SneakyThrows
-    public static String getDomainNameFromURL(String url) {
+    public static String getDomainNameFromUrl(String url) {
         // https://www.baeldung.com/java-domain-name-from-url#using-the-internetdomainname-class-from-guava-library
         URI uri = new URI(url);
         String host = uri.getHost();
