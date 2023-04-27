@@ -16,11 +16,11 @@
 # SHAFT: Unified Test Automation Engine
 
 
-[🦸‍♂️ Powered by the best](https://github.com/ShaftHQ/SHAFT_ENGINE#-powered-by) - [🟢 Selenium Ecosystem proud member](https://www.selenium.dev/ecosystem/) - [👨‍🏫 Fully Documented](https://ShaftHQ.github.io/SHAFT_Engine_Docusaurus/)
+[🦸‍♂️ Powered by the best](https://github.com/ShaftHQ/SHAFT_ENGINE#-powered-by) - [🟢 Selenium Ecosystem proud member](https://www.selenium.dev/ecosystem/) - [👨‍🏫 Fully Documented](https://ShaftHQ.github.io/)
 
 [🤝 Fully supported](https://github.com/ShaftHQ/SHAFT_ENGINE#-support--contributions) - [🌍 Used by thousands](https://github.com/ShaftHQ/SHAFT_ENGINE#-who-else-is-using-shaft-2) - [🤨 Oddly familiar](https://github.com/ShaftHQ/SHAFT_ENGINE#-tech-stack)
 
-[🔋 Batteries included](https://github.com/MohabMohie/using_SHAFT_Engine) - [🪄 No magic required](https://ShaftHQ.github.io/SHAFT_ENGINE/).
+[🔋 Batteries included](https://github.com/MohabMohie/using_SHAFT_Engine) - [🪄 No magic required](https://ShaftHQ.github.io/).
 
 
 <a id="quick-start-guide"></a>
