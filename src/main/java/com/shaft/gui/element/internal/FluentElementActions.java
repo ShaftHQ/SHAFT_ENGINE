@@ -198,8 +198,8 @@ public class FluentElementActions {
             List<Object> screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator, "clickUsingJavascript", null, true);
             ElementActionsHelper.clickUsingJavascript(DriverFactoryHelper.getDriver().get(), elementLocator);
             ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, "", screenshot, elementName);
-        } catch (Exception exception) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, exception);
+        } catch (Throwable throwable) {
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
         }
 
         return this;

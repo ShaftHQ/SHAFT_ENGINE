@@ -118,7 +118,7 @@ public void afterClass(){
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://cucumber.io/tools/cucumber-open/" target="_blank"><img src="https://github.com/cucumber/cucumber-ruby/raw/main/.github/img/cucumber-open-logo.png" alt="Cucumber.io" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://bonigarcia.dev/webdrivermanager/" target="_blank"><img src="https://bonigarcia.dev/webdrivermanager/img/wdm.png" alt="WebDriverManager" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.selenium.dev/documentation/grid/" target="_blank"><img src="https://media.softwaresim.com/Selenium_Grid_mpxkym-600.webp" alt="Selenium Grid" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.browserstack.com/" target="_blank"><img src="https://www.insightpartners.com//assets/media/2021/06/browserstack.png" alt="BrowserStack" height="50px"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.browserstack.com/" target="_blank"><img src="https://ml.globenewswire.com/Resource/Download/745e80b7-4736-424e-b44b-850d2dc41940" alt="BrowserStack" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="http://sikulix.com/" target="_blank"><img src="https://raw.githubusercontent.com/RaiMan/SikuliX1/master/Support/sikulix-red.png" alt="SikuliX" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://opencv.org/" target="_blank"><img src="https://opencv.org/wp-content/uploads/2022/05/logo.png" alt="OpenCV" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://applitools.com/" target="_blank"><img src="https://www.selenium.dev/images/sponsors/applitools.png" alt="Applitools" height="50px"></a>
@@ -145,7 +145,7 @@ public void afterClass(){
 
 
 ## 🙏 Big thanks to the following organizations for their support to the project with their open source licenses
-<a href="https://www.browserstack.com/" target="_blank"><img src="https://www.insightpartners.com//assets/media/2021/06/browserstack.png" alt="BrowserStack" height="50px"></a>
+<a href="https://www.browserstack.com/" target="_blank"><img src="https://ml.globenewswire.com/Resource/Download/745e80b7-4736-424e-b44b-850d2dc41940" alt="BrowserStack" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://applitools.com/" target="_blank"><img src="https://www.selenium.dev/images/sponsors/applitools.png" alt="Applitools" height="50px"></a>
 
 

@@ -23,10 +23,18 @@ public class MultipleElementsFailureTest {
         driver.element().click(By.xpath("//input"));
     }
 
+    @Test(expectedExceptions = {AssertionError.class})
+    public void clickUsingJS() {
+        driver.browser().navigateToURL(mockedHTML);
+        driver.element().clickUsingJavascript(By.xpath("//input"));
+    }
+
     @BeforeMethod
+
     void beforeMethod() {
         driver = SHAFT.GUI.WebDriver.getInstance();
     }
+
 
     @AfterMethod
     void afterMethod() {
