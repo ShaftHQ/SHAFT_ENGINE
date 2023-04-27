@@ -1,14 +1,11 @@
 package com.shaft.properties.internal;
 
 import com.shaft.cli.FileActions;
-import com.shaft.driver.DriverFactory;
-import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import lombok.Getter;
 import org.apache.commons.io.FileUtils;
 import org.openqa.selenium.MutableCapabilities;
-import org.openqa.selenium.remote.Browser;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -21,60 +18,11 @@ import java.util.Objects;
 
 public final class PropertyFileManager {
 
-    private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "src/main/resources/properties/default";
     @Getter
     private static final String CUSTOM_PROPERTIES_FOLDER_PATH = "src/main/resources/properties";
-    private static final String CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME = "propertiesFolderPath";
-    private static Boolean readPropertyFiles = true;
 
     private PropertyFileManager() {
         throw new IllegalStateException("Utility class");
-    }
-
-    /**
-     * Reads properties from all system variables that contain the word
-     * propertiesFolderPath, enables reading properties from multiple folders
-     * following this naming convention
-     * <p>
-     * Priorities follow this order: MVN system properties + pom.xml THEN Explicit
-     * properties files THEN Base properties files (the lowest priority)
-     */
-    public static void readPropertyFiles() {
-        if (Boolean.TRUE.equals(readPropertyFiles)) {
-            var isDiscrete = ReportManagerHelper.getDiscreteLogging();
-            ReportManagerHelper.setDiscreteLogging(true);
-
-            // read base system properties
-            java.util.Properties props = System.getProperties();
-
-            // read properties from any explicit properties files
-            for (int i = 0; i < props.size(); i++) {
-                String propertyKey = ((String) (props.keySet().toArray())[i]).trim();
-                if (propertyKey.contains(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME)
-                        && !propertyKey.equals(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME)
-                        && !"".equals(props.getProperty(propertyKey).trim())) {
-                    readPropertyFiles(props.getProperty(propertyKey));
-                }
-            }
-
-            // read properties form the base properties file
-            String basePropertiesPath = Properties.paths.properties();
-            readPropertyFiles(Objects.requireNonNullElse(basePropertiesPath, CUSTOM_PROPERTIES_FOLDER_PATH));
-
-            // This section set the default properties values for Execution/path/pattern
-            readPropertyFiles(getDefaultPropertiesFolderPath());
-
-            manageMaximumPerformanceMode();
-            manageSafariBrowser();
-            readPropertyFiles = false;
-            ReportManagerHelper.setDiscreteLogging(isDiscrete);
-        }
-    }
-
-    private static void manageSafariBrowser() {
-        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
-            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
-        }
     }
 
     public static Map<String, String> getAppiumDesiredCapabilities() {
@@ -138,61 +86,6 @@ public final class PropertyFileManager {
         }
     }
 
-    public static String getDefaultPropertiesFolderPath() {
-        URL propertiesFolder = PropertyFileManager.class.getResource("/resources/properties/default/");
-
-        if (propertiesFolder != null) {
-            return propertiesFolder.getFile();
-        } else {
-            return DEFAULT_PROPERTIES_FOLDER_PATH;
-        }
-    }
-
-    /**
-     * When Maximum Performance Mode is enabled the following properties will be
-     * overridden:
-     * <p>
-     * <ul>
-     * <li>aiPoweredSelfHealingElementIdentification=>false;
-     * <li>headlessExecution=>true;
-     * <li>autoMaximizeBrowserWindow=>false;
-     * <li>forceCheckForElementVisibility=>false;
-     * <li>forceCheckElementLocatorIsUnique=>false;
-     * <li>screenshotParams_whenToTakeAScreenshot=>FailuresOnly;
-     * <li>screenshotParams_highlightElements=>false;
-     * <li>screenshotParams_screenshotType=>Regular;
-     * <li>screenshotParams_watermark=>true;
-     * <li>createAnimatedGif=>false;
-     * <li>recordVideo=>false;
-     * <li>debugMode"=>"false;
-     * </ul>
-     */
-    private static void manageMaximumPerformanceMode() {
-        int maximumPerformanceMode = SHAFT.Properties.flags.maximumPerformanceMode();
-        switch (maximumPerformanceMode) {
-            case 1, 2 -> {
-                SHAFT.Properties.healenium.set().healEnabled(false);
-                SHAFT.Properties.flags.set().autoMaximizeBrowserWindow(false);
-                SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
-                SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(true);
-                SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("AI");
-                SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
-                SHAFT.Properties.visuals.set().screenshotParamsWatermark(true);
-                SHAFT.Properties.visuals.set().createAnimatedGif(false);
-                SHAFT.Properties.visuals.set().videoParamsRecordVideo(false);
-                SHAFT.Properties.reporting.set().debugMode(false);
-                SHAFT.Properties.reporting.set().captureElementName(false);
-                SHAFT.Properties.web.set().headlessExecution(false);
-                if (maximumPerformanceMode == 2 && !DriverFactory.DriverType.SAFARI.getValue().equals(SHAFT.Properties.web.targetBrowserName())) {
-                    SHAFT.Properties.web.set().headlessExecution(true);
-                }
-            }
-            case 0 -> {
-                // do nothing
-            }
-        }
-    }
-
     private static void loadPropertiesFileIntoSystemProperties(java.util.Properties properties, File propertyFile) {
         try {
             properties.load(new FileInputStream(propertyFile));
@@ -204,5 +97,9 @@ public final class PropertyFileManager {
         } catch (IOException e) {
             ReportManagerHelper.logDiscrete(e);
         }
+    }
+
+    public static void readCustomPropertyFiles() {
+        readPropertyFiles(Objects.requireNonNullElse(Properties.paths.properties(), CUSTOM_PROPERTIES_FOLDER_PATH));
     }
 }
