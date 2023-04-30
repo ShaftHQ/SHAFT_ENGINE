@@ -129,6 +129,8 @@ public class ElementActionsHelper {
         expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
         expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
         expectedExceptions.add(org.openqa.selenium.JavascriptException.class);
+        expectedExceptions.add(org.openqa.selenium.ElementClickInterceptedException.class);
+
         if (isValidToCheckForVisibility) {
             expectedExceptions.add(org.openqa.selenium.InvalidElementStateException.class);
             expectedExceptions.add(org.openqa.selenium.interactions.MoveTargetOutOfBoundsException.class);
@@ -256,9 +258,10 @@ public class ElementActionsHelper {
                     elementInformation.getFirstElement().click();
                 } catch (Throwable throwable) {
                     if (DriverFactoryHelper.isWebExecution() && SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails()) {
-                        if (DriverFactoryHelper.isWebExecution()) {
                             ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].click();", elementInformation.getFirstElement());
-                        }
+                    }
+                    else {
+                       throw throwable;
                     }
                 }
             }
