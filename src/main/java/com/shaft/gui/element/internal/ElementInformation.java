@@ -52,20 +52,21 @@ public class ElementInformation {
 
     //TODO: generalize this approach to parse all element information and not have to fetch it again
     private static String parseElementText(String outerHTML, String innerHTML) {
-        // LOGIC:
-        // we can use https://jsoup.org/ to parse the HTML
-        // when parsing a body fragment, the outerHTML is always wrapped inside <html> and <body> tags
-        // we can extract the original tag name of the first element and use it to find the jsoup element
-        // then we can do our checks and return TEXT > VALUE > CONTENT > UNDEFINED in that order
-        var elementTagName = outerHTML.replaceAll("<", "").split(" ")[0];
-        var element = Jsoup.parseBodyFragment(outerHTML).getElementsByTag(elementTagName).get(0);
-        if (element.hasText() && !element.text().isEmpty())
-            return element.text();
-        if (element.hasAttr("value") && !element.attr("value").isEmpty())
-            return element.attr("value");
-        if (!innerHTML.isEmpty() && !innerHTML.contains("<"))
-            return innerHTML;
-
+        if (!outerHTML.isEmpty()) {
+            // LOGIC:
+            // we can use https://jsoup.org/ to parse the HTML
+            // when parsing a body fragment, the outerHTML is always wrapped inside <html> and <body> tags
+            // we can extract the original tag name of the first element and use it to find the jsoup element
+            // then we can do our checks and return TEXT > VALUE > CONTENT > UNDEFINED in that order
+            var elementTagName = outerHTML.replaceAll("<", "").split(" ")[0];
+            var element = Jsoup.parseBodyFragment(outerHTML).getElementsByTag(elementTagName).get(0);
+            if (element.hasText() && !element.text().isEmpty())
+                return element.text();
+            if (element.hasAttr("value") && !element.attr("value").isEmpty())
+                return element.attr("value");
+            if (!innerHTML.isEmpty() && !innerHTML.contains("<"))
+                return innerHTML;
+        }
         return "";
     }
 
@@ -78,7 +79,7 @@ public class ElementInformation {
             temp.add(innerHTML);
             temp.add(elementName);
             temp.add(actionResult);
-            temp.add(actionResult);
+            temp.add(elementText);
             return temp;
         }
 }
