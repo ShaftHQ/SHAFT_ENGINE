@@ -8,9 +8,11 @@ import org.openqa.selenium.support.locators.RelativeLocator;
 import java.util.ArrayList;
 
 public class LocatorBuilder {
+    @Setter
+    @Getter
+    static By iFrameLocator;
 
     @Getter
-    @Setter
     static By shadowDomLocator;
     private String tagName = "*";
     private ArrayList<String> parameters = new ArrayList<>();

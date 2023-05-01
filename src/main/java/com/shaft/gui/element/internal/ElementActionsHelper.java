@@ -11,6 +11,7 @@ import com.shaft.gui.element.SikuliActions;
 import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.internal.support.JavaScriptHelper;
@@ -159,6 +160,12 @@ public class ElementActionsHelper {
                         if (ShadowLocatorBuilder.shadowDomLocator != null
                                 && ShadowLocatorBuilder.cssSelector == elementLocator) {
                             targetElement = nestedDriver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElement(ShadowLocatorBuilder.cssSelector);
+                        } else if (LocatorBuilder.getIFrameLocator() != null) {
+                            try {
+                                targetElement = nestedDriver.switchTo().frame(nestedDriver.findElement(LocatorBuilder.getIFrameLocator())).findElement(elementLocator);
+                            } catch (NoSuchElementException exception) {
+                                targetElement = nestedDriver.findElement(elementLocator);
+                            }
                         } else {
                             targetElement = nestedDriver.findElement(elementLocator);
                         }
@@ -246,6 +253,9 @@ public class ElementActionsHelper {
     }
 
     private static String performAction(ElementInformation elementInformation, ElementAction action, Object parameter) {
+        if (LocatorBuilder.getIFrameLocator() != null) {
+            DriverFactoryHelper.getDriver().get().switchTo().frame(DriverFactoryHelper.getDriver().get().findElement(LocatorBuilder.getIFrameLocator()));
+        }
         switch (action) {
             case CLICK -> {
                 //move to element

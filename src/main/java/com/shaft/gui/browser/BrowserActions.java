@@ -5,7 +5,6 @@ import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.element.internal.FluentElementActions;
-import org.openqa.selenium.By;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.WebDriver;
 import org.sikuli.script.App;
@@ -301,43 +300,6 @@ public class BrowserActions extends FluentBrowserActions {
     @Deprecated
     public static void switchToWindow(WebDriver driver, String nameOrHandle) {
         FluentBrowserActions.getInstance().switchToWindow(nameOrHandle);
-    }
-
-    /**
-     * Switches focus to default content, is mainly used in coordination with
-     * {@link #switchToIframe(WebDriver, By)} to exit any iFrame layer and go back
-     * to the main page
-     *
-     * @param driver the current instance of Selenium WebDriver
-     */
-    @Deprecated
-    public static void switchToDefaultContent(WebDriver driver) {
-        FluentBrowserActions.getInstance().switchToDefaultContent();
-    }
-
-    /**
-     * Switches focus to parent frame, is mainly used in coordination with
-     * {@link #switchToIframe(WebDriver, By)} to exit any iFrame layer and go back
-     * to the main page
-     *
-     * @param driver the current instance of Selenium WebDriver
-     */
-    @Deprecated
-    public static void switchToParentFrame(WebDriver driver) {
-        FluentBrowserActions.getInstance().switchToParentFrame();
-    }
-
-    /**
-     * Switches focus to a certain iFrame, is mainly used to navigate inside any iFrame
-     * layer and go back to the main page
-     *
-     * @param driver         the current instance of Selenium WebDriver
-     * @param elementLocator the locator of the iFrame webElement under test (By
-     *                       xpath, id, selector, name ...etc)
-     */
-    @Deprecated
-    public static void switchToIframe(WebDriver driver, By elementLocator) {
-        FluentBrowserActions.getInstance().switchToIframe(elementLocator);
     }
 
     @Deprecated

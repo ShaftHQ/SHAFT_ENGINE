@@ -12,6 +12,7 @@ import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
@@ -767,11 +768,15 @@ public class FluentElementActions {
      */
     public FluentElementActions switchToIframe(By elementLocator) {
         try {
-            DriverFactoryHelper.getDriver().get().switchTo().frame(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)));
+//            DriverFactoryHelper.getDriver().get().switchTo().frame(
+            var elementInformation = ElementInformation.fromList(
+                    ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator));
+//                            .getFirstElement());
+            LocatorBuilder.setIFrameLocator(elementInformation.getLocator());
             // note to self: remove elementLocator in case of bug in screenshot manager
             boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(elementLocator), null, null);
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(elementLocator), null, elementInformation.getElementName());
             ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
@@ -791,6 +796,7 @@ public class FluentElementActions {
     public FluentElementActions switchToDefaultContent() {
         try {
             DriverFactoryHelper.getDriver().get().switchTo().defaultContent();
+            LocatorBuilder.setIFrameLocator(null);
             boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
@@ -803,6 +809,24 @@ public class FluentElementActions {
 //        return new FluentElementActions(Objects.requireNonNull(DriverFactoryHelper.getDriver()).get());
         return this;
     }
+
+    /**
+     * gets the current frame
+     *
+     * @return currentFrame the current frame name
+     */
+    public String getCurrentFrame() {
+        String currentFrame = null;
+        try {
+            JavascriptExecutor jsExecutor = (JavascriptExecutor) DriverFactoryHelper.getDriver().get();
+            currentFrame = (String) jsExecutor.executeScript("return self.name");
+            ReportManager.logDiscrete("The current frame is :- " + currentFrame);
+        } catch (Exception rootCauseException) {
+            ReportManager.logDiscrete(String.valueOf(rootCauseException));
+        }
+        return currentFrame;
+    }
+
 
     /**
      * Checks if there is any text in an element, clears it, then types the required
