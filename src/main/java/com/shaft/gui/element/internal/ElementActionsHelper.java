@@ -654,21 +654,21 @@ public class ElementActionsHelper {
         }
         var outerHTML = elementInformation.getOuterHTML();
         var innerHTML = elementInformation.getInnerHTML();
-
-        // LOGIC:
-        // we can use https://jsoup.org/ to parse the HTML
-        // when parsing a body fragment, the outerHTML is always wrapped inside <html> and <body> tags
-        // we can extract the original tag name of the first element and use it to find the jsoup element
-        // then we can do our checks and return TEXT > VALUE > CONTENT > UNDEFINED in that order
-
-        var elementTagName = outerHTML.replaceAll("<", "").split(" ")[0];
-        var element = Jsoup.parseBodyFragment(outerHTML).getElementsByTag(elementTagName).get(0);
-        if (element.hasText() && !element.text().isEmpty())
-            return TextDetectionStrategy.TEXT;
-        if (element.hasAttr("value") && !element.attr("value").isEmpty())
-            return TextDetectionStrategy.VALUE;
-        if (!innerHTML.isEmpty() && !innerHTML.contains("<"))
-            return TextDetectionStrategy.CONTENT;
+        if (!outerHTML.isEmpty()) {
+            // LOGIC:
+            // we can use https://jsoup.org/ to parse the HTML
+            // when parsing a body fragment, the outerHTML is always wrapped inside <html> and <body> tags
+            // we can extract the original tag name of the first element and use it to find the jsoup element
+            // then we can do our checks and return TEXT > VALUE > CONTENT > UNDEFINED in that order
+            var element = Jsoup.parse(outerHTML).getElementsByTag("body").get(0).child(0);
+            if (element.hasText() && !element.text().isEmpty())
+                return TextDetectionStrategy.TEXT;
+            if (element.hasAttr("value") && !element.attr("value").isEmpty())
+                return TextDetectionStrategy.VALUE;
+            if (!innerHTML.isEmpty() && !innerHTML.contains("<"))
+                return TextDetectionStrategy.CONTENT;
+            return TextDetectionStrategy.UNDEFINED;
+        }
         return TextDetectionStrategy.UNDEFINED;
     }
 

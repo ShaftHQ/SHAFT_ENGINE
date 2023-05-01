@@ -10,7 +10,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class Test_dynamicLoading {
+public class DynamicLoadingTest {
     ThreadLocal<WebDriver> driver = new ThreadLocal<>();
 
     @Test
