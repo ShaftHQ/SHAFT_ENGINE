@@ -816,11 +816,15 @@ public class FluentElementActions {
      * @return currentFrame the current frame name
      */
     public String getCurrentFrame() {
-        String currentFrame = null;
+        String currentFrame = "";
         try {
-            JavascriptExecutor jsExecutor = (JavascriptExecutor) DriverFactoryHelper.getDriver().get();
-            currentFrame = (String) jsExecutor.executeScript("return self.name");
-            ReportManager.logDiscrete("The current frame is :- " + currentFrame);
+            if (LocatorBuilder.getIFrameLocator() != null) {
+                currentFrame = (String) ((JavascriptExecutor) DriverFactoryHelper.getDriver().get().switchTo().frame(DriverFactoryHelper.getDriver().get().findElement(LocatorBuilder.getIFrameLocator())))
+                        .executeScript("return self.name");
+            } else {
+                currentFrame = (String) ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("return self.name");
+            }
+            ReportManager.logDiscrete("Current frame name: \"" + currentFrame + "\"");
         } catch (Exception rootCauseException) {
             ReportManager.logDiscrete(String.valueOf(rootCauseException));
         }

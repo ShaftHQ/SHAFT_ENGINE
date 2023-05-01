@@ -16,7 +16,7 @@ public class FrameTests {
              data:text/html,
              <html>
                  <div id="parentFrameDiv">Parent Frame</div>
-                 <iframe src="https://shafthq.github.io/" height="500" width="500" title="SHAFT User Guide"></iframe>
+                 <iframe src="https://shafthq.github.io/" height="500" width="500" title="SHAFT User Guide" name="iframe Name"></iframe>
              </html>
             """;
 
