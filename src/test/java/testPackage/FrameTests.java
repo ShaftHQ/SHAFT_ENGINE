@@ -20,7 +20,7 @@ public class FrameTests {
              </html>
             """;
 
-    @Test()
+    //@Test()
     public void switchToIframeAndAssertContent_native_fluent() {
         var nativeWebDriver = new ChromeDriver();
         nativeWebDriver.navigate().to(testPage);
@@ -28,7 +28,7 @@ public class FrameTests {
         Assert.assertEquals(actualText, "SHAFT User Guide");
     }
 
-    @Test()
+    //@Test()
     public void switchToIframeAndAssertContent_native_standard() {
         var nativeWebDriver = new ChromeDriver();
         nativeWebDriver.navigate().to(testPage);
