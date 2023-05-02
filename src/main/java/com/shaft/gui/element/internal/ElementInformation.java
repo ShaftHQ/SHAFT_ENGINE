@@ -34,14 +34,7 @@ public class ElementInformation {
     @Getter
     private String actionResult = "";
     @Setter
-    @Getter
     private String elementText = "";
-    @Setter
-    @Getter
-    private Rectangle elementRect = null;
-    @Setter
-    @Getter
-    private Element element = null;
 
     public static ElementInformation fromList(List<Object> elementInformation) {
         var temp = new ElementInformation();
@@ -52,10 +45,22 @@ public class ElementInformation {
         temp.setInnerHTML((String) elementInformation.get(4));
         temp.setElementName((String) elementInformation.get(5));
         temp.setActionResult((String) elementInformation.get(6));
-        temp.setElement(parseElement(temp));
-        temp.setElementText(parseElementText(temp));
-        temp.setElementRect((Rectangle) elementInformation.get(9));
+        temp.setElementRect((Rectangle) elementInformation.get(7));
         return temp;
+    }
+
+    @Setter
+    @Getter
+    private Rectangle elementRect = null;
+    @Setter
+    @Getter
+    private Element element = null;
+
+    public String getElementText() {
+        if (this.element == null)
+            this.setElement(parseElement(this));
+        this.setElementText(parseElementText(this));
+        return this.elementText;
     }
 
     //TODO: generalize this approach to parse all element information and not have to fetch it again
@@ -92,8 +97,6 @@ public class ElementInformation {
         temp.add(innerHTML);
         temp.add(elementName);
         temp.add(actionResult);
-        temp.add(element);
-        temp.add(elementText);
         temp.add(elementRect);
             return temp;
         }
