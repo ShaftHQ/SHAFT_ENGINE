@@ -131,7 +131,6 @@ public class ElementActionsHelper {
         expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
         expectedExceptions.add(org.openqa.selenium.JavascriptException.class);
         expectedExceptions.add(org.openqa.selenium.ElementClickInterceptedException.class);
-
         if (isValidToCheckForVisibility) {
             expectedExceptions.add(org.openqa.selenium.InvalidElementStateException.class);
             expectedExceptions.add(org.openqa.selenium.interactions.MoveTargetOutOfBoundsException.class);
@@ -169,7 +168,9 @@ public class ElementActionsHelper {
                         } else {
                             targetElement = nestedDriver.findElement(elementLocator);
                         }
+                        var elementInformation = new ElementInformation();
                         if (isValidToCheckForVisibility) {
+                            elementInformation.setElementRect(targetElement.getRect());
                             if (!isMobileExecution) {
                                 try {
                                     // native Javascript scroll to center (smooth / auto)
@@ -188,7 +189,6 @@ public class ElementActionsHelper {
                                 targetElement.isDisplayed();
                             }
                         }
-                        var elementInformation = new ElementInformation();
                         if (ShadowLocatorBuilder.shadowDomLocator != null
                                 && ShadowLocatorBuilder.cssSelector == elementLocator) {
                             elementInformation.setNumberOfFoundElements(nestedDriver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElements(ShadowLocatorBuilder.cssSelector).size());
