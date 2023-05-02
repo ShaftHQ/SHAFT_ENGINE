@@ -11,6 +11,8 @@ import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.FluentElementActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.locator.LocatorBuilder;
+import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
 import com.shaft.performance.internal.LightHouseGenerateReport;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
@@ -252,6 +254,10 @@ public class FluentBrowserActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
+        //reset scope in case user was stuck inside an iFrame
+        LocatorBuilder.setIFrameLocator(null);
+        ShadowLocatorBuilder.shadowDomLocator = null;
+
         String modifiedTargetUrl = targetUrl;
         var baseUrl = SHAFT.Properties.web.baseURL();
 
