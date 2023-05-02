@@ -295,6 +295,9 @@ public class ElementActionsHelper {
             case GET_CONTENT -> {
                 return elementInformation.getFirstElement().getAttribute(TextDetectionStrategy.CONTENT.getValue());
             }
+            case GET_ATTRIBUTE -> {
+                return elementInformation.getFirstElement().getAttribute((String) parameter);
+            }
             case SEND_KEYS -> elementInformation.getFirstElement().sendKeys((CharSequence) parameter);
             case IS_DISPLAYED -> {
                 return String.valueOf(elementInformation.getFirstElement().isDisplayed());

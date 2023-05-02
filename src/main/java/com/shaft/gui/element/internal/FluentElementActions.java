@@ -439,10 +439,10 @@ public class FluentElementActions {
     public String getAttribute(By elementLocator, String attributeName) {
         ReportManager.logDiscrete("Attempting to getAttribute \"" + attributeName + "\" from elementLocator \"" + elementLocator + "\".");
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator, ElementAction.GET_ATTRIBUTE, attributeName));
             try {
-                String elementAttribute = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).getAttribute(attributeName);
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementAttribute, null, elementName);
+                String elementAttribute = elementInformation.getActionResult();
+                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementAttribute, null, elementInformation.getElementName());
                 return elementAttribute;
             } catch (UnsupportedCommandException rootCauseException) {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, rootCauseException);
