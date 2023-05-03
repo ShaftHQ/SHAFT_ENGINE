@@ -154,9 +154,9 @@ public class ValidationsHelper {
                 case "text" -> ElementActions.getInstance().getText(elementLocator);
                 case "texttrimmed" -> ElementActions.getInstance().getText(elementLocator).trim();
                 case "tagname" ->
-                        ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getTagName();
+                        ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getTagName();
                 case "size" ->
-                        ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getSize().toString();
+                        ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getSize().toString();
                 case "selectedtext" -> ElementActions.getInstance().getSelectedText(elementLocator);
                 default -> ElementActions.getInstance().getAttribute(elementLocator, elementAttribute);
             };

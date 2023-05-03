@@ -41,6 +41,7 @@ public class BigPageActionsTest {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.quit();
+        if (driver != null)
+            driver.quit();
     }
 }

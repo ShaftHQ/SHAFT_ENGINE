@@ -128,10 +128,10 @@ public class ElementActionsHelper {
         ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
         expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
         expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
-        expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
         expectedExceptions.add(org.openqa.selenium.JavascriptException.class);
-        expectedExceptions.add(org.openqa.selenium.ElementClickInterceptedException.class);
         if (isValidToCheckForVisibility) {
+            expectedExceptions.add(org.openqa.selenium.ElementClickInterceptedException.class);
+            expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
             expectedExceptions.add(org.openqa.selenium.InvalidElementStateException.class);
             expectedExceptions.add(org.openqa.selenium.interactions.MoveTargetOutOfBoundsException.class);
         }
