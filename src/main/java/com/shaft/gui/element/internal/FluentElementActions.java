@@ -12,6 +12,7 @@ import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
@@ -119,7 +120,7 @@ public class FluentElementActions {
             var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
             StringBuilder elementSelectedText = new StringBuilder();
             try {
-                new Select(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1))).getAllSelectedOptions().forEach(selectedOption -> elementSelectedText.append(selectedOption.getText()));
+                new Select(((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator).get(1))).getAllSelectedOptions().forEach(selectedOption -> elementSelectedText.append(selectedOption.getText()));
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementSelectedText.toString().trim(), null, elementName);
                 return elementSelectedText.toString().trim();
             } catch (UnexpectedTagNameException rootCauseException) {
@@ -438,10 +439,10 @@ public class FluentElementActions {
     public String getAttribute(By elementLocator, String attributeName) {
         ReportManager.logDiscrete("Attempting to getAttribute \"" + attributeName + "\" from elementLocator \"" + elementLocator + "\".");
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator, ElementAction.GET_ATTRIBUTE, attributeName));
             try {
-                String elementAttribute = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).getAttribute(attributeName);
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementAttribute, null, elementName);
+                String elementAttribute = elementInformation.getActionResult();
+                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementAttribute, null, elementInformation.getElementName());
                 return elementAttribute;
             } catch (UnsupportedCommandException rootCauseException) {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, rootCauseException);
@@ -549,26 +550,26 @@ public class FluentElementActions {
      */
     public String getText(By elementLocator) {
         try {
-            var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator));
+            var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator));
             var elementName = elementInformation.getElementName();
             String elementText;
             try {
                 elementText = (elementInformation.getFirstElement()).getText();
             } catch (WebDriverException webDriverException) {
-                elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.GET_TEXT)).getActionResult();
+                elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.GET_TEXT)).getActionResult();
             }
             if ((elementText == null || elementText.trim().equals("")) && !DriverFactoryHelper.isMobileNativeExecution()) {
                 try {
                     elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.CONTENT.getValue());
                 } catch (WebDriverException webDriverException) {
-                    elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.GET_CONTENT)).getActionResult();
+                    elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.GET_CONTENT)).getActionResult();
                 }
             }
             if ((elementText == null || elementText.trim().equals("")) && !DriverFactoryHelper.isMobileNativeExecution()) {
                 try {
                     elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.VALUE.getValue());
                 } catch (WebDriverException webDriverException) {
-                    elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.GET_VALUE)).getActionResult();
+                    elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.GET_VALUE)).getActionResult();
                 }
             }
             if (elementText == null) {
@@ -767,11 +768,15 @@ public class FluentElementActions {
      */
     public FluentElementActions switchToIframe(By elementLocator) {
         try {
-            DriverFactoryHelper.getDriver().get().switchTo().frame(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)));
+//            DriverFactoryHelper.getDriver().get().switchTo().frame(
+            var elementInformation = ElementInformation.fromList(
+                    ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator));
+//                            .getFirstElement());
+            LocatorBuilder.setIFrameLocator(elementInformation.getLocator());
             // note to self: remove elementLocator in case of bug in screenshot manager
             boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(elementLocator), null, null);
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(elementLocator), null, elementInformation.getElementName());
             ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
@@ -791,6 +796,7 @@ public class FluentElementActions {
     public FluentElementActions switchToDefaultContent() {
         try {
             DriverFactoryHelper.getDriver().get().switchTo().defaultContent();
+            LocatorBuilder.setIFrameLocator(null);
             boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
@@ -803,6 +809,28 @@ public class FluentElementActions {
 //        return new FluentElementActions(Objects.requireNonNull(DriverFactoryHelper.getDriver()).get());
         return this;
     }
+
+    /**
+     * gets the current frame
+     *
+     * @return currentFrame the current frame name
+     */
+    public String getCurrentFrame() {
+        String currentFrame = "";
+        try {
+            if (LocatorBuilder.getIFrameLocator() != null) {
+                currentFrame = (String) ((JavascriptExecutor) DriverFactoryHelper.getDriver().get().switchTo().frame(DriverFactoryHelper.getDriver().get().findElement(LocatorBuilder.getIFrameLocator())))
+                        .executeScript("return self.name");
+            } else {
+                currentFrame = (String) ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("return self.name");
+            }
+            ReportManager.logDiscrete("Current frame name: \"" + currentFrame + "\"");
+        } catch (Exception rootCauseException) {
+            ReportManager.logDiscrete(String.valueOf(rootCauseException));
+        }
+        return currentFrame;
+    }
+
 
     /**
      * Checks if there is any text in an element, clears it, then types the required
