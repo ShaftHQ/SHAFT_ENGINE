@@ -247,7 +247,7 @@ public class ScreenshotManager {
                 for (String locator : skippedElementLocators) {
                     if (ElementActionsHelper.getElementsCount(driver, By.xpath(locator),
                             RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION) == 1) {
-                        skippedElementsList.add(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, By.xpath(locator)).get(1)));
+                        skippedElementsList.add(((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, By.xpath(locator)).get(1)));
                     }
                 }
 
@@ -349,13 +349,13 @@ public class ScreenshotManager {
                     boolean isRelativeLocator = elementLocator instanceof RelativeLocator.RelativeBy;
                     if ((!isRelativeLocator && elementCount == 1) || (isRelativeLocator && elementCount >= 1)) {
                         if ("JavaScript".equals(SCREENSHOT_PARAMS_HIGHLIGHT_METHOD)) {
-                            element = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1));
+                            element = ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1));
                             js = (JavascriptExecutor) driver;
                             regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
                                     setHighlightedElementStyle());
                         } else {
                             // default to using AI
-                            elementLocation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElement(driver, elementLocator)).getElementRect();
+                            elementLocation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator)).getElementRect();
                         }
                     }
                 }
@@ -448,7 +448,7 @@ public class ScreenshotManager {
         try {
             if (targetElementLocator != null && ElementActionsHelper.getElementsCount(driver, targetElementLocator,
                     RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION) == 1) {
-                return ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, targetElementLocator).get(1)).getScreenshotAs(OutputType.BYTES);
+                return ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, targetElementLocator).get(1)).getScreenshotAs(OutputType.BYTES);
             } else {
                 if (returnRegularScreenshotInCaseOfFailure) {
                     return ScreenshotManager.takeViewportScreenshot(driver);
