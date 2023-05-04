@@ -6,8 +6,6 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
 
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.List;
 
 public class ProjectStructureManager {
     public static void initialize() {
@@ -23,11 +21,8 @@ public class ProjectStructureManager {
         // manually override listeners configuration
         if (Properties.platform.executionAddress().equals("local")) {
             FileActions.getInstance().createFolder(Properties.paths.services());
-            var junitServices = List.of("org.junit.platform.launcher.LauncherSessionListener");
-            junitServices.forEach(service -> FileActions.getInstance().writeToFile(Properties.paths.services(), service, "com.shaft.listeners.JunitListener"));
-            var testNgServices = Arrays.asList("org.testng.IAlterSuiteListener", "org.testng.IAnnotationTransformer", "org.testng.IExecutionListener"
-                    , "org.testng.IInvokedMethodListener", "org.testng.ISuiteListener", "org.testng.ITestListener");
-            testNgServices.forEach(service -> FileActions.getInstance().writeToFile(Properties.paths.services(), service, "com.shaft.listeners.TestNGListener"));
+            FileActions.getInstance().writeToFile(Properties.paths.services(), "org.junit.platform.launcher.LauncherSessionListener", "com.shaft.listeners.JunitListener");
+            FileActions.getInstance().writeToFile(Properties.paths.services(), "org.testng.ITestNGListener", "com.shaft.listeners.TestNGListener");
 
         }
         // delete previous run execution log
