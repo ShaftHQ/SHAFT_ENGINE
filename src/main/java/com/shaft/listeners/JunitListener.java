@@ -80,7 +80,7 @@ public class JunitListener implements LauncherSessionListener {
         //TODO: Enable Properties Helper and refactor the old PropertyFileManager to read any unmapped user properties in a specific directory
         Allure.getLifecycle();
         Reporter.setEscapeHtml(false);
-        ProjectStructureManager.initialize();
+        ProjectStructureManager.initialize(ProjectStructureManager.Mode.JUNIT);
         TestNGListenerHelper.configureJVMProxy();
         GoogleTink.initialize();
         GoogleTink.decrypt();
