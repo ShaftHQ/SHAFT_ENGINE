@@ -8,7 +8,9 @@ import com.shaft.db.DatabaseActions.DatabaseType;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.listeners.TestNGListener;
 import com.shaft.listeners.internal.TestNGListenerHelper;
+import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.ProjectStructureManager;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
@@ -72,6 +74,7 @@ public class DriverFactory {
      * used to duplicate the tests for each browser in case of cross-browser Execution
      */
     private static void readLastMinuteUpdatedProperties() {
+        reloadProperties();
         // it's null in case of Cucumber native feature file execution
         if (TestNGListener.getXmlTest() != null) {
             System.getProperties().putAll(TestNGListener.getXmlTest().getAllParameters());
@@ -81,6 +84,16 @@ public class DriverFactory {
                     || testName.contains("safari")) {
                 SHAFT.Properties.platform.set().targetPlatform(Platform.LINUX.name());
             }
+        }
+    }
+
+    private static void reloadProperties() {
+        if (SHAFT.Properties.platform == null) {
+            // this happens in case the TestNG listener is not defined
+            // it also happens in case the user is using Junit
+            PropertiesHelper.initialize();
+            ProjectStructureManager.initialize();
+            throw new AssertionError("Execution Listeners are not loaded properly... Self-Healing... Kindly re-run your tests one more time.");
         }
     }
 
