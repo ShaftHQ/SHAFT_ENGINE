@@ -51,6 +51,10 @@ public interface Paths extends EngineProperties {
     @DefaultValue("")
     String applitoolsApiKey();
 
+    @Key("servicesFolderPath")
+    @DefaultValue("src/test/resources/META-INF/services/")
+    String services();
+
     private static void setProperty(String key, String value) {
         var updatedProps = new java.util.Properties();
         updatedProps.setProperty(key, value);
@@ -100,5 +104,10 @@ public interface Paths extends EngineProperties {
         public void applitoolsApiKey(String value) {
             setProperty("applitoolsApiKey", value);
         }
+
+        public void services(String value) {
+            setProperty("servicesFolderPath", value);
+        }
+
     }
 }
