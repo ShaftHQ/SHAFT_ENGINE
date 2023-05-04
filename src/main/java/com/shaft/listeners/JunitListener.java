@@ -11,7 +11,6 @@ import com.shaft.tools.io.internal.ProjectStructureManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Allure;
 import org.junit.platform.engine.TestExecutionResult;
-import org.junit.platform.engine.reporting.ReportEntry;
 import org.junit.platform.launcher.*;
 import org.testng.Reporter;
 
@@ -23,60 +22,50 @@ public class JunitListener implements LauncherSessionListener {
     private static final List<TestIdentifier> failedTests = new ArrayList<>();
     private static final List<TestIdentifier> skippedTests = new ArrayList<>();
     private static long executionStartTime;
-    private static TestIdentifier testIdentifier;
+    private static boolean isEngineReady = false;
 
     @Override
     public void launcherSessionOpened(LauncherSession session) {
-        engineSetup();
-        session.getLauncher().registerTestExecutionListeners(new TestExecutionListener() {
-            @Override
-            public void testPlanExecutionStarted(TestPlan testPlan) {
+        if (!isEngineReady) {
+            session.getLauncher().registerTestExecutionListeners(new TestExecutionListener() {
+                @Override
+                public void testPlanExecutionStarted(TestPlan testPlan) {
 //                TestNGListenerHelper.setTotalNumberOfTests(suite);
-                executionStartTime = System.currentTimeMillis();
-            }
+                    executionStartTime = System.currentTimeMillis();
+                    engineSetup();
+                    isEngineReady = true;
+                }
 
-            @Override
-            public void testPlanExecutionFinished(TestPlan testPlan) {
-            }
+                @Override
+                public void executionSkipped(TestIdentifier testIdentifier, String reason) {
+                    afterInvocation();
+                    onTestSkipped(testIdentifier, reason);
+                }
 
-            @Override
-            public void dynamicTestRegistered(TestIdentifier testIdentifier) {
-            }
-
-            @Override
-            public void executionSkipped(TestIdentifier testIdentifier, String reason) {
-                afterInvocation();
-                onTestSkipped(testIdentifier, reason);
-            }
-
-            @Override
-            public void executionStarted(TestIdentifier testIdentifier) {
-                JunitListener.testIdentifier = testIdentifier;
-//                JiraHelper.prepareTestResultAttributes(method, iTestResult);
+                @Override
+                public void executionStarted(TestIdentifier testIdentifier) {
+                    //                JiraHelper.prepareTestResultAttributes(method, iTestResult);
 //                TestNGListenerHelper.setTestName(iTestContext);
 //                TestNGListenerHelper.logTestInformation(iTestResult);
 //                TestNGListenerHelper.failFast(iTestResult);
 //                TestNGListenerHelper.skipTestsWithLinkedIssues(iTestResult);
-            }
+                }
 
-            @Override
-            public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
-                afterInvocation();
-                if (testIdentifier.isTest()) {
-                    switch (testExecutionResult.getStatus()) {
-                        case SUCCESSFUL -> onTestSuccess(testIdentifier);
-                        case FAILED, ABORTED -> {
-                            Throwable throwable = testExecutionResult.getThrowable().isPresent() ? testExecutionResult.getThrowable().get() : new AssertionError("Test Failed");
-                            onTestFailure(testIdentifier, throwable);
+                @Override
+                public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
+                    afterInvocation();
+                    if (testIdentifier.isTest()) {
+                        switch (testExecutionResult.getStatus()) {
+                            case SUCCESSFUL -> onTestSuccess(testIdentifier);
+                            case FAILED, ABORTED -> {
+                                Throwable throwable = testExecutionResult.getThrowable().isPresent() ? testExecutionResult.getThrowable().get() : new AssertionError("Test Failed");
+                                onTestFailure(testIdentifier, throwable);
+                            }
                         }
                     }
                 }
-            }
-
-            @Override
-            public void reportingEntryPublished(TestIdentifier testIdentifier, ReportEntry entry) {
-            }
-        });
+            });
+        }
     }
 
     @Override
