@@ -93,7 +93,8 @@ public class DriverFactory {
             // it also happens in case the user is using Junit
             PropertiesHelper.initialize();
             ProjectStructureManager.initialize();
-            throw new AssertionError("Execution Listeners are not loaded properly... Self-Healing... Kindly re-run your tests one more time.");
+            ReportManager.logDiscrete("Execution Listeners are not loaded properly... Initializing minimalistic test run.");
+//            throw new AssertionError("Execution Listeners are not loaded properly... Self-Healing... Kindly re-run your tests one more time.");
         }
     }
 

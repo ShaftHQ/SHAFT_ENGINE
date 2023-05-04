@@ -22,7 +22,7 @@ public class ProjectStructureManager {
         if (Properties.platform.executionAddress().equals("local")) {
             FileActions.getInstance().createFolder(Properties.paths.services());
             FileActions.getInstance().writeToFile(Properties.paths.services(), "org.junit.platform.launcher.LauncherSessionListener", "com.shaft.listeners.JunitListener");
-            FileActions.getInstance().writeToFile(Properties.paths.services(), "org.testng.ITestNGListener", "com.shaft.listeners.TestNGListener");
+//            FileActions.getInstance().writeToFile(Properties.paths.services(), "org.testng.ITestNGListener", "com.shaft.listeners.TestNGListener");
 
         }
         // delete previous run execution log
