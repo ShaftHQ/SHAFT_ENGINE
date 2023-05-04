@@ -89,12 +89,13 @@ public class DriverFactory {
 
     private static void reloadProperties() {
         if (SHAFT.Properties.platform == null) {
-            // this happens in case the TestNG listener is not defined
-            // it also happens in case the user is using Junit
+            ReportManager.logDiscrete("Execution Listeners are not loaded properly... Self-Healing... Initializing minimalistic test run.");
             PropertiesHelper.initialize();
-            ProjectStructureManager.initialize();
-            ReportManager.logDiscrete("Execution Listeners are not loaded properly... Initializing minimalistic test run.");
-//            throw new AssertionError("Execution Listeners are not loaded properly... Self-Healing... Kindly re-run your tests one more time.");
+            if (!TestNGListener.isTestNGRun()) {
+                ProjectStructureManager.initialize(ProjectStructureManager.Mode.JUNIT);
+            } else {
+                ProjectStructureManager.initialize(ProjectStructureManager.Mode.TESTNG);
+            }
         }
     }
 
