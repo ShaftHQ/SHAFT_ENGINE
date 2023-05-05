@@ -6,7 +6,7 @@ import org.testng.annotations.*;
 
 public class NoSuchElementFailureTest {
     SHAFT.GUI.WebDriver driver;
-    int defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
+    int defaultElementIdentificationTimeout;
     String mockedHTML = "data:text/html,<input/><input/><input/><script>var result;</script><button ${HIDDEN} alt='Google' onclick='result=\"Clicked\"'>Go</button>";
 
 
@@ -41,6 +41,7 @@ public class NoSuchElementFailureTest {
 
     @BeforeClass
     void beforeClass() {
+        defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
         SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
     }
 

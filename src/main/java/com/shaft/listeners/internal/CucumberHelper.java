@@ -18,7 +18,7 @@ public class CucumberHelper {
             // running in native Cucumber mode
             PropertiesHelper.initialize();
             SHAFT.Properties.reporting.set().disableLogging(true);
-            ProjectStructureManager.initialize();
+            ProjectStructureManager.initialize(ProjectStructureManager.Mode.TESTNG);
             TestNGListenerHelper.configureJVMProxy();
             GoogleTink.initialize();
             GoogleTink.decrypt();
