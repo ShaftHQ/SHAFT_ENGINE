@@ -8,7 +8,6 @@ import com.shaft.db.DatabaseActions.DatabaseType;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.listeners.TestNGListener;
 import com.shaft.listeners.internal.TestNGListenerHelper;
-import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import org.openqa.selenium.MutableCapabilities;
@@ -89,8 +88,8 @@ public class DriverFactory {
 
     private static void reloadProperties() {
         if (SHAFT.Properties.platform == null) {
-            ReportManager.logDiscrete("Execution Listeners are not loaded properly... Self-Healing... Initializing minimalistic test run.");
-            PropertiesHelper.initialize();
+            System.out.println("Execution Listeners are not loaded properly... Self-Healing... Initializing minimalistic test run...");
+            TestNGListener.engineSetup();
             if (!TestNGListener.isTestNGRun()) {
                 ProjectStructureManager.initialize(ProjectStructureManager.Mode.JUNIT);
             } else {

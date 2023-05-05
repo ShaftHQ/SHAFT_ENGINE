@@ -7,14 +7,12 @@ import com.shaft.listeners.internal.RetryAnalyzer;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.security.GoogleTink;
-import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ExecutionSummaryReport;
 import com.shaft.tools.io.internal.IssueReporter;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Allure;
 import lombok.Getter;
-import org.junit.support.testng.engine.TestNGTestEngine;
 import org.testng.*;
 import org.testng.annotations.ITestAnnotation;
 import org.testng.xml.XmlSuite;
@@ -47,35 +45,24 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
             var isUsingJunitDiscovery = Arrays.stream(stacktrace)
                     .map(StackTraceElement::getClassName)
                     .anyMatch(org.junit.platform.launcher.core.EngineDiscoveryOrchestrator.class.getCanonicalName()::equals);
-
-            var isUsingTestNGTestEngine = Arrays.stream(stacktrace)
-                    .map(StackTraceElement::getClassName)
-                    .anyMatch(TestNGTestEngine.class.getCanonicalName()::equals);
-
             var isUsingTestNG = Arrays.stream(stacktrace)
                     .map(StackTraceElement::getClassName)
                     .anyMatch(TestNG.class.getCanonicalName()::equals);
-
-            if ((isUsingJunitDiscovery && isUsingTestNGTestEngine) || isUsingTestNG) {
-                ReportManager.logDiscrete("TestNG run detected...");
+            if (isUsingJunitDiscovery || isUsingTestNG) {
+                System.out.println("TestNG run detected...");
                 isTestNGRunBool = true;
             } else {
-                ReportManager.logDiscrete("JUnit5 run detected...");
+                System.out.println("JUnit5 run detected...");
                 isJunitRunBool = true;
             }
         }
         return isTestNGRunBool;
     }
 
-    /**
-     * gets invoked before TestNG proceeds with invoking any other listener.
-     */
-    @Override
-    public void onExecutionStart() {
+    public static void engineSetup() {
         ReportManagerHelper.setDiscreteLogging(true);
         PropertiesHelper.initialize();
         SHAFT.Properties.reporting.set().disableLogging(true);
-        //TODO: Enable Properties Helper and refactor the old PropertyFileManager to read any unmapped user properties in a specific directory
         Allure.getLifecycle();
         Reporter.setEscapeHtml(false);
         if (isTestNGRun()) {
@@ -97,6 +84,14 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
 
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
         ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
+    }
+
+    /**
+     * gets invoked before TestNG proceeds with invoking any other listener.
+     */
+    @Override
+    public void onExecutionStart() {
+        engineSetup();
     }
 
     /**
