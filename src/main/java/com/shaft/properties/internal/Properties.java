@@ -1,4 +1,5 @@
 package com.shaft.properties.internal;
+
 import com.google.common.annotations.Beta;
 
 @Beta

@@ -1,5 +1,6 @@
 package com.shaft.tools.io;
 
+import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -39,6 +40,7 @@ public class ExcelFileManager {
      * @param excelFilePath target test data Excel file path
      */
     public ExcelFileManager(String excelFilePath) {
+        DriverFactory.reloadProperties();
         excelFilePath = JavaHelper.appendTestDataToRelativePath(excelFilePath);
         initializeVariables();
         this.excelFilePath = excelFilePath;

@@ -86,7 +86,7 @@ public class DriverFactory {
         }
     }
 
-    private static void reloadProperties() {
+    public static void reloadProperties() {
         if (SHAFT.Properties.platform == null) {
             System.out.println("Execution Listeners are not loaded properly... Self-Healing... Initializing minimalistic test run...");
             TestNGListener.engineSetup();
