@@ -1,5 +1,6 @@
 package com.shaft.tools.io;
 
+import com.shaft.driver.DriverFactory;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -36,6 +37,7 @@ public class YAMLFileManager {
      * @param filePath target test data yaml file path
      */
     public YAMLFileManager(String filePath) {
+        DriverFactory.reloadProperties();
         this.filePath = JavaHelper.appendTestDataToRelativePath(filePath);
         this.data = getData();
 
