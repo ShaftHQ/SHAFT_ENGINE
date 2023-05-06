@@ -7,6 +7,7 @@ import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.internal.ElementActionsHelper;
+import com.shaft.gui.element.internal.ElementInformation;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -246,7 +247,7 @@ public class ScreenshotManager {
                 for (String locator : skippedElementLocators) {
                     if (ElementActionsHelper.getElementsCount(driver, By.xpath(locator),
                             RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION) == 1) {
-                        skippedElementsList.add(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, By.xpath(locator)).get(1)));
+                        skippedElementsList.add(((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, By.xpath(locator)).get(1)));
                     }
                 }
 
@@ -327,42 +328,36 @@ public class ScreenshotManager {
                 WebElement element = null;
                 Rectangle elementLocation = null;
 
-                try {
-                    /*
-                     * If an elementLocator was passed, store regularElementStyle and highlight that
-                     * element before taking the screenshot
-                     */
-                    if (takeScreenshot && Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHT_ELEMENTS) && elementLocator != null) {
-                        try {
-                            // catching https://github.com/ShaftHQ/SHAFT_ENGINE/issues/640
-                            @SuppressWarnings("unused") Mat img = Imgcodecs.imdecode(new MatOfByte(), Imgcodecs.IMREAD_COLOR);
-                        } catch (java.lang.UnsatisfiedLinkError unsatisfiedLinkError) {
-                            ReportManagerHelper.logDiscrete(unsatisfiedLinkError);
-                            ReportManager.logDiscrete("Caught an UnsatisfiedLinkError, switching element highlighting method to JavaScript instead of AI.");
-                            SCREENSHOT_PARAMS_HIGHLIGHT_METHOD = "JavaScript";
-                        } catch (Exception exception) {
-                            //do nothing in case of any other exception
-                            //expected to throw org.opencv.core.CvException if removed
-                        }
+                /*
+                 * If an elementLocator was passed, store regularElementStyle and highlight that
+                 * element before taking the screenshot
+                 */
+                if (takeScreenshot && Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHT_ELEMENTS) && elementLocator != null) {
+                    try {
+                        // catching https://github.com/ShaftHQ/SHAFT_ENGINE/issues/640
+                        @SuppressWarnings("unused") Mat img = Imgcodecs.imdecode(new MatOfByte(), Imgcodecs.IMREAD_COLOR);
+                    } catch (java.lang.UnsatisfiedLinkError unsatisfiedLinkError) {
+                        ReportManagerHelper.logDiscrete(unsatisfiedLinkError);
+                        ReportManager.logDiscrete("Caught an UnsatisfiedLinkError, switching element highlighting method to JavaScript instead of AI.");
+                        SCREENSHOT_PARAMS_HIGHLIGHT_METHOD = "JavaScript";
+                    } catch (Exception exception) {
+                        //do nothing in case of any other exception
+                        //expected to throw org.opencv.core.CvException if removed
+                    }
 
-                        int elementCount = ElementActionsHelper.getElementsCount(driver, elementLocator, RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION);
-                        boolean isRelativeLocator = elementLocator instanceof RelativeLocator.RelativeBy;
-                        if ((!isRelativeLocator && elementCount == 1) || (isRelativeLocator && elementCount >= 1)) {
-                            if ("JavaScript".equals(SCREENSHOT_PARAMS_HIGHLIGHT_METHOD)) {
-                                element = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1));
-                                js = (JavascriptExecutor) driver;
-                                regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
-                                        setHighlightedElementStyle());
-                            } else {
-                                // default to using AI
-                                elementLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getRect();
-                            }
+                    int elementCount = ElementActionsHelper.getElementsCount(driver, elementLocator, RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION);
+                    boolean isRelativeLocator = elementLocator instanceof RelativeLocator.RelativeBy;
+                    if ((!isRelativeLocator && elementCount == 1) || (isRelativeLocator && elementCount >= 1)) {
+                        if ("JavaScript".equals(SCREENSHOT_PARAMS_HIGHLIGHT_METHOD)) {
+                            element = ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1));
+                            js = (JavascriptExecutor) driver;
+                            regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
+                                    setHighlightedElementStyle());
+                        } else {
+                            // default to using AI
+                            elementLocation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator)).getElementRect();
                         }
                     }
-                } catch (StaleElementReferenceException | ElementNotInteractableException e) {
-                    // this happens when WebDriver fails to capture the elements initial style or
-                    // fails to highlight the element for some reason
-                    ReportManagerHelper.logDiscrete(e);
                 }
 
                 /*
@@ -453,7 +448,7 @@ public class ScreenshotManager {
         try {
             if (targetElementLocator != null && ElementActionsHelper.getElementsCount(driver, targetElementLocator,
                     RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION) == 1) {
-                return ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, targetElementLocator).get(1)).getScreenshotAs(OutputType.BYTES);
+                return ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, targetElementLocator).get(1)).getScreenshotAs(OutputType.BYTES);
             } else {
                 if (returnRegularScreenshotInCaseOfFailure) {
                     return ScreenshotManager.takeViewportScreenshot(driver);

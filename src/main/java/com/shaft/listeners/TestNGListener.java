@@ -21,6 +21,7 @@ import org.testng.xml.XmlTest;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class TestNGListener implements IAlterSuiteListener, IAnnotationTransformer,
@@ -35,18 +36,40 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Getter
     private static XmlTest xmlTest;
 
-    /**
-     * gets invoked before TestNG proceeds with invoking any other listener.
-     */
-    @Override
-    public void onExecutionStart() {
+    private static boolean isJunitRunBool = false;
+    private static boolean isTestNGRunBool = false;
+
+    public static boolean isTestNGRun() {
+        if (!isTestNGRunBool && !isJunitRunBool) {
+            var stacktrace = (new Throwable()).getStackTrace();
+            var isUsingJunitDiscovery = Arrays.stream(stacktrace)
+                    .map(StackTraceElement::getClassName)
+                    .anyMatch(org.junit.platform.launcher.core.EngineDiscoveryOrchestrator.class.getCanonicalName()::equals);
+            var isUsingTestNG = Arrays.stream(stacktrace)
+                    .map(StackTraceElement::getClassName)
+                    .anyMatch(TestNG.class.getCanonicalName()::equals);
+            if (isUsingJunitDiscovery || isUsingTestNG) {
+                System.out.println("TestNG run detected...");
+                isTestNGRunBool = true;
+            } else {
+                System.out.println("JUnit5 run detected...");
+                isJunitRunBool = true;
+            }
+        }
+        return isTestNGRunBool;
+    }
+
+    public static void engineSetup() {
         ReportManagerHelper.setDiscreteLogging(true);
         PropertiesHelper.initialize();
         SHAFT.Properties.reporting.set().disableLogging(true);
-        //TODO: Enable Properties Helper and refactor the old PropertyFileManager to read any unmapped user properties in a specific directory
         Allure.getLifecycle();
         Reporter.setEscapeHtml(false);
-        ProjectStructureManager.initialize();
+        if (isTestNGRun()) {
+            ProjectStructureManager.initialize(ProjectStructureManager.Mode.TESTNG);
+        } else {
+            ProjectStructureManager.initialize(ProjectStructureManager.Mode.JUNIT);
+        }
         TestNGListenerHelper.configureJVMProxy();
         GoogleTink.initialize();
         GoogleTink.decrypt();
@@ -64,6 +87,14 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     }
 
     /**
+     * gets invoked before TestNG proceeds with invoking any other listener.
+     */
+    @Override
+    public void onExecutionStart() {
+        engineSetup();
+    }
+
+    /**
      * Implementations of this interface will gain access to the {@link XmlSuite} object and thus let
      * users be able to alter a suite or a test based on their own needs.
      *
@@ -71,12 +102,14 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void alter(List<XmlSuite> suites) {
-        TestNGListenerHelper.configureTestNGProperties(suites);
-        TestNGListenerHelper.updateDefaultSuiteAndTestNames(suites);
-        TestNGListenerHelper.attachConfigurationHelperClass(suites);
-        //All alterations should be finalized before duplicating the
-        //test suites for cross browser execution
-        TestNGListenerHelper.configureCrossBrowserExecution(suites);
+        if (isTestNGRun()) {
+            TestNGListenerHelper.configureTestNGProperties(suites);
+            TestNGListenerHelper.updateDefaultSuiteAndTestNames(suites);
+            TestNGListenerHelper.attachConfigurationHelperClass(suites);
+            //All alterations should be finalized before duplicating the
+            //test suites for cross browser execution
+            TestNGListenerHelper.configureCrossBrowserExecution(suites);
+        }
     }
 
     /**
@@ -86,8 +119,10 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void onStart(ISuite suite) {
-        TestNGListenerHelper.setTotalNumberOfTests(suite);
-        executionStartTime = System.currentTimeMillis();
+        if (isTestNGRun()) {
+            TestNGListenerHelper.setTotalNumberOfTests(suite);
+            executionStartTime = System.currentTimeMillis();
+        }
     }
 
     /**
@@ -108,7 +143,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void transform(ITestAnnotation annotation, Class testClass, Constructor testConstructor, Method testMethod) {
-        annotation.setRetryAnalyzer(RetryAnalyzer.class);
+        if (isTestNGRun()) {
+            annotation.setRetryAnalyzer(RetryAnalyzer.class);
+        }
     }
 
     /**
@@ -125,12 +162,14 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void beforeInvocation(IInvokedMethod method, ITestResult iTestResult, ITestContext iTestContext) {
-        xmlTest = method.getTestMethod().getXmlTest();
-        JiraHelper.prepareTestResultAttributes(method, iTestResult);
-        TestNGListenerHelper.setTestName(iTestContext);
-        TestNGListenerHelper.logTestInformation(iTestResult);
-        TestNGListenerHelper.failFast(iTestResult);
-        TestNGListenerHelper.skipTestsWithLinkedIssues(iTestResult);
+        if (isTestNGRun()) {
+            xmlTest = method.getTestMethod().getXmlTest();
+            JiraHelper.prepareTestResultAttributes(method, iTestResult);
+            TestNGListenerHelper.setTestName(iTestContext);
+            TestNGListenerHelper.logTestInformation(iTestResult);
+            TestNGListenerHelper.failFast(iTestResult);
+            TestNGListenerHelper.skipTestsWithLinkedIssues(iTestResult);
+        }
     }
 
     /**
@@ -147,10 +186,12 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void afterInvocation(IInvokedMethod iInvokedMethod, ITestResult iTestResult, ITestContext iTestContext) {
-        IssueReporter.updateTestStatusInCaseOfVerificationFailure(iTestResult);
-        IssueReporter.updateIssuesLog(iTestResult);
-        TestNGListenerHelper.updateConfigurationMethodLogs(iTestResult);
-        ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
+        if (isTestNGRun()) {
+            IssueReporter.updateTestStatusInCaseOfVerificationFailure(iTestResult);
+            IssueReporter.updateIssuesLog(iTestResult);
+            TestNGListenerHelper.updateConfigurationMethodLogs(iTestResult);
+            ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
+        }
     }
 
     /**
@@ -158,38 +199,45 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void onExecutionFinish() {
-        ReportManagerHelper.setDiscreteLogging(true);
-        JiraHelper.reportExecutionStatusToJira();
-        GoogleTink.encrypt();
-        ReportManagerHelper.generateAllureReportArchive();
-        ReportManagerHelper.openAllureReportAfterExecution();
-        long executionEndTime = System.currentTimeMillis();
-        ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
-        ReportManagerHelper.logEngineClosure();
+        if (isTestNGRun()) {
+            ReportManagerHelper.setDiscreteLogging(true);
+            JiraHelper.reportExecutionStatusToJira();
+            GoogleTink.encrypt();
+            ReportManagerHelper.generateAllureReportArchive();
+            ReportManagerHelper.openAllureReportAfterExecution();
+            long executionEndTime = System.currentTimeMillis();
+            ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
+            ReportManagerHelper.logEngineClosure();
+        }
     }
 
     @Override
     public void onTestSuccess(ITestResult result) {
-        passedTests.add(result.getMethod());
-        ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
-                result.getMethod().getMethodName(), result.getMethod().getDescription(), "",
-                ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
+        if (isTestNGRun()) {
+            passedTests.add(result.getMethod());
+            ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
+                    result.getMethod().getMethodName(), result.getMethod().getDescription(), "",
+                    ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
+        }
     }
 
     @Override
     public void onTestFailure(ITestResult result) {
-        failedTests.add(result.getMethod());
-        ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
-                result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
-                ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
+        if (isTestNGRun()) {
+            failedTests.add(result.getMethod());
+            ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
+                    result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
+                    ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
+        }
     }
 
     @Override
     public void onTestSkipped(ITestResult result) {
-        skippedTests.add(result.getMethod());
-        ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
-                result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
-                ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
+        if (isTestNGRun()) {
+            skippedTests.add(result.getMethod());
+            ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
+                    result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
+                    ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
+        }
     }
-
 }

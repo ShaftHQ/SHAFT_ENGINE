@@ -1,16 +1,17 @@
-package testPackage;
+package junitTestPackage;
 
 import com.shaft.driver.SHAFT;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.openqa.selenium.By;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
-public class BigPageActionsTest {
+public class JunitTest {
+
     SHAFT.GUI.WebDriver driver;
 
     @Test
-    public void test() {
+    void testMethod() {
         driver.element().type(By.id("et_pb_contact_name_0"), "TEST_NAME")
                 .type(By.id("et_pb_contact_email_0"), "email@email.email")
                 .type(By.id("et_pb_contact_message_0"), """
@@ -30,11 +31,12 @@ public class BigPageActionsTest {
                         it will have line breaks
                         and special characters ...######$%^&&*!!""")
                 .captureScreenshot(By.id("et_pb_contact_message_2"))
-                .and().browser().captureScreenshot();
+                .and().browser().captureScreenshot()
+                .and().element().assertThat(By.id("et_pb_contact_email_2")).text().isEqualTo("email@email.email").perform();
     }
 
     @Test
-    public void test2() {
+    void testMethod2() {
         driver.element().type(By.id("et_pb_contact_name_0"), "TEST_NAME")
                 .type(By.id("et_pb_contact_email_0"), "email@email.email")
                 .type(By.id("et_pb_contact_message_0"), """
@@ -54,18 +56,18 @@ public class BigPageActionsTest {
                         it will have line breaks
                         and special characters ...######$%^&&*!!""")
                 .captureScreenshot(By.id("et_pb_contact_message_2"))
-                .and().browser().captureScreenshot();
+                .and().browser().captureScreenshot()
+                .and().element().assertThat(By.id("et_pb_contact_email_2")).text().isEqualTo("email@email.email").perform();
     }
 
-    @BeforeMethod
-    public void beforeMethod() {
+    @BeforeEach
+    void beforeEach() {
         driver = new SHAFT.GUI.WebDriver();
         driver.browser().navigateToURL("https://ultimateqa.com/complicated-page");
     }
 
-    @AfterMethod(alwaysRun = true)
-    public void afterMethod() {
-        if (driver != null)
-            driver.quit();
+    @AfterEach
+    void afterEach() {
+        driver.quit();
     }
 }

@@ -9,6 +9,7 @@ import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.listeners.TestNGListener;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.ProjectStructureManager;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
@@ -72,6 +73,7 @@ public class DriverFactory {
      * used to duplicate the tests for each browser in case of cross-browser Execution
      */
     private static void readLastMinuteUpdatedProperties() {
+        reloadProperties();
         // it's null in case of Cucumber native feature file execution
         if (TestNGListener.getXmlTest() != null) {
             System.getProperties().putAll(TestNGListener.getXmlTest().getAllParameters());
@@ -80,6 +82,18 @@ public class DriverFactory {
                     || testName.contains("chrome")
                     || testName.contains("safari")) {
                 SHAFT.Properties.platform.set().targetPlatform(Platform.LINUX.name());
+            }
+        }
+    }
+
+    public static void reloadProperties() {
+        if (SHAFT.Properties.platform == null) {
+            System.out.println("Execution Listeners are not loaded properly... Self-Healing... Initializing minimalistic test run...");
+            TestNGListener.engineSetup();
+            if (!TestNGListener.isTestNGRun()) {
+                ProjectStructureManager.initialize(ProjectStructureManager.Mode.JUNIT);
+            } else {
+                ProjectStructureManager.initialize(ProjectStructureManager.Mode.TESTNG);
             }
         }
     }

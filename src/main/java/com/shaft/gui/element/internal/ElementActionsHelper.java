@@ -11,6 +11,7 @@ import com.shaft.gui.element.SikuliActions;
 import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.internal.support.JavaScriptHelper;
@@ -125,13 +126,13 @@ public class ElementActionsHelper {
 
     public static ArrayList<Class<? extends Exception>> getExpectedExceptions(boolean isValidToCheckForVisibility) {
         ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
+        expectedExceptions.add(java.lang.ClassCastException.class);
         expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
         expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
-        expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
         expectedExceptions.add(org.openqa.selenium.JavascriptException.class);
-        expectedExceptions.add(org.openqa.selenium.ElementClickInterceptedException.class);
-
         if (isValidToCheckForVisibility) {
+            expectedExceptions.add(org.openqa.selenium.ElementClickInterceptedException.class);
+            expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
             expectedExceptions.add(org.openqa.selenium.InvalidElementStateException.class);
             expectedExceptions.add(org.openqa.selenium.interactions.MoveTargetOutOfBoundsException.class);
         }
@@ -159,10 +160,18 @@ public class ElementActionsHelper {
                         if (ShadowLocatorBuilder.shadowDomLocator != null
                                 && ShadowLocatorBuilder.cssSelector == elementLocator) {
                             targetElement = nestedDriver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElement(ShadowLocatorBuilder.cssSelector);
+                        } else if (LocatorBuilder.getIFrameLocator() != null) {
+                            try {
+                                targetElement = nestedDriver.switchTo().frame(nestedDriver.findElement(LocatorBuilder.getIFrameLocator())).findElement(elementLocator);
+                            } catch (NoSuchElementException exception) {
+                                targetElement = nestedDriver.findElement(elementLocator);
+                            }
                         } else {
                             targetElement = nestedDriver.findElement(elementLocator);
                         }
+                        var elementInformation = new ElementInformation();
                         if (isValidToCheckForVisibility) {
+                            elementInformation.setElementRect(targetElement.getRect());
                             if (!isMobileExecution) {
                                 try {
                                     // native Javascript scroll to center (smooth / auto)
@@ -181,7 +190,6 @@ public class ElementActionsHelper {
                                 targetElement.isDisplayed();
                             }
                         }
-                        var elementInformation = new ElementInformation();
                         if (ShadowLocatorBuilder.shadowDomLocator != null
                                 && ShadowLocatorBuilder.cssSelector == elementLocator) {
                             elementInformation.setNumberOfFoundElements(nestedDriver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElements(ShadowLocatorBuilder.cssSelector).size());
@@ -246,6 +254,9 @@ public class ElementActionsHelper {
     }
 
     private static String performAction(ElementInformation elementInformation, ElementAction action, Object parameter) {
+        if (LocatorBuilder.getIFrameLocator() != null) {
+            DriverFactoryHelper.getDriver().get().switchTo().frame(DriverFactoryHelper.getDriver().get().findElement(LocatorBuilder.getIFrameLocator()));
+        }
         switch (action) {
             case CLICK -> {
                 //move to element
@@ -284,6 +295,9 @@ public class ElementActionsHelper {
             }
             case GET_CONTENT -> {
                 return elementInformation.getFirstElement().getAttribute(TextDetectionStrategy.CONTENT.getValue());
+            }
+            case GET_ATTRIBUTE -> {
+                return elementInformation.getFirstElement().getAttribute((String) parameter);
             }
             case SEND_KEYS -> elementInformation.getFirstElement().sendKeys((CharSequence) parameter);
             case IS_DISPLAYED -> {
@@ -644,21 +658,21 @@ public class ElementActionsHelper {
         }
         var outerHTML = elementInformation.getOuterHTML();
         var innerHTML = elementInformation.getInnerHTML();
-
-        // LOGIC:
-        // we can use https://jsoup.org/ to parse the HTML
-        // when parsing a body fragment, the outerHTML is always wrapped inside <html> and <body> tags
-        // we can extract the original tag name of the first element and use it to find the jsoup element
-        // then we can do our checks and return TEXT > VALUE > CONTENT > UNDEFINED in that order
-
-        var elementTagName = outerHTML.replaceAll("<", "").split(" ")[0];
-        var element = Jsoup.parseBodyFragment(outerHTML).getElementsByTag(elementTagName).get(0);
-        if (element.hasText() && !element.text().isEmpty())
-            return TextDetectionStrategy.TEXT;
-        if (element.hasAttr("value") && !element.attr("value").isEmpty())
-            return TextDetectionStrategy.VALUE;
-        if (!innerHTML.isEmpty() && !innerHTML.contains("<"))
-            return TextDetectionStrategy.CONTENT;
+        if (!outerHTML.isEmpty()) {
+            // LOGIC:
+            // we can use https://jsoup.org/ to parse the HTML
+            // when parsing a body fragment, the outerHTML is always wrapped inside <html> and <body> tags
+            // we can extract the original tag name of the first element and use it to find the jsoup element
+            // then we can do our checks and return TEXT > VALUE > CONTENT > UNDEFINED in that order
+            var element = Jsoup.parse(outerHTML).getElementsByTag("body").get(0).child(0);
+            if (element.hasText() && !element.text().isEmpty())
+                return TextDetectionStrategy.TEXT;
+            if (element.hasAttr("value") && !element.attr("value").isEmpty())
+                return TextDetectionStrategy.VALUE;
+            if (!innerHTML.isEmpty() && !innerHTML.contains("<"))
+                return TextDetectionStrategy.CONTENT;
+            return TextDetectionStrategy.UNDEFINED;
+        }
         return TextDetectionStrategy.UNDEFINED;
     }
 

@@ -183,7 +183,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -219,7 +219,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -322,7 +322,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - uses: maxim-lobanov/setup-android-tools@v1
+      - uses: hankolsen/setup-android-tools@master
         with:
           packages: |
             cmdline-tools;latest
@@ -460,8 +460,6 @@ jobs:
   Android_Native_BrowserStack:
     runs-on: macOS-12
     timeout-minutes: 45
-    if: ${{ always() }}
-    needs: [MacOSX_Safari_Cucumber_BrowserStack]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -498,8 +496,6 @@ jobs:
   iOS_Web_SAFARI_BrowserStack:
     runs-on: macOS-12
     timeout-minutes: 45
-    if: ${{ always() }}
-    needs: [MacOSX_Safari_Cucumber_BrowserStack, Android_Native_BrowserStack]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -536,8 +532,6 @@ jobs:
   Android_Web_Chrome_BrowserStack:
     runs-on: macOS-12
     timeout-minutes: 45
-    if: ${{ always() }}
-    needs: [MacOSX_Safari_Cucumber_BrowserStack, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -574,8 +568,6 @@ jobs:
   Android_Web_Samsung_BrowserStack:
     runs-on: macOS-12
     timeout-minutes: 45
-    if: ${{ always() }}
-    needs: [ MacOSX_Safari_Cucumber_BrowserStack, MacOSX_Safari_BrowserStack, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack ]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -612,8 +604,6 @@ jobs:
   MacOSX_Safari_BrowserStack:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
-    if: ${{ always() }}
-    needs: [ MacOSX_Safari_Cucumber_BrowserStack, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack ]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3

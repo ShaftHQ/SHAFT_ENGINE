@@ -151,12 +151,14 @@ public class ValidationsHelper {
         String actualValue;
         try {
             actualValue = switch (elementAttribute.toLowerCase()) {
-                case "text" -> new ElementActions().getText(elementLocator);
-                case "texttrimmed" -> new ElementActions().getText(elementLocator).trim();
-                case "tagname" -> ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getTagName();
-                case "size" -> ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getSize().toString();
-                case "selectedtext" -> new ElementActions().getSelectedText(elementLocator);
-                default -> new ElementActions().getAttribute(elementLocator, elementAttribute);
+                case "text" -> ElementActions.getInstance().getText(elementLocator);
+                case "texttrimmed" -> ElementActions.getInstance().getText(elementLocator).trim();
+                case "tagname" ->
+                        ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getTagName();
+                case "size" ->
+                        ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getSize().toString();
+                case "selectedtext" -> ElementActions.getInstance().getSelectedText(elementLocator);
+                default -> ElementActions.getInstance().getAttribute(elementLocator, elementAttribute);
             };
         } catch (Throwable e) {
             ReportManagerHelper.setDiscreteLogging(isDiscrete);

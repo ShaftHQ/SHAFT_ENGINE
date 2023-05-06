@@ -278,6 +278,7 @@ public class DriverFactoryHelper {
             options.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
         if (SHAFT.Properties.web.headlessExecution()) {
             options.addArguments("--headless=new");
+            options.addArguments("--disable-gpu");
         }
         // Add if condtion to start the new session if flag=true on specific port
         if (SHAFT.Properties.performance.isEnabled()) {
