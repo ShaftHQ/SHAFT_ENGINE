@@ -126,6 +126,7 @@ public class ElementActionsHelper {
 
     public static ArrayList<Class<? extends Exception>> getExpectedExceptions(boolean isValidToCheckForVisibility) {
         ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
+        expectedExceptions.add(java.lang.ClassCastException.class);
         expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
         expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
         expectedExceptions.add(org.openqa.selenium.JavascriptException.class);
