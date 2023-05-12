@@ -69,9 +69,7 @@ public interface Reporting extends EngineProperties {
     @DefaultValue("true")
     boolean disableLogging();
 
-    @Key("generateFinalPageSnapshot")
-    @DefaultValue("false")
-    boolean generateFinalPageSnapshot();
+
 
     default SetProperty set() {
         return new SetProperty();
@@ -134,9 +132,7 @@ public interface Reporting extends EngineProperties {
         public void disableLogging(boolean value) {
             setProperty("disableLogging", String.valueOf(value));
         }
-        public void generateFinalPageSnapshot(boolean value) {
-            setProperty("generateFinalPageSnapshot", String.valueOf(value));
-        }
+
     }
 
 }

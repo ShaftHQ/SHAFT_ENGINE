@@ -124,9 +124,7 @@ public class DriverFactoryHelper {
             }
             try {
                 attachWebDriverLogs();
-                if (SHAFT.Properties.reporting.generateFinalPageSnapshot()) {
-                    BrowserActionsHelpers.attachPageSnapshot(driver.get());
-                }
+
                 //if dockerized wdm.quit the relevant one
                 if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("dockerized")) {
                     var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver.get());
