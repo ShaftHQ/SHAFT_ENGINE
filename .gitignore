@@ -27,4 +27,3 @@ debug.log
 /lighthouse-reports
 GenerateLHScript.js
 OpenLHReport.js
-/src/test/resources/META-INF/services/org.testng.ITestNGListener

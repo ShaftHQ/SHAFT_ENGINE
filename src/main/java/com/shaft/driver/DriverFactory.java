@@ -90,7 +90,7 @@ public class DriverFactory {
         if (SHAFT.Properties.platform == null) {
             System.out.println("Execution Listeners are not loaded properly... Self-Healing... Initializing minimalistic test run...");
             TestNGListener.engineSetup();
-            if (!TestNGListener.isTestNGRun()) {
+            if (TestNGListener.isJunitRun()) {
                 ProjectStructureManager.initialize(ProjectStructureManager.Mode.JUNIT);
             } else {
                 ProjectStructureManager.initialize(ProjectStructureManager.Mode.TESTNG);
