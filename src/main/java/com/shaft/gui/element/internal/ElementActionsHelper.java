@@ -270,17 +270,12 @@ public class ElementActionsHelper {
                     elementInformation.getFirstElement().click();
                 } catch (Throwable throwable) {
                     if (DriverFactoryHelper.isWebExecution()) {
-                        try {
-                            new Actions(DriverFactoryHelper.getDriver().get()).click(elementInformation.getFirstElement()).perform();
-                            ReportManager.logDiscrete("Performed Click using Actions Class.");
-                        } catch (Throwable throwable1) {
-                            if (SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails()) {
-                                var scriptResult = ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].click();", elementInformation.getFirstElement());
-                                ReportManager.logDiscrete("Performed Click using JavaScript with exit result \"" + scriptResult + "\".");
-                                ReportManager.logDiscrete("If the report is showing that the click passed but you observe that no action was taken, we recommend trying a different element locator.");
-                            } else {
-                                throw throwable;
-                            }
+                        if (SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails()) {
+                            var scriptResult = ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].click();", elementInformation.getFirstElement());
+                            ReportManager.logDiscrete("Performed Click using JavaScript with exit result \"" + scriptResult + "\".");
+                            ReportManager.logDiscrete("If the report is showing that the click passed but you observe that no action was taken, we recommend trying a different element locator.");
+                        } else {
+                            throw throwable;
                         }
                     }
                 }
