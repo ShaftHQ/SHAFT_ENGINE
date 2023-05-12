@@ -778,6 +778,7 @@
                     <encoding>UTF-8</encoding>
                     <maxmem>10240m</maxmem>
                     <meminitial>1024m</meminitial>
+                    <optimize>true</optimize>
                 </configuration>
             </plugin>
             <plugin>
@@ -793,8 +794,7 @@
                     </archive>
                     <includes>
                         <include>com/**/*</include>
-			<include>resources/**/*</include>
-
+                        <include>resources/**/*</include>
                     </includes>
                 </configuration>
             </plugin>

@@ -23,6 +23,8 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 public class TestNGListener implements IAlterSuiteListener, IAnnotationTransformer,
         IExecutionListener, ISuiteListener, IInvokedMethodListener, ITestListener {
@@ -41,22 +43,33 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
 
     public static boolean isTestNGRun() {
         if (!isTestNGRunBool && !isJunitRunBool) {
-            var stacktrace = (new Throwable()).getStackTrace();
-            var isUsingJunitDiscovery = Arrays.stream(stacktrace)
-                    .map(StackTraceElement::getClassName)
-                    .anyMatch(org.junit.platform.launcher.core.EngineDiscoveryOrchestrator.class.getCanonicalName()::equals);
-            var isUsingTestNG = Arrays.stream(stacktrace)
-                    .map(StackTraceElement::getClassName)
-                    .anyMatch(TestNG.class.getCanonicalName()::equals);
-            if (isUsingJunitDiscovery || isUsingTestNG) {
-                System.out.println("TestNG run detected...");
-                isTestNGRunBool = true;
-            } else {
-                System.out.println("JUnit5 run detected...");
-                isJunitRunBool = true;
-            }
+            identifyRunType();
         }
         return isTestNGRunBool;
+    }
+
+    public static boolean isJunitRun() {
+        if (!isTestNGRunBool && !isJunitRunBool) {
+            identifyRunType();
+        }
+        return isJunitRunBool;
+    }
+
+    private static void identifyRunType() {
+        Supplier<Stream<?>> stacktraceSupplier = () -> Arrays.stream((new Throwable()).getStackTrace()).map(StackTraceElement::getClassName);
+        var isUsingJunitDiscovery = stacktraceSupplier.get().anyMatch(org.junit.platform.launcher.core.EngineDiscoveryOrchestrator.class.getCanonicalName()::equals);
+        var isUsingTestNG = stacktraceSupplier.get().anyMatch(TestNG.class.getCanonicalName()::equals);
+        var isUsingCucumber = stacktraceSupplier.get().anyMatch(io.cucumber.core.runner.Runner.class.getCanonicalName()::equals);
+        if (isUsingJunitDiscovery || isUsingTestNG) {
+            System.out.println("TestNG run detected...");
+            isTestNGRunBool = true;
+        } else if (isUsingCucumber) {
+            System.out.println("Cucumber run detected...");
+            isTestNGRunBool = true;
+        } else {
+            System.out.println("JUnit5 run detected...");
+            isJunitRunBool = true;
+        }
     }
 
     public static void engineSetup() {
