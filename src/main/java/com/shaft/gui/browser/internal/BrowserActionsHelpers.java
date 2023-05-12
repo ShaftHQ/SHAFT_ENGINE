@@ -272,14 +272,7 @@ public class BrowserActionsHelpers {
         }
     }
 
-    public static void attachPageSnapshot(WebDriver driver) {
-        var pageSnapshot = capturePageSnapshot(driver);
-        if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
-            ReportManagerHelper.attach("Final Page Snapshot", ReportManagerHelper.getTestMethodName(), pageSnapshot);
-        } else if (pageSnapshot.startsWith("<html")) {
-            ReportManagerHelper.attach("Final Page HTML", ReportManagerHelper.getTestMethodName(), pageSnapshot);
-        }
-    }
+
 
     @SneakyThrows
     public static String formatUrlForBasicAuthentication(String username, String password, String targetUrl) {
