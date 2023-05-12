@@ -68,9 +68,7 @@ public interface Reporting extends EngineProperties {
     @Key("disableLogging")
     @DefaultValue("true")
     boolean disableLogging();
-
-
-
+    
     default SetProperty set() {
         return new SetProperty();
     }
