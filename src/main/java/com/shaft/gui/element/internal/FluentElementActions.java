@@ -1,7 +1,6 @@
 package com.shaft.gui.element.internal;
 
 import com.shaft.cli.FileActions;
-import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.enums.internal.ClipboardAction;
@@ -263,12 +262,7 @@ public class FluentElementActions {
     public FluentElementActions clipboardActions(By elementLocator, ClipboardAction action) {
         try {
             var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
-            boolean wasActionPerformed;
-            if (SHAFT.Properties.platform.targetPlatform().equals(Platform.MAC.name())) {
-                wasActionPerformed = ElementActionsHelper.performClipboardActions(DriverFactoryHelper.getDriver().get(), action, Keys.COMMAND);
-            } else {
-                wasActionPerformed = ElementActionsHelper.performClipboardActions(DriverFactoryHelper.getDriver().get(), action, Keys.CONTROL);
-            }
+            boolean wasActionPerformed = ElementActionsHelper.performClipboardActions(DriverFactoryHelper.getDriver().get(), action);
             if (Boolean.TRUE.equals(wasActionPerformed)) {
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), action.getValue(), null, elementName);
             } else {
