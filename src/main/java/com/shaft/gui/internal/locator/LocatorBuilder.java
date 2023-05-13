@@ -19,6 +19,7 @@ public class LocatorBuilder {
     private String order = "";
     @Setter
     private static Locators mode = Locators.XPATH;
+    String partialXpath;
 
     @SuppressWarnings("unused")
     private LocatorBuilder() {
@@ -108,18 +109,33 @@ public class LocatorBuilder {
         return RelativeLocator.with(By.xpath(buildXpathExpression()));
     }
 
+    public XpathAxis axisBy() {
+        mode = Locators.XPATH;
+        partialXpath = buildXpathExpression();
+        return new XpathAxis(this);
+    }
+
     public By build() {
         if (mode == Locators.CSS) {
             return By.cssSelector(buildSelectorExpression());
         }
+        String xpath;
+        if (partialXpath != null)
+            xpath = partialXpath;
         return By.xpath(buildXpathExpression());
     }
 
     private String buildXpathExpression() {
-        StringBuilder xpathExpression = new StringBuilder();
-        xpathExpression.append("//")
-                .append(tagName);
+        StringBuilder xpathExpression;
+        if (partialXpath == null) {
+            xpathExpression = new StringBuilder();
+            xpathExpression.append("//")
+                    .append(tagName);
+        } else {
+            xpathExpression = new StringBuilder(partialXpath);
+        }
         parameters.forEach(xpathExpression::append);
+        parameters.clear(); //resetting the parameters is important only in case of using the axis and needing to build a partialXpath
         if (!order.equals("")) {
             return "(" + xpathExpression + ")[" + this.order + "]";
         } else {

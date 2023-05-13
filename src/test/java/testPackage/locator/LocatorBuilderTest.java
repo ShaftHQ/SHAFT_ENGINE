@@ -108,4 +108,16 @@ public class LocatorBuilderTest {
         By locator = Locator.hasTagName("a").relativeBy().below(Locator.hasTagName("h1").hasText("SHAFT User Guide").build());
         driver.assertThat().element(locator).text().contains("Upgrade Now").perform();
     }
+
+    @Test
+    public void axisBy_followingSibling() {
+        By locator = Locator.hasTagName("h1").hasText("SHAFT User Guide").axisBy().followingSibling("p").build();
+        driver.assertThat().element(locator).text().contains("Stop reinventing the wheel.").perform();
+    }
+
+    @Test
+    public void axisBy_chain_precedingSibling() {
+        By locator = Locator.hasTagName("h1").hasText("SHAFT User Guide").axisBy().followingSibling("p").axisBy().precedingSibling("h1").build();
+        driver.assertThat().element(locator).text().isEqualTo("SHAFT User Guide").perform();
+    }
 }
