@@ -17,6 +17,7 @@ import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.*;
+import org.openqa.selenium.remote.RemoteWebDriver;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -79,7 +80,7 @@ public class TouchActions {
      */
     public TouchActions nativeKeyboardKeyPress(KeyboardKeys key) {
         try {
-            ((AppiumDriver) DriverFactoryHelper.getDriver().get()).executeScript("mobile: performEditorAction", key.getValue());
+            ((RemoteWebDriver) DriverFactoryHelper.getDriver().get()).executeScript("mobile: performEditorAction", key.getValue());
             ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), key.name(), null, null);
         } catch (Exception rootCauseException) {
             ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, rootCauseException);
@@ -142,7 +143,7 @@ public class TouchActions {
             tap.addAction(new Pause(input, Duration.ofMillis(200)));
             tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
             try {
-                ((AppiumDriver) DriverFactoryHelper.getDriver().get()).perform(ImmutableList.of(tap));
+                ((RemoteWebDriver) DriverFactoryHelper.getDriver().get()).perform(ImmutableList.of(tap));
             } catch (UnsupportedCommandException exception) {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, exception);
             }
@@ -805,7 +806,7 @@ public class TouchActions {
                         PointerInput.Origin.viewport(), source.x * 3 / 4, source.y * 3 / 4))
                 .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
 
-        ((AppiumDriver) DriverFactoryHelper.getDriver().get()).perform(asList(pinchAndZoom1, pinchAndZoom2));
+        ((RemoteWebDriver) DriverFactoryHelper.getDriver().get()).perform(asList(pinchAndZoom1, pinchAndZoom2));
     }
 
 
@@ -837,7 +838,7 @@ public class TouchActions {
                         PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
                 .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
 
-        ((AppiumDriver) DriverFactoryHelper.getDriver().get()).perform(asList(pinchAndZoom1, pinchAndZoom2));
+        ((RemoteWebDriver) DriverFactoryHelper.getDriver().get()).perform(asList(pinchAndZoom1, pinchAndZoom2));
     }
 
     /**
