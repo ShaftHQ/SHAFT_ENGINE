@@ -3,6 +3,7 @@ package testPackage;
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.TouchActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
@@ -14,7 +15,7 @@ import org.testng.annotations.Test;
 public class DragAndDropTests {
     WebDriver driver;
 
-    @Test(priority = 1, description = "TC001 - Test Drag and Drop function.")
+    @Test(description = "TC001 - Test Drag and Drop function.")
     public void dragAndDrop() {
         BrowserActions.getInstance().navigateToURL("http://the-internet.herokuapp.com/drag_and_drop"); // PASSED
         By dropDestinationLocator = By.xpath("//div[@id='columns']//*[contains (text(),'B')]");
@@ -34,13 +35,12 @@ public class DragAndDropTests {
 
     }
 
-    @Test(priority = 2, description = "TC002 - Test Drag and Drop by offset function.")
+    @Test(description = "TC002 - Test Drag and Drop by offset function.")
     public void dragAndDropByOffset() {
         BrowserActions.getInstance().navigateToURL("https://jqueryui.com/resources/demos/draggable/default.html");
         By dragTargetLocator = By.id("draggable");
 
         ElementActions.getInstance().dragAndDropByOffset(dragTargetLocator, 100, 50);
-
     }
 
     @Test
@@ -53,6 +53,25 @@ public class DragAndDropTests {
         Validations.assertThat().object(finalDroppableText).doesNotEqual(initialDroppableText)
                 .withCustomReportMessage("Checking to see if the text has changed after performing drag and drop")
                 .perform();
+    }
+
+    @Test
+    public void dragAndDropTouchEnabled() {
+        BrowserActions.getInstance().navigateToURL("https://jqueryui.com/resources/demos/droppable/default.html");
+        ElementActions actions = ElementActions.getInstance();
+        String initialDroppableText = actions.getText(By.id("droppable"));
+        actions.touch().swipeToElement(By.id("draggable"), By.id("droppable"));
+        String finalDroppableText = actions.getText(By.id("droppable"));
+        Validations.assertThat().object(finalDroppableText).doesNotEqual(initialDroppableText)
+                .withCustomReportMessage("Checking to see if the text has changed after performing drag and drop")
+                .perform();
+    }
+
+    @Test
+    public void dragAndDropByOffsetTouchEnabled() {
+        BrowserActions.getInstance().navigateToURL("https://jqueryui.com/resources/demos/draggable/default.html");
+        By dragTargetLocator = By.id("draggable");
+        TouchActions.getInstance().swipeByOffset(dragTargetLocator, 100, 50);
     }
 
     @BeforeMethod

@@ -8,7 +8,6 @@ import com.shaft.enums.internal.NavigationAction;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.TouchActions;
-import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.FluentElementActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
@@ -296,42 +295,20 @@ public class FluentBrowserActions {
             if (initialURL.endsWith("/")) {
                 initialURL = initialURL.substring(0, initialURL.length() - 1);
             }
-
-            if (SHAFT.Properties.flags.forceCheckNavigationWasSuccessful() && !targetUrl.contains("\n")) {
-                String initialSource = DriverFactoryHelper.getDriver().get().getPageSource();
-                ReportManager.logDiscrete("Initial URL: \"" + initialURL + "\"");
-                if (!initialURL.equals(modifiedTargetUrl)) {
-                    // navigate to new url
-                    BrowserActionsHelpers.navigateToNewUrl(DriverFactoryHelper.getDriver().get(), initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
-                    JavaScriptWaitManager.waitForLazyLoading();
-                    var pageSource = DriverFactoryHelper.getDriver().get().getPageSource();
-                    if ((ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver().get(), By.tagName("html")) == 1)
-                            && pageSource != null
-                            && (!pageSource.equalsIgnoreCase(initialSource))) {
-                        BrowserActionsHelpers.confirmThatWebsiteIsNotDown(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
-                        BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
-                    } else {
-                        BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
-                    }
-                    BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
-                } else {
-                    // already on the same page
-                    DriverFactoryHelper.getDriver().get().navigate().refresh();
-                    JavaScriptWaitManager.waitForLazyLoading();
-                    if (ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver().get(), By.tagName("html")) == 1) {
-                        BrowserActionsHelpers.confirmThatWebsiteIsNotDown(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
-                        BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
-                    }
-                }
+            ReportManager.logDiscrete("Initial URL: \"" + initialURL + "\"");
+            if (!initialURL.equals(modifiedTargetUrl)) {
+                // navigate to new url
+                BrowserActionsHelpers.navigateToNewUrl(DriverFactoryHelper.getDriver().get(), initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
             } else {
-                if (!initialURL.equals(modifiedTargetUrl)) {
-                    BrowserActionsHelpers.navigateToNewUrl(DriverFactoryHelper.getDriver().get(), initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
-                } else {
-                    DriverFactoryHelper.getDriver().get().navigate().refresh();
-                }
-                JavaScriptWaitManager.waitForLazyLoading();
-                BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
+                // already on the same page
+                DriverFactoryHelper.getDriver().get().navigate().refresh();
             }
+            JavaScriptWaitManager.waitForLazyLoading();
+            if (!targetUrl.contains("\n")) {
+                // if can contain line breaks for mocked HTML pages that are used for internal testing only
+                BrowserActionsHelpers.confirmThatWebsiteIsNotDown(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
+            }
+            BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
         } catch (Exception rootCauseException) {
             BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl, rootCauseException);
         }

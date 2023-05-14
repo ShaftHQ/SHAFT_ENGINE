@@ -270,17 +270,12 @@ public class ElementActionsHelper {
                     elementInformation.getFirstElement().click();
                 } catch (Throwable throwable) {
                     if (DriverFactoryHelper.isWebExecution()) {
-                        try {
-                            new Actions(DriverFactoryHelper.getDriver().get()).click(elementInformation.getFirstElement()).perform();
-                            ReportManager.logDiscrete("Performed Click using Actions Class.");
-                        } catch (Throwable throwable1) {
-                            if (SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails()) {
-                                var scriptResult = ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].click();", elementInformation.getFirstElement());
-                                ReportManager.logDiscrete("Performed Click using JavaScript with exit result \"" + scriptResult + "\".");
-                                ReportManager.logDiscrete("If the report is showing that the click passed but you observe that no action was taken, we recommend trying a different element locator.");
-                            } else {
-                                throw throwable;
-                            }
+                        if (SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails()) {
+                            var scriptResult = ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("arguments[0].click();", elementInformation.getFirstElement());
+                            ReportManager.logDiscrete("Performed Click using JavaScript with exit result \"" + scriptResult + "\".");
+                            ReportManager.logDiscrete("If the report is showing that the click passed but you observe that no action was taken, we recommend trying a different element locator.");
+                        } else {
+                            throw throwable;
                         }
                     }
                 }
@@ -707,17 +702,14 @@ public class ElementActionsHelper {
         return "";
     }
 
-    public static boolean performClipboardActions(WebDriver driver, ClipboardAction action, Keys CommandOrControl) {
+    public static boolean performClipboardActions(WebDriver driver, ClipboardAction action) {
         try {
+            Keys cmdCtrl = SHAFT.Properties.platform.targetPlatform().equals(Platform.MAC.name()) ? Keys.COMMAND : Keys.CONTROL;
             switch (action) {
-                case COPY ->
-                        (new Actions(driver)).keyDown(CommandOrControl).sendKeys("c").keyUp(CommandOrControl).build().perform();
-                case PASTE ->
-                        (new Actions(driver)).keyDown(CommandOrControl).sendKeys("v").keyUp(CommandOrControl).build().perform();
-                case CUT ->
-                        (new Actions(driver)).keyDown(CommandOrControl).sendKeys("x").keyUp(CommandOrControl).build().perform();
-                case SELECT_ALL ->
-                        (new Actions(driver)).keyDown(CommandOrControl).sendKeys("a").keyUp(CommandOrControl).build().perform();
+                case COPY -> (new Actions(driver)).keyDown(cmdCtrl).sendKeys("c").keyUp(cmdCtrl).perform();
+                case PASTE -> (new Actions(driver)).keyDown(cmdCtrl).sendKeys("v").keyUp(cmdCtrl).perform();
+                case CUT -> (new Actions(driver)).keyDown(cmdCtrl).sendKeys("x").keyUp(cmdCtrl).perform();
+                case SELECT_ALL -> (new Actions(driver)).keyDown(cmdCtrl).sendKeys("a").keyUp(cmdCtrl).perform();
                 case UNSELECT_ALL -> (new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
                 default -> {
                     return false;
