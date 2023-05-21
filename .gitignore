@@ -2,6 +2,7 @@
 /allure-results/
 /allure-report/
 /extent-reports/
+/execution-summary/
 /test-output/
 /reports/
 /generatedReport_*.zip
@@ -22,3 +23,7 @@ debug.log
 /generateJdk.sh
 /src/main/resources/docker-compose/android-emulator/*
 /src/main/resources/properties/*
+/lighthouse-reports/*
+/lighthouse-reports
+GenerateLHScript.js
+OpenLHReport.js

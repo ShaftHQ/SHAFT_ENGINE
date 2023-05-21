@@ -1,9 +1,10 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
-import io.github.shafthq.shaft.tools.io.FailureReporter;
-import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
-import io.github.shafthq.shaft.tools.support.JavaHelper;
+import com.shaft.driver.DriverFactory;
+import com.shaft.tools.internal.support.JavaHelper;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.restassured.path.json.JsonPath;
 import io.restassured.path.json.exception.JsonPathException;
 
@@ -29,6 +30,7 @@ public class JSONFileManager {
      * @param jsonFilePath target test data json file path
      */
     public JSONFileManager(String jsonFilePath) {
+        DriverFactory.reloadProperties();
         jsonFilePath = JavaHelper.appendTestDataToRelativePath(jsonFilePath);
         this.jsonFilePath = jsonFilePath;
         initializeReader();

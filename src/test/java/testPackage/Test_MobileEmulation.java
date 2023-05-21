@@ -3,6 +3,7 @@ package testPackage;
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -16,8 +17,8 @@ public class Test_MobileEmulation {
 
     @Test
     public void test_mobileEmulation_device() {
-        System.setProperty("mobileEmulation.isCustomDevice", "false");
-        System.setProperty("mobileEmulation.deviceName", "Pixel 5");
+        SHAFT.Properties.web.set().mobileEmulationIsCustomDevice(false);
+        SHAFT.Properties.web.set().mobileEmulationDeviceName("Pixel 5");
         driver = new SHAFT.GUI.WebDriver();
         driver.browser().navigateToURL("https://www.google.com/");
         driver.verifyThat().browser().title().isEqualTo("Google").perform();
@@ -27,11 +28,11 @@ public class Test_MobileEmulation {
 
     @Test
     public void test_mobileEmulation_customDevice() {
-        System.setProperty("mobileEmulation.isCustomDevice", "true");
-        System.setProperty("mobileEmulation.width", "660");
-        System.setProperty("mobileEmulation.height", "660");
-        System.setProperty("mobileEmulation.pixelRatio", "3.0");
-        System.setProperty("mobileEmulation.userAgent", "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:35.0) Gecko/20100101 Firefox/35.0");
+        SHAFT.Properties.web.set().mobileEmulationIsCustomDevice(true);
+        SHAFT.Properties.web.set().mobileEmulationWidth(660);
+        SHAFT.Properties.web.set().mobileEmulationHeight(660);
+        SHAFT.Properties.web.set().mobileEmulationPixelRatio(3.0);
+        SHAFT.Properties.web.set().mobileEmulationUserAgent("Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:35.0) Gecko/20100101 Firefox/35.0");
         driver = new SHAFT.GUI.WebDriver();
         driver.browser().navigateToURL("https://www.google.com/");
         driver.element().type(searchBox, "SHAFT_Engine").keyPress(searchBox, Keys.ENTER);
@@ -40,11 +41,16 @@ public class Test_MobileEmulation {
 
     @BeforeClass
     public void beforeClass() {
-        System.setProperty("isMobileEmulation", "true");
+        SHAFT.Properties.web.set().isMobileEmulation(true);
     }
 
     @AfterMethod(alwaysRun = true)
-    public void afterClass() {
+    public void afterMethod() {
         driver.quit();
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void afterClass() {
+        SHAFT.Properties.web.set().isMobileEmulation(false);
     }
 }

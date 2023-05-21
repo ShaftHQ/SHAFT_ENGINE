@@ -1,10 +1,11 @@
 package com.shaft.gui.element;
 
+import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.gui.browser.internal.FluentBrowserActions;
+import com.shaft.gui.element.internal.ElementActionsHelper;
+import com.shaft.gui.element.internal.FluentElementActions;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.driver.DriverFactoryHelper;
-import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
-import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
-import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import org.openqa.selenium.NoAlertPresentException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
@@ -40,7 +41,7 @@ public class AlertActions {
 
     private static void waitForAlertToBePresent() {
         try {
-            (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofSeconds(Integer.parseInt(System.getProperty("defaultElementIdentificationTimeout"))))).until(ExpectedConditions.alertIsPresent());
+            (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofSeconds(SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()))).until(ExpectedConditions.alertIsPresent());
             DriverFactoryHelper.getDriver().get().switchTo().alert();
             ReportManager.logDiscrete("Alert is present");
         } catch (Exception rootCauseException) {

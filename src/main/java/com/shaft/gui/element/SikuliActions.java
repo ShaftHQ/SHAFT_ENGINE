@@ -1,11 +1,12 @@
 package com.shaft.gui.element;
 
-import io.github.shafthq.shaft.driver.DriverFactoryHelper;
-import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
-import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
-import io.github.shafthq.shaft.gui.image.ScreenshotManager;
-import io.github.shafthq.shaft.gui.video.RecordManager;
-import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
+import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.gui.browser.internal.JavaScriptWaitManager;
+import com.shaft.gui.element.internal.ElementActionsHelper;
+import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.video.RecordManager;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.commons.io.IOUtils;
 import org.sikuli.basics.Settings;
 import org.sikuli.script.*;
@@ -349,7 +350,7 @@ public class SikuliActions {
 
     private Pattern prepareElementPattern(byte[] targetElement) throws IOException {
         if (applicationWindow != null) {
-            applicationWindow.waitForWindow(Integer.parseInt(System.getProperty("browserNavigationTimeout")));
+            applicationWindow.waitForWindow(SHAFT.Properties.timeouts.browserNavigationTimeout());
             applicationWindow.focus();
         }
         Pattern elementPattern = new Pattern();
@@ -368,7 +369,7 @@ public class SikuliActions {
         Settings.DebugLogs = true;
         Settings.LogTime = true;
         screen = new Screen();
-        screen.setAutoWaitTimeout(Double.parseDouble(System.getProperty("defaultElementIdentificationTimeout")));
+        screen.setAutoWaitTimeout(SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
         RecordManager.startVideoRecording();
     }
 

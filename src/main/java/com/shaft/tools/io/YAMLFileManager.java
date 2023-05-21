@@ -1,8 +1,9 @@
 package com.shaft.tools.io;
 
-import io.github.shafthq.shaft.tools.io.FailureReporter;
-import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
-import io.github.shafthq.shaft.tools.support.JavaHelper;
+import com.shaft.driver.DriverFactory;
+import com.shaft.tools.internal.support.JavaHelper;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.FileInputStream;
@@ -36,6 +37,7 @@ public class YAMLFileManager {
      * @param filePath target test data yaml file path
      */
     public YAMLFileManager(String filePath) {
+        DriverFactory.reloadProperties();
         this.filePath = JavaHelper.appendTestDataToRelativePath(filePath);
         this.data = getData();
 

@@ -14,11 +14,11 @@ public class Test_ShadowDOM {
     WebDriver driver;
 
     @Test
-    public void shadowdom() {
+    public void shadowDom() {
         String targetText = "Typing into SHADOW DOM...";
-        BrowserActions.navigateToURL(driver, "https://mdn.github.io/web-components-examples/popup-info-box-web-component/");
-        ElementActions.type(driver, By.id("cvc"), targetText);
-        Validations.assertThat().element(driver, By.id("cvc")).text().equals(targetText);
+        BrowserActions.getInstance().navigateToURL("https://mdn.github.io/web-components-examples/popup-info-box-web-component/");
+        ElementActions.getInstance().type(By.id("cvc"), targetText);
+        Validations.assertThat().element(driver, By.id("cvc")).text().isEqualTo(targetText).perform();
     }
 
     @BeforeMethod
@@ -28,6 +28,6 @@ public class Test_ShadowDOM {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        BrowserActions.closeCurrentWindow(driver);
+        BrowserActions.getInstance().closeCurrentWindow();
     }
 }

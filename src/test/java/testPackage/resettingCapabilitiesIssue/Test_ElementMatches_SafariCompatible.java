@@ -18,14 +18,15 @@ public class Test_ElementMatches_SafariCompatible {
     }
     @SuppressWarnings("CommentedOutCode")
     @BeforeMethod
-    public void beforeMethod(){
+    public void beforeMethod() {
         // remote browserstack server
-//        System.setProperty("executionAddress","browserstack");
-//        System.setProperty("targetOperatingSystem","Mac");
-//        System.setProperty("targetBrowserName","Safari");
-//        System.setProperty("browserStack.browserVersion","15.3");
-//        System.setProperty("browserStack.osVersion", "Monterey");
-        driver =  new SHAFT.GUI.WebDriver();
+//        SHAFT.Properties.platform.set().executionAddress("browserstack");
+//        SHAFT.Properties.platform.set().targetPlatform(Platform.MAC.name());
+//        SHAFT.Properties.web.set().targetBrowserName(Browser.SAFARI.browserName());
+//        SHAFT.Properties.platform.set().executionAddress("browserstack");
+//        SHAFT.Properties.browserStack.set().browserVersion("15.3");
+//        SHAFT.Properties.browserStack.set().osVersion("Monterey");
+        driver = new SHAFT.GUI.WebDriver();
     }
     @AfterMethod(alwaysRun = true)
     public void afterMethod(){

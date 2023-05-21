@@ -5,12 +5,14 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.jayway.jsonpath.JsonPath;
+import com.shaft.driver.SHAFT;
+import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.Validations;
 import eu.medsea.mimeutil.MimeUtil;
 import eu.medsea.mimeutil.MimeUtil2;
-import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
-import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.restassured.builder.MultiPartSpecBuilder;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.config.EncoderConfig;
@@ -34,7 +36,6 @@ import org.json.simple.parser.ParseException;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.JSONCompare;
 import org.skyscreamer.jsonassert.JSONCompareMode;
-import org.testng.Assert;
 
 import javax.xml.XMLConstants;
 import javax.xml.transform.OutputKeys;
@@ -76,7 +77,7 @@ public class RestActions {
     }
 
     public RestActions(String serviceURI) {
-        initializeSystemProperties(System.getProperty("apiConnectionTimeout") == null);
+        initializeSystemProperties();
         headerAuthorization = "";
         this.serviceURI = serviceURI;
         sessionCookies = new HashMap<>();
@@ -96,11 +97,7 @@ public class RestActions {
     private static void failAction(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
                                    Throwable... rootCauseException) {
         String message = reportActionResult(actionName, testData, requestBody, specs, response, false, null, false, rootCauseException);
-        if (rootCauseException != null && rootCauseException.length >= 1) {
-            Assert.fail(message, rootCauseException[0]);
-        } else {
-            Assert.fail(message);
-        }
+        FailureReporter.fail(RestActions.class, message, rootCauseException[0]);
     }
 
     protected static void passAction(String testData) {
@@ -593,21 +590,24 @@ public class RestActions {
             } else {
                 requestBodyAttachment.add("API Request");
                 switch (identifyBodyObjectType(requestBody)) {
-                    case 1 ->
-                            // json
-                            requestBodyAttachment.add("JSON Body");
-                    case 2 ->
-                            // xml
-                            requestBodyAttachment.add("XML Body");
-                    case 3, 4 ->
-                            // I don't remember... may be binary
-                            // binary... probably
-                            requestBodyAttachment.add("Body");
-                    default -> {
+                    case 1 -> {
+                        // json
+                        requestBodyAttachment.add("JSON Body");
+                        requestBodyAttachment.add(parseBodyToJson(requestBody));
                     }
-                    // unreachable code
+                    case 2 -> {
+                        // xml
+                        requestBodyAttachment.add("XML Body");
+                        requestBodyAttachment.add(formatXML(String.valueOf(requestBody)));
+                    }
+                    case 3, 4 -> {
+                        // I don't remember... may be binary
+                        // binary... probably
+                        requestBodyAttachment.add("Body");
+                        requestBodyAttachment.add(parseBodyToJson(requestBody));
+                    }
+                    default -> requestBodyAttachment.add(parseBodyToJson(requestBody));
                 }
-                requestBodyAttachment.add(parseBodyToJson(requestBody));
                 return requestBodyAttachment;
             }
         }
@@ -627,21 +627,24 @@ public class RestActions {
             } else {
                 responseBodyAttachment.add("API Response");
                 switch (identifyBodyObjectType(responseBody)) {
-                    case 1 ->
-                            // json
-                            responseBodyAttachment.add("JSON Body");
-                    case 2 ->
-                            // xml
-                            responseBodyAttachment.add("XML Body");
-                    case 3, 4 ->
-                            // I don't remember... may be binary
-                            // binary... probably
-                            responseBodyAttachment.add("Body");
-                    default -> {
+                    case 1 -> {
+                        // json
+                        responseBodyAttachment.add("JSON Body");
+                        responseBodyAttachment.add(parseBodyToJson(responseBody));
                     }
-                    // unreachable code
+                    case 2 -> {
+                        // xml
+                        responseBodyAttachment.add("XML Body");
+                        responseBodyAttachment.add(formatXML(String.valueOf(responseBody)));
+                    }
+                    case 3, 4 -> {
+                        // I don't remember... may be binary
+                        // binary... probably
+                        responseBodyAttachment.add("Body");
+                        responseBodyAttachment.add(parseBodyToJson(responseBody));
+                    }
+                    default -> responseBodyAttachment.add(parseBodyToJson(responseBody));
                 }
-                responseBodyAttachment.add(parseBodyToJson(responseBody));
                 return responseBodyAttachment;
             }
         }
@@ -833,16 +836,13 @@ public class RestActions {
         }
     }
 
-    private static void initializeSystemProperties(boolean readPropertyFilesBeforeInitializing) {
-        HTTP_SOCKET_TIMEOUT = Integer.parseInt(System.getProperty("apiSocketTimeout"));
+    private static void initializeSystemProperties() {
+        HTTP_SOCKET_TIMEOUT = SHAFT.Properties.timeouts.apiSocketTimeout();
         // timeout between two consecutive data packets in seconds
-        HTTP_CONNECTION_TIMEOUT = Integer.parseInt(System.getProperty("apiConnectionTimeout"));
+        HTTP_CONNECTION_TIMEOUT = SHAFT.Properties.timeouts.apiConnectionTimeout();
         // timeout until a connection is established in seconds
-        HTTP_CONNECTION_MANAGER_TIMEOUT = Integer
-                .parseInt(System.getProperty("apiConnectionManagerTimeout"));
-
-        AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = Boolean.parseBoolean(System.getProperty("automaticallyAssertResponseStatusCode"));
-
+        HTTP_CONNECTION_MANAGER_TIMEOUT = SHAFT.Properties.timeouts.apiConnectionManagerTimeout();
+        AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = SHAFT.Properties.flags.automaticallyAssertResponseStatusCode();
     }
 
     /**

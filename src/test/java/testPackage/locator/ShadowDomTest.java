@@ -1,8 +1,8 @@
 package testPackage.locator;
 
 import com.shaft.driver.SHAFT;
-import io.github.shafthq.shaft.gui.locator.LocatorBuilder;
-import io.github.shafthq.shaft.gui.locator.Locators;
+import com.shaft.gui.internal.locator.LocatorBuilder;
+import com.shaft.gui.internal.locator.Locators;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.Browser;
@@ -24,7 +24,8 @@ public class ShadowDomTest {
 
     @Test
     public void shaftLocator() {
-        if (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.FIREFOX.browserName())) {
+        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
+                || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
             driver.browser().navigateToURL("http://watir.com/examples/shadow_dom.html");
             By shadowDom = SHAFT.GUI.Locator.hasAnyTagName().hasId("shadow_host").build();
             By shadowElement = SHAFT.GUI.Locator.hasAnyTagName().hasId("shadow_content").insideShadowDom(shadowDom).build();
@@ -34,7 +35,8 @@ public class ShadowDomTest {
 
     @BeforeMethod
     public void beforeMethod() {
-        if (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.FIREFOX.browserName())) {
+        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
+                || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
             LocatorBuilder.setMode(Locators.CSS);
             driver = new SHAFT.GUI.WebDriver();
         }
@@ -42,9 +44,24 @@ public class ShadowDomTest {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        if (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.FIREFOX.browserName())) {
+        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
+                || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
             LocatorBuilder.setMode(Locators.XPATH);
             driver.quit();
+        }
+    }
+
+    //@Test
+    public void shaftLocator_2() {
+        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
+                || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
+            LocatorBuilder.setMode(Locators.CSS);
+            driver.browser().navigateToURL("https://usercentrics.com");
+            By shadowDom = By.id("usercentrics-root");
+            By shadowElement = SHAFT.GUI.Locator.hasTagName("button")
+                    .hasAttribute("data-testid", "uc-accept-all-button")
+                    .insideShadowDom(shadowDom).build();
+            driver.element().click(shadowElement);
         }
     }
 }

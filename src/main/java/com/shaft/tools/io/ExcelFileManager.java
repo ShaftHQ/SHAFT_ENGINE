@@ -1,8 +1,10 @@
 package com.shaft.tools.io;
 
-import io.github.shafthq.shaft.tools.io.FailureReporter;
-import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
-import io.github.shafthq.shaft.tools.support.JavaHelper;
+import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
+import com.shaft.tools.internal.support.JavaHelper;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.poi.EmptyFileException;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DateUtil;
@@ -38,6 +40,7 @@ public class ExcelFileManager {
      * @param excelFilePath target test data Excel file path
      */
     public ExcelFileManager(String excelFilePath) {
+        DriverFactory.reloadProperties();
         excelFilePath = JavaHelper.appendTestDataToRelativePath(excelFilePath);
         initializeVariables();
         this.excelFilePath = excelFilePath;
@@ -200,7 +203,7 @@ public class ExcelFileManager {
         row = null;
         cell = null;
         excelFilePath = "";
-        testDataColumnNamePrefix = System.getProperty("testDataColumnNamePrefix");
+        testDataColumnNamePrefix = SHAFT.Properties.pattern.testDataColumnNamePrefix();
     }
 
     private int getRowNumberFromRowName(String sheetName, String rowName) {

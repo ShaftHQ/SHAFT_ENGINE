@@ -7,11 +7,47 @@ on:
   schedule:
     - cron: '00 1 * * *'
   workflow_dispatch:
-  
+
 env:
-  ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 60
+  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*]"
 
 jobs:
+  Ubuntu_Database:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+          cache: 'maven'
+          check-latest: true
+      - name: Run tests
+        continue-on-error: true
+        run: mvn -e test "-DgenerateAllureReportArchive=true" "-Dtest=.*DatabaseTests.*"
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+          files: ./target/jacoco/jacoco.xml
+          verbose: true
+      - name: Upload Allure Report as Pipeline Artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Ubuntu_Database_Allure
+          path: "generatedReport_*.zip"
+      - name: Upload Execution Summary Report as Pipeline Artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Ubuntu_Database_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"
+
   Ubuntu_Firefox_Grid:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
@@ -31,7 +67,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=FIREFOX" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -45,20 +81,13 @@ jobs:
         with:
           name: Ubuntu_Firefox_Grid_Allure
           path: "generatedReport_*.zip"
-      - name: Upload Extent Report as Pipeline Artifact
+      - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: Ubuntu_Firefox_Grid_Extent
-          path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Ubuntu_Firefox_Grid Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+          name: Ubuntu_Firefox_Grid_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"
+          
   Ubuntu_Chrome_Grid:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
@@ -78,7 +107,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=GoogleChrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -92,20 +121,13 @@ jobs:
         with:
           name: Ubuntu_Chrome_Grid_Allure
           path: "generatedReport_*.zip"
-      - name: Upload Extent Report as Pipeline Artifact
+      - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: Ubuntu_Chrome_Grid_Extent
-          path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Ubuntu_Chrome_Grid Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+          name: Ubuntu_Chrome_Grid_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"
+          
   Ubuntu_Edge_Grid:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
@@ -125,7 +147,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -139,20 +161,13 @@ jobs:
         with:
           name: Ubuntu_Edge_Grid_Allure
           path: "generatedReport_*.zip"
-      - name: Upload Extent Report as Pipeline Artifact
+      - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: Ubuntu_Edge_Grid_Extent
-          path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Ubuntu_Edge_Grid Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+          name: Ubuntu_Edge_Grid_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"
+          
   Windows_Edge_Local:
     runs-on: windows-latest
     timeout-minutes: 60
@@ -168,7 +183,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -182,20 +197,13 @@ jobs:
         with:
           name: Windows_Edge_Local_Allure
           path: "generatedReport_*.zip"
-      - name: Upload Extent Report as Pipeline Artifact
+      - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: Windows_Edge_Local_Extent
-          path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Windows_Edge_Local Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+          name: Windows_Edge_Local_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"
+          
   Windows_Chrome_Local:
     runs-on: windows-latest
     timeout-minutes: 60
@@ -211,7 +219,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=GoogleChrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -225,20 +233,13 @@ jobs:
         with:
           name: Windows_Chrome_Local_Allure
           path: "generatedReport_*.zip"
-      - name: Upload Extent Report as Pipeline Artifact
+      - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: Windows_Chrome_Local_Extent
-          path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Windows_Chrome_Local Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+          name: Windows_Chrome_Local_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"
+          
   MacOSX_Safari_Local:
     runs-on: macOS-12
     timeout-minutes: 60
@@ -254,7 +255,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=SAFARI" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=SAFARI" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -268,20 +269,13 @@ jobs:
         with:
           name: MacOSX_Safari_Local_Allure
           path: "generatedReport_*.zip"
-      - name: Upload Extent Report as Pipeline Artifact
+      - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: MacOSX_Safari_Local_Extent
-          path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: MacOSX_Safari_Local Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+          name: MacOSX_Safari_Local_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"
+          
   MacOSX_Chrome_Local:
     runs-on: macOS-12
     timeout-minutes: 60
@@ -299,7 +293,7 @@ jobs:
         uses: browser-actions/setup-chrome@latest
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=GoogleChrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -313,20 +307,13 @@ jobs:
         with:
           name: MacOSX_Chrome_Local_Allure
           path: "generatedReport_*.zip"
-      - name: Upload Extent Report as Pipeline Artifact
+      - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: MacOSX_Chrome_Local_Extent
-          path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: MacOSX_Chrome_Local Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+          name: MacOSX_Chrome_Local_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"
+          
   Android_Native_Emulator:
     runs-on: macOS-12
     timeout-minutes: 45
@@ -335,7 +322,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - uses: maxim-lobanov/setup-android-tools@v1
+      - uses: hankolsen/setup-android-tools@master
         with:
           packages: |
             cmdline-tools;latest
@@ -455,20 +442,6 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
-          
-      - name: Upload Initial Emulator screenshot
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: emulator.png
-          path: emulator.png
-          
-      - name: Upload Appium Server Logs
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: appiumServer.log
-          path: appiumServer.log
 
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
@@ -477,25 +450,16 @@ jobs:
           name: Android_Native_Emulator_Allure
           path: "generatedReport_*.zip"
 
-      - name: Upload Extent Report as Pipeline Artifact
+      - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: Android_Native_Emulator_Extent
-          path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Android_Native_Emulator Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+          name: Android_Native_Emulator_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"
+          
   Android_Native_BrowserStack:
     runs-on: macOS-12
     timeout-minutes: 45
-    if: ${{ always() }}
-    needs: [MacOSX_Safari_Cucumber_BrowserStack]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -522,25 +486,16 @@ jobs:
         with:
           name: Android_Native_BrowserStack_Allure
           path: "generatedReport_*.zip"
-      - name: Upload Extent Report as Pipeline Artifact
+      - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: Android_Native_BrowserStack_Extent
-          path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Android_Native_BrowserStack Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+          name: Android_Native_BrowserStack_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"
+          
   iOS_Web_SAFARI_BrowserStack:
     runs-on: macOS-12
     timeout-minutes: 45
-    if: ${{ always() }}
-    needs: [MacOSX_Safari_Cucumber_BrowserStack, Android_Native_BrowserStack]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -567,25 +522,16 @@ jobs:
         with:
           name: iOS_Web_SAFARI_BrowserStack_Allure
           path: "generatedReport_*.zip"
-      - name: Upload Extent Report as Pipeline Artifact
+      - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: iOS_Web_SAFARI_BrowserStack_Extent
-          path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: iOS_Web_SAFARI_BrowserStack_Extent Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+          name: iOS_Web_SAFARI_BrowserStack_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"
+          
   Android_Web_Chrome_BrowserStack:
     runs-on: macOS-12
     timeout-minutes: 45
-    if: ${{ always() }}
-    needs: [MacOSX_Safari_Cucumber_BrowserStack, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -612,25 +558,16 @@ jobs:
         with:
           name: Android_Web_Chrome_BrowserStack_Allure
           path: "generatedReport_*.zip"
-      - name: Upload Extent Report as Pipeline Artifact
+      - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: Android_Web_Chrome_BrowserStack_Extent
-          path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Android_Web_Chrome_BrowserStack Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
+          name: Android_Web_Chrome_BrowserStack_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"
 
-  MacOSX_Safari_BrowserStack:
-    runs-on: ubuntu-22.04
+  Android_Web_Samsung_BrowserStack:
+    runs-on: macOS-12
     timeout-minutes: 45
-    if: ${{ always() }}
-    needs: [MacOSX_Safari_Cucumber_BrowserStack, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -643,7 +580,43 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*tests_browserActions.*], %regex[.*Test_chainableElementActions.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-Dmobile_browserName=samsung" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+          files: ./target/jacoco/jacoco.xml
+          verbose: true
+      - name: Upload Allure Report as Pipeline Artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Android_Web_Samsung_BrowserStack_Allure
+          path: "generatedReport_*.zip"
+      - name: Upload Execution Summary Report as Pipeline Artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Android_Web_Samsung_BrowserStack_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"
+
+  MacOSX_Safari_BrowserStack:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+          cache: 'maven'
+          check-latest: true
+      - name: Run tests
+        continue-on-error: true
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*ChainableElementActionsTests.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -657,20 +630,13 @@ jobs:
         with:
           name: MacOSX_Safari_BrowserStack_Allure
           path: "generatedReport_*.zip"
-      - name: Upload Extent Report as Pipeline Artifact
+      - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: MacOSX_Safari_BrowserStack_Extent
-          path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: MacOSX_Safari_BrowserStack Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+          name: MacOSX_Safari_BrowserStack_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"
+          
   Ubuntu_Chrome_Cucumber_Grid:
     runs-on: ubuntu-22.04
     steps:
@@ -696,7 +662,7 @@ jobs:
       - name: Run tests on Linux/MacOS
         if: runner.os != 'Windows'
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=GoogleChrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=.*CucumberTestRunner.*"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=.*CucumberTestRunner.*"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -710,20 +676,13 @@ jobs:
         with:
           name: Ubuntu_Chrome_Cucumber_Grid_Allure
           path: "generatedReport_*.zip"
-      - name: Upload Extent Report as Pipeline Artifact
+      - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: Ubuntu_Chrome_Cucumber_Grid_Extent
-          path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Ubuntu_Chrome_Cucumber_Grid Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+          name: Ubuntu_Chrome_Cucumber_Grid_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"
+          
   Windows_Edge_Cucumber:
     runs-on: windows-latest
     steps:
@@ -757,20 +716,13 @@ jobs:
         with:
           name: Windows_Edge_Cucumber_Allure
           path: "generatedReport_*.zip"
-      - name: Upload Extent Report as Pipeline Artifact
+      - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: Windows_Edge_Cucumber_Extent
-          path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Windows_Edge_Cucumber Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+          name: Windows_Edge_Cucumber_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"
+          
   MacOSX_Safari_Cucumber_BrowserStack:
     runs-on: macOS-12
     steps:
@@ -803,16 +755,9 @@ jobs:
         with:
           name: MacOSX_Safari_Cucumber_BrowserStack_Allure
           path: "generatedReport_*.zip"
-      - name: Upload Extent Report as Pipeline Artifact
+      - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: MacOSX_Safari_Cucumber_BrowserStack_Extent
-          path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: MacOSX_Safari_Cucumber_BrowserStack Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
+          name: MacOSX_Safari_Cucumber_BrowserStack_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"

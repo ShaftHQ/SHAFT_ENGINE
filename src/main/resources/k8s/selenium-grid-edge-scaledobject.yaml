@@ -1,0 +1,19 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: selenium-edge-scaledobject
+  namespace: selenium-grid
+  labels:
+    deploymentName: selenium-edge-node
+spec:
+  scaleTargetRef:
+    name: selenium-edge-node
+  pollingInterval: 5
+  minReplicaCount: 1
+  maxReplicaCount: 20
+  triggers:
+    - type: selenium-grid
+      metadata:
+        url: 'http://selenium-router.selenium-grid.svc:4444/graphql'
+        browserName: 'MicrosoftEdge'
+        sessionBrowserName: 'msedge'

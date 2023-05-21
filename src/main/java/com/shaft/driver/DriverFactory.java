@@ -5,10 +5,13 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
 import com.shaft.db.DatabaseActions.DatabaseType;
+import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.listeners.TestNGListener;
+import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.driver.DriverFactoryHelper;
-import io.github.shafthq.shaft.listeners.TestNGListener;
+import com.shaft.tools.io.internal.ProjectStructureManager;
 import org.openqa.selenium.MutableCapabilities;
+import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.Browser;
 import org.sikuli.script.App;
@@ -23,7 +26,7 @@ public class DriverFactory {
      */
     public static WebDriver getDriver() {
         readLastMinuteUpdatedProperties();
-        if (System.getProperty("executionAddress").contains("browserstack")) {
+        if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("browserstack")) {
             return getBrowserStackDriver(new MutableCapabilities());
         } else {
             DriverFactoryHelper.initializeDriver();
@@ -70,9 +73,28 @@ public class DriverFactory {
      * used to duplicate the tests for each browser in case of cross-browser Execution
      */
     private static void readLastMinuteUpdatedProperties() {
+        reloadProperties();
         // it's null in case of Cucumber native feature file execution
         if (TestNGListener.getXmlTest() != null) {
             System.getProperties().putAll(TestNGListener.getXmlTest().getAllParameters());
+            var testName = TestNGListenerHelper.getTestName().toLowerCase();
+            if (testName.contains("firefox")
+                    || testName.contains("chrome")
+                    || testName.contains("safari")) {
+                SHAFT.Properties.platform.set().targetPlatform(Platform.LINUX.name());
+            }
+        }
+    }
+
+    public static void reloadProperties() {
+        if (SHAFT.Properties.platform == null) {
+            System.out.println("Execution Listeners are not loaded properly... Self-Healing... Initializing minimalistic test run...");
+            TestNGListener.engineSetup();
+            if (TestNGListener.isJunitRun()) {
+                ProjectStructureManager.initialize(ProjectStructureManager.Mode.JUNIT);
+            } else {
+                ProjectStructureManager.initialize(ProjectStructureManager.Mode.TESTNG);
+            }
         }
     }
 
@@ -89,7 +111,6 @@ public class DriverFactory {
             if ("".equals(SHAFT.Properties.browserStack.appRelativeFilePath())) {
                 // this means it's a web execution (desktop or mobile)
                 if (DriverFactoryHelper.isMobileWebExecution()) {
-                    // TODO: support web mobile execution
                     browserStackOptions = BrowserStack.setupMobileWebExecution().merge(browserStackOptions);
                 } else {
                     // desktop web
@@ -121,7 +142,7 @@ public class DriverFactory {
     public static App getSikuliApp(String applicationName) {
 //        DriverFactoryHelper.initializeSystemProperties();
         var myapp = new App(applicationName);
-        myapp.waitForWindow(Integer.parseInt(System.getProperty("browserNavigationTimeout")));
+        myapp.waitForWindow(SHAFT.Properties.timeouts.browserNavigationTimeout());
         myapp.focus();
         ReportManager.log("Opened app: [" + myapp.getName() + "]...");
         return myapp;

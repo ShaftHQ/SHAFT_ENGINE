@@ -2,6 +2,7 @@ package testPackage;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.Validations;
@@ -17,7 +18,7 @@ public class Test_ValidationsBuilder {
     public void elementValidations() {
         WebDriver driver;
         driver = DriverFactory.getDriver();
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
+        BrowserActions.getInstance().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
         Validations.assertThat()
                 .element(driver, googleLogo)
                 .exists()
@@ -79,7 +80,7 @@ public class Test_ValidationsBuilder {
     public void browserValidations() {
         WebDriver driver;
         driver = DriverFactory.getDriver();
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
+        BrowserActions.getInstance().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
         Validations.assertThat()
                 .browser(driver)
                 .url()
@@ -169,7 +170,7 @@ public class Test_ValidationsBuilder {
 
     //@Test
     public void restValidations() {
-        String referenceJsonFilePath = System.getProperty("jsonFolderPath") + "specialCharacters.json";
+        String referenceJsonFilePath = SHAFT.Properties.paths.testData() + "specialCharacters.json";
         Response response = (new ResponseBuilder()).setBody(FileActions.getInstance().readFile(referenceJsonFilePath))
                 .setStatusCode(200).build();
 

@@ -5,8 +5,8 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
 import poms.GoogleSearch;
@@ -55,15 +55,27 @@ public class GUIWizardTests {
                 .verifyThat(productName).text().isEqualTo("Sauce Labs Backpack").perform();
     }
 
+    @Test
+    public void test_selectFromDropdownList(){
+        driver.browser().navigateToURL("http://the-internet.herokuapp.com/dropdown");
+       //"1" is attribute value string value
+        driver.element().select(By.id("dropdown"), "1");
+        driver.element().captureScreenshot(By.id("dropdown"));
+        //"Option 2" is the displayed text of "option 2"
+        driver.element().select(By.id("dropdown"), "Option 2");
+        driver.element().captureScreenshot(By.id("dropdown"));
 
-    @BeforeClass
-    public void beforeClass() {
+    }
+
+
+    @BeforeMethod
+    public void beforeMethod() {
         driver = new SHAFT.GUI.WebDriver();
         testData = new SHAFT.TestData.JSON("simpleJSON.json");
     }
 
-    @AfterClass(alwaysRun = true)
-    public void afterClass() {
+    @AfterMethod(alwaysRun = true)
+    public void afterMethod() {
         driver.quit();
     }
 }

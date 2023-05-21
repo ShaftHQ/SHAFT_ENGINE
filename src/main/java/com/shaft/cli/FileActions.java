@@ -1,16 +1,18 @@
 package com.shaft.cli;
 
 import com.google.common.hash.Hashing;
+import com.shaft.driver.SHAFT;
+import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
-import io.github.shafthq.shaft.tools.support.JavaHelper;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.commons.lang3.SystemUtils;
+import org.openqa.selenium.Platform;
 import org.sikuli.basics.FileManager;
-import org.testng.Assert;
 
 import java.io.*;
 import java.net.JarURLConnection;
@@ -164,7 +166,7 @@ public class FileActions {
      *                                           created on the remote machine to
      *                                           extract a file from inside a
      *                                           docker, and will be deleted
-     *                                           afterwards
+     *                                           afterward
      * @return a string that holds the SHA256 checksum for the target file
      */
     public String getFileChecksum(TerminalActions terminalSession, String targetFileFolderPath,
@@ -205,7 +207,7 @@ public class FileActions {
      *                                           created on the remote machine to
      *                                           extract a file from inside a
      *                                           docker, and will be deleted
-     *                                           afterwards
+     *                                           afterward
      * @return a string that holds the full absolute path (inside a temporary
      * folder) for the file that was copied to the local machine
      */
@@ -483,6 +485,50 @@ public class FileActions {
         }
     }
 
+    public void copyFileFromJar(String sourceFolderPath, String destinationFolderPath, String fileName) {
+        try {
+            URL url = new URL(sourceFolderPath.replace("file:", "jar:file:"));
+            JarURLConnection jarConnection = (JarURLConnection) url.openConnection();
+            JarFile jarFile = jarConnection.getJarFile();
+
+            /*
+             * Iterate all entries in the jar file.
+             */
+            for (Enumeration<JarEntry> e = jarFile.entries(); e.hasMoreElements(); ) {
+
+                JarEntry jarEntry = e.nextElement();
+                String jarEntryName = jarEntry.getName();
+                String jarConnectionEntryName = jarConnection.getEntryName();
+
+                /*
+                 * Extract files only if they match the path.
+                 */
+                if (jarEntryName.startsWith(jarConnectionEntryName) && jarEntryName.contains(fileName)) {
+
+                    String filename = jarEntryName.startsWith(jarConnectionEntryName) ? jarEntryName.substring(jarConnectionEntryName.length()) : jarEntryName;
+                    File currentFile = new File(destinationFolderPath, filename);
+                    if (!currentFile.toPath().normalize().startsWith(new File(destinationFolderPath).toPath())) {
+                        throw new Exception("Bad zip entry");
+                    }
+                    if (jarEntry.isDirectory()) {
+                        boolean success = currentFile.mkdirs();
+                        if (success) {
+                            ReportManager.logDiscrete("Directory Created successfully...");
+                        }
+                    } else {
+                        InputStream is = jarFile.getInputStream(jarEntry);
+                        OutputStream out = FileUtils.openOutputStream(currentFile);
+                        IOUtils.copy(is, out);
+                        is.close();
+                        out.close();
+                    }
+                }
+            }
+        } catch (Exception rootCauseException) {
+            failAction(rootCauseException);
+        }
+    }
+
     public void deleteFolder(String folderPath) {
         File directory = new File(folderPath);
         try {
@@ -519,7 +565,7 @@ public class FileActions {
     public boolean zipFiles(String srcFolder, String destZipFile) {
         boolean result = false;
         try (var fileWalker = Files.walk(Paths.get(srcFolder))) {
-            if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
+            if (SHAFT.Properties.reporting.debugMode()) {
                 var log = new StringBuilder();
                 fileWalker.filter(Files::isRegularFile)
                         .forEach(filePath -> {
@@ -620,11 +666,7 @@ public class FileActions {
 
     private void failAction(String actionName, String testData, Exception... rootCauseException) {
         String message = reportActionResult(actionName, testData, null, false, rootCauseException);
-        if (rootCauseException != null && rootCauseException.length >= 1) {
-            Assert.fail(message, rootCauseException[0]);
-        } else {
-            Assert.fail(message);
-        }
+        FailureReporter.fail(FileActions.class, message, rootCauseException[0]);
     }
 
     private String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus, Exception... rootCauseException) {
@@ -673,7 +715,7 @@ public class FileActions {
     }
 
     private boolean isTargetOSUnixBased() {
-        if (System.getProperty("executionAddress").trim().equals("local")) {
+        if (SHAFT.Properties.platform.executionAddress().equals("local")) {
             // local execution
             if (SystemUtils.IS_OS_WINDOWS) {
                 return false;
@@ -685,10 +727,10 @@ public class FileActions {
             }
         } else {
             // remote execution
-            String targetOS = System.getProperty("targetOperatingSystem");
-            if ("Windows".equals(targetOS)) {
+            String targetOS = SHAFT.Properties.platform.targetPlatform();
+            if (Platform.WINDOWS.name().equals(targetOS)) {
                 return false;
-            } else if ("Linux".equals(targetOS) || "Mac".equals(targetOS)) {
+            } else if (Platform.LINUX.name().equals(targetOS) || Platform.MAC.name().equals(targetOS)) {
                 return true;
             } else {
                 ReportManager.logDiscrete("Unsupported OS type, will assume it's unix based.");

@@ -1,7 +1,7 @@
 package testPackage.mockedTests;
 
 import com.shaft.driver.SHAFT;
-import io.github.shafthq.shaft.enums.Screenshots;
+import com.shaft.enums.internal.Screenshots;
 import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;

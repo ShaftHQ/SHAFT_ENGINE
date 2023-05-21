@@ -3,7 +3,7 @@
 <suite name="Suite02" verbose="10">
     <test name="Test01">
         <classes>
-            <class name="testPackage.unitTests.ValidationTests">
+            <class name="testPackage.mockedTests.ValidationTests">
                 <methods>
                     <include name="assertEquals_true_expectedToPass"/>
                     <include name="assertEquals_true_expectedToFail"/>
@@ -13,7 +13,7 @@
     </test>
     <test name="Test02">
         <classes>
-            <class name="testPackage.Test_JsonActions">
+            <class name="testPackage.JsonActionsTests">
             </class>
         </classes>
     </test>

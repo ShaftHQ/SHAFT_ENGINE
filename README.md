@@ -16,11 +16,11 @@
 # SHAFT: Unified Test Automation Engine
 
 
-[🦸‍♂️ Powered by the best](https://github.com/ShaftHQ/SHAFT_ENGINE#-powered-by) - [🟢 Selenium Ecosystem proud member](https://www.selenium.dev/ecosystem/) - [👨‍🏫 Fully Documented](https://ShaftHQ.github.io/SHAFT_Engine_Docusaurus/)
+[🦸‍♂️ Powered by the best](https://github.com/ShaftHQ/SHAFT_ENGINE#-powered-by) - [🟢 Selenium Ecosystem proud member](https://www.selenium.dev/ecosystem/) - [👨‍🏫 Fully Documented](https://ShaftHQ.github.io/)
 
 [🤝 Fully supported](https://github.com/ShaftHQ/SHAFT_ENGINE#-support--contributions) - [🌍 Used by thousands](https://github.com/ShaftHQ/SHAFT_ENGINE#-who-else-is-using-shaft-2) - [🤨 Oddly familiar](https://github.com/ShaftHQ/SHAFT_ENGINE#-tech-stack)
 
-[🔋 Batteries included](https://github.com/MohabMohie/using_SHAFT_Engine) - [🪄 No magic required](https://ShaftHQ.github.io/SHAFT_ENGINE/).
+[🔋 Batteries included](https://github.com/MohabMohie/using_SHAFT_Engine) - [🪄 No magic required](https://ShaftHQ.github.io/).
 
 
 <a id="quick-start-guide"></a>
@@ -95,9 +95,9 @@ public void afterClass(){
   by following these steps:
   <br/>- Open 'Edit Run/Debug Configurations' dialog > Edit Configurations... > Edit configuration templates...
   <br/>- Select <b>TestNG</b> > Listeners > and add these listeners one by one:
-  <br/>`io.github.shafthq.shaft.listeners.TestNGListener`
+  <br/>`com.shaft.listeners.TestNGListener`
   <br/>- Select <b>Cucumber Java</b> > Program Arguments > and add this argument:
-  <br/>`--plugin io.github.shafthq.shaft.listeners.CucumberFeatureListener`
+  <br/>`--plugin com.shaft.listeners.CucumberFeatureListener`
   <br/>- After saving the changes, remember to delete any old test runs you may have triggered by mistake before adding
   the needed config.
 
@@ -118,7 +118,7 @@ public void afterClass(){
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://cucumber.io/tools/cucumber-open/" target="_blank"><img src="https://github.com/cucumber/cucumber-ruby/raw/main/.github/img/cucumber-open-logo.png" alt="Cucumber.io" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://bonigarcia.dev/webdrivermanager/" target="_blank"><img src="https://bonigarcia.dev/webdrivermanager/img/wdm.png" alt="WebDriverManager" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.selenium.dev/documentation/grid/" target="_blank"><img src="https://media.softwaresim.com/Selenium_Grid_mpxkym-600.webp" alt="Selenium Grid" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.browserstack.com/" target="_blank"><img src="https://www.insightpartners.com//assets/media/2021/06/browserstack.png" alt="BrowserStack" height="50px"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.browserstack.com/" target="_blank"><img src="https://ml.globenewswire.com/Resource/Download/745e80b7-4736-424e-b44b-850d2dc41940" alt="BrowserStack" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="http://sikulix.com/" target="_blank"><img src="https://raw.githubusercontent.com/RaiMan/SikuliX1/master/Support/sikulix-red.png" alt="SikuliX" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://opencv.org/" target="_blank"><img src="https://opencv.org/wp-content/uploads/2022/05/logo.png" alt="OpenCV" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://applitools.com/" target="_blank"><img src="https://www.selenium.dev/images/sponsors/applitools.png" alt="Applitools" height="50px"></a>
@@ -145,7 +145,7 @@ public void afterClass(){
 
 
 ## 🙏 Big thanks to the following organizations for their support to the project with their open source licenses
-<a href="https://www.browserstack.com/" target="_blank"><img src="https://www.insightpartners.com//assets/media/2021/06/browserstack.png" alt="BrowserStack" height="50px"></a>
+<a href="https://www.browserstack.com/" target="_blank"><img src="https://ml.globenewswire.com/Resource/Download/745e80b7-4736-424e-b44b-850d2dc41940" alt="BrowserStack" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://applitools.com/" target="_blank"><img src="https://www.selenium.dev/images/sponsors/applitools.png" alt="Applitools" height="50px"></a>
 
 

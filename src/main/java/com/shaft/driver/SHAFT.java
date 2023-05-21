@@ -6,22 +6,22 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
+import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.driver.internal.WizardHelpers;
+import com.shaft.gui.browser.internal.FluentBrowserActions;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.gui.element.TouchActions;
+import com.shaft.gui.element.internal.FluentElementActions;
+import com.shaft.listeners.internal.WebDriverListener;
 import com.shaft.tools.io.ExcelFileManager;
 import com.shaft.tools.io.JSONFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.YAMLFileManager;
+import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.validation.internal.RestValidationsBuilder;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
-import io.github.shafthq.shaft.driver.DriverFactoryHelper;
-import io.github.shafthq.shaft.driver.WizardHelpers;
-import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
-import io.github.shafthq.shaft.gui.element.FluentElementActions;
-import io.github.shafthq.shaft.listeners.WebDriverListener;
-import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
-import io.github.shafthq.shaft.validations.RestValidationsBuilder;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.response.Response;
 import org.openqa.selenium.MutableCapabilities;
@@ -29,12 +29,24 @@ import org.openqa.selenium.support.events.EventFiringDecorator;
 import org.sikuli.script.App;
 
 import java.io.InputStream;
+import java.sql.ResultSet;
 import java.util.List;
 
 @SuppressWarnings("unused")
 public class SHAFT {
     public static class GUI {
         public static class WebDriver {
+            public static WebDriver getInstance() {
+                return new WebDriver();
+            }
+
+            public static WebDriver getInstance(DriverFactory.DriverType driverType) {
+                return new WebDriver(driverType);
+            }
+
+            public static WebDriver getInstance(DriverFactory.DriverType driverType, MutableCapabilities mutableCapabilities) {
+                return new WebDriver(driverType, mutableCapabilities);
+            }
 
             public WebDriver() {
                 DriverFactory.getDriver();
@@ -119,10 +131,13 @@ public class SHAFT {
         }
 
         @Beta
-        public static class Locator extends io.github.shafthq.shaft.gui.locator.Locator {
+        public static class Locator extends com.shaft.gui.internal.locator.Locator {
         }
 
         public static class SikuliDriver {
+            public static SikuliDriver getInstance(String applicationName) {
+                return new SikuliDriver(applicationName);
+            }
 
             private final App sikuliApp;
 
@@ -143,9 +158,14 @@ public class SHAFT {
             }
         }
     }
+
     public static class API {
         private final RestActions session;
         private String serviceURI;
+
+        public static API getInstance(String serviceURI) {
+            return new API(serviceURI);
+        }
 
         public API(String serviceURI) {
             session = new RestActions(serviceURI);
@@ -225,24 +245,54 @@ public class SHAFT {
     }
 
     public static class CLI {
-        public TerminalActions terminal() {
+        private CLI() {
+            throw new IllegalStateException("Utility class");
+        }
+
+        public static TerminalActions terminal() {
             return new TerminalActions();
         }
 
-        public FileActions file() {
+        public static FileActions file() {
             return new FileActions();
         }
     }
 
-    public static class DB {
-        public DatabaseActions performDatabaseActions(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
-                                                      String password) {
-            return new DatabaseActions(databaseType, ip, port, name, username, password);
+    public static class DB extends DatabaseActions {
+        public DB(String customConnectionString) {
+            super(customConnectionString);
         }
 
-        public DatabaseActions performDatabaseActions(String customConnectionString) {
-            return new DatabaseActions(customConnectionString);
+        public DB(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
+                  String password) {
+            super(databaseType, ip, port, name, username, password);
         }
+
+        public static DB getInstance(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
+                                     String password) {
+            return new DB(databaseType, ip, port, name, username, password);
+        }
+
+        public static DB getInstance(String customConnectionString) {
+            return new DB(customConnectionString);
+        }
+
+        public static String getResult(ResultSet resultSet) {
+            return DatabaseActions.getResult(resultSet);
+        }
+
+        public static String getColumn(ResultSet resultSet, String columnName) {
+            return DatabaseActions.getColumn(resultSet, columnName);
+        }
+
+        public static String getRow(ResultSet resultSet, String columnName, String knownCellValue) {
+            return DatabaseActions.getRow(resultSet, columnName, knownCellValue);
+        }
+
+        public static int getRowCount(ResultSet resultSet) {
+            return DatabaseActions.getRowCount(resultSet);
+        }
+
     }
 
     public static class Validations {
@@ -270,6 +320,10 @@ public class SHAFT {
             public JSON(String jsonFilePath) {
                 super(jsonFilePath);
             }
+
+            public static JSONFileManager getInstance(String jsonFilePath) {
+                return new JSONFileManager(jsonFilePath);
+            }
         }
 
         public static class EXCEL extends ExcelFileManager {
@@ -281,6 +335,10 @@ public class SHAFT {
              */
             public EXCEL(String excelFilePath) {
                 super(excelFilePath);
+            }
+
+            public static ExcelFileManager getInstance(String excelFilePath) {
+                return new ExcelFileManager(excelFilePath);
             }
         }
 
@@ -294,11 +352,15 @@ public class SHAFT {
             public YAML(String yamlFilePath) {
                 super(yamlFilePath);
             }
+
+            public static YAMLFileManager getInstance(String yamlFilePath) {
+                return new YAMLFileManager(yamlFilePath);
+            }
         }
     }
 
     @Beta
-    public static class Properties extends io.github.shafthq.shaft.properties.Properties {
+    public static class Properties extends com.shaft.properties.internal.Properties {
     }
 
     public static class Report {

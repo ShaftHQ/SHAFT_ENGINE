@@ -15,10 +15,10 @@ public class Test_threadSafe_grid4 {
 
 //    @BeforeClass
     @SuppressWarnings({"CommentedOutCode", "EmptyMethod"})
-    public void setupRemoteParallelExecution(){
-//        System.setProperty("executionAddress","localhost:4444");
-//        System.setProperty("targetOperatingSystem","Linux");
-//        System.setProperty("maximumPerformanceMode","2");
+    public void setupRemoteParallelExecution() {
+//        SHAFT.Properties.platform.set().executionAddress("localhost:4444");
+//        SHAFT.Properties.platform.set().targetPlatform(Platform.LINUX.name());
+//        SHAFT.Properties.flags.set().maximumPerformanceMode(2);
     }
 
 //    @Test
@@ -40,7 +40,7 @@ public class Test_threadSafe_grid4 {
     }
 
     private void runTestSteps(){
-        BrowserActions.navigateToURL(driver.get(), "https://duckduckgo.com/?");
+        BrowserActions.getInstance().navigateToURL("https://duckduckgo.com/?");
         new ElementActions(driver.get()).type(searchBar, "SHAFT_Engine")
                 .keyPress(searchBar, Keys.ENTER);
         Validations.assertThat()
@@ -49,6 +49,6 @@ public class Test_threadSafe_grid4 {
                 .contains("ShaftHQ/SHAFT_ENGINE")
                 .withCustomReportMessage("Asserting that the second search result contains 'ShaftHQ/SHAFT_ENGINE'")
                 .perform();
-        BrowserActions.closeCurrentWindow(driver.get());
+        BrowserActions.getInstance().closeCurrentWindow();
     }
 }

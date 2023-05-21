@@ -34,7 +34,8 @@ public class androidBasicInteractionsTest {
                 .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 18']"), TouchActions.SwipeDirection.DOWN)
                 .tap(By.xpath("//android.widget.TextView[@text='Group 18']"))
                 .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Child 13']"), TouchActions.SwipeDirection.DOWN)
-                .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 1']"), TouchActions.SwipeDirection.UP);
+                .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 1']"), TouchActions.SwipeDirection.UP)
+                .sendAppToBackground(1);
     }
 
     @Test
@@ -49,7 +50,8 @@ public class androidBasicInteractionsTest {
                 .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 18']"), TouchActions.SwipeDirection.DOWN)
                 .tap(By.xpath("//android.widget.TextView[@text='Group 18']"))
                 .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Child 13']"), TouchActions.SwipeDirection.DOWN)
-                .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 1']"), TouchActions.SwipeDirection.UP);
+                .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 1']"), TouchActions.SwipeDirection.UP)
+                .sendAppToBackground();
     }
 
     @Test
@@ -95,9 +97,16 @@ public class androidBasicInteractionsTest {
 
     @Test
     public void visualElementIdentification_samedpi() {
+        var referenceImageFile = "content.png";
+        if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("browserstack")) {
+            referenceImageFile = "content_local.png";
+        }
+
+        var elementReferenceFilePath = "src/main/resources/dynamicObjectRepository/Android/" + referenceImageFile;
         driver.touch()
-                .swipeElementIntoView("src/main/resources/dynamicObjectRepository/Android/content.png", TouchActions.SwipeDirection.DOWN)
-                .tap("src/main/resources/dynamicObjectRepository/Android/content.png");
+                .swipeElementIntoView(elementReferenceFilePath, TouchActions.SwipeDirection.DOWN)
+                .waitUntilElementIsVisible(elementReferenceFilePath)
+                .tap(elementReferenceFilePath);
 
         driver.assertThat().element(AppiumBy.accessibilityId("Assets")).exists().perform();
     }
@@ -117,7 +126,8 @@ public class androidBasicInteractionsTest {
         ((AndroidDriver) driver.getDriver()).startActivity(new Activity(PACKAGE, SEARCH_ACTIVITY));
 
         driver.element().type(By.id("txt_query_prefill"), "Hello world!")
-                .and().touch().tap(By.id("btn_start_search"))
+//                .and().touch().tap(By.id("btn_start_search"))
+                .and().touch().nativeKeyboardKeyPress(TouchActions.KeyboardKeys.SEARCH)
                 .and().assertThat(By.id("android:id/search_src_text")).text().isEqualTo("Hello world!").perform();
     }
 
@@ -144,6 +154,7 @@ public class androidBasicInteractionsTest {
     @SuppressWarnings("CommentedOutCode")
     @BeforeMethod
     public void setup() {
+        System.setProperty("mobile_autoGrantPermissions", "true");
         // common attributes
         SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
         SHAFT.Properties.mobile.set().automationName(AutomationName.ANDROID_UIAUTOMATOR2);

@@ -1,5 +1,6 @@
 package testPackage.unitTests;
 
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ExcelFileManager;
 import com.shaft.tools.io.ReportManager;
 import org.testng.annotations.BeforeClass;
@@ -17,8 +18,7 @@ public class tests_io_excelFileManager {
 
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
-        System.setProperty("testDataFilePath", System.getProperty("testDataFolderPath")+"testSuite01/TestData.xlsx");
-        testDataReader = new ExcelFileManager(System.getProperty("testDataFilePath"));
+        testDataReader = new ExcelFileManager(SHAFT.Properties.paths.testData() + "testSuite01/TestData.xlsx");
         // driver = BrowserFactory.getBrowser(testDataReader);
     }
 }

@@ -1,6 +1,6 @@
 Contribution is easy!
 
-Just join our slack channel linked in the readme.md, tell us your idea and we'll help you implement it yourself.
+Just join our Slack channel linked in the readme.md, tell us your idea, and we'll help you implement it yourself.
 The more you contribute, the more you'll get the hang of how things are done.
 
 For any fixes we need evidence before and after the fix on all impacted platforms.

@@ -16,7 +16,7 @@ public class Test_verifyEquals {
 
     @Test
     public void test_assertElementAttribute() {
-        ElementActions.type(driver, GoogleSearch.getSearchBox_textField(),
+        ElementActions.getInstance().type(GoogleSearch.getSearchBox_textField(),
                 "INC_004010050:Another SCHEDULER with the same name [Duplicate Job Name] already exists.");
         Validations.verifyThat().element(driver, GoogleSearch.getSearchBox_textField())
                 .text()
@@ -26,9 +26,9 @@ public class Test_verifyEquals {
 
     @Test
     public void test_assertEquals() {
-        ElementActions.type(driver, GoogleSearch.getSearchBox_textField(),
+        ElementActions.getInstance().type(GoogleSearch.getSearchBox_textField(),
                 "INC_004010050:Another SCHEDULER with the same name [Duplicate Job Name] already exists.");
-        String actualValue = ElementActions.getText(driver, GoogleSearch.getSearchBox_textField());
+        String actualValue = ElementActions.getInstance().getText(GoogleSearch.getSearchBox_textField());
         Validations.verifyThat()
                 .object(actualValue)
                 .matchesRegex("INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.")
@@ -37,7 +37,7 @@ public class Test_verifyEquals {
 
     @Test
     public void test_verifyElementAttribute() {
-        ElementActions.type(driver, GoogleSearch.getSearchBox_textField(),
+        ElementActions.getInstance().type(GoogleSearch.getSearchBox_textField(),
                 "© Copyright 2014-2017 Incorta, Inc Version: Rel3.3-dev Build May 29, 2018 15:30");
         Validations.verifyThat().element(driver, GoogleSearch.getSearchBox_textField())
                 .text()
@@ -48,11 +48,11 @@ public class Test_verifyEquals {
     @BeforeMethod // Set-up method, to be run once before the first test
     public void beforeMethod() {
         driver = DriverFactory.getDriver();
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com/");
+        BrowserActions.getInstance().navigateToURL("https://www.google.com/ncr", "https://www.google.com/");
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        BrowserActions.closeCurrentWindow(driver);
+        BrowserActions.getInstance().closeCurrentWindow();
     }
 }

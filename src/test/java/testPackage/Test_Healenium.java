@@ -2,6 +2,7 @@ package testPackage;
 
 import com.epam.healenium.SelfHealingDriver;
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Validations;
@@ -40,7 +41,7 @@ public class Test_Healenium {
         }
 
         //navigate to target url
-        BrowserActions.navigateToURL(driver,"https://www.google.com/ncr","https://www.google.com");
+        BrowserActions.getInstance().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
 
         //define element locator
         By googleLogo_image = By.xpath("//*[@alt='Google']");
@@ -69,12 +70,12 @@ public class Test_Healenium {
 
     @BeforeMethod
     public void beforeMethod(){
-        System.setProperty("heal-enabled", "true");
+        SHAFT.Properties.healenium.set().healEnabled(true);
         driver = DriverFactory.getDriver();
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod(){
-        BrowserActions.closeCurrentWindow(driver);
+        BrowserActions.getInstance().closeCurrentWindow();
     }
 }
