@@ -668,39 +668,39 @@ public class FluentElementActions {
     }
 
     /**
-     * Selects an element from a dropdown list using its displayed text
+     * Selects an element from a dropdown list using its displayed text or attribute Value
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
-     * @param text           the text of the choice that you need to select from the
-     *                       target dropDown menu
+     * @param valueOrVisibleText the text of the choice that you need to select from the
+     *                           target dropDown menu or the string value of attribute"value"
      * @return a self-reference to be used to chain actions
      */
-    public FluentElementActions select(By elementLocator, String text) {
+    public FluentElementActions select(By elementLocator, String valueOrVisibleText) {
         try {
             var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
             //add forced check that the select element actually has options and is not empty
             if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(DriverFactoryHelper.getDriver().get(), elementLocator, ""))) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), text, elementLocator);
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), valueOrVisibleText , elementLocator);
             }
             boolean isOptionFound = false;
             var availableOptionsList = (new Select(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)))).getOptions();
             for (int i = 0; i < availableOptionsList.size(); i++) {
                 String visibleText = availableOptionsList.get(i).getText();
                 String value = availableOptionsList.get(i).getAttribute("value");
-                if (visibleText.trim().equals(text) || value.trim().equals(text)) {
+                if (visibleText.trim().equals(valueOrVisibleText) || value.trim().equals(valueOrVisibleText)) {
                     (new Select(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)))).selectByIndex(i);
-                    ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
+                    ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), valueOrVisibleText, null, elementName);
                     isOptionFound = true;
                     break;
                 }
             }
             if (Boolean.FALSE.equals(isOptionFound)) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), text, elementLocator);
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), valueOrVisibleText, elementLocator);
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), text, elementLocator, throwable);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), valueOrVisibleText, elementLocator, throwable);
         }
         return this;
     }

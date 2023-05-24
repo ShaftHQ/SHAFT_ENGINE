@@ -55,6 +55,18 @@ public class GUIWizardTests {
                 .verifyThat(productName).text().isEqualTo("Sauce Labs Backpack").perform();
     }
 
+    @Test
+    public void test_selectFromDropdownList(){
+        driver.browser().navigateToURL("http://the-internet.herokuapp.com/dropdown");
+       //"1" is attribute value string value
+        driver.element().select(By.id("dropdown"), "1");
+        driver.element().captureScreenshot(By.id("dropdown"));
+        //"Option 2" is the displayed text of "option 2"
+        driver.element().select(By.id("dropdown"), "Option 2");
+        driver.element().captureScreenshot(By.id("dropdown"));
+
+    }
+
 
     @BeforeMethod
     public void beforeMethod() {
