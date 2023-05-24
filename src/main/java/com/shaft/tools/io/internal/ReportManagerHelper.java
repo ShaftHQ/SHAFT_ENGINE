@@ -869,7 +869,7 @@ public class ReportManagerHelper {
                     "set JAVA_HOME=" + System.getProperty("java.home"),
                     "set path=%JAVA_HOME%\\bin;%path%",
                     "set path=" + allureExtractionLocation + "allure-" + allureVersion + "\\bin;%path%",
-                    "allure serve " + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1),
+                    "allure serve " + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1) + "-h localhost",
                     "pause", "exit");
             FileActions.getInstance().writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
         } else {
@@ -878,7 +878,7 @@ public class ReportManagerHelper {
                     .asList("#!/bin/bash", "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
                             "cd '" + allureExtractionLocation + "allure-" + allureVersion + "/bin/'",
                             "bash allure serve $parent_path'/"
-                                    + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1) + "'",
+                                    + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1) + "'" + "-h localhost",
                             "exit"
 
                     );
