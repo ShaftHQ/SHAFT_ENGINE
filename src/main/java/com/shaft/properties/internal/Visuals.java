@@ -16,6 +16,9 @@ public interface Visuals extends EngineProperties {
         ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
 
+    @Key("visualMatchingThreshold")
+    @DefaultValue("0.90")
+    double visualMatchingThreshold();
 
     @Key("screenshotParams_scalingFactor")
     @DefaultValue("1")
@@ -74,6 +77,11 @@ public interface Visuals extends EngineProperties {
     }
 
     class SetProperty implements EngineProperties.SetProperty {
+
+        public void visualMatchingThreshold(String value) {
+            setProperty("visualMatchingThreshold", value);
+        }
+
         public void screenshotParamsScalingFactor(String value) {
             setProperty("screenshotParams_scalingFactor", value);
         }
