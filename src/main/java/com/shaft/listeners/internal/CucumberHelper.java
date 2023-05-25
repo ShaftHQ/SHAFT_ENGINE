@@ -41,7 +41,8 @@ public class CucumberHelper {
     public static void shaftTeardown() {
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
-            DriverFactory.closeAllDrivers();
+            if (SHAFT.Properties.flags.autoCloseDriverInstance())
+                DriverFactory.closeAllDrivers();
 
             ReportHelper.attachEngineLog();
             ReportHelper.attachExtentReport();
