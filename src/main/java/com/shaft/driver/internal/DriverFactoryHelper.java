@@ -293,6 +293,8 @@ public class DriverFactoryHelper {
         } else {
             options.addArguments("--window-position=0,0", "--window-size=" + TARGET_WINDOW_SIZE.getWidth() + "," + TARGET_WINDOW_SIZE.getHeight());
         }
+        if (!SHAFT.Properties.flags.autoCloseDriverInstance())
+            options.setExperimentalOption("detach", true);
 
 //         https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
 //         https://docs.google.com/spreadsheets/d/1n-vw_PCPS45jX3Jt9jQaAhFqBY6Ge1vWF_Pa0k7dCk4/edit#gid=1265672696

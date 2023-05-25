@@ -57,6 +57,10 @@ public interface Flags extends EngineProperties {
     @DefaultValue("false")
     boolean clickUsingJavascriptWhenWebDriverClickFails();
 
+    @Key("autoCloseDriverInstance")
+    @DefaultValue("true")
+    boolean autoCloseDriverInstance();
+
     @Key("automaticallyAssertResponseStatusCode")
     @DefaultValue("true")
     boolean automaticallyAssertResponseStatusCode();
@@ -112,6 +116,10 @@ public interface Flags extends EngineProperties {
 
         public void clickUsingJavascriptWhenWebDriverClickFails(boolean value) {
             setProperty("clickUsingJavascriptWhenWebDriverClickFails", String.valueOf(value));
+        }
+
+        public void autoCloseDriverInstance(boolean value) {
+            setProperty("autoCloseDriverInstance", String.valueOf(value));
         }
 
         public void automaticallyAssertResponseStatusCode(boolean value) {
