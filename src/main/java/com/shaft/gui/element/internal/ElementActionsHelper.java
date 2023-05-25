@@ -952,7 +952,11 @@ public class ElementActionsHelper {
                 message = reportActionResult(driver, actionName, testData, null, screenshots, elementName, false);
             }
         }
-        Assert.fail(message);
+        if (rootCauseException.length >= 1) {
+            Assert.fail(message, rootCauseException[0]);
+        } else {
+            Assert.fail(message);
+        }
     }
 
     @SuppressWarnings("SpellCheckingInspection")

@@ -405,7 +405,7 @@ public class DriverFactoryHelper {
         return logPrefs;
     }
 
-    private static void createNewLocalDriverInstance(DriverType driverType) {
+    private static void createNewLocalDriverInstance(DriverType driverType, boolean recurse) {
         String initialLog = "Attempting to run locally on: \"" + Properties.platform.targetPlatform() + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
         if (SHAFT.Properties.web.headlessExecution()) {
             initialLog = initialLog + ", Headless Execution";
@@ -445,13 +445,6 @@ public class DriverFactoryHelper {
                     && Throwables.getRootCause(exception).getMessage().toLowerCase().contains("safari instance is already paired with another webdriver session")) {
                 //this issue happens when running locally via safari/mac platform
                 // sample failure can be found here: https://github.com/ShaftHQ/SHAFT_ENGINE/actions/runs/4527911969/jobs/7974202314#step:4:46621
-                // attempting blind fix by trying to quit existing driver if any
-                try {
-                    driver.get().quit();
-                    driver.remove();
-                } catch (Throwable throwable) {
-                    // ignore
-                }
                 // attempting blind fix by trying to quit existing safari instances if any
                 try {
                     SHAFT.CLI.terminal().performTerminalCommand("osascript -e \"tell application \\\"Safari\\\" to quit\"\n");
@@ -459,6 +452,16 @@ public class DriverFactoryHelper {
                     // ignore
                 }
             }
+            // attempting blind fix by trying to quit existing driver if any
+            try {
+                driver.get().quit();
+            } catch (Throwable throwable) {
+                // ignore
+            } finally {
+                driver.remove();
+            }
+            if (!recurse)
+                createNewLocalDriverInstance(driverType, true);
             failAction("Failed to create new Browser Session", exception);
         }
     }
@@ -878,7 +881,7 @@ public class DriverFactoryHelper {
                 //desktop execution
                 setDriverOptions(driverType, customDriverOptions);
                 switch (SHAFT.Properties.platform.executionAddress()) {
-                    case "local" -> createNewLocalDriverInstance(driverType);
+                    case "local" -> createNewLocalDriverInstance(driverType, false);
                     case "dockerized" -> createNewDockerizedDriverInstance(driverType);
                     default -> createNewRemoteDriverInstance(driverType);
                 }
