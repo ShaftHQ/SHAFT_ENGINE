@@ -1,8 +1,15 @@
-package io.github.shafthq.shaft.properties;
+package com.shaft.properties.internal;
 
 import com.shaft.tools.io.ReportManager;
+import org.aeonbits.owner.Config;
 import org.aeonbits.owner.ConfigFactory;
 
+@SuppressWarnings({"SpellCheckingInspection", "unused"})
+@Config.Sources({"system:properties",
+        "file:src/main/resources/properties/LambdaTest.properties",
+        "file:src/main/resources/properties/default/LambdaTest.properties",
+        "classpath:LambdaTest.properties",
+})
 public interface LambdaTest extends EngineProperties {
     //Based on LambdaTest capability builder
     // For Web and Mobile Native https://www.lambdatest.com/capabilities-generator/
@@ -11,13 +18,22 @@ public interface LambdaTest extends EngineProperties {
     //You must set the "targetOperatingSystem" property under "ExecutionPlatform.properties" or programmatically
     //You must set the "mobile_automationName" property under "MobileCapabilities.properties" or programmatically
 
+    private static void setProperty(String key, String value) {
+        var updatedProps = new java.util.Properties();
+        updatedProps.setProperty(key, value);
+        Properties.lambdaTest = ConfigFactory.create(LambdaTest.class, updatedProps);
+        // temporarily set the system property to support hybrid read/write mode
+        System.setProperty(key, value);
+        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
+    }
+
     //Below properties are all required
     @Key("LambdaTest.username")
-    @DefaultValue("")
+    @DefaultValue("magdy.heibavodafone")
     String username();
 
     @Key("LambdaTest.accessKey")
-    @DefaultValue("")
+    @DefaultValue("pA1PmVOfkQ5gKfbjk4Heh7Jo4Ly7SUslr2JCcUCCXPYKrZRBB8")
     String accessKey();
 
     //Below properties are needed for native mobile app testing:
@@ -25,7 +41,17 @@ public interface LambdaTest extends EngineProperties {
     @Key("LambdaTest.platformVersion")
     @DefaultValue("")
     String platformVersion();
-    @Key("LambdaTest.OSVersion")
+
+    @Key("LambdaTest.deviceName")
+    @DefaultValue("")
+    String deviceName();
+
+    //Use appUrl to test a previously uploaded app file
+    @Key("LambdaTest.appUrl")
+    @DefaultValue("")
+    String appUrl();
+
+    @Key("LambdaTest.osVersion")
     @DefaultValue("")
     String osVersion();
 
@@ -36,6 +62,15 @@ public interface LambdaTest extends EngineProperties {
     @Key("LambdaTest.video")
     @DefaultValue("")
     boolean video();
+
+    //Use appName and appRelativeFilePath to upload a new app file and test it
+    @Key("LambdaTest.appName")
+    @DefaultValue("")
+    String appName();
+
+    @Key("LambdaTest.appRelativeFilePath")
+    @DefaultValue("")
+    String appRelativeFilePath();
 
     @Key("LambdaTest.resolution")
     @DefaultValue("")
@@ -53,9 +88,21 @@ public interface LambdaTest extends EngineProperties {
     @DefaultValue("")
     String project();
 
+    @Key("LambdaTest.build")
+    @DefaultValue("")
+    String build();
+
     @Key("LambdaTest.tunnel")
     @DefaultValue("")
     boolean tunnel();
+
+    @Key("LambdaTest.tunnelName")
+    @DefaultValue("")
+    boolean tunnelName();
+
+    @Key("LambdaTest.buildName")
+    @DefaultValue("")
+    boolean buildName();
 
     @Key("LambdaTest.selenium_version")
     @DefaultValue("")
@@ -79,15 +126,49 @@ public interface LambdaTest extends EngineProperties {
     @DefaultValue("")
     String geoLocation();
 
-    private static void setProperty(String key, String value) {
-        var updatedProps = new java.util.Properties();
-        updatedProps.setProperty(key, value);
-        Properties.LambdaTest = ConfigFactory.create(LambdaTest.class, updatedProps);
-        // temporarily set the system property to support hybrid read/write mode
-        System.setProperty(key, value);
-        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
-    }
+    @Key("LambdaTest.debug")
+    @DefaultValue("true")
+    boolean debug();
 
+    @Key("LambdaTest.acceptInsecureCerts")
+    @DefaultValue("true")
+    boolean acceptInsecureCerts();
+
+    @Key("LambdaTest.networkLogs")
+    @DefaultValue("true")
+    boolean networkLogs();
+
+    @Key("LambdaTest.appiumVersion")
+    @DefaultValue("2.0.0")
+    String appiumVersion();
+
+    @Key("LambdaTest.idleTimeout")
+    @DefaultValue("")
+    String idleTimeout();
+
+    @Key("LambdaTest.queueTimeout")
+    @DefaultValue("")
+    String queueTimeout();
+
+    @Key("LambdaTest.autoGrantPermissions")
+    @DefaultValue("")
+    String autoGrantPermissions();
+
+    @Key("LambdaTest.autoAcceptAlerts")
+    @DefaultValue("")
+    String autoAcceptAlerts();
+
+    @Key("LambdaTest.isRealMobile")
+    @DefaultValue("")
+    String isRealMobile();
+
+    @Key("LambdaTest.deviceOrientation")
+    @DefaultValue("")
+    String deviceOrientation();
+
+    @Key("LambdaTest.console")
+    @DefaultValue("")
+    String console();
 
     default LambdaTest.SetProperty set() {
         return new LambdaTest.SetProperty();
@@ -105,9 +186,11 @@ public interface LambdaTest extends EngineProperties {
         public void platformVersion(String value) {
             setProperty("LambdaTest.platformVersion", value);
         }
+
         public void osVersion(String value) {
-            setProperty("LambdaTest.OSVersion", value);
+            setProperty("LambdaTest.osVersion", value);
         }
+
 
         public void deviceName(String value) {
             setProperty("LambdaTest.deviceName", value);
@@ -137,12 +220,73 @@ public interface LambdaTest extends EngineProperties {
             setProperty("LambdaTest.project", value);
         }
 
+        public void build(String value) {
+            setProperty("LambdaTest.build", value);
+        }
+
+
         public void tunnel(boolean value) {
             setProperty("LambdaTest.tunnel", String.valueOf(value));
         }
 
+        public void tunnel(String value) {
+            setProperty("LambdaTest.tunnelName", value);
+        }
+
+        public void buildName(String value) {
+            setProperty("LambdaTest.buildName", value);
+        }
+
+        public void deviceOrientation(String value) {
+            setProperty("LambdaTest.deviceOrientation", value);
+        }
+
+        public void idleTimeout(String value) {
+            setProperty("LambdaTest.idleTimeout", value);
+        }
+
+        public void queueTimeout(String value) {
+            setProperty("LambdaTest.queueTimeout", value);
+        }
+
+        public void autoGrantPermissions(boolean value) {
+            setProperty("LambdaTest.autoGrantPermissions", String.valueOf(value));
+        }
+
+        public void autoAcceptAlerts(boolean value) {
+            setProperty("LambdaTest.autoAcceptAlerts", String.valueOf(value));
+        }
+
+        public void isRealMobile(boolean value) {
+            setProperty("LambdaTest.isRealMobile", String.valueOf(value));
+        }
+
+        public void console(boolean value) {
+            setProperty("LambdaTest.console", String.valueOf(value));
+        }
+
         public void selenium_version(String value) {
             setProperty("LambdaTest.selenium_version", value);
+        }
+
+        public void browserVersion(String value) {
+            setProperty("LambdaTest.browserVersion", value);
+        }
+
+        public void appiumVersion(String value) {
+            setProperty("LambdaTest.appiumVersion", value);
+        }
+
+        public void networkLogs(String value) {
+            setProperty("LambdaTest.networkLogs", value);
+        }
+
+        public void appRelativeFilePath(String value) {
+            setProperty("LambdaTest.appRelativeFilePath", value);
+        }
+
+        public void appName(String value) {
+            setProperty("LambdaTest.appName", value);
         }
 
         public void driver_version(String value) {
@@ -154,7 +298,7 @@ public interface LambdaTest extends EngineProperties {
         }
 
         public void geoLocation(String value) {
-            setProperty("browserStack.geoLocation", value);
+            setProperty("LambdaTest.geoLocation", value);
         }
 
     }

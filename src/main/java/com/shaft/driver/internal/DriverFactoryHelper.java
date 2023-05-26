@@ -526,7 +526,8 @@ public class DriverFactoryHelper {
         }
 
         initialLog.append(" | ").append(TARGET_HUB_URL).append("\"");
-
+//https://magdy.heibavodafone:pA1PmVOfkQ5gKfbjk4Heh7Jo4Ly7SUslr2JCcUCCXPYKrZRBB8@hub.lambdatest.com/wd/hub
+//https://magdy.heibavodafone:pA1PmVOfkQ5gKfbjk4Heh7Jo4Ly7SUslr2JCcUCCXPYKrZRBB8@@hub.lambdatest.com/wd/hub
         if (SHAFT.Properties.web.headlessExecution()
                 && !Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())
                 && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
@@ -912,6 +913,6 @@ public class DriverFactoryHelper {
 
     public static void initializeSystemProperties() {
         PropertiesHelper.postProcessing();
-        TARGET_HUB_URL = (SHAFT.Properties.platform.executionAddress().trim().toLowerCase().startsWith("http")) ? SHAFT.Properties.platform.executionAddress() : "http://" + SHAFT.Properties.platform.executionAddress() + "/";
+        TARGET_HUB_URL = (SHAFT.Properties.platform.executionAddress().trim().toLowerCase().startsWith("http")) ? SHAFT.Properties.platform.executionAddress() : "https://" + SHAFT.Properties.platform.executionAddress() + "/";
     }
 }

@@ -50,6 +50,7 @@ public class PropertiesHelper {
         Properties.visuals=ConfigFactory.create(Visuals.class);
         Properties.timeouts = ConfigFactory.create(Timeouts.class);
         Properties.performance = ConfigFactory.create(Performance.class);
+        Properties.lambdaTest = ConfigFactory.create(LambdaTest.class);
 
     }
 
