@@ -48,14 +48,14 @@ public class LocatorBuilderTest {
     }
 
     @Test
-    public void containsId() {
-        By locator = Locator.hasTagName("*").containsId("_docusaurus").build();
+    public void containsIdAndIsFirst() {
+        By locator = Locator.hasTagName("*").containsId("_docusaurus").isFirst().build();
         driver.assertThat().element(locator).cssProperty("display").contains("flex").perform();
     }
 
     @Test
-    public void hasAttributeAndContainsId() {
-        By locator = Locator.hasTagName("*").hasAttribute("id").containsId("_docusaurus").build();
+    public void hasAttributeAndContainsIdAndIsFirst() {
+        By locator = Locator.hasTagName("*").hasAttribute("id").containsId("_docusaurus").isFirst().build();
         driver.assertThat().element(locator).attribute("display").contains("null").perform();
     }
 

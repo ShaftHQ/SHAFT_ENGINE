@@ -1,6 +1,7 @@
 package com.shaft.listeners.internal;
 
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.internal.CheckpointCounter;
 import com.shaft.tools.io.internal.ReportHelper;
 import org.testng.ITestContext;
@@ -19,7 +20,8 @@ public class ConfigurationHelper {
     //TODO: this method is not being executed in case there's another after class method
     @AfterClass(description = "Cleaning up orphaned drivers", alwaysRun = true)
     public void classTeardown() {
-        DriverFactory.closeAllDrivers();
+        if (SHAFT.Properties.flags.autoCloseDriverInstance())
+            DriverFactory.closeAllDrivers();
     }
 
     @AfterSuite(description = "Attaching Reports", alwaysRun = true)

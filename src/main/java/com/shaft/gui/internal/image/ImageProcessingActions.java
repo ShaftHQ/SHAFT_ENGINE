@@ -260,7 +260,7 @@ public class ImageProcessingActions {
             try {
                 // matchMethod 1 == Imgproc.TM_SQDIFF_NORMED
                 int matchMethod = Imgproc.TM_CCOEFF_NORMED;
-                double threshold = 0.80;
+                double threshold = SHAFT.Properties.visuals.visualMatchingThreshold();
 
                 switch (attemptNumber) {
 //                    case 0 -> matchMethod = Imgproc.TM_CCOEFF_NORMED;
@@ -268,11 +268,11 @@ public class ImageProcessingActions {
                     case 2 -> matchMethod = Imgproc.TM_CCORR_NORMED;
                 }
 
-                switch (attemptNumber) {
-//                    case 0 -> threshold = 0.80;
-                    case 1 -> threshold = 0.70;
-                    case 2 -> threshold = 0.60;
-                }
+//                switch (attemptNumber) {
+////                    case 0 -> threshold = 0.80;
+//                    case 1 -> threshold = 0.70;
+//                    case 2 -> threshold = 0.60;
+//                }
 
                 Imgproc.matchTemplate(img, templ, result, matchMethod);
 //                    Core.normalize(result, result, 0, 1, Core.NORM_MINMAX, -1, new Mat());
@@ -295,7 +295,7 @@ public class ImageProcessingActions {
                     matchAccuracy = minMaxVal;
                 }
 
-                var accuracyMessage = "Match accuracy is " + (int) Math.round(matchAccuracy * 100) + "% and threshold is " + (int) Math.round(threshold * 100) + "%.";
+                var accuracyMessage = "Match accuracy is " + (int) Math.round(matchAccuracy * 100) + "% and threshold is " + (int) Math.round(threshold * 100) + "%. Match Method: "+matchMethod+".";
                 ReportManager.logDiscrete(accuracyMessage);
 
                 if (SHAFT.Properties.reporting.debugMode()) {
