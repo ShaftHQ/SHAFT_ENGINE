@@ -1,8 +1,5 @@
 package com.shaft.properties.internal;
 
-import com.google.common.annotations.Beta;
-
-@Beta
 public class Properties {
     public static BrowserStack browserStack;
     public static Cucumber cucumber;
