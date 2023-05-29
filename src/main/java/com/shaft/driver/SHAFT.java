@@ -1,6 +1,5 @@
 package com.shaft.driver;
 
-import com.google.common.annotations.Beta;
 import com.shaft.api.RequestBuilder;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
@@ -130,7 +129,6 @@ public class SHAFT {
             }
         }
 
-        @Beta
         public static class Locator extends com.shaft.gui.internal.locator.Locator {
         }
 
@@ -359,7 +357,6 @@ public class SHAFT {
         }
     }
 
-    @Beta
     public static class Properties extends com.shaft.properties.internal.Properties {
     }
 

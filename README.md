@@ -32,7 +32,7 @@
 ### Option 2: New Project
 #### Step 1: Initial Setup
 - Create a new Java/Maven project using Eclipse, IntelliJ or your favourite IDE.
-- Copy the highlighted contents of this [pom.xml](https://github.com/MohabMohie/using_SHAFT_Engine/blob/main/GUI_Web/pom.xml#L11-L80) file into yours inside the ```<project>``` tag.
+- Copy the highlighted contents of this [pom.xml](https://github.com/MohabMohie/using_SHAFT_Engine/blob/main/GUI_Web/pom.xml#L11-L149) file into yours inside the ```<project>``` tag.
 - Follow the steps in this footnote in case you are using IntelliJ[^1].
 
 #### Step 2: Creating Tests

@@ -332,52 +332,6 @@ public class TouchActions {
     }
 
     /**
-     * Close the app which was provided in the capabilities at session creation and quits the session. Then re-Launches the app and restarts the session.
-     *
-     * @return a self-reference to be used to chain actions
-     */
-    @Deprecated(forRemoval = true)
-    public TouchActions restartApp() {
-        if (DriverFactoryHelper.isMobileNativeExecution()) {
-            if (DriverFactoryHelper.getDriver().get() instanceof AndroidDriver androidDriver) {
-                androidDriver.closeApp();
-                androidDriver.launchApp();
-            } else if (DriverFactoryHelper.getDriver().get() instanceof IOSDriver iosDriver) {
-                iosDriver.closeApp();
-                iosDriver.launchApp();
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null);
-            }
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
-        } else {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null);
-        }
-        return this;
-    }
-
-    /**
-     * Resets the currently running app together with the session.
-     *
-     * @return a self-reference to be used to chain actions
-     */
-    @Deprecated(forRemoval = true)
-    public TouchActions resetApp() {
-        if (DriverFactoryHelper.isMobileNativeExecution()) {
-            if (DriverFactoryHelper.getDriver().get() instanceof AndroidDriver androidDriver) {
-                androidDriver.resetApp();
-            } else if (DriverFactoryHelper.getDriver().get() instanceof IOSDriver iosDriver) {
-                iosDriver.resetApp();
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null);
-            }
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
-        } else {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null);
-        }
-        return this;
-    }
-
-    /**
      * Swipes the sourceElement onto the destinationElement on a touch-enabled
      * screen
      *

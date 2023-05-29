@@ -1001,11 +1001,6 @@ public class FluentElementActions {
         return this;
     }
 
-    @Deprecated
-    public FluentElementActions waitForElementToBePresent(By elementLocator) {
-        return waitToBeReady(elementLocator, true);
-    }
-
     /**
      * Waits dynamically for a specific element to be detached from DOM, or hidden, on the current page.
      *
