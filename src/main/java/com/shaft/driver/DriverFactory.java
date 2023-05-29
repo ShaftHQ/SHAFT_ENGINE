@@ -162,18 +162,15 @@ public class DriverFactory {
                 DriverFactoryHelper.initializeDriver(lambdaTestOptions);
             } else {
                 // this is the new native app scenario
-                lambdaTestOptions = LambdaTest.setupNativeAppExecution(SHAFT.Properties.lambdaTest.username(), SHAFT.Properties.lambdaTest.accessKey(),
-                        SHAFT.Properties.lambdaTest.deviceName(), SHAFT.Properties.lambdaTest.platformVersion(), SHAFT.Properties.lambdaTest.appRelativeFilePath(), SHAFT.Properties.lambdaTest.appName()).merge(lambdaTestOptions);
+                lambdaTestOptions = LambdaTest.setupNativeAppExecution(SHAFT.Properties.lambdaTest.username(), SHAFT.Properties.lambdaTest.accessKey(), SHAFT.Properties.lambdaTest.deviceName(), SHAFT.Properties.lambdaTest.platformVersion(), SHAFT.Properties.lambdaTest.appRelativeFilePath(), SHAFT.Properties.lambdaTest.appName()).merge(lambdaTestOptions);
                 DriverFactoryHelper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, lambdaTestOptions);
             }
         } else {
             // this is the existing version from a native app scenario
-            lambdaTestOptions = BrowserStack.setupNativeAppExecution(SHAFT.Properties.lambdaTest.username(), SHAFT.Properties.lambdaTest.accessKey(),
-                    SHAFT.Properties.lambdaTest.deviceName(), SHAFT.Properties.lambdaTest.platformVersion(), appUrl).merge(lambdaTestOptions);
+            lambdaTestOptions = LambdaTest.setupNativeAppExecution(SHAFT.Properties.lambdaTest.username(), SHAFT.Properties.lambdaTest.accessKey(), SHAFT.Properties.lambdaTest.deviceName(), SHAFT.Properties.lambdaTest.platformVersion(), appUrl).merge(lambdaTestOptions);
             DriverFactoryHelper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, lambdaTestOptions);
         }
         return DriverFactoryHelper.getDriver().get();
-
     }
 
     /**

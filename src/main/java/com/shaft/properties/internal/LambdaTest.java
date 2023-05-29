@@ -5,11 +5,7 @@ import org.aeonbits.owner.Config;
 import org.aeonbits.owner.ConfigFactory;
 
 @SuppressWarnings({"SpellCheckingInspection", "unused"})
-@Config.Sources({"system:properties",
-        "file:src/main/resources/properties/LambdaTest.properties",
-        "file:src/main/resources/properties/default/LambdaTest.properties",
-        "classpath:LambdaTest.properties",
-})
+@Config.Sources({"system:properties", "file:src/main/resources/properties/LambdaTest.properties", "file:src/main/resources/properties/default/LambdaTest.properties", "classpath:LambdaTest.properties",})
 public interface LambdaTest extends EngineProperties {
     //Based on LambdaTest capability builder
     // For Web and Mobile Native https://www.lambdatest.com/capabilities-generator/
@@ -29,11 +25,11 @@ public interface LambdaTest extends EngineProperties {
 
     //Below properties are all required
     @Key("LambdaTest.username")
-    @DefaultValue("magdy.heibavodafone")
+    @DefaultValue("")
     String username();
 
     @Key("LambdaTest.accessKey")
-    @DefaultValue("pA1PmVOfkQ5gKfbjk4Heh7Jo4Ly7SUslr2JCcUCCXPYKrZRBB8")
+    @DefaultValue("")
     String accessKey();
 
     //Below properties are needed for native mobile app testing:
@@ -51,16 +47,20 @@ public interface LambdaTest extends EngineProperties {
     @DefaultValue("")
     String appUrl();
 
+    @Key("LambdaTest.appUrl")
+    @DefaultValue("")
+    String appProfiling();
+
     @Key("LambdaTest.osVersion")
     @DefaultValue("")
     String osVersion();
 
     @Key("LambdaTest.visual")
-    @DefaultValue("")
+    @DefaultValue("false")
     boolean visual();
 
     @Key("LambdaTest.video")
-    @DefaultValue("")
+    @DefaultValue("false")
     boolean video();
 
     //Use appName and appRelativeFilePath to upload a new app file and test it
@@ -97,12 +97,12 @@ public interface LambdaTest extends EngineProperties {
     boolean tunnel();
 
     @Key("LambdaTest.tunnelName")
-    @DefaultValue("")
-    boolean tunnelName();
+    @DefaultValue("false")
+    String tunnelName();
 
     @Key("LambdaTest.buildName")
     @DefaultValue("")
-    boolean buildName();
+    String buildName();
 
     @Key("LambdaTest.selenium_version")
     @DefaultValue("")
@@ -113,7 +113,7 @@ public interface LambdaTest extends EngineProperties {
     String driver_version();
 
     @Key("LambdaTest.w3c")
-    @DefaultValue("")
+    @DefaultValue("true")
     boolean w3c();
 
     //optional, uses random by default
@@ -142,33 +142,25 @@ public interface LambdaTest extends EngineProperties {
     @DefaultValue("2.0.0")
     String appiumVersion();
 
-    @Key("LambdaTest.idleTimeout")
-    @DefaultValue("")
-    String idleTimeout();
-
-    @Key("LambdaTest.queueTimeout")
-    @DefaultValue("")
-    String queueTimeout();
-
     @Key("LambdaTest.autoGrantPermissions")
-    @DefaultValue("")
-    String autoGrantPermissions();
+    @DefaultValue("true")
+    boolean autoGrantPermissions();
 
     @Key("LambdaTest.autoAcceptAlerts")
-    @DefaultValue("")
-    String autoAcceptAlerts();
+    @DefaultValue("true")
+    boolean autoAcceptAlerts();
 
     @Key("LambdaTest.isRealMobile")
-    @DefaultValue("")
-    String isRealMobile();
-
-    @Key("LambdaTest.deviceOrientation")
-    @DefaultValue("")
-    String deviceOrientation();
+    @DefaultValue("true")
+    boolean isRealMobile();
 
     @Key("LambdaTest.console")
     @DefaultValue("")
-    String console();
+    boolean console();
+
+    @Key("LambdaTest.customID")
+    @DefaultValue("")
+    String customID();
 
     default LambdaTest.SetProperty set() {
         return new LambdaTest.SetProperty();
@@ -191,6 +183,13 @@ public interface LambdaTest extends EngineProperties {
             setProperty("LambdaTest.osVersion", value);
         }
 
+        public void appUrl(String value) {
+            setProperty("LambdaTest.appUrl", value);
+        }
+
+        public void appProfiling(Boolean value) {
+            setProperty("LambdaTest.appProfiling", String.valueOf(value));
+        }
 
         public void deviceName(String value) {
             setProperty("LambdaTest.deviceName", value);
@@ -229,24 +228,12 @@ public interface LambdaTest extends EngineProperties {
             setProperty("LambdaTest.tunnel", String.valueOf(value));
         }
 
-        public void tunnel(String value) {
+        public void tunnelName(String value) {
             setProperty("LambdaTest.tunnelName", value);
         }
 
         public void buildName(String value) {
             setProperty("LambdaTest.buildName", value);
-        }
-
-        public void deviceOrientation(String value) {
-            setProperty("LambdaTest.deviceOrientation", value);
-        }
-
-        public void idleTimeout(String value) {
-            setProperty("LambdaTest.idleTimeout", value);
-        }
-
-        public void queueTimeout(String value) {
-            setProperty("LambdaTest.queueTimeout", value);
         }
 
         public void autoGrantPermissions(boolean value) {
@@ -293,13 +280,18 @@ public interface LambdaTest extends EngineProperties {
             setProperty("LambdaTest.driver_version", value);
         }
 
-        public void w3c(String value) {
-            setProperty("LambdaTest.w3c", value);
+        public void w3c(boolean value) {
+            setProperty("LambdaTest.w3c", String.valueOf(value));
         }
 
         public void geoLocation(String value) {
             setProperty("LambdaTest.geoLocation", value);
         }
+
+        public void customID(String value) {
+            setProperty("LambdaTest.customID", value);
+        }
+
 
     }
 }

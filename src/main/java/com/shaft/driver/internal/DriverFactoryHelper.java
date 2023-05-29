@@ -531,8 +531,7 @@ public class DriverFactoryHelper {
         }
 
         initialLog.append(" | ").append(TARGET_HUB_URL).append("\"");
-//https://magdy.heibavodafone:pA1PmVOfkQ5gKfbjk4Heh7Jo4Ly7SUslr2JCcUCCXPYKrZRBB8@hub.lambdatest.com/wd/hub
-//https://magdy.heibavodafone:pA1PmVOfkQ5gKfbjk4Heh7Jo4Ly7SUslr2JCcUCCXPYKrZRBB8@@hub.lambdatest.com/wd/hub
+
         if (SHAFT.Properties.web.headlessExecution()
                 && !Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())
                 && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
@@ -687,10 +686,20 @@ public class DriverFactoryHelper {
 
         var targetPlatform = Properties.platform.targetPlatform();
 
+        var targetMobileHubUrl = targetHubUrl.replace("@", "@mobile-");
+
         if (targetPlatform.equalsIgnoreCase(Platform.ANDROID.toString())) {
-            return new AndroidDriver(new URL(targetHubUrl), capabilities);
+            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
+                return new AndroidDriver(new URL(targetMobileHubUrl), capabilities);
+            } else {
+                return new AndroidDriver(new URL(targetHubUrl), capabilities);
+            }
         } else if (targetPlatform.equalsIgnoreCase(Platform.IOS.toString())) {
-            return new IOSDriver(new URL(targetHubUrl), capabilities);
+            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
+                return new IOSDriver(new URL(targetMobileHubUrl), capabilities);
+            } else {
+                return new IOSDriver(new URL(targetHubUrl), capabilities);
+            }
         } else {
             return new RemoteWebDriver(new URL(targetHubUrl), capabilities);
         }

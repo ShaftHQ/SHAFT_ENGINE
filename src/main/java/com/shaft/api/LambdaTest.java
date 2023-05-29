@@ -6,6 +6,7 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.MutableCapabilities;
+import org.openqa.selenium.Platform;
 
 import java.io.File;
 import java.util.*;
@@ -23,31 +24,30 @@ public class LambdaTest {
 
     /**
      * Use this method to set up all the needed capabilities to be able to upload and test the latest version of your native application.
-     * You can refer to the getting started guide for LambdaTest App Automate to get all the needed information here <a href="https://app-automate..com/dashboard/v2/getting-started">BrowserStack: Getting Started</a>
+     * You can refer to the getting started guide for LambdaTest App Automate to get all the needed information here <a href="https://app-automate..com/dashboard/v2/getting-started">LambdaTest: Getting Started</a>
      *
-     * @param username              Your BrowserStack username
-     * @param password              Your BrowserStack password
+     * @param username              Your LambdaTest username
+     * @param password              Your LambdaTest password
      * @param deviceName            Name of the Target device
      * @param osVersion             Version of the Target operating system
      * @param relativePathToAppFile Relative path to your app file inside the project directory
      * @param appName               Name of your APK (excluding version number). This will be used as your CustomID so that you can keep uploading new versions of the same app and run your tests against them.
-     * @return appURL for the newly uploaded app file on BrowserStack to be used for future tests
+     * @return appURL for the newly uploaded app file on LambdaTest to be used for future tests
      */
     public static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String relativePathToAppFile, String appName) {
         SHAFT.Properties.timeouts.set().apiSocketTimeout(600); //increasing socket timeout to 10 minutes to upload a new app file
-        ReportManager.logDiscrete("Setting up BrowserStack configuration for new native app version...");
+        ReportManager.logDiscrete("Setting up LambdaTest configuration for new native app version...");
         String testData = "Username: " + username + ", Password: " + "•".repeat(password.length()) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", Relative Path to App File: " + relativePathToAppFile + ", App Name: " + appName;
-
-        // upload app to browserstack api
+        // upload app to LambdaTest api
         List<Object> apkFile = new ArrayList<>();
-        apkFile.add("file");
+        apkFile.add("appFile");
         String appPath = FileActions.getInstance().getAbsolutePath(relativePathToAppFile);
         apkFile.add(new File(appPath));
         ReportManager.logDiscrete("LambdaTest appPath: " + appPath);
 
         List<Object> customID = new ArrayList<>();
-        customID.add("custom_id");
-        String userProvidedCustomID = SHAFT.Properties.browserStack.customID();
+        customID.add("name");
+        String userProvidedCustomID = SHAFT.Properties.lambdaTest.customID();
         String custom_id = "".equals(userProvidedCustomID) ? "SHAFT_Engine_" + appName.replaceAll(" ", "_") : userProvidedCustomID;
         customID.add(custom_id);
         ReportManager.logDiscrete("LambdaTest custom_id: " + custom_id);
@@ -57,11 +57,7 @@ public class LambdaTest {
         parameters.add(customID);
         var appUrl = "";
         try {
-            appUrl = Objects.requireNonNull(RestActions.getResponseJSONValue(new RestActions(serviceUri).buildNewRequest(appUploadServiceName, RestActions.RequestType.POST)
-                            .setParameters(parameters, RestActions.ParametersType.FORM)
-                            .setAuthentication(username, password, RequestBuilder.AuthenticationType.BASIC)
-                            .performRequest(),
-                    "app_url"));
+            appUrl = Objects.requireNonNull(RestActions.getResponseJSONValue(new SHAFT.API(serviceUri).post(appUploadServiceName).setContentType("multipart/form-data").setParameters(parameters, RestActions.ParametersType.FORM).setAuthentication(username, password, RequestBuilder.AuthenticationType.BASIC).perform(), "app_url"));
             ReportManager.logDiscrete("LambdaTest app_url: " + appUrl);
         } catch (NullPointerException exception) {
             failAction(testData, exception);
@@ -70,31 +66,56 @@ public class LambdaTest {
         MutableCapabilities lambdaTestCapabilities = setLambdaTestProperties(username, password, deviceName, osVersion, appUrl);
         testData = testData + ", App URL: " + appUrl;
         passAction(testData);
+        HashMap<String, Object> lambdaTestOptions = new HashMap<String, Object>();
+        lambdaTestOptions.put("w3c", SHAFT.Properties.lambdaTest.w3c());
+        if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
+            lambdaTestOptions.put("platformName", "android");
+        } else {
+            lambdaTestOptions.put("platformName", "ios");
+        }
+        lambdaTestOptions.put("deviceName", deviceName);
+        lambdaTestOptions.put("platformVersion", osVersion);
+        lambdaTestOptions.put("isRealMobile", SHAFT.Properties.lambdaTest.isRealMobile());
+        lambdaTestOptions.put("appProfiling", SHAFT.Properties.lambdaTest.appProfiling());
+        lambdaTestOptions.put("app", appUrl);
+        lambdaTestCapabilities.setCapability("lt:options", lambdaTestOptions);
         return lambdaTestCapabilities;
     }
-
     /**
      * Use this method to set up all the needed capabilities to be able to test an already uploaded version of your native application.
-     * You can refer to the getting started guide for BrowserStack App Automate to get all the needed information here <a href="https://app-automate.browserstack.com/dashboard/v2/getting-started">BrowserStack: Getting Started</a>
+     * You can refer to the getting started guide for LambdaTest App Automate to get all the needed information here <a href="https://app-automate.LambdaTest.com/dashboard/v2/getting-started">LambdaTest: Getting Started</a>
      *
-     * @param username   Your BrowserStack username
-     * @param password   Your BrowserStack password
+     * @param username   Your LambdaTest username
+     * @param password   Your LambdaTest password
      * @param deviceName Name of the Target device
      * @param osVersion  Version of the Target operating system
-     * @param appUrl     Url of the target app that was previously uploaded to be tested via BrowserStack
+     * @param appUrl     Url of the target app that was previously uploaded to be tested via LambdaTest
      * @return native app capabilities
      */
     public static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String appUrl) {
-        ReportManager.logDiscrete("Setting up BrowserStack configuration for existing native app version...");
+        ReportManager.logDiscrete("Setting up LambdaTest configuration for existing native app version...");
         String testData = "Username: " + username + ", Password: " + password + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", App URL: " + appUrl;
         // set properties
-        MutableCapabilities browserStackCapabilities = setLambdaTestProperties(username, password, deviceName, osVersion, appUrl);
+        MutableCapabilities LambdaTestCapabilities = setLambdaTestProperties(username, password, deviceName, osVersion, appUrl);
         passAction(testData);
-        return browserStackCapabilities;
+        HashMap<String, Object> lambdaTestOptions = new HashMap<String, Object>();
+        lambdaTestOptions.put("w3c", SHAFT.Properties.lambdaTest.w3c());
+        if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
+            lambdaTestOptions.put("platformName", "android");
+        } else {
+            lambdaTestOptions.put("platformName", "ios");
+        }
+        lambdaTestOptions.put("deviceName", deviceName);
+        lambdaTestOptions.put("platformVersion", osVersion);
+        lambdaTestOptions.put("isRealMobile", SHAFT.Properties.lambdaTest.isRealMobile());
+        lambdaTestOptions.put("appProfiling", SHAFT.Properties.lambdaTest.appProfiling());
+        lambdaTestOptions.put("app", appUrl);
+        LambdaTestCapabilities.setCapability("lt:options", lambdaTestOptions);
+        return LambdaTestCapabilities;
     }
 
     public static MutableCapabilities setupMobileWebExecution() {
-        ReportManager.logDiscrete("Setting up BrowserStack configuration for mobile web execution...");
+        ReportManager.logDiscrete("Setting up LambdaTest configuration for mobile web execution...");
         String username = SHAFT.Properties.lambdaTest.username();
         String password = SHAFT.Properties.lambdaTest.accessKey();
         String os = SHAFT.Properties.platform.targetPlatform();
@@ -111,12 +132,12 @@ public class LambdaTest {
             lambdaTestCapabilities.setCapability("browserVersion", SHAFT.Properties.lambdaTest.browserVersion());
         }
         lambdaTestCapabilities.setCapability("browserName", SHAFT.Properties.web.targetBrowserName());
-        if (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase("windows")) {
-            lambdaTestCapabilities.setCapability("platformName", "Windows " + SHAFT.Properties.lambdaTest.osVersion());
-        }else{
-            lambdaTestCapabilities.setCapability("platformName", SHAFT.Properties.platform.targetPlatform());
-        }
         HashMap<String, Object> lambdaTestOptions = new HashMap<>();
+        if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
+            lambdaTestOptions.put("platformName", "android");
+        } else {
+            lambdaTestOptions.put("platformName", "ios");
+        }
         lambdaTestOptions.put("project", SHAFT.Properties.lambdaTest.project());
         lambdaTestOptions.put("build", SHAFT.Properties.lambdaTest.build());
         lambdaTestOptions.put("w3c", SHAFT.Properties.lambdaTest.w3c());
@@ -129,14 +150,10 @@ public class LambdaTest {
         lambdaTestOptions.put("visual", SHAFT.Properties.lambdaTest.visual());
         lambdaTestOptions.put("name", SHAFT.Properties.lambdaTest.buildName());
         lambdaTestOptions.put("visual", SHAFT.Properties.lambdaTest.visual());
-        lambdaTestOptions.put("deviceOrientation", SHAFT.Properties.lambdaTest.deviceOrientation());
-        lambdaTestOptions.put("idleTimeout", SHAFT.Properties.lambdaTest.idleTimeout());
-        lambdaTestOptions.put("queueTimeout", SHAFT.Properties.lambdaTest.queueTimeout());
         lambdaTestOptions.put("autoGrantPermissions", SHAFT.Properties.lambdaTest.autoGrantPermissions());
         lambdaTestOptions.put("autoAcceptAlerts", SHAFT.Properties.lambdaTest.autoAcceptAlerts());
         lambdaTestOptions.put("isRealMobile", SHAFT.Properties.lambdaTest.isRealMobile());
         lambdaTestOptions.put("console", SHAFT.Properties.lambdaTest.console());
-
         String geoLocation = SHAFT.Properties.lambdaTest.geoLocation();
         if (geoLocation != null && !"".equals(geoLocation)) {
             lambdaTestOptions.put("geoLocation", SHAFT.Properties.lambdaTest.geoLocation());
@@ -164,13 +181,25 @@ public class LambdaTest {
             lambdaTestCapabilities.setCapability("browserVersion", SHAFT.Properties.lambdaTest.browserVersion());
         }
         lambdaTestCapabilities.setCapability("browserName", SHAFT.Properties.web.targetBrowserName());
-        lambdaTestCapabilities.setCapability("platformName", "Windows " + SHAFT.Properties.lambdaTest.osVersion());
+        if (os.toLowerCase().contains("mac")) {
+            lambdaTestCapabilities.setCapability("platformName", "MacOS " + SHAFT.Properties.lambdaTest.osVersion());
+        } else if (os.toLowerCase().contains("windows")) {
+            lambdaTestCapabilities.setCapability("platformName", "Windows " + SHAFT.Properties.lambdaTest.osVersion());
+        }
         HashMap<String, Object> lambdaTestOptions = new HashMap<>();
         lambdaTestOptions.put("project", SHAFT.Properties.lambdaTest.project());
         lambdaTestOptions.put("build", SHAFT.Properties.lambdaTest.build());
         lambdaTestOptions.put("w3c", SHAFT.Properties.lambdaTest.w3c());
         lambdaTestOptions.put("selenium_version", SHAFT.Properties.lambdaTest.selenium_version());
         lambdaTestOptions.put("tunnel", SHAFT.Properties.lambdaTest.tunnel());
+        lambdaTestOptions.put("tunnelName", SHAFT.Properties.lambdaTest.tunnelName());
+        lambdaTestOptions.put("video", SHAFT.Properties.lambdaTest.video());
+        lambdaTestOptions.put("visual", SHAFT.Properties.lambdaTest.visual());
+        lambdaTestOptions.put("name", SHAFT.Properties.lambdaTest.buildName());
+        lambdaTestOptions.put("autoGrantPermissions", SHAFT.Properties.lambdaTest.autoGrantPermissions());
+        lambdaTestOptions.put("autoAcceptAlerts", SHAFT.Properties.lambdaTest.autoAcceptAlerts());
+        lambdaTestOptions.put("isRealMobile", SHAFT.Properties.lambdaTest.isRealMobile());
+        lambdaTestOptions.put("console", SHAFT.Properties.lambdaTest.console());
         String geoLocation = SHAFT.Properties.lambdaTest.geoLocation();
         if (geoLocation != null && !"".equals(geoLocation)) {
             lambdaTestOptions.put("geoLocation", SHAFT.Properties.lambdaTest.geoLocation());
@@ -201,7 +230,7 @@ public class LambdaTest {
 
     private static void failAction(String testData, Throwable... rootCauseException) {
         String message = reportActionResult(Thread.currentThread().getStackTrace()[2].getMethodName(), testData, false, rootCauseException);
-        FailureReporter.fail(BrowserStack.class, message, rootCauseException[0]);
+        FailureReporter.fail(LambdaTest.class, message, rootCauseException[0]);
     }
 
     private static String reportActionResult(String actionName, String testData, Boolean passFailStatus, Throwable... rootCauseException) {
@@ -218,8 +247,7 @@ public class LambdaTest {
 
         if (rootCauseException != null && rootCauseException.length >= 1) {
             List<List<Object>> attachments = new ArrayList<>();
-            List<Object> actualValueAttachment = Arrays.asList("LambdaTest Action Exception - " + actionName,
-                    "Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(rootCauseException[0]));
+            List<Object> actualValueAttachment = Arrays.asList("LambdaTest Action Exception - " + actionName, "Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(rootCauseException[0]));
             attachments.add(actualValueAttachment);
             ReportManagerHelper.log(message, attachments);
         } else {
