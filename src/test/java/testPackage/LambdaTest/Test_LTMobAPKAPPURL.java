@@ -36,6 +36,7 @@ public class Test_LTMobAPKAPPURL {
         SHAFT.Properties.lambdaTest.set().platformVersion("11");
         SHAFT.Properties.lambdaTest.set().deviceName("Galaxy A12");
         SHAFT.Properties.lambdaTest.set().appUrl("lt://APP1016059741685355831268119");
+        SHAFT.Properties.mobile.set().browserName("");
         driver = new SHAFT.GUI.WebDriver();
     }
 

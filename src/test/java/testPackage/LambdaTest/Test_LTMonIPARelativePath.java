@@ -39,6 +39,7 @@ public class Test_LTMonIPARelativePath {
         SHAFT.Properties.lambdaTest.set().appName("BStackSampleApp.ipa");
         SHAFT.Properties.lambdaTest.set().platformVersion("15");
         SHAFT.Properties.lambdaTest.set().deviceName("iPhone 13");
+        SHAFT.Properties.mobile.set().browserName("");
         driver = DriverFactory.getDriver();
 
     }

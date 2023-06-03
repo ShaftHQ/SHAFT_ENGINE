@@ -37,6 +37,7 @@ public class Test_LTMonIPAAppURL {
         SHAFT.Properties.lambdaTest.set().platformVersion("15");
         SHAFT.Properties.lambdaTest.set().deviceName("iPhone 13");
         SHAFT.Properties.lambdaTest.set().appUrl("lt://APP1016039251685365091368730");
+        SHAFT.Properties.mobile.set().browserName("");
         driver = DriverFactory.getDriver();
 
     }
