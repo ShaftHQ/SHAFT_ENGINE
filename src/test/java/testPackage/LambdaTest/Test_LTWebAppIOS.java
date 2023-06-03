@@ -9,6 +9,7 @@ import org.testng.annotations.Test;
 
 public class Test_LTWebAppIOS {
     SHAFT.GUI.WebDriver driver;
+    SHAFT.TestData.JSON testData;
 
     private final By noThanks = By.xpath("//*[@resource-id='com.apple.mobilesafari:id/negative_button']");
     private final By appleMenuIcon = By.id("globalnav-menutrigger-button");
@@ -28,11 +29,14 @@ public class Test_LTWebAppIOS {
 
     @BeforeMethod
     public void beforeMethod() {
+        testData = new SHAFT.TestData.JSON("credentials.json");
         SHAFT.Properties.lambdaTest.set().deviceName("iPhone 13 Pro Max");
         SHAFT.Properties.lambdaTest.set().platformVersion("15");
         SHAFT.Properties.platform.set().targetPlatform("ios");
         SHAFT.Properties.platform.set().executionAddress("lambdatest");
         SHAFT.Properties.web.set().targetBrowserName("safari");
+        SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
+        SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
         driver = new SHAFT.GUI.WebDriver();
     }
 

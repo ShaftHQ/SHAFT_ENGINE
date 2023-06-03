@@ -14,6 +14,7 @@ import java.util.List;
 
 public class Test_LTWebWindows {
     SHAFT.GUI.WebDriver driver;
+    SHAFT.TestData.JSON testData;
 
     //locators of test_ClickUsingJavaScript
     By emailField = By.xpath("//input[@name='user-name']");
@@ -46,12 +47,15 @@ public class Test_LTWebWindows {
 
     @BeforeMethod
     public void beforeMethod() {
+        testData = new SHAFT.TestData.JSON("credentials.json");
         SHAFT.Properties.lambdaTest.set().browserVersion("114.0");
         SHAFT.Properties.platform.set().targetPlatform("windows");
         SHAFT.Properties.platform.set().executionAddress("lambdatest");
         SHAFT.Properties.web.set().targetBrowserName("chrome");
         SHAFT.Properties.lambdaTest.set().osVersion("11");
         SHAFT.Properties.lambdaTest.set().isRealMobile(false);
+        SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
+        SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
         driver = new SHAFT.GUI.WebDriver();
     }
 

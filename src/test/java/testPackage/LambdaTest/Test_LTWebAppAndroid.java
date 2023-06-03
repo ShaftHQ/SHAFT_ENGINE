@@ -18,6 +18,8 @@ public class Test_LTWebAppAndroid {
     private final String exploreAllMacText = "Explore All Mac";
     private final String appleUrl = "https://www.apple.com/";
     SHAFT.GUI.WebDriver driver;
+    SHAFT.TestData.JSON testData;
+
 
     @Test
     public void LT_Test_Android_WebApp_V11() {
@@ -51,6 +53,7 @@ public class Test_LTWebAppAndroid {
 
     @BeforeMethod
     public void beforeMethod() {
+        testData = new SHAFT.TestData.JSON("credentials.json");
         SHAFT.Properties.lambdaTest.set().deviceName("Galaxy A12");
         SHAFT.Properties.lambdaTest.set().platformVersion("11");
         SHAFT.Properties.platform.set().targetPlatform("Android");
@@ -58,6 +61,8 @@ public class Test_LTWebAppAndroid {
         SHAFT.Properties.web.set().targetBrowserName("chrome");
         SHAFT.Properties.mobile.set().browserName("chrome");
         SHAFT.Properties.lambdaTest.set().osVersion("11");
+        SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
+        SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
         driver = new SHAFT.GUI.WebDriver();
     }
 

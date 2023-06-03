@@ -3,33 +3,27 @@ package testPackage.LambdaTest;
 import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.validation.Validations;
 import io.appium.java_client.AppiumBy;
 import org.openqa.selenium.Platform;
-import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class Test_LTMonIPAAppURL {
-
-
-
-    private WebDriver driver;
+    SHAFT.TestData.JSON testData;
+    private SHAFT.GUI.WebDriver driver;
 
     @Test
     public void test() {
         ElementActions.getInstance().performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
         ElementActions.getInstance().type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
-        Validations.assertThat()
-                .element(driver, AppiumBy.accessibilityId("Text Output"))
-                .text()
-                .isEqualTo("hello@browserstack.com")
-                .perform();
+        SHAFT.Validations.assertThat().object(driver.element().getText(AppiumBy.accessibilityId("Text Output"))).
+                isEqualTo("hello@browserstack.com").perform();
     }
 
     @BeforeClass
     public void setup() {
+        testData = new SHAFT.TestData.JSON("credentials.json");
         // common attributes
         SHAFT.Properties.platform.set().targetPlatform(Platform.IOS.toString());
         SHAFT.Properties.mobile.set().automationName("XCUITest");
@@ -38,7 +32,9 @@ public class Test_LTMonIPAAppURL {
         SHAFT.Properties.lambdaTest.set().deviceName("iPhone 13");
         SHAFT.Properties.lambdaTest.set().appUrl("lt://APP1016039251685365091368730");
         SHAFT.Properties.mobile.set().browserName("");
-        driver = DriverFactory.getDriver();
+        SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
+        SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
+        driver = new SHAFT.GUI.WebDriver();
 
     }
 
