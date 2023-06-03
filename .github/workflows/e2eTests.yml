@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 env:
-  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.Test_LT*]"
+  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*]"
 
 jobs:
   Ubuntu_Database:
@@ -781,7 +781,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="Test_LT*"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LT*.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
