@@ -686,7 +686,7 @@ public class DriverFactoryHelper {
 
         var targetPlatform = Properties.platform.targetPlatform();
 
-        var targetMobileHubUrl = targetHubUrl.replace("@", "@mobile-");
+        var targetMobileHubUrl = targetHubUrl.replace("@", "@mobile-").replace("http","https");
 
         if (targetPlatform.equalsIgnoreCase(Platform.ANDROID.toString())) {
             if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
@@ -927,6 +927,6 @@ public class DriverFactoryHelper {
 
     public static void initializeSystemProperties() {
         PropertiesHelper.postProcessing();
-        TARGET_HUB_URL = (SHAFT.Properties.platform.executionAddress().trim().toLowerCase().startsWith("http")) ? SHAFT.Properties.platform.executionAddress() : "https://" + SHAFT.Properties.platform.executionAddress() + "/";
+        TARGET_HUB_URL = (SHAFT.Properties.platform.executionAddress().trim().toLowerCase().startsWith("http")) ? SHAFT.Properties.platform.executionAddress() : "http://" + SHAFT.Properties.platform.executionAddress() + "/";
     }
 }
