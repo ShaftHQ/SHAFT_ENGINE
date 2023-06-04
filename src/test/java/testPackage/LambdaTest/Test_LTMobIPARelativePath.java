@@ -37,8 +37,8 @@ public class Test_LTMobIPARelativePath {
         SHAFT.Properties.platform.set().executionAddress("lambdatest");
         SHAFT.Properties.lambdaTest.set().appRelativeFilePath("src/test/resources/testDataFiles/apps/BStackSampleApp.ipa");
         SHAFT.Properties.lambdaTest.set().appName("BStackSampleApp.ipa");
-        SHAFT.Properties.lambdaTest.set().platformVersion("15");
-        SHAFT.Properties.lambdaTest.set().deviceName("iPhone 13");
+        SHAFT.Properties.lambdaTest.set().platformVersion("16");
+        SHAFT.Properties.lambdaTest.set().deviceName("iPhone 14");
         SHAFT.Properties.mobile.set().browserName("");
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));

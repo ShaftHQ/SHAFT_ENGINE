@@ -47,9 +47,9 @@ public interface LambdaTest extends EngineProperties {
     @DefaultValue("")
     String appUrl();
 
-    @Key("LambdaTest.appUrl")
-    @DefaultValue("")
-    String appProfiling();
+    @Key("LambdaTest.appProfiling")
+    @DefaultValue("false")
+    boolean appProfiling();
 
     @Key("LambdaTest.osVersion")
     @DefaultValue("")
@@ -77,7 +77,7 @@ public interface LambdaTest extends EngineProperties {
     String resolution();
 
     @Key("LambdaTest.headless")
-    @DefaultValue("")
+    @DefaultValue("false")
     boolean headless();
 
     @Key("LambdaTest.timezone")
@@ -93,7 +93,7 @@ public interface LambdaTest extends EngineProperties {
     String build();
 
     @Key("LambdaTest.tunnel")
-    @DefaultValue("")
+    @DefaultValue("false")
     boolean tunnel();
 
     @Key("LambdaTest.tunnelName")
@@ -123,11 +123,11 @@ public interface LambdaTest extends EngineProperties {
 
     //Optional extra settings
     @Key("LambdaTest.geoLocation")
-    @DefaultValue("")
+    @DefaultValue("false")
     String geoLocation();
 
     @Key("LambdaTest.debug")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean debug();
 
     @Key("LambdaTest.acceptInsecureCerts")
@@ -135,7 +135,7 @@ public interface LambdaTest extends EngineProperties {
     boolean acceptInsecureCerts();
 
     @Key("LambdaTest.networkLogs")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean networkLogs();
 
     @Key("LambdaTest.appiumVersion")
@@ -155,7 +155,7 @@ public interface LambdaTest extends EngineProperties {
     boolean isRealMobile();
 
     @Key("LambdaTest.console")
-    @DefaultValue("")
+    @DefaultValue("false")
     boolean console();
 
     @Key("LambdaTest.customID")
@@ -200,7 +200,7 @@ public interface LambdaTest extends EngineProperties {
         }
 
         public void video(boolean value) {
-            setProperty("browserStack.networkLogs", String.valueOf(value));
+            setProperty("browserStack.video", String.valueOf(value));
         }
 
         public void resolution(String value) {
@@ -244,8 +244,16 @@ public interface LambdaTest extends EngineProperties {
             setProperty("LambdaTest.autoAcceptAlerts", String.valueOf(value));
         }
 
+        public void acceptInsecureCerts(boolean value) {
+            setProperty("LambdaTest.acceptInsecureCerts", String.valueOf(value));
+        }
+
         public void isRealMobile(boolean value) {
             setProperty("LambdaTest.isRealMobile", String.valueOf(value));
+        }
+
+        public void debug(boolean value) {
+            setProperty("LambdaTest.debug", String.valueOf(value));
         }
 
         public void console(boolean value) {
@@ -264,8 +272,8 @@ public interface LambdaTest extends EngineProperties {
             setProperty("LambdaTest.appiumVersion", value);
         }
 
-        public void networkLogs(String value) {
-            setProperty("LambdaTest.networkLogs", value);
+        public void networkLogs(boolean value) {
+            setProperty("LambdaTest.networkLogs", String.valueOf(value));
         }
 
         public void appRelativeFilePath(String value) {
@@ -291,7 +299,6 @@ public interface LambdaTest extends EngineProperties {
         public void customID(String value) {
             setProperty("LambdaTest.customID", value);
         }
-
 
     }
 }

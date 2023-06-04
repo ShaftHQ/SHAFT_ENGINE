@@ -155,7 +155,7 @@ public class LambdaTest {
         lambdaTestOptions.put("isRealMobile", SHAFT.Properties.lambdaTest.isRealMobile());
         lambdaTestOptions.put("console", SHAFT.Properties.lambdaTest.console());
         String geoLocation = SHAFT.Properties.lambdaTest.geoLocation();
-        if (geoLocation != null && !"".equals(geoLocation)) {
+        if (geoLocation != null && !Objects.equals(geoLocation, "")) {
             lambdaTestOptions.put("geoLocation", SHAFT.Properties.lambdaTest.geoLocation());
         }
         lambdaTestCapabilities.setCapability("LT:Options", lambdaTestOptions);
@@ -201,7 +201,7 @@ public class LambdaTest {
         lambdaTestOptions.put("isRealMobile", SHAFT.Properties.lambdaTest.isRealMobile());
         lambdaTestOptions.put("console", SHAFT.Properties.lambdaTest.console());
         String geoLocation = SHAFT.Properties.lambdaTest.geoLocation();
-        if (geoLocation != null && !"".equals(geoLocation)) {
+        if (geoLocation != null && !Objects.equals(geoLocation, "")) {
             lambdaTestOptions.put("geoLocation", SHAFT.Properties.lambdaTest.geoLocation());
         }
         lambdaTestCapabilities.setCapability("LT:Options", lambdaTestOptions);

@@ -54,8 +54,8 @@ public class Test_LTWebAppAndroid {
     @BeforeMethod
     public void beforeMethod() {
         testData = new SHAFT.TestData.JSON("credentials.json");
-        SHAFT.Properties.lambdaTest.set().deviceName("Galaxy A12");
-        SHAFT.Properties.lambdaTest.set().platformVersion("11");
+        SHAFT.Properties.lambdaTest.set().deviceName("realme 7i");
+        SHAFT.Properties.lambdaTest.set().platformVersion("10");
         SHAFT.Properties.platform.set().targetPlatform("Android");
         SHAFT.Properties.platform.set().executionAddress("lambdatest");
         SHAFT.Properties.web.set().targetBrowserName("chrome");
