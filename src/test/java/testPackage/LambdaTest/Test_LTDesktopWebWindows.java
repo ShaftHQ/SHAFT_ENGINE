@@ -1,18 +1,12 @@
 package testPackage.LambdaTest;
 
-import com.shaft.api.RequestBuilder;
-import com.shaft.api.RestActions;
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.io.File;
-import java.util.Arrays;
-import java.util.List;
-
-public class Test_LTWebWindows {
+public class Test_LTDesktopWebWindows {
     SHAFT.GUI.WebDriver driver;
     SHAFT.TestData.JSON testData;
 

@@ -9,7 +9,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-public class Test_LTMonIPAAppURL {
+public class Test_LTMobIPAAppURL {
     SHAFT.TestData.JSON testData;
     private SHAFT.GUI.WebDriver driver;
 

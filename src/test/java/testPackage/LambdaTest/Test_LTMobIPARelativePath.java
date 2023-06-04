@@ -11,7 +11,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-public class Test_LTMonIPARelativePath {
+public class Test_LTMobIPARelativePath {
     SHAFT.TestData.JSON testData;
     private WebDriver driver;
 
