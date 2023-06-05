@@ -17,6 +17,7 @@ public class Test_LTMobIPARelativePath {
 
     @Test
     public void test() {
+
         ElementActions.getInstance().performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
         ElementActions.getInstance().type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
         Validations.assertThat()
