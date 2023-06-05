@@ -711,18 +711,12 @@ public class DriverFactoryHelper {
                 }
             }
         } else {
-            try {
-                if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                    return new RemoteWebDriver(new URL(targetLambdaTestHubURL), capabilities);
-                } else {
-                    return new RemoteWebDriver(new URL(targetHubUrl), capabilities);
-                }
-            } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException1) {
-                System.out.println("RCA : "+sessionNotCreatedException1);
-                ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
+            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
+                return new RemoteWebDriver(new URL(targetLambdaTestHubURL), capabilities);
+            } else {
+                return new RemoteWebDriver(new URL(targetHubUrl), capabilities);
             }
         }
-         return new RemoteWebDriver(new URL(targetLambdaTestHubURL), capabilities);
     }
 
     private static void configureRemoteDriverInstance(DriverType driverType, DesiredCapabilities appiumDesiredCapabilities) {
