@@ -174,7 +174,6 @@ public class LambdaTest {
 
         // set properties
         SHAFT.Properties.platform.set().executionAddress(username + ":" + password + "@" + hubUrl);
-        SHAFT.Properties.mobile.set().browserName(SHAFT.Properties.web.targetBrowserName());
         MutableCapabilities lambdaTestCapabilities = new MutableCapabilities();
         var browserVersion = SHAFT.Properties.lambdaTest.browserVersion();
         if (browserVersion != null && !"".equals(browserVersion.trim())) {
@@ -233,7 +232,8 @@ public class LambdaTest {
         FailureReporter.fail(LambdaTest.class, message, rootCauseException[0]);
     }
 
-    private static String reportActionResult(String actionName, String testData, Boolean passFailStatus, Throwable... rootCauseException) {
+    private static String
+    reportActionResult(String actionName, String testData, Boolean passFailStatus, Throwable... rootCauseException) {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {

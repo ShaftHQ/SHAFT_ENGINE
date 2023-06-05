@@ -30,6 +30,8 @@ public class Test_LTDesktopWebMac {
         SHAFT.Properties.platform.set().targetPlatform("mac");
         SHAFT.Properties.platform.set().executionAddress("lambdatest");
         SHAFT.Properties.web.set().targetBrowserName("safari");
+        SHAFT.Properties.mobile.set().browserName("");
+        SHAFT.Properties.lambdaTest.set().selenium_version("4.8.0");
         SHAFT.Properties.lambdaTest.set().osVersion("Ventura");
         SHAFT.Properties.lambdaTest.set().isRealMobile(false);
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));

@@ -60,6 +60,7 @@ public class Test_LTWebAppAndroid {
         SHAFT.Properties.platform.set().executionAddress("lambdatest");
         SHAFT.Properties.web.set().targetBrowserName("chrome");
         SHAFT.Properties.mobile.set().browserName("chrome");
+        SHAFT.Properties.lambdaTest.set().selenium_version("4.8.0");
         SHAFT.Properties.lambdaTest.set().osVersion("11");
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));

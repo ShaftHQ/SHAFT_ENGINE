@@ -35,6 +35,7 @@ public class Test_LTWebAppIOS {
         SHAFT.Properties.platform.set().targetPlatform("ios");
         SHAFT.Properties.platform.set().executionAddress("lambdatest");
         SHAFT.Properties.web.set().targetBrowserName("safari");
+        SHAFT.Properties.lambdaTest.set().selenium_version("4.8.0");
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
         driver = new SHAFT.GUI.WebDriver();
