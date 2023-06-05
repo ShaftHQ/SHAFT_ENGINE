@@ -8,7 +8,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class Test_LTWebAppAndroid {
+public class Test_LTWebAppRealme {
     private final By noThanks = MobileBy.xpath("//*[@text='No thanks']");
     private final By noThanks1 = MobileBy.xpath("//*[@text='No, thanks']");
     private final By dismissChromAccountMessage = MobileBy.xpath("//*[@resource-id='com.android.chrome:id/signin_fre_dismiss_button']");
