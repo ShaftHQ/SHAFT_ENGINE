@@ -151,7 +151,7 @@ public class DriverFactory {
         String appUrl = SHAFT.Properties.lambdaTest.appUrl();
         if ("".equals(appUrl)) {
             // new native app OR web execution
-            if ("".equals(SHAFT.Properties.lambdaTest.appRelativeFilePath())) {
+            if (Objects.equals(SHAFT.Properties.lambdaTest.appRelativeFilePath(), "")) {
                 // this means it's a web execution (desktop or mobile)
                 if (DriverFactoryHelper.isMobileWebExecution()) {
                     lambdaTestOptions = LambdaTest.setupMobileWebExecution().merge(lambdaTestOptions);
