@@ -684,14 +684,38 @@ public class DriverFactoryHelper {
     private static RemoteWebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws MalformedURLException {
         var targetHubUrl = isLegacy ? TARGET_HUB_URL + "wd/hub" : TARGET_HUB_URL;
 
+        var targetLambdaTestHubURL = targetHubUrl.replace("http", "https");
+
         var targetPlatform = Properties.platform.targetPlatform();
 
+        var targetMobileHubUrl = targetHubUrl.replace("@", "@mobile-").replace("http", "https");
+
         if (targetPlatform.equalsIgnoreCase(Platform.ANDROID.toString())) {
-            return new AndroidDriver(new URL(targetHubUrl), capabilities);
+            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
+                return new AndroidDriver(new URL(targetMobileHubUrl), capabilities);
+            } else {
+                if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
+                    return new AndroidDriver(new URL(targetLambdaTestHubURL), capabilities);
+                } else {
+                    return new AndroidDriver(new URL(targetHubUrl), capabilities);
+                }
+            }
         } else if (targetPlatform.equalsIgnoreCase(Platform.IOS.toString())) {
-            return new IOSDriver(new URL(targetHubUrl), capabilities);
+            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
+                return new IOSDriver(new URL(targetMobileHubUrl), capabilities);
+            } else {
+                if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
+                    return new IOSDriver(new URL(targetLambdaTestHubURL), capabilities);
+                } else {
+                    return new IOSDriver(new URL(targetHubUrl), capabilities);
+                }
+            }
         } else {
-            return new RemoteWebDriver(new URL(targetHubUrl), capabilities);
+            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
+                return new RemoteWebDriver(new URL(targetLambdaTestHubURL), capabilities);
+            } else {
+                return new RemoteWebDriver(new URL(targetHubUrl), capabilities);
+            }
         }
     }
 

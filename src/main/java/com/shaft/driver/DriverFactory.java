@@ -1,6 +1,7 @@
 package com.shaft.driver;
 
 import com.shaft.api.BrowserStack;
+import com.shaft.api.LambdaTest;
 import com.shaft.api.RestActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
@@ -28,6 +29,9 @@ public class DriverFactory {
         readLastMinuteUpdatedProperties();
         if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("browserstack")) {
             return getBrowserStackDriver(new MutableCapabilities());
+        }else if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("lambdatest")){
+            return getLambdaTestDriver(new MutableCapabilities());
+
         } else {
             DriverFactoryHelper.initializeDriver();
             return DriverFactoryHelper.getDriver().get();
@@ -44,7 +48,9 @@ public class DriverFactory {
         readLastMinuteUpdatedProperties();
         if (driverType.equals(DriverType.BROWSERSTACK)) {
             return getBrowserStackDriver(new MutableCapabilities());
-        } else {
+        } else if (driverType.equals(DriverType.LAMBDATEST)) {
+            return getLambdaTestDriver(new MutableCapabilities());
+        }else {
             DriverFactoryHelper.initializeDriver(driverType);
             return DriverFactoryHelper.getDriver().get();
         }
@@ -61,6 +67,8 @@ public class DriverFactory {
         readLastMinuteUpdatedProperties();
         if (driverType.equals(DriverType.BROWSERSTACK)) {
             return getBrowserStackDriver(customDriverOptions);
+        }else if (driverType.equals(DriverType.LAMBDATEST)) {
+            return getLambdaTestDriver(customDriverOptions);
         } else {
             DriverFactoryHelper.initializeDriver(driverType, customDriverOptions);
             return DriverFactoryHelper.getDriver().get();
@@ -131,6 +139,38 @@ public class DriverFactory {
         }
         return DriverFactoryHelper.getDriver().get();
 
+    }
+
+    /**
+     * Creates a new Selenium WebDriver instance using lambdaTest, use this to test Native Mobile apps over lambdaTest
+     *
+     * @param lambdaTestOptions custom lambdaTest options to be merged with the default in the lambdaTest.properties file
+     * @return a new Selenium WebDriver instance using lambdaTest
+     */
+    private static WebDriver getLambdaTestDriver(MutableCapabilities lambdaTestOptions) {
+        String appUrl = SHAFT.Properties.lambdaTest.appUrl();
+        if ("".equals(appUrl)) {
+            // new native app OR web execution
+            if ("".equals(SHAFT.Properties.lambdaTest.appRelativeFilePath())) {
+                // this means it's a web execution (desktop or mobile)
+                if (DriverFactoryHelper.isMobileWebExecution()) {
+                    lambdaTestOptions = LambdaTest.setupMobileWebExecution().merge(lambdaTestOptions);
+                } else {
+                    // desktop web
+                    lambdaTestOptions = LambdaTest.setupDesktopWebExecution().merge(lambdaTestOptions);
+                }
+                DriverFactoryHelper.initializeDriver(lambdaTestOptions);
+            } else {
+                // this is the new native app scenario
+                lambdaTestOptions = LambdaTest.setupNativeAppExecution(SHAFT.Properties.lambdaTest.username(), SHAFT.Properties.lambdaTest.accessKey(), SHAFT.Properties.lambdaTest.deviceName(), SHAFT.Properties.lambdaTest.platformVersion(), SHAFT.Properties.lambdaTest.appRelativeFilePath(), SHAFT.Properties.lambdaTest.appName()).merge(lambdaTestOptions);
+                DriverFactoryHelper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, lambdaTestOptions);
+            }
+        } else {
+            // this is the existing version from a native app scenario
+            lambdaTestOptions = LambdaTest.setupNativeAppExecution(SHAFT.Properties.lambdaTest.username(), SHAFT.Properties.lambdaTest.accessKey(), SHAFT.Properties.lambdaTest.deviceName(), SHAFT.Properties.lambdaTest.platformVersion(), appUrl).merge(lambdaTestOptions);
+            DriverFactoryHelper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, lambdaTestOptions);
+        }
+        return DriverFactoryHelper.getDriver().get();
     }
 
     /**
@@ -206,7 +246,7 @@ public class DriverFactory {
      * List of the supported driver types for execution
      */
     public enum DriverType {
-        SIKULI("SikuliActions"), BROWSERSTACK("BrowserStack"), DATABASE("DatabaseActions"), TERMINAL("TerminalActions"), API("RestActions"), FIREFOX(Browser.FIREFOX.browserName()), CHROME(Browser.CHROME.browserName()), SAFARI(Browser.SAFARI.browserName()),
+        SIKULI("SikuliActions"), BROWSERSTACK("BrowserStack") ,LAMBDATEST("LambdaTest"), DATABASE("DatabaseActions"), TERMINAL("TerminalActions"), API("RestActions"), FIREFOX(Browser.FIREFOX.browserName()), CHROME(Browser.CHROME.browserName()), SAFARI(Browser.SAFARI.browserName()),
         IE(Browser.IE.browserName()), EDGE(Browser.EDGE.browserName()), CHROMIUM("Chromium"), WEBKIT("Webkit"), APPIUM_CHROME("chrome"),
         APPIUM_CHROMIUM("Chromium"), APPIUM_BROWSER("Browser"), APPIUM_SAMSUNG_BROWSER("samsung"), APPIUM_MOBILE_NATIVE("NativeMobileApp");
 
