@@ -19,4 +19,6 @@ public class Properties {
     public static Visuals visuals;
     public static Web web;
     public static Performance performance;
+    public static LambdaTest lambdaTest;
+
 }
