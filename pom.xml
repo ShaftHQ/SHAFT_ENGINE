@@ -32,7 +32,7 @@
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
         <selenium.version>4.9.1</selenium.version>
         <selenium.version>4.9.0</selenium.version>
-        <appium-java-client.version>8.5.0</appium-java-client.version>
+        <appium-java-client.version>8.5.1</appium-java-client.version>
         <webdrivermanager.version>5.3.3</webdrivermanager.version>
         <allure-testng.version>2.22.1</allure-testng.version> <!-- UPDATE internal.properties -->
         <extentreports.version>5.0.9</extentreports.version>
