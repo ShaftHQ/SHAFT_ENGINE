@@ -1,4 +1,4 @@
-name: jFrog Continuous Delivery
+name: Maven Central Continuous Delivery
 # Executed automatically when a new PR is merged to master, if the release number already exists this job will fail
 # This pipeline will build from main, upload the artifacts, and create the GitHub release
 
@@ -35,17 +35,17 @@ jobs:
           generateReleaseNotes: true
           name: ${{ env.RELEASE_VERSION }}
           tag: ${{ env.RELEASE_VERSION }}
-      - name: Install SHAFT
+      - uses: s4u/maven-settings-action@v2.3.0
+        with:
+          servers: |
+            [{
+                "id": "ossrh",
+                "username": "${{ secrets.OSSRH_USERNAME }}",
+                "password": "${{ secrets.OSSRH_PASSWORD }}"
+            }]
+      - name: Deploy SHAFT to maven central
         continue-on-error: true
-        run: mvn clean install -DskipTests
-      - name: Setup JFrog CLI
-        uses: jfrog/setup-jfrog-cli@v3
         env:
-          JF_ENV_1: ${{ secrets.JF_SECRET_ENV_1 }}
-      - name: Verify Automatest Artifactory is Reachable
-        run: |
-          jf rt ping
-      - name: Upload SHAFT Release Files
-        run: |
-          jf rt u "/home/runner/.m2/repository/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/*.jar" "SHAFT_ENGINE/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/" --flat=true --detailed-summary=true
-          jf rt u "/home/runner/.m2/repository/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/*.pom" "SHAFT_ENGINE/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/" --flat=true --detailed-summary=true
+          gpg.keyname: ${{ secrets.GPG_KEYNAME }}
+          gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
+        run: mvn -e clean deploy -DskipTests
