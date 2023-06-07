@@ -20,6 +20,11 @@ jobs:
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
+          server-id: ossrh # Value of the distributionManagement/repository/id field of the pom.xml
+          server-username: ${{ secrets.OSSRH_USERNAME }}
+          server-password: ${{ secrets.OSSRH_PASSWORD }}
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
       # Captures the engine version from the pom.xml
       - name: Set Release Version Number
         run: |
@@ -35,7 +40,7 @@ jobs:
           generateReleaseNotes: true
           name: ${{ env.RELEASE_VERSION }}
           tag: ${{ env.RELEASE_VERSION }}
-      - uses: s4u/maven-settings-action@v2.8.0
+      - uses: s4u/maven-settings-action@v2.3.0
         with:
           servers: |
             [{
@@ -53,3 +58,7 @@ jobs:
       - name: Deploy SHAFT to maven central
         continue-on-error: true
         run: mvn -e clean deploy -DskipTests
+        env:
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          OSSRH_TOKEN: ${{ secrets.OSSRH_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
