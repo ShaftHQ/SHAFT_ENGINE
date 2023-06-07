@@ -967,6 +967,16 @@ public class ReportManagerHelper {
         }
     }
 
+    public static void openExtentReportAfterExecution() {
+        if (SHAFT.Properties.reporting.openExtentReportAfterExecution()) {
+            if (SystemUtils.IS_OS_WINDOWS) {
+                SHAFT.CLI.terminal().performTerminalCommand(".\\" + SHAFT.Properties.paths.extentReports() + "ExtentReports_*.html");
+            } else {
+                SHAFT.CLI.terminal().performTerminalCommand("open ./" + SHAFT.Properties.paths.extentReports() + "ExtentReports_*.html");
+            }
+        }
+    }
+
     public static void log(String logText, List<List<Object>> attachments) {
         if (!SHAFT.Properties.reporting.disableLogging()) {
             if (!logText.toLowerCase().contains("failed") && getDiscreteLogging() && isInternalStep()) {
