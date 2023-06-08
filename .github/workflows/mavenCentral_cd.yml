@@ -39,7 +39,15 @@ jobs:
           allowUpdates: false
           generateReleaseNotes: true
           name: ${{ env.RELEASE_VERSION }}
-          tag: ${{ env.RELEASE_VERSION }}    
+          tag: ${{ env.RELEASE_VERSION }}
+      - uses: s4u/maven-settings-action@v2.8.0
+        with:
+          servers: |
+            [{
+                "id": "ossrh",
+                "username": "${{ secrets.OSSRH_USERNAME }}",
+                "password": "${{ secrets.OSSRH_PASSWORD }}"
+            }]
       - name: Deploy SHAFT to maven central
         continue-on-error: true
         run: mvn -e clean deploy -DskipTests
@@ -48,5 +56,4 @@ jobs:
           OSSRH_TOKEN: ${{ secrets.OSSRH_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           gpg.keyname: ${{ secrets.GPG_KEYNAME }}
-
           gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
