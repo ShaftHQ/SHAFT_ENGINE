@@ -20,7 +20,7 @@ jobs:
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
-          server-id: ossrh # Value of the distributionManagement/repository/id field of the pom.xml
+          server-id: ossrh
           server-username: ${{ secrets.OSSRH_USERNAME }}
           server-password: ${{ secrets.OSSRH_PASSWORD }}
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
