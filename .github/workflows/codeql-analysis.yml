@@ -31,7 +31,6 @@ jobs:
         with:
           java-version: '17'
           distribution: 'zulu'
-          cache: 'maven'
           check-latest: true
           server-id: ossrh
           server-username: ${{ secrets.OSSRH_USERNAME }}
