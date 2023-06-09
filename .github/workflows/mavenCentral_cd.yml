@@ -40,7 +40,7 @@ jobs:
           generateReleaseNotes: true
           name: ${{ env.RELEASE_VERSION }}
           tag: ${{ env.RELEASE_VERSION }}
-      - uses: s4u/maven-settings-action@v2.3.0
+      - uses: s4u/maven-settings-action@v2.8.0
         with:
           servers: |
             [{
@@ -48,19 +48,12 @@ jobs:
                 "username": "${{ secrets.OSSRH_USERNAME }}",
                 "password": "${{ secrets.OSSRH_PASSWORD }}"
             }]
-      - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@v5
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
-          git_user_signingkey: true
-          git_commit_gpgsign: true
       - name: Deploy SHAFT to maven central
         continue-on-error: true
-        run: mvn -e clean deploy -DskipTests
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_TOKEN: ${{ secrets.OSSRH_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           gpg.keyname: ${{ secrets.GPG_KEYNAME }}
           gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
+        run: mvn -e clean deploy -DskipTests
