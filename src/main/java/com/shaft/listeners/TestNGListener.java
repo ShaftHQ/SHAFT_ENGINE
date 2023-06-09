@@ -91,9 +91,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ReportManagerHelper.logEngineVersion();
         ImageProcessingActions.loadOpenCV();
 
-        ReportManagerHelper.cleanExecutionSummaryReportDirectory();
         ReportManagerHelper.initializeAllureReportingEnvironment();
         ReportManagerHelper.initializeExtentReportingEnvironment();
+        ReportManagerHelper.cleanExecutionSummaryReportDirectory();
 
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
         ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());

@@ -3,9 +3,12 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>7.2.20230606</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
+    <version>7.2.20230609</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
     <name>${project.groupId}:${project.artifactId}</name>
-    <description>SHAFT is a unified test automation engine. Powered by best-in-class frameworks, SHAFT provides a wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve. Stop reinventing the wheel. Upgrade now!</description>
+    <description>SHAFT is a unified test automation engine. Powered by best-in-class frameworks, SHAFT provides a
+        wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve.
+        Stop reinventing the wheel. Upgrade now!
+    </description>
     <url>https://shafthq.github.io/</url>
     <packaging>jar</packaging>
     <licenses>
@@ -962,8 +965,12 @@
                         <configuration>
                             <interactive>false</interactive>
                             <keyname>${gpg.keyname}</keyname>
-                            <gpgArguments>--quiet</gpgArguments>
                             <passphrase>${gpg.passphrase}</passphrase>
+                            <!-- Prevent gpg from using pinentry programs -->
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
                             <!-- Follow these steps: https://www.git-tower.com/blog/setting-up-gpg-windows/ -->
                             <!-- In case you get `gpg: skipped "xxxxxx": No secret key` error
                             navigate to where gpg is installed, usually here `C:\Program Files (x86)\GnuPG\bin`

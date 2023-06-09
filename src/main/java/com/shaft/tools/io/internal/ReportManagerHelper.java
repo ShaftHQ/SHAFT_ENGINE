@@ -953,8 +953,10 @@ public class ReportManagerHelper {
     }
 
     public static void cleanExecutionSummaryReportDirectory() {
-        String executionSummaryReportFolderPath = SHAFT.Properties.paths.executionSummaryReport();
-        FileActions.getInstance().deleteFolder(executionSummaryReportFolderPath.substring(0, executionSummaryReportFolderPath.length() - 1));
+        if (SHAFT.Properties.reporting.cleanSummaryReportsDirectoryBeforeExecution()) {
+            String executionSummaryReportFolderPath = SHAFT.Properties.paths.executionSummaryReport();
+            FileActions.getInstance().deleteFolder(executionSummaryReportFolderPath.substring(0, executionSummaryReportFolderPath.length() - 1));
+        }
     }
 
     public static void openExecutionSummaryReportAfterExecution() {
