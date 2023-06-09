@@ -67,7 +67,6 @@ jobs:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           gpg.keyname: ${{ secrets.GPG_KEYNAME }}
           gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
-        #        run: mvn -e clean install -DskipTests
         run: mvn -B clean package --file pom.xml -DskipTests
 
       - name: Perform CodeQL Analysis
