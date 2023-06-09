@@ -17,7 +17,7 @@ jobs:
         language: [ 'java' ]
 
     steps:
-    - name: Checkout repository
+      - name: Checkout repository
       uses: actions/checkout@v3
 
     # Initializes the CodeQL tools for scanning.
@@ -39,24 +39,32 @@ jobs:
         gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
         gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
-    - uses: s4u/maven-settings-action@v2.8.0
-      with:
-        servers: |
-          [{
-              "id": "ossrh",
-              "username": "${{ secrets.OSSRH_USERNAME }}",
-              "password": "${{ secrets.OSSRH_PASSWORD }}"
-          }]
+      - uses: s4u/maven-settings-action@v2.8.0
+        with:
+          servers: |
+            [{
+                "id": "ossrh",
+                "username": "${{ secrets.OSSRH_USERNAME }}",
+                "password": "${{ secrets.OSSRH_PASSWORD }}"
+            }]
 
-    - name: Build SHAFT_Engine
-      env:
-        OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-        OSSRH_TOKEN: ${{ secrets.OSSRH_PASSWORD }}
-        MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-        MAVEN_CENTRAL_TOKEN: ${{ secrets.OSSRH_PASSWORD }}
-        MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        gpg.keyname: ${{ secrets.GPG_KEYNAME }}
-        gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Setup Prerequisites
+        run: |
+          gpg --version
+          echo "test" | gpg --clearsign
+          brew install pinentry
+          gpgconf --kill gpg-agent
+          gpg -K --keyid-format SHORT
+
+      - name: Build SHAFT_Engine
+        env:
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          OSSRH_TOKEN: ${{ secrets.OSSRH_PASSWORD }}
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_CENTRAL_TOKEN: ${{ secrets.OSSRH_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          gpg.keyname: ${{ secrets.GPG_KEYNAME }}
+          gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
       run: mvn -e clean install -DskipTests
 
     - name: Perform CodeQL Analysis

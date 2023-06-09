@@ -48,6 +48,13 @@ jobs:
                 "username": "${{ secrets.OSSRH_USERNAME }}",
                 "password": "${{ secrets.OSSRH_PASSWORD }}"
             }]
+      - name: Setup Prerequisites
+        run: |
+          gpg --version
+          echo "test" | gpg --clearsign
+          brew install pinentry
+          gpgconf --kill gpg-agent
+          gpg -K --keyid-format SHORT
       - name: Deploy SHAFT to maven central
         continue-on-error: true
         env:
