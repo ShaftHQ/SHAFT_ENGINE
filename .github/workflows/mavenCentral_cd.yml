@@ -54,6 +54,7 @@ jobs:
           git config --global commit.gpgsign true
           gpg --version
           /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          . ~/.bash_profile
           brew install pinentry
           gpgconf --kill gpg-agent
           gpg -K --keyid-format SHORT
