@@ -55,7 +55,6 @@ jobs:
           gpgconf --kill gpg-agent
           gpg -K --keyid-format SHORT
           export GPG_TTY=$(tty)
-          echo "test" | gpg --clearsign
       - name: Deploy SHAFT to maven central
         continue-on-error: true
         env:
