@@ -38,15 +38,24 @@ jobs:
         server-password: ${{ secrets.OSSRH_PASSWORD }}
         gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
         gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
-      
+
+    - uses: s4u/maven-settings-action@v2.8.0
+      with:
+        servers: |
+          [{
+              "id": "ossrh",
+              "username": "${{ secrets.OSSRH_USERNAME }}",
+              "password": "${{ secrets.OSSRH_PASSWORD }}"
+          }]
+
     - name: Build SHAFT_Engine
-      run: mvn clean install -DskipTests
       env:
-          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          OSSRH_TOKEN: ${{ secrets.OSSRH_PASSWORD }}
-          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-          gpg.keyname: ${{ secrets.GPG_KEYNAME }}
-          gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
+        OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+        OSSRH_TOKEN: ${{ secrets.OSSRH_PASSWORD }}
+        MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        gpg.keyname: ${{ secrets.GPG_KEYNAME }}
+        gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      run: mvn -e clean install -DskipTests
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
