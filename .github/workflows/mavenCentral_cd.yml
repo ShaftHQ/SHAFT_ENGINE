@@ -53,11 +53,11 @@ jobs:
           git config --global user.signingKey ${{ secrets.GPG_KEYNAME }}
           git config --global commit.gpgsign true
           gpg --version
-          echo "test" | gpg --clearsign
           brew install pinentry
           gpgconf --kill gpg-agent
           gpg -K --keyid-format SHORT
           export GPG_TTY=$(tty)
+          echo "test" | gpg --clearsign
       - name: Deploy SHAFT to maven central
         continue-on-error: true
         env:
