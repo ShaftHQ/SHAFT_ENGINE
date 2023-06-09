@@ -964,9 +964,9 @@
                             <keyname>${gpg.keyname}</keyname>
                            <!-- Prevent gpg from using pinentry programs -->
                            <gpgArguments>
-                                    <arg>--pinentry-mode</arg>
-                                    <arg>--quiet</arg>
-                                    <arg>loopback</arg>
+                               <arg>--quiet</arg>
+                               <arg>--pinentry-mode</arg>
+                               <arg>loopback</arg>
                            </gpgArguments>
                             <passphrase>${gpg.passphrase}</passphrase>
                             <!-- Follow these steps: https://www.git-tower.com/blog/setting-up-gpg-windows/ -->
