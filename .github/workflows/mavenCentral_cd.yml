@@ -39,14 +39,14 @@ jobs:
           generateReleaseNotes: true
           name: ${{ env.RELEASE_VERSION }}
           tag: ${{ env.RELEASE_VERSION }}
-      - uses: s4u/maven-settings-action@v2.8.0
-        with:
-          servers: |
-            [{
-                "id": "ossrh",
-                "username": "${{ secrets.OSSRH_USERNAME }}",
-                "password": "${{ secrets.OSSRH_PASSWORD }}"
-            }]
+      #      - uses: s4u/maven-settings-action@v2.8.0
+      #        with:
+      #          servers: |
+      #            [{
+      #                "id": "ossrh",
+      #                "username": "${{ secrets.OSSRH_USERNAME }}",
+      #                "password": "${{ secrets.OSSRH_PASSWORD }}"
+      #            }]
       - name: Setup Prerequisites
         run: |
           git config --global user.signingKey ${{ secrets.GPG_KEYNAME }}
