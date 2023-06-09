@@ -49,6 +49,7 @@ jobs:
 
       - name: Setup Prerequisites
         run: |
+          git config --global gpg.program gpg
           git config --global user.signingKey ${{ secrets.GPG_KEYNAME }}
           git config --global commit.gpgsign true
           gpg --version
@@ -58,6 +59,7 @@ jobs:
 
       - name: Build SHAFT_Engine
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_TOKEN: ${{ secrets.OSSRH_PASSWORD }}
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
@@ -65,7 +67,8 @@ jobs:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           gpg.keyname: ${{ secrets.GPG_KEYNAME }}
           gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
-        run: mvn -e clean install -DskipTests
+        #        run: mvn -e clean install -DskipTests
+        run: mvn -B package --file pom.xml
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v2

@@ -962,13 +962,12 @@
                         <configuration>
                             <interactive>false</interactive>
                             <keyname>${gpg.keyname}</keyname>
-                           <!-- Prevent gpg from using pinentry programs -->
-                           <gpgArguments>
-                               <arg>--quiet</arg>
-                               <arg>--pinentry-mode</arg>
-                               <arg>loopback</arg>
-                           </gpgArguments>
                             <passphrase>${gpg.passphrase}</passphrase>
+                            <!-- Prevent gpg from using pinentry programs -->
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
                             <!-- Follow these steps: https://www.git-tower.com/blog/setting-up-gpg-windows/ -->
                             <!-- In case you get `gpg: skipped "xxxxxx": No secret key` error
                             navigate to where gpg is installed, usually here `C:\Program Files (x86)\GnuPG\bin`

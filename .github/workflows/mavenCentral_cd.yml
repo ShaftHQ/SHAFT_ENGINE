@@ -58,6 +58,7 @@ jobs:
       - name: Deploy SHAFT to maven central
         continue-on-error: true
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_TOKEN: ${{ secrets.OSSRH_PASSWORD }}
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
