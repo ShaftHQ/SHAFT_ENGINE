@@ -62,8 +62,9 @@ jobs:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_TOKEN: ${{ secrets.OSSRH_PASSWORD }}
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
           MAVEN_CENTRAL_TOKEN: ${{ secrets.OSSRH_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           gpg.keyname: ${{ secrets.GPG_KEYNAME }}
           gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
-        run: mvn -e deploy "-DskipTests" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
+        run: mvn --batch-mode deploy "-DskipTests" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
