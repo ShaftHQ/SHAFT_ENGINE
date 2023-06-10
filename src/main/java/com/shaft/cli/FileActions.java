@@ -534,7 +534,7 @@ public class FileActions {
         try {
             FileUtils.forceDelete(directory);
             passAction("Target Folder: \"" + folderPath + "\"");
-        } catch (FileNotFoundException e) {
+        } catch (java.io.UncheckedIOException | java.nio.file.NoSuchFileException | FileNotFoundException e) {
             // file is already deleted or was not found
             ReportManager.log("Folder \"" + folderPath + "\" was not found, it may have already been deleted.");
         } catch (IOException rootCauseException) {
