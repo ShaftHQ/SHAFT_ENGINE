@@ -3,10 +3,8 @@ package com.shaft.driver.internal;
 import com.epam.healenium.SelfHealingDriver;
 import com.google.common.base.Throwables;
 import com.mysql.cj.util.StringUtils;
-import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.browser.internal.BrowserActionsHelpers;
 import com.shaft.gui.browser.internal.FluentBrowserActions;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.properties.internal.Properties;
@@ -43,6 +41,7 @@ import org.openqa.selenium.remote.*;
 import org.openqa.selenium.safari.SafariOptions;
 import org.testng.Reporter;
 
+import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Duration;
@@ -170,8 +169,6 @@ public class DriverFactoryHelper {
         return DriverType.CHROME;
     }
     private static void setDriverOptions(DriverType driverType, MutableCapabilities customDriverOptions) {
-        String downloadsFolderPath = FileActions.getInstance().getAbsolutePath(SHAFT.Properties.paths.downloads());
-
         //get proxy server
         // Proxy server settings | testing behind a proxy
         String proxyServerSettings = SHAFT.Properties.platform.proxy();
@@ -183,7 +180,7 @@ public class DriverFactoryHelper {
                 // https://developer.mozilla.org/en-US/docs/Web/WebDriver/Capabilities/firefoxOptions
                 ffOptions = new FirefoxOptions();
                 var ffProfile = new FirefoxProfile();
-                ffProfile.setPreference("browser.download.dir", downloadsFolderPath);
+                ffProfile.setPreference("browser.download.dir", System.getProperty("user.dir") + File.separatorChar + SHAFT.Properties.paths.downloads());
                 ffProfile.setPreference("browser.download.folderList", 2);
                 //noinspection SpellCheckingInspection
                 ffProfile.setPreference("browser.helperApps.neverAsk.saveToDisk",
@@ -348,7 +345,7 @@ public class DriverFactoryHelper {
         Map<String, Object> chromePreferences = new HashMap<>();
         chromePreferences.put("profile.default_content_settings.popups", 0);
         chromePreferences.put("download.prompt_for_download", "false");
-        chromePreferences.put("download.default_directory", FileActions.getInstance().getAbsolutePath(Properties.paths.downloads()));
+        chromePreferences.put("download.default_directory", System.getProperty("user.dir") + File.separatorChar + SHAFT.Properties.paths.downloads());
         options.setExperimentalOption("prefs", chromePreferences);
         options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT_AND_NOTIFY);
         options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);

@@ -278,8 +278,9 @@ public class FileActions {
      *                       be deleted
      */
     public void deleteFile(String targetFilePath) {
-        FileUtils.deleteQuietly(new File(targetFilePath));
-        passAction("Target File Path: \"" + targetFilePath + "\"");
+        boolean wasFileDeleted = FileUtils.deleteQuietly(new File(targetFilePath));
+        String negation = wasFileDeleted ? "" : "not";
+        passAction("Target File Path: \"" + targetFilePath + "\", file was " + negation + " deleted.");
     }
 
     public void writeToFile(String fileFolderName, String fileName, List<String> text) {
@@ -530,16 +531,7 @@ public class FileActions {
     }
 
     public void deleteFolder(String folderPath) {
-        File directory = new File(folderPath);
-        try {
-            FileUtils.forceDelete(directory);
-            passAction("Target Folder: \"" + folderPath + "\"");
-        } catch (FileNotFoundException e) {
-            // file is already deleted or was not found
-            ReportManager.log("Folder \"" + folderPath + "\" was not found, it may have already been deleted.");
-        } catch (IOException rootCauseException) {
-            failAction(rootCauseException);
-        }
+        deleteFile(folderPath);
     }
 
     public void createFolder(String folderPath) {
