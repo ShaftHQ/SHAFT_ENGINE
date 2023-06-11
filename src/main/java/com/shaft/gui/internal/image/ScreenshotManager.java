@@ -12,9 +12,6 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.imgscalr.Scalr;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfByte;
-import org.opencv.imgcodecs.Imgcodecs;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.*;
 import org.openqa.selenium.support.locators.RelativeLocator;
@@ -48,7 +45,7 @@ public class ScreenshotManager {
     private static final Boolean CREATE_GIF = SHAFT.Properties.visuals.createAnimatedGif();
     private static Screenshots SCREENSHOT_PARAMS_SCREENSHOT_TYPE = setScreenshotType();
     private static final int GIF_FRAME_DELAY = SHAFT.Properties.visuals.animatedGifFrameDelay();
-    private static String SCREENSHOT_PARAMS_HIGHLIGHT_METHOD = SHAFT.Properties.visuals.screenshotParamsHighlightMethod();
+    private static final String SCREENSHOT_PARAMS_HIGHLIGHT_METHOD = SHAFT.Properties.visuals.screenshotParamsHighlightMethod();
 
     private static Screenshots setScreenshotType() {
         switch (SHAFT.Properties.visuals.screenshotParamsScreenshotType().toLowerCase()) {
@@ -333,17 +330,21 @@ public class ScreenshotManager {
                  * element before taking the screenshot
                  */
                 if (takeScreenshot && Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHT_ELEMENTS) && elementLocator != null) {
-                    try {
-                        // catching https://github.com/ShaftHQ/SHAFT_ENGINE/issues/640
-                        @SuppressWarnings("unused") Mat img = Imgcodecs.imdecode(new MatOfByte(), Imgcodecs.IMREAD_COLOR);
-                    } catch (java.lang.UnsatisfiedLinkError unsatisfiedLinkError) {
-                        ReportManagerHelper.logDiscrete(unsatisfiedLinkError);
-                        ReportManager.logDiscrete("Caught an UnsatisfiedLinkError, switching element highlighting method to JavaScript instead of AI.");
-                        SCREENSHOT_PARAMS_HIGHLIGHT_METHOD = "JavaScript";
-                    } catch (Exception exception) {
-                        //do nothing in case of any other exception
-                        //expected to throw org.opencv.core.CvException if removed
-                    }
+//                    try {
+//                        // catching https://github.com/ShaftHQ/SHAFT_ENGINE/issues/640
+//                        @SuppressWarnings("unused") Mat img = Imgcodecs.imdecode(new MatOfByte(), Imgcodecs.IMREAD_COLOR);
+//                        /**
+//                         * throws a red log message, will disable this entire block, the same issue may be reopened, if so try to find a better solution
+//                         * OpenCV(4.7.0-dev) Error: Assertion failed (!buf.empty()) in cv::imdecode_, file C:\GHA-OCV-2\_work\ci-gha-workflow\ci-gha-workflow\opencv\modules\imgcodecs\src\loadsave.cpp, line 798
+//                         */
+//                    } catch (java.lang.UnsatisfiedLinkError unsatisfiedLinkError) {
+//                        ReportManagerHelper.logDiscrete(unsatisfiedLinkError);
+//                        ReportManager.logDiscrete("Caught an UnsatisfiedLinkError, switching element highlighting method to JavaScript instead of AI.");
+//                        SCREENSHOT_PARAMS_HIGHLIGHT_METHOD = "JavaScript";
+//                    } catch (Exception exception) {
+//                        //do nothing in case of any other exception
+//                        //expected to throw org.opencv.core.CvException if removed
+//                    }
 
                     int elementCount = ElementActionsHelper.getElementsCount(driver, elementLocator, RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION);
                     boolean isRelativeLocator = elementLocator instanceof RelativeLocator.RelativeBy;

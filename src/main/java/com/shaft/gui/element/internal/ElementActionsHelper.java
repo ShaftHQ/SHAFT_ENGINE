@@ -170,8 +170,8 @@ public class ElementActionsHelper {
                             targetElement = nestedDriver.findElement(elementLocator);
                         }
                         var elementInformation = new ElementInformation();
+                        elementInformation.setElementRect(targetElement.getRect());
                         if (isValidToCheckForVisibility) {
-                            elementInformation.setElementRect(targetElement.getRect());
                             if (!isMobileExecution) {
                                 try {
                                     // native Javascript scroll to center (smooth / auto)
