@@ -20,19 +20,22 @@
 
 [🤝 Fully supported](https://github.com/ShaftHQ/SHAFT_ENGINE#-support--contributions) - [🌍 Used by thousands](https://github.com/ShaftHQ/SHAFT_ENGINE#-who-else-is-using-shaft-2) - [🤨 Oddly familiar](https://github.com/ShaftHQ/SHAFT_ENGINE#-tech-stack)
 
-[🔋 Batteries included](https://github.com/MohabMohie/using_SHAFT_Engine) - [🪄 No magic required](https://ShaftHQ.github.io/).
-
+[🔋 Batteries included](https://github.com/ShaftHQ/using_SHAFT_Engine) - [🪄 No magic required](https://ShaftHQ.github.io/).
 
 <a id="quick-start-guide"></a>
 ## 🏃 Quick Start Guide
 
 ### Option 1: Template Project
-- Use our [Template Project](https://github.com/MohabMohie/using_SHAFT_Engine) to get started with one click.
+
+- Use our [Template Project](https://github.com/ShaftHQ/using_SHAFT_Engine) to get started with one click.
 
 ### Option 2: New Project
 #### Step 1: Initial Setup
+
 - Create a new Java/Maven project using Eclipse, IntelliJ or your favourite IDE.
-- Copy the highlighted contents of this [pom.xml](https://github.com/MohabMohie/using_SHAFT_Engine/blob/main/GUI_Web/pom.xml#L11-L149) file into yours inside the ```<project>``` tag.
+- Copy the highlighted contents of
+  this [pom.xml](https://github.com/ShaftHQ/using_SHAFT_Engine/blob/main/GUI_Web/pom.xml#L11-L150) file into yours
+  inside the ```<project>``` tag.
 - Follow the steps in this footnote in case you are using IntelliJ[^1].
 
 #### Step 2: Creating Tests
