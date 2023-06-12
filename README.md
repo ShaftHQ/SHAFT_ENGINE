@@ -34,7 +34,7 @@
 
 - Create a new Java/Maven project using Eclipse, IntelliJ or your favourite IDE.
 - Copy the highlighted contents of
-  this [pom.xml](https://github.com/ShaftHQ/using_SHAFT_Engine/blob/main/GUI_Web/pom.xml#L11-L150) file into yours
+  this [pom.xml](https://github.com/ShaftHQ/using_SHAFT_Engine/blob/main/GUI_Web/pom.xml#L11-L200) file into yours
   inside the ```<project>``` tag.
 - Follow the steps in this footnote in case you are using IntelliJ[^1].
 
