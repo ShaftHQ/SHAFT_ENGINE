@@ -88,8 +88,8 @@ public class TestNGListenerHelper {
                         "targetOperatingSystem", Platform.LINUX.name(),
                         "targetBrowserName", Browser.FIREFOX.browserName()
                 ));
-                firefox_test.setThreadCount(1);
-                firefox_test.setParallel(XmlSuite.ParallelMode.NONE);
+                firefox_test.setThreadCount(SHAFT.Properties.testNG.threadCount());
+                firefox_test.setParallel(XmlSuite.ParallelMode.valueOf(SHAFT.Properties.testNG.parallel()));
                 firefox_test.setName(firefox_test.getName() + " - FireFox");
 
                 var safari_test = (XmlTest) suite.getTests().get(0).clone();
@@ -98,8 +98,8 @@ public class TestNGListenerHelper {
                         "targetOperatingSystem", Platform.LINUX.name(),
                         "targetBrowserName", Browser.SAFARI.browserName()
                 ));
-                safari_test.setThreadCount(1);
-                safari_test.setParallel(XmlSuite.ParallelMode.NONE);
+                safari_test.setThreadCount(SHAFT.Properties.testNG.threadCount());
+                safari_test.setParallel(XmlSuite.ParallelMode.valueOf(SHAFT.Properties.testNG.parallel()));
                 safari_test.setName(safari_test.getName() + " - Safari");
 
                 var chrome_test = (XmlTest) suite.getTests().get(0);
@@ -108,8 +108,8 @@ public class TestNGListenerHelper {
                         "targetOperatingSystem", Platform.LINUX.name(),
                         "targetBrowserName", Browser.CHROME.browserName()
                 ));
-                chrome_test.setThreadCount(1);
-                chrome_test.setParallel(XmlSuite.ParallelMode.NONE);
+                chrome_test.setThreadCount(SHAFT.Properties.testNG.threadCount());
+                chrome_test.setParallel(XmlSuite.ParallelMode.valueOf(SHAFT.Properties.testNG.parallel()));
                 chrome_test.setName(chrome_test.getName() + " - Chrome");
 
                 if (SHAFT.Properties.platform.crossBrowserMode().equals("parallelized")) {

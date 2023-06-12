@@ -163,6 +163,8 @@ public class BrowserStack {
         browserstackOptions.put("acceptInsecureCerts", SHAFT.Properties.browserStack.acceptInsecureCerts());
         browserstackOptions.put("debug", SHAFT.Properties.browserStack.debug());
         browserstackOptions.put("networkLogs", SHAFT.Properties.browserStack.networkLogs());
+//        browserstackOptions.put("projectName", System.getProperty("project.artifactId"));
+//        browserstackOptions.put("buildName", !SHAFT.Properties.browserStack.appName().equals("") ? SHAFT.Properties.browserStack.appName() : System.getProperty("project.artifactId") + "_" + System.currentTimeMillis());
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
         return browserStackCapabilities;
     }

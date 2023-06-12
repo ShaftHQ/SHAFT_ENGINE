@@ -5,6 +5,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class VisualsTests {
+    double visualMatchingThreshold;
     double screenshotParamsScalingFactor;
     String screenshotParamsWhenToTakeAScreenshot;
     String screenshotParams_screenshotType;
@@ -22,6 +23,7 @@ public class VisualsTests {
 
     @BeforeClass
     public void beforeClass() {
+        visualMatchingThreshold = SHAFT.Properties.visuals.visualMatchingThreshold();
         screenshotParamsScalingFactor = SHAFT.Properties.visuals.screenshotParamsScalingFactor();
         screenshotParamsWhenToTakeAScreenshot = SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot();
         screenshotParams_screenshotType = SHAFT.Properties.visuals.screenshotParamsScreenshotType();
@@ -39,6 +41,7 @@ public class VisualsTests {
 
     @Test
     public void test() {
+        SHAFT.Properties.visuals.set().visualMatchingThreshold(String.valueOf(visualMatchingThreshold));
         SHAFT.Properties.visuals.set().screenshotParamsScalingFactor(String.valueOf(screenshotParamsScalingFactor));
         SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot(screenshotParamsWhenToTakeAScreenshot);
         SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(screenshotParams_screenshotType);

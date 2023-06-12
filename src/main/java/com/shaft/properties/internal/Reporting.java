@@ -61,9 +61,17 @@ public interface Reporting extends EngineProperties {
     @DefaultValue("false")
     boolean openLighthouseReportWhileExecution();
 
+    @Key("cleanSummaryReportsDirectoryBeforeExecution")
+    @DefaultValue("true")
+    boolean cleanSummaryReportsDirectoryBeforeExecution();
+
     @Key("openExecutionSummaryReportAfterExecution")
     @DefaultValue("true")
     boolean openExecutionSummaryReportAfterExecution();
+
+    @Key("openExtentReportAfterExecution")
+    @DefaultValue("false")
+    boolean openExtentReportAfterExecution();
 
     @Key("disableLogging")
     @DefaultValue("true")
@@ -99,6 +107,10 @@ public interface Reporting extends EngineProperties {
             setProperty("cleanAllureResultsDirectoryBeforeExecution", String.valueOf(value));
         }
 
+        public void cleanSummaryReportsDirectoryBeforeExecution(boolean value) {
+            setProperty("cleanSummaryReportsDirectoryBeforeExecution", String.valueOf(value));
+        }
+
         public void generateAllureReportArchive(boolean value) {
             setProperty("generateAllureReportArchive", String.valueOf(value));
         }
@@ -125,6 +137,10 @@ public interface Reporting extends EngineProperties {
 
         public void openExecutionSummaryReportAfterExecution(boolean value) {
             setProperty("openExecutionSummaryReportAfterExecution", String.valueOf(value));
+        }
+
+        public void openExtentReportAfterExecution(boolean value) {
+            setProperty("openExtentReportAfterExecution", String.valueOf(value));
         }
 
         public void disableLogging(boolean value) {

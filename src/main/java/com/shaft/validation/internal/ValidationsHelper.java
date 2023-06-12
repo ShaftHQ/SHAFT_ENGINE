@@ -305,30 +305,6 @@ public class ValidationsHelper {
         }
     }
 
-    @Deprecated
-    protected static void validateFileContentEquals(ValidationCategory validationCategory, String fileFolderName, String fileName, int numberOfRetries,
-                                                    ValidationType validationType, String... optionalCustomLogMessage) {
-        processCustomLogMessage(optionalCustomLogMessage);
-        boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
-        boolean actualValue = FileActions.getInstance().doesFileExist(fileFolderName, fileName, numberOfRetries);
-        String filePrefix = "File '";
-        String[] expectedAttributeStates = {"' should exist, after up to '", "' should not exist, after up to '"};
-        String numberOfRetriesPostfix = "' retries";
-        String reportedExpectedValue = filePrefix + fileFolderName + fileName + expectedAttributeStates[0] + numberOfRetries + numberOfRetriesPostfix;
-        if (!expectedValue) {
-            reportedExpectedValue = filePrefix + fileFolderName + fileName + expectedAttributeStates[1] + numberOfRetries + numberOfRetriesPostfix;
-        }
-        String reportedActualValue = "File exists";
-        if (!actualValue) {
-            reportedActualValue = "File does not exist";
-        }
-        if ((expectedValue && actualValue) || (!expectedValue && !actualValue)) {
-            pass(validationCategory, reportedExpectedValue, reportedActualValue, null, validationType);
-        } else {
-            fail(validationCategory, reportedExpectedValue, reportedActualValue, null, validationType, null);
-        }
-    }
-
     protected static void validateElementMatches(ValidationCategory validationCategory, WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine, ValidationType validationType,
                                                  String... optionalCustomLogMessage) {
         lastUsedElementLocator = elementLocator;

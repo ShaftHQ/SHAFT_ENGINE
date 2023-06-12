@@ -91,9 +91,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ReportManagerHelper.logEngineVersion();
         ImageProcessingActions.loadOpenCV();
 
-        ReportManagerHelper.cleanExecutionSummaryReportDirectory();
         ReportManagerHelper.initializeAllureReportingEnvironment();
         ReportManagerHelper.initializeExtentReportingEnvironment();
+        ReportManagerHelper.cleanExecutionSummaryReportDirectory();
 
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
         ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
@@ -218,6 +218,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
             GoogleTink.encrypt();
             ReportManagerHelper.generateAllureReportArchive();
             ReportManagerHelper.openAllureReportAfterExecution();
+            ReportManagerHelper.openExtentReportAfterExecution();
             long executionEndTime = System.currentTimeMillis();
             ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
             ReportManagerHelper.logEngineClosure();

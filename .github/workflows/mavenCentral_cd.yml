@@ -1,4 +1,4 @@
-name: jFrog Continuous Delivery
+name: Maven Central Continuous Delivery
 # Executed automatically when a new PR is merged to master, if the release number already exists this job will fail
 # This pipeline will build from main, upload the artifacts, and create the GitHub release
 
@@ -18,8 +18,12 @@ jobs:
         with:
           java-version: '17'
           distribution: 'zulu'
-          cache: 'maven'
           check-latest: true
+          server-id: ossrh
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
       # Captures the engine version from the pom.xml
       - name: Set Release Version Number
         run: |
@@ -35,17 +39,25 @@ jobs:
           generateReleaseNotes: true
           name: ${{ env.RELEASE_VERSION }}
           tag: ${{ env.RELEASE_VERSION }}
-      - name: Install SHAFT
+      #            - uses: s4u/maven-settings-action@v2.8.0
+      #              with:
+      #                servers: |
+      #                  [{
+      #                      "id": "ossrh",
+      #                      "username": "${{ secrets.OSSRH_USERNAME }}",
+      #                      "password": "${{ secrets.OSSRH_PASSWORD }}"
+      #                  }]
+      - name: Setup Prerequisites
+        run: |
+          git config --global user.signingKey ${{ secrets.GPG_KEYNAME }}
+          git config --global commit.gpgsign true
+          gpg --version
+          gpgconf --kill gpg-agent
+          gpg -K --keyid-format SHORT
+          export GPG_TTY=$(tty)
+      - name: Deploy SHAFT to maven central
         continue-on-error: true
-        run: mvn clean install -DskipTests
-      - name: Setup JFrog CLI
-        uses: jfrog/setup-jfrog-cli@v3
         env:
-          JF_ENV_1: ${{ secrets.JF_SECRET_ENV_1 }}
-      - name: Verify Automatest Artifactory is Reachable
-        run: |
-          jf rt ping
-      - name: Upload SHAFT Release Files
-        run: |
-          jf rt u "/home/runner/.m2/repository/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/*.jar" "SHAFT_ENGINE/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/" --flat=true --detailed-summary=true
-          jf rt u "/home/runner/.m2/repository/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/*.pom" "SHAFT_ENGINE/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/" --flat=true --detailed-summary=true
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+        run: mvn --batch-mode deploy "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"

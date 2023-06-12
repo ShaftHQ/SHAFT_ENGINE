@@ -3,10 +3,14 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>7.2.20230511_ALPHA</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
+    <version>7.2.20230611</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
     <name>${project.groupId}:${project.artifactId}</name>
-    <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
-    <url>https://github.com/ShaftHQ/SHAFT_ENGINE</url>
+    <description>SHAFT is a unified test automation engine. Powered by best-in-class frameworks, SHAFT provides a
+        wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve.
+        Stop reinventing the wheel. Upgrade now!
+    </description>
+    <url>https://shafthq.github.io/</url>
+    <packaging>jar</packaging>
     <licenses>
         <license>
             <name>MIT License</name>
@@ -24,73 +28,58 @@
     <scm>
         <connection>scm:git:https://github.com/ShaftHQ/SHAFT_ENGINE.git</connection>
         <developerConnection>scm:git:ssh://github.com/ShaftHQ/SHAFT_ENGINE.git</developerConnection>
-        <url>http://github.com/ShaftHQ/SHAFT_ENGINE/tree/master</url>
+        <url>https://github.com/ShaftHQ/SHAFT_ENGINE</url>
     </scm>
 
     <properties>
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
-        <selenium.version>4.9.1</selenium.version>
+        <selenium.version>4.10.0</selenium.version>
         <selenium.version>4.9.0</selenium.version>
-        <appium-java-client.version>8.5.0</appium-java-client.version>
+        <appium-java-client.version>8.5.1</appium-java-client.version>
         <webdrivermanager.version>5.3.3</webdrivermanager.version>
-        <allure-testng.version>2.22.0</allure-testng.version> <!-- UPDATE internal.properties -->
+        <allure-testng.version>2.22.1</allure-testng.version> <!-- UPDATE internal.properties -->
         <extentreports.version>5.0.9</extentreports.version>
         <aspectj.version>1.9.19</aspectj.version> <!-- 1.9.7 DO NOT UPDATE -->
-
         <rest-assured.version>5.3.0</rest-assured.version>
         <json-simple.version>1.1.1</json-simple.version>
         <json-path.version>2.8.0</json-path.version>
         <json-schema-validator.version>5.3.0</json-schema-validator.version>
         <skyscreamer-jsonassert.version>1.5.1</skyscreamer-jsonassert.version>
         <mime-util.version>2.1.3</mime-util.version>
-
         <testng.version>7.8.0</testng.version>
-
         <mssql-jdbc.version>9.4.1.jre16-preview</mssql-jdbc.version>
         <mysql-connector-java.version>8.0.33</mysql-connector-java.version>
         <postgresql.version>9.1-901-1.jdbc4</postgresql.version>
         <!-- <ojdbc8.version>19.3.0.0</ojdbc8.version> -->
-
         <apachepoi.version>5.2.3</apachepoi.version>
         <org.slf4j.version>2.0.1</org.slf4j.version>
-
         <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
         <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
-        <maven-surefire-plugin.version>3.1.0</maven-surefire-plugin.version>
+        <maven-surefire-plugin.version>3.1.2</maven-surefire-plugin.version>
         <maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
         <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
         <maven-javadoc-plugin.version>3.5.0</maven-javadoc-plugin.version>
         <maven-scm-publish-plugin.version>3.2.1</maven-scm-publish-plugin.version>
         <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
-
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
-
-        <cucumber.version>7.12.0</cucumber.version>
+        <cucumber.version>7.12.1</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
-
         <applitools-eyes.version>4.14.0</applitools-eyes.version>
         <sikulixapi.version>2.0.5</sikulixapi.version> <!-- Do not update before running the test locally -->
-
         <jave-all-deps.version>3.3.1</jave-all-deps.version>
         <video-recorder-testng.version>2.0</video-recorder-testng.version>
-
         <pdfbox.version>2.0.28</pdfbox.version>
-
         <org.yaml.version>2.0</org.yaml.version>
-
         <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
+        <argLine>
+            -javaagent:${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar
+        </argLine>
 
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install -DskipTests</installToLocalRepository>
         <publishJavaDocs>mvn resources:resources javadoc:javadoc scm-publish:publish-scm</publishJavaDocs>
-
         <!-- Deploy Commands -->
-        <deploymentHost>https://automatest.jfrog.io/</deploymentHost>
-        <deploymentPath>io/github/shafthq/SHAFT_ENGINE/${project.version}/SHAFT_Engine-${project.version}.pom
-        </deploymentPath>
-        <argLine>
-            -javaagent:${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar
-        </argLine>
+        <deployToMavenCentral>mvn clean deploy -DskipTests</deployToMavenCentral>
     </properties>
 
     <dependencyManagement>
@@ -175,7 +164,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-handler</artifactId>
-            <version>4.1.92.Final</version>
+            <version>4.1.93.Final</version>
         </dependency>
 
         <!-- APPIUM -->
@@ -327,7 +316,7 @@
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-cucumber7-jvm</artifactId>
-            <version>2.22.0</version>
+            <version>2.22.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.cucumber</groupId>
@@ -427,7 +416,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jdk8</artifactId>
-            <version>2.15.1</version>
+            <version>2.15.2</version>
         </dependency>
 
         <!-- VISUAL VALIDATIONS & ELEMENT IDENTIFICATION -->
@@ -673,14 +662,14 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>31.1-jre</version>
+            <version>32.0.0-jre</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.26</version>
+            <version>1.18.28</version>
         </dependency>
 
         <!-- https://github.com/google/tink/blob/master/docs/JAVA-HOWTO.md -->
@@ -747,7 +736,6 @@
             <version>5.3.1</version>
             <scope>test</scope>
         </dependency>
-
     </dependencies>
 
     <build>
@@ -846,7 +834,7 @@
                 <executions>
                     <execution>
                         <id>attach-sources</id>
-                        <phase>verify</phase>
+<!--                        <phase>verify</phase>-->
                         <goals>
                             <goal>jar-no-fork</goal>
                         </goals>
@@ -951,8 +939,62 @@
             <!--                    </execution>-->
             <!--                </executions>-->
             <!--            </plugin>-->
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>1.6.13</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <serverId>ossrh</serverId>
+                    <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
+                    <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                </configuration>
+            </plugin>
+            <plugin>
+                <!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-gpg-plugin -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                        <configuration>
+                            <interactive>false</interactive>
+                            <keyname>${gpg.keyname}</keyname>
+                            <passphrase>${gpg.passphrase}</passphrase>
+                            <!-- Prevent gpg from using pinentry programs -->
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                            <!-- Follow these steps: https://www.git-tower.com/blog/setting-up-gpg-windows/ -->
+                            <!-- In case you get `gpg: skipped "xxxxxx": No secret key` error
+                            navigate to where gpg is installed, usually here `C:\Program Files (x86)\GnuPG\bin`
+                            then copy/paste/rename `gpg.exe` to `gpg2.exe`
+                            run `git config {DASH_DASH}global gpg.program "C:\Program Files (x86)\GnuPG\bin\gpg2.exe"`
+                            then try again -->
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
+
     <profiles>
         <profile>
             <id>testng</id>
@@ -974,7 +1016,7 @@
                             <dependency>
                                 <groupId>org.apache.maven.surefire</groupId>
                                 <artifactId>surefire-testng</artifactId>
-                                <version>3.1.0</version>
+                                <version>3.1.2</version>
                             </dependency>
                         </dependencies>
                         <configuration>
@@ -1072,37 +1114,4 @@
             </plugin>
         </plugins>
     </reporting>
-
-    <repositories>
-        <repository>
-            <id>central</id>
-            <url>https://repo1.maven.org/maven2/</url>
-        </repository>
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-        </repository>
-	</repositories>
-
-    <!--    <repositories>-->
-    <!-- <repository> -->
-    <!-- <id>redshift</id> -->
-    <!-- <url>http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release</url> -->
-    <!-- <id>maven.oracle.com</id> -->
-    <!-- <releases> -->
-    <!-- <enabled>true</enabled> -->
-    <!-- </releases> -->
-    <!-- <snapshots> -->
-    <!-- <enabled>false</enabled> -->
-    <!-- </snapshots> -->
-    <!-- <url>https://maven.oracle.com</url> -->
-    <!-- <layout>default</layout> -->
-    <!-- </repository> -->
-    <!--    </repositories>-->
-    <!-- <pluginRepositories> -->
-    <!-- <pluginRepository> -->
-    <!-- <id>maven.oracle.com</id> -->
-    <!-- <url>https://maven.oracle.com</url> -->
-    <!-- </pluginRepository> -->
-    <!-- </pluginRepositories> -->
 </project>

@@ -65,8 +65,6 @@ public class ReportManagerHelper {
     private static List<List<String>> listOfOpenIssuesForPassedTests = new ArrayList<>();
     private static List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
     private static String featureName = "";
-
-    private static String extentReportsFolderPath = "";
     private static final ThreadLocal<ExtentTest> extentTest = new ThreadLocal<>();
     private static Logger logger;
     @Getter
@@ -437,9 +435,8 @@ public class ReportManagerHelper {
         if (generateExtentReports) {
             ReportManager.logDiscrete("Initializing Extent Reporting Environment...");
             ReportHelper.disableLogging();
-            extentReportsFolderPath = SHAFT.Properties.paths.extentReports();
             cleanExtentReportsDirectory();
-            extentReportFileName = extentReportsFolderPath + "ExtentReports_" + (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis()) + ".html";
+            extentReportFileName = SHAFT.Properties.paths.extentReports() + "ExtentReports_" + (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis()) + ".html";
 
             var spark = new ExtentSparkReporter(extentReportFileName)
                     .viewConfigurer()
@@ -451,13 +448,13 @@ public class ReportManagerHelper {
             spark.config().setDocumentTitle("Extent Reports");
             spark.config().setReportName("Extent Reports - Powered by SHAFT_Engine");
             extentReport.attachReporter(spark);
-
             ReportHelper.enableLogging();
         }
     }
 
     private static void cleanExtentReportsDirectory() {
         if (SHAFT.Properties.reporting.cleanExtentReportsDirectoryBeforeExecution()) {
+            var extentReportsFolderPath = SHAFT.Properties.paths.extentReports();
             FileActions.getInstance().deleteFolder(extentReportsFolderPath.substring(0, extentReportsFolderPath.length() - 1));
         }
 
@@ -869,7 +866,7 @@ public class ReportManagerHelper {
                     "set JAVA_HOME=" + System.getProperty("java.home"),
                     "set path=%JAVA_HOME%\\bin;%path%",
                     "set path=" + allureExtractionLocation + "allure-" + allureVersion + "\\bin;%path%",
-                    "allure serve " + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1),
+                    "allure serve " + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1) + " -h localhost",
                     "pause", "exit");
             FileActions.getInstance().writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
         } else {
@@ -878,7 +875,7 @@ public class ReportManagerHelper {
                     .asList("#!/bin/bash", "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
                             "cd '" + allureExtractionLocation + "allure-" + allureVersion + "/bin/'",
                             "bash allure serve $parent_path'/"
-                                    + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1) + "'",
+                                    + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1) + "'" + " -h localhost",
                             "exit"
 
                     );
@@ -953,8 +950,13 @@ public class ReportManagerHelper {
     }
 
     public static void cleanExecutionSummaryReportDirectory() {
-        String executionSummaryReportFolderPath = SHAFT.Properties.paths.executionSummaryReport();
-        FileActions.getInstance().deleteFolder(executionSummaryReportFolderPath.substring(0, executionSummaryReportFolderPath.length() - 1));
+        if (SHAFT.Properties.reporting.cleanSummaryReportsDirectoryBeforeExecution()) {
+            ReportManager.logDiscrete("Initializing Summary Reporting Environment...");
+            ReportHelper.disableLogging();
+            String executionSummaryReportFolderPath = SHAFT.Properties.paths.executionSummaryReport();
+            FileActions.getInstance().deleteFolder(executionSummaryReportFolderPath.substring(0, executionSummaryReportFolderPath.length() - 1));
+            ReportHelper.enableLogging();
+        }
     }
 
     public static void openExecutionSummaryReportAfterExecution() {
@@ -963,6 +965,16 @@ public class ReportManagerHelper {
                 SHAFT.CLI.terminal().performTerminalCommand(".\\" + SHAFT.Properties.paths.executionSummaryReport() + "ExecutionSummaryReport_*.html");
             } else {
                 SHAFT.CLI.terminal().performTerminalCommand("open ./" + SHAFT.Properties.paths.executionSummaryReport() + "ExecutionSummaryReport_*.html");
+            }
+        }
+    }
+
+    public static void openExtentReportAfterExecution() {
+        if (SHAFT.Properties.reporting.openExtentReportAfterExecution()) {
+            if (SystemUtils.IS_OS_WINDOWS) {
+                SHAFT.CLI.terminal().performTerminalCommand(".\\" + SHAFT.Properties.paths.extentReports() + "ExtentReports_*.html");
+            } else {
+                SHAFT.CLI.terminal().performTerminalCommand("open ./" + SHAFT.Properties.paths.extentReports() + "ExtentReports_*.html");
             }
         }
     }

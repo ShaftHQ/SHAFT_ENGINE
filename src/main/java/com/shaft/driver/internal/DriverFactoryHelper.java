@@ -3,10 +3,8 @@ package com.shaft.driver.internal;
 import com.epam.healenium.SelfHealingDriver;
 import com.google.common.base.Throwables;
 import com.mysql.cj.util.StringUtils;
-import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.browser.internal.BrowserActionsHelpers;
 import com.shaft.gui.browser.internal.FluentBrowserActions;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.properties.internal.Properties;
@@ -43,6 +41,7 @@ import org.openqa.selenium.remote.*;
 import org.openqa.selenium.safari.SafariOptions;
 import org.testng.Reporter;
 
+import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Duration;
@@ -170,8 +169,6 @@ public class DriverFactoryHelper {
         return DriverType.CHROME;
     }
     private static void setDriverOptions(DriverType driverType, MutableCapabilities customDriverOptions) {
-        String downloadsFolderPath = FileActions.getInstance().getAbsolutePath(SHAFT.Properties.paths.downloads());
-
         //get proxy server
         // Proxy server settings | testing behind a proxy
         String proxyServerSettings = SHAFT.Properties.platform.proxy();
@@ -183,7 +180,7 @@ public class DriverFactoryHelper {
                 // https://developer.mozilla.org/en-US/docs/Web/WebDriver/Capabilities/firefoxOptions
                 ffOptions = new FirefoxOptions();
                 var ffProfile = new FirefoxProfile();
-                ffProfile.setPreference("browser.download.dir", downloadsFolderPath);
+                ffProfile.setPreference("browser.download.dir", System.getProperty("user.dir") + File.separatorChar + SHAFT.Properties.paths.downloads());
                 ffProfile.setPreference("browser.download.folderList", 2);
                 //noinspection SpellCheckingInspection
                 ffProfile.setPreference("browser.helperApps.neverAsk.saveToDisk",
@@ -293,6 +290,8 @@ public class DriverFactoryHelper {
         } else {
             options.addArguments("--window-position=0,0", "--window-size=" + TARGET_WINDOW_SIZE.getWidth() + "," + TARGET_WINDOW_SIZE.getHeight());
         }
+        if (!SHAFT.Properties.flags.autoCloseDriverInstance())
+            options.setExperimentalOption("detach", true);
 
 //         https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
 //         https://docs.google.com/spreadsheets/d/1n-vw_PCPS45jX3Jt9jQaAhFqBY6Ge1vWF_Pa0k7dCk4/edit#gid=1265672696
@@ -346,7 +345,7 @@ public class DriverFactoryHelper {
         Map<String, Object> chromePreferences = new HashMap<>();
         chromePreferences.put("profile.default_content_settings.popups", 0);
         chromePreferences.put("download.prompt_for_download", "false");
-        chromePreferences.put("download.default_directory", FileActions.getInstance().getAbsolutePath(Properties.paths.downloads()));
+        chromePreferences.put("download.default_directory", System.getProperty("user.dir") + File.separatorChar + SHAFT.Properties.paths.downloads());
         options.setExperimentalOption("prefs", chromePreferences);
         options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT_AND_NOTIFY);
         options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
@@ -405,7 +404,7 @@ public class DriverFactoryHelper {
         return logPrefs;
     }
 
-    private static void createNewLocalDriverInstance(DriverType driverType) {
+    private static void createNewLocalDriverInstance(DriverType driverType, boolean recurse) {
         String initialLog = "Attempting to run locally on: \"" + Properties.platform.targetPlatform() + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
         if (SHAFT.Properties.web.headlessExecution()) {
             initialLog = initialLog + ", Headless Execution";
@@ -445,13 +444,6 @@ public class DriverFactoryHelper {
                     && Throwables.getRootCause(exception).getMessage().toLowerCase().contains("safari instance is already paired with another webdriver session")) {
                 //this issue happens when running locally via safari/mac platform
                 // sample failure can be found here: https://github.com/ShaftHQ/SHAFT_ENGINE/actions/runs/4527911969/jobs/7974202314#step:4:46621
-                // attempting blind fix by trying to quit existing driver if any
-                try {
-                    driver.get().quit();
-                    driver.remove();
-                } catch (Throwable throwable) {
-                    // ignore
-                }
                 // attempting blind fix by trying to quit existing safari instances if any
                 try {
                     SHAFT.CLI.terminal().performTerminalCommand("osascript -e \"tell application \\\"Safari\\\" to quit\"\n");
@@ -459,6 +451,16 @@ public class DriverFactoryHelper {
                     // ignore
                 }
             }
+            // attempting blind fix by trying to quit existing driver if any
+            try {
+                driver.get().quit();
+            } catch (Throwable throwable) {
+                // ignore
+            } finally {
+                driver.remove();
+            }
+            if (!recurse)
+                createNewLocalDriverInstance(driverType, true);
             failAction("Failed to create new Browser Session", exception);
         }
     }
@@ -679,14 +681,38 @@ public class DriverFactoryHelper {
     private static RemoteWebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws MalformedURLException {
         var targetHubUrl = isLegacy ? TARGET_HUB_URL + "wd/hub" : TARGET_HUB_URL;
 
+        var targetLambdaTestHubURL = targetHubUrl.replace("http", "https");
+
         var targetPlatform = Properties.platform.targetPlatform();
 
+        var targetMobileHubUrl = targetHubUrl.replace("@", "@mobile-").replace("http", "https");
+
         if (targetPlatform.equalsIgnoreCase(Platform.ANDROID.toString())) {
-            return new AndroidDriver(new URL(targetHubUrl), capabilities);
+            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
+                return new AndroidDriver(new URL(targetMobileHubUrl), capabilities);
+            } else {
+                if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
+                    return new AndroidDriver(new URL(targetLambdaTestHubURL), capabilities);
+                } else {
+                    return new AndroidDriver(new URL(targetHubUrl), capabilities);
+                }
+            }
         } else if (targetPlatform.equalsIgnoreCase(Platform.IOS.toString())) {
-            return new IOSDriver(new URL(targetHubUrl), capabilities);
+            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
+                return new IOSDriver(new URL(targetMobileHubUrl), capabilities);
+            } else {
+                if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
+                    return new IOSDriver(new URL(targetLambdaTestHubURL), capabilities);
+                } else {
+                    return new IOSDriver(new URL(targetHubUrl), capabilities);
+                }
+            }
         } else {
-            return new RemoteWebDriver(new URL(targetHubUrl), capabilities);
+            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
+                return new RemoteWebDriver(new URL(targetLambdaTestHubURL), capabilities);
+            } else {
+                return new RemoteWebDriver(new URL(targetHubUrl), capabilities);
+            }
         }
     }
 
@@ -878,7 +904,7 @@ public class DriverFactoryHelper {
                 //desktop execution
                 setDriverOptions(driverType, customDriverOptions);
                 switch (SHAFT.Properties.platform.executionAddress()) {
-                    case "local" -> createNewLocalDriverInstance(driverType);
+                    case "local" -> createNewLocalDriverInstance(driverType, false);
                     case "dockerized" -> createNewDockerizedDriverInstance(driverType);
                     default -> createNewRemoteDriverInstance(driverType);
                 }
