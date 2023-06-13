@@ -12,6 +12,8 @@ public class BigPageActionsTest {
     @Test
     public void test() {
         driver.element().type(By.id("et_pb_contact_name_0"), "TEST_NAME")
+                .clear(By.id("et_pb_contact_name_0"))
+                .type(By.id("et_pb_contact_name_0"), "TEST_NAME")
                 .type(By.id("et_pb_contact_email_0"), "email@email.email")
                 .type(By.id("et_pb_contact_message_0"), """
                         This is a long message

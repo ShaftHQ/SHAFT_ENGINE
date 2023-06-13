@@ -854,6 +854,38 @@ public class FluentElementActions {
         return this;
     }
 
+    public FluentElementActions clear(By elementLocator) {
+        try {
+            // try clearing text
+            var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator, ElementAction.CLEAR));
+            var elementName = elementInformation.getElementName();
+            elementInformation.getFirstElement().clear();
+            var currentText = getText(elementLocator);
+            if (currentText.isBlank()) {
+                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "", null, elementName);
+            } else {
+                // try deleting letter by letter using backspaces
+                for (var ignored : currentText.toCharArray()) {
+                    try {
+                        (elementInformation.getFirstElement()).sendKeys(Keys.BACK_SPACE);
+                    } catch (WebDriverException webDriverException) {
+                        ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.BACKSPACE);
+                    }
+                }
+                if (currentText.isBlank()) {
+                    ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "", null, elementName);
+                } else {
+                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), "Expected to clear existing text, but ended up with: \"" + currentText + "\"",
+                            elementLocator);
+                }
+            }
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+        }
+        return this;
+    }
+
     /**
      * Appends the required string into the target element, regardless of the
      * current text value.
