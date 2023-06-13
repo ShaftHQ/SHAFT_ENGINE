@@ -804,6 +804,7 @@ jobs:
 
   LambdaTest_NativeIOS:
     runs-on: macOS-12
+    needs: [ LambdaTest_NativeAndroid ]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -843,6 +844,7 @@ jobs:
 
   LambdaTest_WebApp:
     runs-on: macOS-12
+    needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS ]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -882,6 +884,7 @@ jobs:
 
   LambdaTest_DesktopWeb:
     runs-on: macOS-12
+    needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS, LambdaTest_WebApp ]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
