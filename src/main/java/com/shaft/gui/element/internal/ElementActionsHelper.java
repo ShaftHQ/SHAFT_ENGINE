@@ -724,9 +724,16 @@ public class ElementActionsHelper {
 
     private static void performType(ElementInformation elementInformation, String text) {
         try {
-            (elementInformation.getFirstElement()).sendKeys(text);
+            (new Actions(DriverFactoryHelper.getDriver().get()))
+                    .click(elementInformation.getFirstElement())
+                    .sendKeys(text)
+                    .perform();
         } catch (WebDriverException webDriverException) {
-            performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.SEND_KEYS, text);
+            try {
+                (elementInformation.getFirstElement()).sendKeys(text);
+            } catch (WebDriverException webDriverException2) {
+                performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.SEND_KEYS, text);
+            }
         }
     }
 
