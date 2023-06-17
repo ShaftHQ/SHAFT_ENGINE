@@ -316,7 +316,7 @@
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-cucumber7-jvm</artifactId>
-            <version>2.22.1</version>
+            <version>2.22.2</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.cucumber</groupId>
