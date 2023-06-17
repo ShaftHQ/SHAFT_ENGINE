@@ -20,6 +20,7 @@ import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.ValidationsHelper;
+import io.appium.java_client.AppiumDriver;
 import org.jsoup.Jsoup;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
@@ -170,7 +171,12 @@ public class ElementActionsHelper {
                             targetElement = nestedDriver.findElement(elementLocator);
                         }
                         var elementInformation = new ElementInformation();
-                        elementInformation.setElementRect(targetElement.getRect());
+                        try {
+                            elementInformation.setElementRect(targetElement.getRect());
+                        } catch (ElementNotInteractableException elementNotInteractableException) {
+                            // this exception happens sometimes with certain browsers and causes a timeout
+                            // this empty block should handle that issue
+                        }
                         if (isValidToCheckForVisibility) {
                             if (!isMobileExecution) {
                                 try {
@@ -723,10 +729,28 @@ public class ElementActionsHelper {
     }
 
     private static void performType(ElementInformation elementInformation, String text) {
-        try {
-            (elementInformation.getFirstElement()).sendKeys(text);
-        } catch (WebDriverException webDriverException) {
-            performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.SEND_KEYS, text);
+        if (DriverFactoryHelper.getDriver().get() instanceof AppiumDriver) {
+            //mobile execution
+            try {
+                (elementInformation.getFirstElement()).sendKeys(text);
+            } catch (WebDriverException webDriverException2) {
+                performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.SEND_KEYS, text);
+            }
+        } else {
+            //desktop execution
+            try {
+                (new Actions(DriverFactoryHelper.getDriver().get()))
+                        .click(elementInformation.getFirstElement())
+                        .sendKeys(text)
+                        .build()
+                        .perform();
+            } catch (WebDriverException webDriverException) {
+                try {
+                    (elementInformation.getFirstElement()).sendKeys(text);
+                } catch (WebDriverException webDriverException2) {
+                    performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.SEND_KEYS, text);
+                }
+            }
         }
     }
 
