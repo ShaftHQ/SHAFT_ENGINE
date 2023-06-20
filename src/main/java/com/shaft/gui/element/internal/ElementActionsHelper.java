@@ -242,7 +242,9 @@ public class ElementActionsHelper {
                     });
         } catch (org.openqa.selenium.TimeoutException timeoutException) {
             // In case the element was not found / not visible and the timeout expired
-            ReportManager.logDiscrete(timeoutException.getMessage() + " || " + timeoutException.getCause().getMessage().substring(0, timeoutException.getCause().getMessage().indexOf("\n")));
+            var causeMessage = timeoutException.getCause().getMessage();
+            causeMessage = !causeMessage.isBlank() ? timeoutException.getMessage() + " || " + causeMessage.substring(0, causeMessage.indexOf("\n")) : timeoutException.getMessage();
+            ReportManager.logDiscrete(causeMessage);
             var elementInformation = new ArrayList<>();
             elementInformation.add(0);
             elementInformation.add(null);
