@@ -71,7 +71,6 @@
         <org.yaml.version>2.0</org.yaml.version>
         <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
         <argLine>
-            --add-opens java.base/java.time=ALL-UNNAMED
             -javaagent:${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar
         </argLine>
 
