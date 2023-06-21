@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>7.2.20230611</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
+    <version>7.2.20230621</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
     <name>${project.groupId}:${project.artifactId}</name>
     <description>SHAFT is a unified test automation engine. Powered by best-in-class frameworks, SHAFT provides a
         wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve.
@@ -34,12 +34,11 @@
     <properties>
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
         <selenium.version>4.10.0</selenium.version>
-        <selenium.version>4.9.0</selenium.version>
         <appium-java-client.version>8.5.1</appium-java-client.version>
         <webdrivermanager.version>5.3.3</webdrivermanager.version>
-        <allure-testng.version>2.22.2</allure-testng.version> <!-- UPDATE internal.properties -->
+        <allure.version>2.21.0</allure.version> <!-- 2.21.0 DO NOT UPDATE || internal.properties -->
         <extentreports.version>5.0.9</extentreports.version>
-        <aspectj.version>1.9.19</aspectj.version> <!-- 1.9.7 DO NOT UPDATE -->
+        <aspectj.version>1.9.19</aspectj.version>
         <rest-assured.version>5.3.1</rest-assured.version>
         <json-simple.version>1.1.1</json-simple.version>
         <json-path.version>2.8.0</json-path.version>
@@ -126,7 +125,7 @@
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-junit5</artifactId>
-            <version>${allure-testng.version}</version>
+            <version>${allure.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.junit.jupiter</groupId>
@@ -290,7 +289,7 @@
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-testng</artifactId>
-            <version>${allure-testng.version}</version>
+            <version>${allure.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -305,7 +304,7 @@
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-java-commons</artifactId>
-            <version>${allure-testng.version}</version>
+            <version>${allure.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -316,7 +315,7 @@
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-cucumber7-jvm</artifactId>
-            <version>2.22.2</version>
+            <version>${allure.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.cucumber</groupId>
@@ -332,7 +331,6 @@
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjweaver</artifactId>
             <version>${aspectj.version}</version>
-            <scope>runtime</scope>
         </dependency>
 
         <!-- EXTENT REPORTS -->

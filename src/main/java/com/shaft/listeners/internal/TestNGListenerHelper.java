@@ -184,7 +184,9 @@ public class TestNGListenerHelper {
     }
 
     public static void attachConfigurationHelperClass(List<XmlSuite> suites) {
-        suites.forEach(xmlSuite -> xmlSuite.getTests().forEach(xmlTest -> xmlTest.getClasses().add(new XmlClass(ConfigurationHelper.class.getName()))));
+        suites.forEach(xmlSuite ->
+                xmlSuite.getTests().forEach(xmlTest ->
+                        xmlTest.getClasses().add(new XmlClass(ConfigurationHelper.class.getName()))));
     }
 
     public static void configureJVMProxy() {

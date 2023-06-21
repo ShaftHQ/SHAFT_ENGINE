@@ -33,6 +33,10 @@ public class BigPageActionsTest {
                         and special characters ...######$%^&&*!!""")
                 .captureScreenshot(By.id("et_pb_contact_message_2"))
                 .and().browser().captureScreenshot();
+        driver.assertThat().element(By.id("et_pb_contact_message_2")).text().isEqualTo("""
+                This is a long message
+                it will have line breaks
+                and special characters ...######$%^&&*!!""").perform();
     }
 
     @Test
@@ -57,6 +61,10 @@ public class BigPageActionsTest {
                         and special characters ...######$%^&&*!!""")
                 .captureScreenshot(By.id("et_pb_contact_message_2"))
                 .and().browser().captureScreenshot();
+        driver.assertThat().element(By.id("et_pb_contact_message_2")).text().isEqualTo("""
+                This is a long message
+                it will have line breaks
+                and special characters ...######$%^&&*!!""").perform();
     }
 
     @BeforeMethod
