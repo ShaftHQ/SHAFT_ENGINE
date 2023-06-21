@@ -38,7 +38,7 @@
         <webdrivermanager.version>5.3.3</webdrivermanager.version>
         <allure-testng.version>2.21.0</allure-testng.version> <!-- 2.21.0 DO NOT UPDATE || internal.properties -->
         <extentreports.version>5.0.9</extentreports.version>
-        <aspectj.version>1.9.7</aspectj.version> <!-- 1.9.7 DO NOT UPDATE -->
+        <aspectj.version>1.9.19</aspectj.version>
         <rest-assured.version>5.3.1</rest-assured.version>
         <json-simple.version>1.1.1</json-simple.version>
         <json-path.version>2.8.0</json-path.version>
@@ -331,7 +331,6 @@
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjweaver</artifactId>
             <version>${aspectj.version}</version>
-            <scope>runtime</scope>
         </dependency>
 
         <!-- EXTENT REPORTS -->
