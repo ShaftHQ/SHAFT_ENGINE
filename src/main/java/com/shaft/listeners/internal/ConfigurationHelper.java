@@ -11,20 +11,20 @@ import org.testng.annotations.BeforeSuite;
 
 public class ConfigurationHelper {
 
-    @BeforeSuite(description = "Initializing Engine", alwaysRun = true)
+    @BeforeSuite(description = "Initializing Engine", alwaysRun = true, enabled = true, inheritGroups = false)
     public void suiteSetup(ITestContext testContext) {
         ReportHelper.attachImportantLinks();
         ReportHelper.attachPropertyFiles();
     }
 
     //TODO: this method is not being executed in case there's another after class method
-    @AfterClass(description = "Cleaning up orphaned drivers", alwaysRun = true)
+    @AfterClass(description = "Cleaning up orphaned drivers", alwaysRun = true, enabled = true, inheritGroups = false)
     public void classTeardown() {
         if (SHAFT.Properties.flags.autoCloseDriverInstance())
             DriverFactory.closeAllDrivers();
     }
 
-    @AfterSuite(description = "Attaching Reports", alwaysRun = true)
+    @AfterSuite(description = "Attaching Reports", alwaysRun = true, enabled = true, inheritGroups = false)
     public void suiteTeardown() {
         ReportHelper.attachEngineLog();
         ReportHelper.attachExtentReport();

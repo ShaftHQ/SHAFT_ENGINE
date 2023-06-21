@@ -28,7 +28,10 @@ import lombok.NonNull;
 import lombok.SneakyThrows;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.chromium.ChromiumDriverLogLevel;
 import org.openqa.selenium.chromium.ChromiumOptions;
 import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.firefox.FirefoxDriverLogLevel;
@@ -397,9 +400,9 @@ public class DriverFactoryHelper {
         logPrefs.enable(LogType.PERFORMANCE, java.util.logging.Level.ALL);
         logPrefs.enable(LogType.DRIVER, java.util.logging.Level.ALL);
         logPrefs.enable(LogType.BROWSER, java.util.logging.Level.ALL);
-        logPrefs.enable(LogType.CLIENT, java.util.logging.Level.ALL);
-        logPrefs.enable(LogType.SERVER, java.util.logging.Level.ALL);
-        logPrefs.enable(LogType.PROFILER, java.util.logging.Level.ALL);
+//        logPrefs.enable(LogType.CLIENT, java.util.logging.Level.ALL);
+//        logPrefs.enable(LogType.SERVER, java.util.logging.Level.ALL);
+//        logPrefs.enable(LogType.PROFILER, java.util.logging.Level.ALL);
         logPrefs.enable(LogType.DRIVER, java.util.logging.Level.ALL);
         return logPrefs;
     }
@@ -414,25 +417,29 @@ public class DriverFactoryHelper {
         var proxy = SHAFT.Properties.platform.proxy();
 
         try {
+            ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
             switch (driverType) {
                 case FIREFOX -> {
-                    ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
                     driver.set(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create());
                 }
                 case IE -> {
-                    ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
                     driver.set(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create());
                 }
                 case CHROME -> {
-                    ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
-                    driver.set(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create());
+                    ChromeDriverService service = new ChromeDriverService.Builder()
+                            .withLogLevel(ChromiumDriverLogLevel.WARNING)
+                            .usingAnyFreePort()
+                            .withLogOutput(System.out)
+                            .build();
+                    // selenium manager will automatically use proxy config from the options object
+                    // https://github.com/SeleniumHQ/selenium/commit/a2235cde9903f253c6671a407c4a6d92975f2118
+                    driver.set(new ChromeDriver(service, chOptions));
+//                    driver.set(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create());
                 }
                 case EDGE -> {
-                    ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
                     driver.set(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create());
                 }
                 case SAFARI -> {
-                    ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
                     driver.set(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create());
                 }
                 default ->
