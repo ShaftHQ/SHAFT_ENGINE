@@ -712,7 +712,7 @@ public class ElementActionsHelper {
 
     public static boolean performClipboardActions(WebDriver driver, ClipboardAction action) {
         try {
-            Keys cmdCtrl = SHAFT.Properties.platform.targetPlatform().equals(Platform.MAC.name()) ? Keys.COMMAND : Keys.CONTROL;
+            Keys cmdCtrl = SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.MAC.name()) ? Keys.COMMAND : Keys.CONTROL;
             switch (action) {
                 case COPY -> (new Actions(driver)).keyDown(cmdCtrl).sendKeys("c").keyUp(cmdCtrl).perform();
                 case PASTE -> (new Actions(driver)).keyDown(cmdCtrl).sendKeys("v").keyUp(cmdCtrl).perform();
