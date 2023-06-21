@@ -777,7 +777,6 @@
                     <classesDirectory>target/classes</classesDirectory>
                     <archive>
                         <manifest>
-                            <Add-Opens>java.base/java.lang=ALL-UNNAMED</Add-Opens>
                             <addClasspath>true</addClasspath>
                         </manifest>
                     </archive>
