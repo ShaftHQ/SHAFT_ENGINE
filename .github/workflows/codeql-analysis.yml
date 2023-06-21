@@ -39,6 +39,7 @@ jobs:
           gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Setup Prerequisites
+        continue-on-error: true
         run: |
           git config --global user.signingKey ${{ secrets.GPG_KEYNAME }}
           git config --global commit.gpgsign true

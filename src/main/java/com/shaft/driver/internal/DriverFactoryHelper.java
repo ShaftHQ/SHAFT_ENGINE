@@ -123,7 +123,6 @@ public class DriverFactoryHelper {
             }
             try {
                 attachWebDriverLogs();
-
                 //if dockerized wdm.quit the relevant one
                 if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("dockerized")) {
                     var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver.get());
@@ -141,8 +140,9 @@ public class DriverFactoryHelper {
                 webDriverManager.remove();
                 ReportManager.log("Successfully Closed Driver.");
             }
+        } else {
+            ReportManager.log("Driver is already closed.");
         }
-        ReportManager.log("Driver is already closed.");
     }
 
     private static void failAction(String testData, Throwable... rootCauseException) {
@@ -210,6 +210,7 @@ public class DriverFactoryHelper {
                 if (customDriverOptions != null) {
                     ffOptions = ffOptions.merge(customDriverOptions);
                 }
+                ReportManager.logDiscrete(ffOptions.toString());
             }
             case IE -> {
                 ieOptions = new InternetExplorerOptions();
@@ -231,6 +232,7 @@ public class DriverFactoryHelper {
                 if (customDriverOptions != null) {
                     ieOptions = ieOptions.merge(customDriverOptions);
                 }
+                ReportManager.logDiscrete(ieOptions.toString());
             }
             case CHROME, EDGE, CHROMIUM -> {
                 if (driverType.equals(DriverType.EDGE)) {
@@ -260,9 +262,12 @@ public class DriverFactoryHelper {
                 if (customDriverOptions != null) {
                     sfOptions = sfOptions.merge(customDriverOptions);
                 }
+                ReportManager.logDiscrete(sfOptions.toString());
             }
-            case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_CHROME, APPIUM_CHROMIUM ->
-                    appiumCapabilities = new DesiredCapabilities(PropertyFileManager.getCustomWebDriverDesiredCapabilities().merge(customDriverOptions));
+            case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_CHROME, APPIUM_CHROMIUM -> {
+                appiumCapabilities = new DesiredCapabilities(PropertyFileManager.getCustomWebDriverDesiredCapabilities().merge(customDriverOptions));
+                ReportManager.logDiscrete(appiumCapabilities.toString());
+            }
             default ->
                     failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
         }
@@ -388,6 +393,12 @@ public class DriverFactoryHelper {
         if (customDriverOptions != null) {
             options = (ChromiumOptions<?>) options.merge(customDriverOptions);
         }
+        if (!SHAFT.Properties.flags.autoCloseDriverInstance()) {
+            Map<Object, Object> chromeOptions = new HashMap<>((Map<Object, Object>) options.getCapability("goog:chromeOptions"));
+            chromeOptions.put("detach", true);
+            options.setCapability("goog:chromeOptions", chromeOptions);
+        }
+        ReportManager.logDiscrete(options.toString());
         return options;
     }
 
@@ -397,9 +408,9 @@ public class DriverFactoryHelper {
         logPrefs.enable(LogType.PERFORMANCE, java.util.logging.Level.ALL);
         logPrefs.enable(LogType.DRIVER, java.util.logging.Level.ALL);
         logPrefs.enable(LogType.BROWSER, java.util.logging.Level.ALL);
-        logPrefs.enable(LogType.CLIENT, java.util.logging.Level.ALL);
-        logPrefs.enable(LogType.SERVER, java.util.logging.Level.ALL);
-        logPrefs.enable(LogType.PROFILER, java.util.logging.Level.ALL);
+//        logPrefs.enable(LogType.CLIENT, java.util.logging.Level.ALL);
+//        logPrefs.enable(LogType.SERVER, java.util.logging.Level.ALL);
+//        logPrefs.enable(LogType.PROFILER, java.util.logging.Level.ALL);
         logPrefs.enable(LogType.DRIVER, java.util.logging.Level.ALL);
         return logPrefs;
     }
@@ -410,31 +421,18 @@ public class DriverFactoryHelper {
             initialLog = initialLog + ", Headless Execution";
         }
         ReportManager.logDiscrete(initialLog + ".");
-
         var proxy = SHAFT.Properties.platform.proxy();
-
         try {
+            ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
             switch (driverType) {
-                case FIREFOX -> {
-                    ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
-                    driver.set(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create());
-                }
-                case IE -> {
-                    ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
-                    driver.set(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create());
-                }
-                case CHROME -> {
-                    ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
-                    driver.set(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create());
-                }
-                case EDGE -> {
-                    ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
-                    driver.set(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create());
-                }
-                case SAFARI -> {
-                    ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
-                    driver.set(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create());
-                }
+                case FIREFOX ->
+                        driver.set(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create());
+                case IE -> driver.set(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create());
+                case CHROME ->
+                        driver.set(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create());
+                case EDGE -> driver.set(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create());
+                case SAFARI ->
+                        driver.set(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create());
                 default ->
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
             }
@@ -473,27 +471,12 @@ public class DriverFactoryHelper {
         ReportManager.log(initialLog + ".");
 
         try {
+            ReportManager.logDiscrete(WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE);
             switch (driverType) {
-                case FIREFOX -> {
-                    ReportManager.logDiscrete(ffOptions.toString());
-                    ReportManager.logDiscrete(WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE);
-                    webDriverManager.set(WebDriverManager.firefoxdriver().capabilities(ffOptions));
-                }
-                case CHROME -> {
-                    ReportManager.logDiscrete(chOptions.toString());
-                    ReportManager.logDiscrete(WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE);
-                    webDriverManager.set(WebDriverManager.chromedriver().capabilities(chOptions));
-                }
-                case EDGE -> {
-                    ReportManager.logDiscrete(edOptions.toString());
-                    ReportManager.logDiscrete(WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE);
-                    webDriverManager.set(WebDriverManager.edgedriver().capabilities(edOptions));
-                }
-                case SAFARI -> {
-                    ReportManager.logDiscrete(sfOptions.toString());
-                    ReportManager.logDiscrete(WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE);
-                    webDriverManager.set(WebDriverManager.safaridriver().capabilities(sfOptions));
-                }
+                case FIREFOX -> webDriverManager.set(WebDriverManager.firefoxdriver().capabilities(ffOptions));
+                case CHROME -> webDriverManager.set(WebDriverManager.chromedriver().capabilities(chOptions));
+                case EDGE -> webDriverManager.set(WebDriverManager.edgedriver().capabilities(edOptions));
+                case SAFARI -> webDriverManager.set(WebDriverManager.safaridriver().capabilities(sfOptions));
                 default ->
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\". We only support Chrome, Edge, Firefox, and Safari in this dockerized mode.");
             }
@@ -648,7 +631,6 @@ public class DriverFactoryHelper {
 
     @SneakyThrows({java.net.MalformedURLException.class, InterruptedException.class})
     private static RemoteWebDriver attemptRemoteServerConnection(Capabilities capabilities) {
-        ReportManager.logDiscrete(capabilities.toString());
         RemoteWebDriver driver = null;
         boolean isRemoteConnectionEstablished = false;
         var startTime = System.currentTimeMillis();
@@ -731,7 +713,6 @@ public class DriverFactoryHelper {
                 }
             }
             case APPIUM_CHROME, APPIUM_CHROMIUM -> {
-                ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
                 WebDriverManager.chromedriver().browserVersion(SHAFT.Properties.mobile.browserVersion()).setup();
                 appiumDesiredCapabilities.setCapability("chromedriverExecutable",
                         WebDriverManager.chromedriver().getDownloadedDriverPath());
@@ -766,9 +747,7 @@ public class DriverFactoryHelper {
     }
 
     @SuppressWarnings("SpellCheckingInspection")
-    private static DesiredCapabilities initializeMobileDesiredCapabilities(DesiredCapabilities Desiredcapabilities) {
-        var desiredCapabilities = new DesiredCapabilities();
-
+    private static DesiredCapabilities initializeMobileDesiredCapabilities(DesiredCapabilities desiredCapabilities) {
         if (!isMobileWebExecution()) {
             Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
             caps.forEach((capabilityName, value) -> {
@@ -795,48 +774,48 @@ public class DriverFactoryHelper {
             // https://github.com/appium/appium-uiautomator2-driver
             // Check if user sent any capability then don't take the deafult
 
-            if(Desiredcapabilities.getCapability("appium:fullReset") == null)
+            if (desiredCapabilities.getCapability("appium:fullReset") == null)
                 desiredCapabilities.setCapability("appium:fullReset", true);
 
-            if(Desiredcapabilities.getCapability("appium:appWaitActivity") == null)
+            if (desiredCapabilities.getCapability("appium:appWaitActivity") == null)
                 desiredCapabilities.setCapability("appium:appWaitActivity", "*");
 
-            if(Desiredcapabilities.getCapability("appium:printPageSourceOnFindFailure") == null)
+            if (desiredCapabilities.getCapability("appium:printPageSourceOnFindFailure") == null)
                 desiredCapabilities.setCapability("appium:printPageSourceOnFindFailure", true);
 
-            if(Desiredcapabilities.getCapability("appium:disableWindowAnimation") == null)
+            if (desiredCapabilities.getCapability("appium:disableWindowAnimation") == null)
                 desiredCapabilities.setCapability("appium:disableWindowAnimation", true);
 
-            if(Desiredcapabilities.getCapability("appium:forceAppLaunch") == null)
+            if (desiredCapabilities.getCapability("appium:forceAppLaunch") == null)
                 desiredCapabilities.setCapability("appium:forceAppLaunch", true);
 
-            if(Desiredcapabilities.getCapability("appium:autoGrantPermissions") == null)
+            if (desiredCapabilities.getCapability("appium:autoGrantPermissions") == null)
                 desiredCapabilities.setCapability("appium:autoGrantPermissions", true);
 
 //            desiredCapabilities.setCapability("appium:otherApps", ",,,");
 
-            if(Desiredcapabilities.getCapability("appium:allowTestPackages") == null)
+            if (desiredCapabilities.getCapability("appium:allowTestPackages") == null)
                 desiredCapabilities.setCapability("appium:allowTestPackages", true);
 
-            if(Desiredcapabilities.getCapability("appium:enforceAppInstall") == null)
+            if (desiredCapabilities.getCapability("appium:enforceAppInstall") == null)
                 desiredCapabilities.setCapability("appium:enforceAppInstall", false);
 
-            if(Desiredcapabilities.getCapability("appium:clearDeviceLogsOnStart") == null)
+            if (desiredCapabilities.getCapability("appium:clearDeviceLogsOnStart") == null)
                 desiredCapabilities.setCapability("appium:clearDeviceLogsOnStart", true);
 
-            if(Desiredcapabilities.getCapability("appium:ignoreHiddenApiPolicyError") == null)
+            if (desiredCapabilities.getCapability("appium:ignoreHiddenApiPolicyError") == null)
                 desiredCapabilities.setCapability("appium:ignoreHiddenApiPolicyError", true);
 
-            if(Desiredcapabilities.getCapability("appium:isHeadless") == null)
+            if (desiredCapabilities.getCapability("appium:isHeadless") == null)
                 desiredCapabilities.setCapability("appium:isHeadless", true);
 
-            if(Desiredcapabilities.getCapability("appium:noSign") == null)
+            if (desiredCapabilities.getCapability("appium:noSign") == null)
                 desiredCapabilities.setCapability("appium:noSign", true);
 
-            if(Desiredcapabilities.getCapability("appium:enableWebviewDetailsCollection") == null)
+            if (desiredCapabilities.getCapability("appium:enableWebviewDetailsCollection") == null)
                 desiredCapabilities.setCapability("appium:enableWebviewDetailsCollection", true);
 
-            if(Desiredcapabilities.getCapability("appium:showChromedriverLog") == null)
+            if (desiredCapabilities.getCapability("appium:showChromedriverLog") == null)
                 desiredCapabilities.setCapability("appium:showChromedriverLog", true);
         }
         return desiredCapabilities;

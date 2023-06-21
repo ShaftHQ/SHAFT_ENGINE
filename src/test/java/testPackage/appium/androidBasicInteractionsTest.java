@@ -163,20 +163,20 @@ public class androidBasicInteractionsTest {
 //        SHAFT.Properties.mobile.set().selfManagedAndroidSDKVersion(31);
 
         // local appium server (for local and GitHub actions execution)
-//        SHAFT.Properties.platform.set().executionAddress("localhost:4723");
-//        SHAFT.Properties.mobile.set().app("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
-
-        // local appium server (android-emulator docker-compose)
-        SHAFT.Properties.platform.set().executionAddress("localhost:4725");
+        SHAFT.Properties.platform.set().executionAddress("localhost:4723");
         SHAFT.Properties.mobile.set().app("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
 
+        // local appium server (android-emulator docker-compose)
+//        SHAFT.Properties.platform.set().executionAddress("localhost:4725");
+//        SHAFT.Properties.mobile.set().app("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
+
         // remote browserstack server (new app version)
-        SHAFT.Properties.platform.set().executionAddress("browserstack");
-        SHAFT.Properties.browserStack.set().platformVersion("13.0");
-        SHAFT.Properties.browserStack.set().deviceName("Google Pixel 7");
-        SHAFT.Properties.browserStack.set().appName("ApiDemos-debug.apk");
-        SHAFT.Properties.browserStack.set().appRelativeFilePath("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
-        SHAFT.Properties.browserStack.set().appUrl("");
+//        SHAFT.Properties.platform.set().executionAddress("browserstack");
+//        SHAFT.Properties.browserStack.set().platformVersion("13.0");
+//        SHAFT.Properties.browserStack.set().deviceName("Google Pixel 7");
+//        SHAFT.Properties.browserStack.set().appName("ApiDemos-debug.apk");
+//        SHAFT.Properties.browserStack.set().appRelativeFilePath("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
+//        SHAFT.Properties.browserStack.set().appUrl("");
 
         // remote browserstack server (existing app version)
 //        SHAFT.Properties.platform.set().executionAddress("browserstack");
