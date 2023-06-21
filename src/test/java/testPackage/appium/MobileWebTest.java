@@ -50,39 +50,39 @@ public class MobileWebTest {
     @SuppressWarnings("CommentedOutCode")
     @BeforeClass
     public void beforeClass() {
-//        // common attributes android
+        // common attributes android
 //        SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
 //        SHAFT.Properties.mobile.set().automationName(AutomationName.ANDROID_UIAUTOMATOR2);
-//
-//        // common attributes ios
+
+        // common attributes ios
 //        SHAFT.Properties.platform.set().targetPlatform(Platform.IOS.name());
 //        SHAFT.Properties.mobile.set().automationName(AutomationName.IOS_XCUI_TEST);
-//
-//        // self-managed execution (android only) [WARNING: WORK IN PROGRESS]
-////        SHAFT.Properties.mobile.set().selfManaged(true);
-////        SHAFT.Properties.mobile.set().selfManagedAndroidSDKVersion(31);
-//
-//        // local appium server (for local and GitHub actions execution)
-////        SHAFT.Properties.platform.set().executionAddress("localhost:4723");
-////        SHAFT.Properties.mobile.set().app("");
-//
-//        // local appium server (android-emulator docker-compose)
-////        SHAFT.Properties.platform.set().executionAddress("localhost:4725");
-////        SHAFT.Properties.mobile.set().app("");
-//
-        // remote browserstack server (common for web execution)
+
+        // self-managed execution (android only) [WARNING: WORK IN PROGRESS]
+//        SHAFT.Properties.mobile.set().selfManaged(true);
+//        SHAFT.Properties.mobile.set().selfManagedAndroidSDKVersion(31);
+
+        // local appium server (for local and GitHub actions execution)
+//        SHAFT.Properties.platform.set().executionAddress("localhost:4723");
+//        SHAFT.Properties.mobile.set().app("");
+
+        // local appium server (android-emulator docker-compose)
+//        SHAFT.Properties.platform.set().executionAddress("localhost:4725");
+//        SHAFT.Properties.mobile.set().app("");
+
+//         remote browserstack server (common for web execution)
 //        SHAFT.Properties.platform.set().executionAddress("browserstack");
 //        SHAFT.Properties.browserStack.set().appName("");
 //        SHAFT.Properties.browserStack.set().appRelativeFilePath("");
 //        SHAFT.Properties.browserStack.set().appUrl("");
-//
-        // remote browserstack server (android) [NATIVE SAMSUNG BROWSER] || [CHROME]
+
+//         remote browserstack server (android) [NATIVE SAMSUNG BROWSER] || [CHROME]
 //        SHAFT.Properties.browserStack.set().osVersion("13.0");
 //        SHAFT.Properties.browserStack.set().deviceName("Samsung Galaxy S23");
 //        SHAFT.Properties.mobile.set().browserName(Browser.CHROME.browserName());
 //        SHAFT.Properties.mobile.set().browserName("samsung");
-//
-//        // remote browserstack server (ios) [SAFARI BROWSER]
+
+        // remote browserstack server (ios) [SAFARI BROWSER]
 //        SHAFT.Properties.browserStack.set().osVersion("16");
 //        SHAFT.Properties.browserStack.set().deviceName("iPhone 14");
 //        SHAFT.Properties.mobile.set().browserName(Browser.SAFARI.browserName());
