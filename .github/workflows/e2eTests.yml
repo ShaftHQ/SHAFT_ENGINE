@@ -316,7 +316,7 @@ jobs:
 
   Android_Native_Emulator:
     runs-on: macOS-12
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Checkout Code
@@ -459,7 +459,7 @@ jobs:
 
   Android_Native_BrowserStack:
     runs-on: macOS-12
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -495,7 +495,7 @@ jobs:
 
   iOS_Web_SAFARI_BrowserStack:
     runs-on: macOS-12
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -531,7 +531,7 @@ jobs:
 
   Android_Web_Chrome_BrowserStack:
     runs-on: macOS-12
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -567,7 +567,7 @@ jobs:
 
   Android_Web_Samsung_BrowserStack:
     runs-on: macOS-12
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -603,7 +603,7 @@ jobs:
 
   MacOSX_Safari_BrowserStack:
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
