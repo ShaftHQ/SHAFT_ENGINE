@@ -293,7 +293,10 @@ public class RequestBuilder {
             boolean responseStatus = session.evaluateResponseStatusCode(Objects.requireNonNull(response), targetStatusCode);
             String reportMessage = session.prepareReportMessage(response, targetStatusCode, requestType, serviceName,
                     contentType, urlArguments);
-            if (!"".equals(reportMessage) && Boolean.TRUE.equals(responseStatus)) {
+            if (!Boolean.TRUE.equals(responseStatus)) {
+                RestActions.failAction(reportMessage, requestBody, specs, response, new AssertionError("Invalid response status code; Expected " + targetStatusCode + " but found " + response.getStatusCode() + "."));
+            }
+            if (!"".equals(reportMessage)) {
                 RestActions.passAction(reportMessage, requestBody, specs, response);
             } else {
                 RestActions.failAction(reportMessage, requestBody, specs, response);

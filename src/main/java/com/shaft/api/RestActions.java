@@ -97,7 +97,11 @@ public class RestActions {
     private static void failAction(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
                                    Throwable... rootCauseException) {
         String message = reportActionResult(actionName, testData, requestBody, specs, response, false, null, false, rootCauseException);
-        FailureReporter.fail(RestActions.class, message, rootCauseException[0]);
+        if (rootCauseException.length > 0) {
+            FailureReporter.fail(RestActions.class, message, rootCauseException[0]);
+        } else {
+            FailureReporter.fail(message);
+        }
     }
 
     protected static void passAction(String testData) {
