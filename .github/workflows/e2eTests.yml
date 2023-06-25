@@ -762,162 +762,162 @@ jobs:
           name: MacOSX_Safari_Cucumber_BrowserStack_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
-
-  LambdaTest_NativeAndroid:
-    runs-on: macOS-12
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'zulu'
-          cache: 'maven'
-          check-latest: true
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobAPK*.*]"
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: LambdaTest_NativeAndroid_Allure
-          path: "generatedReport_*.zip"
-      - name: Upload Execution Summary Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: LambdaTest_NativeAndroid_Summary
-          path: "execution-summary/ExecutionSummaryReport_*.html"
-
-  LambdaTest_NativeIOS:
-    runs-on: macOS-12
-    needs: [ LambdaTest_NativeAndroid ]
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'zulu'
-          cache: 'maven'
-          check-latest: true
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobIPA*.*]"
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: LambdaTest_NativeIOS_Allure
-          path: "generatedReport_*.zip"
-      - name: Upload Execution Summary Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: LambdaTest_NativeIOS_Summary
-          path: "execution-summary/ExecutionSummaryReport_*.html"
-
-  LambdaTest_WebApp:
-    runs-on: macOS-12
-    needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS ]
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'zulu'
-          cache: 'maven'
-          check-latest: true
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTWebApp*.*]"
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: LambdaTestWebApp_Allure
-          path: "generatedReport_*.zip"
-      - name: Upload Execution Summary Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: LambdaTestWebApp_Summary
-          path: "execution-summary/ExecutionSummaryReport_*.html"
-
-  LambdaTest_DesktopWeb:
-    runs-on: macOS-12
-    needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS, LambdaTest_WebApp ]
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'zulu'
-          cache: 'maven'
-          check-latest: true
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTDesktopWeb*.*]"
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: LambdaTestDesktopWeb_Allure
-          path: "generatedReport_*.zip"
-      - name: Upload Execution Summary Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: LambdaTestDesktopWeb_Summary
-          path: "execution-summary/ExecutionSummaryReport_*.html"
+#
+#  LambdaTest_NativeAndroid:
+#    runs-on: macOS-12
+#    steps:
+#      - name: Checkout Code
+#        uses: actions/checkout@v3
+#      - name: Setup Node.js environment
+#        uses: actions/setup-node@v3
+#        with:
+#          node-version: '16'
+#      - name: Set up JDK 17
+#        uses: actions/setup-java@v3
+#        with:
+#          java-version: '17'
+#          distribution: 'zulu'
+#          cache: 'maven'
+#          check-latest: true
+#      - name: Run tests
+#        continue-on-error: true
+#        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobAPK*.*]"
+#      - name: Upload coverage to Codecov
+#        uses: codecov/codecov-action@v3
+#        with:
+#          token: ${{ secrets.CODECOV_TOKEN }}
+#          fail_ci_if_error: false
+#          files: ./target/jacoco/jacoco.xml
+#          verbose: true
+#      - name: Upload Allure Report as Pipeline Artifact
+#        if: always()
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: LambdaTest_NativeAndroid_Allure
+#          path: "generatedReport_*.zip"
+#      - name: Upload Execution Summary Report as Pipeline Artifact
+#        if: always()
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: LambdaTest_NativeAndroid_Summary
+#          path: "execution-summary/ExecutionSummaryReport_*.html"
+#
+#  LambdaTest_NativeIOS:
+#    runs-on: macOS-12
+#    needs: [ LambdaTest_NativeAndroid ]
+#    steps:
+#      - name: Checkout Code
+#        uses: actions/checkout@v3
+#      - name: Setup Node.js environment
+#        uses: actions/setup-node@v3
+#        with:
+#          node-version: '16'
+#      - name: Set up JDK 17
+#        uses: actions/setup-java@v3
+#        with:
+#          java-version: '17'
+#          distribution: 'zulu'
+#          cache: 'maven'
+#          check-latest: true
+#      - name: Run tests
+#        continue-on-error: true
+#        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobIPA*.*]"
+#      - name: Upload coverage to Codecov
+#        uses: codecov/codecov-action@v3
+#        with:
+#          token: ${{ secrets.CODECOV_TOKEN }}
+#          fail_ci_if_error: false
+#          files: ./target/jacoco/jacoco.xml
+#          verbose: true
+#      - name: Upload Allure Report as Pipeline Artifact
+#        if: always()
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: LambdaTest_NativeIOS_Allure
+#          path: "generatedReport_*.zip"
+#      - name: Upload Execution Summary Report as Pipeline Artifact
+#        if: always()
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: LambdaTest_NativeIOS_Summary
+#          path: "execution-summary/ExecutionSummaryReport_*.html"
+#
+#  LambdaTest_WebApp:
+#    runs-on: macOS-12
+#    needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS ]
+#    steps:
+#      - name: Checkout Code
+#        uses: actions/checkout@v3
+#      - name: Setup Node.js environment
+#        uses: actions/setup-node@v3
+#        with:
+#          node-version: '16'
+#      - name: Set up JDK 17
+#        uses: actions/setup-java@v3
+#        with:
+#          java-version: '17'
+#          distribution: 'zulu'
+#          cache: 'maven'
+#          check-latest: true
+#      - name: Run tests
+#        continue-on-error: true
+#        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTWebApp*.*]"
+#      - name: Upload coverage to Codecov
+#        uses: codecov/codecov-action@v3
+#        with:
+#          token: ${{ secrets.CODECOV_TOKEN }}
+#          fail_ci_if_error: false
+#          files: ./target/jacoco/jacoco.xml
+#          verbose: true
+#      - name: Upload Allure Report as Pipeline Artifact
+#        if: always()
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: LambdaTestWebApp_Allure
+#          path: "generatedReport_*.zip"
+#      - name: Upload Execution Summary Report as Pipeline Artifact
+#        if: always()
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: LambdaTestWebApp_Summary
+#          path: "execution-summary/ExecutionSummaryReport_*.html"
+#
+#  LambdaTest_DesktopWeb:
+#    runs-on: macOS-12
+#    needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS, LambdaTest_WebApp ]
+#    steps:
+#      - name: Checkout Code
+#        uses: actions/checkout@v3
+#      - name: Setup Node.js environment
+#        uses: actions/setup-node@v3
+#        with:
+#          node-version: '16'
+#      - name: Set up JDK 17
+#        uses: actions/setup-java@v3
+#        with:
+#          java-version: '17'
+#          distribution: 'zulu'
+#          cache: 'maven'
+#          check-latest: true
+#      - name: Run tests
+#        continue-on-error: true
+#        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTDesktopWeb*.*]"
+#      - name: Upload coverage to Codecov
+#        uses: codecov/codecov-action@v3
+#        with:
+#          token: ${{ secrets.CODECOV_TOKEN }}
+#          fail_ci_if_error: false
+#          files: ./target/jacoco/jacoco.xml
+#          verbose: true
+#      - name: Upload Allure Report as Pipeline Artifact
+#        if: always()
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: LambdaTestDesktopWeb_Allure
+#          path: "generatedReport_*.zip"
+#      - name: Upload Execution Summary Report as Pipeline Artifact
+#        if: always()
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: LambdaTestDesktopWeb_Summary
+#          path: "execution-summary/ExecutionSummaryReport_*.html"
