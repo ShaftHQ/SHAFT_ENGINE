@@ -9,7 +9,7 @@ import org.testng.annotations.Test;
 public class GuiVerificationTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     private final By locator = SHAFT.GUI.Locator.hasTagName("input").build();
-    private int defaultElementIdentificationTimeout;
+    private double defaultElementIdentificationTimeout;
 
     @Test
     public void test_textTrimmed1() {

@@ -10,7 +10,7 @@ public class ThreadSafeGuiWizardTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     private static final ThreadLocal<SHAFT.TestData.JSON> testData = new ThreadLocal<>();
     private final By locator = SHAFT.GUI.Locator.hasTagName("input").build();
-    private int defaultElementIdentificationTimeout;
+    private double defaultElementIdentificationTimeout;
 
     @Test
     public void test() {

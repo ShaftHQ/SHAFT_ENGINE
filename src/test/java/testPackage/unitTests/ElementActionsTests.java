@@ -8,7 +8,7 @@ import poms.GoogleSearch;
 
 public class ElementActionsTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
-    private static final int defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
+    private static final double defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
 
     @Test
     public void waitForElementToBePresent_true_expectedToPass() {

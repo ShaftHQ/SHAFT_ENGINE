@@ -54,9 +54,16 @@ public class ElementActionsHelper {
     }
 
     public static int waitForElementPresenceWithReducedTimeout(WebDriver driver, By elementLocator) {
-        var defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000; //milliseconds;
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(300); //this is used for faster mobile native scrolling. default for ios is 200 and for android is 250, this covers both
-        var numberOfFoundElements = waitForElementPresence(driver, elementLocator);
+        var defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(0.3); //this is used for faster mobile native scrolling. default for ios is 200 and for android is 250, this covers both
+        List<Object> numberOfFoundElements;
+        try {
+            numberOfFoundElements = waitForElementPresence(driver, elementLocator);
+        } catch (Throwable throwable) {
+            // in case the element was not found, reset the timeouts
+            SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultElementIdentificationTimeout);
+            throw throwable;
+        }
         SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultElementIdentificationTimeout);
         return Integer.parseInt(numberOfFoundElements.get(0).toString());
     }
@@ -111,7 +118,7 @@ public class ElementActionsHelper {
     }
 
     public static boolean waitForElementInvisibility(By elementLocator) {
-        (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofMillis(SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L)))
+        (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofMillis((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000))))
                 .until(ExpectedConditions.invisibilityOfElementLocated(elementLocator));
         return true;
     }
@@ -153,7 +160,7 @@ public class ElementActionsHelper {
 //            JavaScriptWaitManager.waitForLazyLoading(driver);
             return new FluentWait<>(driver)
                     .withTimeout(Duration.ofMillis(
-                            SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L * numberOfAttempts))
+                            (long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L * numberOfAttempts)))
                     .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                     .ignoreAll(getExpectedExceptions(isValidToCheckForVisibility))
                     .until(nestedDriver -> {
@@ -224,7 +231,7 @@ public class ElementActionsHelper {
                             }
                             elementInformation.setElementName(elementName);
                         }
-                        // attempt to perform action inside the loop to guarantee higher odds of success and reduced webdriver calls
+                        // attempt to perform action inside the loop to guarantee higher odds of success and reduced WebDriver calls
                         var len = action != null ? action.length : 0;
                         switch (len) {
                             case 1 ->
@@ -316,7 +323,7 @@ public class ElementActionsHelper {
         try {
             return new FluentWait<>(driver)
                     .withTimeout(Duration.ofMillis(
-                            SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L))
+                            (long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L)))
                     .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                     .ignoreAll(getExpectedExceptions(true))
                     .until(nestedDriver -> {
@@ -349,7 +356,7 @@ public class ElementActionsHelper {
 
         if (!DriverFactoryHelper.isMobileNativeExecution()) {
             try {
-                (new WebDriverWait(driver, Duration.ofMillis(SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L)))
+                (new WebDriverWait(driver, Duration.ofMillis((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L))))
                         .until(ExpectedConditions.elementToBeClickable(elementLocator));
 
                 var expectedExceptions = getExpectedExceptions(true);
@@ -359,12 +366,12 @@ public class ElementActionsHelper {
 
                 return new FluentWait<>(driver)
                         .withTimeout(Duration.ofMillis(
-                                SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L))
+                                (long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L)))
                         .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                         .ignoreAll(expectedExceptions)
                         .until(nestedDriver -> {
                             if (!actionToExecute.isEmpty()) {
-                                if (actionToExecute.equalsIgnoreCase("clickandhold")) {
+                                if (actionToExecute.equalsIgnoreCase("ClickAndHold")) {
                                     (new Actions(driver)).clickAndHold(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).build().perform();
                                 }
                             }
@@ -380,7 +387,7 @@ public class ElementActionsHelper {
 
     public static boolean waitForElementTextToBeNot(WebDriver driver, By elementLocator, String textShouldNotBe) {
         try {
-            (new WebDriverWait(driver, Duration.ofMillis(SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L)))
+            (new WebDriverWait(driver, Duration.ofMillis((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L))))
                     .until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, textShouldNotBe)));
         } catch (org.openqa.selenium.TimeoutException e) {
             ReportManagerHelper.logDiscrete(e);
@@ -401,7 +408,7 @@ public class ElementActionsHelper {
     public static boolean waitForElementAttributeToBe(WebDriver driver, By elementLocator, String att,
                                                       String expectedValue) {
         try {
-            (new WebDriverWait(driver, Duration.ofMillis(SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L)))
+            (new WebDriverWait(driver, Duration.ofMillis((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L))))
                     .until(ExpectedConditions.attributeToBe(elementLocator, att, expectedValue));
         } catch (org.openqa.selenium.TimeoutException e) {
             ReportManagerHelper.logDiscrete(e);
