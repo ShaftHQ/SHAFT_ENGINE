@@ -10,7 +10,7 @@ public class TimeoutsTests {
     int browserNavigationTimeout;
     int pageLoadTimeout;
     int scriptExecutionTimeout;
-    int defaultElementIdentificationTimeout;
+    double defaultElementIdentificationTimeout;
     int apiSocketTimeout;
     int apiConnectionTimeout;
     int apiConnectionManagerTimeout;

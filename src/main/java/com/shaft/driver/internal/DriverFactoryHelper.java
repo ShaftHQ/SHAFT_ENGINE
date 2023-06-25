@@ -415,7 +415,7 @@ public class DriverFactoryHelper {
         return logPrefs;
     }
 
-    private static void createNewLocalDriverInstance(DriverType driverType, boolean recurse) {
+    private static void createNewLocalDriverInstance(DriverType driverType, boolean retry) {
         String initialLog = "Attempting to run locally on: \"" + Properties.platform.targetPlatform() + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
         if (SHAFT.Properties.web.headlessExecution()) {
             initialLog = initialLog + ", Headless Execution";
@@ -457,8 +457,14 @@ public class DriverFactoryHelper {
             } finally {
                 driver.remove();
             }
-            if (!recurse)
-                createNewLocalDriverInstance(driverType, true);
+            if (retry) {
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException e) {
+                    //do nothing
+                }
+                createNewLocalDriverInstance(driverType, false);
+            }
             failAction("Failed to create new Browser Session", exception);
         }
     }
@@ -883,7 +889,7 @@ public class DriverFactoryHelper {
                 //desktop execution
                 setDriverOptions(driverType, customDriverOptions);
                 switch (SHAFT.Properties.platform.executionAddress()) {
-                    case "local" -> createNewLocalDriverInstance(driverType, false);
+                    case "local" -> createNewLocalDriverInstance(driverType, true);
                     case "dockerized" -> createNewDockerizedDriverInstance(driverType);
                     default -> createNewRemoteDriverInstance(driverType);
                 }

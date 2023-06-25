@@ -38,7 +38,7 @@ public interface Timeouts extends EngineProperties {
 
     @Key("defaultElementIdentificationTimeout")
     @DefaultValue("60")
-    int defaultElementIdentificationTimeout();
+    double defaultElementIdentificationTimeout();
 
     @Key("apiSocketTimeout")
     @DefaultValue("30")
@@ -109,7 +109,7 @@ public interface Timeouts extends EngineProperties {
             setProperty("scriptExecutionTimeout", String.valueOf(value));
         }
 
-        public void defaultElementIdentificationTimeout(int value) {
+        public void defaultElementIdentificationTimeout(double value) {
             setProperty("defaultElementIdentificationTimeout", String.valueOf(value));
         }
 

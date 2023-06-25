@@ -41,7 +41,7 @@ public class AlertActions {
 
     private static void waitForAlertToBePresent() {
         try {
-            (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofSeconds(SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()))).until(ExpectedConditions.alertIsPresent());
+            (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofSeconds((long) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()))).until(ExpectedConditions.alertIsPresent());
             DriverFactoryHelper.getDriver().get().switchTo().alert();
             ReportManager.logDiscrete("Alert is present");
         } catch (Exception rootCauseException) {
