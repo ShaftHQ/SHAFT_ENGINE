@@ -212,16 +212,18 @@ public class ReportManagerHelper {
         }
         System.setOut(new PrintStream(new LogRedirector(logger, Level.INFO)));
         System.setErr(new PrintStream(new LogRedirector(logger, Level.WARN)));
-        String engineVersion = "Powered by " + SHAFT.Properties.internal.shaftEngineVersion();
+        String engineVersion = "Powered by \033[1m" + SHAFT.Properties.internal.shaftEngineVersion() + "\033[22m";
         createImportantReportEntry(engineVersion);
     }
 
     public static void logEngineClosure() {
+        // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
         String copyrights = "This test run was powered by "
-                + SHAFT.Properties.internal.shaftEngineVersion() + "\n"
-                + "SHAFT Engine is *and will always be* 100% FREE for commercial and private use\n"
-                + "in compliance with the MIT license\n"
-                + "https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE";
+                + "\033[1m" + SHAFT.Properties.internal.shaftEngineVersion() + "\033[22m\n"
+                + "SHAFT \033[1;4mis and will always be 100% FREE\033[22;24m for commercial and private use\n"
+                + "in compliance with the \033[1mMIT license\033[22m\n"
+                + "Visit SHAFT's user guide \033[4mhttps://shafthq.github.io/\033[24m to learn more";
+//                + "https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE";
         createImportantReportEntry(copyrights);
     }
 
@@ -592,10 +594,12 @@ public class ReportManagerHelper {
         setDiscreteLogging(false); // force log even if discrete logging was turned on
 
         String log = System.lineSeparator() +
+                "\033[0;7m" +
                 createSeparator('-') +
                 addSpacing(logText.trim()) +
                 createSeparator('-') +
-                System.lineSeparator();
+                System.lineSeparator() +
+                "\033[0m";
 
         Reporter.log(log, false);
         if (logger == null) {
