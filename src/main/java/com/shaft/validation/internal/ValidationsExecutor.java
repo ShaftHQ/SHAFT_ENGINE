@@ -6,6 +6,7 @@ import com.shaft.cli.TerminalActions;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.validation.ValidationEnums;
+import io.qameta.allure.Step;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -134,6 +135,7 @@ public class ValidationsExecutor {
     /**
      * Execute this validation
      */
+    @Step("Perform {this.validationCategory} - {this.validationMethod}")
     public void perform() {
         JavaScriptWaitManager.waitForLazyLoading();
         if ("".equals(customReportMessage)) {
