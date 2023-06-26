@@ -1002,7 +1002,7 @@ public class ReportManagerHelper {
                 }
             } else {
                 if (attachments != null && !attachments.isEmpty() && (attachments.size() > 1 || (attachments.get(0) != null && !attachments.get(0).isEmpty()))) {
-                    CheckpointStatus status = (logText.toLowerCase().contains("passed")) ? CheckpointStatus.PASS : CheckpointStatus.FAIL;
+                    CheckpointStatus status = (!logText.toLowerCase().contains("fail")) ? CheckpointStatus.PASS : CheckpointStatus.FAIL;
                     writeStepToReport(logText, attachments, status);
                 } else {
                     writeStepToReport(logText);
@@ -1025,7 +1025,11 @@ public class ReportManagerHelper {
                     customLogText = (type == CheckpointType.VERIFICATION) ? "Verification Failed: " + customLogText : "Assertion Failed: " + customLogText;
                 }
                 ReportManager.logDiscrete(logText);
-                writeNestedStepsToReport(customLogText, attachments);
+                if (attachments != null && !attachments.isEmpty()) {
+                    writeNestedStepsToReport(customLogText, attachments);
+                } else {
+                    writeNestedStepsToReport(customLogText);
+                }
                 CheckpointCounter.increment(type, customLogMessages.get(0), status);
                 ExecutionSummaryReport.validationsIncrement(status);
             } else {
@@ -1064,6 +1068,11 @@ public class ReportManagerHelper {
                 }
             });
         }
+    }
+
+    @Step("{customLog}")
+    private static void writeNestedStepsToReport(String customLog) {
+        createLogEntry(customLog, false);
     }
 
     /**

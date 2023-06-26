@@ -1,6 +1,7 @@
 package com.shaft.api;
 
 import com.shaft.cli.FileActions;
+import io.qameta.allure.Step;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.config.SSLConfig;
 import io.restassured.http.ContentType;
@@ -269,6 +270,7 @@ public class RequestBuilder {
      *
      * @return Response; returns the full response object for further manipulation
      */
+    @Step("Perform {this.requestType} request to {this.serviceURI}{this.serviceName}")
     public Response performRequest() {
         String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
         RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, sessionConfigs, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);

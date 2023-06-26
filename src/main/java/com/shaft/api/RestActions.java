@@ -470,8 +470,8 @@ public class RestActions {
 
     private static String reportActionResult(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
                                              Boolean isDiscrete, List<Object> expectedFileBodyAttachment, Boolean passFailStatus, Throwable... rootCauseException) {
-//        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         actionName = JavaHelper.convertToSentenceCase(actionName);
+        actionName = actionName.equals("Perform request") ? "Request details: " : actionName;
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "API Action: " + actionName;
@@ -1218,12 +1218,12 @@ public class RestActions {
                 if (targetStatusCode != 0) {
                     Validations.assertThat().number(statusCode)
                             .isEqualTo(targetStatusCode)
-                            .withCustomReportMessage("Evaluating the actual response status code "+statusCode+" against the expected one "+targetStatusCode+"...")
+                            .withCustomReportMessage("Evaluating the actual response status code " + statusCode + " against the expected one " + targetStatusCode + ".")
                             .perform();
                 } else {
                     Validations.assertThat().object(statusCode >= 200 && statusCode < 300)
                             .isTrue()
-                            .withCustomReportMessage("Evaluating that the response is successful (Status code is between 200 and 299)...")
+                            .withCustomReportMessage("Evaluating that the response is successful (Status code is between 200 and 299).")
                             .perform();
                 }
             }
