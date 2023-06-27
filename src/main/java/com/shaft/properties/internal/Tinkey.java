@@ -37,20 +37,24 @@ public interface Tinkey extends EngineProperties {
     }
 
     class SetProperty implements EngineProperties.SetProperty {
-        public void keysetFilename(String value) {
+        public SetProperty keysetFilename(String value) {
             setProperty("tinkey.keysetFilename", value);
+            return this;
         }
 
-        public void kmsServerType(String value) {
+        public SetProperty kmsServerType(String value) {
             setProperty("tinkey.kms.serverType", value);
+            return this;
         }
 
-        public void kmsCredentialPath(String value) {
+        public SetProperty kmsCredentialPath(String value) {
             setProperty("tinkey.kms.credentialPath", value);
+            return this;
         }
 
-        public void kmsMasterKeyUri(String value) {
+        public SetProperty kmsMasterKeyUri(String value) {
             setProperty("tinkey.kms.masterKeyUri", value);
+            return this;
         }
     }
 }

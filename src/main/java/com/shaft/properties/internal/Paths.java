@@ -69,44 +69,54 @@ public interface Paths extends EngineProperties {
     }
 
     class SetProperty implements EngineProperties.SetProperty {
-        public void properties(String value) {
+        public SetProperty properties(String value) {
             setProperty("propertiesFolderPath", value);
+            return this;
         }
 
-        public void dynamicObjectRepository(String value) {
+        public SetProperty dynamicObjectRepository(String value) {
             setProperty("dynamicObjectRepositoryPath", value);
+            return this;
         }
 
-        public void testData(String value) {
+        public SetProperty testData(String value) {
             setProperty("testDataFolderPath", value);
+            return this;
         }
 
-        public void downloads(String value) {
+        public SetProperty downloads(String value) {
             setProperty("downloadsFolderPath", value);
+            return this;
         }
 
-        public void allureResults(String value) {
+        public SetProperty allureResults(String value) {
             setProperty("allureResultsFolderPath", value);
+            return this;
         }
 
-        public void extentReports(String value) {
+        public SetProperty extentReports(String value) {
             setProperty("extentReportsFolderPath", value);
+            return this;
         }
 
-        public void executionSummaryReport(String value) {
+        public SetProperty executionSummaryReport(String value) {
             setProperty("executionSummaryReportFolderPath", value);
+            return this;
         }
 
-        public void video(String value) {
+        public SetProperty video(String value) {
             setProperty("video.folder", value);
+            return this;
         }
 
-        public void applitoolsApiKey(String value) {
+        public SetProperty applitoolsApiKey(String value) {
             setProperty("applitoolsApiKey", value);
+            return this;
         }
 
-        public void services(String value) {
+        public SetProperty services(String value) {
             setProperty("servicesFolderPath", value);
+            return this;
         }
 
     }

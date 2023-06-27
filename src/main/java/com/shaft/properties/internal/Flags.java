@@ -78,60 +78,74 @@ public interface Flags extends EngineProperties {
     }
 
     class SetProperty implements EngineProperties.SetProperty {
-        public void retryMaximumNumberOfAttempts(int value) {
+        public SetProperty retryMaximumNumberOfAttempts(int value) {
             setProperty("retryMaximumNumberOfAttempts", String.valueOf(value));
+            return this;
         }
 
-        public void autoMaximizeBrowserWindow(boolean value) {
+        public SetProperty autoMaximizeBrowserWindow(boolean value) {
             setProperty("autoMaximizeBrowserWindow", String.valueOf(value));
+            return this;
         }
 
-        public void forceCheckForElementVisibility(boolean value) {
+        public SetProperty forceCheckForElementVisibility(boolean value) {
             setProperty("forceCheckForElementVisibility", String.valueOf(value));
+            return this;
         }
 
-        public void forceCheckElementLocatorIsUnique(boolean value) {
+        public SetProperty forceCheckElementLocatorIsUnique(boolean value) {
             setProperty("forceCheckElementLocatorIsUnique", String.valueOf(value));
+            return this;
         }
 
-        public void forceCheckTextWasTypedCorrectly(boolean value) {
+        public SetProperty forceCheckTextWasTypedCorrectly(boolean value) {
             setProperty("forceCheckTextWasTypedCorrectly", String.valueOf(value));
+            return this;
         }
 
-        public void attemptClearBeforeTypingUsingBackspace(boolean value) {
+        public SetProperty attemptClearBeforeTypingUsingBackspace(boolean value) {
             setProperty("attemptClearBeforeTypingUsingBackspace", String.valueOf(value));
+            return this;
         }
 
-        public void forceCheckNavigationWasSuccessful(boolean value) {
+        public SetProperty forceCheckNavigationWasSuccessful(boolean value) {
             setProperty("forceCheckNavigationWasSuccessful", String.valueOf(value));
+            return this;
         }
 
-        public void forceCheckStatusOfRemoteServer(boolean value) {
+        public SetProperty forceCheckStatusOfRemoteServer(boolean value) {
             setProperty("forceCheckStatusOfRemoteServer", String.valueOf(value));
+            return this;
         }
 
-        public void respectBuiltInWaitsInNativeMode(boolean value) {
+        public SetProperty respectBuiltInWaitsInNativeMode(boolean value) {
             setProperty("respectBuiltInWaitsInNativeMode", String.valueOf(value));
+            return this;
         }
 
-        public void clickUsingJavascriptWhenWebDriverClickFails(boolean value) {
+        public SetProperty clickUsingJavascriptWhenWebDriverClickFails(boolean value) {
             setProperty("clickUsingJavascriptWhenWebDriverClickFails", String.valueOf(value));
+            return this;
         }
 
-        public void autoCloseDriverInstance(boolean value) {
+        public SetProperty autoCloseDriverInstance(boolean value) {
             setProperty("autoCloseDriverInstance", String.valueOf(value));
+            return this;
         }
 
-        public void automaticallyAssertResponseStatusCode(boolean value) {
+        public SetProperty automaticallyAssertResponseStatusCode(boolean value) {
             setProperty("automaticallyAssertResponseStatusCode", String.valueOf(value));
+            return this;
         }
 
-        public void maximumPerformanceMode(int value) {
+        public SetProperty maximumPerformanceMode(int value) {
             setProperty("maximumPerformanceMode", String.valueOf(value));
+            return this;
         }
 
-        public void skipTestsWithLinkedIssues(boolean value) {
+        public SetProperty skipTestsWithLinkedIssues(boolean value) {
             setProperty("skipTestsWithLinkedIssues", String.valueOf(value));
+            return this;
         }
     }
 

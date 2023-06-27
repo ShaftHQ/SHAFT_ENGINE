@@ -45,28 +45,34 @@ public interface Healenium extends EngineProperties {
     }
 
     class SetProperty implements EngineProperties.SetProperty {
-        public void recoveryTries(int value) {
+        public SetProperty recoveryTries(int value) {
             setProperty("recovery-tries", String.valueOf(value));
+            return this;
         }
 
-        public void scoreCap(String value) {
+        public SetProperty scoreCap(String value) {
             setProperty("score-cap", value);
+            return this;
         }
 
-        public void healEnabled(boolean value) {
+        public SetProperty healEnabled(boolean value) {
             setProperty("heal-enabled", String.valueOf(value));
+            return this;
         }
 
-        public void serverHost(String value) {
+        public SetProperty serverHost(String value) {
             setProperty("serverHost", value);
+            return this;
         }
 
-        public void serverPort(int value) {
+        public SetProperty serverPort(int value) {
             setProperty("serverPort", String.valueOf(value));
+            return this;
         }
 
-        public void imitatePort(int value) {
+        public SetProperty imitatePort(int value) {
             setProperty("imitatePort", String.valueOf(value));
+            return this;
         }
 
     }

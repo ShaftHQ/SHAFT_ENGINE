@@ -73,56 +73,69 @@ public interface Jira extends EngineProperties {
     }
 
     class SetProperty implements EngineProperties.SetProperty {
-        public void jiraInteraction(boolean value) {
+        public SetProperty jiraInteraction(boolean value) {
             setProperty("jiraInteraction", String.valueOf(value));
+            return this;
         }
 
-        public void jiraUrl(String value) {
+        public SetProperty jiraUrl(String value) {
             setProperty("jiraUrl", value);
+            return this;
         }
 
-        public void projectKey(String value) {
+        public SetProperty projectKey(String value) {
             setProperty("projectKey", value);
+            return this;
         }
 
-        public void authorization(String value) {
+        public SetProperty authorization(String value) {
             setProperty("authorization", value);
+            return this;
         }
 
-        public void authType(String value) {
+        public SetProperty authType(String value) {
             setProperty("authType", value);
+            return this;
         }
 
-        public void reportTestCasesExecution(boolean value) {
+        public SetProperty reportTestCasesExecution(boolean value) {
             setProperty("reportTestCasesExecution", String.valueOf(value));
+            return this;
         }
 
-        public void reportPath(String value) {
+        public SetProperty reportPath(String value) {
             setProperty("reportPath", value);
+            return this;
         }
 
-        public void executionName(String value) {
+        public SetProperty executionName(String value) {
             setProperty("ExecutionName", value);
+            return this;
         }
 
-        public void executionDescription(String value) {
+        public SetProperty executionDescription(String value) {
             setProperty("ExecutionDescription", value);
+            return this;
         }
 
-        public void reportBugs(boolean value) {
+        public SetProperty reportBugs(boolean value) {
             setProperty("ReportBugs", String.valueOf(value));
+            return this;
         }
 
-        public void assignee(String value) {
+        public SetProperty assignee(String value) {
             setProperty("assignee", value);
+            return this;
         }
 
-        public void allureLinkTmsPattern(String value) {
+        public SetProperty allureLinkTmsPattern(String value) {
             setProperty("allure.link.tms.pattern", value);
+            return this;
         }
 
-        public void allureLinkCustomPattern(String value) {
+        public SetProperty allureLinkCustomPattern(String value) {
             setProperty("allure.link.custom.pattern", value);
+            return this;
         }
 
     }

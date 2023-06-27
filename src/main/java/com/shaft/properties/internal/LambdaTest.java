@@ -4,7 +4,7 @@ import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config;
 import org.aeonbits.owner.ConfigFactory;
 
-@SuppressWarnings({"SpellCheckingInspection", "unused"})
+@SuppressWarnings({"unused"})
 @Config.Sources({"system:properties", "file:src/main/resources/properties/LambdaTest.properties", "file:src/main/resources/properties/default/LambdaTest.properties", "classpath:LambdaTest.properties",})
 public interface LambdaTest extends EngineProperties {
     //Based on LambdaTest capability builder
@@ -167,137 +167,170 @@ public interface LambdaTest extends EngineProperties {
     }
 
     class SetProperty implements EngineProperties.SetProperty {
-        public void username(String value) {
+        public SetProperty username(String value) {
             setProperty("LambdaTest.username", value);
+            return this;
         }
 
-        public void accessKey(String value) {
+        public SetProperty accessKey(String value) {
             setProperty("LambdaTest.accessKey", value);
+            return this;
         }
 
-        public void platformVersion(String value) {
+        public SetProperty platformVersion(String value) {
             setProperty("LambdaTest.platformVersion", value);
+            return this;
         }
 
-        public void osVersion(String value) {
+        public SetProperty osVersion(String value) {
             setProperty("LambdaTest.osVersion", value);
+            return this;
         }
 
-        public void appUrl(String value) {
+        public SetProperty appUrl(String value) {
             setProperty("LambdaTest.appUrl", value);
+            return this;
         }
 
-        public void appProfiling(Boolean value) {
+        public SetProperty appProfiling(Boolean value) {
             setProperty("LambdaTest.appProfiling", String.valueOf(value));
+            return this;
         }
 
-        public void deviceName(String value) {
+        public SetProperty deviceName(String value) {
             setProperty("LambdaTest.deviceName", value);
+            return this;
         }
 
-        public void visual(boolean value) {
+        public SetProperty visual(boolean value) {
             setProperty("LambdaTest.visual", String.valueOf(value));
+            return this;
         }
 
-        public void video(boolean value) {
+        public SetProperty video(boolean value) {
             setProperty("browserStack.video", String.valueOf(value));
+            return this;
         }
 
-        public void resolution(String value) {
+        public SetProperty resolution(String value) {
             setProperty("LambdaTest.platformVersion", value);
+            return this;
         }
 
-        public void headless(boolean value) {
+        public SetProperty headless(boolean value) {
             setProperty("LambdaTest.headless", String.valueOf(value));
+            return this;
         }
 
-        public void timezone(String value) {
+        public SetProperty timezone(String value) {
             setProperty("LambdaTest.timezone", value);
+            return this;
         }
 
-        public void project(String value) {
+        public SetProperty project(String value) {
             setProperty("LambdaTest.project", value);
+            return this;
         }
 
-        public void build(String value) {
+        public SetProperty build(String value) {
             setProperty("LambdaTest.build", value);
+            return this;
         }
 
 
-        public void tunnel(boolean value) {
+        public SetProperty tunnel(boolean value) {
             setProperty("LambdaTest.tunnel", String.valueOf(value));
+            return this;
         }
 
-        public void tunnelName(String value) {
+        public SetProperty tunnelName(String value) {
             setProperty("LambdaTest.tunnelName", value);
+            return this;
         }
 
-        public void buildName(String value) {
+        public SetProperty buildName(String value) {
             setProperty("LambdaTest.buildName", value);
+            return this;
         }
 
-        public void autoGrantPermissions(boolean value) {
+        public SetProperty autoGrantPermissions(boolean value) {
             setProperty("LambdaTest.autoGrantPermissions", String.valueOf(value));
+            return this;
         }
 
-        public void autoAcceptAlerts(boolean value) {
+        public SetProperty autoAcceptAlerts(boolean value) {
             setProperty("LambdaTest.autoAcceptAlerts", String.valueOf(value));
+            return this;
         }
 
-        public void acceptInsecureCerts(boolean value) {
+        public SetProperty acceptInsecureCerts(boolean value) {
             setProperty("LambdaTest.acceptInsecureCerts", String.valueOf(value));
+            return this;
         }
 
-        public void isRealMobile(boolean value) {
+        public SetProperty isRealMobile(boolean value) {
             setProperty("LambdaTest.isRealMobile", String.valueOf(value));
+            return this;
         }
 
-        public void debug(boolean value) {
+        public SetProperty debug(boolean value) {
             setProperty("LambdaTest.debug", String.valueOf(value));
+            return this;
         }
 
-        public void console(boolean value) {
+        public SetProperty console(boolean value) {
             setProperty("LambdaTest.console", String.valueOf(value));
+            return this;
         }
 
-        public void selenium_version(String value) {
+        public SetProperty selenium_version(String value) {
             setProperty("LambdaTest.selenium_version", value);
+            return this;
         }
 
-        public void browserVersion(String value) {
+        public SetProperty browserVersion(String value) {
             setProperty("LambdaTest.browserVersion", value);
+            return this;
         }
 
-        public void appiumVersion(String value) {
+        public SetProperty appiumVersion(String value) {
             setProperty("LambdaTest.appiumVersion", value);
+            return this;
         }
 
-        public void networkLogs(boolean value) {
+        public SetProperty networkLogs(boolean value) {
             setProperty("LambdaTest.networkLogs", String.valueOf(value));
+            return this;
         }
 
-        public void appRelativeFilePath(String value) {
+        public SetProperty appRelativeFilePath(String value) {
             setProperty("LambdaTest.appRelativeFilePath", value);
+            return this;
         }
 
-        public void appName(String value) {
+        public SetProperty appName(String value) {
             setProperty("LambdaTest.appName", value);
+            return this;
         }
 
-        public void driver_version(String value) {
+        public SetProperty driver_version(String value) {
             setProperty("LambdaTest.driver_version", value);
+            return this;
         }
 
-        public void w3c(boolean value) {
+        public SetProperty w3c(boolean value) {
             setProperty("LambdaTest.w3c", String.valueOf(value));
+            return this;
         }
 
-        public void geoLocation(String value) {
+        public SetProperty geoLocation(String value) {
             setProperty("LambdaTest.geoLocation", value);
+            return this;
         }
 
-        public void customID(String value) {
+        public SetProperty customID(String value) {
             setProperty("LambdaTest.customID", value);
+            return this;
         }
 
     }
