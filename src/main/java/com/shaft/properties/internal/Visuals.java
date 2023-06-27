@@ -78,60 +78,74 @@ public interface Visuals extends EngineProperties {
 
     class SetProperty implements EngineProperties.SetProperty {
 
-        public void visualMatchingThreshold(String value) {
+        public SetProperty visualMatchingThreshold(String value) {
             setProperty("visualMatchingThreshold", value);
+            return this;
         }
 
-        public void screenshotParamsScalingFactor(String value) {
+        public SetProperty screenshotParamsScalingFactor(String value) {
             setProperty("screenshotParams_scalingFactor", value);
+            return this;
         }
 
-        public void screenshotParamsWhenToTakeAScreenshot(String value) {
+        public SetProperty screenshotParamsWhenToTakeAScreenshot(String value) {
             setProperty("screenshotParams_whenToTakeAScreenshot", value);
+            return this;
         }
 
-        public void screenshotParamsScreenshotType(String value) {
+        public SetProperty screenshotParamsScreenshotType(String value) {
             setProperty("screenshotParams_screenshotType", value);
+            return this;
         }
 
-        public void screenshotParamsHighlightElements(boolean value) {
+        public SetProperty screenshotParamsHighlightElements(boolean value) {
             setProperty("screenshotParams_highlightElements", String.valueOf(value));
+            return this;
         }
 
-        public void screenshotParamsHighlightMethod(String value) {
+        public SetProperty screenshotParamsHighlightMethod(String value) {
             setProperty("screenshotParams_highlightMethod", value);
+            return this;
         }
 
-        public void screenshotParamsSkippedElementsFromScreenshot(String value) {
+        public SetProperty screenshotParamsSkippedElementsFromScreenshot(String value) {
             setProperty("screenshotParams_skippedElementsFromScreenshot", value);
+            return this;
         }
 
-        public void screenshotParamsWatermark(boolean value) {
+        public SetProperty screenshotParamsWatermark(boolean value) {
             setProperty("screenshotParams_watermark", String.valueOf(value));
+            return this;
         }
 
-        public void screenshotParamsWatermarkOpacity(float value) {
+        public SetProperty screenshotParamsWatermarkOpacity(float value) {
             setProperty("screenshotParams_watermarkOpacity", String.valueOf(value));
+            return this;
         }
 
-        public void createAnimatedGif(boolean value) {
+        public SetProperty createAnimatedGif(boolean value) {
             setProperty("createAnimatedGif", String.valueOf(value));
+            return this;
         }
 
-        public void animatedGifFrameDelay(int value) {
+        public SetProperty animatedGifFrameDelay(int value) {
             setProperty("animatedGif_frameDelay", String.valueOf(value));
+            return this;
         }
 
-        public void videoParamsRecordVideo(boolean value) {
+        public SetProperty videoParamsRecordVideo(boolean value) {
             setProperty("videoParams_recordVideo", String.valueOf(value));
+            return this;
         }
 
-        public void videoParamsScope(String value) {
+        public SetProperty videoParamsScope(String value) {
             setProperty("videoParams_scope", value);
+            return this;
         }
 
-        public void whenToTakePageSourceSnapshot(String value) {
+        public SetProperty whenToTakePageSourceSnapshot(String value) {
             setProperty("whenToTakePageSourceSnapshot", value);
+            return this;
         }
 
     }

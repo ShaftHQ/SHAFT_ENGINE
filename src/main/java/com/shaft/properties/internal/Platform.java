@@ -41,23 +41,27 @@ public interface Platform extends EngineProperties {
 
     @SuppressWarnings("unused")
     class SetProperty implements EngineProperties.SetProperty {
-        public void crossBrowserMode(String value) {
+        public SetProperty crossBrowserMode(String value) {
             setProperty("SHAFT.CrossBrowserMode", value);
+            return this;
         }
 
-        public void executionAddress(String value) {
+        public SetProperty executionAddress(String value) {
             setProperty("executionAddress", value);
+            return this;
         }
 
         /**
          * @param value io.github.shafthq.shaft.enums.OperatingSystems
          */
-        public void targetPlatform(String value) {
+        public SetProperty targetPlatform(String value) {
             setProperty("targetOperatingSystem", value);
+            return this;
         }
 
-        public void proxySettings(String value) {
+        public SetProperty proxySettings(String value) {
             setProperty("com.SHAFT.proxySettings", value);
+            return this;
         }
     }
 }

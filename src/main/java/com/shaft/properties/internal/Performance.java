@@ -33,12 +33,14 @@ public interface Performance extends EngineProperties {
 
     @SuppressWarnings("unused")
     class SetProperty implements EngineProperties.SetProperty {
-        public void isEnabled(boolean value) {
+        public SetProperty isEnabled(boolean value) {
             setProperty("lightHouseExecution", String.valueOf(value));
+            return this;
         }
 
-        public void port(int value) {
+        public SetProperty port(int value) {
             setProperty("lightHouseExecution.port", String.valueOf(value));
+            return this;
         }
     }
 }

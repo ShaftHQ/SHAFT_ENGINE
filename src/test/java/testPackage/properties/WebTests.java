@@ -35,15 +35,15 @@ public class WebTests {
 
     @Test
     public void test() {
-        SHAFT.Properties.web.set().targetBrowserName(targetBrowserName);
-        SHAFT.Properties.web.set().headlessExecution(headlessExecution);
-        SHAFT.Properties.web.set().isMobileEmulation(isMobileEmulation);
-        SHAFT.Properties.web.set().mobileEmulationIsCustomDevice(mobileEmulationIsCustomDevice);
-        SHAFT.Properties.web.set().mobileEmulationDeviceName(mobileEmulationDeviceName);
-        SHAFT.Properties.web.set().mobileEmulationWidth(mobileEmulationWidth);
-        SHAFT.Properties.web.set().mobileEmulationHeight(mobileEmulationHeight);
-        SHAFT.Properties.web.set().mobileEmulationPixelRatio(mobileEmulationPixelRatio);
-        SHAFT.Properties.web.set().mobileEmulationUserAgent(mobileEmulationUserAgent);
-        SHAFT.Properties.web.set().baseURL(baseURL);
+        SHAFT.Properties.web.set().targetBrowserName(targetBrowserName)
+                .headlessExecution(headlessExecution)
+                .isMobileEmulation(isMobileEmulation)
+                .mobileEmulationIsCustomDevice(mobileEmulationIsCustomDevice)
+                .mobileEmulationDeviceName(mobileEmulationDeviceName)
+                .mobileEmulationWidth(mobileEmulationWidth)
+                .mobileEmulationHeight(mobileEmulationHeight)
+                .mobileEmulationPixelRatio(mobileEmulationPixelRatio)
+                .mobileEmulationUserAgent(mobileEmulationUserAgent)
+                .baseURL(baseURL);
     }
 }
