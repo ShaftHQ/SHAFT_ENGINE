@@ -36,7 +36,7 @@
         <selenium.version>4.10.0</selenium.version>
         <appium-java-client.version>8.5.1</appium-java-client.version>
         <webdrivermanager.version>5.4.0</webdrivermanager.version>
-        <allure.version>2.21.0</allure.version> <!-- 2.21.0 DO NOT UPDATE || internal.properties -->
+        <allure.version>2.23.0</allure.version> <!-- 2.21.0 DO NOT UPDATE || internal.properties -->
         <extentreports.version>5.0.9</extentreports.version>
         <aspectj.version>1.9.19</aspectj.version>
         <rest-assured.version>5.3.1</rest-assured.version>
