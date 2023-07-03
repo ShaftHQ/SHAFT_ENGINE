@@ -41,8 +41,8 @@ public class VisualsTests {
 
     @Test
     public void test() {
-        SHAFT.Properties.visuals.set().visualMatchingThreshold(String.valueOf(visualMatchingThreshold));
-        SHAFT.Properties.visuals.set().screenshotParamsScalingFactor(String.valueOf(screenshotParamsScalingFactor));
+        SHAFT.Properties.visuals.set().visualMatchingThreshold(visualMatchingThreshold);
+        SHAFT.Properties.visuals.set().screenshotParamsScalingFactor(screenshotParamsScalingFactor);
         SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot(screenshotParamsWhenToTakeAScreenshot);
         SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(screenshotParams_screenshotType);
         SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(screenshotParamsHighlightElements);
