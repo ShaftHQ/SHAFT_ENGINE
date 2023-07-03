@@ -1019,6 +1019,9 @@
                                 -javaagent:${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar
                             </argLine>
                             <systemPropertyVariables>
+                                <allure.testng.hide.disabled.tests>true</allure.testng.hide.disabled.tests>
+                                <allure.testng.hide.configuration.failures>true
+                                </allure.testng.hide.configuration.failures>
                                 <testng.dtd.http>true</testng.dtd.http>
                                 <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>
                             </systemPropertyVariables>
