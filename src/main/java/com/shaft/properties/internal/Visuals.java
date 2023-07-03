@@ -21,7 +21,7 @@ public interface Visuals extends EngineProperties {
     double visualMatchingThreshold();
 
     @Key("screenshotParams_scalingFactor")
-    @DefaultValue("1")
+    @DefaultValue("1.0")
     double screenshotParamsScalingFactor();
 
     @Key("screenshotParams_whenToTakeAScreenshot")
@@ -78,13 +78,13 @@ public interface Visuals extends EngineProperties {
 
     class SetProperty implements EngineProperties.SetProperty {
 
-        public SetProperty visualMatchingThreshold(String value) {
-            setProperty("visualMatchingThreshold", value);
+        public SetProperty visualMatchingThreshold(double value) {
+            setProperty("visualMatchingThreshold", String.valueOf(value));
             return this;
         }
 
-        public SetProperty screenshotParamsScalingFactor(String value) {
-            setProperty("screenshotParams_scalingFactor", value);
+        public SetProperty screenshotParamsScalingFactor(double value) {
+            setProperty("screenshotParams_scalingFactor", String.valueOf(value));
             return this;
         }
 
