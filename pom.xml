@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>7.2.20230621</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
+    <version>7.3.20230703</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
     <name>${project.groupId}:${project.artifactId}</name>
     <description>SHAFT is a unified test automation engine. Powered by best-in-class frameworks, SHAFT provides a
         wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve.
@@ -36,7 +36,7 @@
         <selenium.version>4.10.0</selenium.version>
         <appium-java-client.version>8.5.1</appium-java-client.version>
         <webdrivermanager.version>5.4.0</webdrivermanager.version>
-        <allure.version>2.21.0</allure.version> <!-- 2.21.0 DO NOT UPDATE || internal.properties -->
+        <allure.version>2.23.0</allure.version> <!-- 2.21.0 DO NOT UPDATE || internal.properties -->
         <extentreports.version>5.0.9</extentreports.version>
         <aspectj.version>1.9.19</aspectj.version>
         <rest-assured.version>5.3.1</rest-assured.version>
@@ -67,7 +67,7 @@
         <sikulixapi.version>2.0.5</sikulixapi.version> <!-- Do not update before running the test locally -->
         <jave-all-deps.version>3.3.1</jave-all-deps.version>
         <video-recorder-testng.version>2.0</video-recorder-testng.version>
-        <pdfbox.version>2.0.28</pdfbox.version>
+        <pdfbox.version>2.0.29</pdfbox.version>
         <org.yaml.version>2.0</org.yaml.version>
         <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
 
@@ -657,7 +657,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>32.0.1-jre</version>
+            <version>32.1.1-jre</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
