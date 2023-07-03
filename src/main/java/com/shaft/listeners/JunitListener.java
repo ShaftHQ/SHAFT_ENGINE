@@ -3,6 +3,7 @@ package com.shaft.listeners;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.listeners.internal.JiraHelper;
+import com.shaft.listeners.internal.JunitListenerHelper;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.security.GoogleTink;
@@ -30,7 +31,6 @@ public class JunitListener implements LauncherSessionListener {
             session.getLauncher().registerTestExecutionListeners(new TestExecutionListener() {
                 @Override
                 public void testPlanExecutionStarted(TestPlan testPlan) {
-//                TestNGListenerHelper.setTotalNumberOfTests(suite);
                     executionStartTime = System.currentTimeMillis();
                     engineSetup();
                     isEngineReady = true;
@@ -44,11 +44,8 @@ public class JunitListener implements LauncherSessionListener {
 
                 @Override
                 public void executionStarted(TestIdentifier testIdentifier) {
-                    //                JiraHelper.prepareTestResultAttributes(method, iTestResult);
-//                TestNGListenerHelper.setTestName(iTestContext);
-//                TestNGListenerHelper.logTestInformation(iTestResult);
-//                TestNGListenerHelper.failFast(iTestResult);
-//                TestNGListenerHelper.skipTestsWithLinkedIssues(iTestResult);
+                    JunitListenerHelper.setTestName(testIdentifier);
+                    JunitListenerHelper.logTestInformation(testIdentifier);
                 }
 
                 @Override
@@ -77,7 +74,6 @@ public class JunitListener implements LauncherSessionListener {
         ReportManagerHelper.setDiscreteLogging(true);
         PropertiesHelper.initialize();
         SHAFT.Properties.reporting.set().disableLogging(true);
-        //TODO: Enable Properties Helper and refactor the old PropertyFileManager to read any unmapped user properties in a specific directory
         Allure.getLifecycle();
         Reporter.setEscapeHtml(false);
         ProjectStructureManager.initialize(ProjectStructureManager.Mode.JUNIT);
@@ -89,9 +85,9 @@ public class JunitListener implements LauncherSessionListener {
         ReportManagerHelper.logEngineVersion();
         ImageProcessingActions.loadOpenCV();
 
-        ReportManagerHelper.cleanExecutionSummaryReportDirectory();
         ReportManagerHelper.initializeAllureReportingEnvironment();
         ReportManagerHelper.initializeExtentReportingEnvironment();
+        ReportManagerHelper.cleanExecutionSummaryReportDirectory();
 
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
         ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
@@ -103,6 +99,7 @@ public class JunitListener implements LauncherSessionListener {
         GoogleTink.encrypt();
         ReportManagerHelper.generateAllureReportArchive();
         ReportManagerHelper.openAllureReportAfterExecution();
+        ReportManagerHelper.openExtentReportAfterExecution();
         long executionEndTime = System.currentTimeMillis();
         ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
         ReportManagerHelper.logEngineClosure();
