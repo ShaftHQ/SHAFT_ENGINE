@@ -151,14 +151,14 @@ public class ImageProcessingActions {
                 yPos = elementLocation.getY();
 
         // IOS Native | macOS Browser | Linux Browser scaled | -> Repositioning
-        if (SHAFT.Properties.platform.targetPlatform().equals(Platform.IOS.name())
-                || SHAFT.Properties.platform.targetPlatform().equals(Platform.MAC.name())
+        if (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.IOS.name())
+                || SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.MAC.name())
                 || (
-                SHAFT.Properties.platform.targetPlatform().equals(Platform.LINUX.name())
+                SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.LINUX.name())
                         && SHAFT.Properties.visuals.screenshotParamsScalingFactor() != Double.parseDouble("1")
         )
                 || (
-                SHAFT.Properties.platform.targetPlatform().equals(Platform.LINUX.name())
+                SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.LINUX.name())
                         && SHAFT.Properties.visuals.screenshotParamsScalingFactor() != Double.parseDouble("1")
         )
         ) {
@@ -169,22 +169,22 @@ public class ImageProcessingActions {
         }
 
         // IOS Browser Repositioning
-        if (SHAFT.Properties.platform.targetPlatform().equals(Platform.IOS.name()) && SHAFT.Properties.mobile.browserName().equals(Browser.SAFARI.browserName())) {
+        if (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.IOS.name()) && SHAFT.Properties.mobile.browserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
             yPos += elementHeight + 2 * outlineThickness;
         }
 
         // Android Browser Repositioning
-        if (SHAFT.Properties.platform.targetPlatform().equals(Platform.ANDROID.name()) && SHAFT.Properties.mobile.appPackage().equals("com.android.chrome")) {
+        if (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.ANDROID.name()) && SHAFT.Properties.mobile.appPackage().equalsIgnoreCase("com.android.chrome")) {
             yPos += 2 * outlineThickness;
         }
 
         // MacOS Browser Repositioning
-        if (SHAFT.Properties.platform.targetPlatform().equals(Platform.MAC.name())) {
+        if (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.MAC.name())) {
             yPos += 2 * outlineThickness;
         }
 
         // Windows Browser Repositioning
-        if (SHAFT.Properties.platform.targetPlatform().equals(Platform.WINDOWS.name())) {
+        if (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.WINDOWS.name())) {
             double scalingFactor = SHAFT.Properties.visuals.screenshotParamsScalingFactor();
             elementHeight *= scalingFactor;
             elementWidth *= scalingFactor;
