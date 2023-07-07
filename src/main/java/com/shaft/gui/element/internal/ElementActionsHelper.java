@@ -747,16 +747,27 @@ public class ElementActionsHelper {
             }
         } else {
             //desktop execution
-            try {
-                (elementInformation.getFirstElement()).click();
-                (elementInformation.getFirstElement()).sendKeys(text);
-            } catch (WebDriverException webDriverException) {
+            if (SHAFT.Properties.flags.attemptToClickBeforeTyping()){
+                try {
+                    (elementInformation.getFirstElement()).click();
+                    (elementInformation.getFirstElement()).sendKeys(text);
+                } catch (WebDriverException webDriverException) {
+                    try {
+                        (elementInformation.getFirstElement()).sendKeys(text);
+                    } catch (WebDriverException webDriverException2) {
+                        performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.SEND_KEYS, text);
+                    }
+                }
+
+                }
+            else {
                 try {
                     (elementInformation.getFirstElement()).sendKeys(text);
                 } catch (WebDriverException webDriverException2) {
                     performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.SEND_KEYS, text);
                 }
             }
+
         }
     }
 
