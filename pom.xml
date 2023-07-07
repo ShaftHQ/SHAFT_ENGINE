@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>7.3.20230703</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
+    <version>7.3.20230707_BETA</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
     <name>${project.groupId}:${project.artifactId}</name>
     <description>SHAFT is a unified test automation engine. Powered by best-in-class frameworks, SHAFT provides a
         wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve.
@@ -1016,7 +1016,7 @@
                         </dependencies>
                         <configuration>
                             <argLine>
-                                -javaagent:${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar
+                                -javaagent:"${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
                             </argLine>
                             <systemPropertyVariables>
                                 <allure.testng.hide.disabled.tests>true</allure.testng.hide.disabled.tests>
