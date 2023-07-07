@@ -748,11 +748,8 @@ public class ElementActionsHelper {
         } else {
             //desktop execution
             try {
-                (new Actions(DriverFactoryHelper.getDriver().get()))
-                        .click(elementInformation.getFirstElement())
-                        .sendKeys(text)
-                        .build()
-                        .perform();
+                (elementInformation.getFirstElement()).click();
+                (elementInformation.getFirstElement()).sendKeys(text);
             } catch (WebDriverException webDriverException) {
                 try {
                     (elementInformation.getFirstElement()).sendKeys(text);
