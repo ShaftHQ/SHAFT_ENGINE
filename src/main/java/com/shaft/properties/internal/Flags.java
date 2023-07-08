@@ -73,6 +73,10 @@ public interface Flags extends EngineProperties {
     @DefaultValue("false")
     boolean skipTestsWithLinkedIssues();
 
+    @Key("attemptToClickBeforeTyping")
+    @DefaultValue("false")
+    boolean attemptToClickBeforeTyping();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -125,6 +129,11 @@ public interface Flags extends EngineProperties {
 
         public SetProperty clickUsingJavascriptWhenWebDriverClickFails(boolean value) {
             setProperty("clickUsingJavascriptWhenWebDriverClickFails", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty attemptToClickBeforeTyping(boolean value) {
+            setProperty("attemptToClickBeforeTyping", String.valueOf(value));
             return this;
         }
 
