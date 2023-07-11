@@ -67,6 +67,18 @@ public class GUIWizardTests {
 
     }
 
+    @Test (expectedExceptions =  {AssertionError.class})
+    public void test_selectOptionNotExistFromDropdownList(){
+        driver.browser().navigateToURL("http://the-internet.herokuapp.com/dropdown");
+        //"1" is attribute value string value
+        driver.element().select(By.id("dropdown"), "1");
+        driver.element().captureScreenshot(By.id("dropdown"));
+        //"Option 2" is the displayed text of "option 2"
+        driver.element().select(By.id("dropdown"), "Option 4");
+        driver.element().captureScreenshot(By.id("dropdown"));
+
+    }
+
 
     @BeforeMethod
     public void beforeMethod() {
