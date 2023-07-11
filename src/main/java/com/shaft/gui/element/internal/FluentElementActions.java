@@ -696,7 +696,7 @@ public class FluentElementActions {
                 }
             }
             if (Boolean.FALSE.equals(isOptionFound)) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), valueOrVisibleText, elementLocator);
+                throw new NoSuchElementException("Cannot locate option with Value or Visible text ="+ valueOrVisibleText);
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
