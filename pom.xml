@@ -671,7 +671,7 @@
         <dependency>
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink</artifactId>
-            <version>1.9.0</version>
+            <version>1.10.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.protobuf</groupId>
