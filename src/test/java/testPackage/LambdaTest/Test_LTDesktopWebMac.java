@@ -37,8 +37,6 @@ public class Test_LTDesktopWebMac {
         SHAFT.Properties.lambdaTest.set().isRealMobile(false);
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
-
-
         driver = new SHAFT.GUI.WebDriver();
     }
 

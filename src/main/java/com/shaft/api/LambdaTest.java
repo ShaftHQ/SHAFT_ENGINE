@@ -147,7 +147,6 @@ public class LambdaTest {
         lambdaTestOptions.put("tunnel", SHAFT.Properties.lambdaTest.tunnel());
         lambdaTestOptions.put("tunnelName", SHAFT.Properties.lambdaTest.tunnelName());
         lambdaTestOptions.put("video", SHAFT.Properties.lambdaTest.video());
-        lambdaTestOptions.put("visual", SHAFT.Properties.lambdaTest.visual());
         lambdaTestOptions.put("name", SHAFT.Properties.lambdaTest.buildName());
         lambdaTestOptions.put("visual", SHAFT.Properties.lambdaTest.visual());
         lambdaTestOptions.put("autoGrantPermissions", SHAFT.Properties.lambdaTest.autoGrantPermissions());

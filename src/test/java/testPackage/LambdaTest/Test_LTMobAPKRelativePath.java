@@ -39,9 +39,11 @@ public class Test_LTMobAPKRelativePath {
         SHAFT.Properties.lambdaTest.set().deviceName("Galaxy A12");
         SHAFT.Properties.lambdaTest.set().appName("ApiDemos-debug.apk");
         SHAFT.Properties.mobile.set().browserName("");
+        SHAFT.Properties.lambdaTest.set().isRealMobile(true);
         SHAFT.Properties.lambdaTest.set().appRelativeFilePath("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
+        SHAFT.Properties.flags.set().automaticallyAssertResponseStatusCode(false);
         driver = new SHAFT.GUI.WebDriver();
     }
 

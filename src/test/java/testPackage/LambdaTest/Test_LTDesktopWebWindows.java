@@ -29,17 +29,6 @@ public class Test_LTDesktopWebWindows {
                 .verifyThat(productName).text().isEqualTo("Sauce Labs Backpack").perform();
     }
 
-//    @Test
-//    public void test3() {
-//        List<List<Object>> parameters = Arrays.asList(Arrays.asList("appFile",new File("/Users/magdy/Documents/GitHub/SHAFT_ENGINE/src/test/resources/testDataFiles/apps/ApiDemos-debug.apk") ), Arrays.asList("name","appname"));
-//        SHAFT.API api = new SHAFT.API("https://manual-api.lambdatest.com");
-//        api.post("/app/upload/realDevice").setAuthentication("magdy.heibavodafone", "pA1PmVOfkQ5gKfbjk4Heh7Jo4Ly7SUslr2JCcUCCXPYKrZRBB8", RequestBuilder.AuthenticationType.BASIC).setContentType("multipart/form-data").setParameters(parameters, RestActions.ParametersType.FORM).perform();
-//        String body = api.getResponseBody();
-//        System.out.println(body);
-//        String value = api.getResponseJSONValue("app_url");
-//        System.out.println(value);
-//    }
-
     @BeforeMethod
     public void beforeMethod() {
         testData = new SHAFT.TestData.JSON("credentials.json");

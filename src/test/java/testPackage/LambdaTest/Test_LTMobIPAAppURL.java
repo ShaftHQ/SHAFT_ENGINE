@@ -30,7 +30,7 @@ public class Test_LTMobIPAAppURL {
         SHAFT.Properties.platform.set().executionAddress("lambdatest");
         SHAFT.Properties.lambdaTest.set().platformVersion("15");
         SHAFT.Properties.lambdaTest.set().deviceName("iPhone 13");
-        SHAFT.Properties.lambdaTest.set().appUrl("lt://APP1016039251685365091368730");
+        SHAFT.Properties.lambdaTest.set().appUrl("lt://APP10160631101690360659784171");
         SHAFT.Properties.mobile.set().browserName("");
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
