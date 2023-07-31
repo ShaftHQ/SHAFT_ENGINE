@@ -1,7 +1,6 @@
 package testPackage.LambdaTest;
 
 import com.shaft.driver.SHAFT;
-import io.appium.java_client.MobileBy;
 import org.openqa.selenium.By;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -9,9 +8,9 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class Test_LTWebAppRealme {
-    private final By noThanks = MobileBy.xpath("//*[@text='No thanks']");
-    private final By noThanks1 = MobileBy.xpath("//*[@text='No, thanks']");
-    private final By dismissChromAccountMessage = MobileBy.xpath("//*[@resource-id='com.android.chrome:id/signin_fre_dismiss_button']");
+    private final By noThanks = By.xpath("//*[@text='No thanks']");
+    private final By noThanks1 = By.xpath("//*[@text='No, thanks']");
+    private final By dismissChromAccountMessage = By.xpath("//*[@resource-id='com.android.chrome:id/signin_fre_dismiss_button']");
     private final By appleMenuIcon = By.id("globalnav-menutrigger-button");
     private final By macTab = By.className("globalnav-link-mac");
     private final By elementToValidate = By.xpath("(//div[contains(@class,'globalnav-submenu-group-elevated')]/ul[@class='globalnav-submenu-list']//li[@class='globalnav-submenu-list-item-elevated']//a[@class" + "='globalnav-submenu-link'])[7]");
@@ -24,7 +23,6 @@ public class Test_LTWebAppRealme {
     @Test
     public void LT_Test_Android_WebApp_V11() {
         checkPopUp();
-
         driver.browser().navigateToURL(appleUrl);
         driver.element().click(appleMenuIcon);
         driver.element().click(macTab);
@@ -54,8 +52,9 @@ public class Test_LTWebAppRealme {
     @BeforeMethod
     public void beforeMethod() {
         testData = new SHAFT.TestData.JSON("credentials.json");
-        SHAFT.Properties.lambdaTest.set().deviceName("realme 7i");
-        SHAFT.Properties.lambdaTest.set().platformVersion("10");
+        // common attributes
+        SHAFT.Properties.lambdaTest.set().deviceName("Pixel 7");
+        SHAFT.Properties.lambdaTest.set().platformVersion("13");
         SHAFT.Properties.platform.set().targetPlatform("Android");
         SHAFT.Properties.platform.set().executionAddress("lambdatest");
         SHAFT.Properties.web.set().targetBrowserName("chrome");
