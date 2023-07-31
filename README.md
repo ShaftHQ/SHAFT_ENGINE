@@ -150,6 +150,6 @@ public void afterClass(){
 ## 🙏 Big thanks to the following organizations for their support to the project with their open source licenses
 <a href="https://www.browserstack.com/" target="_blank"><img src="https://ml.globenewswire.com/Resource/Download/745e80b7-4736-424e-b44b-850d2dc41940" alt="BrowserStack" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://applitools.com/" target="_blank"><img src="https://www.selenium.dev/images/sponsors/applitools.png" alt="Applitools" height="50px"></a>
-
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.lambdatest.com/" target="_blank"><img src="https://www.lambdatest.com/resources/images/logos/logo.svg" alt="LambdaTest" height="50px"></a>
 
 #### Stop Reinventing the wheel! Start using SHAFT!
