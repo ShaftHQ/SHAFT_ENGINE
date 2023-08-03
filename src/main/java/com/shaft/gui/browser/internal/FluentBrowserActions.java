@@ -20,9 +20,13 @@ import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
 import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
+import org.openqa.selenium.devtools.NetworkInterceptor;
 import org.openqa.selenium.html5.LocalStorage;
 import org.openqa.selenium.html5.WebStorage;
 import org.openqa.selenium.remote.Augmenter;
+import org.openqa.selenium.remote.http.HttpRequest;
+import org.openqa.selenium.remote.http.HttpResponse;
+import org.openqa.selenium.remote.http.Route;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
@@ -554,6 +558,24 @@ public class FluentBrowserActions {
 
     public LocalStorage getSessionStorage() {
         return (LocalStorage) ((WebStorage) DriverFactoryHelper.getDriver().get()).getSessionStorage();
+    }
+
+    public FluentBrowserActions mock(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse) {
+        return intercept(requestPredicate, mockedResponse);
+    }
+
+    public FluentBrowserActions intercept(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse) {
+        ReportManager.logDiscrete("Attempting to configure network interceptor for \"" + requestPredicate + "\", will provide mocked response \"" + mockedResponse + "\"");
+        try {
+            NetworkInterceptor networkInterceptor = new NetworkInterceptor(
+                    DriverFactoryHelper.getDriver().get(),
+                    Route.matching(requestPredicate)
+                            .to(() -> req -> mockedResponse));
+            BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), "Successfully configured network interceptor.");
+        } catch (Exception rootCauseException) {
+            BrowserActionsHelpers.failAction(rootCauseException);
+        }
+        return this;
     }
 
     /**
