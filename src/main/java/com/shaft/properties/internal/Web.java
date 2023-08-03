@@ -56,14 +56,6 @@ public interface Web extends EngineProperties {
     @DefaultValue("")
     String baseURL();
 
-    @Key("lightHouseExecution")
-    @DefaultValue("false")
-    boolean lightHouseExecution();
-
-    @Key("lightHouseExecution.port")
-    @DefaultValue("8888")
-    int lightHouseExecutionPort();
-
     default SetProperty set() {
         return new SetProperty();
     }
@@ -119,16 +111,6 @@ public interface Web extends EngineProperties {
 
         public SetProperty mobileEmulationUserAgent(String value) {
             setProperty("mobileEmulation.userAgent", value);
-            return this;
-        }
-
-        public SetProperty lightHouseExecution(String value) {
-            setProperty("lightHouseExecution", value);
-            return this;
-        }
-
-        public SetProperty lightHouseExecutionPort(String value) {
-            setProperty("lightHouseExecution.port", value);
             return this;
         }
     }
