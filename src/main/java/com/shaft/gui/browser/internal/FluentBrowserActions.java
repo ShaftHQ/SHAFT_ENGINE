@@ -239,6 +239,29 @@ public class FluentBrowserActions {
         return navigateToURL(targetUrl, targetUrl);
     }
 
+    public FluentBrowserActions navigateToURL(String targetUrl, WindowType windowType) {
+        var handleBeforeNavigation = DriverFactoryHelper.getDriver().get().getWindowHandle();
+        try {
+            switch (windowType) {
+                case TAB ->
+                        DriverFactoryHelper.getDriver().get().switchTo().newWindow(WindowType.TAB).navigate().to(targetUrl);
+                case WINDOW ->
+                        DriverFactoryHelper.getDriver().get().switchTo().newWindow(WindowType.WINDOW).navigate().to(targetUrl);
+            }
+            JavaScriptWaitManager.waitForLazyLoading();
+            var handleAfterNavigation = DriverFactoryHelper.getDriver().get().getWindowHandle();
+            if (!handleBeforeNavigation.equals(handleAfterNavigation)) {
+                ReportManager.logDiscrete("Old Tab Handle: \"" + handleBeforeNavigation + "\", New Tab handle : \"" + handleAfterNavigation + "\"");
+                BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), targetUrl);
+            } else {
+                BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), targetUrl);
+            }
+        } catch (Exception rootCauseException) {
+            BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), targetUrl, rootCauseException);
+        }
+        return this;
+    }
+
     /**
      * Navigates to targetUrl in case the current URL is different, else refreshes
      * the current page. Waits for successfully navigating to the final url after
@@ -547,26 +570,17 @@ public class FluentBrowserActions {
     /**
      * Switches focus to another Tab
      *
-     * @param url The name of the URL you want to navigate to
+     * @param targetUrl The name of the URL you want to navigate to
      * @return a self-reference to be used to chain actions
      */
-    @SuppressWarnings("UnusedReturnValue")
-    public FluentBrowserActions switchToNewTab(String url) {
-        try {
-            var handleBeforeNavigation = DriverFactoryHelper.getDriver().get().getWindowHandle();
-            DriverFactoryHelper.getDriver().get().switchTo().newWindow(WindowType.TAB).navigate().to(url);
-            JavaScriptWaitManager.waitForLazyLoading();
-            var handleAfterNavigation = DriverFactoryHelper.getDriver().get().getWindowHandle();
-            if (!handleBeforeNavigation.equals(handleAfterNavigation)) {
-                ReportManager.logDiscrete("Old Tab Handle: \"" + handleBeforeNavigation + "\", New Tab handle : \"" + handleAfterNavigation + "\"");
-                BrowserActionsHelpers.passAction(DriverFactoryHelper.getDriver().get(), url);
-            } else {
-                BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), url);
-            }
-        } catch (Exception rootCauseException) {
-            BrowserActionsHelpers.failAction(DriverFactoryHelper.getDriver().get(), url, rootCauseException);
-        }
-        return this;
+    @Deprecated
+    public FluentBrowserActions switchToNewTab(String targetUrl) {
+        return navigateToURL(targetUrl, WindowType.TAB);
+    }
+
+    @Deprecated
+    public FluentBrowserActions switchToNewWindow(String targetUrl) {
+        return navigateToURL(targetUrl, WindowType.WINDOW);
     }
 
 

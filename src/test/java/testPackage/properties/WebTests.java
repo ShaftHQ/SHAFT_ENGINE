@@ -1,6 +1,7 @@
 package testPackage.properties;
 
 import com.shaft.driver.SHAFT;
+import org.openqa.selenium.remote.Browser;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -35,7 +36,7 @@ public class WebTests {
 
     @Test
     public void test() {
-        SHAFT.Properties.web.set().targetBrowserName(targetBrowserName)
+        SHAFT.Properties.web.set().targetBrowserName(Browser.CHROME.browserName())
                 .headlessExecution(headlessExecution)
                 .isMobileEmulation(isMobileEmulation)
                 .mobileEmulationIsCustomDevice(mobileEmulationIsCustomDevice)

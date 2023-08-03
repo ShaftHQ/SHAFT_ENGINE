@@ -1,6 +1,7 @@
 package testPackage.properties;
 
 import com.shaft.driver.SHAFT;
+import org.openqa.selenium.Platform;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -23,7 +24,7 @@ public class PlatformTests {
     public void test() {
         SHAFT.Properties.platform.set().crossBrowserMode(crossBrowserMode);
         SHAFT.Properties.platform.set().executionAddress(executionAddress);
-        SHAFT.Properties.platform.set().targetPlatform(targetPlatform);
+        SHAFT.Properties.platform.set().targetPlatform(Platform.WINDOWS.name());
         SHAFT.Properties.platform.set().proxySettings(proxy);
 
     }
