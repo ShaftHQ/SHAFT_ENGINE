@@ -43,11 +43,9 @@ public class ReportingTests {
         SHAFT.Properties.reporting.set().captureWebDriverLogs(captureWebDriverLogs);
         SHAFT.Properties.reporting.set().alwaysLogDiscreetly(alwaysLogDiscreetly);
         SHAFT.Properties.reporting.set().debugMode(debugMode);
-        SHAFT.Properties.reporting.set().cleanAllureResultsDirectoryBeforeExecution(cleanAllureResultsDirectoryBeforeExecution);
         SHAFT.Properties.reporting.set().generateAllureReportArchive(generateAllureReportArchive);
         SHAFT.Properties.reporting.set().openAllureReportAfterExecution(openAllureReportAfterExecution);
         SHAFT.Properties.reporting.set().generateExtentReports(generateExtentReports);
-        SHAFT.Properties.reporting.set().cleanExtentReportsDirectoryBeforeExecution(cleanExtentReportsDirectoryBeforeExecution);
         SHAFT.Properties.reporting.set().attachExtentReportsToAllureReport(attachExtentReportsToAllureReport);
         SHAFT.Properties.reporting.set().openLighthouseReportWhileExecution(openLighthouseReportWhileExecution);
         SHAFT.Properties.reporting.set().openExecutionSummaryReportAfterExecution(openExecutionSummaryReportAfterExecution);

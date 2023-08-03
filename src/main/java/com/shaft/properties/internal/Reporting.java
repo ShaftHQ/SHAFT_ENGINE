@@ -108,16 +108,6 @@ public interface Reporting extends EngineProperties {
             return this;
         }
 
-        public SetProperty cleanAllureResultsDirectoryBeforeExecution(boolean value) {
-            setProperty("cleanAllureResultsDirectoryBeforeExecution", String.valueOf(value));
-            return this;
-        }
-
-        public SetProperty cleanSummaryReportsDirectoryBeforeExecution(boolean value) {
-            setProperty("cleanSummaryReportsDirectoryBeforeExecution", String.valueOf(value));
-            return this;
-        }
-
         public SetProperty generateAllureReportArchive(boolean value) {
             setProperty("generateAllureReportArchive", String.valueOf(value));
             return this;
@@ -130,11 +120,6 @@ public interface Reporting extends EngineProperties {
 
         public SetProperty generateExtentReports(boolean value) {
             setProperty("generateExtentReports", String.valueOf(value));
-            return this;
-        }
-
-        public SetProperty cleanExtentReportsDirectoryBeforeExecution(boolean value) {
-            setProperty("cleanExtentReportsDirectoryBeforeExecution", String.valueOf(value));
             return this;
         }
 
