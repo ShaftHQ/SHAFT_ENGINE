@@ -838,7 +838,7 @@ public class FluentElementActions {
      */
     public FluentElementActions type(By elementLocator, String text) {
         try {
-            var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator));
+            var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElement((WebDriver)DriverFactoryHelper.getDriver().get(), elementLocator, new Object[]{ElementAction.SEND_KEYS, text}));
             String actualResult = ElementActionsHelper.typeWrapper(elementInformation, text);
             var elementName = elementInformation.getElementName();
             if (actualResult.equals(text)) {
