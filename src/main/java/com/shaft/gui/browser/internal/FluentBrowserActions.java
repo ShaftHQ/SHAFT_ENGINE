@@ -20,6 +20,8 @@ import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
 import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
+import org.openqa.selenium.html5.LocalStorage;
+import org.openqa.selenium.html5.WebStorage;
 import org.openqa.selenium.remote.Augmenter;
 
 import java.io.ByteArrayInputStream;
@@ -546,8 +548,17 @@ public class FluentBrowserActions {
         return this;
     }
 
+    public LocalStorage getLocalStorage() {
+        return ((WebStorage) DriverFactoryHelper.getDriver().get()).getLocalStorage();
+    }
+
+    public LocalStorage getSessionStorage() {
+        return (LocalStorage) ((WebStorage) DriverFactoryHelper.getDriver().get()).getSessionStorage();
+    }
+
     /**
      * Resize the window to fill the current screen
+     *
      * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions fullScreenWindow() {
