@@ -298,4 +298,30 @@ public class TestNGListenerHelper {
             }
         }
     }
+
+    public static void logFinishedTestInformation(ITestResult iTestResult) {
+        ITestNGMethod iTestNGMethod = iTestResult.getMethod();
+        String className;
+        String methodName;
+        String methodDescription = "";
+        String methodStatus = "";
+
+        if (!iTestNGMethod.getQualifiedName().contains("AbstractTestNGCucumberTests")) {
+            if (iTestNGMethod.isTest()) {
+                className = ReportManagerHelper.getTestClassName();
+                methodName = ReportManagerHelper.getTestMethodName();
+                if (iTestNGMethod.getDescription() != null) {
+                    methodDescription = iTestNGMethod.getDescription();
+                }
+                if (iTestResult.getStatus() == ITestResult.SUCCESS) {
+                    methodStatus = "Passed";
+                } else if (iTestResult.getStatus() == ITestResult.FAILURE) {
+                    methodStatus = "Failed";
+                } else if (iTestResult.getStatus() == ITestResult.SKIP) {
+                    methodStatus = "Skipped";
+                }
+                ReportManagerHelper.logFinishedTestInformation(className, methodName, methodDescription, methodStatus);
+            }
+        }
+    }
 }

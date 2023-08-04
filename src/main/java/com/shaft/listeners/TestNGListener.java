@@ -203,6 +203,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
             IssueReporter.updateTestStatusInCaseOfVerificationFailure(iTestResult);
             IssueReporter.updateIssuesLog(iTestResult);
             TestNGListenerHelper.updateConfigurationMethodLogs(iTestResult);
+            TestNGListenerHelper.logFinishedTestInformation(iTestResult);
             ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
         }
     }

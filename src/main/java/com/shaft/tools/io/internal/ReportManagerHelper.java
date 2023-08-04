@@ -273,6 +273,17 @@ public class ReportManagerHelper {
         createImportantReportEntry(copyrights);
     }
 
+    public static void logFinishedTestInformation(String className, String testMethodName, String testDescription, String testStatus) {
+        StringBuilder reportMessage = new StringBuilder();
+        reportMessage.append("\nFinished Execution of Test Method: '").append(className).append(".").append(testMethodName).append("'");
+        if (!testDescription.equals("")) {
+            reportMessage.append("\nTest Description: '").append(testDescription).append("'");
+        }
+        reportMessage.append("\nTest Status: '").append(testStatus).append("'");
+
+        createImportantReportEntry(reportMessage.toString());
+    }
+
     public static String formatStackTraceToLogEntry(Throwable t) {
         return formatStackTraceToLogEntry(t, false);
     }
