@@ -36,7 +36,7 @@ services:
          - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
 
    selenium-hub:
-      image: selenium/hub:4.10
+      image: selenium/hub:latest
       container_name: selenium-hub
       ports:
          - "4442:4442"
