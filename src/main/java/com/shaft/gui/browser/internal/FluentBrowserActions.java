@@ -22,6 +22,7 @@ import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.devtools.NetworkInterceptor;
 import org.openqa.selenium.html5.LocalStorage;
+import org.openqa.selenium.html5.SessionStorage;
 import org.openqa.selenium.html5.WebStorage;
 import org.openqa.selenium.remote.Augmenter;
 import org.openqa.selenium.remote.http.HttpRequest;
@@ -553,11 +554,19 @@ public class FluentBrowserActions {
     }
 
     public LocalStorage getLocalStorage() {
-        return ((WebStorage) DriverFactoryHelper.getDriver().get()).getLocalStorage();
+        if(SHAFT.Properties.platform.executionAddress().equals("local")){
+            return ((WebStorage) DriverFactoryHelper.getDriver().get()).getLocalStorage();
+        }else{
+          return (LocalStorage)((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("return window.localStorage;");
+        }
     }
 
-    public LocalStorage getSessionStorage() {
-        return (LocalStorage) ((WebStorage) DriverFactoryHelper.getDriver().get()).getSessionStorage();
+    public SessionStorage getSessionStorage() {
+        if(SHAFT.Properties.platform.executionAddress().equals("local")){
+            return ((WebStorage) DriverFactoryHelper.getDriver().get()).getSessionStorage();
+        }else{
+            return (SessionStorage) ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("return window.sessionStorage;");
+        }
     }
 
     public FluentBrowserActions mock(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse) {
