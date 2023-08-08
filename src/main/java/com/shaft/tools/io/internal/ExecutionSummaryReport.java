@@ -8,6 +8,8 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import static org.aspectj.runtime.internal.Conversions.intValue;
+
 public class ExecutionSummaryReport {
     private static final HashMap<Integer, ArrayList<?>> casesDetails = new HashMap<>();
     private static final HashMap<Integer, ArrayList<?>> validations = new HashMap<>();
@@ -58,18 +60,18 @@ public class ExecutionSummaryReport {
         ReportManagerHelper.logExecutionSummary(String.valueOf(total), String.valueOf(passed), String.valueOf(failed), String.valueOf(skipped));
     }
 
-    private static String createReportMessage(int passed, int failed, int skipped, long startTime, long endTime, StringBuilder detailsBuilder) {
-        int total = passed + failed + skipped;
+    private static String createReportMessage(float passed, float failed, float skipped, long startTime, long endTime, StringBuilder detailsBuilder) {
+        float total = passed + failed + skipped;
         var report = HTMLHelper.EXECUTION_SUMMARY.getValue()
                 .replace("${LOGO_URL}", SHAFT_LOGO_URL)
                 .replace("${DATE}", new SimpleDateFormat("dd/MM/yyyy").format(endTime))
                 .replace("${START_TIME}", new SimpleDateFormat("HH:mm:ss").format(startTime))
                 .replace("${END_TIME}", new SimpleDateFormat("HH:mm:ss").format(endTime))
                 .replace("${TOTAL_TIME}", ReportManagerHelper.getExecutionDuration(startTime, endTime))
-                .replace("${CASES_TOTAL}", String.valueOf(total))
-                .replace("${CASES_PASSED}", String.valueOf(passed))
-                .replace("${CASES_FAILED}", String.valueOf(failed))
-                .replace("${CASES_SKIPPED}", String.valueOf(skipped))
+                .replace("${CASES_TOTAL}", String.valueOf(intValue(total)))
+                .replace("${CASES_PASSED}", String.valueOf(intValue(passed)))
+                .replace("${CASES_FAILED}", String.valueOf(intValue(failed)))
+                .replace("${CASES_SKIPPED}", String.valueOf(intValue(skipped)))
                 .replace("${VALIDATION_PASSED}", String.valueOf(passedValidations))
                 .replace("${VALIDATION_FAILED}", String.valueOf(failedValidations))
                 .replace("${TOTAL_ISSUES}", String.valueOf(ReportManagerHelper.getIssueCounter()))
