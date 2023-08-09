@@ -59,14 +59,14 @@ public class ExecutionSummaryReport {
     }
 
     private static String createReportMessage(int passed, int failed, int skipped, long startTime, long endTime, StringBuilder detailsBuilder) {
-        int total = passed + failed + skipped;
+        float total = passed + failed + skipped;
         var report = HTMLHelper.EXECUTION_SUMMARY.getValue()
                 .replace("${LOGO_URL}", SHAFT_LOGO_URL)
                 .replace("${DATE}", new SimpleDateFormat("dd/MM/yyyy").format(endTime))
                 .replace("${START_TIME}", new SimpleDateFormat("HH:mm:ss").format(startTime))
                 .replace("${END_TIME}", new SimpleDateFormat("HH:mm:ss").format(endTime))
                 .replace("${TOTAL_TIME}", ReportManagerHelper.getExecutionDuration(startTime, endTime))
-                .replace("${CASES_TOTAL}", String.valueOf(total))
+                .replace("${CASES_TOTAL}", String.valueOf((int)total))
                 .replace("${CASES_PASSED}", String.valueOf(passed))
                 .replace("${CASES_FAILED}", String.valueOf(failed))
                 .replace("${CASES_SKIPPED}", String.valueOf(skipped))
