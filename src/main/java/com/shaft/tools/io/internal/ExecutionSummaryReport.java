@@ -8,8 +8,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import static org.aspectj.runtime.internal.Conversions.intValue;
-
 public class ExecutionSummaryReport {
     private static final HashMap<Integer, ArrayList<?>> casesDetails = new HashMap<>();
     private static final HashMap<Integer, ArrayList<?>> validations = new HashMap<>();
@@ -47,7 +45,7 @@ public class ExecutionSummaryReport {
     }
 
     public static void generateExecutionSummaryReport(int passed, int failed, int skipped, long startTime, long endTime) {
-        int total = passed + failed + skipped;
+        float total = passed + failed + skipped;
 
         StringBuilder detailsBuilder = new StringBuilder();
         casesDetails.forEach((key, value) -> detailsBuilder.append(String.format(HTMLHelper.EXECUTION_SUMMARY_DETAILS_FORMAT.getValue(), key, value.get(0), value.get(1), value.get(2), value.get(3), value.get(4))));
@@ -60,7 +58,7 @@ public class ExecutionSummaryReport {
         ReportManagerHelper.logExecutionSummary(String.valueOf(total), String.valueOf(passed), String.valueOf(failed), String.valueOf(skipped));
     }
 
-    private static String createReportMessage(float passed, float failed, float skipped, long startTime, long endTime, StringBuilder detailsBuilder) {
+    private static String createReportMessage(int passed, int failed, int skipped, long startTime, long endTime, StringBuilder detailsBuilder) {
         float total = passed + failed + skipped;
         var report = HTMLHelper.EXECUTION_SUMMARY.getValue()
                 .replace("${LOGO_URL}", SHAFT_LOGO_URL)
@@ -68,10 +66,10 @@ public class ExecutionSummaryReport {
                 .replace("${START_TIME}", new SimpleDateFormat("HH:mm:ss").format(startTime))
                 .replace("${END_TIME}", new SimpleDateFormat("HH:mm:ss").format(endTime))
                 .replace("${TOTAL_TIME}", ReportManagerHelper.getExecutionDuration(startTime, endTime))
-                .replace("${CASES_TOTAL}", String.valueOf(intValue(total)))
-                .replace("${CASES_PASSED}", String.valueOf(intValue(passed)))
-                .replace("${CASES_FAILED}", String.valueOf(intValue(failed)))
-                .replace("${CASES_SKIPPED}", String.valueOf(intValue(skipped)))
+                .replace("${CASES_TOTAL}", String.valueOf((int)total))
+                .replace("${CASES_PASSED}", String.valueOf(passed))
+                .replace("${CASES_FAILED}", String.valueOf(failed))
+                .replace("${CASES_SKIPPED}", String.valueOf(skipped))
                 .replace("${VALIDATION_PASSED}", String.valueOf(passedValidations))
                 .replace("${VALIDATION_FAILED}", String.valueOf(failedValidations))
                 .replace("${TOTAL_ISSUES}", String.valueOf(ReportManagerHelper.getIssueCounter()))
