@@ -45,7 +45,7 @@ public class ExecutionSummaryReport {
     }
 
     public static void generateExecutionSummaryReport(int passed, int failed, int skipped, long startTime, long endTime) {
-        float total = passed + failed + skipped;
+        int total = passed + failed + skipped;
 
         StringBuilder detailsBuilder = new StringBuilder();
         casesDetails.forEach((key, value) -> detailsBuilder.append(String.format(HTMLHelper.EXECUTION_SUMMARY_DETAILS_FORMAT.getValue(), key, value.get(0), value.get(1), value.get(2), value.get(3), value.get(4))));
