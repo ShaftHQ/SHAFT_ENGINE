@@ -35,7 +35,6 @@ import java.util.List;
 
 public class ScreenshotManager {
     private static final int RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION = 1;
-    private static Screenshots SCREENSHOT_PARAMS_SCREENSHOT_TYPE = setScreenshotType();
 
     private static Screenshots setScreenshotType() {
         switch (SHAFT.Properties.visuals.screenshotParamsScreenshotType().toLowerCase()) {
@@ -418,7 +417,7 @@ public class ScreenshotManager {
                         yield takeFullPageScreenshot(driver);
                     } catch (Exception throwable) {
                         ReportManagerHelper.logDiscrete(throwable);
-                        SCREENSHOT_PARAMS_SCREENSHOT_TYPE = Screenshots.VIEWPORT;
+                        SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
                         yield takeScreenshot(driver);
                     }
                 }
