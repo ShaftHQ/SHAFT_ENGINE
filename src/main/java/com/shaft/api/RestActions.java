@@ -16,6 +16,7 @@ import eu.medsea.mimeutil.MimeUtil2;
 import io.restassured.builder.MultiPartSpecBuilder;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.config.EncoderConfig;
+import io.restassured.config.HttpClientConfig;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.http.ContentType;
 import io.restassured.http.Cookie;
@@ -50,6 +51,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import static io.restassured.RestAssured.config;
 import static io.restassured.RestAssured.given;
 import static io.restassured.config.HttpClientConfig.httpClientConfig;
 
@@ -68,7 +70,7 @@ public class RestActions {
     private final String serviceURI;
     private final Map<String, String> sessionHeaders;
     private final Map<String, Object> sessionCookies;
-    private final List<RestAssuredConfig> sessionConfigs;
+    private final RestAssuredConfig sessionConfig;
     private String headerAuthorization;
     static Response lastResponse;
 
@@ -82,7 +84,7 @@ public class RestActions {
         this.serviceURI = serviceURI;
         sessionCookies = new HashMap<>();
         sessionHeaders = new HashMap<>();
-        sessionConfigs = new ArrayList<>();
+        sessionConfig = config();
     }
 
     public static RequestBuilder buildNewRequest(String serviceURI, String serviceName, RequestType requestType) {
@@ -1001,8 +1003,8 @@ public class RestActions {
         return sessionCookies;
     }
 
-    protected List<RestAssuredConfig> getSessionConfigs() {
-        return sessionConfigs;
+    protected RestAssuredConfig getSessionConfig() {
+        return sessionConfig;
     }
 
     private RequestSpecBuilder setConfigs(RequestSpecBuilder builder, List<RestAssuredConfig> configs) {
@@ -1012,22 +1014,20 @@ public class RestActions {
         return builder;
     }
 
-    private RequestSpecBuilder initializeBuilder(Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, List<RestAssuredConfig> sessionConfigs, boolean appendDefaultContentCharsetToContentTypeIfUndefined) {
+    private RequestSpecBuilder initializeBuilder(Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, RestAssuredConfig sessionConfig, boolean appendDefaultContentCharsetToContentTypeIfUndefined) {
         RequestSpecBuilder builder = new RequestSpecBuilder();
 
         builder.addCookies(sessionCookies);
         builder.addHeaders(sessionHeaders);
         //noinspection DataFlowIssue
-        builder = setConfigs(builder, sessionConfigs);
-
-        // fixing issue with non-unicode content being encoded with a non UTF-8 charset
-        // adding timeouts
-        builder.setConfig(
-                (new RestAssuredConfig()).encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8").appendDefaultContentCharsetToContentTypeIfUndefined(appendDefaultContentCharsetToContentTypeIfUndefined)).and()
-                        .httpClient(httpClientConfig()
-                                .setParam("http.connection.timeout", HTTP_CONNECTION_TIMEOUT * 1000)
-                                .setParam("http.socket.timeout", HTTP_SOCKET_TIMEOUT * 1000)
-                                .setParam("http.connection-manager.timeout", HTTP_CONNECTION_MANAGER_TIMEOUT * 1000)));
+        //Add configs 
+        RestAssuredConfig  userConfigs=sessionConfig.and().encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")
+        		.appendDefaultContentCharsetToContentTypeIfUndefined(appendDefaultContentCharsetToContentTypeIfUndefined)).and()
+        .httpClient(HttpClientConfig.httpClientConfig()
+                .setParam("http.connection.timeout", HTTP_CONNECTION_TIMEOUT * 1000)
+                .setParam("http.socket.timeout", HTTP_SOCKET_TIMEOUT * 1000)
+                .setParam("http.connection-manager.timeout", HTTP_CONNECTION_MANAGER_TIMEOUT * 1000));
+        builder.setConfig(userConfigs);
         // timeouts documentation
         /*
          * CoreConnectionPNames.SO_TIMEOUT='http.socket.timeout': defines the socket
@@ -1068,16 +1068,7 @@ public class RestActions {
         return this;
     }
 
-    /**
-     * Append a config to the current session.
-     *
-     * @param config the rest-assured config you want to add
-     * @return self-reference to be used for chaining actions
-     */
-    public RestActions addConfigVariable(RestAssuredConfig config) {
-        sessionConfigs.add(config);
-        return this;
-    }
+    
 
     protected String prepareRequestURL(String serviceURI, String urlArguments, String serviceName) {
         if (urlArguments != null && !urlArguments.equals("")) {
@@ -1088,8 +1079,8 @@ public class RestActions {
     }
 
     protected RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
-                                                       Object body, String contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, List<RestAssuredConfig> sessionConfigs, boolean appendDefaultContentCharsetToContentTypeIfUndefined, boolean urlEncodingEnabled) {
-        RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders, sessionConfigs, appendDefaultContentCharsetToContentTypeIfUndefined);
+                                                       Object body, String contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, RestAssuredConfig sessionConfig, boolean appendDefaultContentCharsetToContentTypeIfUndefined, boolean urlEncodingEnabled) {
+        RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders, sessionConfig, appendDefaultContentCharsetToContentTypeIfUndefined);
 
         // set the default content type as part of the specs
         builder.setContentType(contentType);

@@ -20,7 +20,7 @@ public class RequestBuilder {
     private RestActions session;
     private Map<String, String> sessionHeaders;
     private Map<String, Object> sessionCookies;
-    private List<RestAssuredConfig> sessionConfigs;
+    private RestAssuredConfig sessionConfig;
     private RestActions.RequestType requestType;
     private String serviceName;
     private String serviceURI;
@@ -66,7 +66,7 @@ public class RequestBuilder {
         this.serviceURI = session.getServiceURI();
         this.sessionCookies = session.getSessionCookies();
         this.sessionHeaders = session.getSessionHeaders();
-        this.sessionConfigs = session.getSessionConfigs();
+        this.sessionConfig = session.getSessionConfig();
         this.requestType = requestType;
         this.serviceName = serviceName;
         this.targetStatusCode = 0;
@@ -96,7 +96,7 @@ public class RequestBuilder {
      */
     @SuppressWarnings("UnusedReturnValue")
     public RequestBuilder useRelaxedHTTPSValidation(String protocol) {
-        addConfig(config().sslConfig(SSLConfig.sslConfig().relaxedHTTPSValidation(protocol)));
+    	this.sessionConfig=config().and().sslConfig(SSLConfig.sslConfig().relaxedHTTPSValidation(protocol));
         return this;
     }
 
@@ -217,17 +217,7 @@ public class RequestBuilder {
         return this;
     }
 
-    /**
-     * Append a config to the current session to be used in the current and all the following requests.
-     *
-     * @param config the rest assured config you want to add.
-     * @return a self-reference to be used to continue building your API request
-     */
-    @SuppressWarnings("UnusedReturnValue")
-    public RequestBuilder addConfig(RestAssuredConfig config) {
-        this.sessionConfigs.add(config);
-        return this;
-    }
+   
 
     /**
      * Append a cookie to the current session to be used in the current and all the following requests. This feature is commonly used for authentication cookies.
@@ -273,7 +263,7 @@ public class RequestBuilder {
     @Step("Perform {this.requestType} request to {this.serviceURI}{this.serviceName}")
     public Response performRequest() {
         String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
-        RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, sessionConfigs, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);
+        RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, sessionConfig, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);
 
         switch (this.authenticationType) {
             case BASIC -> specs.auth().preemptive().basic(this.authenticationUsername, this.authenticationPassword);
