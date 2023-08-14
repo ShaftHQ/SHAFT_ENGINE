@@ -189,10 +189,6 @@ public class SHAFT {
             return session.buildNewRequest(serviceName, RestActions.RequestType.PUT);
         }
 
-        public void addConfig(RestAssuredConfig restAssuredConfig) {
-            session.addConfigVariable(restAssuredConfig);
-        }
-
         public void addHeader(String key, String value) {
             session.addHeaderVariable(key, value);
         }
