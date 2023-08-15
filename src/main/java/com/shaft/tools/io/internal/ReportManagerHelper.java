@@ -38,10 +38,10 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@Getter
 @SuppressWarnings("unused")
 public class ReportManagerHelper {
     private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
-    @Getter
     private static final ExtentReports extentReport = new ExtentReports();
     private static final String SHAFT_ENGINE_VERSION_PROPERTY_NAME = "shaftEngineVersion";
     private static final String ALLURE_VERSION_PROPERTY_NAME = "allureVersion";
@@ -52,11 +52,14 @@ public class ReportManagerHelper {
     private static String issuesLog = "";
     private static int issueCounter = 1;
     private static boolean discreteLogging = false;
+    @Getter
     private static int totalNumberOfTests = 0;
     private static int testCasesCounter = 0;
     private static boolean debugMode = false;
     private static int openIssuesForFailedTestsCounter = 0;
+    @Getter
     private static int openIssuesForPassedTestsCounter = 0;
+    @Getter
     private static int failedTestsWithoutOpenIssuesCounter = 0;
     private static String allureResultsFolderPath = "";
     private static String allureBinaryPath = "";
@@ -102,12 +105,7 @@ public class ReportManagerHelper {
     public static int getIssueCounter() {
         return (issueCounter - 1);
     }
-    public static int getFailedTestsWithoutOpenIssuesCounter() {
-        return failedTestsWithoutOpenIssuesCounter;
-    }
-    public static int getOpenIssuesForPassedTestsCounter() {
-        return openIssuesForPassedTestsCounter;
-    }
+
     public static int getOpenIssuesForFailedTestsCounters() {
         return openIssuesForFailedTestsCounter;
     }
@@ -178,10 +176,6 @@ public class ReportManagerHelper {
         ReportManagerHelper.discreteLogging = discreteLogging;
     }
 
-    public static int getTotalNumberOfTests() {
-        return totalNumberOfTests;
-    }
-
     public static void setTotalNumberOfTests(int totalNumberOfTests) {
         ReportManagerHelper.totalNumberOfTests = totalNumberOfTests;
     }
@@ -212,14 +206,14 @@ public class ReportManagerHelper {
         }
         System.setOut(new PrintStream(new LogRedirector(logger, Level.INFO)));
         System.setErr(new PrintStream(new LogRedirector(logger, Level.WARN)));
-        String engineVersion = "Powered by \033[1m" + SHAFT.Properties.internal.shaftEngineVersion() + "\033[22m";
+        String engineVersion = "Powered by \033[1mSHAFT v." + SHAFT.Properties.internal.shaftEngineVersion() + "\033[22m";
         createImportantReportEntry(engineVersion);
     }
 
     public static void logEngineClosure() {
         // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
         String copyrights = "This test run was powered by "
-                + "\033[1m" + SHAFT.Properties.internal.shaftEngineVersion() + "\033[22m\n"
+                + "\033[1mSHAFT v." + SHAFT.Properties.internal.shaftEngineVersion() + "\033[22m\n"
                 + "SHAFT \033[1;4mis and will always be 100% FREE\033[22;24m for commercial and private use\n"
                 + "in compliance with the \033[1mMIT license\033[22m\n"
                 + "Visit SHAFT's user guide \033[4mhttps://shafthq.github.io/\033[24m to learn more";
