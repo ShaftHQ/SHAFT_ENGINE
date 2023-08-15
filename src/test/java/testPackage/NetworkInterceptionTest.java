@@ -28,6 +28,10 @@ public class NetworkInterceptionTest {
 
     @Test(expectedExceptions = {AssertionError.class})
     public void interceptShaftLogoAndReplaceItWithYoutubeLogo() {
+        // prepare the expected result => should always pass
+        driver.browser().navigateToURL("https://shafthq.github.io/")
+                .element().assertThat(By.xpath("//img[@alt='SHAFT_Engine']")).matchesReferenceImage().perform();
+
         //more samples here: https://www.selenium.dev/selenium/docs/api/java/org/openqa/selenium/devtools/NetworkInterceptor.html
         // https://www.selenium.dev/documentation/webdriver/bidirectional/bidi_api/#network-interception
         var mockedResponse = new HttpResponse()
@@ -36,6 +40,7 @@ public class NetworkInterceptionTest {
                 .setContent(Contents.bytes(SHAFT.CLI.file().readFileAsByteArray("sikulixElements/youtube.png")));
         Predicate<HttpRequest> requestPredicate = httpRequest -> httpRequest.getMethod() == HttpMethod.GET && httpRequest.getUri().endsWith("/img/shaft.svg");
 
+        // mock and compare actual to expected => should always fail
         driver.browser().mock(requestPredicate, mockedResponse)
                 .navigateToURL("https://shafthq.github.io/")
                 .element().assertThat(By.xpath("//img[@alt='SHAFT_Engine']")).matchesReferenceImage().perform();
