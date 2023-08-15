@@ -67,6 +67,7 @@ public class BigPageActionsTest {
                 and special characters ...######$%^&&*!!""").perform();
     }
 
+
     @BeforeMethod
     public void beforeMethod() {
         driver = new SHAFT.GUI.WebDriver();

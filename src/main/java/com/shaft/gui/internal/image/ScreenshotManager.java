@@ -34,18 +34,7 @@ import java.util.Date;
 import java.util.List;
 
 public class ScreenshotManager {
-    private static final String SCREENSHOT_FOLDER_PATH = SHAFT.Properties.paths.allureResults() + "/screenshots/";
-    private static final String SCREENSHOT_FOLDER_NAME = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
-    private static final String SCREENSHOT_PARAMS_WHEN_TO_TAKE_A_SCREENSHOT = SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot();
-    private static final Boolean SCREENSHOT_PARAMS_HIGHLIGHT_ELEMENTS = SHAFT.Properties.visuals.screenshotParamsHighlightElements();
-    private static final String SCREENSHOT_PARAMS_SKIPPED_ELEMENTS_FROM_SCREENSHOT = SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot();
-    private static final Float SCREENSHOT_PARAMS_WATERMARK_OPACITY = SHAFT.Properties.visuals.screenshotParamsWatermarkOpacity();
-    private static final Boolean SCREENSHOT_PARAMS_WATERMARK = SHAFT.Properties.visuals.screenshotParamsWatermark();
     private static final int RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION = 1;
-    private static final Boolean CREATE_GIF = SHAFT.Properties.visuals.createAnimatedGif();
-    private static Screenshots SCREENSHOT_PARAMS_SCREENSHOT_TYPE = setScreenshotType();
-    private static final int GIF_FRAME_DELAY = SHAFT.Properties.visuals.animatedGifFrameDelay();
-    private static final String SCREENSHOT_PARAMS_HIGHLIGHT_METHOD = SHAFT.Properties.visuals.screenshotParamsHighlightMethod();
 
     private static Screenshots setScreenshotType() {
         switch (SHAFT.Properties.visuals.screenshotParamsScreenshotType().toLowerCase()) {
@@ -150,12 +139,12 @@ public class ScreenshotManager {
     }
 
     private static boolean takeScreenshot(String actionName, boolean passFailStatus) {
-        return (SCREENSHOT_PARAMS_WHEN_TO_TAKE_A_SCREENSHOT.equals("Always"))
-                || (SCREENSHOT_PARAMS_WHEN_TO_TAKE_A_SCREENSHOT.equals("ValidationPointsOnly")
+        return (SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot().equals("Always"))
+                || (SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot().equals("ValidationPointsOnly")
                 && (actionName.toLowerCase().contains("assert")
                 || actionName.toLowerCase().contains("verify")
                 || actionName.toLowerCase().contains("validate")))
-                || (SCREENSHOT_PARAMS_WHEN_TO_TAKE_A_SCREENSHOT.equals("FailuresOnly") && (!passFailStatus))
+                || (SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot().equals("FailuresOnly") && (!passFailStatus))
                 || (!passFailStatus);
         // take screenshot if set to always,
         //OR if set to validation points only and actionName contains verify or assert
@@ -172,13 +161,13 @@ public class ScreenshotManager {
             globalPassFailAppendedText = "failed";
         }
 
-        boolean takeScreenshot = "Always".equals(SCREENSHOT_PARAMS_WHEN_TO_TAKE_A_SCREENSHOT)
-                || ("ValidationPointsOnly".equals(SCREENSHOT_PARAMS_WHEN_TO_TAKE_A_SCREENSHOT)
+        boolean takeScreenshot = "Always".equals(SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot())
+                || ("ValidationPointsOnly".equals(SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot())
                 && (actionName.toLowerCase().contains("assert")
                 || actionName.toLowerCase().contains("verify")))
                 || !passFailStatus;
 
-        if (takeScreenshot || (CREATE_GIF && (DETAILED_GIF || actionName.matches(DETAILED_GIF_REGEX)))) {
+        if (takeScreenshot || (SHAFT.Properties.visuals.createAnimatedGif() && (DETAILED_GIF || actionName.matches(DETAILED_GIF_REGEX)))) {
             /*
              * Force screenshot link to be shown in the results as a link not text
              */
@@ -190,7 +179,7 @@ public class ScreenshotManager {
             byte[] src = null;
             try {
                 ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                switch (SCREENSHOT_PARAMS_SCREENSHOT_TYPE) {
+                switch (setScreenshotType()) {
                     case ELEMENT:
                         if (element != null) {
                             try {
@@ -238,9 +227,9 @@ public class ScreenshotManager {
             if (!SHAFT.Properties.testNG.parallel().equals("NONE")) {
                 //in case of parallel execution, force regular screenshots
                 return takeViewportScreenshot(driver);
-            } else if (SCREENSHOT_PARAMS_SKIPPED_ELEMENTS_FROM_SCREENSHOT.length() > 0) {
+            } else if (SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().length() > 0) {
                 List<WebElement> skippedElementsList = new ArrayList<>();
-                String[] skippedElementLocators = SCREENSHOT_PARAMS_SKIPPED_ELEMENTS_FROM_SCREENSHOT.split(";");
+                String[] skippedElementLocators =SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().split(";");
                 for (String locator : skippedElementLocators) {
                     if (ElementActionsHelper.getElementsCount(driver, By.xpath(locator),
                             RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION) == 1) {
@@ -267,7 +256,7 @@ public class ScreenshotManager {
 
     public static String attachAnimatedGif() {
         // stop and attach
-        if (Boolean.TRUE.equals(CREATE_GIF) && !"".equals(gifRelativePathWithFileName)) {
+        if (Boolean.TRUE.equals(SHAFT.Properties.visuals.createAnimatedGif()) && !"".equals(gifRelativePathWithFileName)) {
             try {
                 ReportManagerHelper.attach("Animated Gif", testCaseName, new FileInputStream(gifRelativePathWithFileName));
                 if (!gifWriter.equals(new ThreadLocal<>())) {
@@ -310,7 +299,7 @@ public class ScreenshotManager {
                                                                        String actionName, String appendedText, boolean takeScreenshot) {
 //        if (!actionName.toLowerCase().contains("get")) {
         // Suggested: add to animated gif only in case of click, navigation, or validation actions.
-            if (takeScreenshot || (CREATE_GIF && (DETAILED_GIF || actionName.matches(DETAILED_GIF_REGEX)))) {
+            if (takeScreenshot || (SHAFT.Properties.visuals.createAnimatedGif() && (DETAILED_GIF || actionName.matches(DETAILED_GIF_REGEX)))) {
                 /*
                  * Force screenshot link to be shown in the results as a link not text
                  */
@@ -329,7 +318,7 @@ public class ScreenshotManager {
                  * If an elementLocator was passed, store regularElementStyle and highlight that
                  * element before taking the screenshot
                  */
-                if (takeScreenshot && Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHT_ELEMENTS) && elementLocator != null) {
+                if (takeScreenshot && Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsHighlightElements()) && elementLocator != null) {
 //                    try {
 //                        // catching https://github.com/ShaftHQ/SHAFT_ENGINE/issues/640
 //                        @SuppressWarnings("unused") Mat img = Imgcodecs.imdecode(new MatOfByte(), Imgcodecs.IMREAD_COLOR);
@@ -349,7 +338,7 @@ public class ScreenshotManager {
                     int elementCount = ElementActionsHelper.getElementsCount(driver, elementLocator, RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION);
                     boolean isRelativeLocator = elementLocator instanceof RelativeLocator.RelativeBy;
                     if ((!isRelativeLocator && elementCount == 1) || (isRelativeLocator && elementCount >= 1)) {
-                        if ("JavaScript".equals(SCREENSHOT_PARAMS_HIGHLIGHT_METHOD)) {
+                        if ("JavaScript".equals(SHAFT.Properties.visuals.screenshotParamsHighlightMethod())) {
                             element = ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1));
                             js = (JavascriptExecutor) driver;
                             regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
@@ -387,11 +376,11 @@ public class ScreenshotManager {
                      * screenshot
                      *
                      */
-                    if (takeScreenshot && SCREENSHOT_PARAMS_HIGHLIGHT_METHOD.equals("JavaScript") && js != null) {
+                    if (takeScreenshot && SHAFT.Properties.visuals.screenshotParamsHighlightMethod().equals("JavaScript") && js != null) {
                         js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, regularElementStyle);
                     }
 
-                    if (takeScreenshot && !SCREENSHOT_PARAMS_HIGHLIGHT_METHOD.equals("JavaScript") && elementLocation != null) {
+                    if (takeScreenshot && !SHAFT.Properties.visuals.screenshotParamsHighlightMethod().equals("JavaScript") && elementLocation != null) {
                         Color color;
                         if (globalPassFailStatus) {
                             color = new Color(67, 176, 42); // selenium-green
@@ -422,13 +411,13 @@ public class ScreenshotManager {
         }
 
         if (DriverFactoryHelper.isWebExecution()) {
-            return switch (SCREENSHOT_PARAMS_SCREENSHOT_TYPE) {
+            return switch (setScreenshotType()) {
                 case FULL -> {
                     try {
                         yield takeFullPageScreenshot(driver);
                     } catch (Exception throwable) {
                         ReportManagerHelper.logDiscrete(throwable);
-                        SCREENSHOT_PARAMS_SCREENSHOT_TYPE = Screenshots.VIEWPORT;
+                        SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
                         yield takeScreenshot(driver);
                     }
                 }
@@ -436,7 +425,7 @@ public class ScreenshotManager {
                 default -> ScreenshotManager.takeViewportScreenshot(driver);
             };
         }else {
-            if (SCREENSHOT_PARAMS_SCREENSHOT_TYPE.equals(Screenshots.ELEMENT)) {
+            if (setScreenshotType().equals(Screenshots.ELEMENT)) {
                 return takeElementScreenshot(driver, targetElementLocator, true);
             } else {
                 return ScreenshotManager.takeViewportScreenshot(driver);
@@ -544,12 +533,12 @@ public class ScreenshotManager {
 
     private static void startAnimatedGif(byte[] screenshot) {
         // TODO: refactor performance to reduce severe drop when enabling this option
-        if (Boolean.TRUE.equals(CREATE_GIF) && screenshot != null) {
+        if (Boolean.TRUE.equals(SHAFT.Properties.visuals.createAnimatedGif()) && screenshot != null) {
             try {
                 testCaseName = ReportManagerHelper.getTestMethodName();
                 String gifFileName = FileSystems.getDefault().getSeparator() + System.currentTimeMillis() + "_"
                         + testCaseName + ".gif";
-                gifRelativePathWithFileName = SCREENSHOT_FOLDER_PATH + SCREENSHOT_FOLDER_NAME + gifFileName;
+                gifRelativePathWithFileName = SHAFT.Properties.paths.allureResults() + "/screenshots/" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + gifFileName;
 
                 // get the width and height of the current window of the browser
                 var height = DriverFactoryHelper.getTARGET_WINDOW_SIZE().getHeight();
@@ -562,13 +551,13 @@ public class ScreenshotManager {
                 firstImage = Scalr.resize(firstImage, Scalr.Method.BALANCED, GIF_SIZE);
 
                 // create a new BufferedOutputStream
-                FileActions.getInstance().createFile(SCREENSHOT_FOLDER_PATH + SCREENSHOT_FOLDER_NAME, gifFileName);
+                FileActions.getInstance().createFile(SHAFT.Properties.paths.allureResults() + "/screenshots/" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()), gifFileName);
                 gifOutputStream.set(new FileImageOutputStream(new File(gifRelativePathWithFileName)));
 
                 // create a gif sequence with the type of the first image, 500 milliseconds
                 // between frames, which loops infinitely
                 gifWriter.set(
-                        new AnimatedGifManager(gifOutputStream.get(), firstImage.getType(), GIF_FRAME_DELAY));
+                        new AnimatedGifManager(gifOutputStream.get(), firstImage.getType(),SHAFT.Properties.visuals.animatedGifFrameDelay()));
 
                 // draw initial blank image to set the size of the GIF...
                 BufferedImage initialImage = new BufferedImage(width, height, firstImage.getType());
@@ -594,7 +583,7 @@ public class ScreenshotManager {
     }
 
     private static BufferedImage overlayShaftEngineLogo(BufferedImage screenshot) {
-        if (Boolean.TRUE.equals(SCREENSHOT_PARAMS_WATERMARK)) {
+        if (Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsWatermark())) {
             try {
                 // create graphics object
                 Graphics2D screenshotGraphics = screenshot.createGraphics();
@@ -602,7 +591,7 @@ public class ScreenshotManager {
 
                 screenshotGraphics.drawImage(screenshot, 0, 0, null);
                 screenshotGraphics.setComposite(
-                        AlphaComposite.getInstance(AlphaComposite.SRC_OVER, SCREENSHOT_PARAMS_WATERMARK_OPACITY));
+                        AlphaComposite.getInstance(AlphaComposite.SRC_OVER, SHAFT.Properties.visuals.screenshotParamsWatermarkOpacity()));
                 BufferedImage shaftLogo;
                 // read from custom location
                 String watermarkImagePath = Properties.internal.watermarkImagePath();
@@ -638,7 +627,7 @@ public class ScreenshotManager {
 
     private static void startOrAppendToAnimatedGif(byte[] screenshot) {
         // ensure that animatedGif is started, else force start it
-        if (Boolean.TRUE.equals(CREATE_GIF)) {
+        if (Boolean.TRUE.equals(SHAFT.Properties.visuals.createAnimatedGif())) {
             if ("".equals(gifRelativePathWithFileName)) {
                 startAnimatedGif(screenshot);
             } else {

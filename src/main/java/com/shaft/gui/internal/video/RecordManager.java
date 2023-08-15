@@ -41,7 +41,7 @@ public class RecordManager {
     //TODO: the animated GIF should follow the same path as the video
     @SuppressWarnings("SpellCheckingInspection")
     public static void startVideoRecording(WebDriver driver) {
-        if (Boolean.TRUE.equals(RECORD_VIDEO)
+        if (Boolean.TRUE.equals(SHAFT.Properties.visuals.videoParamsRecordVideo())
                 && !isRecordingStarted
                 && driver != null
                 && DriverFactoryHelper.isMobileNativeExecution()) {
@@ -63,7 +63,7 @@ public class RecordManager {
     }
 
     public static void startVideoRecording() {
-        if (Boolean.TRUE.equals(RECORD_VIDEO)
+        if (Boolean.TRUE.equals(SHAFT.Properties.visuals.videoParamsRecordVideo())
                 && SHAFT.Properties.platform.executionAddress().equals("local")
                 && !SHAFT.Properties.web.headlessExecution()
                 && recorder.get() == null) {
@@ -104,7 +104,7 @@ public class RecordManager {
         String pathToRecording;
         String testMethodName = ReportManagerHelper.getTestMethodName();
 
-        if (Boolean.TRUE.equals(RECORD_VIDEO) && recorder.get() != null) {
+        if (Boolean.TRUE.equals(SHAFT.Properties.visuals.videoParamsRecordVideo()) && recorder.get() != null) {
             pathToRecording = doVideoProcessing(ReportManagerHelper.isCurrentTestPassed(), recorder.get().stopAndSave(System.currentTimeMillis() + "_" + testMethodName));
             try {
                 inputStream = new FileInputStream(encodeRecording(pathToRecording));
@@ -114,7 +114,7 @@ public class RecordManager {
             }
             recorder.set(null);
 
-        } else if (Boolean.TRUE.equals(RECORD_VIDEO) && videoDriver.get() != null) {
+        } else if (Boolean.TRUE.equals(SHAFT.Properties.visuals.videoParamsRecordVideo()) && videoDriver.get() != null) {
             String base64EncodedRecording = "";
             if (videoDriver.get() instanceof AndroidDriver androidDriver) {
                 base64EncodedRecording = androidDriver.stopRecordingScreen();
