@@ -30,7 +30,7 @@ public class RequestBuilder {
     private List<List<Object>> parameters = null;
     private RestActions.ParametersType parametersType = null;
     private Object requestBody = null;
-    private String contentType = null;
+    private ContentType contentType = null;
 
     private AuthenticationType authenticationType;
     private String authenticationUsername;
@@ -70,7 +70,7 @@ public class RequestBuilder {
         this.requestType = requestType;
         this.serviceName = serviceName;
         this.targetStatusCode = 0;
-        this.contentType = ContentType.ANY.toString();
+        this.contentType = ContentType.ANY;
         this.authenticationType = AuthenticationType.NONE;
         this.appendDefaultContentCharsetToContentTypeIfUndefined = true;
         this.urlEncodingEnabled = true;
@@ -164,7 +164,7 @@ public class RequestBuilder {
      * @return a self-reference to be used to continue building your API request
      */
     public RequestBuilder setContentType(ContentType contentType) {
-        this.contentType = contentType.toString();
+        this.contentType = contentType;
         return this;
     }
 
@@ -175,7 +175,7 @@ public class RequestBuilder {
      * @return a self-reference to be used to continue building your API request
      */
     public RequestBuilder setContentType(String contentType) {
-        this.contentType = contentType;
+        this.contentType = ContentType.fromContentType(contentType);
         return this;
     }
 
