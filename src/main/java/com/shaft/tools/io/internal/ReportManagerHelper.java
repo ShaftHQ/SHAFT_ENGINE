@@ -471,8 +471,9 @@ public class ReportManagerHelper {
         extentTest.remove();
     }
 
+
     public static void extentReportsCreateTest(String testName, String testDescription) {
-        if (!extentReport.equals(new ExtentReports())) {
+        if (extentReport.equals(new ExtentReports())) {
             if (testDescription.equals("")) {
                 extentTest.set(extentReport.createTest(testName));
             } else {
