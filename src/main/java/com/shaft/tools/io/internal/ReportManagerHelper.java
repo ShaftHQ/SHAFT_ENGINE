@@ -248,10 +248,10 @@ public class ReportManagerHelper {
 
     public static void logScenarioInformation(String keyword, String name, String steps) {
         testCasesCounter++;
-        createImportantReportEntry("Starting Execution: '" + testCasesCounter + " out of " + totalNumberOfTests
-                + "' scenarios in the '" + featureName + "' feature"
-                + "\n" + keyword + " Name: '" + name
-                + "'\n" + keyword + " Steps:\n" + steps);
+        createImportantReportEntry("Starting Execution: \"" + testCasesCounter + " out of " + totalNumberOfTests
+                + "\" scenarios in the \"" + featureName + "\" feature"
+                + System.lineSeparator() + keyword + " Name: \"" + name
+                + "\"" + System.lineSeparator() + keyword + " Steps:" + System.lineSeparator() + steps);
     }
 
     public static void logConfigurationMethodInformation(String className, String testMethodName, String configurationMethodType) {
@@ -582,7 +582,7 @@ public class ReportManagerHelper {
                 lineByLine.append(" ".repeat(spaces));
                 trailingSpacing = lineByLine.toString();
             }
-            lineByLine.append(line);
+            lineByLine.append(line.trim());
             lineByLine.append(trailingSpacing);
             augmentedText.append(lineByLine);
             augmentedText.append(System.lineSeparator());
