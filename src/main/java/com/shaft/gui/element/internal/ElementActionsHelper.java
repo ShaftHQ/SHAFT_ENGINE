@@ -21,6 +21,7 @@ import com.shaft.tools.io.internal.ReportHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.ValidationsHelper;
 import io.appium.java_client.AppiumDriver;
+import lombok.Getter;
 import org.jsoup.Jsoup;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
@@ -138,8 +139,8 @@ public class ElementActionsHelper {
         expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
         expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
         expectedExceptions.add(org.openqa.selenium.JavascriptException.class);
+        expectedExceptions.add(org.openqa.selenium.ElementClickInterceptedException.class);
         if (isValidToCheckForVisibility) {
-            expectedExceptions.add(org.openqa.selenium.ElementClickInterceptedException.class);
             expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
             expectedExceptions.add(org.openqa.selenium.InvalidElementStateException.class);
             expectedExceptions.add(org.openqa.selenium.interactions.MoveTargetOutOfBoundsException.class);
@@ -1106,6 +1107,7 @@ public class ElementActionsHelper {
         return message;
     }
 
+    @Getter
     public enum TextDetectionStrategy {
         TEXT("text"), CONTENT("textContent"), VALUE("value"), UNDEFINED("undefined");
         private final String value;
@@ -1114,9 +1116,6 @@ public class ElementActionsHelper {
             this.value = strategy;
         }
 
-        public String getValue() {
-            return value;
-        }
     }
 
     public static String formatLocatorToString(By locator) {
