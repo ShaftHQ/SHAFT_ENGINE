@@ -111,7 +111,7 @@ public class ReportManagerHelper {
     }
 
     public static void logIssue(String issue) {
-        if (issuesLog.trim().equals("")) {
+        if (issuesLog.trim().isEmpty()) {
             issuesLog += issueCounter + ", " + issue.trim();
         } else {
             issuesLog += System.lineSeparator() + issueCounter + ", " + issue.trim();
@@ -126,7 +126,7 @@ public class ReportManagerHelper {
         }
         if (!listOfOpenIssuesForPassedTests.isEmpty()) {
             listOfOpenIssuesForPassedTests.forEach(issue -> {
-                if (issue.get(3)!=null && !issue.get(3).trim().equals("")) {
+                if (issue.get(3)!=null && !issue.get(3).trim().isEmpty()) {
                     logIssue("Test Method '" + issue.get(0) + "." + issue.get(1)
                             + "' passed. Please validate and close this open issue '" + issue.get(2) + "': '"
                             + issue.get(3) + "'.\n");
@@ -139,7 +139,7 @@ public class ReportManagerHelper {
         }
         if (!listOfOpenIssuesForFailedTests.isEmpty()) {
             listOfOpenIssuesForFailedTests.forEach(issue -> {
-                if (!issue.get(3).trim().equals("")) {
+                if (!issue.get(3).trim().isEmpty()) {
                     logIssue("Test Method '" + issue.get(0) + "." + issue.get(1) + "' failed with open issue '"
                             + issue.get(2) + "': '" + issue.get(3) + "'.\n");
                 } else {
@@ -149,7 +149,7 @@ public class ReportManagerHelper {
             });
         }
 
-        if (!issuesLog.trim().equals("")) {
+        if (!issuesLog.trim().isEmpty()) {
             return "Issue Summary: Total Issues = " + (issueCounter - 1) + ", New issues for Failed Tests = "
                     + failedTestsWithoutOpenIssuesCounter + ", Open issues for Passed Tests = "
                     + openIssuesForPassedTestsCounter + ", Open issues for Failed Tests = "
@@ -239,7 +239,7 @@ public class ReportManagerHelper {
         }
         reportMessage.append("\nTest Method: '").append(className).append(".").append(testMethodName).append("'");
 
-        if (!testDescription.equals("")) {
+        if (!testDescription.isEmpty()) {
             reportMessage.append("\nTest Description: '").append(testDescription).append("'");
         }
 
@@ -248,10 +248,10 @@ public class ReportManagerHelper {
 
     public static void logScenarioInformation(String keyword, String name, String steps) {
         testCasesCounter++;
-        createImportantReportEntry("Starting Execution: '" + testCasesCounter + " out of " + totalNumberOfTests
-                + "' scenarios in the '" + featureName + "' feature"
-                + "\n" + keyword + " Name: '" + name
-                + "'\n" + keyword + " Steps:\n" + steps);
+        createImportantReportEntry("Starting Execution: \"" + testCasesCounter + " out of " + totalNumberOfTests
+                + "\" scenarios in the \"" + featureName + "\" feature"
+                + System.lineSeparator() + keyword + " Name: \"" + name
+                + "\"" + System.lineSeparator() + keyword + " Steps:" + System.lineSeparator() + steps);
     }
 
     public static void logConfigurationMethodInformation(String className, String testMethodName, String configurationMethodType) {
@@ -270,7 +270,7 @@ public class ReportManagerHelper {
     public static void logFinishedTestInformation(String className, String testMethodName, String testDescription, String testStatus) {
         StringBuilder reportMessage = new StringBuilder();
         reportMessage.append("\nFinished Execution of Test Method: '").append(className).append(".").append(testMethodName).append("'");
-        if (!testDescription.equals("")) {
+        if (!testDescription.isEmpty()) {
             reportMessage.append("\nTest Description: '").append(testDescription).append("'");
         }
         reportMessage.append("\nTest Status: '").append(testStatus).append("'");
@@ -304,7 +304,7 @@ public class ReportManagerHelper {
      * @param attachmentContent the content of this attachment
      */
     public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
-        if (!attachmentContent.trim().equals("")) {
+        if (!attachmentContent.trim().isEmpty()) {
             createAttachment(attachmentType, attachmentName, new ByteArrayInputStream(attachmentContent.getBytes()));
         }
     }
@@ -349,7 +349,7 @@ public class ReportManagerHelper {
 
     public static void attachIssuesLog(String executionEndTimestamp) {
         String issueSummary = prepareIssuesLog();
-        if (!issuesLog.trim().equals("")) {
+        if (!issuesLog.trim().isEmpty()) {
             log(issueSummary,
                     Collections.singletonList(
                             Arrays.asList(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Issues log CSV: " + executionEndTimestamp,
@@ -474,7 +474,7 @@ public class ReportManagerHelper {
 
     public static void extentReportsCreateTest(String testName, String testDescription) {
         if (extentReport.equals(new ExtentReports())) {
-            if (testDescription.equals("")) {
+            if (testDescription.isEmpty()) {
                 extentTest.set(extentReport.createTest(testName));
             } else {
                 extentTest.set(extentReport.createTest(testDescription));
@@ -582,7 +582,7 @@ public class ReportManagerHelper {
                 lineByLine.append(" ".repeat(spaces));
                 trailingSpacing = lineByLine.toString();
             }
-            lineByLine.append(line);
+            lineByLine.append(line.trim());
             lineByLine.append(trailingSpacing);
             augmentedText.append(lineByLine);
             augmentedText.append(System.lineSeparator());
@@ -813,7 +813,7 @@ public class ReportManagerHelper {
 
             // excluding empty values, system properties (all system properties have "." in
             // their names), and any git branch issues
-            if (!propertyValue.equals("") && !propertyValue.contains("==") && !propertyKey.contains(">>>")
+            if (!propertyValue.isEmpty() && !propertyValue.contains("==") && !propertyKey.contains(">>>")
                     && !propertyKey.contains("<<<")) {
 
                 if (propertyValue.contains("&")) {
@@ -1023,7 +1023,7 @@ public class ReportManagerHelper {
 
         if (type.equals(CheckpointType.VERIFICATION) && status.equals(CheckpointStatus.FAIL)
                 || !SHAFT.Properties.reporting.disableLogging()) {
-            if (customLogMessages != null && customLogMessages.size() > 0 && !"".equals(customLogMessages.get(0).trim())) {
+            if (customLogMessages != null && !customLogMessages.isEmpty() && !customLogMessages.get(0).trim().isEmpty()) {
                 String customLogText = customLogMessages.get(0);
                 if (status == CheckpointStatus.PASS) {
                     customLogText = (type == CheckpointType.VERIFICATION) ? "Verification Passed: " + customLogText : "Assertion Passed: " + customLogText;

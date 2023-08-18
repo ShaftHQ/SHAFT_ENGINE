@@ -28,16 +28,21 @@ import lombok.NonNull;
 import lombok.SneakyThrows;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
+import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.chromium.ChromiumOptions;
+import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
+import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxDriverLogLevel;
 import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.firefox.FirefoxProfile;
+import org.openqa.selenium.ie.InternetExplorerDriver;
 import org.openqa.selenium.ie.InternetExplorerOptions;
 import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.remote.*;
+import org.openqa.selenium.safari.SafariDriver;
 import org.openqa.selenium.safari.SafariOptions;
 import org.testng.Reporter;
 
@@ -425,14 +430,26 @@ public class DriverFactoryHelper {
         try {
             ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
             switch (driverType) {
-                case FIREFOX ->
-                        driver.set(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create());
-                case IE -> driver.set(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create());
-                case CHROME ->
-                        driver.set(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create());
-                case EDGE -> driver.set(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create());
-                case SAFARI ->
-                        driver.set(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create());
+                case FIREFOX -> {
+//                    driver.set(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create());
+                    driver.set(new FirefoxDriver(ffOptions));
+                }
+                case IE -> {
+//                    driver.set(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create());
+                    driver.set(new InternetExplorerDriver(ieOptions));
+                }
+                case CHROME -> {
+//                    driver.set(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create());
+                    driver.set(new ChromeDriver(chOptions));
+                }
+                case EDGE -> {
+//                    driver.set(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create());
+                    driver.set(new EdgeDriver(edOptions));
+                }
+                case SAFARI -> {
+//                    driver.set(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create());
+                    driver.set(new SafariDriver(sfOptions));
+                }
                 default ->
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
             }
