@@ -16,6 +16,8 @@ public class WebTests {
     double mobileEmulationPixelRatio;
     String mobileEmulationUserAgent;
     String baseURL;
+    int browserWindowWidth;
+    int browserWindowHeight;
 
 
     @BeforeClass
@@ -30,8 +32,8 @@ public class WebTests {
         mobileEmulationPixelRatio = Double.parseDouble("0");
         mobileEmulationUserAgent = SHAFT.Properties.web.mobileEmulationUserAgent();
         baseURL = SHAFT.Properties.web.baseURL();
-
-
+        browserWindowWidth = Integer.parseInt("1920");
+        browserWindowHeight = Integer.parseInt("1080");
     }
 
     @Test
@@ -45,6 +47,8 @@ public class WebTests {
                 .mobileEmulationHeight(mobileEmulationHeight)
                 .mobileEmulationPixelRatio(mobileEmulationPixelRatio)
                 .mobileEmulationUserAgent(mobileEmulationUserAgent)
-                .baseURL(baseURL);
+                .baseURL(baseURL)
+                .browserWindowWidth(browserWindowWidth)
+                .browserWindowHeight(browserWindowHeight);
     }
 }
