@@ -24,8 +24,7 @@ public class PlatformTests {
     public void test() {
         SHAFT.Properties.platform.set().crossBrowserMode(crossBrowserMode);
         SHAFT.Properties.platform.set().executionAddress(executionAddress);
-        SHAFT.Properties.platform.set().targetPlatform(Platform.WINDOWS.name());
+        SHAFT.Properties.platform.set().targetPlatform(targetPlatform)
         SHAFT.Properties.platform.set().proxySettings(proxy);
-
     }
 }
