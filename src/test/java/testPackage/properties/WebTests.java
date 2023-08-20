@@ -30,13 +30,11 @@ public class WebTests {
         mobileEmulationPixelRatio = Double.parseDouble("0");
         mobileEmulationUserAgent = SHAFT.Properties.web.mobileEmulationUserAgent();
         baseURL = SHAFT.Properties.web.baseURL();
-
-
     }
 
     @Test
     public void test() {
-        SHAFT.Properties.web.set().targetBrowserName(Browser.CHROME.browserName())
+        SHAFT.Properties.web.set().targetBrowserName(targetBrowserName)
                 .headlessExecution(headlessExecution)
                 .isMobileEmulation(isMobileEmulation)
                 .mobileEmulationIsCustomDevice(mobileEmulationIsCustomDevice)
