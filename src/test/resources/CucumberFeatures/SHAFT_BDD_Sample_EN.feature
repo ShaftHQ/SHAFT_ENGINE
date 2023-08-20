@@ -38,11 +38,11 @@ Feature: Basic SHAFT_Engine BDD POC
     And I Double-click the element found by "name": "q"
 #    And I Drag the element found by {string}: {string} and drop it on the element found by {string}: {string}
 #    And I Drag the element found by {string}: {string} and drop it by offset x={int} and y={int}
-    And I Hover over the element found by "selector": ".lnXdpd:nth-child(2)"
-    And I Hover over the element found by "cssselector": ".lnXdpd:nth-child(2)"
-    And I Hover over the element found by "css": ".lnXdpd:nth-child(2)"
-    And I Hover over the element found by "css_selector": ".lnXdpd:nth-child(2)"
-    And I Hover over the element found by "css selector": ".lnXdpd:nth-child(2)"
+    # And I Hover over the element found by "selector": ".lnXdpd:nth-child(2)"
+    # And I Hover over the element found by "cssselector": ".lnXdpd:nth-child(2)"
+    # And I Hover over the element found by "css": ".lnXdpd:nth-child(2)"
+    # And I Hover over the element found by "css_selector": ".lnXdpd:nth-child(2)"
+    # And I Hover over the element found by "css selector": ".lnXdpd:nth-child(2)"
     And I Hover over the element found by "classname": "gLFyf"
     And I Hover over the element found by "class_name": "gLFyf"
     And I Hover over the element found by "class name": "gLFyf"

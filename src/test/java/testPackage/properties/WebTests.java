@@ -38,7 +38,7 @@ public class WebTests {
 
     @Test
     public void test() {
-        SHAFT.Properties.web.set().targetBrowserName(Browser.CHROME.browserName())
+        SHAFT.Properties.web.set().targetBrowserName(targetBrowserName)
                 .headlessExecution(headlessExecution)
                 .isMobileEmulation(isMobileEmulation)
                 .mobileEmulationIsCustomDevice(mobileEmulationIsCustomDevice)
