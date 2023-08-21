@@ -11,10 +11,10 @@ public class Test_Wizard_Test_Data {
 
     @Test
     public void test_mapping_test_data_to_java_object() {
-        testData = new SHAFT.TestData.JSON("complexJsonTest.json");
+        testData = new SHAFT.TestData.JSON("jsonToJavaObjectTest.json");
         Object obj = testData.getTestDataAsJson("data.jsonData");
         Gson gson = new Gson();
         BodyObject bodyObject = gson.fromJson(obj.toString(), BodyObject.class);
-        SHAFT.Validations.assertThat().object(bodyObject.getFull_name()).isEqualTo("SHAFT");
+        SHAFT.Validations.assertThat().object(bodyObject.getKey1()).isEqualTo("SHAFT");
     }
 }

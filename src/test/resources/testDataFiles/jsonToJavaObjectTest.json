@@ -1,18 +1,10 @@
 {
   "data": {
     "jsonData": {
-      "full_name": "SHAFT",
-      "phone": "123456",
-      "birthday": "20-20-2022",
-      "governorate_id": 1,
-      "city_id": 1,
-      "country_id": 1,
-      "email": "x",
-      "password": "x",
-      "passwordConfirm": "x",
-      "type": "x",
-      "gender": "x",
-      "id_number": "y"
+      "key1": "SHAFT",
+      "key2": "123456",
+      "key3": "20-20-2022",
+      "key4": 1
     }
   }
 }
