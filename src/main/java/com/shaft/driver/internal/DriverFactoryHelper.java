@@ -31,9 +31,6 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.chromium.ChromiumOptions;
-import org.openqa.selenium.devtools.DevTools;
-import org.openqa.selenium.devtools.HasDevTools;
-import org.openqa.selenium.devtools.v113.network.Network;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
@@ -56,9 +53,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import static junit.framework.Assert.assertEquals;
 
 public class DriverFactoryHelper {
     // TODO: implement pass and fail actions to enable initial factory method screenshot and append it to animated GIF
@@ -178,18 +173,6 @@ public class DriverFactoryHelper {
         failAction("Unsupported Driver Type \"" + driverName + "\".");
         return DriverType.CHROME;
     }
-    private static void disableCacheEdgeAndChrome()
-    {
-        if(driver.get() != null)
-        {
-            DevTools devTools = ((HasDevTools) driver.get()).getDevTools();
-            devTools.createSessionIfThereIsNotOne();
-            devTools.send(Network.enable(Optional.empty(), Optional.empty(), Optional.of(100000000)));
-            devTools.send(Network.setCacheDisabled(true));
-            devTools.send(Network.clearBrowserCookies());
-            devTools.addListener(Network.responseReceived(), responseReceived -> assertEquals(false, responseReceived.getResponse().getFromDiskCache()));
-        }
-    }
     private static void setDriverOptions(DriverType driverType, MutableCapabilities customDriverOptions) {
         //get proxy server
         // Proxy server settings | testing behind a proxy
@@ -212,13 +195,6 @@ public class DriverFactoryHelper {
                     ffOptions.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
                 if (SHAFT.Properties.web.headlessExecution()) {
                     ffOptions.addArguments("-headless");
-                }
-                if(SHAFT.Properties.flags.disableCache())
-                {
-                    ffProfile.setPreference("browser.cache.disk.enable", false);
-                    ffProfile.setPreference("browser.cache.memory.enable", false);
-                    ffProfile.setPreference("browser.cache.offline.enable", false);
-                    ffProfile.setPreference("network.http.use-cache", false);
                 }
                 ffOptions.setLogLevel(FirefoxDriverLogLevel.WARN);
                 ffOptions.setPageLoadStrategy(PageLoadStrategy.EAGER);
@@ -254,11 +230,6 @@ public class DriverFactoryHelper {
                     proxy.setHttpProxy(proxyServerSettings);
                     proxy.setSslProxy(proxyServerSettings);
                     ieOptions.setProxy(proxy);
-                }
-                if(SHAFT.Properties.flags.disableCache())
-                {
-                    ieOptions.setCapability(InternetExplorerDriver.IE_ENSURE_CLEAN_SESSION, true);
-                    ieOptions.setCapability("applicationCacheEnabled",false);
                 }
                 //merge customWebDriverCapabilities.properties
                 ieOptions = ieOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
@@ -459,25 +430,26 @@ public class DriverFactoryHelper {
         try {
             ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
             switch (driverType) {
-                case FIREFOX ->
-                        driver.set(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create());
-                case IE -> driver.set(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create());
+                case FIREFOX -> {
+//                    driver.set(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create());
+                    driver.set(new FirefoxDriver(ffOptions));
+                }
+                case IE -> {
+//                    driver.set(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create());
+                    driver.set(new InternetExplorerDriver(ieOptions));
+                }
                 case CHROME -> {
-                    driver.set(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create());
-                    if(SHAFT.Properties.flags.disableCache())
-                    {
-                        disableCacheEdgeAndChrome();
-                    }
+//                    driver.set(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create());
+                    driver.set(new ChromeDriver(chOptions));
                 }
                 case EDGE -> {
-                    driver.set(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create());
-                    if(SHAFT.Properties.flags.disableCache())
-                    {
-                        disableCacheEdgeAndChrome();
-                    }
+//                    driver.set(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create());
+                    driver.set(new EdgeDriver(edOptions));
                 }
-                case SAFARI ->
-                        driver.set(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create());
+                case SAFARI -> {
+//                    driver.set(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create());
+                    driver.set(new SafariDriver(sfOptions));
+                }
                 default ->
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
             }

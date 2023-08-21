@@ -77,9 +77,6 @@ public interface Flags extends EngineProperties {
     @DefaultValue("false")
     boolean attemptToClickBeforeTyping();
 
-    @Key("disableCache")
-    @DefaultValue("false")
-    boolean disableCache();
     default SetProperty set() {
         return new SetProperty();
     }
@@ -157,10 +154,6 @@ public interface Flags extends EngineProperties {
 
         public SetProperty skipTestsWithLinkedIssues(boolean value) {
             setProperty("skipTestsWithLinkedIssues", String.valueOf(value));
-            return this;
-        }
-        public SetProperty disableCache(boolean value) {
-            setProperty("disableCache", String.valueOf(value));
             return this;
         }
     }
