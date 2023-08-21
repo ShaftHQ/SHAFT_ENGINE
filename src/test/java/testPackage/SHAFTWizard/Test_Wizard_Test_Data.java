@@ -2,7 +2,6 @@ package testPackage.SHAFTWizard;
 
 import com.google.gson.Gson;
 import com.shaft.driver.SHAFT;
-import com.shaft.tools.io.JSONFileManager;
 import org.testng.annotations.Test;
 import objectclass.BodyObject;
 
