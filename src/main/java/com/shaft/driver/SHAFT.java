@@ -124,8 +124,13 @@ public class SHAFT {
 //                } else if (driverThreadLocal.get() instanceof RemoteWebDriver remoteWebDriver) {
 //                    driverThreadLocal.set(new EventFiringDecorator<>(RemoteWebDriver.class, new WebDriverListener()).decorate(remoteWebDriver));
                 } else {
-                    return new EventFiringDecorator<>(org.openqa.selenium.WebDriver.class, new WebDriverListener()).decorate(DriverFactoryHelper.getDriver().get());
-                }
+                    if(!SHAFT.Properties.flags.enableTrueNativeMode()){
+                        return new EventFiringDecorator<>(org.openqa.selenium.WebDriver.class, new WebDriverListener()).decorate(DriverFactoryHelper.getDriver().get());
+                    }
+                    else{
+                        return DriverFactoryHelper.getDriver().get();
+                    }
+                    }
             }
         }
 
