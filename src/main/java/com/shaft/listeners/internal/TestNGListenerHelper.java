@@ -191,7 +191,7 @@ public class TestNGListenerHelper {
 
     public static void configureJVMProxy() {
         String PROXY_SERVER_SETTINGS = SHAFT.Properties.platform.proxy();
-        if (!PROXY_SERVER_SETTINGS.equals("")) {
+        if (SHAFT.Properties.platform.jvmProxySettings() && !PROXY_SERVER_SETTINGS.equals("")) {
             String[] proxyHostPort = PROXY_SERVER_SETTINGS.split(":");
             System.setProperty("http.proxyHost", proxyHostPort[0]);
             System.setProperty("http.proxyPort", proxyHostPort[1]);
@@ -199,6 +199,7 @@ public class TestNGListenerHelper {
             System.setProperty("https.proxyPort", proxyHostPort[1]);
             System.setProperty("ftp.proxyHost", proxyHostPort[0]);
             System.setProperty("ftp.proxyPort", proxyHostPort[1]);
+
         }
     }
 

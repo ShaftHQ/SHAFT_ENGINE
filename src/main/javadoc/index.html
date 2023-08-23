@@ -463,6 +463,30 @@
                                         </div>
                                     </div>
 
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="headlessExecution">Browser window width</label>
+                                        <div class="col-md-1">
+                                            <div>
+                                                <input class="form-control input-md" id="browserWindowWidth"
+                                                       name="browserWindowWidth" placeholder="1920"
+                                                       required type="number" >
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="headlessExecution">Browser window height</label>
+                                        <div class="col-md-1">
+                                            <div>
+                                                <input class="form-control input-md" id="browserWindowHeight"
+                                                       name="browserWindowHeight" placeholder="1080"
+                                                       required type="number" >
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <hr/>
                                     <h4 style="text-align: center;"><b> Emulation <br/><br/></b>
                                         <hr/>
@@ -3250,6 +3274,8 @@ for (i = 0; i < close.length; i++) {
         const mobileEmulationDeviceHeight = $("input[name=mobileEmulationDeviceHeight]").val();
         const mobileEmulationDevicePixelRatio = $("input[name=mobileEmulationDevicePixelRatio]").val();
         const mobileEmulationDeviceUserAgent = $("input[name=mobileEmulationDeviceUserAgent]").val();
+        const browserWindowWidth = $("input[name=browserWindowWidth]").val();
+        const browserWindowHeight = $("input[name=browserWindowHeight]").val();
 
         // This variable stores all the data.
         let data =
@@ -3262,7 +3288,9 @@ for (i = 0; i < close.length; i++) {
             'mobileEmulation.width=' + mobileEmulationDeviceWidth + '\r\n' +
             'mobileEmulation.height=' + mobileEmulationDeviceHeight + '\r\n' +
             'mobileEmulation.pixelRatio=' + mobileEmulationDevicePixelRatio + '\r\n' +
-            'mobileEmulation.userAgent=' + mobileEmulationDeviceUserAgent + '\r\n';
+            'mobileEmulation.userAgent=' + mobileEmulationDeviceUserAgent + '\r\n' +
+            'browserWindowWidth=' + browserWindowWidth + '\r\n' +
+            'browserWindowHeight=' + browserWindowHeight + '\r\n';
         downloadFile(data, 'WebCapabilities.properties');
         setTimeout(function(){ document.getElementById("WebCapabilities.properties").style.opacity = "1"; }, 400);
     }
