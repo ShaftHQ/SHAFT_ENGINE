@@ -954,12 +954,12 @@ public class DriverFactoryHelper {
             if (SHAFT.Properties.web.headlessExecution()) {
                 driver.get().manage().window().setSize(new Dimension(TARGET_WINDOW_SIZE.getWidth(), TARGET_WINDOW_SIZE.getHeight()));
             } else {
-                Dimension browswerWindowSize = new Dimension(
+                Dimension browserWindowSize = new Dimension(
                         SHAFT.Properties.web.browserWindowWidth(),
                         SHAFT.Properties.web.browserWindowHeight()
                 );
-                if (!isMobileExecution) {
-                    driver.get().manage().window().setSize(browswerWindowSize);
+                if (!isMobileExecution && !SHAFT.Properties.flags.autoMaximizeBrowserWindow()) {
+                    driver.get().manage().window().setSize(browserWindowSize);
                 }
             }
 
