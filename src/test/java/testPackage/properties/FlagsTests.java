@@ -21,6 +21,8 @@ public class FlagsTests {
     boolean skipTestsWithLinkedIssues;
     boolean attemptToClickBeforeTyping ;
     boolean disableCache ;
+    boolean enableTrueNativeMode ;
+
 
     @BeforeClass
     public void beforeClass() {
@@ -39,6 +41,8 @@ public class FlagsTests {
         skipTestsWithLinkedIssues = SHAFT.Properties.flags.skipTestsWithLinkedIssues();
         attemptToClickBeforeTyping = SHAFT.Properties.flags.attemptToClickBeforeTyping();
         disableCache = SHAFT.Properties.flags.disableCache();
+        enableTrueNativeMode = SHAFT.Properties.flags.enableTrueNativeMode();
+
     }
 
     @Test
@@ -58,5 +62,7 @@ public class FlagsTests {
         SHAFT.Properties.flags.set().skipTestsWithLinkedIssues(skipTestsWithLinkedIssues);
         SHAFT.Properties.flags.set().attemptToClickBeforeTyping(attemptToClickBeforeTyping);
         SHAFT.Properties.flags.set().disableCache(disableCache);
+        SHAFT.Properties.flags.set().enableTrueNativeMode(enableTrueNativeMode);
+
     }
 }

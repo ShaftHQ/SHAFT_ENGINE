@@ -81,6 +81,10 @@ public interface Flags extends EngineProperties {
     @DefaultValue("false")
     boolean disableCache();
 
+    @Key("enableTrueNativeMode")
+    @DefaultValue("false")
+    boolean enableTrueNativeMode();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -164,6 +168,11 @@ public interface Flags extends EngineProperties {
             setProperty("disableCache", String.valueOf(value));
             return this;
         }
+        public SetProperty enableTrueNativeMode(boolean value) {
+            setProperty("enableTrueNativeMode", String.valueOf(value));
+            return this;
+        }
+
     }
 
 }
