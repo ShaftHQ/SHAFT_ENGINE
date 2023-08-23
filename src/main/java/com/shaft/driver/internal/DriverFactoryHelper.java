@@ -305,7 +305,6 @@ public class DriverFactoryHelper {
             }
             case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_CHROME, APPIUM_CHROMIUM -> {
                 appiumCapabilities = new DesiredCapabilities(PropertyFileManager.getCustomWebDriverDesiredCapabilities().merge(customDriverOptions));
-                ReportManager.logDiscrete(appiumCapabilities.toString());
             }
             default ->
                     failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
@@ -582,8 +581,10 @@ public class DriverFactoryHelper {
                 || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             if (appiumCapabilities == null) {
                 appiumCapabilities = initializeMobileDesiredCapabilities(null);
+                ReportManager.log(appiumCapabilities.toString());
             } else {
                 appiumCapabilities.merge(initializeMobileDesiredCapabilities(appiumCapabilities));
+                ReportManager.log(appiumCapabilities.toString());
             }
         }
 
@@ -693,11 +694,13 @@ public class DriverFactoryHelper {
         RemoteWebDriver driver = null;
         boolean isRemoteConnectionEstablished = false;
         var startTime = System.currentTimeMillis();
+        var exception = "";
         do {
             try {
                 driver = connectToRemoteServer(capabilities, false);
                 isRemoteConnectionEstablished = true;
             } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException1) {
+                exception = sessionNotCreatedException1.getMessage();
                 try {
                     driver = connectToRemoteServer(capabilities, true);
                     isRemoteConnectionEstablished = true;
@@ -713,8 +716,8 @@ public class DriverFactoryHelper {
                 Thread.sleep(TimeUnit.SECONDS.toMillis(appiumServerPreparationPollingInterval));
             }
         } while (!isRemoteConnectionEstablished && (System.currentTimeMillis() - startTime < TimeUnit.SECONDS.toMillis(remoteServerInstanceCreationTimeout)));
-        if (!isRemoteConnectionEstablished){
-            failAction("Failed to connect to remote server. Session was still not created after " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + " minutes.");
+        if (!isRemoteConnectionEstablished) {
+            failAction("Failed to connect to remote server. Session was still not created after " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + " minutes." + "\nOriginal Error is : " + exception);
         }
         return driver;
     }
@@ -955,7 +958,9 @@ public class DriverFactoryHelper {
                         SHAFT.Properties.web.browserWindowWidth(),
                         SHAFT.Properties.web.browserWindowHeight()
                 );
-                driver.get().manage().window().setSize(browswerWindowSize);
+                if (!isMobileExecution) {
+                    driver.get().manage().window().setSize(browswerWindowSize);
+                }
             }
 
             if (!isMobileExecution) {
