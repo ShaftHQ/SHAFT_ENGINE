@@ -20,6 +20,7 @@ public class FlagsTests {
     int maximumPerformanceMode;
     boolean skipTestsWithLinkedIssues;
     boolean attemptToClickBeforeTyping ;
+    boolean disableCache ;
 
     @BeforeClass
     public void beforeClass() {
@@ -37,6 +38,7 @@ public class FlagsTests {
         maximumPerformanceMode = SHAFT.Properties.flags.maximumPerformanceMode();
         skipTestsWithLinkedIssues = SHAFT.Properties.flags.skipTestsWithLinkedIssues();
         attemptToClickBeforeTyping = SHAFT.Properties.flags.attemptToClickBeforeTyping();
+        disableCache = SHAFT.Properties.flags.disableCache();
     }
 
     @Test
@@ -55,5 +57,6 @@ public class FlagsTests {
         SHAFT.Properties.flags.set().maximumPerformanceMode(maximumPerformanceMode);
         SHAFT.Properties.flags.set().skipTestsWithLinkedIssues(skipTestsWithLinkedIssues);
         SHAFT.Properties.flags.set().attemptToClickBeforeTyping(attemptToClickBeforeTyping);
+        SHAFT.Properties.flags.set().disableCache(disableCache);
     }
 }

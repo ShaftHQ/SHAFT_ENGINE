@@ -31,6 +31,9 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.chromium.ChromiumOptions;
+import org.openqa.selenium.devtools.DevTools;
+import org.openqa.selenium.devtools.HasDevTools;
+import org.openqa.selenium.devtools.v113.network.Network;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
@@ -53,6 +56,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 public class DriverFactoryHelper {
@@ -173,6 +177,21 @@ public class DriverFactoryHelper {
         failAction("Unsupported Driver Type \"" + driverName + "\".");
         return DriverType.CHROME;
     }
+    private static void disableCacheEdgeAndChrome() {
+        if (SHAFT.Properties.flags.disableCache())
+        {
+            DevTools devTools = ((HasDevTools) driver.get()).getDevTools();
+            devTools.createSessionIfThereIsNotOne();
+            devTools.send(Network.enable(Optional.empty(), Optional.empty(), Optional.of(100000000)));
+            devTools.send(Network.setCacheDisabled(true));
+            devTools.send(Network.clearBrowserCookies());
+            devTools.addListener(Network.responseReceived(), responseReceived -> {
+                if(responseReceived.getResponse().getFromDiskCache().get().equals(true)){
+                    failAction("Cache wasn't cleared");
+                }
+            });
+        }
+    }
     private static void setDriverOptions(DriverType driverType, MutableCapabilities customDriverOptions) {
         //get proxy server
         // Proxy server settings | testing behind a proxy
@@ -196,12 +215,19 @@ public class DriverFactoryHelper {
                 if (SHAFT.Properties.web.headlessExecution()) {
                     ffOptions.addArguments("-headless");
                 }
+                if(SHAFT.Properties.flags.disableCache())
+                {
+                    ffProfile.setPreference("browser.cache.disk.enable", false);
+                    ffProfile.setPreference("browser.cache.memory.enable", false);
+                    ffProfile.setPreference("browser.cache.offline.enable", false);
+                    ffProfile.setPreference("network.http.use-cache", false);
+                }
                 ffOptions.setLogLevel(FirefoxDriverLogLevel.WARN);
                 ffOptions.setPageLoadStrategy(PageLoadStrategy.EAGER);
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
-                if (!proxyServerSettings.equals("")) {
+                if (SHAFT.Properties.platform.driverProxySettings() && !proxyServerSettings.equals("")) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(proxyServerSettings);
                     proxy.setSslProxy(proxyServerSettings);
@@ -225,11 +251,16 @@ public class DriverFactoryHelper {
                 ieOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ieOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
-                if (!proxyServerSettings.equals("")) {
+                if (SHAFT.Properties.platform.driverProxySettings() && !proxyServerSettings.equals("")) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(proxyServerSettings);
                     proxy.setSslProxy(proxyServerSettings);
                     ieOptions.setProxy(proxy);
+                }
+                if(SHAFT.Properties.flags.disableCache())
+                {
+                    ieOptions.setCapability(InternetExplorerDriver.IE_ENSURE_CLEAN_SESSION, true);
+                    ieOptions.setCapability("applicationCacheEnabled",false);
                 }
                 //merge customWebDriverCapabilities.properties
                 ieOptions = ieOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
@@ -255,11 +286,14 @@ public class DriverFactoryHelper {
                 sfOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 sfOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
-                if (!proxyServerSettings.equals("")) {
+                if (SHAFT.Properties.platform.driverProxySettings() && !proxyServerSettings.equals("")) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(proxyServerSettings);
                     proxy.setSslProxy(proxyServerSettings);
                     sfOptions.setProxy(proxy);
+                }
+                if(SHAFT.Properties.flags.disableCache()) {
+                    sfOptions.setCapability("safari:cleanSession", "true");
                 }
                 //merge customWebDriverCapabilities.properties
                 sfOptions = sfOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
@@ -364,7 +398,7 @@ public class DriverFactoryHelper {
         options.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
         //Add Proxy Setting if found
         String proxy = Properties.platform.proxy();
-        if (!"".equals(proxy)) {
+        if (SHAFT.Properties.platform.driverProxySettings() && !"".equals(proxy)) {
             options.setProxy(new Proxy().setHttpProxy(proxy).setSslProxy(proxy));
         }
         //add logging preferences if enabled
@@ -441,10 +475,12 @@ public class DriverFactoryHelper {
                 case CHROME -> {
 //                    driver.set(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create());
                     driver.set(new ChromeDriver(chOptions));
+                    disableCacheEdgeAndChrome();
                 }
                 case EDGE -> {
 //                    driver.set(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create());
                     driver.set(new EdgeDriver(edOptions));
+                    disableCacheEdgeAndChrome();
                 }
                 case SAFARI -> {
 //                    driver.set(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create());

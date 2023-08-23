@@ -26,6 +26,14 @@ public interface Platform extends EngineProperties {
     @DefaultValue("")
     String proxy();
 
+    @Key("driverProxySettings")
+    @DefaultValue("true")
+    boolean driverProxySettings();
+
+    @Key("jvmProxySettings")
+    @DefaultValue("true")
+    boolean jvmProxySettings();
+
     private static void setProperty(String key, String value) {
         var updatedProps = new java.util.Properties();
         updatedProps.setProperty(key, value);
@@ -61,6 +69,16 @@ public interface Platform extends EngineProperties {
 
         public SetProperty proxySettings(String value) {
             setProperty("com.SHAFT.proxySettings", value);
+            return this;
+        }
+
+        public SetProperty driverProxySettings(boolean value) {
+            setProperty("driverProxySettings", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty jvmProxySettings(boolean value) {
+            setProperty("jvmProxySettings", String.valueOf(value));
             return this;
         }
     }
