@@ -227,11 +227,13 @@ public class DriverFactoryHelper {
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
-                if (!proxyServerSettings.equals("")) {
-                    Proxy proxy = new Proxy();
-                    proxy.setHttpProxy(proxyServerSettings);
-                    proxy.setSslProxy(proxyServerSettings);
-                    ffOptions.setProxy(proxy);
+                if (SHAFT.Properties.platform.driverProxySettings()) {
+                    if (!proxyServerSettings.equals("")) {
+                        Proxy proxy = new Proxy();
+                        proxy.setHttpProxy(proxyServerSettings);
+                        proxy.setSslProxy(proxyServerSettings);
+                        ffOptions.setProxy(proxy);
+                    }
                 }
                 // Enable BiDi
                 ffOptions.setCapability("webSocketUrl", true);
@@ -251,11 +253,13 @@ public class DriverFactoryHelper {
                 ieOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ieOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
-                if (!proxyServerSettings.equals("")) {
-                    Proxy proxy = new Proxy();
-                    proxy.setHttpProxy(proxyServerSettings);
-                    proxy.setSslProxy(proxyServerSettings);
-                    ieOptions.setProxy(proxy);
+                if (SHAFT.Properties.platform.driverProxySettings()) {
+                    if (!proxyServerSettings.equals("")) {
+                        Proxy proxy = new Proxy();
+                        proxy.setHttpProxy(proxyServerSettings);
+                        proxy.setSslProxy(proxyServerSettings);
+                        ieOptions.setProxy(proxy);
+                    }
                 }
                 if(SHAFT.Properties.flags.disableCache())
                 {
@@ -286,11 +290,13 @@ public class DriverFactoryHelper {
                 sfOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 sfOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
-                if (!proxyServerSettings.equals("")) {
-                    Proxy proxy = new Proxy();
-                    proxy.setHttpProxy(proxyServerSettings);
-                    proxy.setSslProxy(proxyServerSettings);
-                    sfOptions.setProxy(proxy);
+                if (SHAFT.Properties.platform.driverProxySettings()) {
+                    if (!proxyServerSettings.equals("")) {
+                        Proxy proxy = new Proxy();
+                        proxy.setHttpProxy(proxyServerSettings);
+                        proxy.setSslProxy(proxyServerSettings);
+                        sfOptions.setProxy(proxy);
+                    }
                 }
                 if(SHAFT.Properties.flags.disableCache()) {
                     sfOptions.setCapability("safari:cleanSession", "true");
@@ -398,8 +404,10 @@ public class DriverFactoryHelper {
         options.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
         //Add Proxy Setting if found
         String proxy = Properties.platform.proxy();
-        if (!"".equals(proxy)) {
-            options.setProxy(new Proxy().setHttpProxy(proxy).setSslProxy(proxy));
+        if (SHAFT.Properties.platform.driverProxySettings()) {
+            if (!"".equals(proxy)) {
+                options.setProxy(new Proxy().setHttpProxy(proxy).setSslProxy(proxy));
+            }
         }
         //add logging preferences if enabled
         if (SHAFT.Properties.reporting.captureWebDriverLogs()) {
