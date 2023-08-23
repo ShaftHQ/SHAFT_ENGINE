@@ -227,7 +227,7 @@ public class DriverFactoryHelper {
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
-                if (!proxyServerSettings.equals("")) {
+                if (SHAFT.Properties.platform.driverProxySettings() && !proxyServerSettings.equals("")) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(proxyServerSettings);
                     proxy.setSslProxy(proxyServerSettings);
@@ -251,7 +251,7 @@ public class DriverFactoryHelper {
                 ieOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ieOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
-                if (!proxyServerSettings.equals("")) {
+                if (SHAFT.Properties.platform.driverProxySettings() && !proxyServerSettings.equals("")) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(proxyServerSettings);
                     proxy.setSslProxy(proxyServerSettings);
@@ -286,7 +286,7 @@ public class DriverFactoryHelper {
                 sfOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 sfOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
-                if (!proxyServerSettings.equals("")) {
+                if (SHAFT.Properties.platform.driverProxySettings() && !proxyServerSettings.equals("")) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(proxyServerSettings);
                     proxy.setSslProxy(proxyServerSettings);
@@ -398,7 +398,7 @@ public class DriverFactoryHelper {
         options.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
         //Add Proxy Setting if found
         String proxy = Properties.platform.proxy();
-        if (!"".equals(proxy)) {
+        if (SHAFT.Properties.platform.driverProxySettings() && !"".equals(proxy)) {
             options.setProxy(new Proxy().setHttpProxy(proxy).setSslProxy(proxy));
         }
         //add logging preferences if enabled
