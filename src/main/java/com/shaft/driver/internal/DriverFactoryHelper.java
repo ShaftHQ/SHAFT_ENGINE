@@ -305,7 +305,6 @@ public class DriverFactoryHelper {
             }
             case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_CHROME, APPIUM_CHROMIUM -> {
                 appiumCapabilities = new DesiredCapabilities(PropertyFileManager.getCustomWebDriverDesiredCapabilities().merge(customDriverOptions));
-                ReportManager.logDiscrete(appiumCapabilities.toString());
             }
             default ->
                     failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
@@ -582,8 +581,10 @@ public class DriverFactoryHelper {
                 || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             if (appiumCapabilities == null) {
                 appiumCapabilities = initializeMobileDesiredCapabilities(null);
+                ReportManager.log(appiumCapabilities.toString());
             } else {
                 appiumCapabilities.merge(initializeMobileDesiredCapabilities(appiumCapabilities));
+                ReportManager.log(appiumCapabilities.toString());
             }
         }
 
@@ -698,6 +699,7 @@ public class DriverFactoryHelper {
                 driver = connectToRemoteServer(capabilities, false);
                 isRemoteConnectionEstablished = true;
             } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException1) {
+                ReportManager.log("Original Error: " + sessionNotCreatedException1.getMessage());
                 try {
                     driver = connectToRemoteServer(capabilities, true);
                     isRemoteConnectionEstablished = true;
