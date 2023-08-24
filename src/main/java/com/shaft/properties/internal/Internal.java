@@ -10,7 +10,7 @@ import org.aeonbits.owner.Config.Sources;
 })
 public interface Internal extends EngineProperties {
     @Key("shaftEngineVersion")
-    @DefaultValue("7.3.20230824")
+    @DefaultValue("7.3.20230825")
     String shaftEngineVersion();
 
     @Key("watermarkImagePath")
