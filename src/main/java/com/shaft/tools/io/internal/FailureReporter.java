@@ -13,12 +13,12 @@ import java.util.List;
 public class FailureReporter {
     public static void fail(Class<?> failedFileManager, String message, Throwable throwable) {
         String actionName = "fail";
-        String localizedMessage = "";
-        if (!Throwables.getRootCause(throwable).getLocalizedMessage().equals(null)) {
-            localizedMessage = Throwables.getRootCause(throwable).getLocalizedMessage();
+        String rootCause;
+        try {
+            rootCause = " Root cause: \"" + Throwables.getRootCause(throwable).getClass().getName() + ": " + Throwables.getRootCause(throwable).getLocalizedMessage().split("\n")[0] + "\"";
+        } catch (NullPointerException e) {
+            rootCause = " Root cause: \"" + Throwables.getRootCause(throwable).getClass().getName() + ": ".split("\n")[0] + "\"";
         }
-        String rootCause = " Root cause: \"" + Throwables.getRootCause(throwable).getClass().getName() + ": " + localizedMessage.split("\n")[0] + "\"";
-
         for (StackTraceElement stackTraceElement : Arrays.stream(Thread.currentThread().getStackTrace()).toList()) {
             var methodName = stackTraceElement.getMethodName();
             if (!methodName.toLowerCase().contains("fail")) {
