@@ -7,6 +7,7 @@ import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.restassured.path.json.JsonPath;
 import io.restassured.path.json.exception.JsonPathException;
+import org.json.JSONObject;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -76,6 +77,22 @@ public class JSONFileManager {
         }
     }
 
+
+    /**
+     * Reads the json object value at the desired jsonpath within the target test data file to map it to java object
+     *
+     * @param jsonPath the desired jsonpath that points to the needed test data, it can be written manually or generated using helper tools such as <a href="https://jsonpathfinder.com/">https://jsonpathfinder.com/</a>
+     * @return the json value of the desired test data as Object
+     */
+    public Object getTestDataAsJson(String jsonPath) {
+        Object testData = getTestData(cleanJsonPath(jsonPath), DataType.JSON);
+        if (testData != null) {
+            return testData;
+        } else {
+            return null;
+        }
+    }
+
     /**
      * Reads the list value at the desired jsonpath within the target test data file
      *
@@ -121,6 +138,7 @@ public class JSONFileManager {
                 case STRING -> testData = JsonPath.from(reader.get()).getString(jsonPath);
                 case LIST -> testData = JsonPath.from(reader.get()).getList(jsonPath);
                 case MAP -> testData = JsonPath.from(reader.get()).getMap(jsonPath);
+                case JSON -> testData = JsonPath.from(reader.get()).getJsonObject(jsonPath);
             }
         } catch (ClassCastException rootCauseException) {
             FailureReporter.fail(this.getClass(), "Incorrect jsonPath. [" + jsonPath + "].", rootCauseException);
@@ -144,6 +162,6 @@ public class JSONFileManager {
     }
 
     public enum DataType {
-        STRING, LIST, MAP
+        STRING, LIST, MAP, JSON
     }
 }

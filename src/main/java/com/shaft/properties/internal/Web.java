@@ -56,6 +56,14 @@ public interface Web extends EngineProperties {
     @DefaultValue("")
     String baseURL();
 
+    @Key("browserWindowWidth")
+    @DefaultValue("1920")
+    int browserWindowWidth();
+
+    @Key("browserWindowHeight")
+    @DefaultValue("1080")
+    int browserWindowHeight();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -111,6 +119,16 @@ public interface Web extends EngineProperties {
 
         public SetProperty mobileEmulationUserAgent(String value) {
             setProperty("mobileEmulation.userAgent", value);
+            return this;
+        }
+
+        public SetProperty browserWindowWidth(int value) {
+            setProperty("browserWindowWidth", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty browserWindowHeight(int value) {
+            setProperty("browserWindowHeight", String.valueOf(value));
             return this;
         }
     }

@@ -227,7 +227,7 @@ public class DriverFactoryHelper {
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
-                if (!proxyServerSettings.equals("")) {
+                if (SHAFT.Properties.platform.driverProxySettings() && !proxyServerSettings.equals("")) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(proxyServerSettings);
                     proxy.setSslProxy(proxyServerSettings);
@@ -251,7 +251,7 @@ public class DriverFactoryHelper {
                 ieOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ieOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
-                if (!proxyServerSettings.equals("")) {
+                if (SHAFT.Properties.platform.driverProxySettings() && !proxyServerSettings.equals("")) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(proxyServerSettings);
                     proxy.setSslProxy(proxyServerSettings);
@@ -286,7 +286,7 @@ public class DriverFactoryHelper {
                 sfOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 sfOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
-                if (!proxyServerSettings.equals("")) {
+                if (SHAFT.Properties.platform.driverProxySettings() && !proxyServerSettings.equals("")) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(proxyServerSettings);
                     proxy.setSslProxy(proxyServerSettings);
@@ -305,7 +305,6 @@ public class DriverFactoryHelper {
             }
             case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_CHROME, APPIUM_CHROMIUM -> {
                 appiumCapabilities = new DesiredCapabilities(PropertyFileManager.getCustomWebDriverDesiredCapabilities().merge(customDriverOptions));
-                ReportManager.logDiscrete(appiumCapabilities.toString());
             }
             default ->
                     failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
@@ -398,7 +397,7 @@ public class DriverFactoryHelper {
         options.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
         //Add Proxy Setting if found
         String proxy = Properties.platform.proxy();
-        if (!"".equals(proxy)) {
+        if (SHAFT.Properties.platform.driverProxySettings() && !"".equals(proxy)) {
             options.setProxy(new Proxy().setHttpProxy(proxy).setSslProxy(proxy));
         }
         //add logging preferences if enabled
@@ -582,8 +581,10 @@ public class DriverFactoryHelper {
                 || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             if (appiumCapabilities == null) {
                 appiumCapabilities = initializeMobileDesiredCapabilities(null);
+                ReportManager.log(appiumCapabilities.toString());
             } else {
                 appiumCapabilities.merge(initializeMobileDesiredCapabilities(appiumCapabilities));
+                ReportManager.log(appiumCapabilities.toString());
             }
         }
 
@@ -693,11 +694,13 @@ public class DriverFactoryHelper {
         RemoteWebDriver driver = null;
         boolean isRemoteConnectionEstablished = false;
         var startTime = System.currentTimeMillis();
+        var exception = "";
         do {
             try {
                 driver = connectToRemoteServer(capabilities, false);
                 isRemoteConnectionEstablished = true;
             } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException1) {
+                exception = sessionNotCreatedException1.getMessage();
                 try {
                     driver = connectToRemoteServer(capabilities, true);
                     isRemoteConnectionEstablished = true;
@@ -713,8 +716,8 @@ public class DriverFactoryHelper {
                 Thread.sleep(TimeUnit.SECONDS.toMillis(appiumServerPreparationPollingInterval));
             }
         } while (!isRemoteConnectionEstablished && (System.currentTimeMillis() - startTime < TimeUnit.SECONDS.toMillis(remoteServerInstanceCreationTimeout)));
-        if (!isRemoteConnectionEstablished){
-            failAction("Failed to connect to remote server. Session was still not created after " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + " minutes.");
+        if (!isRemoteConnectionEstablished) {
+            failAction("Failed to connect to remote server. Session was still not created after " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + " minutes." + "\nOriginal Error is : " + exception);
         }
         return driver;
     }
@@ -950,6 +953,14 @@ public class DriverFactoryHelper {
 
             if (SHAFT.Properties.web.headlessExecution()) {
                 driver.get().manage().window().setSize(new Dimension(TARGET_WINDOW_SIZE.getWidth(), TARGET_WINDOW_SIZE.getHeight()));
+            } else {
+                Dimension browserWindowSize = new Dimension(
+                        SHAFT.Properties.web.browserWindowWidth(),
+                        SHAFT.Properties.web.browserWindowHeight()
+                );
+                if (!isMobileExecution && !SHAFT.Properties.flags.autoMaximizeBrowserWindow()) {
+                    driver.get().manage().window().setSize(browserWindowSize);
+                }
             }
 
             if (!isMobileExecution) {
