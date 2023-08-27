@@ -20,11 +20,14 @@ import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.UnexpectedTagNameException;
+import org.openqa.selenium.support.ui.WebDriverWait;
 import org.sikuli.script.App;
 
 import java.nio.file.FileSystems;
+import java.time.Duration;
 import java.util.*;
 
 @SuppressWarnings({"UnusedReturnValue", "unused"})
@@ -1145,6 +1148,53 @@ public class FluentElementActions {
             //unreachable code
             return false;
         }
+    }
+    /**
+     * Get any simple table rows' data that has
+     * thead which include all the column labels and tbody which includes all table data
+     *  @param tableLocator the locator of the table which should be a table tag
+     *
+     * @return List of Map format and each Map Object follows the following format (Key:column label, value: cell data)
+     */
+    public List<Map<String, String>> getTableRowsData(By tableLocator){
+        List<Map<String, String>> tableData = new ArrayList<>();
+        // Wait for the table to be present and visible
+        WebDriverWait wait = new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofSeconds(10));
+
+        try {
+           wait.until(ExpectedConditions.visibilityOfElementLocated(tableLocator));
+        }catch (Exception throwable){
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), tableLocator, throwable);
+            return null;
+        }
+        WebElement table = DriverFactoryHelper.getDriver().get().findElement(tableLocator);
+        try {
+            //Wait until any row is loaded because some websites use lazy loading,
+            //and you need to wait for rows to be loaded
+            wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("tbody tr")));
+        }catch (Exception e){
+            ReportManager.logDiscrete("Table\"" + tableLocator + "\" is empty");
+            //Will return empty list to be used in case you want to assert if the table is empty
+            return new ArrayList<>();
+        }
+        List<WebElement> rows = table.findElement(By.tagName("tbody")).findElements(By.tagName("tr"));
+        List<WebElement> headerCells = table.findElement(By.tagName("thead")).findElements(By.tagName("th"));
+
+        //extract the data into a List of Maps
+        for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+            WebElement currentRow = wait.until(ExpectedConditions.visibilityOf(rows.get(rowIndex)));
+            List<WebElement> cells = rows.get(rowIndex).findElements(By.tagName("td"));
+            Map<String, String> rowData = new HashMap<>();
+            for (int cellIndex = 0; cellIndex < cells.size(); cellIndex++) {
+                String columnName = headerCells.get(cellIndex).getText();
+                String cellValue = cells.get(cellIndex).getText();
+                rowData.put(columnName, cellValue);
+            }
+
+            tableData.add(rowData);
+        }
+
+        return tableData;
     }
 
     public FluentElementActions captureScreenshot(By elementLocator) {
