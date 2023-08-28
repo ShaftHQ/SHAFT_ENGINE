@@ -25,7 +25,7 @@ public abstract class Element {
     }
 
     public boolean isDisplayed() {
-        return new ElementActions(driver).isElementDisplayed(locator);
+        return new ElementActions().isElementDisplayed(locator);
     }
 
     public void shouldBeDisplayed() {

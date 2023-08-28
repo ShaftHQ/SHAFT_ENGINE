@@ -189,7 +189,7 @@ public class ValidationsHelper {
         String locatorSeparator = "' CSS property, element locator '";
         String actualValue;
         try {
-            actualValue = new ElementActions(driver).getCSSProperty(elementLocator, propertyName);
+            actualValue = new ElementActions().getCSSProperty(elementLocator, propertyName);
         } catch (Throwable e) {
             // force fail due to upstream failure
             if (validationType.getValue()) {
@@ -414,7 +414,7 @@ public class ValidationsHelper {
             reportedExpectedValue.append("not ");
         }
         reportedExpectedValue.append("match the JSON File in this path '").append(referenceJsonFilePath).append("'");
-        if (!jsonPathToTargetArray.equals("")) {
+        if (!jsonPathToTargetArray.isBlank()) {
             reportedExpectedValue.append(", with path to Target Array '").append(jsonPathToTargetArray).append("'");
         }
 
@@ -446,7 +446,7 @@ public class ValidationsHelper {
             reportedExpectedValue.append("not ");
         }
         reportedExpectedValue.append("match the JSON File in this path '").append(referenceJsonFilePath).append("'");
-        if (!jsonPathToTargetArray.equals("")) {
+        if (!jsonPathToTargetArray.isBlank()) {
             reportedExpectedValue.append(", with path to Target Array '").append(jsonPathToTargetArray).append("'");
         }
         var validatableResponse = response.then().body(matchesJsonSchema(new File(referenceJsonFilePath)));
@@ -673,7 +673,7 @@ public class ValidationsHelper {
     private static void processCustomLogMessage(String... optionalCustomLogMessage) {
         ValidationsHelper.optionalCustomLogMessage.set(new ArrayList<>());
         for (String customMessage : optionalCustomLogMessage) {
-            if (customMessage != null && !"".equals(customMessage.trim())) {
+            if (customMessage != null && !customMessage.isBlank()) {
                 ValidationsHelper.optionalCustomLogMessage.get().add(customMessage);
                 //ReportManager.log(customMessage + "...");
             }

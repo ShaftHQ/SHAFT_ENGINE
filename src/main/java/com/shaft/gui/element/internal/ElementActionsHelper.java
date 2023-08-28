@@ -778,7 +778,7 @@ public class ElementActionsHelper {
             successfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(elementInformation);
         }
         clearBeforeTyping(elementInformation, successfulTextLocationStrategy);
-        var adjustedTargetText = targetText != null && !targetText.equals("") ? targetText : "";
+        var adjustedTargetText = targetText != null && !targetText.isEmpty() ? targetText : "";
         performType(elementInformation, adjustedTargetText);
         //sometimes the text is returned as empty
         if (SHAFT.Properties.flags.forceCheckTextWasTypedCorrectly()) {
@@ -790,7 +790,7 @@ public class ElementActionsHelper {
                 // again
                 ElementActionsHelper.setValueUsingJavascript(elementInformation, adjustedTargetText);
                 var textAfterSettingValueUsingJavascript = readTextBasedOnSuccessfulLocationStrategy(elementInformation, TextDetectionStrategy.VALUE);
-                if ("".equals(textAfterSettingValueUsingJavascript) && successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
+                if (textAfterSettingValueUsingJavascript.isEmpty() && successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
                     return adjustedTargetText;
                 }
                 return textAfterSettingValueUsingJavascript;

@@ -186,7 +186,8 @@ public class DriverFactoryHelper {
             devTools.send(Network.setCacheDisabled(true));
             devTools.send(Network.clearBrowserCookies());
             devTools.addListener(Network.responseReceived(), responseReceived -> {
-                if(responseReceived.getResponse().getFromDiskCache().get().equals(true)){
+                if (responseReceived.getResponse().getFromDiskCache().isPresent()
+                        && responseReceived.getResponse().getFromDiskCache().get().equals(true)) {
                     failAction("Cache wasn't cleared");
                 }
             });
@@ -226,7 +227,7 @@ public class DriverFactoryHelper {
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
-                if (SHAFT.Properties.platform.driverProxySettings() && !proxyServerSettings.equals("")) {
+                if (SHAFT.Properties.platform.driverProxySettings() && !proxyServerSettings.isBlank()) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(proxyServerSettings);
                     proxy.setSslProxy(proxyServerSettings);
@@ -250,7 +251,7 @@ public class DriverFactoryHelper {
                 ieOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ieOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
-                if (SHAFT.Properties.platform.driverProxySettings() && !proxyServerSettings.equals("")) {
+                if (SHAFT.Properties.platform.driverProxySettings() && !proxyServerSettings.isBlank()) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(proxyServerSettings);
                     proxy.setSslProxy(proxyServerSettings);
@@ -285,7 +286,7 @@ public class DriverFactoryHelper {
                 sfOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 sfOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
-                if (SHAFT.Properties.platform.driverProxySettings() && !proxyServerSettings.equals("")) {
+                if (SHAFT.Properties.platform.driverProxySettings() && !proxyServerSettings.isBlank()) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(proxyServerSettings);
                     proxy.setSslProxy(proxyServerSettings);
@@ -302,9 +303,8 @@ public class DriverFactoryHelper {
                 }
                 ReportManager.logDiscrete(sfOptions.toString());
             }
-            case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_CHROME, APPIUM_CHROMIUM -> {
-                appiumCapabilities = new DesiredCapabilities(PropertyFileManager.getCustomWebDriverDesiredCapabilities().merge(customDriverOptions));
-            }
+            case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_CHROME, APPIUM_CHROMIUM ->
+                    appiumCapabilities = new DesiredCapabilities(PropertyFileManager.getCustomWebDriverDesiredCapabilities().merge(customDriverOptions));
             default ->
                     failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
         }
@@ -406,7 +406,7 @@ public class DriverFactoryHelper {
         // Mobile Emulation
         if (SHAFT.Properties.web.isMobileEmulation() && isWebExecution()) {
             Map<String, Object> mobileEmulation = new HashMap<>();
-            if (!SHAFT.Properties.web.mobileEmulationIsCustomDevice() && (!SHAFT.Properties.web.mobileEmulationDeviceName().equals(""))) {
+            if (!SHAFT.Properties.web.mobileEmulationIsCustomDevice() && (!SHAFT.Properties.web.mobileEmulationDeviceName().isBlank())) {
                 mobileEmulation.put("deviceName", SHAFT.Properties.web.mobileEmulationDeviceName());
             } else if (SHAFT.Properties.web.mobileEmulationIsCustomDevice()) {
                 if ((SHAFT.Properties.web.mobileEmulationWidth() != 0) && (SHAFT.Properties.web.mobileEmulationHeight() != 0)) {
@@ -418,7 +418,7 @@ public class DriverFactoryHelper {
                     }
                     mobileEmulation.put("deviceMetrics", deviceMetrics);
                 }
-                if (!SHAFT.Properties.web.mobileEmulationUserAgent().equals("")) {
+                if (!SHAFT.Properties.web.mobileEmulationUserAgent().isEmpty()) {
                     mobileEmulation.put("userAgent", SHAFT.Properties.web.mobileEmulationUserAgent());
                 }
             }
@@ -458,32 +458,20 @@ public class DriverFactoryHelper {
             initialLog = initialLog + ", Headless Execution";
         }
         ReportManager.logDiscrete(initialLog + ".");
-        var proxy = SHAFT.Properties.platform.proxy();
         try {
             ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
             switch (driverType) {
-                case FIREFOX -> {
-//                    driver.set(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create());
-                    driver.set(new FirefoxDriver(ffOptions));
-                }
-                case IE -> {
-//                    driver.set(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create());
-                    driver.set(new InternetExplorerDriver(ieOptions));
-                }
+                case FIREFOX -> driver.set(new FirefoxDriver(ffOptions));
+                case IE -> driver.set(new InternetExplorerDriver(ieOptions));
                 case CHROME -> {
-//                    driver.set(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create());
                     driver.set(new ChromeDriver(chOptions));
                     disableCacheEdgeAndChrome();
                 }
                 case EDGE -> {
-//                    driver.set(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create());
                     driver.set(new EdgeDriver(edOptions));
                     disableCacheEdgeAndChrome();
                 }
-                case SAFARI -> {
-//                    driver.set(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create());
-                    driver.set(new SafariDriver(sfOptions));
-                }
+                case SAFARI -> driver.set(new SafariDriver(sfOptions));
                 default ->
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
             }
@@ -580,7 +568,6 @@ public class DriverFactoryHelper {
                 || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             if (appiumCapabilities == null) {
                 appiumCapabilities = initializeMobileDesiredCapabilities(null);
-                ReportManager.log(appiumCapabilities.toString());
             } else {
                 appiumCapabilities.merge(initializeMobileDesiredCapabilities(appiumCapabilities));
                 ReportManager.log(appiumCapabilities.toString());
@@ -812,7 +799,7 @@ public class DriverFactoryHelper {
         if (!isMobileWebExecution()) {
             Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
             caps.forEach((capabilityName, value) -> {
-                if (!value.trim().equals("")) {
+                if (!value.isBlank()) {
                     if (Arrays.asList("true", "false").contains(value.trim().toLowerCase())) {
                         desiredCapabilities.setCapability(capabilityName.replace("mobile_", "appium:"), Boolean.valueOf(value));
                     } else if (StringUtils.isStrictlyNumeric(value.trim())) {
@@ -917,7 +904,7 @@ public class DriverFactoryHelper {
         } else {
             targetBrowserName = SHAFT.Properties.web.targetBrowserName();
         }
-        DriverFactoryHelper.targetBrowserName = (mobile_browserName == null || mobile_browserName.equals("")) ? targetBrowserName : mobile_browserName;
+        DriverFactoryHelper.targetBrowserName = (mobile_browserName == null || mobile_browserName.isBlank()) ? targetBrowserName : mobile_browserName;
         initializeDriver((getDriverTypeFromName(DriverFactoryHelper.targetBrowserName)), customDriverOptions);
     }
 

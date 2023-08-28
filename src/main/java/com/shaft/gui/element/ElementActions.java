@@ -559,14 +559,14 @@ public class ElementActions {
             } catch (WebDriverException webDriverException) {
                 elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.GET_TEXT)).getActionResult();
             }
-            if ((elementText == null || elementText.trim().equals("")) && !DriverFactoryHelper.isMobileNativeExecution()) {
+            if ((elementText == null || elementText.isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
                 try {
                     elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.CONTENT.getValue());
                 } catch (WebDriverException webDriverException) {
                     elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.GET_CONTENT)).getActionResult();
                 }
             }
-            if ((elementText == null || elementText.trim().equals("")) && !DriverFactoryHelper.isMobileNativeExecution()) {
+            if ((elementText == null || elementText.isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
                 try {
                     elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.VALUE.getValue());
                 } catch (WebDriverException webDriverException) {
