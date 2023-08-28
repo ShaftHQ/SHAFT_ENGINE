@@ -3,13 +3,13 @@ package com.shaft.performance.internal;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.commons.lang3.SystemUtils;
 import org.openqa.selenium.WebDriver;
 
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.List;
 
 public class LightHouseGenerateReport {
@@ -65,19 +65,18 @@ public class LightHouseGenerateReport {
 
     public void writeReportPathToFilesInProjectDirectory(String pageName) {
     List<String> commandsToServeLHReport;
-        commandsToServeLHReport = Arrays.asList(
+        commandsToServeLHReport = List.of(
                 "import open from 'open';\n" +
-                "import path from 'path';\n" +
-                "const __dirname = path.resolve();\n" +
-                "await open(__dirname +'/lighthouse-reports/"+pageName+".html');\n" +
-                "");
+                        "import path from 'path';\n" +
+                        "const __dirname = path.resolve();\n" +
+                        "await open(__dirname +'/lighthouse-reports/" + pageName + ".html');\n");
         FileActions.getInstance().writeToFile("", "OpenLHReport.js", commandsToServeLHReport);
     }
 
     public void writeNodeScriptFileInProjectDirectory() {
         List<String> commandsToServeLHReport;
         if (SystemUtils.IS_OS_WINDOWS) {
-        commandsToServeLHReport = Arrays.asList("""
+            commandsToServeLHReport = List.of("""
                 import puppeteer from 'puppeteer';
                 import fs from 'fs';
                 import lighthouse from 'lighthouse';
@@ -110,7 +109,7 @@ public class LightHouseGenerateReport {
                   await browser.disconnect();
                 })();"""); }
         else {
-            commandsToServeLHReport = Arrays.asList("""
+            commandsToServeLHReport = List.of("""
                     import puppeteer from 'puppeteer';
                     import fs from 'fs';
                     import lighthouse from 'lighthouse';
@@ -159,7 +158,7 @@ public class LightHouseGenerateReport {
             Pagename = Pagename.replace("/", "-");
             return  (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis())+ "-" + Pagename;
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            ReportManagerHelper.log(e);
 //            return  (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis())+ "-" + Pagename;
             return "Error Occurred while creating the requested page name";
         }

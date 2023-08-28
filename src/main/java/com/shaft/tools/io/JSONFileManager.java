@@ -84,12 +84,7 @@ public class JSONFileManager {
      * @return the json value of the desired test data as Object
      */
     public Object getTestDataAsJson(String jsonPath) {
-        Object testData = getTestData(cleanJsonPath(jsonPath), DataType.JSON);
-        if (testData != null) {
-            return testData;
-        } else {
-            return null;
-        }
+        return getTestData(cleanJsonPath(jsonPath), DataType.JSON);
     }
 
     /**

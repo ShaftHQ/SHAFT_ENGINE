@@ -24,7 +24,6 @@ public class FluentGuiActionsTest {
     // Note: remember that this is only a technical POC, but for real life cases just use the ID... if you find it :D
     private final By header_label = By.tagName("h2");
     private final By confirmationText_label = SHAFT.GUI.Locator.hasTagName("div").relativeBy().below(header_label); // this is a valid example where it's easier to use this approach than to write a regular xpath
-    private By passwordConfirm_input; // this will be used later to demo dynamic locators
 
     @Description("When I submit the registration form with valid information\nThen the same information will be displayed on the confirmation page")
     @Test(description = "Fluent GUI Actions Demo")
@@ -33,7 +32,8 @@ public class FluentGuiActionsTest {
         String validPassword = testData.getTestData("validPassword"); // this is also read from an external test data file
 
         var passwordLocatorPrefix = "psw"; // assuming that you get this value in runtime
-        passwordConfirm_input = By.id(passwordLocatorPrefix + "-repeat"); // you can append the dynamic value to the pre-known static part
+        // this will be used later to demo dynamic locators
+        By passwordConfirm_input = By.id(passwordLocatorPrefix + "-repeat"); // you can append the dynamic value to the pre-known static part
 
         // the below code block demonstrates the full potential of fluent design on the technical level
         // Note that it's not recommended to write technical actions in your test method
@@ -45,7 +45,7 @@ public class FluentGuiActionsTest {
                 .type(password_input, validPassword).and()
                 .type(passwordConfirm_input, validPassword).and()
                 .click(register_button).and()
-                .assertThat(confirmationText_label).text().contains("email=" + validEmail + "&psw=" + validPassword + "&psw-repeat=" + validPassword + "")
+                .assertThat(confirmationText_label).text().contains("email=" + validEmail + "&psw=" + validPassword + "&psw-repeat=" + validPassword)
                 .withCustomReportMessage("Confirming that the same data used to register is displayed successfully.").perform();
         // Note: using a custom report message is always helpful to make the report more business readable
 
