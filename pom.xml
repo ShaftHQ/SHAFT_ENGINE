@@ -36,7 +36,7 @@
         <selenium.version>4.11.0</selenium.version>  <!-- MAKE SURE TO UPDATE devtools.v113.network.Network TO LATEST VERSION WITH UPDATING SELENIUM-->
         <appium-java-client.version>8.5.1</appium-java-client.version>
         <webdrivermanager.version>5.5.2</webdrivermanager.version>
-        <allure.version>2.23.0</allure.version> <!-- 2.21.0 DO NOT UPDATE || internal.properties -->
+        <allure.version>2.24.0</allure.version> <!-- 2.21.0 DO NOT UPDATE || internal.properties -->
         <extentreports.version>5.1.0</extentreports.version>
         <aspectj.version>1.9.20</aspectj.version>
         <rest-assured.version>5.3.1</rest-assured.version>
