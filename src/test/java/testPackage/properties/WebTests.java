@@ -1,7 +1,6 @@
 package testPackage.properties;
 
 import com.shaft.driver.SHAFT;
-import org.openqa.selenium.remote.Browser;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 

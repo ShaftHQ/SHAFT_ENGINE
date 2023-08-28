@@ -7,7 +7,6 @@ import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.restassured.path.json.JsonPath;
 import io.restassured.path.json.exception.JsonPathException;
-import org.json.JSONObject;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
