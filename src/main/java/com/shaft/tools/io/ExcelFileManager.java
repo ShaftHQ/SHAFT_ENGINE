@@ -244,7 +244,7 @@ public class ExcelFileManager {
             // target row [row_Num]
             // if no column name is provided, retrieves data from the 2nd
             // column (1st Value in the test data file)
-            if (!columnName.equals("")) {
+            if (!columnName.isEmpty()) {
                 row = sheet.getRow(0);
                 for (int i = 0; i < row.getLastCellNum(); i++) {
                     // get the first cell of each column, and compare it to columnName

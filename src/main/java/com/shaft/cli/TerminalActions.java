@@ -9,6 +9,7 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import lombok.Getter;
 import org.apache.commons.lang3.SystemUtils;
 
 import java.io.BufferedReader;
@@ -22,13 +23,20 @@ import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("unused")
 public class TerminalActions {
+    @Getter
     private String sshHostName = "";
+    @Getter
     private String sshUsername;
+    @Getter
     private String sshKeyFileFolderName;
+    @Getter
     private String sshKeyFileName;
+    @Getter
     private int sshPortNumber = 22;
 
+    @Getter
     private String dockerName = "";
+    @Getter
     private String dockerUsername;
 
     private boolean asynchronous = false;
@@ -155,7 +163,7 @@ public class TerminalActions {
             message = message + " With the following test data \"" + testData + "\".";
         }
 
-        if (log != null && !log.trim().equals("")) {
+        if (log != null && !log.trim().isEmpty()) {
             attachments.add(Arrays.asList("Terminal Action Actual Result", "Command Log", log));
         }
 
@@ -175,11 +183,11 @@ public class TerminalActions {
     }
 
     public boolean isRemoteTerminal() {
-        return !sshHostName.equals("");
+        return !sshHostName.isEmpty();
     }
 
     public boolean isDockerizedTerminal() {
-        return !dockerName.equals("");
+        return !dockerName.isEmpty();
     }
 
     public String performTerminalCommands(List<String> commands) {
@@ -204,14 +212,14 @@ public class TerminalActions {
 
         // Prepare final log message
         StringBuilder reportMessage = new StringBuilder();
-        if (!sshHostName.equals("")) {
+        if (!sshHostName.isEmpty()) {
             reportMessage.append("Host Name: \"").append(sshHostName).append("\"");
             reportMessage.append(" | SSH Port Number: \"").append(sshPortNumber).append("\"");
             reportMessage.append(" | SSH Username: \"").append(sshUsername).append("\"");
         } else {
             reportMessage.append("Host Name: \"" + "localHost" + "\"");
         }
-        if (sshKeyFileName != null && !sshKeyFileName.equals("")) {
+        if (sshKeyFileName != null && !sshKeyFileName.isEmpty()) {
             reportMessage.append(" | Key File: \"").append(sshKeyFileFolderName).append(sshKeyFileName).append("\"");
         }
         reportMessage.append(" | Command: \"").append(longCommand).append("\"");
@@ -227,34 +235,6 @@ public class TerminalActions {
 
     public String performTerminalCommand(String command) {
         return performTerminalCommands(Collections.singletonList(command));
-    }
-
-    public String getSshHostName() {
-        return sshHostName;
-    }
-
-    public String getSshUsername() {
-        return sshUsername;
-    }
-
-    public String getSshKeyFileFolderName() {
-        return sshKeyFileFolderName;
-    }
-
-    public String getSshKeyFileName() {
-        return sshKeyFileName;
-    }
-
-    public int getSshPortNumber() {
-        return sshPortNumber;
-    }
-
-    public String getDockerName() {
-        return dockerName;
-    }
-
-    public String getDockerUsername() {
-        return dockerUsername;
     }
 
     private void passAction(String actionName, String testData, String log) {
@@ -284,7 +264,7 @@ public class TerminalActions {
             Properties config = new Properties();
             config.put("StrictHostKeyChecking", "no");
             JSch jsch = new JSch();
-            if (sshKeyFileName != null && !sshKeyFileName.equals("")) {
+            if (sshKeyFileName != null && !sshKeyFileName.isEmpty()) {
                 jsch.addIdentity(FileActions.getInstance().getAbsolutePath(sshKeyFileFolderName, sshKeyFileName));
             }
             session = jsch.getSession(sshUsername, sshHostName, sshPortNumber);
@@ -301,7 +281,7 @@ public class TerminalActions {
         StringBuilder command = new StringBuilder();
         // build long command
         for (Iterator<String> i = commands.iterator(); i.hasNext(); ) {
-            if (command.length() == 0) {
+            if (command.isEmpty()) {
                 command.append(i.next());
             } else {
                 command.append(" && ").append(i.next());
@@ -343,19 +323,7 @@ public class TerminalActions {
             command = command.contains(".bat") && !command.contains(".\\") ? ".\\" + command : command;
             ReportManager.logDiscrete("Executing: \"" + command + "\" locally.");
             try {
-                ProcessBuilder pb = new ProcessBuilder();
-                pb.directory(new File(finalDirectory));
-
-                // https://stackoverflow.com/a/10954450/12912100
-                if (isWindows) {
-                    if (asynchronous && verbose) {
-                        pb.command("powershell.exe", "Start-Process powershell.exe '-NoExit -WindowStyle Minimized \"[Console]::Title = ''SHAFT_Engine''; " + command + "\"'");
-                    } else {
-                        pb.command("powershell.exe", "-Command", command);
-                    }
-                } else {
-                    pb.command("sh", "-c", command);
-                }
+                ProcessBuilder pb = getProcessBuilder(command, finalDirectory, isWindows);
                 if (!asynchronous) {
                     pb.redirectErrorStream(true);
                     Process localProcess = pb.start();
@@ -405,6 +373,23 @@ public class TerminalActions {
         return Arrays.asList(logs.toString().trim(), exitStatuses.toString());
     }
 
+    private ProcessBuilder getProcessBuilder(String command, String finalDirectory, boolean isWindows) {
+        ProcessBuilder pb = new ProcessBuilder();
+        pb.directory(new File(finalDirectory));
+
+        // https://stackoverflow.com/a/10954450/12912100
+        if (isWindows) {
+            if (asynchronous && verbose) {
+                pb.command("powershell.exe", "Start-Process powershell.exe '-NoExit -WindowStyle Minimized \"[Console]::Title = ''SHAFT_Engine''; " + command + "\"'");
+            } else {
+                pb.command("powershell.exe", "-Command", command);
+            }
+        } else {
+            pb.command("sh", "-c", command);
+        }
+        return pb;
+    }
+
     private List<String> executeRemoteCommand(List<String> commands, String longCommand) {
         StringBuilder logs = new StringBuilder();
         StringBuilder exitStatuses = new StringBuilder();
@@ -441,7 +426,7 @@ public class TerminalActions {
         if (reader != null) {
             String logLine;
             while ((logLine = reader.readLine()) != null) {
-                if (logBuilder.length() == 0) {
+                if (logBuilder.isEmpty()) {
                     logBuilder.append(logLine);
                 } else {
                     logBuilder.append(System.lineSeparator()).append(logLine);

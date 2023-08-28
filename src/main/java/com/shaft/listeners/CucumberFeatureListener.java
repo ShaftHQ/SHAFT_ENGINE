@@ -34,6 +34,7 @@ import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.cucumber7jvm.testsourcemodel.TestSourcesModelProxy;
 import io.qameta.allure.model.Status;
 import io.qameta.allure.model.*;
+import lombok.Getter;
 import org.testng.Reporter;
 
 import java.io.ByteArrayInputStream;
@@ -63,7 +64,9 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
 
     private static final String TXT_EXTENSION = ".txt";
     private static final String TEXT_PLAIN = "text/plain";
+    @Getter
     private static String lastStartedScenarioName;
+    @Getter
     private static Boolean isLastFinishedStepOK;
     private final AllureLifecycle lifecycle;
     private final ConcurrentHashMap<String, String> scenarioUuids = new ConcurrentHashMap<>();
@@ -92,14 +95,6 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         // custom code
         shaftSetup();
         // end of custom code
-    }
-
-    public static String getLastStartedScenarioName() {
-        return lastStartedScenarioName;
-    }
-
-    public static Boolean getIsLastFinishedStepOK() {
-        return isLastFinishedStepOK;
     }
 
     /*
@@ -379,6 +374,14 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
 
     private void createDataTableAttachment(final DataTableArgument dataTableArgument) {
         final List<List<String>> rowsInTable = dataTableArgument.cells();
+        final StringBuilder dataTableCsv = getStringBuilder(rowsInTable);
+        final String attachmentSource = lifecycle
+                .prepareAttachment("Data table", "text/tab-separated-values", "csv");
+        lifecycle.writeAttachment(attachmentSource,
+                new ByteArrayInputStream(dataTableCsv.toString().getBytes(StandardCharsets.UTF_8)));
+    }
+
+    private static StringBuilder getStringBuilder(List<List<String>> rowsInTable) {
         final StringBuilder dataTableCsv = new StringBuilder();
         for (List<String> columns : rowsInTable) {
             if (!columns.isEmpty()) {
@@ -393,10 +396,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
                 dataTableCsv.append('\n');
             }
         }
-        final String attachmentSource = lifecycle
-                .prepareAttachment("Data table", "text/tab-separated-values", "csv");
-        lifecycle.writeAttachment(attachmentSource,
-                new ByteArrayInputStream(dataTableCsv.toString().getBytes(StandardCharsets.UTF_8)));
+        return dataTableCsv;
     }
 
     private void handleHookStep(final TestStepFinished event) {

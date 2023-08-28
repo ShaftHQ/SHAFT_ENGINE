@@ -519,43 +519,7 @@ public class ElementActionsHelper {
             var maximumXpathNodes = 6;
             var newXpath = "";
             for (var i = 0; i < maximumXpathNodes; i++) {
-                String xpathFindingAlgorithm = JavaScriptHelper.ELEMENT_GET_XPATH.getValue();
-                /*
-                 * $$GetIndex$$ $$GetId$$ $$GetName$$ $$GetType$$ $$GetClass$$ $$GetText$$
-                 * $$MaxCount$$
-                 */
-                var maxCount = String.valueOf(i);
-                var getId = String.valueOf(true);
-                String getIndex;
-                String getName;
-                String getType;
-                String getClass;
-                String getText;
-                getIndex = getName = getType = getClass = getText = String.valueOf(false);
-
-                if (i == 0) {
-                    maxCount = String.valueOf(1);
-                } else if (i == 1 || i == 2) {
-                    getName = String.valueOf(true);
-                    getType = String.valueOf(true);
-                    getText = String.valueOf(true);
-                } else if (i == 3 || i == 4) {
-                    getName = String.valueOf(true);
-                    getType = String.valueOf(true);
-                    getClass = String.valueOf(true);
-                    getText = String.valueOf(true);
-                } else {
-                    getIndex = String.valueOf(true);
-                    getName = String.valueOf(true);
-                    getType = String.valueOf(true);
-                    getText = String.valueOf(true);
-                    getClass = String.valueOf(true);
-                }
-
-                xpathFindingAlgorithm = xpathFindingAlgorithm.replaceAll("\\$\\$MaxCount\\$\\$", maxCount)
-                        .replaceAll("\\$\\$GetId\\$\\$", getId).replaceAll("\\$\\$GetIndex\\$\\$", getIndex)
-                        .replaceAll("\\$\\$GetName\\$\\$", getName).replaceAll("\\$\\$GetType\\$\\$", getType)
-                        .replaceAll("\\$\\$GetClass\\$\\$", getClass).replaceAll("\\$\\$GetText\\$\\$", getText);
+                String xpathFindingAlgorithm = getXpathFindingAlgorithm(i);
 
                 try {
                     newXpath = (String) ((JavascriptExecutor) driver).executeScript(xpathFindingAlgorithm, targetElement);
@@ -583,6 +547,47 @@ public class ElementActionsHelper {
         } else {
             return null;
         }
+    }
+
+    private static String getXpathFindingAlgorithm(int i) {
+        String xpathFindingAlgorithm = JavaScriptHelper.ELEMENT_GET_XPATH.getValue();
+        /*
+         * $$GetIndex$$ $$GetId$$ $$GetName$$ $$GetType$$ $$GetClass$$ $$GetText$$
+         * $$MaxCount$$
+         */
+        var maxCount = String.valueOf(i);
+        var getId = String.valueOf(true);
+        String getIndex;
+        String getName;
+        String getType;
+        String getClass;
+        String getText;
+        getIndex = getName = getType = getClass = getText = String.valueOf(false);
+
+        if (i == 0) {
+            maxCount = String.valueOf(1);
+        } else if (i == 1 || i == 2) {
+            getName = String.valueOf(true);
+            getType = String.valueOf(true);
+            getText = String.valueOf(true);
+        } else if (i == 3 || i == 4) {
+            getName = String.valueOf(true);
+            getType = String.valueOf(true);
+            getClass = String.valueOf(true);
+            getText = String.valueOf(true);
+        } else {
+            getIndex = String.valueOf(true);
+            getName = String.valueOf(true);
+            getType = String.valueOf(true);
+            getText = String.valueOf(true);
+            getClass = String.valueOf(true);
+        }
+
+        xpathFindingAlgorithm = xpathFindingAlgorithm.replaceAll("\\$\\$MaxCount\\$\\$", maxCount)
+                .replaceAll("\\$\\$GetId\\$\\$", getId).replaceAll("\\$\\$GetIndex\\$\\$", getIndex)
+                .replaceAll("\\$\\$GetName\\$\\$", getName).replaceAll("\\$\\$GetType\\$\\$", getType)
+                .replaceAll("\\$\\$GetClass\\$\\$", getClass).replaceAll("\\$\\$GetText\\$\\$", getText);
+        return xpathFindingAlgorithm;
     }
 
     public static List<Object> takeScreenshot(WebDriver driver, By elementLocator, String actionName, String testData,
@@ -1001,7 +1006,6 @@ public class ElementActionsHelper {
         }
     }
 
-    @SuppressWarnings("SpellCheckingInspection")
     private static String createReportMessage(String actionName, String testData, String elementName, Boolean passFailStatus) {
         String message = "";
 
@@ -1018,23 +1022,28 @@ public class ElementActionsHelper {
         }
 
         if ((elementName != null && !elementName.isEmpty())) {
-            var preposition = " ";
-            if (actionName.toLowerCase().contains("type") || actionName.toLowerCase().contains("setproperty value using javascript")) {
-                preposition = " into ";
-            } else if (actionName.toLowerCase().contains("get") || actionName.toLowerCase().contains("select")) {
-                preposition = " from ";
-            } else if (actionName.toLowerCase().contains("clipboard")) {
-                preposition = " on ";
-            } else if (actionName.toLowerCase().contains("drag and drop") || actionName.toLowerCase().contains("key press") || actionName.toLowerCase().contains("wait") || actionName.toLowerCase().contains("submit") || actionName.toLowerCase().contains("switch")) {
-                preposition = " against ";
-            } else if (actionName.toLowerCase().contains("hover")) {
-                preposition = " over ";
-            }
+            var preposition = getPreposition(actionName);
             message = message + preposition + "\"" + elementName.trim() + "\"";
         }
 
         message = message + ".";
         return message;
+    }
+
+    private static String getPreposition(String actionName) {
+        var preposition = " ";
+        if (actionName.toLowerCase().contains("type") || actionName.toLowerCase().contains("setproperty value using javascript")) {
+            preposition = " into ";
+        } else if (actionName.toLowerCase().contains("get") || actionName.toLowerCase().contains("select")) {
+            preposition = " from ";
+        } else if (actionName.toLowerCase().contains("clipboard")) {
+            preposition = " on ";
+        } else if (actionName.toLowerCase().contains("drag and drop") || actionName.toLowerCase().contains("key press") || actionName.toLowerCase().contains("wait") || actionName.toLowerCase().contains("submit") || actionName.toLowerCase().contains("switch")) {
+            preposition = " against ";
+        } else if (actionName.toLowerCase().contains("hover")) {
+            preposition = " over ";
+        }
+        return preposition;
     }
 
     private static List<List<Object>> createReportAttachments(WebDriver driver, String actionName, String testData, By elementLocator,

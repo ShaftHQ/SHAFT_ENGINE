@@ -1,5 +1,8 @@
 package com.shaft.tools.internal.support;
 
+import lombok.Getter;
+
+@Getter
 @SuppressWarnings("SpellCheckingInspection")
 public enum HTMLHelper {
     CHECKPOINT_COUNTER("""
@@ -609,7 +612,4 @@ public enum HTMLHelper {
         this.value = type;
     }
 
-    public String getValue() {
-        return value;
-    }
 }

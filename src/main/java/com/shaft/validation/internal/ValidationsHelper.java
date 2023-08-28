@@ -180,7 +180,7 @@ public class ValidationsHelper {
                 validationComparisonType, validationType, validationCategory});
     }
 
-    protected static void validateElementCSSProperty(ValidationCategory validationCategory, WebDriver driver, By elementLocator, String propertyName,
+    protected static void validateElementCSSProperty(ValidationCategory validationCategory, By elementLocator, String propertyName,
                                                      String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
                                                      String... optionalCustomLogMessage) {
         processCustomLogMessage(optionalCustomLogMessage);
@@ -578,14 +578,7 @@ public class ValidationsHelper {
         } else {
             message.append(validationState).append(". ");
             // prepare expected/actual results as an attachment or in the message
-            boolean isExpectedOrActualValueLong = false;
-            if (actualValue == null && expectedValue != null) {
-                isExpectedOrActualValueLong = expectedValue.length() >= 500;
-            } else if (actualValue != null && expectedValue == null) {
-                isExpectedOrActualValueLong = actualValue.length() >= 500;
-            } else if (actualValue != null) {
-                isExpectedOrActualValueLong = expectedValue.length() >= 500 || actualValue.length() >= 500;
-            }
+            boolean isExpectedOrActualValueLong = isExpectedOrActualValueLong(expectedValue, actualValue);
             if (Boolean.TRUE.equals(isExpectedOrActualValueLong)) {
                 List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
                         expectedValue);
@@ -668,6 +661,18 @@ public class ValidationsHelper {
             default -> {
             }
         }
+    }
+
+    private static boolean isExpectedOrActualValueLong(String expectedValue, String actualValue) {
+        boolean isExpectedOrActualValueLong = false;
+        if (actualValue == null && expectedValue != null) {
+            isExpectedOrActualValueLong = expectedValue.length() >= 500;
+        } else if (actualValue != null && expectedValue == null) {
+            isExpectedOrActualValueLong = actualValue.length() >= 500;
+        } else if (actualValue != null) {
+            isExpectedOrActualValueLong = expectedValue.length() >= 500 || actualValue.length() >= 500;
+        }
+        return isExpectedOrActualValueLong;
     }
 
     private static void processCustomLogMessage(String... optionalCustomLogMessage) {

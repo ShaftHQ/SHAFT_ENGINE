@@ -2,6 +2,7 @@ package com.shaft.tools.io.internal;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.support.HTMLHelper;
+import lombok.Getter;
 
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -18,7 +19,7 @@ public class ExecutionSummaryReport {
     public static void casesDetailsIncrement(String caseSuite, String caseName, String caseDescription,String errorMessage, String status, Boolean hasIssue) {
         ArrayList<String> entry = new ArrayList<>();
         entry.add(caseSuite);
-        if (caseDescription != null && !caseDescription.equals("")) {
+        if (caseDescription != null && !caseDescription.isEmpty()) {
             entry.add(caseDescription);
         } else {
             entry.add(caseName);
@@ -90,7 +91,7 @@ public class ExecutionSummaryReport {
                     .replace("${CASES_PASSED_PERCENTAGE_PIE}", String.valueOf(total))
                     .replace("${CASES_FAILED_PERCENTAGE_PIE}", String.valueOf(total));
         }
-        if (validations.size() > 0) {
+        if (!validations.isEmpty()) {
             report = report
                     .replace("${VALIDATION_PASSED_PERCENTAGE_PIE}", String.valueOf(passedValidations * 360d / validations.size()))
                     .replace("${VALIDATION_PASSED_PERCENTAGE}", String.valueOf(new DecimalFormat("0.00").format((float) passedValidations * 100 / validations.size())))
@@ -108,6 +109,7 @@ public class ExecutionSummaryReport {
         PASSED, FAILED, SKIPPED
     }
 
+    @Getter
     public enum StatusIcon {
         PASSED("&#9989; "), FAILED("&#10060; "), SKIPPED("&#128679; ");
 
@@ -117,9 +119,6 @@ public class ExecutionSummaryReport {
             this.value = type;
         }
 
-        public String getValue() {
-            return value;
-        }
     }
 
 }

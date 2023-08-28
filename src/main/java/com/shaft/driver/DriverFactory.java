@@ -11,6 +11,7 @@ import com.shaft.listeners.TestNGListener;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ProjectStructureManager;
+import lombok.Getter;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
@@ -245,6 +246,7 @@ public class DriverFactory {
     /**
      * List of the supported driver types for execution
      */
+    @Getter
     public enum DriverType {
         SIKULI("SikuliActions"), BROWSERSTACK("BrowserStack") ,LAMBDATEST("LambdaTest"), DATABASE("DatabaseActions"), TERMINAL("TerminalActions"), API("RestActions"), FIREFOX(Browser.FIREFOX.browserName()), CHROME(Browser.CHROME.browserName()), SAFARI(Browser.SAFARI.browserName()),
         IE(Browser.IE.browserName()), EDGE(Browser.EDGE.browserName()), CHROMIUM("Chromium"), WEBKIT("Webkit"), APPIUM_CHROME("chrome"),
@@ -256,9 +258,6 @@ public class DriverFactory {
             this.value = type;
         }
 
-        public String getValue() {
-            return value;
-        }
     }
 
 }

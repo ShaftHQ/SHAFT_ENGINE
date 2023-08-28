@@ -29,6 +29,7 @@ import java.nio.file.FileSystems;
 import java.time.Duration;
 import java.util.*;
 
+@SuppressWarnings("unused")
 public class ElementActions {
 
     private static final ThreadLocal<ElementActions> INSTANCE = new ThreadLocal<>();
@@ -1186,9 +1187,9 @@ public class ElementActions {
         List<WebElement> headerCells = table.findElement(By.tagName("thead")).findElements(By.tagName("th"));
 
         //extract the data into a List of Maps
-        for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
-            WebElement currentRow = wait.until(ExpectedConditions.visibilityOf(rows.get(rowIndex)));
-            List<WebElement> cells = rows.get(rowIndex).findElements(By.tagName("td"));
+        for (WebElement row : rows) {
+            WebElement currentRow = wait.until(ExpectedConditions.visibilityOf(row));
+            List<WebElement> cells = row.findElements(By.tagName("td"));
             Map<String, String> rowData = new HashMap<>();
             for (int cellIndex = 0; cellIndex < cells.size(); cellIndex++) {
                 String columnName = headerCells.get(cellIndex).getText();

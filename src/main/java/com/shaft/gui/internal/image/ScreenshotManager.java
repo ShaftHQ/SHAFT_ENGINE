@@ -28,10 +28,8 @@ import java.io.*;
 import java.net.URL;
 import java.nio.file.FileSystems;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
+import java.util.*;
 
 public class ScreenshotManager {
     private static final int RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION = 1;
@@ -179,7 +177,7 @@ public class ScreenshotManager {
             byte[] src = null;
             try {
                 ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                switch (setScreenshotType()) {
+                switch (Objects.requireNonNull(setScreenshotType())) {
                     case ELEMENT:
                         if (element != null) {
                             try {
@@ -227,7 +225,7 @@ public class ScreenshotManager {
             if (!SHAFT.Properties.testNG.parallel().equals("NONE")) {
                 //in case of parallel execution, force regular screenshots
                 return takeViewportScreenshot(driver);
-            } else if (SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().length() > 0) {
+            } else if (!SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().isEmpty()) {
                 List<WebElement> skippedElementsList = new ArrayList<>();
                 String[] skippedElementLocators =SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().split(";");
                 for (String locator : skippedElementLocators) {
@@ -319,22 +317,6 @@ public class ScreenshotManager {
                  * element before taking the screenshot
                  */
                 if (takeScreenshot && Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsHighlightElements()) && elementLocator != null) {
-//                    try {
-//                        // catching https://github.com/ShaftHQ/SHAFT_ENGINE/issues/640
-//                        @SuppressWarnings("unused") Mat img = Imgcodecs.imdecode(new MatOfByte(), Imgcodecs.IMREAD_COLOR);
-//                        /**
-//                         * throws a red log message, will disable this entire block, the same issue may be reopened, if so try to find a better solution
-//                         * OpenCV(4.7.0-dev) Error: Assertion failed (!buf.empty()) in cv::imdecode_, file C:\GHA-OCV-2\_work\ci-gha-workflow\ci-gha-workflow\opencv\modules\imgcodecs\src\loadsave.cpp, line 798
-//                         */
-//                    } catch (java.lang.UnsatisfiedLinkError unsatisfiedLinkError) {
-//                        ReportManagerHelper.logDiscrete(unsatisfiedLinkError);
-//                        ReportManager.logDiscrete("Caught an UnsatisfiedLinkError, switching element highlighting method to JavaScript instead of AI.");
-//                        SCREENSHOT_PARAMS_HIGHLIGHT_METHOD = "JavaScript";
-//                    } catch (Exception exception) {
-//                        //do nothing in case of any other exception
-//                        //expected to throw org.opencv.core.CvException if removed
-//                    }
-
                     int elementCount = ElementActionsHelper.getElementsCount(driver, elementLocator, RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION);
                     boolean isRelativeLocator = elementLocator instanceof RelativeLocator.RelativeBy;
                     if ((!isRelativeLocator && elementCount == 1) || (isRelativeLocator && elementCount >= 1)) {
@@ -411,7 +393,7 @@ public class ScreenshotManager {
         }
 
         if (DriverFactoryHelper.isWebExecution()) {
-            return switch (setScreenshotType()) {
+            return switch (Objects.requireNonNull(setScreenshotType())) {
                 case FULL -> {
                     try {
                         yield takeFullPageScreenshot(driver);
@@ -425,7 +407,7 @@ public class ScreenshotManager {
                 default -> ScreenshotManager.takeViewportScreenshot(driver);
             };
         }else {
-            if (setScreenshotType().equals(Screenshots.ELEMENT)) {
+            if (Objects.requireNonNull(setScreenshotType()).equals(Screenshots.ELEMENT)) {
                 return takeElementScreenshot(driver, targetElementLocator, true);
             } else {
                 return ScreenshotManager.takeViewportScreenshot(driver);
@@ -499,7 +481,7 @@ public class ScreenshotManager {
     private static String highlightElementAndReturnDefaultStyle(WebElement element, JavascriptExecutor js,
                                                                 String highlightedElementStyle) {
         String regularElementStyle = element.getAttribute("style");
-        if (regularElementStyle != null && !regularElementStyle.equals("")) {
+        if (regularElementStyle != null && !regularElementStyle.isEmpty()) {
             js.executeScript("arguments[0].style.cssText = arguments[1];", element,
                     regularElementStyle + highlightedElementStyle);
         } else {

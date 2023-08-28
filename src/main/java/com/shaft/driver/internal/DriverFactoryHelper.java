@@ -445,9 +445,6 @@ public class DriverFactoryHelper {
         logPrefs.enable(LogType.PERFORMANCE, java.util.logging.Level.ALL);
         logPrefs.enable(LogType.DRIVER, java.util.logging.Level.ALL);
         logPrefs.enable(LogType.BROWSER, java.util.logging.Level.ALL);
-//        logPrefs.enable(LogType.CLIENT, java.util.logging.Level.ALL);
-//        logPrefs.enable(LogType.SERVER, java.util.logging.Level.ALL);
-//        logPrefs.enable(LogType.PROFILER, java.util.logging.Level.ALL);
         logPrefs.enable(LogType.DRIVER, java.util.logging.Level.ALL);
         return logPrefs;
     }

@@ -13,7 +13,7 @@ import java.text.SimpleDateFormat;
 import java.util.List;
 
 public class LightHouseGenerateReport {
-    WebDriver driver;
+    final WebDriver driver;
     int PortNum;
     String PageName;
     public LightHouseGenerateReport(WebDriver driver) {
@@ -31,11 +31,10 @@ public class LightHouseGenerateReport {
 
             if (SystemUtils.IS_OS_WINDOWS) {
                 commandToGenerateLightHouseReport = ("cmd.exe /c node GenerateLHScript.js --url=\"" + driver.getCurrentUrl() + "\" --port=" + PortNum + " --reportName=" + PageName + " ");
-                commandToGenerateLightHouseReport = commandToGenerateLightHouseReport.replace("&", "N898");
             } else {
                 commandToGenerateLightHouseReport = ("node GenerateLHScript.js --url=\"" + driver.getCurrentUrl() + "\" --port=" + PortNum + " --reportName=" + PageName + " ");
-                commandToGenerateLightHouseReport = commandToGenerateLightHouseReport.replace("&", "N898");
             }
+            commandToGenerateLightHouseReport = commandToGenerateLightHouseReport.replace("&", "N898");
             //TerminalActions.getInstance(true, true).performTerminalCommand(commandToGenerateLightHouseReport);
             (new TerminalActions()).performTerminalCommand(commandToGenerateLightHouseReport);
             writeReportPathToFilesInProjectDirectory(PageName);

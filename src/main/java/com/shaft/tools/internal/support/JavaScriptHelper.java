@@ -1,5 +1,8 @@
 package com.shaft.tools.internal.support;
 
+import lombok.Getter;
+
+@Getter
 @SuppressWarnings({"SpellCheckingInspection"})
 public enum JavaScriptHelper {
     LOAD_JQUERY("""
@@ -295,7 +298,4 @@ public enum JavaScriptHelper {
         this.value = type;
     }
 
-    public String getValue() {
-        return value;
-    }
 }
