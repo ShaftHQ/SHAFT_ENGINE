@@ -3,7 +3,6 @@ package testPackage.resettingCapabilitiesIssue;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.internal.FluentBrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
@@ -33,7 +32,7 @@ public class UploadFileTests {
     @BeforeMethod
     public void beforeMethod() {
         driver.set(DriverFactory.getDriver());
-        FluentBrowserActions.getInstance().setWindowSize(1920, 1080);
+        BrowserActions.getInstance().setWindowSize(1920, 1080);
     }
 
     @AfterMethod(alwaysRun = true)

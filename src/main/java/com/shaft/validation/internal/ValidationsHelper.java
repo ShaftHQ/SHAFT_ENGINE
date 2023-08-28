@@ -4,8 +4,8 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
-import com.shaft.gui.browser.internal.BrowserActionsHelpers;
-import com.shaft.gui.browser.internal.FluentBrowserActions;
+import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.internal.image.ImageProcessingActions;
@@ -222,12 +222,12 @@ public class ValidationsHelper {
         String actualValue;
         try {
             actualValue = switch (browserAttribute.toLowerCase()) {
-                case "currenturl", "url" -> FluentBrowserActions.getInstance().getCurrentURL();
-                case "pagesource" -> FluentBrowserActions.getInstance().getPageSource();
-                case "title" -> FluentBrowserActions.getInstance().getCurrentWindowTitle();
-                case "windowhandle" -> FluentBrowserActions.getInstance().getWindowHandle();
-                case "windowposition" -> FluentBrowserActions.getInstance().getWindowPosition();
-                case "windowsize" -> FluentBrowserActions.getInstance().getWindowSize();
+                case "currenturl", "url" -> BrowserActions.getInstance().getCurrentURL();
+                case "pagesource" -> BrowserActions.getInstance().getPageSource();
+                case "title" -> BrowserActions.getInstance().getCurrentWindowTitle();
+                case "windowhandle" -> BrowserActions.getInstance().getWindowHandle();
+                case "windowposition" -> BrowserActions.getInstance().getWindowPosition();
+                case "windowsize" -> BrowserActions.getInstance().getWindowSize();
                 default -> "";
             };
         } catch (Throwable e) {
@@ -620,7 +620,7 @@ public class ValidationsHelper {
             if ((WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Always") || WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("ValidationPointsOnly"))
                     || (Boolean.FALSE.equals(validationState.getValue()) && WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("FailuresOnly"))) {
                 var logMessage = "";
-                var pageSnapshot = BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get());
+                var pageSnapshot = BrowserActionsHelper.capturePageSnapshot(DriverFactoryHelper.getDriver().get());
                 if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
                     logMessage = "page snapshot";
                 } else if (pageSnapshot.startsWith("<html")) {

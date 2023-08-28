@@ -31,7 +31,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.*;
 
-public class BrowserActionsHelpers {
+public class BrowserActionsHelper {
     private static final Boolean HEADLESS_EXECUTION = SHAFT.Properties.web.headlessExecution();
     private static final int NAVIGATION_TIMEOUT_INTEGER = SHAFT.Properties.timeouts.browserNavigationTimeout();
 

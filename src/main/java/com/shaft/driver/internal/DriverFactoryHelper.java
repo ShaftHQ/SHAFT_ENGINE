@@ -5,7 +5,7 @@ import com.google.common.base.Throwables;
 import com.mysql.cj.util.StringUtils;
 import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.browser.internal.FluentBrowserActions;
+import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.PropertiesHelper;
@@ -968,7 +968,7 @@ public class DriverFactoryHelper {
                         && (
                         targetBrowserName.contains(Browser.SAFARI.browserName().toLowerCase())
                                 || targetBrowserName.contains(Browser.FIREFOX.browserName().toLowerCase()))) {
-                    FluentBrowserActions.getInstance().maximizeWindow();
+                    BrowserActions.getInstance().maximizeWindow();
                 }
             }
             // start session recording
