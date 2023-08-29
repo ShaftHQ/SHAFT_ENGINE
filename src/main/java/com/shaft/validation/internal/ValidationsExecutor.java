@@ -16,11 +16,12 @@ import java.util.Objects;
 
 
 public class ValidationsExecutor {
-    private final ValidationEnums.ValidationCategory validationCategory;
     private String validationCategoryString;
+    private String validationMethodString;
+
+    private final ValidationEnums.ValidationCategory validationCategory;
     private final ValidationEnums.ValidationType validationType;
     private final String validationMethod;
-    private String validationMethodString;
     protected final StringBuilder reportMessageBuilder;
     private WebDriver driver;
     private By locator;
@@ -140,7 +141,7 @@ public class ValidationsExecutor {
      */
     public void perform() {
         JavaScriptWaitManager.waitForLazyLoading();
-        if ("".equals(customReportMessage)) {
+        if (customReportMessage.isBlank()) {
             customReportMessage = reportMessageBuilder.toString();
         }
         validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert that" : "Verify that";
@@ -166,7 +167,7 @@ public class ValidationsExecutor {
                     ValidationsHelper.validateElementAttribute(validationCategory, driver, locator, elementAttribute, String.valueOf(expectedValue),
                             validationComparisonType, validationType, customReportMessage);
             case "elementCssPropertyEquals" ->
-                    ValidationsHelper.validateElementCSSProperty(validationCategory, driver, locator, elementCssProperty, String.valueOf(expectedValue),
+                    ValidationsHelper.validateElementCSSProperty(validationCategory, locator, elementCssProperty, String.valueOf(expectedValue),
                             validationComparisonType, validationType, customReportMessage);
             case "browserAttributeEquals" -> ValidationsHelper.validateBrowserAttribute(validationCategory, driver, browserAttribute, String.valueOf(expectedValue), validationComparisonType,
                     validationType, customReportMessage);

@@ -263,19 +263,11 @@ public class ImageProcessingActions {
                 double threshold = SHAFT.Properties.visuals.visualMatchingThreshold();
 
                 switch (attemptNumber) {
-//                    case 0 -> matchMethod = Imgproc.TM_CCOEFF_NORMED;
                     case 1 -> matchMethod = Imgproc.TM_SQDIFF_NORMED;
                     case 2 -> matchMethod = Imgproc.TM_CCORR_NORMED;
                 }
 
-//                switch (attemptNumber) {
-////                    case 0 -> threshold = 0.80;
-//                    case 1 -> threshold = 0.70;
-//                    case 2 -> threshold = 0.60;
-//                }
-
                 Imgproc.matchTemplate(img, templ, result, matchMethod);
-//                    Core.normalize(result, result, 0, 1, Core.NORM_MINMAX, -1, new Mat());
 
                 // Localizing the best match with minMaxLoc
                 Core.MinMaxLocResult mmr = Core.minMaxLoc(result);
@@ -586,7 +578,7 @@ public class ImageProcessingActions {
             ReportManager.logDiscrete("Loaded OpenCV \"" + libName + "\".");
         } catch (Throwable throwable) {
             ReportManagerHelper.logDiscrete(throwable);
-            if (!libName.equals("")) {
+            if (!libName.isEmpty()) {
                 ReportManager.logDiscrete("Failed to load OpenCV \"" + libName + "\". Try installing the binaries manually https://opencv.org/releases/, switching element highlighting to JavaScript...");
             } else {
                 ReportManager.logDiscrete("Failed to load OpenCV. Try installing the binaries manually https://opencv.org/releases/, switching element highlighting to JavaScript...");

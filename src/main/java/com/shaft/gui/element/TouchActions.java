@@ -6,7 +6,6 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.element.internal.ElementActionsHelper;
-import com.shaft.gui.element.internal.FluentElementActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -52,12 +51,12 @@ public class TouchActions {
      *
      * @return a FluentElementActions object
      */
-    public FluentElementActions performElementAction() {
-        return FluentElementActions.getInstance();
+    public ElementActions performElementAction() {
+        return ElementActions.getInstance();
     }
 
-    public FluentElementActions element() {
-        return FluentElementActions.getInstance();
+    public ElementActions element() {
+        return ElementActions.getInstance();
     }
 
     public TouchActions and() {
@@ -189,7 +188,7 @@ public class TouchActions {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, e);
             }
 
-            if (elementText == null || elementText.equals("")) {
+            if (elementText == null || elementText.isEmpty()) {
                 elementText = formatLocatorToString(elementLocator);
             }
             ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
@@ -227,7 +226,7 @@ public class TouchActions {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, e);
             }
 
-            if (elementText != null && !elementText.equals("")) {
+            if (elementText != null && !elementText.isEmpty()) {
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
             } else {
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
@@ -266,7 +265,7 @@ public class TouchActions {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, e);
             }
 
-            if (elementText != null && !elementText.equals("")) {
+            if (elementText != null && !elementText.isEmpty()) {
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
             } else {
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);

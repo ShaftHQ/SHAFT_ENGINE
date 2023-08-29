@@ -40,7 +40,7 @@ public class DatabaseActions {
      */
     public DatabaseActions(DatabaseType databaseType, String ip, String port, String name, String username,
                            String password) {
-        if (!ip.equals("") && !port.equals("") && !name.equals("") && !username.equals("") && !password.equals("")) {
+        if (!ip.isEmpty() && !port.isEmpty() && !name.isEmpty() && !username.isEmpty() && !password.isEmpty()) {
             this.dbType = databaseType;
             this.dbServerIP = ip;
             this.dbPort = port;
@@ -271,7 +271,7 @@ public class DatabaseActions {
             message = message + " With the following test data \"" + testData + "\".";
         }
 
-        if (queryResult != null && !queryResult.trim().equals("")) {
+        if (queryResult != null && !queryResult.trim().isEmpty()) {
             attachments.add(Arrays.asList("Database Action Actual Result", "Query Result", queryResult));
         }
 
@@ -439,7 +439,7 @@ public class DatabaseActions {
     private Connection createConnection() {
         Connection connection = null;
         var connectionString = "";
-        if (!this.customConnectionString.equals("")) {
+        if (!this.customConnectionString.isEmpty()) {
             connectionString = this.customConnectionString;
         } else {
             switch (dbType) {

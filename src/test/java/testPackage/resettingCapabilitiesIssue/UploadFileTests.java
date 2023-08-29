@@ -3,7 +3,6 @@ package testPackage.resettingCapabilitiesIssue;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.internal.FluentBrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
@@ -19,7 +18,7 @@ public class UploadFileTests {
     public void uploadFile_visibleUploadInput() {
         BrowserActions.getInstance().navigateToURL("https://demo.guru99.com/test/upload/");
         ElementActions.getInstance().typeFileLocationForUpload(By.id("uploadfile_0"), "src/main/resources/images/shaft.png");
-        new ElementActions(driver.get()).click(By.id("terms")).click(By.id("submitbutton"));
+        new ElementActions().click(By.id("terms")).click(By.id("submitbutton"));
         Validations.assertThat().element(driver.get(), By.id("res")).attribute("Text").contains("1 file").perform();
     }
 
@@ -33,7 +32,7 @@ public class UploadFileTests {
     @BeforeMethod
     public void beforeMethod() {
         driver.set(DriverFactory.getDriver());
-        FluentBrowserActions.getInstance().setWindowSize(1920, 1080);
+        BrowserActions.getInstance().setWindowSize(1920, 1080);
     }
 
     @AfterMethod(alwaysRun = true)

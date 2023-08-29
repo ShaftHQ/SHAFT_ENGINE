@@ -1,5 +1,7 @@
 package com.shaft.validation;
 
+import lombok.Getter;
+
 public class ValidationEnums {
 
     public enum ValidationType {
@@ -16,6 +18,7 @@ public class ValidationEnums {
         }
     }
 
+    @Getter
     public enum ValidationComparisonType {
         EQUALS(1), CONTAINS(3), MATCHES(2), CASE_INSENSITIVE(4);
 
@@ -25,9 +28,6 @@ public class ValidationEnums {
             this.value = type;
         }
 
-        public int getValue() {
-            return value;
-        }
     }
 
     public enum VisualValidationEngine {
@@ -44,6 +44,7 @@ public class ValidationEnums {
         SOFT_ASSERT
     }
 
+    @Getter
     public enum NumbersComparativeRelation {
         GREATER_THAN(">"), GREATER_THAN_OR_EQUALS(">="), LESS_THAN("<"), LESS_THAN_OR_EQUALS("<="), EQUALS("==");
 
@@ -53,9 +54,6 @@ public class ValidationEnums {
             this.value = type;
         }
 
-        public String getValue() {
-            return value;
-        }
     }
 
     public enum ValidationState {

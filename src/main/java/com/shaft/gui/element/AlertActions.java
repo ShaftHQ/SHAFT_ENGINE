@@ -2,9 +2,8 @@ package com.shaft.gui.element;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
-import com.shaft.gui.browser.internal.FluentBrowserActions;
+import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
-import com.shaft.gui.element.internal.FluentElementActions;
 import com.shaft.tools.io.ReportManager;
 import org.openqa.selenium.NoAlertPresentException;
 import org.openqa.selenium.WebDriver;
@@ -31,8 +30,8 @@ public class AlertActions {
         return new TouchActions();
     }
 
-    public FluentBrowserActions browser() {
-        return FluentBrowserActions.getInstance();
+    public BrowserActions browser() {
+        return BrowserActions.getInstance();
     }
 
     public AlertActions and() {
@@ -50,8 +49,12 @@ public class AlertActions {
         }
     }
 
-    public FluentElementActions performElementAction() {
-        return FluentElementActions.getInstance();
+    public ElementActions performElementAction() {
+        return ElementActions.getInstance();
+    }
+
+    public ElementActions element() {
+        return ElementActions.getInstance();
     }
 
     public boolean isAlertPresent() {

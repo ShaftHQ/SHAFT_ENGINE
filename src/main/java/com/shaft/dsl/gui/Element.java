@@ -1,7 +1,6 @@
 package com.shaft.dsl.gui;
 
 import com.shaft.gui.element.ElementActions;
-import com.shaft.gui.element.internal.FluentElementActions;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -10,11 +9,11 @@ import org.openqa.selenium.WebDriver;
 public abstract class Element {
     static WebDriver driver;
     final By locator;
-    final FluentElementActions elementActions;
+    final ElementActions elementActions;
 
     protected Element(By locator) {
         this.locator = locator;
-        elementActions = FluentElementActions.getInstance();
+        elementActions = ElementActions.getInstance();
     }
 
     public static WebDriver getDriver() {
@@ -26,7 +25,7 @@ public abstract class Element {
     }
 
     public boolean isDisplayed() {
-        return new ElementActions(driver).isElementDisplayed(locator);
+        return new ElementActions().isElementDisplayed(locator);
     }
 
     public void shouldBeDisplayed() {

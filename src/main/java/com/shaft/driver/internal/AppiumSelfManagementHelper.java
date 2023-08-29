@@ -227,7 +227,7 @@ public class AppiumSelfManagementHelper {
         APPIUM_VERSION = APPIUM_VERSION.contains("info") ? APPIUM_VERSION.split("info")[0].trim() : APPIUM_VERSION.trim();
 
         var isFirstInstall = false;
-        if ("".equals(APPIUM_VERSION) || APPIUM_VERSION.contains("The term 'appium' is not recognized") || !APPIUM_VERSION.startsWith("2.")) {
+        if (APPIUM_VERSION.contains("The term 'appium' is not recognized") || !APPIUM_VERSION.startsWith("2.")) {
             //not installed or not up to date
             ReportManager.logDiscrete("Removing any instance of the deprecated Appium 1.x, and installing the latest Appium 2.x server...");
 

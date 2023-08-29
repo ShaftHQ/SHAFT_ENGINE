@@ -191,7 +191,7 @@ public class TestNGListenerHelper {
 
     public static void configureJVMProxy() {
         String PROXY_SERVER_SETTINGS = SHAFT.Properties.platform.proxy();
-        if (SHAFT.Properties.platform.jvmProxySettings() && !PROXY_SERVER_SETTINGS.equals("")) {
+        if (SHAFT.Properties.platform.jvmProxySettings() && !PROXY_SERVER_SETTINGS.isEmpty()) {
             String[] proxyHostPort = PROXY_SERVER_SETTINGS.split(":");
             System.setProperty("http.proxyHost", proxyHostPort[0]);
             System.setProperty("http.proxyPort", proxyHostPort[1]);
@@ -212,11 +212,11 @@ public class TestNGListenerHelper {
             if (SHAFT.Properties.visuals.videoParamsScope().equals("TestMethod")) {
                 RecordManager.attachVideoRecording();
                 attachment = RecordManager.getVideoRecordingFilePath();
-                if (!attachment.equals(""))
+                if (!attachment.isEmpty())
                     attachments.add(attachment);
             }
             attachment = ScreenshotManager.attachAnimatedGif();
-            if (!attachment.equals(""))
+            if (!attachment.isEmpty())
                 attachments.add(attachment);
 
             String logText = TestNGListenerHelper.createTestLog(Reporter.getOutput(iTestResult));

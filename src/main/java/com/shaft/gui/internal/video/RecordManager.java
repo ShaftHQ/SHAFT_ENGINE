@@ -29,7 +29,6 @@ import java.util.Base64;
 import static com.automation.remarks.video.RecordingUtils.doVideoProcessing;
 
 public class RecordManager {
-    private static final Boolean RECORD_VIDEO = SHAFT.Properties.visuals.videoParamsRecordVideo();
     private static final ThreadLocal<IVideoRecorder> recorder = new ThreadLocal<>();
     private static final ThreadLocal<WebDriver> videoDriver = new ThreadLocal<>();
     private static boolean isRecordingStarted = false;
@@ -112,7 +111,7 @@ public class RecordManager {
                 ReportManagerHelper.logDiscrete(e);
 //                inputStream = new ByteArrayInputStream(new byte[0]);
             }
-            recorder.set(null);
+            recorder.remove();
 
         } else if (Boolean.TRUE.equals(SHAFT.Properties.visuals.videoParamsRecordVideo()) && videoDriver.get() != null) {
             String base64EncodedRecording = "";
@@ -122,7 +121,7 @@ public class RecordManager {
                 base64EncodedRecording = iosDriver.stopRecordingScreen();
             }
             inputStream = new ByteArrayInputStream(Base64.getDecoder().decode(base64EncodedRecording));
-            videoDriver.set(null);
+            videoDriver.remove();
             isRecordingStarted = false;
         }
         return inputStream;

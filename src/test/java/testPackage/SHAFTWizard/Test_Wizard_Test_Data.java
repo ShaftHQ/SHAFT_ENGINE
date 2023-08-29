@@ -2,8 +2,8 @@ package testPackage.SHAFTWizard;
 
 import com.google.gson.Gson;
 import com.shaft.driver.SHAFT;
-import org.testng.annotations.Test;
 import objectclass.BodyObject;
+import org.testng.annotations.Test;
 
 public class Test_Wizard_Test_Data {
     private SHAFT.TestData.JSON testData;

@@ -65,7 +65,7 @@ public class FileActions {
                            String fileName) {
         String command;
         if (isTargetOSUnixBased()) {
-            if (fileName.trim().equals("")) {
+            if (fileName.trim().isEmpty()) {
                 command = "rsync --verbose --recursive " + sourceDirectory + File.separator + " "
                         + destinationDirectory;
             } else {
@@ -679,7 +679,7 @@ public class FileActions {
             message = message + " With the following test data \"" + testData + "\".";
         }
 
-        if (log != null && !log.trim().equals("")) {
+        if (log != null && !log.trim().isEmpty()) {
             attachments.add(Arrays.asList("File Action Actual Result", "Command Log", log));
         }
 
@@ -815,7 +815,7 @@ public class FileActions {
              * list the files in the folder
              */
             for (String fileName : Objects.requireNonNull(folder.list())) {
-                if (path.equals("")) {
+                if (path.isEmpty()) {
                     addFileToZip(folder.getName(), srcFolder + FileSystems.getDefault().getSeparator() + fileName, zip,
                             false);
                 } else {
