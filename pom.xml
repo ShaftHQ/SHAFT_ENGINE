@@ -71,6 +71,9 @@
         <org.yaml.version>2.2</org.yaml.version>
         <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
 
+        <argLine>
+            -javaagent:${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar
+        </argLine>
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install -DskipTests</installToLocalRepository>
         <publishJavaDocs>mvn resources:resources javadoc:javadoc scm-publish:publish-scm</publishJavaDocs>
@@ -1015,9 +1018,7 @@
                             </dependency>
                         </dependencies>
                         <configuration>
-                            <argLine>
-                                -javaagent:"${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
-                            </argLine>
+                            
                             <systemPropertyVariables>
                                 <allure.testng.hide.disabled.tests>true</allure.testng.hide.disabled.tests>
                                 <allure.testng.hide.configuration.failures>true
@@ -1071,9 +1072,7 @@
                             </dependency>
                         </dependencies>
                         <configuration>
-                            <argLine>
-                                -javaagent:${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar
-                            </argLine>
+                           
                             <systemPropertyVariables>
                                 <testng.dtd.http>true</testng.dtd.http>
                                 <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>
