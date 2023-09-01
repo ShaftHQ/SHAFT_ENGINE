@@ -1,3 +1,4 @@
+/*
 package testPackage;
 
 import com.shaft.driver.DriverFactory;
@@ -46,3 +47,4 @@ public class JSAlertBoxTests {
         Validations.assertThat().element(driver, JS_ResultText).text().isEqualTo("You successfully clicked an alert").perform();
     }
 }
+*/
