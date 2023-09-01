@@ -1031,6 +1031,9 @@
                             <trimStackTrace>false</trimStackTrace>
                             <useFile>false</useFile>
                             <encoding>UTF-8</encoding>
+                           <argLine>
+                          -javaagent:${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar
+                            </argLine>
                             <properties>
                                 <property>
                                     <name>listener</name>
@@ -1082,6 +1085,9 @@
                             <trimStackTrace>false</trimStackTrace>
                             <useFile>false</useFile>
                             <encoding>UTF-8</encoding>
+                           <argLine>
+                          -javaagent:${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar
+                            </argLine>
                             <properties>
                                 <property>
                                     <name>listener</name>
