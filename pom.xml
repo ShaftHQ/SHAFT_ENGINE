@@ -1018,9 +1018,7 @@
                             </dependency>
                         </dependencies>
                         <configuration>
-                            <argLine>
-                                -javaagent:"${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
-                            </argLine>
+                            
                             <systemPropertyVariables>
                                 <allure.testng.hide.disabled.tests>true</allure.testng.hide.disabled.tests>
                                 <allure.testng.hide.configuration.failures>true
@@ -1074,9 +1072,7 @@
                             </dependency>
                         </dependencies>
                         <configuration>
-                            <argLine>
-                                -javaagent:${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar
-                            </argLine>
+                           
                             <systemPropertyVariables>
                                 <testng.dtd.http>true</testng.dtd.http>
                                 <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>
