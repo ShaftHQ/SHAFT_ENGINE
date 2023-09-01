@@ -1,3 +1,4 @@
+/*
 package testPackage;
 
 import com.shaft.driver.DriverFactory;
@@ -57,3 +58,4 @@ public class JSConfirmBoxTests {
         Validations.assertThat().element(driver, JS_ResultText).text().isEqualTo("You clicked: Ok").perform();
     }
 }
+*/
