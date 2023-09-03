@@ -610,7 +610,7 @@ public class ScreenshotManager {
     private static void startOrAppendToAnimatedGif(byte[] screenshot) {
         // ensure that animatedGif is started, else force start it
         if (Boolean.TRUE.equals(SHAFT.Properties.visuals.createAnimatedGif())) {
-            if ("".equals(gifRelativePathWithFileName)) {
+            if (gifRelativePathWithFileName.isEmpty()) {
                 startAnimatedGif(screenshot);
             } else {
                 appendToAnimatedGif(screenshot);
@@ -621,7 +621,7 @@ public class ScreenshotManager {
     private static void appendToAnimatedGif(byte[] screenshot) {
         try {
             BufferedImage image;
-            if (screenshot != null) {
+            if (screenshot != null && gifWriter.get() != null) {
                 image = ImageIO.read(new ByteArrayInputStream(screenshot));
                 //scaling it down
                 image = Scalr.resize(image, Scalr.Method.BALANCED, GIF_SIZE);
