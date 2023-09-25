@@ -37,7 +37,7 @@
         <appium-java-client.version>8.5.1</appium-java-client.version>
         <webdrivermanager.version>5.5.3</webdrivermanager.version>
         <allure.version>2.24.0</allure.version> <!-- 2.21.0 DO NOT UPDATE || internal.properties -->
-        <extentreports.version>5.1.0</extentreports.version>
+        <extentreports.version>5.1.1</extentreports.version>
         <aspectj.version>1.9.20.1</aspectj.version>
         <rest-assured.version>5.3.2</rest-assured.version>
         <json-simple.version>1.1.1</json-simple.version>
@@ -57,7 +57,7 @@
         <maven-surefire-plugin.version>3.1.2</maven-surefire-plugin.version>
         <maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
         <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
-        <maven-javadoc-plugin.version>3.5.0</maven-javadoc-plugin.version>
+        <maven-javadoc-plugin.version>3.6.0</maven-javadoc-plugin.version>
         <maven-scm-publish-plugin.version>3.2.1</maven-scm-publish-plugin.version>
         <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
@@ -159,7 +159,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-handler</artifactId>
-            <version>4.1.97.Final</version>
+            <version>4.1.98.Final</version>
         </dependency>
 
         <!-- APPIUM -->
@@ -663,7 +663,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.28</version>
+            <version>1.18.30</version>
         </dependency>
 
         <!-- https://github.com/google/tink/blob/master/docs/JAVA-HOWTO.md -->
