@@ -478,7 +478,7 @@
         <dependency>
             <groupId>com.epam.healenium</groupId>
             <artifactId>healenium-web</artifactId>
-            <version>3.4.4</version>
+            <version>3.4.5</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.seleniumhq.selenium</groupId>
