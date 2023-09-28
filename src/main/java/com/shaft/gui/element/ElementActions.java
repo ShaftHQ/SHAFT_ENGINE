@@ -968,8 +968,8 @@ public class ElementActions {
      * @param elementLocator the locator of the webElement under test (By xpath,
      *                       id, selector, name ...etc)
      * @param filePath       the full path to the file that needs to be uploaded, it can be absolute or relative
-     *                       path, Engine will detect that
-     * @return a self-reference to be used to chain actions
+     *                       path, Engine will detect that.
+     * @return a self-reference to be used to chain actions.
      */
     public ElementActions typeFileLocationForUpload(By elementLocator, String filePath) {
         var absoluteFilePath = filePath;
