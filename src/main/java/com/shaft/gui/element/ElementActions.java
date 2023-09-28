@@ -684,7 +684,7 @@ public class ElementActions {
      *                           target dropDown menu or the string value of attribute"value"
      * @return a self-reference to be used to chain actions
      */
-     public static ElementActions select(By elementLocator, String valueOrVisibleText) {
+     public ElementActions select(By elementLocator, String valueOrVisibleText) {
         ElementInformation elementInformation = ElementInformation.fromList(ElementActionsHelper.
                 identifyUniqueElement((WebDriver) DriverFactoryHelper.getDriver().get(), elementLocator));
 
@@ -699,7 +699,7 @@ public class ElementActions {
         //The Implemented Logic
         if (!elementHTML.contains("<select")) {
             if(SHAFT.Properties.flags.skipTestsWithLinkedIssues()) {
-                ElementActions.getInstance().click(elementLocator);
+               click(elementLocator);
                 ElementInformation elementInformation1 = ElementInformation.fromList(ElementActionsHelper.
                         identifyUniqueElement((WebDriver) DriverFactoryHelper.getDriver().get(), elementLocator));
                 RelativeLocator.RelativeBy relativeBy = null;
@@ -710,7 +710,7 @@ public class ElementActions {
                     ElementActionsHelper.failAction((WebDriver) DriverFactoryHelper.getDriver().get(),
                             valueOrVisibleText, By.xpath("//*[text()='" + valueOrVisibleText + "']"), e);
                 }
-                ElementActions.getInstance().click(relativeBy);
+                click(relativeBy);
             }
             else {
                 ReportManager.logDiscrete("Cannot Find Element with the following Locator in the DropDown Options: " + By.xpath("//*[text()='" + valueOrVisibleText + "']"));
@@ -751,7 +751,7 @@ public class ElementActions {
             }
 
         }
-        return ElementActions.getInstance();
+        return this;
     }
 
     /**
