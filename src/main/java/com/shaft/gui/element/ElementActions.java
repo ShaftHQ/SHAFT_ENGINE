@@ -700,12 +700,12 @@ public class ElementActions {
         //The Logic to Handle non-Select dropDowns
         if (!elementTag.equals("select")) {
             if(SHAFT.Properties.flags.skipTestsWithLinkedIssues()) {
-                click(elementLocator);
-                ElementInformation elementInformation1 = ElementInformation.fromList(ElementActionsHelper.
+                click(elementInformation.getLocator());
+                elementInformation = ElementInformation.fromList(ElementActionsHelper.
                         identifyUniqueElement((WebDriver) DriverFactoryHelper.getDriver().get(), elementLocator));
                 RelativeLocator.RelativeBy relativeBy = null;
                 try {
-                    relativeBy = SHAFT.GUI.Locator.hasAnyTagName().and().containsText(valueOrVisibleText).relativeBy().below(elementInformation1.getLocator());
+                    relativeBy = SHAFT.GUI.Locator.hasAnyTagName().and().containsText(valueOrVisibleText).relativeBy().below(elementInformation.getLocator());
                 } catch (Exception e) {
                     ReportManager.logDiscrete("Cannot Find Element with the following Locator in the DropDown Options: " + By.xpath("//*[text()='" + valueOrVisibleText + "']"));
                     ElementActionsHelper.failAction((WebDriver) DriverFactoryHelper.getDriver().get(),
