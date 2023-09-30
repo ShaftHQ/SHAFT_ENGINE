@@ -690,16 +690,15 @@ public class ElementActions {
         ElementInformation elementInformation = ElementInformation.fromList(ElementActionsHelper.
                 identifyUniqueElement((WebDriver) DriverFactoryHelper.getDriver().get(), elementLocator));
 
-        //To check for the Element if it contains the Select Tag + capture the actual Tag
-        String elementHTML = elementInformation.getOuterHTML();
-        String elementTagName = DriverFactoryHelper.getDriver().get().findElement(elementLocator).getTagName();
+        //Capture the Element Tag
+        String elementTag = elementInformation.getElementTag();
 
         //Temporary Solution to set the Condition to test the Logic
         boolean handleNonSelectDropDown = true;
         SHAFT.Properties.flags.set().skipTestsWithLinkedIssues(handleNonSelectDropDown);
 
-        //The Implemented Logic
-        if (!elementHTML.contains("<select")) {
+        //The Logic to Handle non-Select dropDowns
+        if (!elementTag.equals("select")) {
             if(SHAFT.Properties.flags.skipTestsWithLinkedIssues()) {
                 click(elementLocator);
                 ElementInformation elementInformation1 = ElementInformation.fromList(ElementActionsHelper.
@@ -717,10 +716,10 @@ public class ElementActions {
             else {
                 ReportManager.logDiscrete("Cannot Find Element with the following Locator in the DropDown Options: " + By.xpath("//*[text()='" + valueOrVisibleText + "']"));
                 ElementActionsHelper.failAction((WebDriver) DriverFactoryHelper.getDriver().get(),
-                        "Select: " , valueOrVisibleText + "\" from Element : " +   " Tag should be <Select, yet it was found to be " + elementTagName,elementLocator,null);
+                        "Select: " , valueOrVisibleText + "\" from Element : " +   " Tag should be <Select, yet it was found to be " + "<"+elementTag,elementLocator,null);
             }
 
-            //End of Implemented Logic Block
+            //End of non-select DropDowns Logic
             //================================================================//
 
         } else {
