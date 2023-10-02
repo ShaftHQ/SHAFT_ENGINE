@@ -27,10 +27,10 @@ import io.cucumber.messages.types.Examples;
 import io.cucumber.messages.types.Feature;
 import io.cucumber.messages.types.Scenario;
 import io.cucumber.messages.types.TableRow;
-import io.cucumber.plugin.ConcurrentEventListener;
 import io.cucumber.plugin.event.*;
 import io.qameta.allure.Allure;
 import io.qameta.allure.AllureLifecycle;
+import io.qameta.allure.cucumber7jvm.AllureCucumber7Jvm;
 import io.qameta.allure.cucumber7jvm.testsourcemodel.TestSourcesModelProxy;
 import io.qameta.allure.model.Status;
 import io.qameta.allure.model.*;
@@ -60,7 +60,7 @@ import static io.qameta.allure.util.ResultsUtils.*;
         "PMD.ExcessiveImports",
         "PMD.GodClass",
 })
-public class CucumberFeatureListener implements ConcurrentEventListener {
+public class CucumberFeatureListener extends AllureCucumber7Jvm {
 
     private static final String TXT_EXTENSION = ".txt";
     private static final String TEXT_PLAIN = "text/plain";
