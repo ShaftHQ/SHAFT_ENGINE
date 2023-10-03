@@ -709,6 +709,7 @@ public class ElementActions {
                             identifyUniqueElement((WebDriver) DriverFactoryHelper.getDriver().get(), relativeBy));
                 } catch (Throwable var9) {
                     ReportManager.logDiscrete("Cannot Find Element with the following Locator in the DropDown Options: " + By.xpath("//*[text()='" + valueOrVisibleText + "']"));
+//                    ElementActionsHelper.failAction((WebDriver) DriverFactoryHelper.getDriver().get(), elementLocator,var9);
                     ElementActionsHelper.failAction((WebDriver) DriverFactoryHelper.getDriver().get(),
                             By.xpath("//*[text()='" + valueOrVisibleText + "']").toString(), elementLocator, var9);
                 }
