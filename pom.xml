@@ -69,7 +69,7 @@
         <video-recorder-testng.version>2.0</video-recorder-testng.version>
         <pdfbox.version>2.0.29</pdfbox.version>
         <org.yaml.version>2.2</org.yaml.version>
-        <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
         <surefireArgLine></surefireArgLine>
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install -DskipTests</installToLocalRepository>
