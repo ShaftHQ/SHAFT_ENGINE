@@ -25,7 +25,7 @@ import javax.imageio.stream.ImageOutputStream;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.net.URL;
+import java.net.URI;
 import java.nio.file.FileSystems;
 import java.text.SimpleDateFormat;
 import java.util.List;
@@ -564,6 +564,7 @@ public class ScreenshotManager {
         }
     }
 
+    static BufferedImage shaftLogo = null;
     private static BufferedImage overlayShaftEngineLogo(BufferedImage screenshot) {
         if (Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsWatermark())) {
             try {
@@ -574,12 +575,15 @@ public class ScreenshotManager {
                 screenshotGraphics.drawImage(screenshot, 0, 0, null);
                 screenshotGraphics.setComposite(
                         AlphaComposite.getInstance(AlphaComposite.SRC_OVER, SHAFT.Properties.visuals.screenshotParamsWatermarkOpacity()));
-                BufferedImage shaftLogo;
-                // read from custom location
-                String watermarkImagePath = Properties.internal.watermarkImagePath();
-                shaftLogo = ImageIO.read(new URL(watermarkImagePath));
-                shaftLogo = toBufferedImage(
-                        shaftLogo.getScaledInstance(screenshot.getWidth() / 8, -1, Image.SCALE_SMOOTH));
+
+                if (shaftLogo == null) {
+                    // read from custom location
+                    String watermarkImagePath = Properties.internal.watermarkImagePath();
+                    shaftLogo = ImageIO.read(URI.create(watermarkImagePath).toURL());
+                    shaftLogo = toBufferedImage(
+                            shaftLogo.getScaledInstance(screenshot.getWidth() / 8, -1, Image.SCALE_SMOOTH));
+                }
+
                 screenshotGraphics.drawImage(shaftLogo, screenshot.getWidth() - shaftLogo.getWidth(),
                         screenshot.getHeight() - shaftLogo.getHeight(), null);
                 screenshotGraphics.dispose();

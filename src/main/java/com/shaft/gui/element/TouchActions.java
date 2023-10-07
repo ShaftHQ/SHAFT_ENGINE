@@ -79,10 +79,10 @@ public class TouchActions {
      */
     public TouchActions nativeKeyboardKeyPress(KeyboardKeys key) {
         try {
-            ((RemoteWebDriver) DriverFactoryHelper.getDriver().get()).executeScript("mobile: performEditorAction", key.getValue());
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), key.name(), null, null);
+            ((RemoteWebDriver) DriverFactoryHelper.getDriver()).executeScript("mobile: performEditorAction", key.getValue());
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), key.name(), null, null);
         } catch (Exception rootCauseException) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, rootCauseException);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null, rootCauseException);
         }
         return this;
     }
@@ -94,17 +94,17 @@ public class TouchActions {
      */
     public TouchActions hideNativeKeyboard() {
         try {
-            if (DriverFactoryHelper.getDriver().get() instanceof AndroidDriver androidDriver) {
+            if (DriverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
                 androidDriver.hideKeyboard();
-            } else if (DriverFactoryHelper.getDriver().get() instanceof IOSDriver iosDriver) {
+            } else if (DriverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
                 iosDriver.hideKeyboard();
             } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null);
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null);
             }
         } catch (Exception rootCauseException) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, rootCauseException);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null, rootCauseException);
         }
-        ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+        ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
         return this;
     }
 
@@ -117,7 +117,7 @@ public class TouchActions {
     @SuppressWarnings("unchecked")
     public TouchActions tap(String elementReferenceScreenshot) {
         // Wait for element presence and get the needed data
-        var objects = ElementActionsHelper.waitForElementPresence(DriverFactoryHelper.getDriver().get(), elementReferenceScreenshot);
+        var objects = ElementActionsHelper.waitForElementPresence(DriverFactoryHelper.getDriver(), elementReferenceScreenshot);
         byte[] currentScreenImage = (byte[]) objects.get(0);
         byte[] referenceImage = (byte[]) objects.get(1);
         List<Integer> coordinates = (List<Integer>) objects.get(2);
@@ -131,7 +131,7 @@ public class TouchActions {
 
         // If coordinates are empty then OpenCV couldn't find the element on screen
         if (Collections.emptyList().equals(coordinates)) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image under this path \"" + elementReferenceScreenshot + "\".", null, attachments);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image under this path \"" + elementReferenceScreenshot + "\".", null, attachments);
         } else {
             // Perform tap action by coordinates
 //            if (DriverFactoryHelper.isMobileNativeExecution()) {
@@ -142,17 +142,17 @@ public class TouchActions {
             tap.addAction(new Pause(input, Duration.ofMillis(200)));
             tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
             try {
-                ((RemoteWebDriver) DriverFactoryHelper.getDriver().get()).perform(ImmutableList.of(tap));
+                ((RemoteWebDriver) DriverFactoryHelper.getDriver()).perform(ImmutableList.of(tap));
             } catch (UnsupportedCommandException exception) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, exception);
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null, exception);
             }
 //            } else {
-//                (new org.openqa.selenium.interactions.touch.TouchActions(DriverFactoryHelper.getDriver().get()))
+//                (new org.openqa.selenium.interactions.touch.TouchActions(DriverFactoryHelper.getDriver()))
 //                        .down(coordinates.get(0), coordinates.get(1))
 //                        .up(coordinates.get(0), coordinates.get(1))
 //                        .perform();
 //            }
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
         }
         return this;
     }
@@ -161,7 +161,7 @@ public class TouchActions {
      * Taps an element once on a touch-enabled screen
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
+     *                       selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
     public TouchActions tap(By elementLocator) {
@@ -170,31 +170,31 @@ public class TouchActions {
             if (CAPTURE_CLICKED_ELEMENT_TEXT) {
                 try {
                     if (DriverFactoryHelper.isMobileNativeExecution()) {
-                        elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).getAttribute("text");
+                        elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1)).getAttribute("text");
                     } else {
-                        elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).getText();
+                        elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1)).getText();
                     }
                 } catch (Exception e) {
                     // do nothing
                 }
             }
-            List<Object> screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator, "tap", null, true);
+            List<Object> screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver(), elementLocator, "tap", null, true);
             // takes screenshot before clicking the element out of view
 
             try {
 //                fixing https://github.com/ShaftHQ/SHAFT_ENGINE/issues/501
-                ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).click();
+                ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1)).click();
             } catch (Exception e) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, e);
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, e);
             }
 
             if (elementText == null || elementText.isEmpty()) {
                 elementText = formatLocatorToString(elementLocator);
             }
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
         }
         return this;
     }
@@ -203,37 +203,37 @@ public class TouchActions {
      * Double-Taps an element on a touch-enabled screen
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
+     *                       selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
     public TouchActions doubleTap(By elementLocator) {
         try {
             String elementText = "";
             try {
-                elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).getText();
+                elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1)).getText();
             } catch (Exception e) {
                 // do nothing
             }
 
             // takes screenshot before clicking the element out of view
-            var screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator, "doubleTap", null, true);
+            var screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver(), elementLocator, "doubleTap", null, true);
             List<List<Object>> attachments = new LinkedList<>();
             attachments.add(screenshot);
 
             try {
-                (new Actions(DriverFactoryHelper.getDriver().get())).doubleClick(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1))).perform();
+                (new Actions(DriverFactoryHelper.getDriver())).doubleClick(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1))).perform();
             } catch (Exception e) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, e);
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, e);
             }
 
             if (elementText != null && !elementText.isEmpty()) {
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
+                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
             } else {
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
+                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
         }
         return this;
     }
@@ -243,36 +243,36 @@ public class TouchActions {
      * touch-enabled screen
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
+     *                       selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
     public TouchActions longTap(By elementLocator) {
         try {
             String elementText = "";
             try {
-                elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).getText();
+                elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1)).getText();
             } catch (Exception e) {
                 // do nothing
             }
             // takes screenshot before clicking the element out of view
-            List<Object> screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator, "longPress", null, true);
+            List<Object> screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver(), elementLocator, "longPress", null, true);
             List<List<Object>> attachments = new LinkedList<>();
             attachments.add(screenshot);
 
             try {
-                new Actions(DriverFactoryHelper.getDriver().get()).clickAndHold(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1))).perform();
+                new Actions(DriverFactoryHelper.getDriver()).clickAndHold(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1))).perform();
             } catch (Exception e) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, e);
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, e);
             }
 
             if (elementText != null && !elementText.isEmpty()) {
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
+                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
             } else {
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
+                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
         }
         return this;
     }
@@ -285,16 +285,16 @@ public class TouchActions {
      */
     public TouchActions sendAppToBackground(int secondsToSpendInTheBackground) {
         if (DriverFactoryHelper.isMobileNativeExecution()) {
-            if (DriverFactoryHelper.getDriver().get() instanceof AndroidDriver androidDriver) {
+            if (DriverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
                 androidDriver.runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
-            } else if (DriverFactoryHelper.getDriver().get() instanceof IOSDriver iosDriver) {
+            } else if (DriverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
                 iosDriver.runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
             } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null);
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null);
             }
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
         } else {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null);
         }
         return this;
     }
@@ -316,16 +316,16 @@ public class TouchActions {
      */
     public TouchActions activateAppFromBackground(String appPackageName) {
         if (DriverFactoryHelper.isMobileNativeExecution()) {
-            if (DriverFactoryHelper.getDriver().get() instanceof AndroidDriver androidDriver) {
+            if (DriverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
                 androidDriver.activateApp(appPackageName);
-            } else if (DriverFactoryHelper.getDriver().get() instanceof IOSDriver iosDriver) {
+            } else if (DriverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
                 iosDriver.activateApp(appPackageName);
             } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null);
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null);
             }
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
         } else {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null);
         }
         return this;
     }
@@ -336,36 +336,36 @@ public class TouchActions {
      *
      * @param sourceElementLocator      the locator of the webElement that needs to
      *                                  be swiped (By xpath, id, selector, name
-     *                                  ...etc)
+     *                                  ...etc.)
      * @param destinationElementLocator the locator of the webElement that you'll
      *                                  drop the sourceElement on (By xpath, id,
-     *                                  selector, name ...etc)
+     *                                  selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeToElement(By sourceElementLocator, By destinationElementLocator) {
         try {
-            WebElement sourceElement = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), sourceElementLocator).get(1));
-            WebElement destinationElement = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), destinationElementLocator).get(1));
+            WebElement sourceElement = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), sourceElementLocator).get(1));
+            WebElement destinationElement = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), destinationElementLocator).get(1));
 
             String startLocation = sourceElement.getLocation().toString();
 
             try {
-                new Actions(DriverFactoryHelper.getDriver().get()).dragAndDrop(sourceElement, destinationElement).perform();
+                new Actions(DriverFactoryHelper.getDriver()).dragAndDrop(sourceElement, destinationElement).perform();
             } catch (Exception e) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), sourceElementLocator, e);
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), sourceElementLocator, e);
             }
 
-            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), sourceElementLocator).get(1)).getLocation().toString();
+            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), sourceElementLocator).get(1)).getLocation().toString();
             String reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
 
             if (!endLocation.equals(startLocation)) {
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, null);
+                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, null);
             } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), reportMessage, sourceElementLocator);
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), reportMessage, sourceElementLocator);
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), sourceElementLocator, throwable);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), sourceElementLocator, throwable);
         }
         return this;
     }
@@ -376,7 +376,7 @@ public class TouchActions {
      * is determined by the value of the offset.
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
+     *                       selector, name ...etc.)
      * @param xOffset        the horizontal offset by which the element should be
      *                       swiped. positive value is "right" and negative value is
      *                       "left"
@@ -387,26 +387,26 @@ public class TouchActions {
      */
     public TouchActions swipeByOffset(By elementLocator, int xOffset, int yOffset) {
         try {
-            WebElement sourceElement = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1));
+            WebElement sourceElement = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1));
             Point elementLocation = sourceElement.getLocation();
             String startLocation = elementLocation.toString();
             try {
-                new Actions(DriverFactoryHelper.getDriver().get()).dragAndDropBy(sourceElement, xOffset, yOffset).perform();
+                new Actions(DriverFactoryHelper.getDriver()).dragAndDropBy(sourceElement, xOffset, yOffset).perform();
             } catch (Exception e) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, e);
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, e);
             }
 
-            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).getLocation().toString();
+            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1)).getLocation().toString();
             String reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
 
             if (!endLocation.equals(startLocation)) {
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, null);
+                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, null);
             } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), reportMessage, elementLocator);
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), reportMessage, elementLocator);
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
         }
         return this;
     }
@@ -415,7 +415,7 @@ public class TouchActions {
      * Attempts to scroll the element into view in case of native mobile elements.
      *
      * @param targetElementLocator the locator of the webElement under test (By xpath, id,
-     *                             selector, name ...etc)
+     *                             selector, name ...etc.)
      * @param swipeDirection       SwipeDirection.DOWN, UP, RIGHT, or LEFT
      * @return a self-reference to be used to chain actions
      */
@@ -434,7 +434,7 @@ public class TouchActions {
      */
     @SuppressWarnings("unchecked")
     public TouchActions waitUntilElementIsVisible(String elementReferenceScreenshot) {
-        var visualIdentificationObjects = ElementActionsHelper.waitForElementPresence(DriverFactoryHelper.getDriver().get(), elementReferenceScreenshot);
+        var visualIdentificationObjects = ElementActionsHelper.waitForElementPresence(DriverFactoryHelper.getDriver(), elementReferenceScreenshot);
         byte[] currentScreenImage = (byte[]) visualIdentificationObjects.get(0);
         byte[] referenceImage = (byte[]) visualIdentificationObjects.get(1);
         List<Integer> coordinates = (List<Integer>) visualIdentificationObjects.get(2);
@@ -447,9 +447,9 @@ public class TouchActions {
         attachments.add(screenshot);
 
         if (!Collections.emptyList().equals(coordinates)) {
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
         } else {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image under this path \"" + elementReferenceScreenshot + "\".", null, attachments);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image under this path \"" + elementReferenceScreenshot + "\".", null, attachments);
         }
         return this;
     }
@@ -480,7 +480,7 @@ public class TouchActions {
         try {
             //noinspection CaughtExceptionImmediatelyRethrown
             try {
-                if (DriverFactoryHelper.getDriver().get() instanceof AppiumDriver appiumDriver) {
+                if (DriverFactoryHelper.getDriver() instanceof AppiumDriver appiumDriver) {
                     // appium native application
                     var visualIdentificationObjects = attemptToSwipeElementIntoViewInNativeApp(scrollableElementLocator, elementReferenceScreenshot, swipeDirection);
                     byte[] currentScreenImage = (byte[]) visualIdentificationObjects.get(0);
@@ -496,11 +496,11 @@ public class TouchActions {
 
                     // If coordinates are empty then OpenCV couldn't find the element on screen
                     if (Collections.emptyList().equals(coordinates)) {
-                        ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
+                        ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
                     }
                 } else {
                     // Wait for element presence and get the needed data
-                    var objects = ElementActionsHelper.waitForElementPresence(DriverFactoryHelper.getDriver().get(), elementReferenceScreenshot);
+                    var objects = ElementActionsHelper.waitForElementPresence(DriverFactoryHelper.getDriver(), elementReferenceScreenshot);
                     byte[] currentScreenImage = (byte[]) objects.get(0);
                     byte[] referenceImage = (byte[]) objects.get(1);
                     List<Integer> coordinates = (List<Integer>) objects.get(2);
@@ -514,21 +514,21 @@ public class TouchActions {
 
                     // If coordinates are empty then OpenCV couldn't find the element on screen
                     if (Collections.emptyList().equals(coordinates)) {
-                        ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
+                        ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
                     } else {
-                        new Actions(DriverFactoryHelper.getDriver().get()).scrollFromOrigin(WheelInput.ScrollOrigin.fromViewport(), coordinates.get(0), coordinates.get(1)).perform();
+                        new Actions(DriverFactoryHelper.getDriver()).scrollFromOrigin(WheelInput.ScrollOrigin.fromViewport(), coordinates.get(0), coordinates.get(1)).perform();
                     }
                 }
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
+                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
             } catch (AssertionError assertionError) {
                 //bubble up
                 throw assertionError;
             } catch (Exception exception) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments, exception);
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments, exception);
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), scrollableElementLocator, throwable);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), scrollableElementLocator, throwable);
         }
         return this;
     }
@@ -538,7 +538,7 @@ public class TouchActions {
      *
      * @param scrollableElementLocator the locator of the container/view/scrollable webElement that the scroll action will be performed inside
      * @param targetElementLocator     the locator of the webElement that you want to scroll to under test (By xpath, id,
-     *                                 selector, name ...etc)
+     *                                 selector, name ...etc.)
      * @param swipeDirection           SwipeDirection.DOWN, UP, RIGHT, or LEFT
      * @return a self-reference to be used to chain actions
      */
@@ -546,7 +546,7 @@ public class TouchActions {
         // Fix issue #641 Element locator is NULL by make internalScrollableElementLocator can be null and the condition become 'OR' not 'AND'
         try {
             try {
-                if (DriverFactoryHelper.getDriver().get() instanceof AppiumDriver appiumDriver) {
+                if (DriverFactoryHelper.getDriver() instanceof AppiumDriver appiumDriver) {
                     // appium native application
                     boolean isElementFound = attemptToSwipeElementIntoViewInNativeApp(scrollableElementLocator, targetElementLocator, swipeDirection);
                     if (Boolean.FALSE.equals(isElementFound)) {
@@ -555,18 +555,18 @@ public class TouchActions {
                 } else {
                     // regular touch screen device
                     if (scrollableElementLocator != null) {
-                        new Actions(DriverFactoryHelper.getDriver().get()).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), scrollableElementLocator).get(1))).scrollToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), targetElementLocator).get(1))).perform();
+                        new Actions(DriverFactoryHelper.getDriver()).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), scrollableElementLocator).get(1))).scrollToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), targetElementLocator).get(1))).perform();
                     } else {
-                        new Actions(DriverFactoryHelper.getDriver().get()).scrollToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), targetElementLocator).get(1))).perform();
+                        new Actions(DriverFactoryHelper.getDriver()).scrollToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), targetElementLocator).get(1))).perform();
                     }
                 }
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), targetElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), targetElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
             } catch (Exception e) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), targetElementLocator, e);
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), targetElementLocator, e);
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), scrollableElementLocator, throwable);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), scrollableElementLocator, throwable);
         }
         return this;
     }
@@ -578,7 +578,7 @@ public class TouchActions {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(String targetText) {
-        DriverFactoryHelper.getDriver().get().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+        DriverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
                 + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
         return this;
     }
@@ -596,7 +596,7 @@ public class TouchActions {
         do {
             // appium native device
             // Wait for element presence and get the needed data
-            visualIdentificationObjects = ElementActionsHelper.waitForElementPresence(DriverFactoryHelper.getDriver().get(), targetElementImage);
+            visualIdentificationObjects = ElementActionsHelper.waitForElementPresence(DriverFactoryHelper.getDriver(), targetElementImage);
             List<Integer> coordinates = (List<Integer>) visualIdentificationObjects.get(2);
 
             if (!Collections.emptyList().equals(coordinates)) {
@@ -605,11 +605,11 @@ public class TouchActions {
                 ReportManager.logDiscrete("Element found on screen.");
             } else {
                 // for the animated GIF:
-                ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver().get(), null, "swipeElementIntoView", null, true);
+                ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
                 canStillScroll = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, null);
                 if (!canStillScroll){
                     // check if element can be found after scrolling to the end of the page
-                    visualIdentificationObjects = ElementActionsHelper.waitForElementPresence(DriverFactoryHelper.getDriver().get(), targetElementImage);
+                    visualIdentificationObjects = ElementActionsHelper.waitForElementPresence(DriverFactoryHelper.getDriver(), targetElementImage);
                     coordinates = (List<Integer>) visualIdentificationObjects.get(2);
                     if(!Collections.emptyList().equals(coordinates)) {
                         isElementFound = true;
@@ -634,15 +634,15 @@ public class TouchActions {
 
         do {
             // appium native device
-            if (ElementActionsHelper.waitForElementPresenceWithReducedTimeout(DriverFactoryHelper.getDriver().get(), targetElementLocator) > 0) {
+            if (ElementActionsHelper.waitForElementPresenceWithReducedTimeout(DriverFactoryHelper.getDriver(), targetElementLocator) > 0) {
                 // element is already on screen
                 isElementFound = true;
                 ReportManager.logDiscrete("Element found on screen.");
             } else {
                 // for the animated GIF:
-                ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver().get(), null, "swipeElementIntoView", null, true);
+                ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
                 canStillScroll = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, targetElementLocator);
-                if (!canStillScroll && ElementActionsHelper.waitForElementPresenceWithReducedTimeout(DriverFactoryHelper.getDriver().get(), targetElementLocator) > 0) {
+                if (!canStillScroll && ElementActionsHelper.waitForElementPresenceWithReducedTimeout(DriverFactoryHelper.getDriver(), targetElementLocator) > 0) {
                     // element was found after scrolling to the end of the page
                     isElementFound = true;
                     ReportManager.logDiscrete("Element found on screen.");
@@ -662,7 +662,7 @@ public class TouchActions {
         By androidUIAutomator = AppiumBy
                 .androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true).instance("
                         + scrollableElementInstanceNumber + ")).scroll" + scrollDirection + "(" + scrollingSpeed + ")");
-        ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver().get(), androidUIAutomator);
+        ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver(), androidUIAutomator);
     }
 
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
@@ -676,14 +676,14 @@ public class TouchActions {
         logMessage += ".";
         ReportManager.logDiscrete(logMessage);
 
-        Dimension screenSize = DriverFactoryHelper.getDriver().get().manage().window().getSize();
+        Dimension screenSize = DriverFactoryHelper.getDriver().manage().window().getSize();
         boolean canScrollMore = true;
 
         var scrollParameters = new HashMap<>();
 
         if (scrollableElementLocator != null) {
             //scrolling inside an element
-            Rectangle elementRectangle = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), scrollableElementLocator).get(1)).getRect();
+            Rectangle elementRectangle = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), scrollableElementLocator).get(1)).getRect();
             scrollParameters.putAll(ImmutableMap.of(
                     "height", elementRectangle.getHeight() * 90 / 100
             ));
@@ -709,12 +709,12 @@ public class TouchActions {
             }
         }
 
-        if (DriverFactoryHelper.getDriver().get() instanceof AndroidDriver androidDriver) {
+        if (DriverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
             scrollParameters.putAll(ImmutableMap.of(
                     "direction", swipeDirection.toString()
             ));
             canScrollMore = (Boolean) ((JavascriptExecutor) androidDriver).executeScript("mobile: scrollGesture", scrollParameters);
-        } else if (DriverFactoryHelper.getDriver().get() instanceof IOSDriver iosDriver) {
+        } else if (DriverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
             scrollParameters.putAll(ImmutableMap.of(
                     "direction", swipeDirection.toString()
             ));
@@ -738,7 +738,7 @@ public class TouchActions {
         PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
         PointerInput finger2 = new PointerInput(PointerInput.Kind.TOUCH, "finger2");
 
-        Dimension size = DriverFactoryHelper.getDriver().get().manage().window().getSize();
+        Dimension size = DriverFactoryHelper.getDriver().manage().window().getSize();
         Point source = new Point(size.getWidth(), size.getHeight());
 
         Sequence pinchAndZoom1 = new Sequence(finger, 0);
@@ -759,7 +759,7 @@ public class TouchActions {
                         PointerInput.Origin.viewport(), source.x * 3 / 4, source.y * 3 / 4))
                 .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
 
-        ((RemoteWebDriver) DriverFactoryHelper.getDriver().get()).perform(asList(pinchAndZoom1, pinchAndZoom2));
+        ((RemoteWebDriver) DriverFactoryHelper.getDriver()).perform(asList(pinchAndZoom1, pinchAndZoom2));
     }
 
 
@@ -768,7 +768,7 @@ public class TouchActions {
         PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
         PointerInput finger2 = new PointerInput(PointerInput.Kind.TOUCH, "finger2");
 
-        Dimension size = DriverFactoryHelper.getDriver().get().manage().window().getSize();
+        Dimension size = DriverFactoryHelper.getDriver().manage().window().getSize();
         Point source = new Point(size.getWidth(), size.getHeight());
 
         Sequence pinchAndZoom1 = new Sequence(finger, 0);
@@ -791,7 +791,7 @@ public class TouchActions {
                         PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
                 .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
 
-        ((RemoteWebDriver) DriverFactoryHelper.getDriver().get()).perform(asList(pinchAndZoom1, pinchAndZoom2));
+        ((RemoteWebDriver) DriverFactoryHelper.getDriver()).perform(asList(pinchAndZoom1, pinchAndZoom2));
     }
 
     /**
@@ -807,9 +807,9 @@ public class TouchActions {
                 case OUT -> attemptPinchToZoomOut();
             }
         } catch (Exception rootCauseException) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, rootCauseException);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null, rootCauseException);
         }
-        ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), zoomDirection.name(), null, null);
+        ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), zoomDirection.name(), null, null);
         return this;
     }
 

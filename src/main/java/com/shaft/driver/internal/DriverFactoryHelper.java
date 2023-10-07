@@ -22,10 +22,7 @@ import io.appium.java_client.remote.options.UnhandledPromptBehavior;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.qameta.allure.Step;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.SneakyThrows;
+import lombok.*;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -51,7 +48,7 @@ import org.testng.Reporter;
 
 import java.io.File;
 import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -67,7 +64,8 @@ public class DriverFactoryHelper {
     @Getter(AccessLevel.PUBLIC)
     private static String targetBrowserName = "";
     @Getter(AccessLevel.PUBLIC)
-    private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
+    @Setter(AccessLevel.PUBLIC)
+    private static WebDriver driver;
     private static final ThreadLocal<WebDriverManager> webDriverManager = new ThreadLocal<>();
     private static ChromeOptions chOptions;
     private static FirefoxOptions ffOptions;
@@ -126,7 +124,7 @@ public class DriverFactoryHelper {
     }
 
     public static void closeDriver() {
-        if (driver.get() != null) {
+        if (driver != null) {
             if (SHAFT.Properties.visuals.videoParamsScope().equals("DriverSession")) {
                 RecordManager.attachVideoRecording();
             }
@@ -134,18 +132,18 @@ public class DriverFactoryHelper {
                 attachWebDriverLogs();
                 //if dockerized wdm.quit the relevant one
                 if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("dockerized")) {
-                    var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver.get());
-                    webDriverManager.get().quit(driver.get());
+                    var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver);
+                    webDriverManager.get().quit(driver);
                     RecordManager.attachVideoRecording(pathToRecording);
                 } else {
-                    driver.get().quit();
+                    driver.quit();
                 }
             } catch (WebDriverException | NullPointerException e) {
                 // driver was already closed at an earlier stage
             } catch (Exception e) {
                 ReportManagerHelper.logDiscrete(e);
             } finally {
-                driver.remove();
+                driver = null;
                 webDriverManager.remove();
                 ReportManager.log("Successfully Closed Driver.");
             }
@@ -180,7 +178,7 @@ public class DriverFactoryHelper {
     private static void disableCacheEdgeAndChrome() {
         if (SHAFT.Properties.flags.disableCache())
         {
-            DevTools devTools = ((HasDevTools) driver.get()).getDevTools();
+            DevTools devTools = ((HasDevTools) driver).getDevTools();
             devTools.createSessionIfThereIsNotOne();
             devTools.send(Network.enable(Optional.empty(), Optional.empty(), Optional.of(100000000)));
             devTools.send(Network.setCacheDisabled(true));
@@ -194,8 +192,7 @@ public class DriverFactoryHelper {
         }
     }
     private static void setDriverOptions(DriverType driverType, MutableCapabilities customDriverOptions) {
-        //get proxy server
-        // Proxy server settings | testing behind a proxy
+        // get Proxy server settings | testing behind a proxy
         String proxyServerSettings = SHAFT.Properties.platform.proxy();
 
         //https://github.com/GoogleChrome/chrome-launcher/blob/master/docs/chrome-flags-for-tools.md#--enable-automation
@@ -460,17 +457,17 @@ public class DriverFactoryHelper {
         try {
             ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
             switch (driverType) {
-                case FIREFOX -> driver.set(new FirefoxDriver(ffOptions));
-                case IE -> driver.set(new InternetExplorerDriver(ieOptions));
+                case FIREFOX -> driver = new FirefoxDriver(ffOptions);
+                case IE -> driver = new InternetExplorerDriver(ieOptions);
                 case CHROME -> {
-                    driver.set(new ChromeDriver(chOptions));
+                    driver = new ChromeDriver(chOptions);
                     disableCacheEdgeAndChrome();
                 }
                 case EDGE -> {
-                    driver.set(new EdgeDriver(edOptions));
+                    driver = new EdgeDriver(edOptions);
                     disableCacheEdgeAndChrome();
                 }
-                case SAFARI -> driver.set(new SafariDriver(sfOptions));
+                case SAFARI -> driver = new SafariDriver(sfOptions);
                 default ->
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
             }
@@ -489,11 +486,11 @@ public class DriverFactoryHelper {
             }
             // attempting blind fix by trying to quit existing driver if any
             try {
-                driver.get().quit();
+                driver.quit();
             } catch (Throwable throwable) {
                 // ignore
             } finally {
-                driver.remove();
+                driver = null;
             }
             if (retry) {
                 try {
@@ -537,8 +534,8 @@ public class DriverFactoryHelper {
                     .dockerRecordingOutput(SHAFT.Properties.paths.video())
                     .create();
             remoteWebDriver.setFileDetector(new LocalFileDetector());
-//            driver.set(ThreadGuard.protect(remoteWebDriver));
-            driver.set(remoteWebDriver);
+//            driver =ThreadGuard.protect(remoteWebDriver));
+            driver = remoteWebDriver;
             ReportManager.log("Successfully Opened " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".");
         } catch (io.github.bonigarcia.wdm.config.WebDriverManagerException exception) {
             failAction("Failed to create new Dockerized Browser Session, are you sure Docker is available on your machine?", exception);
@@ -614,19 +611,19 @@ public class DriverFactoryHelper {
         // stage 2: create remove driver instance (requires some time with dockerized appium)
         ReportManager.logDiscrete("Attempting to instantiate remote driver instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
         try {
-            driver.set(attemptRemoteServerConnection(capabilities));
-            ((RemoteWebDriver) driver.get()).setFileDetector(new LocalFileDetector());
+            driver = attemptRemoteServerConnection(capabilities);
+            ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
             if (!isWebExecution() && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase("Android")) {
                 // https://github.com/appium/appium-uiautomator2-driver#settings-api
-                ((AppiumDriver) driver.get()).setSetting(Setting.WAIT_FOR_IDLE_TIMEOUT, 5000);
-                ((AppiumDriver) driver.get()).setSetting(Setting.ALLOW_INVISIBLE_ELEMENTS, true);
-                ((AppiumDriver) driver.get()).setSetting(Setting.IGNORE_UNIMPORTANT_VIEWS, false);
-                ((AppiumDriver) driver.get()).setSetting("enableMultiWindows", true);
+                ((AppiumDriver) driver).setSetting(Setting.WAIT_FOR_IDLE_TIMEOUT, 5000);
+                ((AppiumDriver) driver).setSetting(Setting.ALLOW_INVISIBLE_ELEMENTS, true);
+                ((AppiumDriver) driver).setSetting(Setting.IGNORE_UNIMPORTANT_VIEWS, false);
+                ((AppiumDriver) driver).setSetting("enableMultiWindows", true);
 //        elementResponseAttributes, shouldUseCompactResponses
-                ((AppiumDriver) driver.get()).setSetting(Setting.MJPEG_SCALING_FACTOR, 25);
-                ((AppiumDriver) driver.get()).setSetting(Setting.MJPEG_SERVER_SCREENSHOT_QUALITY, 100);
-                ((AppiumDriver) driver.get()).setSetting("mjpegBilinearFiltering", true);
-                // ((AppiumDriver) driver.get()).setSetting("limitXPathContextScope", false);
+                ((AppiumDriver) driver).setSetting(Setting.MJPEG_SCALING_FACTOR, 25);
+                ((AppiumDriver) driver).setSetting(Setting.MJPEG_SERVER_SCREENSHOT_QUALITY, 100);
+                ((AppiumDriver) driver).setSetting("mjpegBilinearFiltering", true);
+                // ((AppiumDriver) driver).setSetting("limitXPathContextScope", false);
 //                ((AppiumDriver) driver).setSetting("disableIdLocatorAutocompletion", true);
 //        https://github.com/appium/appium-uiautomator2-driver#mobile-deeplink
 //        http://code2test.com/appium-tutorial/how-to-use-uiselector-in-appium/
@@ -636,7 +633,6 @@ public class DriverFactoryHelper {
         } catch (Throwable throwable) {
             failAction("Failed to instantiate remote driver instance.", throwable);
         }
-        DriverFactoryHelper.driver.set(driver.get());
     }
 
     @SneakyThrows(java.lang.InterruptedException.class)
@@ -718,29 +714,29 @@ public class DriverFactoryHelper {
 
         if (targetPlatform.equalsIgnoreCase(Platform.ANDROID.toString())) {
             if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
-                return new AndroidDriver(new URL(targetMobileHubUrl), capabilities);
+                return new AndroidDriver(URI.create(targetMobileHubUrl).toURL(), capabilities);
             } else {
                 if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                    return new AndroidDriver(new URL(targetLambdaTestHubURL), capabilities);
+                    return new AndroidDriver(URI.create(targetLambdaTestHubURL).toURL(), capabilities);
                 } else {
-                    return new AndroidDriver(new URL(targetHubUrl), capabilities);
+                    return new AndroidDriver(URI.create(targetHubUrl).toURL(), capabilities);
                 }
             }
         } else if (targetPlatform.equalsIgnoreCase(Platform.IOS.toString())) {
             if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
-                return new IOSDriver(new URL(targetMobileHubUrl), capabilities);
+                return new IOSDriver(URI.create(targetMobileHubUrl).toURL(), capabilities);
             } else {
                 if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                    return new IOSDriver(new URL(targetLambdaTestHubURL), capabilities);
+                    return new IOSDriver(URI.create(targetLambdaTestHubURL).toURL(), capabilities);
                 } else {
-                    return new IOSDriver(new URL(targetHubUrl), capabilities);
+                    return new IOSDriver(URI.create(targetHubUrl).toURL(), capabilities);
                 }
             }
         } else {
             if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                return new RemoteWebDriver(new URL(targetLambdaTestHubURL), capabilities);
+                return new RemoteWebDriver(URI.create(targetLambdaTestHubURL).toURL(), capabilities);
             } else {
-                return new RemoteWebDriver(new URL(targetHubUrl), capabilities);
+                return new RemoteWebDriver(URI.create(targetHubUrl).toURL(), capabilities);
             }
         }
     }
@@ -780,7 +776,7 @@ public class DriverFactoryHelper {
         // TODO: capture logs and record video in case of retrying failed test
         if (SHAFT.Properties.reporting.captureWebDriverLogs()) {
             try {
-                var driverLogs = driver.get().manage().logs();
+                var driverLogs = driver.manage().logs();
                 driverLogs.getAvailableLogTypes().forEach(logType -> {
                             var logBuilder = new StringBuilder();
                             driverLogs.get(logType).getAll().forEach(logEntry -> logBuilder.append(logEntry.toString()).append(System.lineSeparator()));
@@ -937,14 +933,14 @@ public class DriverFactoryHelper {
             }
 
             if (SHAFT.Properties.web.headlessExecution()) {
-                driver.get().manage().window().setSize(new Dimension(TARGET_WINDOW_SIZE.getWidth(), TARGET_WINDOW_SIZE.getHeight()));
+                driver.manage().window().setSize(new Dimension(TARGET_WINDOW_SIZE.getWidth(), TARGET_WINDOW_SIZE.getHeight()));
             } else {
                 Dimension browserWindowSize = new Dimension(
                         SHAFT.Properties.web.browserWindowWidth(),
                         SHAFT.Properties.web.browserWindowHeight()
                 );
                 if (!isMobileExecution && !SHAFT.Properties.flags.autoMaximizeBrowserWindow()) {
-                    driver.get().manage().window().setSize(browserWindowSize);
+                    driver.manage().window().setSize(browserWindowSize);
                 }
             }
 
@@ -958,15 +954,15 @@ public class DriverFactoryHelper {
                 }
             }
             // start session recording
-            RecordManager.startVideoRecording(driver.get());
+            RecordManager.startVideoRecording(driver);
         } catch (NullPointerException e) {
             FailureReporter.fail(DriverFactoryHelper.class, "Unhandled Exception with Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".", e);
         }
 
         if (SHAFT.Properties.healenium.healEnabled()) {
             ReportManager.logDiscrete("Initializing Healenium's Self Healing Driver...");
-//            driver.set(ThreadGuard.protect(SelfHealingDriver.create(driver.get())));
-            driver.set(SelfHealingDriver.create(driver.get()));
+//            driver =ThreadGuard.protect(SelfHealingDriver.create(driver)));
+            driver = SelfHealingDriver.create(driver);
         }
     }
 

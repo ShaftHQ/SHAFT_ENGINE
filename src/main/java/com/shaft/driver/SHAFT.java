@@ -100,7 +100,7 @@ public class SHAFT {
                  * https://github.com/SeleniumHQ/selenium/blob/316f9738a8e2079265a0691954ca8847e68c598d/java/test/org/openqa/selenium/support/events/EventFiringDecoratorTest.java#L422
                  */
 
-                if (DriverFactoryHelper.getDriver().get() instanceof AndroidDriver androidDriver) {
+                if (DriverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
 //                    AndroidDriver decoratedDriver = createProxy(
 //                            AndroidDriver.class,
 //                            new Object[] {androidDriver},
@@ -109,8 +109,8 @@ public class SHAFT {
 //                    );
 //                    return decoratedDriver;
 //                    return new EventFiringDecorator<>(AndroidDriver.class, listener).decorate(androidDriver);
-                    return DriverFactoryHelper.getDriver().get();
-                } else if (DriverFactoryHelper.getDriver().get() instanceof IOSDriver iosDriver) {
+                    return DriverFactoryHelper.getDriver();
+                } else if (DriverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
 //                    IOSDriver decoratedDriver = createProxy(
 //                            IOSDriver.class,
 //                            new Object[] {iosDriver},
@@ -119,15 +119,15 @@ public class SHAFT {
 //                    );
 //                    return decoratedDriver;
 //                    return new EventFiringDecorator<>(IOSDriver.class, listener).decorate(iosDriver);
-                    return DriverFactoryHelper.getDriver().get();
+                    return DriverFactoryHelper.getDriver();
 //                } else if (driverThreadLocal.get() instanceof RemoteWebDriver remoteWebDriver) {
 //                    driverThreadLocal.set(new EventFiringDecorator<>(RemoteWebDriver.class, new WebDriverListener()).decorate(remoteWebDriver));
                 } else {
                     if(!SHAFT.Properties.flags.enableTrueNativeMode()){
-                        return new EventFiringDecorator<>(org.openqa.selenium.WebDriver.class, new WebDriverListener()).decorate(DriverFactoryHelper.getDriver().get());
+                        return new EventFiringDecorator<>(org.openqa.selenium.WebDriver.class, new WebDriverListener()).decorate(DriverFactoryHelper.getDriver());
                     }
                     else{
-                        return DriverFactoryHelper.getDriver().get();
+                        return DriverFactoryHelper.getDriver();
                     }
                     }
             }

@@ -35,7 +35,7 @@ public class DriverFactory {
 
         } else {
             DriverFactoryHelper.initializeDriver();
-            return DriverFactoryHelper.getDriver().get();
+            return DriverFactoryHelper.getDriver();
         }
     }
 
@@ -53,7 +53,7 @@ public class DriverFactory {
             return getLambdaTestDriver(new MutableCapabilities());
         }else {
             DriverFactoryHelper.initializeDriver(driverType);
-            return DriverFactoryHelper.getDriver().get();
+            return DriverFactoryHelper.getDriver();
         }
     }
 
@@ -72,7 +72,7 @@ public class DriverFactory {
             return getLambdaTestDriver(customDriverOptions);
         } else {
             DriverFactoryHelper.initializeDriver(driverType, customDriverOptions);
-            return DriverFactoryHelper.getDriver().get();
+            return DriverFactoryHelper.getDriver();
         }
     }
 
@@ -139,7 +139,7 @@ public class DriverFactory {
                     SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), appUrl).merge(browserStackOptions);
             DriverFactoryHelper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
         }
-        return DriverFactoryHelper.getDriver().get();
+        return DriverFactoryHelper.getDriver();
 
     }
 
@@ -172,7 +172,7 @@ public class DriverFactory {
             lambdaTestOptions = LambdaTest.setupNativeAppExecution(SHAFT.Properties.lambdaTest.username(), SHAFT.Properties.lambdaTest.accessKey(), SHAFT.Properties.lambdaTest.deviceName(), SHAFT.Properties.lambdaTest.platformVersion(), appUrl).merge(lambdaTestOptions);
             DriverFactoryHelper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, lambdaTestOptions);
         }
-        return DriverFactoryHelper.getDriver().get();
+        return DriverFactoryHelper.getDriver();
     }
 
     /**
