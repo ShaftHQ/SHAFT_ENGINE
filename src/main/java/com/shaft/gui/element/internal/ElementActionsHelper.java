@@ -153,6 +153,12 @@ public class ElementActionsHelper {
             // the generic exception is added to handle a case with WebKit whereby the browser doesn't state the cause of the issue
             expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
         }
+
+        // to handle failure inside a virtual thread
+        expectedExceptions.add(ExecutionException.class);
+        expectedExceptions.add(InterruptedException.class);
+        expectedExceptions.add(RuntimeException.class);
+
         return expectedExceptions;
     }
 
