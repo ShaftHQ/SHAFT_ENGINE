@@ -20,9 +20,15 @@ public class SelectMethod {
 
     }
     @Test
-    public void testSelect(){
+    public void testValidSelect(){
         login("Admin","admin123")
                 .clickDropDownList("Support");
+    }
+
+    @Test
+    public void testInvalidSelect(){
+        login("Admin","admin123")
+                .clickDropDownList("sds");
     }
 
     @AfterMethod
