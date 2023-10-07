@@ -18,10 +18,10 @@ jobs:
   #    steps:
   #      - name: Checkout Code
   #        uses: actions/checkout@v4
-  #      - name: Set up JDK 17
+  #      - name: Set up JDK 21
   #        uses: actions/setup-java@v3
   #        with:
-  #          java-version: '17'
+  #          java-version: '21'
   #          distribution: 'zulu'
   #          cache: 'maven'
   #          check-latest: true
@@ -54,10 +54,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -92,10 +92,10 @@ jobs:
         uses: actions/checkout@v4
       - name: Set up Native Selenium Grid
         run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=0 --scale firefox=4 -d
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -132,10 +132,10 @@ jobs:
         uses: actions/checkout@v4
       - name: Set up Native Selenium Grid
         run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=4 --scale edge=0 --scale firefox=0 -d
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -172,10 +172,10 @@ jobs:
         uses: actions/checkout@v4
       - name: Set up Native Selenium Grid
         run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=4 --scale firefox=0 -d
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -210,10 +210,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -246,10 +246,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -282,10 +282,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -318,10 +318,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -425,10 +425,10 @@ jobs:
           echo $PATH
           $ANDROID_HOME/tools/bin/sdkmanager --update
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -499,10 +499,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -535,10 +535,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -571,10 +571,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -607,10 +607,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -643,10 +643,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -685,10 +685,10 @@ jobs:
       - name: Set up Native Selenium Grid
         if: runner.os == 'Linux'
         run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=4 --scale edge=0 --scale firefox=0 -d
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -728,10 +728,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '16'
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -768,10 +768,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '16'
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -808,10 +808,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '16'
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -848,10 +848,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '16'
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -888,10 +888,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '16'
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
@@ -928,10 +928,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '16'
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
           check-latest: true
