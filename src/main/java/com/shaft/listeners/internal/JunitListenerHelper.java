@@ -6,7 +6,7 @@ import org.junit.platform.launcher.TestIdentifier;
 public class JunitListenerHelper {
     private static final ThreadLocal<String> testName = new ThreadLocal<>();
 
-    public static synchronized void setTestName(TestIdentifier testIdentifier) {
+    public static void setTestName(TestIdentifier testIdentifier) {
         testName.set(testIdentifier.getDisplayName());
     }
 

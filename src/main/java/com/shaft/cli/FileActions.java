@@ -16,6 +16,7 @@ import org.sikuli.basics.FileManager;
 
 import java.io.*;
 import java.net.JarURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.*;
 import java.util.*;
@@ -444,7 +445,7 @@ public class FileActions {
 
     public void copyFolderFromJar(String sourceFolderPath, String destinationFolderPath) {
         try {
-            URL url = new URL(sourceFolderPath.replace("file:", "jar:file:"));
+            URL url = URI.create(sourceFolderPath.replace("file:", "jar:file:")).toURL();
             JarURLConnection jarConnection = (JarURLConnection) url.openConnection();
             JarFile jarFile = jarConnection.getJarFile();
 
@@ -488,7 +489,7 @@ public class FileActions {
 
     public void copyFileFromJar(String sourceFolderPath, String destinationFolderPath, String fileName) {
         try {
-            URL url = new URL(sourceFolderPath.replace("file:", "jar:file:"));
+            URL url = URI.create(sourceFolderPath.replace("file:", "jar:file:")).toURL();
             JarURLConnection jarConnection = (JarURLConnection) url.openConnection();
             JarFile jarFile = jarConnection.getJarFile();
 
@@ -611,7 +612,7 @@ public class FileActions {
             try {
                 ReportManager.log("Downloading a file from this url \"" + targetFileURL + "\" to this directory \""
                         + destinationFilePath + "\", please wait as downloading may take some time...");
-                FileUtils.copyURLToFile(new URL(targetFileURL), new File(destinationFilePath), connectionTimeout,
+                FileUtils.copyURLToFile(URI.create(targetFileURL).toURL(), new File(destinationFilePath), connectionTimeout,
                         readTimeout);
                 ReportManager.logDiscrete("Downloading completed successfully.");
                 URL downloadedFile = new File(destinationFilePath).toURI().toURL();

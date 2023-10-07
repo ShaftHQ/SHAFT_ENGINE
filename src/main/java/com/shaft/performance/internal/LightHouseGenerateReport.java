@@ -8,6 +8,7 @@ import org.apache.commons.lang3.SystemUtils;
 import org.openqa.selenium.WebDriver;
 
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.List;
@@ -152,7 +153,7 @@ public class LightHouseGenerateReport {
         String CurrentUrl;
         CurrentUrl = driver.getCurrentUrl();
         try {
-            URL url = new URL(CurrentUrl);
+            URL url = URI.create(CurrentUrl).toURL();
             Pagename = url.getPath();
             Pagename = Pagename.replace("/", "-");
             return  (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis())+ "-" + Pagename;

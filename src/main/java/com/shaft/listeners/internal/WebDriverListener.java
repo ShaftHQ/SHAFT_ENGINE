@@ -34,7 +34,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
 
     public void onError(Object target, Method method, Object[] args, InvocationTargetException e) {
         ReportManager.log(JavaHelper.convertToSentenceCase(method.getName()) + " action failed.");
-        ReportManagerHelper.attach(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver().get(), method.getName(), false));
+        ReportManagerHelper.attach(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver(), method.getName(), false));
         ReportManagerHelper.logDiscrete(e);
     }
 
@@ -81,7 +81,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     public void beforeClick(WebElement element) {
         if (SHAFT.Properties.flags.respectBuiltInWaitsInNativeMode()) {
             try {
-                (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofMillis((long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
+                (new WebDriverWait(DriverFactoryHelper.getDriver(), Duration.ofMillis((long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
                         .until(ExpectedConditions.elementToBeClickable(element));
             } catch (org.openqa.selenium.TimeoutException timeoutException) {
                 ReportManagerHelper.logDiscrete(timeoutException);

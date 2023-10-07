@@ -26,10 +26,10 @@ jobs:
         with:
           languages: ${{ matrix.language }}
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           check-latest: true
           server-id: ossrh
@@ -37,6 +37,11 @@ jobs:
           server-password: MAVEN_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
 
       - name: Setup Prerequisites
         continue-on-error: true

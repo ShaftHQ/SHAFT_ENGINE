@@ -12,7 +12,7 @@ import lombok.Getter;
 import org.apache.commons.lang3.SystemUtils;
 
 import java.io.File;
-import java.net.URL;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -95,7 +95,7 @@ public class AppiumSelfManagementHelper {
             ReportManager.logDiscrete("Downloading and installing Android SDK CLI Tools from " + url);
             ReportHelper.disableLogging();
             try {
-                FileActions.getInstance().unpackArchive(new URL(url), androidSelfManagedEnvironmentLocation);
+                FileActions.getInstance().unpackArchive(URI.create(url).toURL(), androidSelfManagedEnvironmentLocation);
                 FileActions.getInstance().copyFolder(androidSelfManagedEnvironmentLocation + "cmdline-tools" + File.separator + "bin", androidSelfManagedEnvironmentLocation + subPathToBin);
                 ReportManager.logDiscrete("Successfully prepared Android SDK CLI tools.");
             } catch (Throwable throwable) {
@@ -208,7 +208,7 @@ public class AppiumSelfManagementHelper {
             }
             ReportManager.logDiscrete("Downloading and installing Node.js from " + url);
             try {
-                FileActions.getInstance().unpackArchive(new URL(url), androidSelfManagedEnvironmentLocation + "npm" + File.separator);
+                FileActions.getInstance().unpackArchive(URI.create(url).toURL(), androidSelfManagedEnvironmentLocation + "npm" + File.separator);
                 ReportManager.logDiscrete("Successfully prepared Node.js.");
             } catch (Throwable throwable) {
                 FailureReporter.fail(AppiumSelfManagementHelper.class, "Failed to prepare Node.js.", throwable);

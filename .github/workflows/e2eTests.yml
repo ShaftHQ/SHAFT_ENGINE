@@ -18,10 +18,10 @@ jobs:
   #    steps:
   #      - name: Checkout Code
   #        uses: actions/checkout@v4
-  #      - name: Set up JDK 17
+  #      - name: Set up JDK 21
   #        uses: actions/setup-java@v3
   #        with:
-  #          java-version: '17'
+  #          java-version: '21'
   #          distribution: 'zulu'
   #          cache: 'maven'
   #          check-latest: true
@@ -54,13 +54,16 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DgenerateAllureReportArchive=true" "-Dtest=.*Tests_Api.*, .*tests_restActions.*, *.Test_AssertApiResponseEquals.*, *.MatchJsonSchemaTests.*"
@@ -92,13 +95,16 @@ jobs:
         uses: actions/checkout@v4
       - name: Set up Native Selenium Grid
         run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=0 --scale firefox=4 -d
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Check running containers
         run: docker ps
       - name: Run tests
@@ -132,13 +138,16 @@ jobs:
         uses: actions/checkout@v4
       - name: Set up Native Selenium Grid
         run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=4 --scale edge=0 --scale firefox=0 -d
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Check running containers
         run: docker ps
       - name: Run tests
@@ -172,13 +181,16 @@ jobs:
         uses: actions/checkout@v4
       - name: Set up Native Selenium Grid
         run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=4 --scale firefox=0 -d
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Check running containers
         run: docker ps
       - name: Run tests
@@ -210,13 +222,16 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
@@ -246,13 +261,16 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
@@ -282,13 +300,16 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=SAFARI" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
@@ -318,13 +339,16 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Setup Chromium
         uses: browser-actions/setup-chrome@latest
       - name: Run tests
@@ -425,13 +449,16 @@ jobs:
           echo $PATH
           $ANDROID_HOME/tools/bin/sdkmanager --update
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v3
@@ -499,13 +526,16 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appName=ApiDemos-debug.apk" "-DbrowserStack.appRelativeFilePath=src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
@@ -535,13 +565,16 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=IOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-Dmobile_browserName=SAFARI" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
@@ -571,13 +604,16 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-Dmobile_browserName=CHROME" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
@@ -607,13 +643,16 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-Dmobile_browserName=samsung" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
@@ -643,13 +682,16 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*ChainableElementActionsTests.*]"
@@ -685,13 +727,16 @@ jobs:
       - name: Set up Native Selenium Grid
         if: runner.os == 'Linux'
         run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=4 --scale edge=0 --scale firefox=0 -d
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Check running containers
         if: runner.os == 'Linux'
         run: docker ps
@@ -728,13 +773,16 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '16'
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Run tests on Windows
         if: runner.os == 'Windows'
         continue-on-error: true
@@ -768,13 +816,16 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '16'
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTests.*"
@@ -808,13 +859,16 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '16'
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobAPK*.*]"
@@ -848,13 +902,16 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '16'
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobIPA*.*]"
@@ -888,13 +945,16 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '16'
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTWebApp*.*]"
@@ -928,13 +988,16 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '16'
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           cache: 'maven'
-          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTDesktopWeb*.*]"

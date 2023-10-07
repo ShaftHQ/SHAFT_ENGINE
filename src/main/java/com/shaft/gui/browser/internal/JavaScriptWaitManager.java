@@ -35,7 +35,7 @@ public class JavaScriptWaitManager {
      * Waits for jQuery, Angular, and/or Javascript if present on the current page.
      */
     public static void waitForLazyLoading() {
-        setDriver(DriverFactoryHelper.getDriver().get());
+        setDriver(DriverFactoryHelper.getDriver());
         if (SHAFT.Properties.timeouts.waitForLazyLoading()
                 && !DriverFactoryHelper.isMobileNativeExecution()) {
             try {

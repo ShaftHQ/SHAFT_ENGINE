@@ -36,7 +36,7 @@ public class TestNGListenerHelper {
         }
     }
 
-    public static synchronized void updateConfigurationMethodLogs(ITestResult iTestResult) {
+    public static void updateConfigurationMethodLogs(ITestResult iTestResult) {
         if (iTestResult.getMethod().isTest()) {
             //attach before configuration logs to the current test
             beforeMethods.forEach(TestNGListenerHelper::attachTestArtifacts);
@@ -71,11 +71,11 @@ public class TestNGListenerHelper {
         }
     }
 
-    public static synchronized String getTestName() {
+    public static String getTestName() {
         return testName.get();
     }
 
-    public static synchronized void setTestName(ITestContext iTestContext) {
+    public static void setTestName(ITestContext iTestContext) {
         testName.set(iTestContext.getCurrentXmlTest().getName());
     }
 

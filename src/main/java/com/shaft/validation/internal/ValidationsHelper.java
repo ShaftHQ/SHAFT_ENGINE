@@ -596,24 +596,24 @@ public class ValidationsHelper {
                 message.append(" Validation Type \"").append(validationType).append("\".");
             }
         }
-        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver().get() != null) {
+        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver() != null) {
             // create a screenshot attachment if needed for webdriver
             if (lastUsedElementLocator != null) {
-                attachments.add(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver().get(), lastUsedElementLocator,
+                attachments.add(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver(), lastUsedElementLocator,
                         validationMethodName, validationState.getValue()));
             } else {
-                attachments.add(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver().get(), validationMethodName,
+                attachments.add(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver(), validationMethodName,
                         validationState.getValue()));
             }
             // reset lastUsed variables
             lastUsedElementLocator = null;
             //}
         }
-        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver().get() != null && !WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Never")) {
+        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver() != null && !WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Never")) {
             if ((WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Always") || WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("ValidationPointsOnly"))
                     || (Boolean.FALSE.equals(validationState.getValue()) && WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("FailuresOnly"))) {
                 var logMessage = "";
-                var pageSnapshot = BrowserActionsHelper.capturePageSnapshot(DriverFactoryHelper.getDriver().get());
+                var pageSnapshot = BrowserActionsHelper.capturePageSnapshot(DriverFactoryHelper.getDriver());
                 if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
                     logMessage = "page snapshot";
                 } else if (pageSnapshot.startsWith("<html")) {
