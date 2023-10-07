@@ -703,15 +703,16 @@ public class ElementActions {
                 click(elementInformation.getLocator());
                 elementInformation = ElementInformation.fromList(ElementActionsHelper.
                         identifyUniqueElement((WebDriver) DriverFactoryHelper.getDriver().get(), elementLocator));
-                RelativeLocator.RelativeBy relativeBy = null;
                 try {
-                    relativeBy = SHAFT.GUI.Locator.hasAnyTagName().and().containsText(valueOrVisibleText).relativeBy().below(elementInformation.getLocator());
-                } catch (Exception e) {
+                    RelativeLocator.RelativeBy relativeBy = SHAFT.GUI.Locator.hasAnyTagName().and().containsText(valueOrVisibleText).relativeBy().below(elementInformation.getLocator());
+                    elementInformation = ElementInformation.fromList(ElementActionsHelper.
+                            identifyUniqueElement((WebDriver) DriverFactoryHelper.getDriver().get(), relativeBy));
+                } catch (Throwable var9) {
                     ReportManager.logDiscrete("Cannot Find Element with the following Locator in the DropDown Options: " + By.xpath("//*[text()='" + valueOrVisibleText + "']"));
                     ElementActionsHelper.failAction((WebDriver) DriverFactoryHelper.getDriver().get(),
-                            valueOrVisibleText, By.xpath("//*[text()='" + valueOrVisibleText + "']"), e);
+                            By.xpath("//*[text()='" + valueOrVisibleText + "']").toString(), elementLocator, var9);
                 }
-               click(relativeBy);
+                click(elementInformation.getLocator());
             }
             else {
                 ReportManager.logDiscrete("Cannot Find Element with the following Locator in the DropDown Options: " + By.xpath("//*[text()='" + valueOrVisibleText + "']"));
