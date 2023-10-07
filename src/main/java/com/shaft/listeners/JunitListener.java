@@ -76,7 +76,7 @@ public class JunitListener implements LauncherSessionListener {
         SHAFT.Properties.reporting.set().disableLogging(true);
         Allure.getLifecycle();
         Reporter.setEscapeHtml(false);
-        ProjectStructureManager.initialize(ProjectStructureManager.Mode.JUNIT);
+        ProjectStructureManager.initialize(ProjectStructureManager.RunType.JUNIT);
         TestNGListenerHelper.configureJVMProxy();
         GoogleTink.initialize();
         GoogleTink.decrypt();
