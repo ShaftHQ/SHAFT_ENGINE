@@ -98,12 +98,13 @@ public class DriverFactory {
     public static void reloadProperties() {
         if (SHAFT.Properties.platform == null) {
             System.out.println("Execution Listeners are not loaded properly... Self-Healing... Initializing minimalistic test run...");
-            TestNGListener.engineSetup();
-            if (TestNGListener.isJunitRun()) {
-                ProjectStructureManager.initialize(ProjectStructureManager.Mode.JUNIT);
-            } else {
-                ProjectStructureManager.initialize(ProjectStructureManager.Mode.TESTNG);
+            var runType = TestNGListener.identifyRunType();
+            if (runType.equals(ProjectStructureManager.RunType.CUCUMBER)) {
+                // stuck on minimalistic test run in case of native cucumber execution without manual plugin configuration
+                System.out.println("To unlock the full capabilities of SHAFT kindly follow these steps to configure SHAFT's Cucumber plugin:");
+                System.out.println("https://github.com/ShaftHQ/SHAFT_ENGINE#stop-reinventing-the-wheel-start-using-shaft");
             }
+            TestNGListener.engineSetup(runType);
         }
     }
 
