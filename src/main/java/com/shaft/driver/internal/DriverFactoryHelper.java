@@ -912,6 +912,8 @@ public class DriverFactoryHelper {
             if (isMobileExecution) {
                 //mobile execution
                 if (isMobileWebExecution()) {
+                    // org.openqa.selenium.InvalidArgumentException: Parameters were incorrect. We wanted {"required":["x","y","width","height"]} and you sent ["width","height"]
+                    SHAFT.Properties.web.set().headlessExecution(false);
                     if (SHAFT.Properties.mobile.browserName().equalsIgnoreCase(DriverType.APPIUM_SAMSUNG_BROWSER.getValue())) {
                         driverType = DriverType.APPIUM_SAMSUNG_BROWSER;
                     } else {

@@ -19,6 +19,7 @@ import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
+import io.appium.java_client.AppiumDriver;
 import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
@@ -325,7 +326,14 @@ public class BrowserActions {
         }
         try {
             JavaScriptWaitManager.waitForLazyLoading();
-            String initialURL = DriverFactoryHelper.getDriver().getCurrentUrl();
+            String initialURL = "";
+
+            if (DriverFactoryHelper.getDriver() instanceof AppiumDriver appiumDriver) {
+                initialURL = appiumDriver.getCurrentUrl();
+            } else {
+                initialURL = DriverFactoryHelper.getDriver().getCurrentUrl();
+            }
+
             // remove trailing slash which may cause comparing the current and target urls
             // to fail
             if (initialURL.endsWith("/")) {
