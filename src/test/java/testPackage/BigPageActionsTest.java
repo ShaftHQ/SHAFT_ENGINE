@@ -54,8 +54,8 @@ public class BigPageActionsTest {
             var action1 = myExecutor.submit(() -> driver.element().type(By.id("et_pb_contact_name_0"), "TEST_NAME"));
             var action2 = myExecutor.submit(() -> driver.element().type(By.id("et_pb_contact_email_0"), "email@email.email"));
             var action3 = myExecutor.submit(() -> driver.element().type(By.id("et_pb_contact_message_0"), """
-                        This is a long message
-                        it will have line breaks
+                    This is a long message
+                    it will have line breaks
                     and special characters ...######$%^&&*!!"""));
 
             //synchronization point
