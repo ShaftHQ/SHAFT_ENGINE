@@ -10,8 +10,8 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.cucumber.core.feature.FeatureParser;
 import io.cucumber.core.gherkin.Feature;
 import io.cucumber.core.resource.Resource;
-import io.cucumber.plugin.ConcurrentEventListener;
 import io.cucumber.plugin.event.*;
+import io.qameta.allure.cucumber7jvm.AllureCucumber7Jvm;
 import org.testng.Reporter;
 
 import java.io.ByteArrayInputStream;
@@ -20,23 +20,17 @@ import java.net.URI;
 import java.util.Optional;
 import java.util.UUID;
 
-import static com.shaft.listeners.internal.CucumberHelper.shaftSetup;
-import static com.shaft.listeners.internal.CucumberHelper.shaftTeardown;
-
 @SuppressWarnings("unused")
-public class CucumberTestRunnerListener implements ConcurrentEventListener {
+public class CucumberTestRunnerListener extends AllureCucumber7Jvm {
     private static String lastStartedScenarioName;
 
     @Override
     public void setEventPublisher(EventPublisher publisher) {
-        //https://github.com/cucumber/cucumber-jvm/issues/1901
-        //https://github.com/cucumber/cucumber-jvm/issues/1901#issuecomment-600494342
-        publisher.registerHandlerFor(TestRunStarted.class, this::handleTestRunStarted);
-        publisher.registerHandlerFor(TestRunFinished.class, this::handleTestRunFinished);
+        publisher.registerHandlerFor(TestSourceParsed.class, this::handleTestSourceParsed);
         publisher.registerHandlerFor(TestCaseStarted.class, this::caseStartedHandler);
         publisher.registerHandlerFor(TestCaseFinished.class, this::caseFinishedHandler);
         publisher.registerHandlerFor(TestStepStarted.class, this::stepStartedHandler);
-        publisher.registerHandlerFor(TestSourceParsed.class, this::handleTestSourceParsed);
+        super.setEventPublisher(publisher);
     }
 
     private void handleTestSourceParsed(TestSourceParsed event) {
@@ -50,14 +44,6 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
                 }
             }
         });
-    }
-
-    private void handleTestRunStarted(TestRunStarted event) {
-        shaftSetup();
-    }
-
-    private void handleTestRunFinished(TestRunFinished event) {
-        shaftTeardown();
     }
 
     private void caseStartedHandler(TestCaseStarted event) {
@@ -96,8 +82,6 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
                 RecordManager.attachVideoRecording();
             }
             ScreenshotManager.attachAnimatedGif();
-            // configuration method attachment is not added to the report (Allure ->
-            // threadContext.getCurrent(); -> empty)
             ReportManagerHelper.attachTestLog(lastStartedScenarioName,
                     TestNGListenerHelper.createTestLog(Reporter.getOutput()));
         }

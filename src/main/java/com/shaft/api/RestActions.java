@@ -16,6 +16,7 @@ import eu.medsea.mimeutil.MimeUtil2;
 import io.restassured.builder.MultiPartSpecBuilder;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.config.EncoderConfig;
+import io.restassured.config.HttpClientConfig;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.http.ContentType;
 import io.restassured.http.Cookie;
@@ -28,6 +29,7 @@ import io.restassured.response.Response;
 import io.restassured.specification.QueryableRequestSpecification;
 import io.restassured.specification.RequestSpecification;
 import io.restassured.specification.SpecificationQuerier;
+import lombok.Getter;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -50,8 +52,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import static io.restassured.RestAssured.config;
 import static io.restassured.RestAssured.given;
-import static io.restassured.config.HttpClientConfig.httpClientConfig;
 
 @SuppressWarnings("unused")
 public class RestActions {
@@ -68,13 +70,10 @@ public class RestActions {
     private final String serviceURI;
     private final Map<String, String> sessionHeaders;
     private final Map<String, Object> sessionCookies;
-    private final List<RestAssuredConfig> sessionConfigs;
+    private final RestAssuredConfig sessionConfig;
     private String headerAuthorization;
+    @Getter
     static Response lastResponse;
-
-    public static Response getLastResponse() {
-        return lastResponse;
-    }
 
     public RestActions(String serviceURI) {
         initializeSystemProperties();
@@ -82,7 +81,7 @@ public class RestActions {
         this.serviceURI = serviceURI;
         sessionCookies = new HashMap<>();
         sessionHeaders = new HashMap<>();
-        sessionConfigs = new ArrayList<>();
+        sessionConfig = config();
     }
 
     public static RequestBuilder buildNewRequest(String serviceURI, String serviceName, RequestType requestType) {
@@ -97,7 +96,11 @@ public class RestActions {
     private static void failAction(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
                                    Throwable... rootCauseException) {
         String message = reportActionResult(actionName, testData, requestBody, specs, response, false, null, false, rootCauseException);
-        FailureReporter.fail(RestActions.class, message, rootCauseException[0]);
+        if (rootCauseException.length > 0) {
+            FailureReporter.fail(RestActions.class, message, rootCauseException[0]);
+        } else {
+            FailureReporter.fail(message);
+        }
     }
 
     protected static void passAction(String testData) {
@@ -386,7 +389,7 @@ public class RestActions {
      */
     public static boolean compareJSON(Response response, String referenceJsonFilePath, ComparisonType comparisonType,
                                       String jsonPathToTargetArray) {
-        if (jsonPathToTargetArray.equals("")) {
+        if (jsonPathToTargetArray.isEmpty()) {
             ReportManager.logDiscrete("Comparing the provided API response with the file at this path \""
                     + referenceJsonFilePath + "\", comparison type \"" + comparisonType + "\"");
         } else {
@@ -466,8 +469,8 @@ public class RestActions {
 
     private static String reportActionResult(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
                                              Boolean isDiscrete, List<Object> expectedFileBodyAttachment, Boolean passFailStatus, Throwable... rootCauseException) {
-//        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         actionName = JavaHelper.convertToSentenceCase(actionName);
+        actionName = actionName.equals("Perform request") ? "Request details: " : actionName;
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "API Action: " + actionName;
@@ -579,7 +582,7 @@ public class RestActions {
 
     private static List<Object> reportRequestBody(Object requestBody) {
         List<Object> requestBodyAttachment = new ArrayList<>();
-        if (requestBody.toString() != null && !requestBody.toString().equals("")) {
+        if (requestBody.toString() != null && !requestBody.toString().isEmpty()) {
             if (ReportManagerHelper.getDiscreteLogging()) {
                 try {
                     ReportManager.logDiscrete("API Request - REST Body:\n"
@@ -790,14 +793,14 @@ public class RestActions {
                                                String jsonPathToTargetArray)
             throws JSONException, ParseException {
         JSONParser parser = new JSONParser();
-        if (!jsonPathToTargetArray.equals("") && (expectedJsonArray != null)) {
+        if (!jsonPathToTargetArray.isEmpty() && (expectedJsonArray != null)) {
             // if expected is an array and the user provided the path to extract it from the
             // response
             org.json.simple.JSONArray actualJsonArray = (org.json.simple.JSONArray) parser
                     .parse((new Gson()).toJsonTree(getResponseJSONValueAsList(response, jsonPathToTargetArray))
                             .getAsJsonArray().toString());
             return actualJsonArray.containsAll(expectedJsonArray);
-        } else if (jsonPathToTargetArray.equals("") && (expectedJsonArray != null)) {
+        } else if (jsonPathToTargetArray.isEmpty() && (expectedJsonArray != null)) {
             // if expected is an array and the user did not provide the path to extract it
             // from the response
             String actual = (new Gson()).toJson(actualJsonObject);
@@ -997,8 +1000,8 @@ public class RestActions {
         return sessionCookies;
     }
 
-    protected List<RestAssuredConfig> getSessionConfigs() {
-        return sessionConfigs;
+    protected RestAssuredConfig getSessionConfig() {
+        return sessionConfig;
     }
 
     private RequestSpecBuilder setConfigs(RequestSpecBuilder builder, List<RestAssuredConfig> configs) {
@@ -1008,22 +1011,19 @@ public class RestActions {
         return builder;
     }
 
-    private RequestSpecBuilder initializeBuilder(Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, List<RestAssuredConfig> sessionConfigs, boolean appendDefaultContentCharsetToContentTypeIfUndefined) {
+    private RequestSpecBuilder initializeBuilder(Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, RestAssuredConfig sessionConfig, boolean appendDefaultContentCharsetToContentTypeIfUndefined) {
         RequestSpecBuilder builder = new RequestSpecBuilder();
 
         builder.addCookies(sessionCookies);
         builder.addHeaders(sessionHeaders);
-        //noinspection DataFlowIssue
-        builder = setConfigs(builder, sessionConfigs);
-
-        // fixing issue with non-unicode content being encoded with a non UTF-8 charset
-        // adding timeouts
-        builder.setConfig(
-                (new RestAssuredConfig()).encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8").appendDefaultContentCharsetToContentTypeIfUndefined(appendDefaultContentCharsetToContentTypeIfUndefined)).and()
-                        .httpClient(httpClientConfig()
-                                .setParam("http.connection.timeout", HTTP_CONNECTION_TIMEOUT * 1000)
-                                .setParam("http.socket.timeout", HTTP_SOCKET_TIMEOUT * 1000)
-                                .setParam("http.connection-manager.timeout", HTTP_CONNECTION_MANAGER_TIMEOUT * 1000)));
+        //Add configs
+        RestAssuredConfig  userConfigs=sessionConfig.and().encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")
+        		.appendDefaultContentCharsetToContentTypeIfUndefined(appendDefaultContentCharsetToContentTypeIfUndefined)).and()
+        .httpClient(HttpClientConfig.httpClientConfig()
+                .setParam("http.connection.timeout", HTTP_CONNECTION_TIMEOUT * 1000)
+                .setParam("http.socket.timeout", HTTP_SOCKET_TIMEOUT * 1000)
+                .setParam("http.connection-manager.timeout", HTTP_CONNECTION_MANAGER_TIMEOUT * 1000));
+        builder.setConfig(userConfigs);
         // timeouts documentation
         /*
          * CoreConnectionPNames.SO_TIMEOUT='http.socket.timeout': defines the socket
@@ -1064,19 +1064,10 @@ public class RestActions {
         return this;
     }
 
-    /**
-     * Append a config to the current session.
-     *
-     * @param config the rest-assured config you want to add
-     * @return self-reference to be used for chaining actions
-     */
-    public RestActions addConfigVariable(RestAssuredConfig config) {
-        sessionConfigs.add(config);
-        return this;
-    }
+    
 
     protected String prepareRequestURL(String serviceURI, String urlArguments, String serviceName) {
-        if (urlArguments != null && !urlArguments.equals("")) {
+        if (urlArguments != null && !urlArguments.isEmpty()) {
             return serviceURI + serviceName + ARGUMENT_SEPARATOR + urlArguments;
         } else {
             return serviceURI + serviceName;
@@ -1084,14 +1075,14 @@ public class RestActions {
     }
 
     protected RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
-                                                       Object body, String contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, List<RestAssuredConfig> sessionConfigs, boolean appendDefaultContentCharsetToContentTypeIfUndefined, boolean urlEncodingEnabled) {
-        RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders, sessionConfigs, appendDefaultContentCharsetToContentTypeIfUndefined);
+                                                       Object body, ContentType contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, RestAssuredConfig sessionConfig, boolean appendDefaultContentCharsetToContentTypeIfUndefined, boolean urlEncodingEnabled) {
+        RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders, sessionConfig, appendDefaultContentCharsetToContentTypeIfUndefined);
 
         // set the default content type as part of the specs
         builder.setContentType(contentType);
         builder.setUrlEncodingEnabled(urlEncodingEnabled);
 
-        if (body != null && contentType != null && !body.toString().equals("")) {
+        if (body != null && contentType != null && !body.toString().isEmpty()) {
             prepareRequestBody(builder, body, contentType);
         } else if (parameters != null && !parameters.isEmpty() && !parameters.get(0).get(0).equals("")) {
             prepareRequestBody(builder, parameters, parametersType);
@@ -1099,7 +1090,7 @@ public class RestActions {
         return builder.build();
     }
 
-    private void prepareRequestBody(RequestSpecBuilder builder, Object body, String contentType) {
+    private void prepareRequestBody(RequestSpecBuilder builder, Object body, ContentType contentType) {
         if (body instanceof String bodyString && bodyString.contains("\n")) {
             builder.setBody(bodyString);
         } else if (body instanceof org.json.JSONObject || body instanceof org.json.JSONArray) {
@@ -1107,9 +1098,11 @@ public class RestActions {
         } else {
             try {
                 switch (contentType) {
-                    case "application/json", "application/javascript", "text/javascript", "text/json" ->
+                    case JSON ->
+                        // "application/json", "application/javascript", "text/javascript", "text/json" ->
                             builder.setBody(body, ObjectMapperType.GSON);
-                    case "application/xml", "text/xml", "application/xhtml+xml" ->
+                    case XML ->
+                        //   "application/xml", "text/xml", "application/xhtml+xml" ->
                             builder.setBody(body, ObjectMapperType.JAXB);
                     default -> builder.setBody(body);
                 }
@@ -1214,12 +1207,12 @@ public class RestActions {
                 if (targetStatusCode != 0) {
                     Validations.assertThat().number(statusCode)
                             .isEqualTo(targetStatusCode)
-                            .withCustomReportMessage("Evaluating the actual response status code "+statusCode+" against the expected one "+targetStatusCode+"...")
+                            .withCustomReportMessage("Evaluating the actual response status code " + statusCode + " against the expected one " + targetStatusCode + ".")
                             .perform();
                 } else {
                     Validations.assertThat().object(statusCode >= 200 && statusCode < 300)
                             .isTrue()
-                            .withCustomReportMessage("Evaluating that the response is successful (Status code is between 200 and 299)...")
+                            .withCustomReportMessage("Evaluating that the response is successful (Status code is between 200 and 299).")
                             .perform();
                 }
             }
@@ -1231,7 +1224,7 @@ public class RestActions {
     }
 
     String prepareReportMessage(Response response, int targetStatusCode, RequestType requestType,
-                                String serviceName, String contentType, String urlArguments) {
+                                String serviceName, ContentType contentType, String urlArguments) {
         if (response != null) {
             extractCookiesFromResponse(response);
             extractHeadersFromResponse(response);

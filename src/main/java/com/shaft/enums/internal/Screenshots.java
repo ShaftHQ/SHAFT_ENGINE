@@ -1,5 +1,8 @@
 package com.shaft.enums.internal;
 
+import lombok.Getter;
+
+@Getter
 public enum Screenshots {
     ELEMENT("element"), VIEWPORT("regular"), FULL("fullpage");
     final String value;
@@ -8,7 +11,4 @@ public enum Screenshots {
         this.value = value;
     }
 
-    public String getValue() {
-        return this.value;
-    }
 }

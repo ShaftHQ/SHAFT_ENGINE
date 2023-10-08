@@ -4,8 +4,8 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
-import com.shaft.gui.browser.internal.BrowserActionsHelpers;
-import com.shaft.gui.browser.internal.FluentBrowserActions;
+import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.internal.image.ImageProcessingActions;
@@ -180,7 +180,7 @@ public class ValidationsHelper {
                 validationComparisonType, validationType, validationCategory});
     }
 
-    protected static void validateElementCSSProperty(ValidationCategory validationCategory, WebDriver driver, By elementLocator, String propertyName,
+    protected static void validateElementCSSProperty(ValidationCategory validationCategory, By elementLocator, String propertyName,
                                                      String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
                                                      String... optionalCustomLogMessage) {
         processCustomLogMessage(optionalCustomLogMessage);
@@ -189,7 +189,7 @@ public class ValidationsHelper {
         String locatorSeparator = "' CSS property, element locator '";
         String actualValue;
         try {
-            actualValue = new ElementActions(driver).getCSSProperty(elementLocator, propertyName);
+            actualValue = new ElementActions().getCSSProperty(elementLocator, propertyName);
         } catch (Throwable e) {
             // force fail due to upstream failure
             if (validationType.getValue()) {
@@ -222,12 +222,12 @@ public class ValidationsHelper {
         String actualValue;
         try {
             actualValue = switch (browserAttribute.toLowerCase()) {
-                case "currenturl", "url" -> FluentBrowserActions.getInstance().getCurrentURL();
-                case "pagesource" -> FluentBrowserActions.getInstance().getPageSource();
-                case "title" -> FluentBrowserActions.getInstance().getCurrentWindowTitle();
-                case "windowhandle" -> FluentBrowserActions.getInstance().getWindowHandle();
-                case "windowposition" -> FluentBrowserActions.getInstance().getWindowPosition();
-                case "windowsize" -> FluentBrowserActions.getInstance().getWindowSize();
+                case "currenturl", "url" -> BrowserActions.getInstance().getCurrentURL();
+                case "pagesource" -> BrowserActions.getInstance().getPageSource();
+                case "title" -> BrowserActions.getInstance().getCurrentWindowTitle();
+                case "windowhandle" -> BrowserActions.getInstance().getWindowHandle();
+                case "windowposition" -> BrowserActions.getInstance().getWindowPosition();
+                case "windowsize" -> BrowserActions.getInstance().getWindowSize();
                 default -> "";
             };
         } catch (Throwable e) {
@@ -414,7 +414,7 @@ public class ValidationsHelper {
             reportedExpectedValue.append("not ");
         }
         reportedExpectedValue.append("match the JSON File in this path '").append(referenceJsonFilePath).append("'");
-        if (!jsonPathToTargetArray.equals("")) {
+        if (!jsonPathToTargetArray.isBlank()) {
             reportedExpectedValue.append(", with path to Target Array '").append(jsonPathToTargetArray).append("'");
         }
 
@@ -446,7 +446,7 @@ public class ValidationsHelper {
             reportedExpectedValue.append("not ");
         }
         reportedExpectedValue.append("match the JSON File in this path '").append(referenceJsonFilePath).append("'");
-        if (!jsonPathToTargetArray.equals("")) {
+        if (!jsonPathToTargetArray.isBlank()) {
             reportedExpectedValue.append(", with path to Target Array '").append(jsonPathToTargetArray).append("'");
         }
         var validatableResponse = response.then().body(matchesJsonSchema(new File(referenceJsonFilePath)));
@@ -578,14 +578,7 @@ public class ValidationsHelper {
         } else {
             message.append(validationState).append(". ");
             // prepare expected/actual results as an attachment or in the message
-            boolean isExpectedOrActualValueLong = false;
-            if (actualValue == null && expectedValue != null) {
-                isExpectedOrActualValueLong = expectedValue.length() >= 500;
-            } else if (actualValue != null && expectedValue == null) {
-                isExpectedOrActualValueLong = actualValue.length() >= 500;
-            } else if (actualValue != null) {
-                isExpectedOrActualValueLong = expectedValue.length() >= 500 || actualValue.length() >= 500;
-            }
+            boolean isExpectedOrActualValueLong = isExpectedOrActualValueLong(expectedValue, actualValue);
             if (Boolean.TRUE.equals(isExpectedOrActualValueLong)) {
                 List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
                         expectedValue);
@@ -603,24 +596,24 @@ public class ValidationsHelper {
                 message.append(" Validation Type \"").append(validationType).append("\".");
             }
         }
-        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver().get() != null) {
+        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver() != null) {
             // create a screenshot attachment if needed for webdriver
             if (lastUsedElementLocator != null) {
-                attachments.add(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver().get(), lastUsedElementLocator,
+                attachments.add(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver(), lastUsedElementLocator,
                         validationMethodName, validationState.getValue()));
             } else {
-                attachments.add(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver().get(), validationMethodName,
+                attachments.add(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver(), validationMethodName,
                         validationState.getValue()));
             }
             // reset lastUsed variables
             lastUsedElementLocator = null;
             //}
         }
-        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver().get() != null && !WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Never")) {
+        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver() != null && !WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Never")) {
             if ((WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Always") || WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("ValidationPointsOnly"))
                     || (Boolean.FALSE.equals(validationState.getValue()) && WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("FailuresOnly"))) {
                 var logMessage = "";
-                var pageSnapshot = BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get());
+                var pageSnapshot = BrowserActionsHelper.capturePageSnapshot(DriverFactoryHelper.getDriver());
                 if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
                     logMessage = "page snapshot";
                 } else if (pageSnapshot.startsWith("<html")) {
@@ -670,10 +663,22 @@ public class ValidationsHelper {
         }
     }
 
+    private static boolean isExpectedOrActualValueLong(String expectedValue, String actualValue) {
+        boolean isExpectedOrActualValueLong = false;
+        if (actualValue == null && expectedValue != null) {
+            isExpectedOrActualValueLong = expectedValue.length() >= 500;
+        } else if (actualValue != null && expectedValue == null) {
+            isExpectedOrActualValueLong = actualValue.length() >= 500;
+        } else if (actualValue != null) {
+            isExpectedOrActualValueLong = expectedValue.length() >= 500 || actualValue.length() >= 500;
+        }
+        return isExpectedOrActualValueLong;
+    }
+
     private static void processCustomLogMessage(String... optionalCustomLogMessage) {
         ValidationsHelper.optionalCustomLogMessage.set(new ArrayList<>());
         for (String customMessage : optionalCustomLogMessage) {
-            if (customMessage != null && !"".equals(customMessage.trim())) {
+            if (customMessage != null && !customMessage.isBlank()) {
                 ValidationsHelper.optionalCustomLogMessage.get().add(customMessage);
                 //ReportManager.log(customMessage + "...");
             }

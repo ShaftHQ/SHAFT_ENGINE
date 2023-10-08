@@ -151,14 +151,14 @@ public class ImageProcessingActions {
                 yPos = elementLocation.getY();
 
         // IOS Native | macOS Browser | Linux Browser scaled | -> Repositioning
-        if (SHAFT.Properties.platform.targetPlatform().equals(Platform.IOS.name())
-                || SHAFT.Properties.platform.targetPlatform().equals(Platform.MAC.name())
+        if (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.IOS.name())
+                || SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.MAC.name())
                 || (
-                SHAFT.Properties.platform.targetPlatform().equals(Platform.LINUX.name())
+                SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.LINUX.name())
                         && SHAFT.Properties.visuals.screenshotParamsScalingFactor() != Double.parseDouble("1")
         )
                 || (
-                SHAFT.Properties.platform.targetPlatform().equals(Platform.LINUX.name())
+                SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.LINUX.name())
                         && SHAFT.Properties.visuals.screenshotParamsScalingFactor() != Double.parseDouble("1")
         )
         ) {
@@ -169,22 +169,22 @@ public class ImageProcessingActions {
         }
 
         // IOS Browser Repositioning
-        if (SHAFT.Properties.platform.targetPlatform().equals(Platform.IOS.name()) && SHAFT.Properties.mobile.browserName().equals(Browser.SAFARI.browserName())) {
+        if (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.IOS.name()) && SHAFT.Properties.mobile.browserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
             yPos += elementHeight + 2 * outlineThickness;
         }
 
         // Android Browser Repositioning
-        if (SHAFT.Properties.platform.targetPlatform().equals(Platform.ANDROID.name()) && SHAFT.Properties.mobile.appPackage().equals("com.android.chrome")) {
+        if (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.ANDROID.name()) && SHAFT.Properties.mobile.appPackage().equalsIgnoreCase("com.android.chrome")) {
             yPos += 2 * outlineThickness;
         }
 
         // MacOS Browser Repositioning
-        if (SHAFT.Properties.platform.targetPlatform().equals(Platform.MAC.name())) {
+        if (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.MAC.name())) {
             yPos += 2 * outlineThickness;
         }
 
         // Windows Browser Repositioning
-        if (SHAFT.Properties.platform.targetPlatform().equals(Platform.WINDOWS.name())) {
+        if (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.WINDOWS.name())) {
             double scalingFactor = SHAFT.Properties.visuals.screenshotParamsScalingFactor();
             elementHeight *= scalingFactor;
             elementWidth *= scalingFactor;
@@ -263,19 +263,11 @@ public class ImageProcessingActions {
                 double threshold = SHAFT.Properties.visuals.visualMatchingThreshold();
 
                 switch (attemptNumber) {
-//                    case 0 -> matchMethod = Imgproc.TM_CCOEFF_NORMED;
                     case 1 -> matchMethod = Imgproc.TM_SQDIFF_NORMED;
                     case 2 -> matchMethod = Imgproc.TM_CCORR_NORMED;
                 }
 
-//                switch (attemptNumber) {
-////                    case 0 -> threshold = 0.80;
-//                    case 1 -> threshold = 0.70;
-//                    case 2 -> threshold = 0.60;
-//                }
-
                 Imgproc.matchTemplate(img, templ, result, matchMethod);
-//                    Core.normalize(result, result, 0, 1, Core.NORM_MINMAX, -1, new Mat());
 
                 // Localizing the best match with minMaxLoc
                 Core.MinMaxLocResult mmr = Core.minMaxLoc(result);
@@ -586,7 +578,7 @@ public class ImageProcessingActions {
             ReportManager.logDiscrete("Loaded OpenCV \"" + libName + "\".");
         } catch (Throwable throwable) {
             ReportManagerHelper.logDiscrete(throwable);
-            if (!libName.equals("")) {
+            if (!libName.isEmpty()) {
                 ReportManager.logDiscrete("Failed to load OpenCV \"" + libName + "\". Try installing the binaries manually https://opencv.org/releases/, switching element highlighting to JavaScript...");
             } else {
                 ReportManager.logDiscrete("Failed to load OpenCV. Try installing the binaries manually https://opencv.org/releases/, switching element highlighting to JavaScript...");

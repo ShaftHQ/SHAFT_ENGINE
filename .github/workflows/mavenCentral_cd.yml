@@ -12,11 +12,11 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
-      - name: Set up JDK 17
+        uses: actions/checkout@v4
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'zulu'
           check-latest: true
           server-id: ossrh
@@ -24,6 +24,10 @@ jobs:
           server-password: MAVEN_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
       # Captures the engine version from the pom.xml
       - name: Set Release Version Number
         run: |
@@ -31,7 +35,7 @@ jobs:
       # Attempt to create a GitHub release using the version in the pom.xml, if this release already exists, this job will fail fast
       - name: Create GitHub Release
         id: create_release
-        uses: ncipollo/release-action@v1.12.0
+        uses: ncipollo/release-action@v1.13.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -39,14 +43,6 @@ jobs:
           generateReleaseNotes: true
           name: ${{ env.RELEASE_VERSION }}
           tag: ${{ env.RELEASE_VERSION }}
-      #            - uses: s4u/maven-settings-action@v2.8.0
-      #              with:
-      #                servers: |
-      #                  [{
-      #                      "id": "ossrh",
-      #                      "username": "${{ secrets.OSSRH_USERNAME }}",
-      #                      "password": "${{ secrets.OSSRH_PASSWORD }}"
-      #                  }]
       - name: Setup Prerequisites
         run: |
           git config --global user.signingKey ${{ secrets.GPG_KEYNAME }}

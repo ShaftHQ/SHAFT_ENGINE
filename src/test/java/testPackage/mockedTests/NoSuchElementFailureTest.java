@@ -6,7 +6,7 @@ import org.testng.annotations.*;
 
 public class NoSuchElementFailureTest {
     SHAFT.GUI.WebDriver driver;
-    int defaultElementIdentificationTimeout;
+    double defaultElementIdentificationTimeout;
     String mockedHTML = "data:text/html,<input/><input/><input/><script>var result;</script><button ${HIDDEN} alt='Google' onclick='result=\"Clicked\"'>Go</button>";
 
 

@@ -29,12 +29,14 @@ public interface Pattern extends EngineProperties {
     }
 
     class SetProperty implements EngineProperties.SetProperty {
-        public void testDataColumnNamePrefix(String value) {
+        public SetProperty testDataColumnNamePrefix(String value) {
             setProperty("testDataColumnNamePrefix", value);
+            return this;
         }
 
-        public void allureLinkIssuePattern(String value) {
+        public SetProperty allureLinkIssuePattern(String value) {
             setProperty("allure.link.issue.pattern", value);
+            return this;
         }
 
     }

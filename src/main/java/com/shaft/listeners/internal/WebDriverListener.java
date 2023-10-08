@@ -23,7 +23,7 @@ import java.util.Arrays;
 import static com.shaft.gui.element.internal.ElementActionsHelper.getExpectedExceptions;
 
 public class WebDriverListener implements org.openqa.selenium.support.events.WebDriverListener, io.appium.java_client.proxy.MethodCallListener {
-    private static final long DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
+    private static final double DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
     private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 100; // milliseconds
 
     // Global
@@ -34,7 +34,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
 
     public void onError(Object target, Method method, Object[] args, InvocationTargetException e) {
         ReportManager.log(JavaHelper.convertToSentenceCase(method.getName()) + " action failed.");
-        ReportManagerHelper.attach(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver().get(), method.getName(), false));
+        ReportManagerHelper.attach(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver(), method.getName(), false));
         ReportManagerHelper.logDiscrete(e);
     }
 
@@ -56,7 +56,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
         if (SHAFT.Properties.flags.respectBuiltInWaitsInNativeMode()) {
             try {
                 new FluentWait<>(driver)
-                        .withTimeout(Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT))
+                        .withTimeout(Duration.ofMillis((long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT))
                         .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                         .ignoreAll(getExpectedExceptions(false))
                         .until(nestedDriver -> nestedDriver.findElement(locator));
@@ -81,7 +81,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     public void beforeClick(WebElement element) {
         if (SHAFT.Properties.flags.respectBuiltInWaitsInNativeMode()) {
             try {
-                (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
+                (new WebDriverWait(DriverFactoryHelper.getDriver(), Duration.ofMillis((long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
                         .until(ExpectedConditions.elementToBeClickable(element));
             } catch (org.openqa.selenium.TimeoutException timeoutException) {
                 ReportManagerHelper.logDiscrete(timeoutException);

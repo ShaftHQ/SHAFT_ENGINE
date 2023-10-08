@@ -11,6 +11,7 @@ import com.shaft.listeners.TestNGListener;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ProjectStructureManager;
+import lombok.Getter;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
@@ -34,7 +35,7 @@ public class DriverFactory {
 
         } else {
             DriverFactoryHelper.initializeDriver();
-            return DriverFactoryHelper.getDriver().get();
+            return DriverFactoryHelper.getDriver();
         }
     }
 
@@ -52,7 +53,7 @@ public class DriverFactory {
             return getLambdaTestDriver(new MutableCapabilities());
         }else {
             DriverFactoryHelper.initializeDriver(driverType);
-            return DriverFactoryHelper.getDriver().get();
+            return DriverFactoryHelper.getDriver();
         }
     }
 
@@ -71,7 +72,7 @@ public class DriverFactory {
             return getLambdaTestDriver(customDriverOptions);
         } else {
             DriverFactoryHelper.initializeDriver(driverType, customDriverOptions);
-            return DriverFactoryHelper.getDriver().get();
+            return DriverFactoryHelper.getDriver();
         }
     }
 
@@ -97,12 +98,13 @@ public class DriverFactory {
     public static void reloadProperties() {
         if (SHAFT.Properties.platform == null) {
             System.out.println("Execution Listeners are not loaded properly... Self-Healing... Initializing minimalistic test run...");
-            TestNGListener.engineSetup();
-            if (TestNGListener.isJunitRun()) {
-                ProjectStructureManager.initialize(ProjectStructureManager.Mode.JUNIT);
-            } else {
-                ProjectStructureManager.initialize(ProjectStructureManager.Mode.TESTNG);
+            var runType = TestNGListener.identifyRunType();
+            if (runType.equals(ProjectStructureManager.RunType.CUCUMBER)) {
+                // stuck on minimalistic test run in case of native cucumber execution without manual plugin configuration
+                System.out.println("To unlock the full capabilities of SHAFT kindly follow these steps to configure SHAFT's Cucumber plugin:");
+                System.out.println("https://github.com/ShaftHQ/SHAFT_ENGINE#stop-reinventing-the-wheel-start-using-shaft");
             }
+            TestNGListener.engineSetup(runType);
         }
     }
 
@@ -137,7 +139,7 @@ public class DriverFactory {
                     SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), appUrl).merge(browserStackOptions);
             DriverFactoryHelper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
         }
-        return DriverFactoryHelper.getDriver().get();
+        return DriverFactoryHelper.getDriver();
 
     }
 
@@ -170,7 +172,7 @@ public class DriverFactory {
             lambdaTestOptions = LambdaTest.setupNativeAppExecution(SHAFT.Properties.lambdaTest.username(), SHAFT.Properties.lambdaTest.accessKey(), SHAFT.Properties.lambdaTest.deviceName(), SHAFT.Properties.lambdaTest.platformVersion(), appUrl).merge(lambdaTestOptions);
             DriverFactoryHelper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, lambdaTestOptions);
         }
-        return DriverFactoryHelper.getDriver().get();
+        return DriverFactoryHelper.getDriver();
     }
 
     /**
@@ -245,6 +247,7 @@ public class DriverFactory {
     /**
      * List of the supported driver types for execution
      */
+    @Getter
     public enum DriverType {
         SIKULI("SikuliActions"), BROWSERSTACK("BrowserStack") ,LAMBDATEST("LambdaTest"), DATABASE("DatabaseActions"), TERMINAL("TerminalActions"), API("RestActions"), FIREFOX(Browser.FIREFOX.browserName()), CHROME(Browser.CHROME.browserName()), SAFARI(Browser.SAFARI.browserName()),
         IE(Browser.IE.browserName()), EDGE(Browser.EDGE.browserName()), CHROMIUM("Chromium"), WEBKIT("Webkit"), APPIUM_CHROME("chrome"),
@@ -256,9 +259,6 @@ public class DriverFactory {
             this.value = type;
         }
 
-        public String getValue() {
-            return value;
-        }
     }
 
 }

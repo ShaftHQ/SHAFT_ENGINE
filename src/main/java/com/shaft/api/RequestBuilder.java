@@ -1,6 +1,7 @@
 package com.shaft.api;
 
 import com.shaft.cli.FileActions;
+import io.qameta.allure.Step;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.config.SSLConfig;
 import io.restassured.http.ContentType;
@@ -19,7 +20,7 @@ public class RequestBuilder {
     private RestActions session;
     private Map<String, String> sessionHeaders;
     private Map<String, Object> sessionCookies;
-    private List<RestAssuredConfig> sessionConfigs;
+    private RestAssuredConfig sessionConfig;
     private RestActions.RequestType requestType;
     private String serviceName;
     private String serviceURI;
@@ -29,7 +30,7 @@ public class RequestBuilder {
     private List<List<Object>> parameters = null;
     private RestActions.ParametersType parametersType = null;
     private Object requestBody = null;
-    private String contentType = null;
+    private ContentType contentType = null;
 
     private AuthenticationType authenticationType;
     private String authenticationUsername;
@@ -65,11 +66,11 @@ public class RequestBuilder {
         this.serviceURI = session.getServiceURI();
         this.sessionCookies = session.getSessionCookies();
         this.sessionHeaders = session.getSessionHeaders();
-        this.sessionConfigs = session.getSessionConfigs();
+        this.sessionConfig = session.getSessionConfig();
         this.requestType = requestType;
         this.serviceName = serviceName;
         this.targetStatusCode = 0;
-        this.contentType = ContentType.ANY.toString();
+        this.contentType = ContentType.ANY;
         this.authenticationType = AuthenticationType.NONE;
         this.appendDefaultContentCharsetToContentTypeIfUndefined = true;
         this.urlEncodingEnabled = true;
@@ -95,7 +96,7 @@ public class RequestBuilder {
      */
     @SuppressWarnings("UnusedReturnValue")
     public RequestBuilder useRelaxedHTTPSValidation(String protocol) {
-        addConfig(config().sslConfig(SSLConfig.sslConfig().relaxedHTTPSValidation(protocol)));
+    	this.sessionConfig=config().and().sslConfig(SSLConfig.sslConfig().relaxedHTTPSValidation(protocol));
         return this;
     }
 
@@ -163,7 +164,7 @@ public class RequestBuilder {
      * @return a self-reference to be used to continue building your API request
      */
     public RequestBuilder setContentType(ContentType contentType) {
-        this.contentType = contentType.toString();
+        this.contentType = contentType;
         return this;
     }
 
@@ -174,7 +175,7 @@ public class RequestBuilder {
      * @return a self-reference to be used to continue building your API request
      */
     public RequestBuilder setContentType(String contentType) {
-        this.contentType = contentType;
+        this.contentType = ContentType.fromContentType(contentType);
         return this;
     }
 
@@ -216,17 +217,7 @@ public class RequestBuilder {
         return this;
     }
 
-    /**
-     * Append a config to the current session to be used in the current and all the following requests.
-     *
-     * @param config the rest assured config you want to add.
-     * @return a self-reference to be used to continue building your API request
-     */
-    @SuppressWarnings("UnusedReturnValue")
-    public RequestBuilder addConfig(RestAssuredConfig config) {
-        this.sessionConfigs.add(config);
-        return this;
-    }
+   
 
     /**
      * Append a cookie to the current session to be used in the current and all the following requests. This feature is commonly used for authentication cookies.
@@ -269,9 +260,10 @@ public class RequestBuilder {
      *
      * @return Response; returns the full response object for further manipulation
      */
+    @Step("Perform {this.requestType} request to {this.serviceURI}{this.serviceName}")
     public Response performRequest() {
         String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
-        RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, sessionConfigs, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);
+        RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, sessionConfig, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);
 
         switch (this.authenticationType) {
             case BASIC -> specs.auth().preemptive().basic(this.authenticationUsername, this.authenticationPassword);
@@ -293,7 +285,10 @@ public class RequestBuilder {
             boolean responseStatus = session.evaluateResponseStatusCode(Objects.requireNonNull(response), targetStatusCode);
             String reportMessage = session.prepareReportMessage(response, targetStatusCode, requestType, serviceName,
                     contentType, urlArguments);
-            if (!"".equals(reportMessage) && Boolean.TRUE.equals(responseStatus)) {
+            if (!Boolean.TRUE.equals(responseStatus)) {
+                RestActions.failAction(reportMessage, requestBody, specs, response, new AssertionError("Invalid response status code; Expected " + targetStatusCode + " but found " + response.getStatusCode() + "."));
+            }
+            if (!"".equals(reportMessage)) {
                 RestActions.passAction(reportMessage, requestBody, specs, response);
             } else {
                 RestActions.failAction(reportMessage, requestBody, specs, response);

@@ -83,68 +83,69 @@ public interface Reporting extends EngineProperties {
 
     class SetProperty implements EngineProperties.SetProperty {
 
-        public void captureElementName(boolean value) {
+        public SetProperty captureElementName(boolean value) {
             setProperty("captureElementName", String.valueOf(value));
+            return this;
         }
 
-        public void forceCheckForElementVisibility(boolean value) {
+        public SetProperty forceCheckForElementVisibility(boolean value) {
             setProperty("forceCheckForElementVisibility", String.valueOf(value));
+            return this;
         }
 
-        public void captureWebDriverLogs(boolean value) {
+        public SetProperty captureWebDriverLogs(boolean value) {
             setProperty("captureWebDriverLogs", String.valueOf(value));
+            return this;
         }
 
-        public void alwaysLogDiscreetly(boolean value) {
+        public SetProperty alwaysLogDiscreetly(boolean value) {
             setProperty("alwaysLogDiscreetly", String.valueOf(value));
+            return this;
         }
 
-        public void debugMode(boolean value) {
+        public SetProperty debugMode(boolean value) {
             setProperty("debugMode", String.valueOf(value));
+            return this;
         }
 
-        public void cleanAllureResultsDirectoryBeforeExecution(boolean value) {
-            setProperty("cleanAllureResultsDirectoryBeforeExecution", String.valueOf(value));
-        }
-
-        public void cleanSummaryReportsDirectoryBeforeExecution(boolean value) {
-            setProperty("cleanSummaryReportsDirectoryBeforeExecution", String.valueOf(value));
-        }
-
-        public void generateAllureReportArchive(boolean value) {
+        public SetProperty generateAllureReportArchive(boolean value) {
             setProperty("generateAllureReportArchive", String.valueOf(value));
+            return this;
         }
 
-        public void openAllureReportAfterExecution(boolean value) {
+        public SetProperty openAllureReportAfterExecution(boolean value) {
             setProperty("openAllureReportAfterExecution", String.valueOf(value));
+            return this;
         }
 
-        public void generateExtentReports(boolean value) {
+        public SetProperty generateExtentReports(boolean value) {
             setProperty("generateExtentReports", String.valueOf(value));
+            return this;
         }
 
-        public void cleanExtentReportsDirectoryBeforeExecution(boolean value) {
-            setProperty("cleanExtentReportsDirectoryBeforeExecution", String.valueOf(value));
-        }
-
-        public void attachExtentReportsToAllureReport(boolean value) {
+        public SetProperty attachExtentReportsToAllureReport(boolean value) {
             setProperty("attachExtentReportsToAllureReport", String.valueOf(value));
+            return this;
         }
 
-        public void openLighthouseReportWhileExecution(boolean value) {
+        public SetProperty openLighthouseReportWhileExecution(boolean value) {
             setProperty("openLighthouseReportWhileExecution", String.valueOf(value));
+            return this;
         }
 
-        public void openExecutionSummaryReportAfterExecution(boolean value) {
+        public SetProperty openExecutionSummaryReportAfterExecution(boolean value) {
             setProperty("openExecutionSummaryReportAfterExecution", String.valueOf(value));
+            return this;
         }
 
-        public void openExtentReportAfterExecution(boolean value) {
+        public SetProperty openExtentReportAfterExecution(boolean value) {
             setProperty("openExtentReportAfterExecution", String.valueOf(value));
+            return this;
         }
 
-        public void disableLogging(boolean value) {
+        public SetProperty disableLogging(boolean value) {
             setProperty("disableLogging", String.valueOf(value));
+            return this;
         }
 
     }

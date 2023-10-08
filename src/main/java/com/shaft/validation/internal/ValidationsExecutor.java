@@ -4,8 +4,10 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
+import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.validation.ValidationEnums;
+import io.qameta.allure.Step;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -14,6 +16,9 @@ import java.util.Objects;
 
 
 public class ValidationsExecutor {
+    private String validationCategoryString;
+    private String validationMethodString;
+
     private final ValidationEnums.ValidationCategory validationCategory;
     private final ValidationEnums.ValidationType validationType;
     private final String validationMethod;
@@ -136,20 +141,34 @@ public class ValidationsExecutor {
      */
     public void perform() {
         JavaScriptWaitManager.waitForLazyLoading();
-        if ("".equals(customReportMessage)) {
+        if (customReportMessage.isBlank()) {
             customReportMessage = reportMessageBuilder.toString();
         }
+        validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert that" : "Verify that";
+        validationMethodString = JavaHelper.convertToSentenceCase(validationMethod).toLowerCase();
+        performValidation();
+    }
+
+    @Step(" {this.validationCategoryString} {this.validationMethodString}")
+    private void performValidation() {
         switch (validationMethod) {
             case "forceFail" -> ValidationsHelper.validateFail(validationCategory, customReportMessage);
-            case "objectsAreEqual" -> ValidationsHelper.validateEquals(validationCategory, expectedValue, actualValue, validationComparisonType, validationType, customReportMessage);
-            case "objectIsNull" -> ValidationsHelper.validateNull(validationCategory, actualValue, validationType, customReportMessage);
-            case "conditionIsTrue" -> ValidationsHelper.validateTrue(validationCategory, condition, validationType, customReportMessage);
-            case "elementExists" -> ValidationsHelper.validateElementExists(validationCategory, driver, locator, validationType, customReportMessage);
-            case "elementMatches" -> ValidationsHelper.validateElementMatches(validationCategory, driver, locator, visualValidationEngine, validationType, customReportMessage);
-            case "elementAttributeEquals" -> ValidationsHelper.validateElementAttribute(validationCategory, driver, locator, elementAttribute, String.valueOf(expectedValue),
-                    validationComparisonType, validationType, customReportMessage);
-            case "elementCssPropertyEquals" -> ValidationsHelper.validateElementCSSProperty(validationCategory, driver, locator, elementCssProperty, String.valueOf(expectedValue),
-                    validationComparisonType, validationType, customReportMessage);
+            case "objectsAreEqual" ->
+                    ValidationsHelper.validateEquals(validationCategory, expectedValue, actualValue, validationComparisonType, validationType, customReportMessage);
+            case "objectIsNull" ->
+                    ValidationsHelper.validateNull(validationCategory, actualValue, validationType, customReportMessage);
+            case "conditionIsTrue" ->
+                    ValidationsHelper.validateTrue(validationCategory, condition, validationType, customReportMessage);
+            case "elementExists" ->
+                    ValidationsHelper.validateElementExists(validationCategory, driver, locator, validationType, customReportMessage);
+            case "elementMatches" ->
+                    ValidationsHelper.validateElementMatches(validationCategory, driver, locator, visualValidationEngine, validationType, customReportMessage);
+            case "elementAttributeEquals" ->
+                    ValidationsHelper.validateElementAttribute(validationCategory, driver, locator, elementAttribute, String.valueOf(expectedValue),
+                            validationComparisonType, validationType, customReportMessage);
+            case "elementCssPropertyEquals" ->
+                    ValidationsHelper.validateElementCSSProperty(validationCategory, locator, elementCssProperty, String.valueOf(expectedValue),
+                            validationComparisonType, validationType, customReportMessage);
             case "browserAttributeEquals" -> ValidationsHelper.validateBrowserAttribute(validationCategory, driver, browserAttribute, String.valueOf(expectedValue), validationComparisonType,
                     validationType, customReportMessage);
             case "comparativeRelationBetweenNumbers" -> ValidationsHelper.validateComparativeRelation(validationCategory, (Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType, customReportMessage);

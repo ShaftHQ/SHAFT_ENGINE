@@ -1,7 +1,8 @@
 package com.shaft.gui.internal.locator;
 
+@SuppressWarnings("unused")
 public class XpathAxis {
-    LocatorBuilder locatorBuilder;
+    final LocatorBuilder locatorBuilder;
 
     XpathAxis(LocatorBuilder locatorBuilder) {
         this.locatorBuilder = locatorBuilder;

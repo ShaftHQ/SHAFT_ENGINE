@@ -2,9 +2,8 @@ package com.shaft.gui.element;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
-import com.shaft.gui.browser.internal.FluentBrowserActions;
+import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
-import com.shaft.gui.element.internal.FluentElementActions;
 import com.shaft.tools.io.ReportManager;
 import org.openqa.selenium.NoAlertPresentException;
 import org.openqa.selenium.WebDriver;
@@ -31,8 +30,8 @@ public class AlertActions {
         return new TouchActions();
     }
 
-    public FluentBrowserActions browser() {
-        return FluentBrowserActions.getInstance();
+    public BrowserActions browser() {
+        return BrowserActions.getInstance();
     }
 
     public AlertActions and() {
@@ -41,31 +40,35 @@ public class AlertActions {
 
     private static void waitForAlertToBePresent() {
         try {
-            (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofSeconds(SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()))).until(ExpectedConditions.alertIsPresent());
-            DriverFactoryHelper.getDriver().get().switchTo().alert();
+            (new WebDriverWait(DriverFactoryHelper.getDriver(), Duration.ofSeconds((long) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()))).until(ExpectedConditions.alertIsPresent());
+            DriverFactoryHelper.getDriver().switchTo().alert();
             ReportManager.logDiscrete("Alert is present");
         } catch (Exception rootCauseException) {
             ReportManager.logDiscrete("Alert is not present");
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, rootCauseException);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null, rootCauseException);
         }
     }
 
-    public FluentElementActions performElementAction() {
-        return FluentElementActions.getInstance();
+    public ElementActions performElementAction() {
+        return ElementActions.getInstance();
+    }
+
+    public ElementActions element() {
+        return ElementActions.getInstance();
     }
 
     public boolean isAlertPresent() {
         try {
-            DriverFactoryHelper.getDriver().get().switchTo().alert();
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+            DriverFactoryHelper.getDriver().switchTo().alert();
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
             ReportManager.logDiscrete("Alert is present");
             return true;
         } catch (NoAlertPresentException exception) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, exception);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null, exception);
             ReportManager.logDiscrete("Alert is not present");
             return false;
         } catch (Exception rootCauseException) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, rootCauseException);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null, rootCauseException);
             return false;
         }
     }
@@ -74,10 +77,10 @@ public class AlertActions {
     public AlertActions acceptAlert() {
         try {
             waitForAlertToBePresent();
-            DriverFactoryHelper.getDriver().get().switchTo().alert().accept();
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+            DriverFactoryHelper.getDriver().switchTo().alert().accept();
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
         } catch (Exception rootCauseException) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, rootCauseException);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null, rootCauseException);
         }
         return this;
     }
@@ -86,10 +89,10 @@ public class AlertActions {
     public AlertActions dismissAlert() {
         try {
             waitForAlertToBePresent();
-            DriverFactoryHelper.getDriver().get().switchTo().alert().dismiss();
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+            DriverFactoryHelper.getDriver().switchTo().alert().dismiss();
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
         } catch (Exception rootCauseException) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, rootCauseException);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null, rootCauseException);
         }
         return this;
     }
@@ -97,12 +100,12 @@ public class AlertActions {
     public String getAlertText() {
         try {
             waitForAlertToBePresent();
-            var alertText = DriverFactoryHelper.getDriver().get().switchTo().alert().getText();
+            var alertText = DriverFactoryHelper.getDriver().switchTo().alert().getText();
             ReportManager.logDiscrete("Alert Text is: [" + alertText + "]");
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
             return alertText;
         } catch (Exception rootCauseException) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, rootCauseException);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null, rootCauseException);
             return null;
         }
     }
@@ -111,11 +114,11 @@ public class AlertActions {
     public AlertActions typeIntoPromptAlert(String text) {
         try {
             waitForAlertToBePresent();
-            DriverFactoryHelper.getDriver().get().switchTo().alert().sendKeys(text);
+            DriverFactoryHelper.getDriver().switchTo().alert().sendKeys(text);
             ReportManager.logDiscrete("Text typed into Alert is: [" + text + "]");
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
         } catch (Exception rootCauseException) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, rootCauseException);
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null, rootCauseException);
         }
         return this;
     }

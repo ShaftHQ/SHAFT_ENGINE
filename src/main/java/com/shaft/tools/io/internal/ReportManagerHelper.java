@@ -38,10 +38,10 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@Getter
 @SuppressWarnings("unused")
 public class ReportManagerHelper {
     private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
-    @Getter
     private static final ExtentReports extentReport = new ExtentReports();
     private static final String SHAFT_ENGINE_VERSION_PROPERTY_NAME = "shaftEngineVersion";
     private static final String ALLURE_VERSION_PROPERTY_NAME = "allureVersion";
@@ -52,11 +52,14 @@ public class ReportManagerHelper {
     private static String issuesLog = "";
     private static int issueCounter = 1;
     private static boolean discreteLogging = false;
+    @Getter
     private static int totalNumberOfTests = 0;
     private static int testCasesCounter = 0;
     private static boolean debugMode = false;
     private static int openIssuesForFailedTestsCounter = 0;
+    @Getter
     private static int openIssuesForPassedTestsCounter = 0;
+    @Getter
     private static int failedTestsWithoutOpenIssuesCounter = 0;
     private static String allureResultsFolderPath = "";
     private static String allureBinaryPath = "";
@@ -102,18 +105,13 @@ public class ReportManagerHelper {
     public static int getIssueCounter() {
         return (issueCounter - 1);
     }
-    public static int getFailedTestsWithoutOpenIssuesCounter() {
-        return failedTestsWithoutOpenIssuesCounter;
-    }
-    public static int getOpenIssuesForPassedTestsCounter() {
-        return openIssuesForPassedTestsCounter;
-    }
+
     public static int getOpenIssuesForFailedTestsCounters() {
         return openIssuesForFailedTestsCounter;
     }
 
     public static void logIssue(String issue) {
-        if (issuesLog.trim().equals("")) {
+        if (issuesLog.trim().isEmpty()) {
             issuesLog += issueCounter + ", " + issue.trim();
         } else {
             issuesLog += System.lineSeparator() + issueCounter + ", " + issue.trim();
@@ -128,7 +126,7 @@ public class ReportManagerHelper {
         }
         if (!listOfOpenIssuesForPassedTests.isEmpty()) {
             listOfOpenIssuesForPassedTests.forEach(issue -> {
-                if (issue.get(3)!=null && !issue.get(3).trim().equals("")) {
+                if (issue.get(3)!=null && !issue.get(3).trim().isEmpty()) {
                     logIssue("Test Method '" + issue.get(0) + "." + issue.get(1)
                             + "' passed. Please validate and close this open issue '" + issue.get(2) + "': '"
                             + issue.get(3) + "'.\n");
@@ -141,7 +139,7 @@ public class ReportManagerHelper {
         }
         if (!listOfOpenIssuesForFailedTests.isEmpty()) {
             listOfOpenIssuesForFailedTests.forEach(issue -> {
-                if (!issue.get(3).trim().equals("")) {
+                if (!issue.get(3).trim().isEmpty()) {
                     logIssue("Test Method '" + issue.get(0) + "." + issue.get(1) + "' failed with open issue '"
                             + issue.get(2) + "': '" + issue.get(3) + "'.\n");
                 } else {
@@ -151,7 +149,7 @@ public class ReportManagerHelper {
             });
         }
 
-        if (!issuesLog.trim().equals("")) {
+        if (!issuesLog.trim().isEmpty()) {
             return "Issue Summary: Total Issues = " + (issueCounter - 1) + ", New issues for Failed Tests = "
                     + failedTestsWithoutOpenIssuesCounter + ", Open issues for Passed Tests = "
                     + openIssuesForPassedTestsCounter + ", Open issues for Failed Tests = "
@@ -176,10 +174,6 @@ public class ReportManagerHelper {
             ReportManager.logDiscrete("Setting discrete logging to: '" + discreteLogging + "'");
         }
         ReportManagerHelper.discreteLogging = discreteLogging;
-    }
-
-    public static int getTotalNumberOfTests() {
-        return totalNumberOfTests;
     }
 
     public static void setTotalNumberOfTests(int totalNumberOfTests) {
@@ -212,16 +206,18 @@ public class ReportManagerHelper {
         }
         System.setOut(new PrintStream(new LogRedirector(logger, Level.INFO)));
         System.setErr(new PrintStream(new LogRedirector(logger, Level.WARN)));
-        String engineVersion = "Powered by " + SHAFT.Properties.internal.shaftEngineVersion();
+        String engineVersion = "Powered by \033[1mSHAFT v." + SHAFT.Properties.internal.shaftEngineVersion() + "\033[22m";
         createImportantReportEntry(engineVersion);
     }
 
     public static void logEngineClosure() {
+        // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
         String copyrights = "This test run was powered by "
-                + SHAFT.Properties.internal.shaftEngineVersion() + "\n"
-                + "SHAFT Engine is *and will always be* 100% FREE for commercial and private use\n"
-                + "in compliance with the MIT license\n"
-                + "https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE";
+                + "\033[1mSHAFT v." + SHAFT.Properties.internal.shaftEngineVersion() + "\033[22m\n"
+                + "SHAFT \033[1;4mis and will always be 100% FREE\033[22;24m for commercial and private use\n"
+                + "in compliance with the \033[1mMIT license\033[22m\n"
+                + "Visit SHAFT's user guide \033[4mhttps://shafthq.github.io/\033[24m to learn more";
+//                + "https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE";
         createImportantReportEntry(copyrights);
     }
 
@@ -243,7 +239,7 @@ public class ReportManagerHelper {
         }
         reportMessage.append("\nTest Method: '").append(className).append(".").append(testMethodName).append("'");
 
-        if (!testDescription.equals("")) {
+        if (!testDescription.isEmpty()) {
             reportMessage.append("\nTest Description: '").append(testDescription).append("'");
         }
 
@@ -252,10 +248,10 @@ public class ReportManagerHelper {
 
     public static void logScenarioInformation(String keyword, String name, String steps) {
         testCasesCounter++;
-        createImportantReportEntry("Starting Execution: '" + testCasesCounter + " out of " + totalNumberOfTests
-                + "' scenarios in the '" + featureName + "' feature"
-                + "\n" + keyword + " Name: '" + name
-                + "'\n" + keyword + " Steps:\n" + steps);
+        createImportantReportEntry("Starting Execution: \"" + testCasesCounter + " out of " + totalNumberOfTests
+                + "\" scenarios in the \"" + featureName + "\" feature"
+                + System.lineSeparator() + keyword + " Name: \"" + name
+                + "\"" + System.lineSeparator() + keyword + " Steps:" + System.lineSeparator() + steps);
     }
 
     public static void logConfigurationMethodInformation(String className, String testMethodName, String configurationMethodType) {
@@ -269,6 +265,17 @@ public class ReportManagerHelper {
         String copyrights = "Test Execution Summary Results" + "\n"
                 + "Total Cases: " + total + " --> Passed: " + passed + " | Failed: " + failed + " | Skipped: " + skipped;
         createImportantReportEntry(copyrights);
+    }
+
+    public static void logFinishedTestInformation(String className, String testMethodName, String testDescription, String testStatus) {
+        StringBuilder reportMessage = new StringBuilder();
+        reportMessage.append("\nFinished Execution of Test Method: '").append(className).append(".").append(testMethodName).append("'");
+        if (!testDescription.isEmpty()) {
+            reportMessage.append("\nTest Description: '").append(testDescription).append("'");
+        }
+        reportMessage.append("\nTest Status: '").append(testStatus).append("'");
+
+        createImportantReportEntry(reportMessage.toString());
     }
 
     public static String formatStackTraceToLogEntry(Throwable t) {
@@ -297,7 +304,7 @@ public class ReportManagerHelper {
      * @param attachmentContent the content of this attachment
      */
     public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
-        if (!attachmentContent.trim().equals("")) {
+        if (!attachmentContent.trim().isEmpty()) {
             createAttachment(attachmentType, attachmentName, new ByteArrayInputStream(attachmentContent.getBytes()));
         }
     }
@@ -342,7 +349,7 @@ public class ReportManagerHelper {
 
     public static void attachIssuesLog(String executionEndTimestamp) {
         String issueSummary = prepareIssuesLog();
-        if (!issuesLog.trim().equals("")) {
+        if (!issuesLog.trim().isEmpty()) {
             log(issueSummary,
                     Collections.singletonList(
                             Arrays.asList(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Issues log CSV: " + executionEndTimestamp,
@@ -464,9 +471,10 @@ public class ReportManagerHelper {
         extentTest.remove();
     }
 
+
     public static void extentReportsCreateTest(String testName, String testDescription) {
-        if (!extentReport.equals(new ExtentReports())) {
-            if (testDescription.equals("")) {
+        if (extentReport.equals(new ExtentReports())) {
+            if (testDescription.isEmpty()) {
                 extentTest.set(extentReport.createTest(testName));
             } else {
                 extentTest.set(extentReport.createTest(testDescription));
@@ -574,7 +582,7 @@ public class ReportManagerHelper {
                 lineByLine.append(" ".repeat(spaces));
                 trailingSpacing = lineByLine.toString();
             }
-            lineByLine.append(line);
+            lineByLine.append(line.trim());
             lineByLine.append(trailingSpacing);
             augmentedText.append(lineByLine);
             augmentedText.append(System.lineSeparator());
@@ -592,10 +600,12 @@ public class ReportManagerHelper {
         setDiscreteLogging(false); // force log even if discrete logging was turned on
 
         String log = System.lineSeparator() +
+                "\033[0;7m" +
                 createSeparator('-') +
                 addSpacing(logText.trim()) +
                 createSeparator('-') +
-                System.lineSeparator();
+                System.lineSeparator() +
+                "\033[0m";
 
         Reporter.log(log, false);
         if (logger == null) {
@@ -803,7 +813,7 @@ public class ReportManagerHelper {
 
             // excluding empty values, system properties (all system properties have "." in
             // their names), and any git branch issues
-            if (!propertyValue.equals("") && !propertyValue.contains("==") && !propertyKey.contains(">>>")
+            if (!propertyValue.isEmpty() && !propertyValue.contains("==") && !propertyKey.contains(">>>")
                     && !propertyKey.contains("<<<")) {
 
                 if (propertyValue.contains("&")) {
@@ -998,7 +1008,7 @@ public class ReportManagerHelper {
                 }
             } else {
                 if (attachments != null && !attachments.isEmpty() && (attachments.size() > 1 || (attachments.get(0) != null && !attachments.get(0).isEmpty()))) {
-                    CheckpointStatus status = (logText.toLowerCase().contains("passed")) ? CheckpointStatus.PASS : CheckpointStatus.FAIL;
+                    CheckpointStatus status = (!logText.toLowerCase().contains("fail")) ? CheckpointStatus.PASS : CheckpointStatus.FAIL;
                     writeStepToReport(logText, attachments, status);
                 } else {
                     writeStepToReport(logText);
@@ -1013,7 +1023,7 @@ public class ReportManagerHelper {
 
         if (type.equals(CheckpointType.VERIFICATION) && status.equals(CheckpointStatus.FAIL)
                 || !SHAFT.Properties.reporting.disableLogging()) {
-            if (customLogMessages != null && customLogMessages.size() > 0 && !"".equals(customLogMessages.get(0).trim())) {
+            if (customLogMessages != null && !customLogMessages.isEmpty() && !customLogMessages.get(0).trim().isEmpty()) {
                 String customLogText = customLogMessages.get(0);
                 if (status == CheckpointStatus.PASS) {
                     customLogText = (type == CheckpointType.VERIFICATION) ? "Verification Passed: " + customLogText : "Assertion Passed: " + customLogText;
@@ -1021,7 +1031,11 @@ public class ReportManagerHelper {
                     customLogText = (type == CheckpointType.VERIFICATION) ? "Verification Failed: " + customLogText : "Assertion Failed: " + customLogText;
                 }
                 ReportManager.logDiscrete(logText);
-                writeNestedStepsToReport(customLogText, attachments);
+                if (attachments != null && !attachments.isEmpty()) {
+                    writeNestedStepsToReport(customLogText, attachments);
+                } else {
+                    writeNestedStepsToReport(customLogText);
+                }
                 CheckpointCounter.increment(type, customLogMessages.get(0), status);
                 ExecutionSummaryReport.validationsIncrement(status);
             } else {
@@ -1060,6 +1074,11 @@ public class ReportManagerHelper {
                 }
             });
         }
+    }
+
+    @Step("{customLog}")
+    private static void writeNestedStepsToReport(String customLog) {
+        createLogEntry(customLog, false);
     }
 
     /**

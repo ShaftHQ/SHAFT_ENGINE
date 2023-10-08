@@ -60,7 +60,7 @@ public class ValidationsBuilder {
      */
     public WebDriverElementValidationsBuilder element(By locator) {
         reportMessageBuilder.append("The Element located by \"").append(formatLocatorToString(locator)).append("\" ");
-        return new WebDriverElementValidationsBuilder(validationCategory, DriverFactoryHelper.getDriver().get(), locator, reportMessageBuilder);
+        return new WebDriverElementValidationsBuilder(validationCategory, DriverFactoryHelper.getDriver(), locator, reportMessageBuilder);
     }
 
     public WebDriverBrowserValidationsBuilder browser(WebDriver driver) {
@@ -74,7 +74,7 @@ public class ValidationsBuilder {
      */
     public WebDriverBrowserValidationsBuilder browser() {
         reportMessageBuilder.append("The Browser ");
-        return new WebDriverBrowserValidationsBuilder(validationCategory, DriverFactoryHelper.getDriver().get(), reportMessageBuilder);
+        return new WebDriverBrowserValidationsBuilder(validationCategory, DriverFactoryHelper.getDriver(), reportMessageBuilder);
     }
 
     /**

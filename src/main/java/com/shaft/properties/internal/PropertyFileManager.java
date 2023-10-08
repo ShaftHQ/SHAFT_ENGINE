@@ -10,6 +10,7 @@ import org.openqa.selenium.MutableCapabilities;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.util.Collection;
 import java.util.HashMap;
@@ -60,7 +61,7 @@ public final class PropertyFileManager {
                 java.util.Properties properties = new java.util.Properties();
                 if (propertiesFolderPath.contains(".jar")) {
                     // unpacks default properties to target folder
-                    URL url = new URL(propertiesFolderPath.substring(0, propertiesFolderPath.indexOf("!")));
+                    URL url = URI.create(propertiesFolderPath.substring(0, propertiesFolderPath.indexOf("!"))).toURL();
                     FileActions.getInstance().unpackArchive(url, "target/");
                     propertiesFolderPath = "target/resources/properties/default/";
                 }

@@ -1,6 +1,6 @@
 package poms;
 
-import com.shaft.gui.element.internal.FluentElementActions;
+import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -23,7 +23,7 @@ public class GoogleSearchResults {
     }
 
     public void clickNext() {
-        FluentElementActions.getInstance().scrollToElement(next_button).click(next_button);
+        ElementActions.getInstance().scrollToElement(next_button).click(next_button);
     }
 
 }

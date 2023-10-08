@@ -2,6 +2,7 @@ package com.shaft.listeners;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.ImageProcessingActions;
+import com.shaft.listeners.internal.CucumberHelper;
 import com.shaft.listeners.internal.JiraHelper;
 import com.shaft.listeners.internal.RetryAnalyzer;
 import com.shaft.listeners.internal.TestNGListenerHelper;
@@ -38,50 +39,33 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Getter
     private static XmlTest xmlTest;
 
-    private static boolean isJunitRunBool = false;
-    private static boolean isTestNGRunBool = false;
-
-    public static boolean isTestNGRun() {
-        if (!isTestNGRunBool && !isJunitRunBool) {
-            identifyRunType();
-        }
-        return isTestNGRunBool;
-    }
-
-    public static boolean isJunitRun() {
-        if (!isTestNGRunBool && !isJunitRunBool) {
-            identifyRunType();
-        }
-        return isJunitRunBool;
-    }
-
-    private static void identifyRunType() {
+    public static ProjectStructureManager.RunType identifyRunType() {
         Supplier<Stream<?>> stacktraceSupplier = () -> Arrays.stream((new Throwable()).getStackTrace()).map(StackTraceElement::getClassName);
         var isUsingJunitDiscovery = stacktraceSupplier.get().anyMatch(org.junit.platform.launcher.core.EngineDiscoveryOrchestrator.class.getCanonicalName()::equals);
         var isUsingTestNG = stacktraceSupplier.get().anyMatch(TestNG.class.getCanonicalName()::equals);
         var isUsingCucumber = stacktraceSupplier.get().anyMatch(io.cucumber.core.runner.Runner.class.getCanonicalName()::equals);
         if (isUsingJunitDiscovery || isUsingTestNG) {
             System.out.println("TestNG run detected...");
-            isTestNGRunBool = true;
+            return ProjectStructureManager.RunType.TESTNG;
         } else if (isUsingCucumber) {
             System.out.println("Cucumber run detected...");
-            isTestNGRunBool = true;
+            return ProjectStructureManager.RunType.CUCUMBER;
         } else {
             System.out.println("JUnit5 run detected...");
-            isJunitRunBool = true;
+            return ProjectStructureManager.RunType.JUNIT;
         }
     }
 
-    public static void engineSetup() {
+    public static void engineSetup(ProjectStructureManager.RunType runType) {
         ReportManagerHelper.setDiscreteLogging(true);
         PropertiesHelper.initialize();
         SHAFT.Properties.reporting.set().disableLogging(true);
         Allure.getLifecycle();
         Reporter.setEscapeHtml(false);
-        if (isTestNGRun()) {
-            ProjectStructureManager.initialize(ProjectStructureManager.Mode.TESTNG);
-        } else {
-            ProjectStructureManager.initialize(ProjectStructureManager.Mode.JUNIT);
+        switch (runType) {
+            case TESTNG -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.TESTNG);
+            case CUCUMBER -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.CUCUMBER);
+            case JUNIT -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.JUNIT);
         }
         TestNGListenerHelper.configureJVMProxy();
         GoogleTink.initialize();
@@ -104,7 +88,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void onExecutionStart() {
-        engineSetup();
+        engineSetup(ProjectStructureManager.RunType.TESTNG);
     }
 
     /**
@@ -115,14 +99,14 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void alter(List<XmlSuite> suites) {
-        if (isTestNGRun()) {
-            TestNGListenerHelper.configureTestNGProperties(suites);
-            TestNGListenerHelper.updateDefaultSuiteAndTestNames(suites);
-            TestNGListenerHelper.attachConfigurationHelperClass(suites);
-            //All alterations should be finalized before duplicating the
-            //test suites for cross browser execution
-            TestNGListenerHelper.configureCrossBrowserExecution(suites);
+        switch (TestNGListener.identifyRunType()) {
+            case TESTNG -> TestNGListenerHelper.configureTestNGProperties(suites);
+            case CUCUMBER -> CucumberHelper.configureCucumberProperties(suites);
         }
+        TestNGListenerHelper.attachConfigurationHelperClass(suites);
+        //All alterations should be finalized before duplicating the
+        //test suites for cross browser execution
+        TestNGListenerHelper.configureCrossBrowserExecution(suites);
     }
 
     /**
@@ -132,10 +116,10 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void onStart(ISuite suite) {
-        if (isTestNGRun()) {
+//        if (isTestNGRun()) {
             TestNGListenerHelper.setTotalNumberOfTests(suite);
             executionStartTime = System.currentTimeMillis();
-        }
+//        }
     }
 
     /**
@@ -156,9 +140,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void transform(ITestAnnotation annotation, Class testClass, Constructor testConstructor, Method testMethod) {
-        if (isTestNGRun()) {
+//        if (isTestNGRun()) {
             annotation.setRetryAnalyzer(RetryAnalyzer.class);
-        }
+//        }
     }
 
     /**
@@ -175,14 +159,14 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void beforeInvocation(IInvokedMethod method, ITestResult iTestResult, ITestContext iTestContext) {
-        if (isTestNGRun()) {
+//        if (isTestNGRun()) {
             xmlTest = method.getTestMethod().getXmlTest();
             JiraHelper.prepareTestResultAttributes(method, iTestResult);
             TestNGListenerHelper.setTestName(iTestContext);
             TestNGListenerHelper.logTestInformation(iTestResult);
             TestNGListenerHelper.failFast(iTestResult);
             TestNGListenerHelper.skipTestsWithLinkedIssues(iTestResult);
-        }
+//        }
     }
 
     /**
@@ -199,12 +183,13 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void afterInvocation(IInvokedMethod iInvokedMethod, ITestResult iTestResult, ITestContext iTestContext) {
-        if (isTestNGRun()) {
+//        if (isTestNGRun()) {
             IssueReporter.updateTestStatusInCaseOfVerificationFailure(iTestResult);
             IssueReporter.updateIssuesLog(iTestResult);
             TestNGListenerHelper.updateConfigurationMethodLogs(iTestResult);
+            TestNGListenerHelper.logFinishedTestInformation(iTestResult);
             ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
-        }
+//        }
     }
 
     /**
@@ -212,7 +197,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void onExecutionFinish() {
-        if (isTestNGRun()) {
+//        if (isTestNGRun()) {
             ReportManagerHelper.setDiscreteLogging(true);
             JiraHelper.reportExecutionStatusToJira();
             GoogleTink.encrypt();
@@ -222,36 +207,36 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
             long executionEndTime = System.currentTimeMillis();
             ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
             ReportManagerHelper.logEngineClosure();
-        }
+//        }
     }
 
     @Override
     public void onTestSuccess(ITestResult result) {
-        if (isTestNGRun()) {
+//        if (isTestNGRun()) {
             passedTests.add(result.getMethod());
             ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
                     result.getMethod().getMethodName(), result.getMethod().getDescription(), "",
                     ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
-        }
+//        }
     }
 
     @Override
     public void onTestFailure(ITestResult result) {
-        if (isTestNGRun()) {
+//        if (isTestNGRun()) {
             failedTests.add(result.getMethod());
             ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
                     result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
                     ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
-        }
+//        }
     }
 
     @Override
     public void onTestSkipped(ITestResult result) {
-        if (isTestNGRun()) {
+//        if (isTestNGRun()) {
             skippedTests.add(result.getMethod());
             ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
                     result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
                     ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
-        }
+//        }
     }
 }

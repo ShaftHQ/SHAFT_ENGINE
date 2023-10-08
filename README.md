@@ -3,7 +3,7 @@
 <!-- Badges provided by https://shields.io/ -->
 [![License](https://img.shields.io/github/license/ShaftHQ/SHAFT_Engine?color=indigo&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE)
  [![Contributors)](https://img.shields.io/github/contributors/ShaftHQ/SHAFT_ENGINE?color=indigo&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/graphs/contributors)
- [![JFrog release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ShaftHQ/shaft_engine?include_prereleases&color=indigo&label=Latest%20Release&style=for-the-badge)](https://automatest.jfrog.io/ui/packages/gav:%2F%2Fio.github.shafthq:SHAFT_ENGINE)
+ [![JFrog release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ShaftHQ/shaft_engine?include_prereleases&color=indigo&label=Latest%20Release&style=for-the-badge)](https://central.sonatype.com/artifact/io.github.shafthq/SHAFT_ENGINE)
 
 [![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/e2eTests.yml?branch=main&color=forestgreen&label=E2E%20Tests&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/e2eTests.yml)
  [![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/codeql-analysis.yml?branch=main&label=Security&color=forestgreen&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/codeql-analysis.yml)
@@ -150,6 +150,6 @@ public void afterClass(){
 ## 🙏 Big thanks to the following organizations for their support to the project with their open source licenses
 <a href="https://www.browserstack.com/" target="_blank"><img src="https://ml.globenewswire.com/Resource/Download/745e80b7-4736-424e-b44b-850d2dc41940" alt="BrowserStack" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://applitools.com/" target="_blank"><img src="https://www.selenium.dev/images/sponsors/applitools.png" alt="Applitools" height="50px"></a>
-
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.lambdatest.com/" target="_blank"><img src="https://www.lambdatest.com/resources/images/logos/logo.svg" alt="LambdaTest" height="50px"></a>
 
 #### Stop Reinventing the wheel! Start using SHAFT!

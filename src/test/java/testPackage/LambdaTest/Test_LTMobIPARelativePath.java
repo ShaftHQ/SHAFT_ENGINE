@@ -30,7 +30,6 @@ public class Test_LTMobIPARelativePath {
     @BeforeClass
     public void setup() {
         testData = new SHAFT.TestData.JSON("credentials.json");
-
         // common attributes
         SHAFT.Properties.platform.set().targetPlatform(Platform.IOS.toString());
         SHAFT.Properties.mobile.set().automationName("XCUITest");
@@ -41,6 +40,7 @@ public class Test_LTMobIPARelativePath {
         SHAFT.Properties.lambdaTest.set().platformVersion("16");
         SHAFT.Properties.lambdaTest.set().deviceName("iPhone 14");
         SHAFT.Properties.mobile.set().browserName("");
+        SHAFT.Properties.lambdaTest.set().isRealMobile(true);
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
         driver = DriverFactory.getDriver();

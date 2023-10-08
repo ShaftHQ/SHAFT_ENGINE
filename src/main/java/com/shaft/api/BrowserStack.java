@@ -130,7 +130,7 @@ public class BrowserStack {
 
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
         var browserVersion = SHAFT.Properties.browserStack.browserVersion();
-        if (browserVersion != null && !"".equals(browserVersion.trim())) {
+        if (browserVersion != null && !browserVersion.trim().isEmpty()) {
             browserStackCapabilities.setCapability("browserVersion", SHAFT.Properties.browserStack.browserVersion());
         }
         HashMap<String, Object> browserstackOptions = new HashMap<>();
@@ -143,7 +143,7 @@ public class BrowserStack {
         browserstackOptions.put("local", SHAFT.Properties.browserStack.local());
         browserstackOptions.put("seleniumVersion", SHAFT.Properties.browserStack.seleniumVersion());
         String geoLocation = SHAFT.Properties.browserStack.geoLocation();
-        if (geoLocation != null && !"".equals(geoLocation)) {
+        if (geoLocation != null && !geoLocation.isEmpty()) {
             browserstackOptions.put("geoLocation", SHAFT.Properties.browserStack.geoLocation());
         }
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
@@ -163,8 +163,6 @@ public class BrowserStack {
         browserstackOptions.put("acceptInsecureCerts", SHAFT.Properties.browserStack.acceptInsecureCerts());
         browserstackOptions.put("debug", SHAFT.Properties.browserStack.debug());
         browserstackOptions.put("networkLogs", SHAFT.Properties.browserStack.networkLogs());
-//        browserstackOptions.put("projectName", System.getProperty("project.artifactId"));
-//        browserstackOptions.put("buildName", !SHAFT.Properties.browserStack.appName().equals("") ? SHAFT.Properties.browserStack.appName() : System.getProperty("project.artifactId") + "_" + System.currentTimeMillis());
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
         return browserStackCapabilities;
     }

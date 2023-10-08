@@ -10,7 +10,7 @@ import org.testng.annotations.*;
 
 public class Test_NewValidationHelper {
     WebDriver driver;
-    int elementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
+    double elementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
 
     @Test
     public void forceFail() {

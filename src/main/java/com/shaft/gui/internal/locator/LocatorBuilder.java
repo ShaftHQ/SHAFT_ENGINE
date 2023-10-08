@@ -119,9 +119,6 @@ public class LocatorBuilder {
         if (mode == Locators.CSS) {
             return By.cssSelector(buildSelectorExpression());
         }
-        String xpath;
-        if (partialXpath != null)
-            xpath = partialXpath;
         return By.xpath(buildXpathExpression());
     }
 
@@ -136,7 +133,7 @@ public class LocatorBuilder {
         }
         parameters.forEach(xpathExpression::append);
         parameters.clear(); //resetting the parameters is important only in case of using the axis and needing to build a partialXpath
-        if (!order.equals("")) {
+        if (!order.isEmpty()) {
             return "(" + xpathExpression + ")[" + this.order + "]";
         } else {
             return xpathExpression.toString();
@@ -148,7 +145,7 @@ public class LocatorBuilder {
         tagName = tagName.equals("*") ? "" : tagName;
         cssExpression.append(tagName);
         parameters.forEach(parameter -> cssExpression.append(parameter.replace("@", "")));
-        if (!order.equals("")) {
+        if (!order.isEmpty()) {
             if (order.matches("[0-9]+")) {
                 order = ":nth-child(" + order + ")";
             } else if (order.equals("last()")) {

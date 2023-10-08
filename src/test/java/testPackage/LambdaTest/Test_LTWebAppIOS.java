@@ -30,12 +30,15 @@ public class Test_LTWebAppIOS {
     @BeforeMethod
     public void beforeMethod() {
         testData = new SHAFT.TestData.JSON("credentials.json");
+        // common attributes
         SHAFT.Properties.lambdaTest.set().deviceName("iPhone 13 Pro Max");
         SHAFT.Properties.lambdaTest.set().platformVersion("15");
         SHAFT.Properties.platform.set().targetPlatform("ios");
         SHAFT.Properties.platform.set().executionAddress("lambdatest");
         SHAFT.Properties.web.set().targetBrowserName("safari");
+        SHAFT.Properties.mobile.set().browserName("safari");
         SHAFT.Properties.lambdaTest.set().selenium_version("4.8.0");
+        SHAFT.Properties.lambdaTest.set().isRealMobile(true);
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
         driver = new SHAFT.GUI.WebDriver();

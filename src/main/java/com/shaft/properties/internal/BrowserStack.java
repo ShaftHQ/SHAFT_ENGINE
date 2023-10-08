@@ -117,72 +117,89 @@ public interface BrowserStack extends EngineProperties {
     }
 
     class SetProperty implements EngineProperties.SetProperty {
-        public void username(String value) {
+        public SetProperty username(String value) {
             setProperty("browserStack.username", value);
+            return this;
         }
 
-        public void accessKey(String value) {
+        public SetProperty accessKey(String value) {
             setProperty("browserStack.accessKey", value);
+            return this;
         }
 
-        public void platformVersion(String value) {
+        public SetProperty platformVersion(String value) {
             setProperty("browserStack.platformVersion", value);
+            return this;
         }
 
-        public void deviceName(String value) {
+        public SetProperty deviceName(String value) {
             setProperty("browserStack.deviceName", value);
+            return this;
         }
 
-        public void appUrl(String value) {
+        public SetProperty appUrl(String value) {
             setProperty("browserStack.appUrl", value);
+            return this;
         }
 
-        public void customID(String value) {
+        public SetProperty customID(String value) {
             setProperty("browserStack.customID", value);
+            return this;
         }
 
-        public void appName(String value) {
+        public SetProperty appName(String value) {
             setProperty("browserStack.appName", value);
+            return this;
         }
 
-        public void appRelativeFilePath(String value) {
+        public SetProperty appRelativeFilePath(String value) {
             setProperty("browserStack.appRelativeFilePath", value);
+            return this;
         }
 
-        public void osVersion(String value) {
+        public SetProperty osVersion(String value) {
             setProperty("browserStack.osVersion", value);
+            return this;
         }
 
-        public void browserVersion(String value) {
+        public SetProperty browserVersion(String value) {
             setProperty("browserStack.browserVersion", value);
+            return this;
         }
 
-        public void local(boolean value) {
+        public SetProperty local(boolean value) {
             setProperty("browserStack.local", String.valueOf(value));
+            return this;
         }
 
-        public void seleniumVersion(String value) {
+        public SetProperty seleniumVersion(String value) {
             setProperty("browserStack.seleniumVersion", value);
+            return this;
         }
 
-        public void appiumVersion(String value) {
+        public SetProperty appiumVersion(String value) {
             setProperty("browserStack.appiumVersion", value);
+            return this;
         }
 
-        public void acceptInsecureCerts(boolean value) {
+        public SetProperty acceptInsecureCerts(boolean value) {
             setProperty("browserStack.acceptInsecureCerts", String.valueOf(value));
+            return this;
         }
 
-        public void debug(boolean value) {
+        public SetProperty debug(boolean value) {
             setProperty("browserStack.debug", String.valueOf(value));
+            return this;
         }
 
-        public void networkLogs(boolean value) {
+        public SetProperty networkLogs(boolean value) {
             setProperty("browserStack.networkLogs", String.valueOf(value));
+            return this;
         }
 
-        public void geoLocation(String value) {
+        public SetProperty geoLocation(String value) {
             setProperty("browserStack.geoLocation", value);
+            return this;
         }
 
     }

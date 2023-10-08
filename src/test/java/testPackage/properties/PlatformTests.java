@@ -9,6 +9,8 @@ public class PlatformTests {
     String executionAddress;
     String targetPlatform;
     String proxy;
+    Boolean driverProxy;
+    Boolean jvmProxy;
 
     @BeforeClass
     public void beforeClass() {
@@ -16,7 +18,8 @@ public class PlatformTests {
         executionAddress = SHAFT.Properties.platform.executionAddress();
         targetPlatform = SHAFT.Properties.platform.targetPlatform();
         proxy = SHAFT.Properties.platform.proxy();
-
+        driverProxy = SHAFT.Properties.platform.driverProxySettings();
+        jvmProxy = SHAFT.Properties.platform.jvmProxySettings();
     }
 
     @Test
@@ -25,6 +28,7 @@ public class PlatformTests {
         SHAFT.Properties.platform.set().executionAddress(executionAddress);
         SHAFT.Properties.platform.set().targetPlatform(targetPlatform);
         SHAFT.Properties.platform.set().proxySettings(proxy);
-
+        SHAFT.Properties.platform.set().driverProxySettings(driverProxy);
+        SHAFT.Properties.platform.set().jvmProxySettings(jvmProxy);
     }
 }

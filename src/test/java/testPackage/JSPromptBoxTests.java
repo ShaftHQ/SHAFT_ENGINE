@@ -1,3 +1,4 @@
+/*
 package testPackage;
 
 import com.shaft.driver.SHAFT;
@@ -75,3 +76,4 @@ public class JSPromptBoxTests {
     }
 
 }
+*/

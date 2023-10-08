@@ -75,55 +75,67 @@ public interface Mobile extends EngineProperties {
 
     class SetProperty implements EngineProperties.SetProperty {
 
-        public void selfManagedAndroidSDKVersion(int value) {
+        public SetProperty selfManagedAndroidSDKVersion(int value) {
             setProperty("selfManagedAndroidSDKVersion", String.valueOf(value));
+            return this;
         }
 
-        public void selfManaged(boolean value) {
+        public SetProperty selfManaged(boolean value) {
             setProperty("selfManaged", String.valueOf(value));
+            return this;
         }
 
-        public void platformName(String value) {
+        public SetProperty platformName(String value) {
             setProperty("mobile_platformName", value);
+            return this;
         }
 
-        public void platformVersion(String value) {
+        public SetProperty platformVersion(String value) {
             setProperty("mobile_platformVersion", value);
+            return this;
         }
 
-        public void deviceName(String value) {
+        public SetProperty deviceName(String value) {
             setProperty("mobile_deviceName", value);
+            return this;
         }
 
         /**
          * @param value io.appium.java_client.remote.AutomationName
          */
-        public void automationName(String value) {
+        public SetProperty automationName(String value) {
             setProperty("mobile_automationName", value);
+            return this;
         }
 
-        public void udid(String value) {
+        public SetProperty udid(String value) {
             setProperty("mobile_udid", value);
+            return this;
         }
 
-        public void browserName(String value) {
+        public SetProperty browserName(String value) {
             setProperty("mobile_browserName", value);
+            return this;
         }
 
-        public void browserVersion(String value) {
+        public SetProperty browserVersion(String value) {
             setProperty("MobileBrowserVersion", value);
+            return this;
         }
 
-        public void app(String value) {
+        public SetProperty app(String value) {
             setProperty("mobile_app", value);
+            return this;
         }
 
-        public void appPackage(String value) {
+        public SetProperty appPackage(String value) {
             setProperty("mobile_appPackage", value);
+            return this;
         }
 
-        public void appActivity(String value) {
+        public SetProperty appActivity(String value) {
             setProperty("mobile_appActivity", value);
+            return this;
         }
     }
 }

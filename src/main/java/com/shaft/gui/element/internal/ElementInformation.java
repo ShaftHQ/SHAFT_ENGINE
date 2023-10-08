@@ -11,6 +11,7 @@ import org.openqa.selenium.WebElement;
 import java.util.ArrayList;
 import java.util.List;
 
+@SuppressWarnings("unused")
 public class ElementInformation {
     @Setter
     @Getter
@@ -35,6 +36,8 @@ public class ElementInformation {
     private String actionResult = "";
     @Setter
     private String elementText = "";
+    @Setter
+    private String elementTag = "";
 
     public static ElementInformation fromList(List<Object> elementInformation) {
         var temp = new ElementInformation();
@@ -56,13 +59,19 @@ public class ElementInformation {
     @Getter
     private Element element = null;
 
+
     public String getElementText() {
         if (this.element == null)
             this.setElement(parseElement(this));
         this.setElementText(parseElementText(this));
         return this.elementText;
     }
-
+    public String getElementTag() {
+        if (this.element == null)
+            this.setElement(parseElement(this));
+        this.setElementTag(parseElement(this).tagName());
+        return this.elementTag;
+    }
     //TODO: generalize this approach to parse all element information and not have to fetch it again
     private static String parseElementText(ElementInformation elementInformation) {
         if (!elementInformation.outerHTML.isEmpty()) {

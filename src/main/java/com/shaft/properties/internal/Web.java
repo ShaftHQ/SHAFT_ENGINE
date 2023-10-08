@@ -56,68 +56,80 @@ public interface Web extends EngineProperties {
     @DefaultValue("")
     String baseURL();
 
-    @Key("lightHouseExecution")
-    @DefaultValue("false")
-    boolean lightHouseExecution();
+    @Key("browserWindowWidth")
+    @DefaultValue("1920")
+    int browserWindowWidth();
 
-    @Key("lightHouseExecution.port")
-    @DefaultValue("8888")
-    int lightHouseExecutionPort();
+    @Key("browserWindowHeight")
+    @DefaultValue("1080")
+    int browserWindowHeight();
 
     default SetProperty set() {
         return new SetProperty();
     }
 
     class SetProperty implements EngineProperties.SetProperty {
-        public void baseURL(String value) {
+        public SetProperty baseURL(String value) {
             setProperty("baseURL", value);
+            return this;
         }
 
         /**
          * @param value io.github.shafthq.shaft.enums.Browsers
          */
-        public void targetBrowserName(String value) {
+        public SetProperty targetBrowserName(String value) {
             setProperty("targetBrowserName", value);
+            return this;
         }
 
-        public void headlessExecution(boolean value) {
+        public SetProperty headlessExecution(boolean value) {
             setProperty("headlessExecution", String.valueOf(value));
+            return this;
         }
 
-        public void isMobileEmulation(boolean value) {
+        public SetProperty isMobileEmulation(boolean value) {
             setProperty("isMobileEmulation", String.valueOf(value));
+            return this;
         }
 
-        public void mobileEmulationIsCustomDevice(boolean value) {
+        public SetProperty mobileEmulationIsCustomDevice(boolean value) {
             setProperty("mobileEmulation.isCustomDevice", String.valueOf(value));
+            return this;
         }
 
-        public void mobileEmulationDeviceName(String value) {
+        public SetProperty mobileEmulationDeviceName(String value) {
             setProperty("mobileEmulation.deviceName", value);
+            return this;
         }
 
-        public void mobileEmulationWidth(int value) {
+        public SetProperty mobileEmulationWidth(int value) {
             setProperty("mobileEmulation.width", String.valueOf(value));
+            return this;
         }
 
-        public void mobileEmulationHeight(int value) {
+        public SetProperty mobileEmulationHeight(int value) {
             setProperty("mobileEmulation.height", String.valueOf(value));
+            return this;
         }
 
-        public void mobileEmulationPixelRatio(double value) {
+        public SetProperty mobileEmulationPixelRatio(double value) {
             setProperty("mobileEmulation.pixelRatio", String.valueOf(value));
+            return this;
         }
 
-        public void mobileEmulationUserAgent(String value) {
+        public SetProperty mobileEmulationUserAgent(String value) {
             setProperty("mobileEmulation.userAgent", value);
+            return this;
         }
 
-        public void lightHouseExecution(String value) {
-            setProperty("lightHouseExecution", value);
+        public SetProperty browserWindowWidth(int value) {
+            setProperty("browserWindowWidth", String.valueOf(value));
+            return this;
         }
 
-        public void lightHouseExecutionPort(String value) {
-            setProperty("lightHouseExecution.port", value);
+        public SetProperty browserWindowHeight(int value) {
+            setProperty("browserWindowHeight", String.valueOf(value));
+            return this;
         }
     }
 

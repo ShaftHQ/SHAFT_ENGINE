@@ -11,7 +11,7 @@ import org.testng.annotations.Test;
 public class ValidationTests {
     private final By locator = SHAFT.GUI.Locator.hasTagName("input").build();
     private SHAFT.GUI.WebDriver driver;
-    private int defaultElementIdentificationTimeout;
+    private double defaultElementIdentificationTimeout;
 
     @Test(description = "Assert that assertEquals works as expected when the two values are equal.")
     public void assertEquals_true_expectedToPass() {
@@ -47,19 +47,16 @@ public class ValidationTests {
     @Test(expectedExceptions = {AssertionError.class})
     public void assertEquals_true_expectedToFail() {
         Validations.assertThat().number(1).isEqualTo(2).perform();
-        ;
     }
 
     @Test
     public void assertEquals_false_expectedToPass() {
         Validations.assertThat().number(1).doesNotEqual(2).perform();
-        ;
     }
 
     @Test(expectedExceptions = {AssertionError.class})
     public void assertEquals_false_expectedToFail() {
         Validations.assertThat().number(1).doesNotEqual(1).perform();
-        ;
     }
 
     @Test

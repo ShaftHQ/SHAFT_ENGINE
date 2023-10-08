@@ -66,7 +66,7 @@ public class LambdaTest {
         MutableCapabilities lambdaTestCapabilities = setLambdaTestProperties(username, password, deviceName, osVersion, appUrl);
         testData = testData + ", App URL: " + appUrl;
         passAction(testData);
-        HashMap<String, Object> lambdaTestOptions = new HashMap<String, Object>();
+        HashMap<String, Object> lambdaTestOptions = new HashMap<>();
         lambdaTestOptions.put("w3c", SHAFT.Properties.lambdaTest.w3c());
         if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             lambdaTestOptions.put("platformName", "android");
@@ -98,7 +98,7 @@ public class LambdaTest {
         // set properties
         MutableCapabilities LambdaTestCapabilities = setLambdaTestProperties(username, password, deviceName, osVersion, appUrl);
         passAction(testData);
-        HashMap<String, Object> lambdaTestOptions = new HashMap<String, Object>();
+        HashMap<String, Object> lambdaTestOptions = new HashMap<>();
         lambdaTestOptions.put("w3c", SHAFT.Properties.lambdaTest.w3c());
         if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             lambdaTestOptions.put("platformName", "android");
@@ -128,7 +128,7 @@ public class LambdaTest {
         SHAFT.Properties.mobile.set().browserName(SHAFT.Properties.web.targetBrowserName());
         MutableCapabilities lambdaTestCapabilities = new MutableCapabilities();
         var browserVersion = SHAFT.Properties.lambdaTest.browserVersion();
-        if (browserVersion != null && !"".equals(browserVersion.trim())) {
+        if (browserVersion != null && !browserVersion.trim().isEmpty()) {
             lambdaTestCapabilities.setCapability("browserVersion", SHAFT.Properties.lambdaTest.browserVersion());
         }
         lambdaTestCapabilities.setCapability("browserName", SHAFT.Properties.web.targetBrowserName());
@@ -147,7 +147,6 @@ public class LambdaTest {
         lambdaTestOptions.put("tunnel", SHAFT.Properties.lambdaTest.tunnel());
         lambdaTestOptions.put("tunnelName", SHAFT.Properties.lambdaTest.tunnelName());
         lambdaTestOptions.put("video", SHAFT.Properties.lambdaTest.video());
-        lambdaTestOptions.put("visual", SHAFT.Properties.lambdaTest.visual());
         lambdaTestOptions.put("name", SHAFT.Properties.lambdaTest.buildName());
         lambdaTestOptions.put("visual", SHAFT.Properties.lambdaTest.visual());
         lambdaTestOptions.put("autoGrantPermissions", SHAFT.Properties.lambdaTest.autoGrantPermissions());
@@ -176,7 +175,7 @@ public class LambdaTest {
         SHAFT.Properties.platform.set().executionAddress(username + ":" + password + "@" + hubUrl);
         MutableCapabilities lambdaTestCapabilities = new MutableCapabilities();
         var browserVersion = SHAFT.Properties.lambdaTest.browserVersion();
-        if (browserVersion != null && !"".equals(browserVersion.trim())) {
+        if (browserVersion != null && !browserVersion.trim().isEmpty()) {
             lambdaTestCapabilities.setCapability("browserVersion", SHAFT.Properties.lambdaTest.browserVersion());
         }
         lambdaTestCapabilities.setCapability("browserName", SHAFT.Properties.web.targetBrowserName());

@@ -36,7 +36,7 @@ public class TestNGListenerHelper {
         }
     }
 
-    public static synchronized void updateConfigurationMethodLogs(ITestResult iTestResult) {
+    public static void updateConfigurationMethodLogs(ITestResult iTestResult) {
         if (iTestResult.getMethod().isTest()) {
             //attach before configuration logs to the current test
             beforeMethods.forEach(TestNGListenerHelper::attachTestArtifacts);
@@ -71,11 +71,11 @@ public class TestNGListenerHelper {
         }
     }
 
-    public static synchronized String getTestName() {
+    public static String getTestName() {
         return testName.get();
     }
 
-    public static synchronized void setTestName(ITestContext iTestContext) {
+    public static void setTestName(ITestContext iTestContext) {
         testName.set(iTestContext.getCurrentXmlTest().getName());
     }
 
@@ -184,12 +184,14 @@ public class TestNGListenerHelper {
     }
 
     public static void attachConfigurationHelperClass(List<XmlSuite> suites) {
-        suites.forEach(xmlSuite -> xmlSuite.getTests().forEach(xmlTest -> xmlTest.getClasses().add(new XmlClass(ConfigurationHelper.class.getName()))));
+        suites.forEach(xmlSuite ->
+                xmlSuite.getTests().forEach(xmlTest ->
+                        xmlTest.getClasses().add(new XmlClass(ConfigurationHelper.class.getName()))));
     }
 
     public static void configureJVMProxy() {
         String PROXY_SERVER_SETTINGS = SHAFT.Properties.platform.proxy();
-        if (!PROXY_SERVER_SETTINGS.equals("")) {
+        if (SHAFT.Properties.platform.jvmProxySettings() && !PROXY_SERVER_SETTINGS.isEmpty()) {
             String[] proxyHostPort = PROXY_SERVER_SETTINGS.split(":");
             System.setProperty("http.proxyHost", proxyHostPort[0]);
             System.setProperty("http.proxyPort", proxyHostPort[1]);
@@ -197,6 +199,7 @@ public class TestNGListenerHelper {
             System.setProperty("https.proxyPort", proxyHostPort[1]);
             System.setProperty("ftp.proxyHost", proxyHostPort[0]);
             System.setProperty("ftp.proxyPort", proxyHostPort[1]);
+
         }
     }
 
@@ -209,11 +212,11 @@ public class TestNGListenerHelper {
             if (SHAFT.Properties.visuals.videoParamsScope().equals("TestMethod")) {
                 RecordManager.attachVideoRecording();
                 attachment = RecordManager.getVideoRecordingFilePath();
-                if (!attachment.equals(""))
+                if (!attachment.isEmpty())
                     attachments.add(attachment);
             }
             attachment = ScreenshotManager.attachAnimatedGif();
-            if (!attachment.equals(""))
+            if (!attachment.isEmpty())
                 attachments.add(attachment);
 
             String logText = TestNGListenerHelper.createTestLog(Reporter.getOutput(iTestResult));
@@ -293,6 +296,32 @@ public class TestNGListenerHelper {
 
                 ReportManagerHelper.logConfigurationMethodInformation(className, methodName, configurationMethodType);
                 ReportManagerHelper.extentReportsReset();
+            }
+        }
+    }
+
+    public static void logFinishedTestInformation(ITestResult iTestResult) {
+        ITestNGMethod iTestNGMethod = iTestResult.getMethod();
+        String className;
+        String methodName;
+        String methodDescription = "";
+        String methodStatus = "";
+
+        if (!iTestNGMethod.getQualifiedName().contains("AbstractTestNGCucumberTests")) {
+            if (iTestNGMethod.isTest()) {
+                className = ReportManagerHelper.getTestClassName();
+                methodName = ReportManagerHelper.getTestMethodName();
+                if (iTestNGMethod.getDescription() != null) {
+                    methodDescription = iTestNGMethod.getDescription();
+                }
+                if (iTestResult.getStatus() == ITestResult.SUCCESS) {
+                    methodStatus = "Passed";
+                } else if (iTestResult.getStatus() == ITestResult.FAILURE) {
+                    methodStatus = "Failed";
+                } else if (iTestResult.getStatus() == ITestResult.SKIP) {
+                    methodStatus = "Skipped";
+                }
+                ReportManagerHelper.logFinishedTestInformation(className, methodName, methodDescription, methodStatus);
             }
         }
     }

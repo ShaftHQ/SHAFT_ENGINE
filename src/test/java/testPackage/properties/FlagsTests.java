@@ -19,6 +19,10 @@ public class FlagsTests {
     boolean automaticallyAssertResponseStatusCode;
     int maximumPerformanceMode;
     boolean skipTestsWithLinkedIssues;
+    boolean attemptToClickBeforeTyping ;
+    boolean disableCache ;
+    boolean enableTrueNativeMode ;
+
 
     @BeforeClass
     public void beforeClass() {
@@ -35,6 +39,10 @@ public class FlagsTests {
         automaticallyAssertResponseStatusCode = SHAFT.Properties.flags.automaticallyAssertResponseStatusCode();
         maximumPerformanceMode = SHAFT.Properties.flags.maximumPerformanceMode();
         skipTestsWithLinkedIssues = SHAFT.Properties.flags.skipTestsWithLinkedIssues();
+        attemptToClickBeforeTyping = SHAFT.Properties.flags.attemptToClickBeforeTyping();
+        disableCache = SHAFT.Properties.flags.disableCache();
+        enableTrueNativeMode = SHAFT.Properties.flags.enableTrueNativeMode();
+
     }
 
     @Test
@@ -52,5 +60,9 @@ public class FlagsTests {
         SHAFT.Properties.flags.set().automaticallyAssertResponseStatusCode(automaticallyAssertResponseStatusCode);
         SHAFT.Properties.flags.set().maximumPerformanceMode(maximumPerformanceMode);
         SHAFT.Properties.flags.set().skipTestsWithLinkedIssues(skipTestsWithLinkedIssues);
+        SHAFT.Properties.flags.set().attemptToClickBeforeTyping(attemptToClickBeforeTyping);
+        SHAFT.Properties.flags.set().disableCache(disableCache);
+        SHAFT.Properties.flags.set().enableTrueNativeMode(enableTrueNativeMode);
+
     }
 }

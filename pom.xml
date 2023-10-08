@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>7.2.20230611</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
+    <version>7.3.20230929</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
     <name>${project.groupId}:${project.artifactId}</name>
     <description>SHAFT is a unified test automation engine. Powered by best-in-class frameworks, SHAFT provides a
         wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve.
@@ -33,48 +33,44 @@
 
     <properties>
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
-        <selenium.version>4.10.0</selenium.version>
-        <selenium.version>4.9.0</selenium.version>
+        <selenium.version>4.13.0</selenium.version>  <!-- MAKE SURE TO UPDATE devtools.v116.network.Network TO LATEST VERSION WITH UPDATING SELENIUM-->
         <appium-java-client.version>8.5.1</appium-java-client.version>
-        <webdrivermanager.version>5.3.3</webdrivermanager.version>
-        <allure-testng.version>2.22.1</allure-testng.version> <!-- UPDATE internal.properties -->
-        <extentreports.version>5.0.9</extentreports.version>
-        <aspectj.version>1.9.19</aspectj.version> <!-- 1.9.7 DO NOT UPDATE -->
-        <rest-assured.version>5.3.0</rest-assured.version>
+        <webdrivermanager.version>5.5.3</webdrivermanager.version>
+        <allure.version>2.24.0</allure.version> <!-- 2.21.0 DO NOT UPDATE || internal.properties -->
+        <extentreports.version>5.1.1</extentreports.version>
+        <aspectj.version>1.9.20.1</aspectj.version>
+        <rest-assured.version>5.3.2</rest-assured.version>
         <json-simple.version>1.1.1</json-simple.version>
         <json-path.version>2.8.0</json-path.version>
-        <json-schema-validator.version>5.3.0</json-schema-validator.version>
+        <json-schema-validator.version>5.3.2</json-schema-validator.version>
         <skyscreamer-jsonassert.version>1.5.1</skyscreamer-jsonassert.version>
         <mime-util.version>2.1.3</mime-util.version>
         <testng.version>7.8.0</testng.version>
         <mssql-jdbc.version>9.4.1.jre16-preview</mssql-jdbc.version>
-        <mysql-connector-java.version>8.0.33</mysql-connector-java.version>
+        <mysql-connector-java.version>8.1.0</mysql-connector-java.version>
         <postgresql.version>9.1-901-1.jdbc4</postgresql.version>
         <!-- <ojdbc8.version>19.3.0.0</ojdbc8.version> -->
-        <apachepoi.version>5.2.3</apachepoi.version>
+        <apachepoi.version>5.2.4</apachepoi.version>
         <org.slf4j.version>2.0.1</org.slf4j.version>
         <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
         <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.1.2</maven-surefire-plugin.version>
         <maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
         <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
-        <maven-javadoc-plugin.version>3.5.0</maven-javadoc-plugin.version>
+        <maven-javadoc-plugin.version>3.6.0</maven-javadoc-plugin.version>
         <maven-scm-publish-plugin.version>3.2.1</maven-scm-publish-plugin.version>
         <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
-        <cucumber.version>7.12.1</cucumber.version>
+        <cucumber.version>7.14.0</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
         <applitools-eyes.version>4.14.0</applitools-eyes.version>
         <sikulixapi.version>2.0.5</sikulixapi.version> <!-- Do not update before running the test locally -->
         <jave-all-deps.version>3.3.1</jave-all-deps.version>
         <video-recorder-testng.version>2.0</video-recorder-testng.version>
-        <pdfbox.version>2.0.28</pdfbox.version>
-        <org.yaml.version>2.0</org.yaml.version>
-        <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
-        <argLine>
-            -javaagent:${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar
-        </argLine>
-
+        <pdfbox.version>2.0.29</pdfbox.version>
+        <org.yaml.version>2.2</org.yaml.version>
+        <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
+        <surefireArgLine></surefireArgLine>
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install -DskipTests</installToLocalRepository>
         <publishJavaDocs>mvn resources:resources javadoc:javadoc scm-publish:publish-scm</publishJavaDocs>
@@ -89,7 +85,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.9.3</version>
+                <version>5.10.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -126,7 +122,7 @@
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-junit5</artifactId>
-            <version>${allure-testng.version}</version>
+            <version>${allure.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.junit.jupiter</groupId>
@@ -164,7 +160,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-handler</artifactId>
-            <version>4.1.93.Final</version>
+            <version>4.1.99.Final</version>
         </dependency>
 
         <!-- APPIUM -->
@@ -290,7 +286,7 @@
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-testng</artifactId>
-            <version>${allure-testng.version}</version>
+            <version>${allure.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -305,7 +301,7 @@
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-java-commons</artifactId>
-            <version>${allure-testng.version}</version>
+            <version>${allure.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -316,7 +312,7 @@
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-cucumber7-jvm</artifactId>
-            <version>2.22.1</version>
+            <version>${allure.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.cucumber</groupId>
@@ -332,7 +328,6 @@
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjweaver</artifactId>
             <version>${aspectj.version}</version>
-            <scope>runtime</scope>
         </dependency>
 
         <!-- EXTENT REPORTS -->
@@ -483,7 +478,7 @@
         <dependency>
             <groupId>com.epam.healenium</groupId>
             <artifactId>healenium-web</artifactId>
-            <version>3.4.2</version>
+            <version>3.4.6</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.seleniumhq.selenium</groupId>
@@ -662,21 +657,21 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>32.0.0-jre</version>
+            <version>32.1.2-jre</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.28</version>
+            <version>1.18.30</version>
         </dependency>
 
         <!-- https://github.com/google/tink/blob/master/docs/JAVA-HOWTO.md -->
         <dependency>
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink</artifactId>
-            <version>1.9.0</version>
+            <version>1.11.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.protobuf</groupId>
@@ -687,12 +682,12 @@
         <dependency>
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink-awskms</artifactId>
-            <version>1.8.0</version>
+            <version>1.9.1</version>
         </dependency>
         <dependency>
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink-gcpkms</artifactId>
-            <version>1.8.0</version>
+            <version>1.9.0</version>
         </dependency>
 
         <!--YAML -->
@@ -733,7 +728,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.3.1</version>
+            <version>5.5.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -761,8 +756,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven-compiler-plugin.version}</version>
                 <configuration>
-                    <source>17</source>
-                    <target>17</target>
+                    <source>21</source>
+                    <target>21</target>
                     <encoding>UTF-8</encoding>
                     <maxmem>10240m</maxmem>
                     <meminitial>1024m</meminitial>
@@ -1020,7 +1015,11 @@
                             </dependency>
                         </dependencies>
                         <configuration>
+                            
                             <systemPropertyVariables>
+                                <allure.testng.hide.disabled.tests>true</allure.testng.hide.disabled.tests>
+                                <allure.testng.hide.configuration.failures>true
+                                </allure.testng.hide.configuration.failures>
                                 <testng.dtd.http>true</testng.dtd.http>
                                 <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>
                             </systemPropertyVariables>
@@ -1029,6 +1028,9 @@
                             <trimStackTrace>false</trimStackTrace>
                             <useFile>false</useFile>
                             <encoding>UTF-8</encoding>
+                           <argLine>
+                               @{argLine} ${surefireArgLine} -javaagent:${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar                            
+                            </argLine>
                             <properties>
                                 <property>
                                     <name>listener</name>
@@ -1070,6 +1072,7 @@
                             </dependency>
                         </dependencies>
                         <configuration>
+                           
                             <systemPropertyVariables>
                                 <testng.dtd.http>true</testng.dtd.http>
                                 <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>
@@ -1079,6 +1082,9 @@
                             <trimStackTrace>false</trimStackTrace>
                             <useFile>false</useFile>
                             <encoding>UTF-8</encoding>
+                           <argLine>
+                               @{argLine} ${surefireArgLine} -javaagent:${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar                            
+                            </argLine>
                             <properties>
                                 <property>
                                     <name>listener</name>

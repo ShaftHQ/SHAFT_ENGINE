@@ -29,7 +29,6 @@ import java.util.Base64;
 import static com.automation.remarks.video.RecordingUtils.doVideoProcessing;
 
 public class RecordManager {
-    private static final Boolean RECORD_VIDEO = SHAFT.Properties.visuals.videoParamsRecordVideo();
     private static final ThreadLocal<IVideoRecorder> recorder = new ThreadLocal<>();
     private static final ThreadLocal<WebDriver> videoDriver = new ThreadLocal<>();
     private static boolean isRecordingStarted = false;
@@ -41,7 +40,7 @@ public class RecordManager {
     //TODO: the animated GIF should follow the same path as the video
     @SuppressWarnings("SpellCheckingInspection")
     public static void startVideoRecording(WebDriver driver) {
-        if (Boolean.TRUE.equals(RECORD_VIDEO)
+        if (Boolean.TRUE.equals(SHAFT.Properties.visuals.videoParamsRecordVideo())
                 && !isRecordingStarted
                 && driver != null
                 && DriverFactoryHelper.isMobileNativeExecution()) {
@@ -63,7 +62,7 @@ public class RecordManager {
     }
 
     public static void startVideoRecording() {
-        if (Boolean.TRUE.equals(RECORD_VIDEO)
+        if (Boolean.TRUE.equals(SHAFT.Properties.visuals.videoParamsRecordVideo())
                 && SHAFT.Properties.platform.executionAddress().equals("local")
                 && !SHAFT.Properties.web.headlessExecution()
                 && recorder.get() == null) {
@@ -104,7 +103,7 @@ public class RecordManager {
         String pathToRecording;
         String testMethodName = ReportManagerHelper.getTestMethodName();
 
-        if (Boolean.TRUE.equals(RECORD_VIDEO) && recorder.get() != null) {
+        if (Boolean.TRUE.equals(SHAFT.Properties.visuals.videoParamsRecordVideo()) && recorder.get() != null) {
             pathToRecording = doVideoProcessing(ReportManagerHelper.isCurrentTestPassed(), recorder.get().stopAndSave(System.currentTimeMillis() + "_" + testMethodName));
             try {
                 inputStream = new FileInputStream(encodeRecording(pathToRecording));
@@ -112,9 +111,9 @@ public class RecordManager {
                 ReportManagerHelper.logDiscrete(e);
 //                inputStream = new ByteArrayInputStream(new byte[0]);
             }
-            recorder.set(null);
+            recorder.remove();
 
-        } else if (Boolean.TRUE.equals(RECORD_VIDEO) && videoDriver.get() != null) {
+        } else if (Boolean.TRUE.equals(SHAFT.Properties.visuals.videoParamsRecordVideo()) && videoDriver.get() != null) {
             String base64EncodedRecording = "";
             if (videoDriver.get() instanceof AndroidDriver androidDriver) {
                 base64EncodedRecording = androidDriver.stopRecordingScreen();
@@ -122,7 +121,7 @@ public class RecordManager {
                 base64EncodedRecording = iosDriver.stopRecordingScreen();
             }
             inputStream = new ByteArrayInputStream(Base64.getDecoder().decode(base64EncodedRecording));
-            videoDriver.set(null);
+            videoDriver.remove();
             isRecordingStarted = false;
         }
         return inputStream;
