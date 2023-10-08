@@ -694,7 +694,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*ChainableElementActionsTests.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
