@@ -44,7 +44,6 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicReference;
 
 @SuppressWarnings({"UnusedReturnValue", "unused"})
 public class ElementActionsHelper {
@@ -176,30 +175,29 @@ public class ElementActionsHelper {
                     .ignoreAll(getExpectedExceptions(isValidToCheckForVisibility))
                     .until(nestedDriver -> {
                         try (ExecutorService myExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
-                            AtomicReference<WebElement> targetElement = new AtomicReference<>();
+                            final WebElement[] targetElement = new WebElement[1];
                             ElementInformation elementInformation = new ElementInformation();
 
                             myExecutor.submit(() -> {
                                 // BLOCK #1 :: GETTING THE ELEMENT
                                 if (ShadowLocatorBuilder.shadowDomLocator != null
                                         && ShadowLocatorBuilder.cssSelector == elementLocator) {
-                                    targetElement.set(nestedDriver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElement(ShadowLocatorBuilder.cssSelector));
+                                    targetElement[0] = driver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElement(ShadowLocatorBuilder.cssSelector);
                                 } else if (LocatorBuilder.getIFrameLocator() != null) {
                                     try {
-                                        targetElement.set(nestedDriver.switchTo().frame(nestedDriver.findElement(LocatorBuilder.getIFrameLocator())).findElement(elementLocator));
+                                        targetElement[0] = driver.switchTo().frame(driver.findElement(LocatorBuilder.getIFrameLocator())).findElement(elementLocator);
                                     } catch (NoSuchElementException exception) {
-                                        targetElement.set(nestedDriver.findElement(elementLocator));
+                                        targetElement[0] = driver.findElement(elementLocator);
                                     }
                                 } else {
-                                    targetElement.set(nestedDriver.findElement(elementLocator));
+                                    targetElement[0] = driver.findElement(elementLocator);
                                 }
                             }).get();
 
                             var threadRect = myExecutor.submit(() -> {
                                 // BLOCK #2 :: GETTING THE ELEMENT LOCATION (RECT)
                                 try {
-                                    WebElement finalTargetElement = targetElement.get();
-                                    elementInformation.setElementRect(finalTargetElement.getRect());
+                                    elementInformation.setElementRect(targetElement[0].getRect());
                                 } catch (ElementNotInteractableException elementNotInteractableException) {
                                     // this exception happens sometimes with certain browsers and causes a timeout
                                     // this empty block should handle that issue
@@ -212,19 +210,19 @@ public class ElementActionsHelper {
                                     if (!isMobileExecution) {
                                         try {
                                             // native Javascript scroll to center (smooth / auto)
-                                            ((JavascriptExecutor) nestedDriver).executeScript("""
-                                                    arguments[0].scrollIntoView({behavior: "smooth", block: "center", inline: "center"});""", targetElement);
+                                            var scriptOutput = ((JavascriptExecutor) driver).executeScript("""
+                                                    arguments[0].scrollIntoView({behavior: "smooth", block: "center", inline: "center"});""", targetElement[0]);
                                         } catch (Throwable throwable) {
                                             try {
                                                 // w3c compliant scroll
-                                                new Actions(nestedDriver).scrollToElement(targetElement.get()).perform();
+                                                new Actions(driver).scrollToElement(targetElement[0]).perform();
                                             } catch (Throwable throwable1) {
                                                 // old school selenium scroll
-                                                ((Locatable) targetElement).getCoordinates().inViewPort();
+                                                ((Locatable) driver).getCoordinates().inViewPort();
                                             }
                                         }
                                     } else {
-                                        targetElement.get().isDisplayed();
+                                        targetElement[0].isDisplayed();
                                     }
                                 }
                             });
@@ -233,17 +231,17 @@ public class ElementActionsHelper {
                                 // BLOCK #4 :: GETTING THE NUMBER OF FOUND ELEMENTS
                                 if (ShadowLocatorBuilder.shadowDomLocator != null
                                         && ShadowLocatorBuilder.cssSelector == elementLocator) {
-                                    elementInformation.setNumberOfFoundElements(nestedDriver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElements(ShadowLocatorBuilder.cssSelector).size());
+                                    elementInformation.setNumberOfFoundElements(driver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElements(ShadowLocatorBuilder.cssSelector).size());
                                 } else {
-                                    elementInformation.setNumberOfFoundElements(nestedDriver.findElements(elementLocator).size());
+                                    elementInformation.setNumberOfFoundElements(driver.findElements(elementLocator).size());
                                 }
                             });
 
                             var threadHTML = myExecutor.submit(() -> {
                                 // BLOCK #5 :: GETTING THE INNER AND OUTER HTML
                                 if (!isMobileExecution && GET_ELEMENT_HTML) {
-                                    elementInformation.setOuterHTML(targetElement.get().getAttribute("outerHTML"));
-                                    elementInformation.setInnerHTML(targetElement.get().getAttribute("innerHTML"));
+                                    elementInformation.setOuterHTML(targetElement[0].getAttribute("outerHTML"));
+                                    elementInformation.setInnerHTML(targetElement[0].getAttribute("innerHTML"));
                                 }
                             });
 
@@ -252,7 +250,7 @@ public class ElementActionsHelper {
                                 if (SHAFT.Properties.reporting.captureElementName()) {
                                     var elementName = formatLocatorToString(elementLocator);
                                     try {
-                                        var accessibleName = targetElement.get().getAccessibleName();
+                                        var accessibleName = targetElement[0].getAccessibleName();
                                         if (accessibleName != null && !accessibleName.isBlank()) {
                                             elementName = accessibleName;
                                         }
@@ -272,7 +270,7 @@ public class ElementActionsHelper {
                             threadHTML.get();
                             threadName.get();
 
-                            elementInformation.setFirstElement(targetElement.get());
+                            elementInformation.setFirstElement(targetElement[0]);
                             elementInformation.setLocator(elementLocator);
 
                             // BLOCK #6 :: PERFORMING ACTION  (WITH OPTIONAL ARGS)
