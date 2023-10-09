@@ -603,6 +603,18 @@ public class TouchActions {
         }
         return this;
     }
+
+    /**
+     * Rotate between portrait and landscape modes
+     *
+     * @param orientation           ScreenOrientation.LANDSCAPE or PORTRAIT
+     * @return a self-reference to be used to chain actions
+     */
+        public TouchActions rotate(ScreenOrientation orientation){
+            ((AndroidDriver) DriverFactoryHelper.getDriver()).rotate(orientation);
+            return this;
+        }
+
     @SuppressWarnings("unchecked")
     private List<Object> attemptToSwipeElementIntoViewInNativeApp(By scrollableElementLocator, String targetElementImage, SwipeDirection swipeDirection) {
         boolean isElementFound = false;
