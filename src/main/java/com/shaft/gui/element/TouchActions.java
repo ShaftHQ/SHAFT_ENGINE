@@ -582,6 +582,39 @@ public class TouchActions {
                 + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
         return this;
     }
+
+    /**
+     * Attempts to scroll element into view using androidUIAutomator
+     *
+     * @param targetText element text to be used to swipe it into view
+     * @param movement           SwipeMovement.VERTICAL or HORIZONTAL
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeElementIntoView(String targetText,SwipeMovement movement) {
+        switch(movement) {
+            case VERTICAL:
+                DriverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+                        + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
+                break;
+            case HORIZONTAL:
+                DriverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector()).setAsHorizontalList().scrollIntoView("
+                        + "new UiSelector().textContains(\"" + targetText + "\"));"));
+                break;
+        }
+        return this;
+    }
+
+    /**
+     * Rotate between portrait and landscape modes
+     *
+     * @param orientation           ScreenOrientation.LANDSCAPE or PORTRAIT
+     * @return a self-reference to be used to chain actions
+     */
+        public TouchActions rotate(ScreenOrientation orientation){
+            ((AndroidDriver) DriverFactoryHelper.getDriver()).rotate(orientation);
+            return this;
+        }
+
     @SuppressWarnings("unchecked")
     private List<Object> attemptToSwipeElementIntoViewInNativeApp(By scrollableElementLocator, String targetElementImage, SwipeDirection swipeDirection) {
         boolean isElementFound = false;
@@ -824,6 +857,10 @@ public class TouchActions {
      */
     public enum SwipeDirection {
         UP, DOWN, LEFT, RIGHT
+    }
+
+    public enum SwipeMovement {
+        HORIZONTAL,VERTICAL
     }
 
     public enum SwipeTechnique {
