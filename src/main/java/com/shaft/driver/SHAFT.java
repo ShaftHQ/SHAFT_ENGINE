@@ -8,10 +8,7 @@ import com.shaft.db.DatabaseActions;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.element.AlertActions;
-import com.shaft.gui.element.ElementActions;
-import com.shaft.gui.element.SikuliActions;
-import com.shaft.gui.element.TouchActions;
+import com.shaft.gui.element.*;
 import com.shaft.listeners.internal.WebDriverListener;
 import com.shaft.tools.io.ExcelFileManager;
 import com.shaft.tools.io.JSONFileManager;
@@ -130,6 +127,17 @@ public class SHAFT {
                         return DriverFactoryHelper.getDriver();
                     }
                     }
+            }
+
+            public Async async() {
+                return new Async();
+            }
+
+            public static class Async {
+                public AsyncElementActions element() {
+                    return new AsyncElementActions();
+                }
+
             }
         }
 
