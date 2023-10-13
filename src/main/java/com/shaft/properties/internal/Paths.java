@@ -28,7 +28,7 @@ public interface Paths extends EngineProperties {
     String testData();
 
     @Key("downloadsFolderPath")
-    @DefaultValue("target/downloadedFiles/")
+    @DefaultValue("target/downloadedFiles")
     String downloads();
 
     @Key("allureResultsFolderPath")
