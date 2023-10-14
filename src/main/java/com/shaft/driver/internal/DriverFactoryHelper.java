@@ -202,7 +202,7 @@ public class DriverFactoryHelper {
                 // https://developer.mozilla.org/en-US/docs/Web/WebDriver/Capabilities/firefoxOptions
                 ffOptions = new FirefoxOptions();
                 var ffProfile = new FirefoxProfile();
-                ffProfile.setPreference("browser.download.dir", System.getProperty("user.dir") + File.separatorChar + SHAFT.Properties.paths.downloads());
+                ffProfile.setPreference("browser.download.dir", System.getProperty("user.dir") + File.separatorChar + SHAFT.Properties.paths.downloads().replace("/", File.separator));
                 ffProfile.setPreference("browser.download.folderList", 2);
                 //noinspection SpellCheckingInspection
                 ffProfile.setPreference("browser.helperApps.neverAsk.saveToDisk",
@@ -384,7 +384,7 @@ public class DriverFactoryHelper {
         Map<String, Object> chromePreferences = new HashMap<>();
         chromePreferences.put("profile.default_content_settings.popups", 0);
         chromePreferences.put("download.prompt_for_download", "false");
-        chromePreferences.put("download.default_directory", System.getProperty("user.dir") + File.separatorChar + SHAFT.Properties.paths.downloads());
+        chromePreferences.put("download.default_directory", System.getProperty("user.dir") + File.separatorChar + SHAFT.Properties.paths.downloads().replace("/", File.separator));
         options.setExperimentalOption("prefs", chromePreferences);
         options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
         options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
