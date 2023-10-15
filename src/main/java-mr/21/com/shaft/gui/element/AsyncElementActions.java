@@ -1,13 +1,12 @@
 package com.shaft.gui.element;
 
 import com.shaft.enums.internal.ClipboardAction;
-import org.apache.commons.lang3.NotImplementedException;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Callable;
+import java.util.concurrent.*;
 
 public class AsyncElementActions {
     private final List<Callable<ElementActions>> actionsList;
@@ -114,6 +113,19 @@ public class AsyncElementActions {
     private void addActionBuilder(Callable<ElementActions> action) { actionsList.add(action);}
 
     public AsyncElementActions perform() {
-        throw new NotImplementedException("You need to upgrade to JDK 21 LTS to use AsyncElementActions and Built-in Virtual Threads.");
+        try (ExecutorService myExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<Future<ElementActions>> actions = myExecutor.invokeAll(actionsList);
+
+            for (Future<ElementActions> action : actions) {
+                try {
+                    action.get();
+                } catch (InterruptedException | ExecutionException e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        return new AsyncElementActions();
     }
 }
