@@ -42,6 +42,8 @@ import java.time.Duration;
 import java.util.List;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @SuppressWarnings({"UnusedReturnValue", "unused"})
 public class ElementActionsHelper {
@@ -172,9 +174,12 @@ public class ElementActionsHelper {
                     .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                     .ignoreAll(getExpectedExceptions(isValidToCheckForVisibility))
                     .until(nestedDriver -> {
+                        try (ExecutorService myExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
                             final WebElement[] targetElement = new WebElement[1];
                             ElementInformation elementInformation = new ElementInformation();
-                        // BLOCK #1 :: GETTING THE ELEMENT
+
+                            myExecutor.submit(() -> {
+                                // BLOCK #1 :: GETTING THE ELEMENT
                                 if (ShadowLocatorBuilder.shadowDomLocator != null
                                         && ShadowLocatorBuilder.cssSelector == elementLocator) {
                                     targetElement[0] = driver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElement(ShadowLocatorBuilder.cssSelector);
@@ -187,14 +192,20 @@ public class ElementActionsHelper {
                                 } else {
                                     targetElement[0] = driver.findElement(elementLocator);
                                 }
-                        // BLOCK #2 :: GETTING THE ELEMENT LOCATION (RECT)
+                            }).get();
+
+                            var threadRect = myExecutor.submit(() -> {
+                                // BLOCK #2 :: GETTING THE ELEMENT LOCATION (RECT)
                                 try {
                                     elementInformation.setElementRect(targetElement[0].getRect());
                                 } catch (ElementNotInteractableException elementNotInteractableException) {
                                     // this exception happens sometimes with certain browsers and causes a timeout
                                     // this empty block should handle that issue
                                 }
-                        // BLOCK #3 :: SCROLLING TO ELEMENT | CONFIRMING IT IS DISPLAYED
+                            });
+
+                            var threadLocate = myExecutor.submit(() -> {
+                                // BLOCK #3 :: SCROLLING TO ELEMENT | CONFIRMING IT IS DISPLAYED
                                 if (isValidToCheckForVisibility) {
                                     if (!isMobileExecution) {
                                         try {
@@ -214,19 +225,28 @@ public class ElementActionsHelper {
                                         targetElement[0].isDisplayed();
                                     }
                                 }
-                        // BLOCK #4 :: GETTING THE NUMBER OF FOUND ELEMENTS
+                            });
+
+                            var threadCount = myExecutor.submit(() -> {
+                                // BLOCK #4 :: GETTING THE NUMBER OF FOUND ELEMENTS
                                 if (ShadowLocatorBuilder.shadowDomLocator != null
                                         && ShadowLocatorBuilder.cssSelector == elementLocator) {
                                     elementInformation.setNumberOfFoundElements(driver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElements(ShadowLocatorBuilder.cssSelector).size());
                                 } else {
                                     elementInformation.setNumberOfFoundElements(driver.findElements(elementLocator).size());
                                 }
+                            });
+
+                            var threadHTML = myExecutor.submit(() -> {
                                 // BLOCK #5 :: GETTING THE INNER AND OUTER HTML
                                 if (!isMobileExecution && GET_ELEMENT_HTML) {
                                     elementInformation.setOuterHTML(targetElement[0].getAttribute("outerHTML"));
                                     elementInformation.setInnerHTML(targetElement[0].getAttribute("innerHTML"));
                                 }
-                        // BLOCK #5 :: GETTING ELEMENT NAME
+                            });
+
+                            var threadName = myExecutor.submit(() -> {
+                                // BLOCK #5 :: GETTING ELEMENT NAME
                                 if (SHAFT.Properties.reporting.captureElementName()) {
                                     var elementName = formatLocatorToString(elementLocator);
                                     try {
@@ -241,6 +261,14 @@ public class ElementActionsHelper {
                                     }
                                     elementInformation.setElementName(elementName);
                                 }
+                            });
+
+                            // SYNCHRONIZATION POINT
+                            threadRect.get();
+                            threadLocate.get();
+                            threadCount.get();
+                            threadHTML.get();
+                            threadName.get();
 
                             elementInformation.setFirstElement(targetElement[0]);
                             elementInformation.setLocator(elementLocator);
@@ -261,6 +289,9 @@ public class ElementActionsHelper {
                             // String outerHTML (or empty string)
                             // String innerHTML (or empty string)
                             // String elementName (or empty string)
+                        } catch (ExecutionException | InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
                     });
         } catch (org.openqa.selenium.TimeoutException timeoutException) {
             // In case the element was not found / not visible and the timeout expired
@@ -779,7 +810,7 @@ public class ElementActionsHelper {
                     }
                 }
 
-                }
+            }
             else {
                 try {
                     (elementInformation.getFirstElement()).sendKeys(text);

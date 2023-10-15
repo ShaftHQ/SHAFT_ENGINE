@@ -3,14 +3,15 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>7.3.20230929</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
+    <version>7.4.20231015</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
     <name>${project.groupId}:${project.artifactId}</name>
     <description>SHAFT is a unified test automation engine. Powered by best-in-class frameworks, SHAFT provides a
         wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve.
         Stop reinventing the wheel. Upgrade now!
     </description>
     <url>https://shafthq.github.io/</url>
-    <packaging>jar</packaging>
+    <!--    <packaging>jar</packaging>-->
+    <packaging>multi-release-jar</packaging>
     <licenses>
         <license>
             <name>MIT License</name>
@@ -32,6 +33,14 @@
     </scm>
 
     <properties>
+        <!-- Maven Compiler properties -->
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.encoding>UTF-8</maven.compiler.encoding>
+        <maven.compiler.maxmem>10240m</maven.compiler.maxmem>
+        <maven.compiler.meminitial>2048m</maven.compiler.meminitial>
+        <maven.compiler.optimize>true</maven.compiler.optimize>
+
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
         <selenium.version>4.13.0</selenium.version>  <!-- MAKE SURE TO UPDATE devtools.v116.network.Network TO LATEST VERSION WITH UPDATING SELENIUM-->
         <appium-java-client.version>8.6.0</appium-java-client.version>
@@ -749,20 +758,23 @@
             </resource>
         </resources>
 
+        <!--Extensions -->
+        <extensions>
+            <extension>
+                <!-- https://mvnrepository.com/artifact/pw.krejci/multi-release-jar-maven-plugin -->
+                <!-- https://github.com/metlos/multi-release-jar-maven-plugin -->
+                <groupId>pw.krejci</groupId>
+                <artifactId>multi-release-jar-maven-plugin</artifactId>
+                <version>0.1.5</version>
+            </extension>
+        </extensions>
+
         <!--Plugins -->
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven-compiler-plugin.version}</version>
-                <configuration>
-                    <source>21</source>
-                    <target>21</target>
-                    <encoding>UTF-8</encoding>
-                    <maxmem>10240m</maxmem>
-                    <meminitial>1024m</meminitial>
-                    <optimize>true</optimize>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -774,6 +786,9 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                         </manifest>
+                        <manifestEntries>
+                            <Multi-Release>true</Multi-Release>
+                        </manifestEntries>
                     </archive>
                     <includes>
                         <include>com/**/*</include>
