@@ -14,6 +14,7 @@ import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
+import com.shaft.gui.waits.WaitActions;
 import com.shaft.performance.internal.LightHouseGenerateReport;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
@@ -82,6 +83,10 @@ public class BrowserActions {
 
     public ElementActions element() {
         return ElementActions.getInstance();
+    }
+
+    public WaitActions waits() {
+        return new WaitActions();
     }
 
     public BrowserActions and() {

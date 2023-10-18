@@ -9,6 +9,7 @@ import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.*;
+import com.shaft.gui.waits.WaitActions;
 import com.shaft.listeners.internal.WebDriverListener;
 import com.shaft.tools.io.ExcelFileManager;
 import com.shaft.tools.io.JSONFileManager;
@@ -73,6 +74,10 @@ public class SHAFT {
 
             public AlertActions alert() {
                 return new AlertActions();
+            }
+
+            public WaitActions waits() {
+                return new WaitActions();
             }
 
             public WizardHelpers.WebDriverAssertions assertThat() {

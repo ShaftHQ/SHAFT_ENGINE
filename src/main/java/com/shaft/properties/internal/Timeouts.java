@@ -84,6 +84,10 @@ public interface Timeouts extends EngineProperties {
     @DefaultValue("10")
     int remoteServerInstanceCreationTimeout();
 
+    @Key("webDriverTimeout")
+    @DefaultValue("60")
+    int webDriverTimeout();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -171,6 +175,11 @@ public interface Timeouts extends EngineProperties {
 
         public SetProperty remoteServerInstanceCreationTimeout(int value) {
             setProperty("remoteServerInstanceCreationTimeout", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty webDriverTimeout(int value) {
+            setProperty("webDriverTimeout", String.valueOf(value));
             return this;
         }
 

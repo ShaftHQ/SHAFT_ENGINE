@@ -12,6 +12,7 @@ import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.ElementInformation;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
+import com.shaft.gui.waits.WaitActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
@@ -99,6 +100,10 @@ public class ElementActions {
 
     public SikuliActions sikulix(App applicationWindow) {
         return new SikuliActions(applicationWindow);
+    }
+
+    public WaitActions waits() {
+        return new WaitActions();
     }
 
     public ElementActions and() {
