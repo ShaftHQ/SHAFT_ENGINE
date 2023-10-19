@@ -515,7 +515,7 @@ public enum HTMLHelper {
                     <br>
                     <h2>${CASES_PASSED_PERCENTAGE}%</h2>
                     <br><br>
-                    <h3><b>Total Cases</b>:&nbsp${CASES_TOTAL}&nbsp&nbsp[
+                    <h3><b>Total Tests</b>:&nbsp${CASES_TOTAL}&nbsp&nbsp[
                         <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${CASES_PASSED}</font>&nbsp|
                         <font style="color:Tomato;"><b>Failed:</b>&nbsp${CASES_FAILED}</font>&nbsp|
                         <font style="color:Orange;"><b>Skipped:</b>&nbsp${CASES_SKIPPED}</font>&nbsp]
