@@ -530,13 +530,15 @@ public enum HTMLHelper {
                     <div class="piechart1"></div>
                     <br>
                     <h4>${VALIDATION_PASSED_PERCENTAGE}%</h4>
+                    <b>&#9432;<i> Validations</b> are the number of checkpoints (assertions and verifications) that the executed cases have (not including skipped tests) as the cases may have more than one validation.</i>
                     <br>
                     <hr class="rounded1">
                     <h5><b>Total Issues</b>:&nbsp${TOTAL_ISSUES}&nbsp&nbsp[
-                        <font style="color:Tomato;"><b>No Open issues for Failed Tests:</b>&nbsp${NO_OPEN_ISSUES_FAILED}</font>&nbsp|
-                        <font style="color:Orange;"><b>Open issues for Passed Tests:</b>&nbsp${OPEN_ISSUES_PASSED}</font>&nbsp|
-                        <font style="color:MediumSeaGreen;"><b>Open issues for Failed Tests:</b>&nbsp${OPEN_ISSUES_FAILED}</font>&nbsp]
+                        <font style="color:Tomato;"><b>Not Expected To Fail Tests:</b>&nbsp${NO_OPEN_ISSUES_FAILED}</font>&nbsp|
+                        <font style="color:Orange;"><b>Resolved Tests:</b>&nbsp${OPEN_ISSUES_PASSED}</font>&nbsp|
+                        <font style="color:MediumSeaGreen;"><b>Expected To Fail Tests:</b>&nbsp${OPEN_ISSUES_FAILED}</font>&nbsp]
                     </h5>
+                    <b>&#9432;<i> Issues</b> are the number of bugs linked to the tests (Using the @Issue annotation) .</i>
                     <br>
                     <hr class="rounded">
                     <h4 style="display:inline;">Test Cases Details</h4>
