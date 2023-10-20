@@ -77,7 +77,7 @@ public class SHAFT {
                 return new AlertActions();
             }
 
-            public WaitActions SeleniumExplicitWaits(Function<? super org.openqa.selenium.WebDriver, ?> conditions) {
+            public WaitActions CustomExplicitWaits(Function<? super org.openqa.selenium.WebDriver, ?> conditions) {
                 return new WaitActions().CustomExplicitWaits(conditions);
             }
 
