@@ -31,6 +31,7 @@ import org.sikuli.script.App;
 import java.nio.file.FileSystems;
 import java.time.Duration;
 import java.util.*;
+import java.util.function.Function;
 
 @SuppressWarnings("unused")
 public class ElementActions {
@@ -102,8 +103,8 @@ public class ElementActions {
         return new SikuliActions(applicationWindow);
     }
 
-    public WaitActions waits() {
-        return new WaitActions();
+    public WaitActions CustomExplicitWaits(Function<? super WebDriver, ?> conditions) {
+        return new WaitActions().CustomExplicitWaits(conditions);
     }
 
     public ElementActions and() {
@@ -1254,4 +1255,40 @@ public class ElementActions {
         ReportManagerHelper.log("Capture element screenshot", Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeElementScreenshot(DriverFactoryHelper.getDriver(), elementLocator), "captureScreenshot")));
         return this;
     }
+
+    public ElementActions waitUntilNumberOfElementsToBe(By elementLocator, int numberOfElements) {
+        WaitActions.explicitWaits(ExpectedConditions.numberOfElementsToBe(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public ElementActions waitUntilNumberOfElementsToBeLessThan(By elementLocator, int numberOfElements) {
+        WaitActions.explicitWaits(ExpectedConditions.numberOfElementsToBeLessThan(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public ElementActions waitUntilNumberOfElementsToBeMoreThan(By elementLocator, int numberOfElements) {
+        WaitActions.explicitWaits(ExpectedConditions.numberOfElementsToBeMoreThan(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public ElementActions waitUntilAttributeContains(By elementLocator, String attribute, String attributeContainsValue) {
+        WaitActions.explicitWaits(ExpectedConditions.attributeContains(elementLocator,attribute, attributeContainsValue), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public ElementActions waitUntilElementTextToBe(By elementLocator, String text) {
+        WaitActions.explicitWaits(ExpectedConditions.textToBe(elementLocator, text), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public ElementActions waitUntilElementToBeSelected(By elementLocator) {
+        WaitActions.explicitWaits(ExpectedConditions.elementToBeSelected(elementLocator), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public ElementActions waitUntilPresenceOfAllElementsLocatedBy(By elementLocator) {
+        WaitActions.explicitWaits(ExpectedConditions.presenceOfAllElementsLocatedBy(elementLocator), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
 }

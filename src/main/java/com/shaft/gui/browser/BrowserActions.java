@@ -32,6 +32,7 @@ import org.openqa.selenium.remote.Augmenter;
 import org.openqa.selenium.remote.http.HttpRequest;
 import org.openqa.selenium.remote.http.HttpResponse;
 import org.openqa.selenium.remote.http.Route;
+import org.openqa.selenium.support.ui.ExpectedConditions;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
@@ -40,6 +41,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 @SuppressWarnings("unused")
@@ -85,8 +87,8 @@ public class BrowserActions {
         return ElementActions.getInstance();
     }
 
-    public WaitActions waits() {
-        return new WaitActions();
+    public WaitActions CustomExplicitWaits(Function<? super WebDriver, ?> conditions) {
+        return new WaitActions().CustomExplicitWaits(conditions);
     }
 
     public BrowserActions and() {
@@ -816,4 +818,55 @@ public class BrowserActions {
     public void generateLightHouseReport() {
         new LightHouseGenerateReport(DriverFactoryHelper.getDriver()).generateLightHouseReport();
     }
+
+    public BrowserActions waitForLazyLoading() {
+        JavaScriptWaitManager.waitForLazyLoading();
+        return this;
+    }
+
+    public BrowserActions waitUntilTitleIs(String title) {
+        WaitActions.explicitWaits(ExpectedConditions.titleIs(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+    
+    public BrowserActions waitUntilTitleContains(String title) {
+        WaitActions.explicitWaits(ExpectedConditions.titleContains(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+    
+    public BrowserActions waitUntilTitleNotContains(String title) {
+        WaitActions.explicitWaits(ExpectedConditions.not(ExpectedConditions.titleContains(title)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public BrowserActions waitUntilUrlContains(String url) {
+        WaitActions.explicitWaits(ExpectedConditions.urlContains(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public BrowserActions waitUntilUrlNotContains(String url) {
+        WaitActions.explicitWaits(ExpectedConditions.not(ExpectedConditions.urlContains(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public BrowserActions waitUntilUrlToBe(String url) {
+        WaitActions.explicitWaits(ExpectedConditions.urlToBe(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public BrowserActions waitUntilUrlNotToBe(String url) {
+        WaitActions.explicitWaits(ExpectedConditions.not(ExpectedConditions.urlToBe(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public BrowserActions waitUntilUrlMatches(String urlRegex) {
+        WaitActions.explicitWaits(ExpectedConditions.urlMatches(urlRegex), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public BrowserActions waitUntilNumberOfWindowsToBe(int numberOfWindows) {
+        WaitActions.explicitWaits(ExpectedConditions.numberOfWindowsToBe(numberOfWindows), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
 }

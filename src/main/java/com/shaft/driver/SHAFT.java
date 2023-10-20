@@ -27,6 +27,7 @@ import org.sikuli.script.App;
 import java.io.InputStream;
 import java.sql.ResultSet;
 import java.util.List;
+import java.util.function.Function;
 
 @SuppressWarnings("unused")
 public class SHAFT {
@@ -76,8 +77,8 @@ public class SHAFT {
                 return new AlertActions();
             }
 
-            public WaitActions waits() {
-                return new WaitActions();
+            public WaitActions SeleniumExplicitWaits(Function<? super org.openqa.selenium.WebDriver, ?> conditions) {
+                return new WaitActions().CustomExplicitWaits(conditions);
             }
 
             public WizardHelpers.WebDriverAssertions assertThat() {
