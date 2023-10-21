@@ -103,6 +103,13 @@ public class ElementActions {
         return new SikuliActions(applicationWindow);
     }
 
+    /**
+     * Use this method to do any selenium explicit wait if needed. <br>
+     * Please note that most of the used wait methods are implemented in the related classes (browser & element)
+     *
+     * @param conditions Any Selenium explicit wait, also supports <a href="http://appium.io/docs/en/commands/mobile-command/">expected conditions</a>
+     * @return wait actions reference to be used to chain actions
+     */
     public WaitActions waitUntil(Function<? super WebDriver, ?> conditions) {
         return new WaitActions().waitUntil(conditions);
     }
