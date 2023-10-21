@@ -103,8 +103,8 @@ public class ElementActions {
         return new SikuliActions(applicationWindow);
     }
 
-    public WaitActions CustomExplicitWaits(Function<? super WebDriver, ?> conditions) {
-        return new WaitActions().CustomExplicitWaits(conditions);
+    public WaitActions waitUntil(Function<? super WebDriver, ?> conditions) {
+        return new WaitActions().waitUntil(conditions);
     }
 
     public ElementActions and() {

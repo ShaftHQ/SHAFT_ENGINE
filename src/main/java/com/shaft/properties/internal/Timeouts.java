@@ -84,9 +84,9 @@ public interface Timeouts extends EngineProperties {
     @DefaultValue("10")
     int remoteServerInstanceCreationTimeout();
 
-    @Key("customExplicitWaitsTimeout")
+    @Key("waitUntilTimeout")
     @DefaultValue("60")
-    int customExplicitWaitsTimeout();
+    int waitUntilTimeout();
 
     default SetProperty set() {
         return new SetProperty();
@@ -178,8 +178,8 @@ public interface Timeouts extends EngineProperties {
             return this;
         }
 
-        public SetProperty customExplicitWaitsTimeout(int value) {
-            setProperty("customExplicitWaitsTimeout", String.valueOf(value));
+        public SetProperty waitUntilTimeout(int value) {
+            setProperty("waitUntilTimeout", String.valueOf(value));
             return this;
         }
 

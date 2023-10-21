@@ -11,7 +11,6 @@ import com.shaft.tools.io.internal.FailureReporter;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.ui.WebDriverWait;
-import org.testng.Assert;
 
 import java.time.Duration;
 import java.util.function.Function;
@@ -38,8 +37,8 @@ public class WaitActions {
         return this;
     }
 
-    public WaitActions CustomExplicitWaits(Function<? super WebDriver, ?> conditions) {
-        explicitWaits(conditions, SHAFT.Properties.timeouts.customExplicitWaitsTimeout());
+    public WaitActions waitUntil(Function<? super WebDriver, ?> conditions) {
+        explicitWaits(conditions, SHAFT.Properties.timeouts.waitUntilTimeout());
         return this;
     }
 

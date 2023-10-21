@@ -40,8 +40,8 @@ public class AlertActions {
         return this;
     }
 
-    public WaitActions CustomExplicitWaits(Function<? super WebDriver, ?> conditions) {
-        return new WaitActions().CustomExplicitWaits(conditions);
+    public WaitActions waitUntil(Function<? super WebDriver, ?> conditions) {
+        return new WaitActions().waitUntil(conditions);
     }
 
     private static void waitForAlertToBePresent() {

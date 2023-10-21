@@ -77,8 +77,8 @@ public class SHAFT {
                 return new AlertActions();
             }
 
-            public WaitActions CustomExplicitWaits(Function<? super org.openqa.selenium.WebDriver, ?> conditions) {
-                return new WaitActions().CustomExplicitWaits(conditions);
+            public WaitActions waitUntil(Function<? super org.openqa.selenium.WebDriver, ?> conditions) {
+                return new WaitActions().waitUntil(conditions);
             }
 
             public WizardHelpers.WebDriverAssertions assertThat() {
