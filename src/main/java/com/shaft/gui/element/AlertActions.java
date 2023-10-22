@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
+import com.shaft.gui.waits.WaitActions;
 import com.shaft.tools.io.ReportManager;
 import org.openqa.selenium.NoAlertPresentException;
 import org.openqa.selenium.WebDriver;
@@ -11,6 +12,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.Duration;
+import java.util.function.Function;
 
 @SuppressWarnings("unused")
 public class AlertActions {
@@ -36,6 +38,17 @@ public class AlertActions {
 
     public AlertActions and() {
         return this;
+    }
+
+    /**
+     * Use this method to do any selenium explicit wait if needed. <br>
+     * Please note that most of the used wait methods are implemented in the related classes (browser & element)
+     *
+     * @param conditions Any Selenium explicit wait, also supports <a href="http://appium.io/docs/en/commands/mobile-command/">expected conditions</a>
+     * @return wait actions reference to be used to chain actions
+     */
+    public WaitActions waitUntil(Function<? super WebDriver, ?> conditions) {
+        return new WaitActions().waitUntil(conditions);
     }
 
     private static void waitForAlertToBePresent() {
