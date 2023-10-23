@@ -14,6 +14,7 @@ import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
+import com.shaft.gui.waits.WaitActions;
 import com.shaft.performance.internal.LightHouseGenerateReport;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
@@ -31,6 +32,7 @@ import org.openqa.selenium.remote.Augmenter;
 import org.openqa.selenium.remote.http.HttpRequest;
 import org.openqa.selenium.remote.http.HttpResponse;
 import org.openqa.selenium.remote.http.Route;
+import org.openqa.selenium.support.ui.ExpectedConditions;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
@@ -39,6 +41,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 @SuppressWarnings("unused")
@@ -82,6 +85,17 @@ public class BrowserActions {
 
     public ElementActions element() {
         return ElementActions.getInstance();
+    }
+
+    /**
+     * Use this method to do any selenium explicit wait if needed. <br>
+     * Please note that most of the used wait methods are implemented in the related classes (browser & element)
+     *
+     * @param conditions Any Selenium explicit wait, also supports <a href="http://appium.io/docs/en/commands/mobile-command/">expected conditions</a>
+     * @return wait actions reference to be used to chain actions
+     */
+    public WaitActions waitUntil(Function<? super WebDriver, ?> conditions) {
+        return new WaitActions().waitUntil(conditions);
     }
 
     public BrowserActions and() {
@@ -811,4 +825,55 @@ public class BrowserActions {
     public void generateLightHouseReport() {
         new LightHouseGenerateReport(DriverFactoryHelper.getDriver()).generateLightHouseReport();
     }
+
+    public BrowserActions waitForLazyLoading() {
+        JavaScriptWaitManager.waitForLazyLoading();
+        return this;
+    }
+
+    public BrowserActions waitUntilTitleIs(String title) {
+        WaitActions.explicitWaits(ExpectedConditions.titleIs(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+    
+    public BrowserActions waitUntilTitleContains(String title) {
+        WaitActions.explicitWaits(ExpectedConditions.titleContains(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+    
+    public BrowserActions waitUntilTitleNotContains(String title) {
+        WaitActions.explicitWaits(ExpectedConditions.not(ExpectedConditions.titleContains(title)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public BrowserActions waitUntilUrlContains(String url) {
+        WaitActions.explicitWaits(ExpectedConditions.urlContains(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public BrowserActions waitUntilUrlNotContains(String url) {
+        WaitActions.explicitWaits(ExpectedConditions.not(ExpectedConditions.urlContains(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public BrowserActions waitUntilUrlToBe(String url) {
+        WaitActions.explicitWaits(ExpectedConditions.urlToBe(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public BrowserActions waitUntilUrlNotToBe(String url) {
+        WaitActions.explicitWaits(ExpectedConditions.not(ExpectedConditions.urlToBe(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public BrowserActions waitUntilUrlMatches(String urlRegex) {
+        WaitActions.explicitWaits(ExpectedConditions.urlMatches(urlRegex), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public BrowserActions waitUntilNumberOfWindowsToBe(int numberOfWindows) {
+        WaitActions.explicitWaits(ExpectedConditions.numberOfWindowsToBe(numberOfWindows), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
 }

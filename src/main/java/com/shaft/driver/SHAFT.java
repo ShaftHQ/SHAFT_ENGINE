@@ -9,6 +9,7 @@ import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.*;
+import com.shaft.gui.waits.WaitActions;
 import com.shaft.listeners.internal.WebDriverListener;
 import com.shaft.tools.io.ExcelFileManager;
 import com.shaft.tools.io.JSONFileManager;
@@ -26,6 +27,7 @@ import org.sikuli.script.App;
 import java.io.InputStream;
 import java.sql.ResultSet;
 import java.util.List;
+import java.util.function.Function;
 
 @SuppressWarnings("unused")
 public class SHAFT {
@@ -73,6 +75,17 @@ public class SHAFT {
 
             public AlertActions alert() {
                 return new AlertActions();
+            }
+
+            /**
+             * Use this method to do any selenium explicit wait if needed. <br>
+             * Please note that most of the used wait methods are implemented in the related classes (browser & element)
+             *
+             * @param conditions Any Selenium explicit wait, also supports <a href="http://appium.io/docs/en/commands/mobile-command/">expected conditions</a>
+             * @return wait actions reference to be used to chain actions
+             */
+            public WaitActions waitUntil(Function<? super org.openqa.selenium.WebDriver, ?> conditions) {
+                return new WaitActions().waitUntil(conditions);
             }
 
             public WizardHelpers.WebDriverAssertions assertThat() {

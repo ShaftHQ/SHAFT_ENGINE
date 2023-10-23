@@ -50,6 +50,7 @@ public class ElementActionsHelper {
     private static final boolean FORCE_CHECK_FOR_ELEMENT_VISIBILITY = SHAFT.Properties.flags.forceCheckForElementVisibility();
     private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 100; // milliseconds
     private static final String WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot();
+    public static final int ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER = (int)SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
 
     private ElementActionsHelper() {
         throw new IllegalStateException("Utility class");
