@@ -49,6 +49,7 @@ import org.testng.Reporter;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -680,12 +681,13 @@ public class DriverFactoryHelper {
             try {
                 driver = connectToRemoteServer(capabilities, false);
                 isRemoteConnectionEstablished = true;
-            } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException1) {
+            } catch (org.openqa.selenium.SessionNotCreatedException | URISyntaxException sessionNotCreatedException1) {
                 exception = sessionNotCreatedException1.getMessage();
                 try {
                     driver = connectToRemoteServer(capabilities, true);
                     isRemoteConnectionEstablished = true;
-                } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException2) {
+                } catch (org.openqa.selenium.SessionNotCreatedException |
+                         URISyntaxException sessionNotCreatedException2) {
                     // do nothing
                     ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
                     ReportManagerHelper.logDiscrete(sessionNotCreatedException2, Level.DEBUG);
@@ -703,40 +705,37 @@ public class DriverFactoryHelper {
         return driver;
     }
 
-    private static RemoteWebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws MalformedURLException {
+    private static RemoteWebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws MalformedURLException, URISyntaxException {
         var targetHubUrl = isLegacy ? TARGET_HUB_URL + "wd/hub" : TARGET_HUB_URL;
-
         var targetLambdaTestHubURL = targetHubUrl.replace("http", "https");
-
         var targetPlatform = Properties.platform.targetPlatform();
-
         var targetMobileHubUrl = targetHubUrl.replace("@", "@mobile-").replace("http", "https");
 
         if (targetPlatform.equalsIgnoreCase(Platform.ANDROID.toString())) {
             if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
-                return new AndroidDriver(URI.create(targetMobileHubUrl).toURL(), capabilities);
+                return new AndroidDriver(new URI(targetMobileHubUrl).toURL(), capabilities);
             } else {
                 if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                    return new AndroidDriver(URI.create(targetLambdaTestHubURL).toURL(), capabilities);
+                    return new AndroidDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities);
                 } else {
-                    return new AndroidDriver(URI.create(targetHubUrl).toURL(), capabilities);
+                    return new AndroidDriver(new URI(targetHubUrl).toURL(), capabilities);
                 }
             }
         } else if (targetPlatform.equalsIgnoreCase(Platform.IOS.toString())) {
             if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
-                return new IOSDriver(URI.create(targetMobileHubUrl).toURL(), capabilities);
+                return new IOSDriver(new URI(targetMobileHubUrl).toURL(), capabilities);
             } else {
                 if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                    return new IOSDriver(URI.create(targetLambdaTestHubURL).toURL(), capabilities);
+                    return new IOSDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities);
                 } else {
-                    return new IOSDriver(URI.create(targetHubUrl).toURL(), capabilities);
+                    return new IOSDriver(new URI(targetHubUrl).toURL(), capabilities);
                 }
             }
         } else {
             if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                return new RemoteWebDriver(URI.create(targetLambdaTestHubURL).toURL(), capabilities);
+                return new RemoteWebDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities);
             } else {
-                return new RemoteWebDriver(URI.create(targetHubUrl).toURL(), capabilities);
+                return new RemoteWebDriver(new URI(targetHubUrl).toURL(), capabilities);
             }
         }
     }

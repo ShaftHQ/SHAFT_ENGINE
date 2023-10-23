@@ -42,8 +42,9 @@
         <maven.compiler.optimize>true</maven.compiler.optimize>
 
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
-        <selenium.version>4.13.0</selenium.version>  <!-- MAKE SURE TO UPDATE devtools.v116.network.Network TO LATEST VERSION WITH UPDATING SELENIUM-->
-        <appium-java-client.version>8.6.0</appium-java-client.version>
+        <selenium.version>4.14.1
+        </selenium.version>  <!-- MAKE SURE TO UPDATE devtools.v116.network.Network TO LATEST VERSION WITH UPDATING SELENIUM-->
+        <appium-java-client.version>9.0.0</appium-java-client.version>
         <webdrivermanager.version>5.5.3</webdrivermanager.version>
         <allure.version>2.24.0</allure.version> <!-- 2.21.0 DO NOT UPDATE || internal.properties -->
         <extentreports.version>5.1.0</extentreports.version>
@@ -159,17 +160,6 @@
                     <artifactId>slf4j-api</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.seleniumhq.selenium</groupId>
-            <artifactId>selenium-http-jdk-client</artifactId>
-            <version>${selenium.version}</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/io.netty/netty-handler -->
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-handler</artifactId>
-            <version>4.1.100.Final</version>
         </dependency>
 
         <!-- APPIUM -->
@@ -385,6 +375,10 @@
                     <groupId>org.slf4j</groupId>
                     <artifactId>slf4j-api</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>org.ow2.asm</groupId>
+                    <artifactId>asm</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -448,8 +442,24 @@
             <version>${sikulixapi.version}</version>
             <exclusions>
                 <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-handler</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>org.openpnp</groupId>
                     <artifactId>opencv</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.ow2.asm</groupId>
+                    <artifactId>asm-commons</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.ow2.asm</groupId>
+                    <artifactId>asm-tree</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.ow2.asm</groupId>
+                    <artifactId>asm</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -692,11 +702,23 @@
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink-awskms</artifactId>
             <version>1.9.1</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.auto.service</groupId>
+                    <artifactId>auto-service-annotations</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink-gcpkms</artifactId>
             <version>1.9.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.auto.service</groupId>
+                    <artifactId>auto-service-annotations</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!--YAML -->
@@ -739,6 +761,12 @@
             <artifactId>mockito-core</artifactId>
             <version>5.6.0</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>net.bytebuddy</groupId>
+                    <artifactId>byte-buddy</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
 
