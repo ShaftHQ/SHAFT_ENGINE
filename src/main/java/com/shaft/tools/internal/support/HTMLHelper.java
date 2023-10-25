@@ -516,33 +516,29 @@ public enum HTMLHelper {
                     <br>
                     <div style="border: 1px solid Grey" class="piechart"></div>
                     <br>
-                    <h2>${CASES_PASSED_PERCENTAGE}%</h2>
+                    <h2>${CASES_PASSED_PERCENTAGE}% Passed</h2>
                     <br><br>
-                    <h3><b>Total Tests</b>:&nbsp${CASES_TOTAL}&nbsp&nbsp[
+                    <h3><b>Total Test Cases</b>:&nbsp${CASES_TOTAL}&nbsp&nbsp[
                         <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${CASES_PASSED}</font>&nbsp|
                         <font style="color:Tomato;"><b>Failed:</b>&nbsp${CASES_FAILED}</font>&nbsp|
                         <font style="color:Orange;"><b>Skipped:</b>&nbsp${CASES_SKIPPED}</font>&nbsp]
                     </h3>
                     <br>
                     <hr class="rounded1">
-                     <h4><b>Total Validations</b>:&nbsp${VALIDATION_TOTAL}&nbsp&nbsp[
+                     <h4><b title="&#9432; Validations is the number of executed assertions and verifications that the executed test cases have, as a test case could have many validations. (excluding skipped tests and validations)">&#9432; </b><b>Total Executed Validations</b>:&nbsp${VALIDATION_TOTAL}&nbsp&nbsp[
                         <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${VALIDATION_PASSED}</font>&nbsp|
                         <font style="color:Tomato;"><b>Failed:</b>&nbsp${VALIDATION_FAILED}</font>&nbsp]
                     </h4>
                     <br>
                     <div class="piechart1"></div>
                     <br>
-                    <h4>${VALIDATION_PASSED_PERCENTAGE}%</h4>
-                    <b>&#9432;<i> Validations</b> are the number of checkpoints (assertions and verifications) that the executed cases have (not including skipped tests) as the cases may have more than one validation.</i>
-                    <br>
+                    <h4>${VALIDATION_PASSED_PERCENTAGE}% Passed</h4>
                     <hr class="rounded1">
-                    <h5><b>Total Issues</b>:&nbsp${TOTAL_ISSUES}&nbsp&nbsp[
-                        <font style="color:Tomato;"><b>Not Expected To Fail Tests:</b>&nbsp${NO_OPEN_ISSUES_FAILED}</font>&nbsp|
-                        <font style="color:Orange;"><b>Resolved Tests:</b>&nbsp${OPEN_ISSUES_PASSED}</font>&nbsp|
-                        <font style="color:MediumSeaGreen;"><b>Expected To Fail Tests:</b>&nbsp${OPEN_ISSUES_FAILED}</font>&nbsp]
+                    <h5><b title="&#9432; Issues are problems that may relate to the tests and should be investigated further to open or close bugs; Issues are divided between the three following categories. (directly related to the @Issue annotation)">&#9432; </b><b>Total Issues</b>:&nbsp${TOTAL_ISSUES}&nbsp&nbsp[
+                        <font style="color:Tomato;"><b title="&#9432; Defining the Failed tests that are not linked to bugs. (need to investigate and if needed, open new bugs and link them to the related tests using the @Issue annotation)">&#9432; </b><b>Tests that should Pass:</b>&nbsp${NO_OPEN_ISSUES_FAILED}</font>&nbsp|
+                        <font style="color:Orange;"><b title="&#9432; Defining the Passed tests that are already linked to open bugs. (need to investigate and remove the @Issue annotation and close the bug as the bug should be aready resolved)">&#9432; </b><b>Tests Resolved:</b>&nbsp${OPEN_ISSUES_PASSED}</font>&nbsp|
+                        <font style="color:MediumSeaGreen;"><b title="&#9432; Defining the Failed tests that are already linked to open bugs (using the @Issue annotation).">&#9432; </b><b>Tests that Fail as Expected:</b>&nbsp${OPEN_ISSUES_FAILED}</font>&nbsp]
                     </h5>
-                    <b>&#9432;<i> Issues</b> are the number of bugs linked to the tests (Using the @Issue annotation) .</i>
-                    <br>
                     <hr class="rounded">
                     <h4 style="display:inline;">Test Cases Details</h4>
                     <div class="limiter">
