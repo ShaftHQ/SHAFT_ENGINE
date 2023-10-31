@@ -8,6 +8,7 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
+import io.qameta.allure.TmsLink;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.remote.Browser;
 import org.testng.*;
@@ -263,6 +264,26 @@ public class TestNGListenerHelper {
         var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
         Issue issue = method.getAnnotation(Issue.class);
         return issue != null;
+    }
+
+    public static String getIssueAnnotationValue(ITestResult iTestResult) {
+        var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
+        Issue issue = method.getAnnotation(Issue.class);
+        if (issue != null) {
+            return issue.value();
+        } else {
+            return "";
+        }
+    }
+
+    public static String getTmsLinkAnnotationValue(ITestResult iTestResult) {
+        var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
+        TmsLink tmsLink = method.getAnnotation(TmsLink.class);
+        if (tmsLink != null) {
+            return tmsLink.value();
+        } else {
+            return "";
+        }
     }
 
     public static void failFast(ITestResult iTestResult) {

@@ -16,8 +16,9 @@ public class ExecutionSummaryReport {
     private static int failedValidations = 0;
     private static final String SHAFT_LOGO_URL = "https://github.com/ShaftHQ/SHAFT_ENGINE/raw/main/src/main/resources/images/shaft.png";
 
-    public static void casesDetailsIncrement(String caseSuite, String caseName, String caseDescription,String errorMessage, String status, Boolean hasIssue) {
+    public static void casesDetailsIncrement(String tmsLink, String caseSuite, String caseName, String caseDescription,String errorMessage, String status, String issue) {
         ArrayList<String> entry = new ArrayList<>();
+        entry.add(tmsLink);
         entry.add(caseSuite);
         if (caseDescription != null && !caseDescription.isEmpty()) {
             entry.add(caseDescription);
@@ -26,11 +27,7 @@ public class ExecutionSummaryReport {
         }
         entry.add(errorMessage);
         entry.add(status);
-        if (hasIssue) {
-            entry.add("Yes");
-        } else {
-            entry.add("No");
-        }
+        entry.add(issue);
         casesDetails.put(casesDetails.size() + 1, entry);
     }
 
@@ -49,7 +46,7 @@ public class ExecutionSummaryReport {
         int total = passed + failed + skipped;
 
         StringBuilder detailsBuilder = new StringBuilder();
-        casesDetails.forEach((key, value) -> detailsBuilder.append(String.format(HTMLHelper.EXECUTION_SUMMARY_DETAILS_FORMAT.getValue(), key, value.get(0), value.get(1), value.get(2), value.get(3), value.get(4))));
+        casesDetails.forEach((key, value) -> detailsBuilder.append(String.format(HTMLHelper.EXECUTION_SUMMARY_DETAILS_FORMAT.getValue(), key, value.get(0), value.get(1), value.get(2), value.get(3), value.get(4), value.get(5))));
 
         SHAFT.CLI.file().writeToFile(SHAFT.Properties.paths.executionSummaryReport(),
                 "ExecutionSummaryReport_" + new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa").format(System.currentTimeMillis()) + ".html",
