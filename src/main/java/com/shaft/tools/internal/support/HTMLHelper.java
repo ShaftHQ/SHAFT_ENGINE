@@ -291,9 +291,10 @@ public enum HTMLHelper {
                             .piechart1 {
                                  display: block;
                                  position: relative;
-                                 width: 120px;
-                                 height: 120px;
+                                 width: 100px;
+                                 height: 100px;
                                  border-radius: 50%;
+                                 margin-top: 20px;
                                  background-image: conic-gradient(
                                     MediumSeaGreen ${VALIDATION_PASSED_PERCENTAGE_PIE}deg,
                                     Tomato 0);
@@ -532,10 +533,8 @@ public enum HTMLHelper {
                         <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${VALIDATION_PASSED}</font>&nbsp|
                         <font style="color:Tomato;"><b>Failed:</b>&nbsp${VALIDATION_FAILED}</font>&nbsp]
                     </h4>
-                    <br>
                     <div class="piechart1"></div>
-                    <br>
-                    <h4>${VALIDATION_PASSED_PERCENTAGE}% Passed</h4>
+                    <h5 style="padding-top: 5px;">${VALIDATION_PASSED_PERCENTAGE}% Passed</h5>
                     <hr class="rounded1">
                     <h5><b title="&#9432; Issues are problems that may relate to the tests and should be investigated further to open or close bugs; Issues are divided between the three following categories. (directly related to the @Issue annotation)">&#9432; </b><b>Total Issues</b>:&nbsp${TOTAL_ISSUES}&nbsp&nbsp[
                         <font style="color:Tomato;"><b title="&#9432; Defining the Failed tests that are not linked to bugs. (need to investigate and if needed, open new bugs and link them to the related tests using the @Issue annotation)">&#9432; </b><b>Tests that should Pass:</b>&nbsp${NO_OPEN_ISSUES_FAILED}</font>&nbsp|
