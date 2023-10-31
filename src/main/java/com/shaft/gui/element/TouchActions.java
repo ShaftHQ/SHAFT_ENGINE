@@ -358,10 +358,12 @@ public class TouchActions {
             String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), sourceElementLocator).get(1)).getLocation().toString();
             String reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
 
-            if (!endLocation.equals(startLocation)) {
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, null);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), reportMessage, sourceElementLocator);
+            if(SHAFT.Properties.flags.validateSwipeToElement()) {
+                if (!endLocation.equals(startLocation)) {
+                    ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, null);
+                } else {
+                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), reportMessage, sourceElementLocator);
+                }
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found

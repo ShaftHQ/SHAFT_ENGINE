@@ -701,34 +701,31 @@ public class ElementActions {
      */
     public ElementActions select(By elementLocator, String valueOrVisibleText) {
         ElementInformation elementInformation = ElementInformation.fromList(ElementActionsHelper.
-                identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator));
+                identifyUniqueElement((WebDriver) DriverFactoryHelper.getDriver(), elementLocator));
 
         //Capture the Element Tag
         String elementTag = elementInformation.getElementTag();
 
-        //Temporary Solution to set the Condition to test the Logic
-        boolean handleNonSelectDropDown = true;
-        SHAFT.Properties.flags.set().skipTestsWithLinkedIssues(handleNonSelectDropDown);
-
         //The Logic to Handle non-Select dropDowns
         if (!elementTag.equals("select")) {
-            if(SHAFT.Properties.flags.skipTestsWithLinkedIssues()) {
+            if(SHAFT.Properties.flags.handleNonSelectDropDown()) {
                 click(elementInformation.getLocator());
                 elementInformation = ElementInformation.fromList(ElementActionsHelper.
-                        identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator));
-                RelativeLocator.RelativeBy relativeBy = null;
+                        identifyUniqueElement((WebDriver) DriverFactoryHelper.getDriver(), elementLocator));
                 try {
-                    relativeBy = SHAFT.GUI.Locator.hasAnyTagName().and().containsText(valueOrVisibleText).relativeBy().below(elementInformation.getLocator());
-                } catch (Exception e) {
+                    RelativeLocator.RelativeBy relativeBy = SHAFT.GUI.Locator.hasAnyTagName().and().containsText(valueOrVisibleText).relativeBy().below(elementInformation.getLocator());
+                    elementInformation = ElementInformation.fromList(ElementActionsHelper.
+                            identifyUniqueElement((WebDriver) DriverFactoryHelper.getDriver(), relativeBy));
+                } catch (Throwable var9) {
                     ReportManager.logDiscrete("Cannot Find Element with the following Locator in the DropDown Options: " + By.xpath("//*[text()='" + valueOrVisibleText + "']"));
-                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(),
-                            valueOrVisibleText, By.xpath("//*[text()='" + valueOrVisibleText + "']"), e);
+                    ElementActionsHelper.failAction((WebDriver) DriverFactoryHelper.getDriver(),
+                            By.xpath("//*[text()='" + valueOrVisibleText + "']").toString(), elementLocator, var9);
                 }
-               click(relativeBy);
+                click(elementInformation.getLocator());
             }
             else {
                 ReportManager.logDiscrete("Cannot Find Element with the following Locator in the DropDown Options: " + By.xpath("//*[text()='" + valueOrVisibleText + "']"));
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(),
+                ElementActionsHelper.failAction((WebDriver) DriverFactoryHelper.getDriver(),
                         "Select: " , valueOrVisibleText + "\" from Element : " +   " Tag should be <Select, yet it was found to be " + "<"+elementTag,elementLocator,null);
             }
 
@@ -738,20 +735,20 @@ public class ElementActions {
         } else {
 
             try {
-                String elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator);
-                if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(DriverFactoryHelper.getDriver(), elementLocator, ""))) {
-                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), valueOrVisibleText, elementLocator, new Throwable[0]);
+                String elementName = ElementActionsHelper.getElementName((WebDriver) DriverFactoryHelper.getDriver(), elementLocator);
+                if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot((WebDriver) DriverFactoryHelper.getDriver(), elementLocator, ""))) {
+                    ElementActionsHelper.failAction((WebDriver) DriverFactoryHelper.getDriver(), valueOrVisibleText, elementLocator, new Throwable[0]);
                 }
 
                 boolean isOptionFound = false;
-                List<WebElement> availableOptionsList = (new Select((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1))).getOptions();
+                List<WebElement> availableOptionsList = (new Select((WebElement) ElementActionsHelper.identifyUniqueElement((WebDriver) DriverFactoryHelper.getDriver(), elementLocator).get(1))).getOptions();
 
                 for (int i = 0; i < availableOptionsList.size(); ++i) {
                     String visibleText = ((WebElement) availableOptionsList.get(i)).getText();
                     String value = ((WebElement) availableOptionsList.get(i)).getAttribute("value");
                     if (visibleText.trim().equals(valueOrVisibleText) || value.trim().equals(valueOrVisibleText)) {
-                        (new Select((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1))).selectByIndex(i);
-                        ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), valueOrVisibleText, (List) null, elementName);
+                        (new Select((WebElement) ElementActionsHelper.identifyUniqueElement((WebDriver) DriverFactoryHelper.getDriver(), elementLocator).get(1))).selectByIndex(i);
+                        ElementActionsHelper.passAction((WebDriver) DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), valueOrVisibleText, (List) null, elementName);
                         isOptionFound = true;
                         break;
                     }
@@ -761,7 +758,7 @@ public class ElementActions {
                     throw new NoSuchElementException("Cannot locate option with Value or Visible text =" + valueOrVisibleText);
                 }
             } catch (Throwable var9) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), valueOrVisibleText, elementLocator, new Throwable[]{var9});
+                ElementActionsHelper.failAction((WebDriver) DriverFactoryHelper.getDriver(), valueOrVisibleText, elementLocator, new Throwable[]{var9});
             }
 
         }
