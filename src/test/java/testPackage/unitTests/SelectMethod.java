@@ -26,8 +26,8 @@ public class SelectMethod {
                 .clickDropDownList("Support");
     }
 
-    @Test
-    public void testInvalidSelect(){
+    @Test(expectedExceptions = {AssertionError.class})    
+public void testInvalidSelect(){
         login("Admin","admin123")
                 .clickDropDownList("sds");
     }
