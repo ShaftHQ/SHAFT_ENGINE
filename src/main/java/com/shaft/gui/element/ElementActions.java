@@ -935,7 +935,8 @@ public class ElementActions {
                         ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver(), elementInformation.getLocator(), ElementAction.BACKSPACE);
                     }
                 }
-                if (currentText.isBlank()) {
+                var currentTextAfterClearingUsingBackSpace = getText(elementLocator);
+                if (currentTextAfterClearingUsingBackSpace.isBlank()) {
                     ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "", null, elementName);
                 } else {
                     ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), "Expected to clear existing text, but ended up with: \"" + currentText + "\"",

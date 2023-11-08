@@ -654,11 +654,11 @@ public class ElementActionsHelper {
 
     private static void clearBeforeTyping(ElementInformation elementInformation, TextDetectionStrategy successfulTextLocationStrategy) {
         // attempt clear using the webElementReference, else try to find the element again
-        try {
-            (elementInformation.getFirstElement()).clear();
-        } catch (WebDriverException webDriverException) {
-            performActionAgainstUniqueElement(DriverFactoryHelper.getDriver(), elementInformation.getLocator(), ElementAction.CLEAR);
-        }
+//        try {
+//            (elementInformation.getFirstElement()).clear();
+//        } catch (WebDriverException webDriverException) {
+//            performActionAgainstUniqueElement(DriverFactoryHelper.getDriver(), elementInformation.getLocator(), ElementAction.CLEAR);
+//        }
         // attempt clear using letter by letter backspace
         var attemptClearBeforeTypingUsingBackspace = SHAFT.Properties.flags.attemptClearBeforeTypingUsingBackspace();
         if (attemptClearBeforeTypingUsingBackspace) {
