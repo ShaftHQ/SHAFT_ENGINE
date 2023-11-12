@@ -85,6 +85,14 @@ public interface Flags extends EngineProperties {
     @DefaultValue("false")
     boolean enableTrueNativeMode();
 
+    @Key("handleNonSelectDropDown")
+    @DefaultValue("true")
+    boolean handleNonSelectDropDown();
+
+    @Key("validateSwipeToElement")
+    @DefaultValue("false")
+    boolean validateSwipeToElement();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -170,6 +178,14 @@ public interface Flags extends EngineProperties {
         }
         public SetProperty enableTrueNativeMode(boolean value) {
             setProperty("enableTrueNativeMode", String.valueOf(value));
+            return this;
+        }
+        public SetProperty handleNonSelectDropDown(boolean value) {
+            setProperty("handleNonSelectDropDown", String.valueOf(value));
+            return this;
+        }
+        public SetProperty validateSwipeToElement(boolean value) {
+            setProperty("validateSwipeToElement", String.valueOf(value));
             return this;
         }
 

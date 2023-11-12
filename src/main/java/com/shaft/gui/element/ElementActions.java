@@ -706,25 +706,22 @@ public class ElementActions {
         //Capture the Element Tag
         String elementTag = elementInformation.getElementTag();
 
-        //Temporary Solution to set the Condition to test the Logic
-        boolean handleNonSelectDropDown = true;
-        SHAFT.Properties.flags.set().skipTestsWithLinkedIssues(handleNonSelectDropDown);
-
         //The Logic to Handle non-Select dropDowns
         if (!elementTag.equals("select")) {
-            if(SHAFT.Properties.flags.skipTestsWithLinkedIssues()) {
+            if(SHAFT.Properties.flags.handleNonSelectDropDown()) {
                 click(elementInformation.getLocator());
                 elementInformation = ElementInformation.fromList(ElementActionsHelper.
                         identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator));
-                RelativeLocator.RelativeBy relativeBy = null;
                 try {
-                    relativeBy = SHAFT.GUI.Locator.hasAnyTagName().and().containsText(valueOrVisibleText).relativeBy().below(elementInformation.getLocator());
-                } catch (Exception e) {
+                    RelativeLocator.RelativeBy relativeBy = SHAFT.GUI.Locator.hasAnyTagName().and().containsText(valueOrVisibleText).relativeBy().below(elementInformation.getLocator());
+                    elementInformation = ElementInformation.fromList(ElementActionsHelper.
+                            identifyUniqueElement(DriverFactoryHelper.getDriver(), relativeBy));
+                } catch (Throwable var9) {
                     ReportManager.logDiscrete("Cannot Find Element with the following Locator in the DropDown Options: " + By.xpath("//*[text()='" + valueOrVisibleText + "']"));
                     ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(),
-                            valueOrVisibleText, By.xpath("//*[text()='" + valueOrVisibleText + "']"), e);
+                            By.xpath("//*[text()='" + valueOrVisibleText + "']").toString(), elementLocator, var9);
                 }
-               click(relativeBy);
+                click(elementInformation.getLocator());
             }
             else {
                 ReportManager.logDiscrete("Cannot Find Element with the following Locator in the DropDown Options: " + By.xpath("//*[text()='" + valueOrVisibleText + "']"));

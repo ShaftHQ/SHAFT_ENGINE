@@ -8,6 +8,8 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
+import io.qameta.allure.TmsLink;
+import io.qameta.allure.TmsLinks;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.remote.Browser;
 import org.testng.*;
@@ -259,10 +261,38 @@ public class TestNGListenerHelper {
         }
     }
 
-    public static Boolean testHasIssueAnnotation(ITestResult iTestResult) {
+    public static String getIssueAnnotationValue(ITestResult iTestResult) {
         var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
         Issue issue = method.getAnnotation(Issue.class);
-        return issue != null;
+        Issues issues = method.getAnnotation(Issues.class);
+        if (issues != null) {
+            return Arrays.toString(issues.value())
+                    .replace("[@io.qameta.allure.Issue(\"", "")
+                    .replace("@io.qameta.allure.Issue(\"", "")
+                    .replace("\")]", "")
+                    .replace("\"),", ",");
+        } else if (issue != null) {
+            return issue.value();
+        } else {
+            return "";
+        }
+    }
+
+    public static String getTmsLinkAnnotationValue(ITestResult iTestResult) {
+        var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
+        TmsLink tmsLink = method.getAnnotation(TmsLink.class);
+        TmsLinks tmsLinks = method.getAnnotation(TmsLinks.class);
+        if (tmsLinks != null) {
+            return Arrays.toString(tmsLinks.value())
+                    .replace("[@io.qameta.allure.TmsLink(\"", "")
+                    .replace("@io.qameta.allure.TmsLink(\"", "")
+                    .replace("\")]", "")
+                    .replace("\"),", ",");
+        } else if (tmsLink != null) {
+            return tmsLink.value();
+        } else {
+            return "";
+        }
     }
 
     public static void failFast(ITestResult iTestResult) {
