@@ -133,8 +133,8 @@ public class JunitListener implements LauncherSessionListener {
             String caseName = testIdentifier.getDisplayName();
             String caseDescription = testIdentifier.getLegacyReportingName();
             String statusMessage = statusIcon.getValue() + status.name();
-            Boolean hasIssue = false;
-            ExecutionSummaryReport.casesDetailsIncrement(caseSuite, caseName, caseDescription, errorMessage, statusMessage, hasIssue);
+            // Will add empty strings o the tmsLink and issue params until we figure out how to get the values of the annotations using JUnit
+            ExecutionSummaryReport.casesDetailsIncrement("", caseSuite, caseName, caseDescription, errorMessage, statusMessage, "");
         }
 
     }
