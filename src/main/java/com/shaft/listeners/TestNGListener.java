@@ -214,9 +214,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     public void onTestSuccess(ITestResult result) {
 //        if (isTestNGRun()) {
             passedTests.add(result.getMethod());
-            ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
+            ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(result), result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
                     result.getMethod().getMethodName(), result.getMethod().getDescription(), "",
-                    ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
+                    ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name(), TestNGListenerHelper.getIssueAnnotationValue(result));
 //        }
     }
 
@@ -224,9 +224,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     public void onTestFailure(ITestResult result) {
 //        if (isTestNGRun()) {
             failedTests.add(result.getMethod());
-            ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
+            ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(result), result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
                     result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
-                    ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
+                    ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name(), TestNGListenerHelper.getIssueAnnotationValue(result));
 //        }
     }
 
@@ -234,9 +234,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     public void onTestSkipped(ITestResult result) {
 //        if (isTestNGRun()) {
             skippedTests.add(result.getMethod());
-            ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
+            ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(result), result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
                     result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
-                    ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
+                    ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name(), TestNGListenerHelper.getIssueAnnotationValue(result));
 //        }
     }
 }
