@@ -291,9 +291,10 @@ public enum HTMLHelper {
                             .piechart1 {
                                  display: block;
                                  position: relative;
-                                 width: 120px;
-                                 height: 120px;
+                                 width: 100px;
+                                 height: 100px;
                                  border-radius: 50%;
+                                 margin-top: 20px;
                                  background-image: conic-gradient(
                                     MediumSeaGreen ${VALIDATION_PASSED_PERCENTAGE_PIE}deg,
                                     Tomato 0);
@@ -461,15 +462,18 @@ public enum HTMLHelper {
                                 .table100.ver5 .ps__rail-y .ps__thumb-y::before{
                                     background-color:#ccc
                                 }
+                                .column0{
+                                    width:5%;
+                                    padding-left:20px
+                                }
                                 .column1{
                                     width:5%;
-                                    padding-left:40px
                                 }
                                 .column2{
                                     width:20%
                                 }
                                 .column3{
-                                    width:35%
+                                    width:30%
                                 }
                                 .column4{
                                     width:25%
@@ -478,7 +482,7 @@ public enum HTMLHelper {
                                     width:10%
                                 }
                                 .column6{
-                                    width:5%
+                                    width:10%
                                 }
                                 hr.rounded {
                                 	border-top: 8px solid #bbb;
@@ -529,10 +533,8 @@ public enum HTMLHelper {
                         <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${VALIDATION_PASSED}</font>&nbsp|
                         <font style="color:Tomato;"><b>Failed:</b>&nbsp${VALIDATION_FAILED}</font>&nbsp]
                     </h4>
-                    <br>
                     <div class="piechart1"></div>
-                    <br>
-                    <h4>${VALIDATION_PASSED_PERCENTAGE}% Passed</h4>
+                    <h5 style="padding-top: 5px;">${VALIDATION_PASSED_PERCENTAGE}% Passed</h5>
                     <hr class="rounded1">
                     <h5><b title="&#9432; Issues are problems that may relate to the tests and should be investigated further to open or close bugs; Issues are divided between the three following categories. (directly related to the @Issue annotation)">&#9432; </b><b>Total Issues</b>:&nbsp${TOTAL_ISSUES}&nbsp&nbsp[
                         <font style="color:Tomato;"><b title="&#9432; Defining the Failed tests that are not linked to bugs. (need to investigate and if needed, open new bugs and link them to the related tests using the @Issue annotation)">&#9432; </b><b>Tests that should Pass:</b>&nbsp${NO_OPEN_ISSUES_FAILED}</font>&nbsp|
@@ -561,12 +563,13 @@ public enum HTMLHelper {
                     <table>
                     <thead>
                     <tr class="row100 head">
+                    <th class="cell100 column0"></th>
                     <th class="cell100 column1">Id</th>
                     <th class="cell100 column2">Suite</th>
                     <th class="cell100 column3">Name</th>
                     <th class="cell100 column4">Error</th>
                     <th class="cell100 column5">Status</th>
-                    <th class="cell100 column6">Has issue</th>
+                    <th class="cell100 column6">issue id</th>
                     </tr>
                     </thead>
                     <tbody id="table">${CASES_DETAILS}</tbody>
@@ -602,7 +605,7 @@ public enum HTMLHelper {
             </body>
             </html>
             """),
-    EXECUTION_SUMMARY_DETAILS_FORMAT("<tr class=\"row100 body\"><td class=\"cell100 column1\">%d</td><td class=\"cell100 column2\">%s</td><td class=\"cell100 column3\">%s</td><td class=\"cell100 column4\">%s</td><td class=\"cell100 column5\">%s</td><td class=\"cell100 column6\">%s</td></tr>");
+    EXECUTION_SUMMARY_DETAILS_FORMAT("<tr class=\"row100 body\"><td class=\"cell100 column0\">%d</td><td class=\"cell100 column1\">%s</td><td class=\"cell100 column2\">%s</td><td class=\"cell100 column3\">%s</td><td class=\"cell100 column4\">%s</td><td class=\"cell100 column5\">%s</td><td class=\"cell100 column6\">%s</td></tr>");
 
     private final String value;
 
