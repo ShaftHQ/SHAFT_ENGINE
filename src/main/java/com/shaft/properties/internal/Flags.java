@@ -38,7 +38,7 @@ public interface Flags extends EngineProperties {
     boolean forceCheckTextWasTypedCorrectly();
 
     @Key("attemptClearBeforeTypingUsingBackspace")
-    @DefaultValue("false")
+    @DefaultValue("true")
     boolean attemptClearBeforeTypingUsingBackspace();
 
     @Key("forceCheckNavigationWasSuccessful")
