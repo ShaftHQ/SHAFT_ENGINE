@@ -5,6 +5,7 @@ import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.listeners.internal.JiraHelper;
 import com.shaft.listeners.internal.JunitListenerHelper;
 import com.shaft.listeners.internal.TestNGListenerHelper;
+import com.shaft.listeners.internal.UpdateChecker;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.internal.ExecutionSummaryReport;
@@ -83,6 +84,7 @@ public class JunitListener implements LauncherSessionListener {
         SHAFT.Properties.reporting.set().disableLogging(false);
 
         ReportManagerHelper.logEngineVersion();
+        UpdateChecker.check();
         ImageProcessingActions.loadOpenCV();
 
         ReportManagerHelper.initializeAllureReportingEnvironment();
