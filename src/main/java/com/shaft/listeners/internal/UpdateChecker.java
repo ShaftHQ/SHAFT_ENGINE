@@ -17,17 +17,14 @@ public class UpdateChecker {
             String latestVersion = RestAssured.given().baseUri("https://api.github.com/").and().basePath("repos/ShaftHQ/SHAFT_ENGINE/releases/")
                     .when().get("latest")
                     .thenReturn().body().jsonPath().getString("name");
-
-//            String latestVersion = SHAFT.API.getInstance("https://api.github.com/").get("repos/ShaftHQ/SHAFT_ENGINE/releases/latest").perform().andReturn().body().jsonPath().getString("name");
             String currentVersion = SHAFT.Properties.internal.shaftEngineVersion();
             if (!currentVersion.equalsIgnoreCase(latestVersion)) {
-                logMessage = "⚠\uFE0F You're using the an outdated engine version \"" + currentVersion + "\" ⚠\uFE0F\nKindly upgrade to the latest one \"" + latestVersion + "\" to ensure the best experience.\nFor more information click here: https://github.com/ShaftHQ/SHAFT_ENGINE/releases/latest .";
+                logMessage = "⚠\uFE0F You're using an outdated engine version \"" + currentVersion + "\" ⚠\uFE0F\nKindly upgrade to the latest one \"" + latestVersion + "\" to ensure the best experience.\nFor more information click here: https://github.com/ShaftHQ/SHAFT_ENGINE/releases/latest .";
             } else {
                 logMessage = "You're using the latest engine version \"" + latestVersion + "\". \uD83D\uDC4D";
             }
         } catch (Throwable throwable) {
             logMessage = "Failed to check for updates... proceeding with engine setup...";
-//            ReportManagerHelper.log(throwable);
         }
         SHAFT.Properties.reporting.set().disableLogging(isLoggingDisabled);
         if (logMessage.contains("⚠\uFE0F")) {
