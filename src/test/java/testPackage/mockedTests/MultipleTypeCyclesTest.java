@@ -12,7 +12,7 @@ public class MultipleTypeCyclesTest {
     By locator = SHAFT.GUI.Locator.hasTagName("input").build();
 
     @Test
-    public void typeClearTypeTypeAppend() {
+    public void _01typeClearTypeTypeAppend() {
         driver.get().browser().navigateToURL(testElement);
         driver.get().element().type(locator, "first string")
                 .type(locator, "second ")
@@ -22,7 +22,7 @@ public class MultipleTypeCyclesTest {
     }
 
     @Test
-    public void clearUsingNativeClearOnly(){
+    public void _02clearUsingNativeClearOnly(){
         driver.get().browser().navigateToURL("https://testkru.com/Elements/TextFields");
         driver.get().element().type(By.xpath("(//input)[7]"),"text entered By Test")
                 .and().assertThat(By.xpath("(//input)[7]")).text().isEqualTo("text entered By Test")
@@ -31,7 +31,7 @@ public class MultipleTypeCyclesTest {
 
 
 @Test
-    public void clearUsingBackSpaceOnly(){
+    public void _03clearUsingBackSpaceOnly(){
         SHAFT.Properties.flags.set().attemptClearBeforeTyping(true);
         SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(true);
         driver.get().browser().navigateToURL("https://testkru.com/Elements/TextFields");
@@ -41,7 +41,7 @@ public class MultipleTypeCyclesTest {
     }
 
     @Test
-    public void clearUsingBackSpaceOnly2(){
+    public void _04clearUsingBackSpaceOnly2(){
         SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
         SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(true);
         driver.get().browser().navigateToURL("https://testkru.com/Elements/TextFields");
@@ -50,7 +50,7 @@ public class MultipleTypeCyclesTest {
                 .perform();
     }
 @Test
-    public void noClearBeforeTypingNoForceCheckAfterTyping(){
+    public void _05noClearBeforeTypingNoForceCheckAfterTyping(){
         SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
         SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(false);
         SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(false);
@@ -70,5 +70,8 @@ public class MultipleTypeCyclesTest {
     public void afterMethod() {
         driver.get().quit();
         driver.remove();
+        //Resetting flags to default values after each method
+        SHAFT.Properties.flags.set().attemptClearBeforeTyping(true);
+        SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(false);
     }
 }
