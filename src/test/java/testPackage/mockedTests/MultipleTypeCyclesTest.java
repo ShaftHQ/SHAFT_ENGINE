@@ -13,6 +13,7 @@ public class MultipleTypeCyclesTest {
 
     @Test
     public void typeClearTypeTypeAppend() {
+        driver.get().browser().navigateToURL(testElement);
         driver.get().element().type(locator, "first string")
                 .type(locator, "second ")
                 .typeAppend(locator, "string")
@@ -20,10 +21,49 @@ public class MultipleTypeCyclesTest {
                 .perform();
     }
 
+    @Test
+    public void clearUsingNativeClearOnly(){
+        driver.get().browser().navigateToURL("https://testkru.com/Elements/TextFields");
+        driver.get().element().type(By.xpath("(//input)[7]"),"text entered By Test")
+                .and().assertThat(By.xpath("(//input)[7]")).text().isEqualTo("text entered By Test")
+                .perform();
+                }
+
+
+@Test
+    public void clearUsingBackSpaceOnly(){
+        SHAFT.Properties.flags.set().attemptClearBeforeTyping(true);
+        SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(true);
+        driver.get().browser().navigateToURL("https://testkru.com/Elements/TextFields");
+        driver.get().element().type(By.xpath("(//input)[7]"),"text entered By me")
+                .and().assertThat(By.xpath("(//input)[7]")).text().isEqualTo("text entered By me")
+                .perform();
+    }
+
+    @Test
+    public void clearUsingBackSpaceOnly2(){
+        SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
+        SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(true);
+        driver.get().browser().navigateToURL("https://testkru.com/Elements/TextFields");
+        driver.get().element().type(By.xpath("(//input)[7]"),"text entered By me")
+                .and().assertThat(By.xpath("(//input)[7]")).text().isEqualTo("text entered By me")
+                .perform();
+    }
+@Test
+    public void noClearBeforeTypingNoForceCheckAfterTyping(){
+        SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
+        SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(false);
+        SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(false);
+        driver.get().browser().navigateToURL("https://testkru.com/Elements/TextFields");
+        driver.get().element().type(By.xpath("(//input)[7]")," text entered By me")
+                .and().assertThat(By.xpath("(//input)[7]")).text().isEqualTo("Codekru text entered By me")
+                .perform();
+    }
+
     @BeforeMethod
     public void beforeMethod() {
         driver.set(SHAFT.GUI.WebDriver.getInstance());
-        driver.get().browser().navigateToURL(testElement);
+
     }
 
     @AfterMethod(alwaysRun = true)
