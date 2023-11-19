@@ -896,7 +896,7 @@ public class ElementActions {
      *                       webElement
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions type(By elementLocator, String text) {
+    /*public ElementActions oldtype(By elementLocator, String text) {
         try {
             var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementLocator));
             String actualResult = ElementActionsHelper.typeWrapper(elementInformation, text);
@@ -914,6 +914,25 @@ public class ElementActions {
         return this;
     }
 
+*/
+    public ElementActions type(By elementLocator, String text){
+       //getting element information using locator
+        var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementLocator));
+        String actualTextAfterTyping = ElementActionsHelper.newTypeWrapper(elementInformation, text);
+        var elementName = elementInformation.getElementName();
+        if (actualTextAfterTyping.equals(text)) {
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
+        } else {
+            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), "Expected to type: \"" + text + "\", but ended up with: \"" + actualTextAfterTyping + "\"",
+                    elementLocator);
+        }
+//    } catch (Throwable throwable) {
+//        // has to be throwable to catch assertion errors in case element was not found
+//        ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+//    }
+        return this;
+
+    }
     public ElementActions clear(By elementLocator) {
         try {
             // try clearing text
@@ -932,6 +951,7 @@ public class ElementActions {
                         ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver(), elementInformation.getLocator(), ElementAction.BACKSPACE);
                     }
                 }
+                var currentTextAfterClearingUsingBackSpace = getText(elementLocator);
                 if (currentText.isBlank()) {
                     ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "", null, elementName);
                 } else {
