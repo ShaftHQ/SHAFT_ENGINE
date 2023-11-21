@@ -872,7 +872,7 @@ public class ElementActionsHelper {
     }
     private static void clearBeforeTypingUsingNativeClear(ElementInformation elementInformation) {
             // try clearing text
-            elementInformation.getFirstElement().clear();
+        ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver(), elementInformation.getLocator(), ElementAction.CLEAR);
             var currentTextAfterClearingUsingNativeClear = readElementText(elementInformation);
             if (currentTextAfterClearingUsingNativeClear.isBlank()) {
                 ReportManager.logDiscrete("text cleared Using Native Clear");
