@@ -46,6 +46,7 @@ public class CucumberHelper {
         SHAFT.Properties.reporting.set().disableLogging(false);
 
         ReportManagerHelper.logEngineVersion();
+        UpdateChecker.check();
         ImageProcessingActions.loadOpenCV();
 
         ReportManagerHelper.initializeAllureReportingEnvironment();
