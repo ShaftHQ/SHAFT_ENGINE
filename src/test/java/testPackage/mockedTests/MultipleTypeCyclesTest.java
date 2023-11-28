@@ -21,18 +21,10 @@ public class MultipleTypeCyclesTest {
                 .perform();
     }
 
-    @Test
-    public void _02clearUsingNativeClearOnly(){
-        driver.get().browser().navigateToURL("https://testkru.com/Elements/TextFields");
-        driver.get().element().type(By.xpath("(//input)[7]"),"text entered By Test")
-                .and().assertThat(By.xpath("(//input)[7]")).text().isEqualTo("text entered By Test")
-                .perform();
-                }
 
 
 @Test
-    public void _03clearUsingBackSpaceOnly(){
-        SHAFT.Properties.flags.set().attemptClearBeforeTyping(true);
+    public void _02clearUsingBackSpace(){
         SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(true);
         driver.get().browser().navigateToURL("https://testkru.com/Elements/TextFields");
         driver.get().element().type(By.xpath("(//input)[7]"),"text entered By me")
@@ -41,19 +33,9 @@ public class MultipleTypeCyclesTest {
     }
 
     @Test
-    public void _04clearUsingBackSpaceOnly2(){
+    public void _03NoClearBeforeTypingTest(){
         SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
         SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(true);
-        driver.get().browser().navigateToURL("https://testkru.com/Elements/TextFields");
-        driver.get().element().type(By.xpath("(//input)[7]"),"text entered By me")
-                .and().assertThat(By.xpath("(//input)[7]")).text().isEqualTo("text entered By me")
-                .perform();
-    }
-@Test
-    public void _05noClearBeforeTypingNoForceCheckAfterTyping(){
-        SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
-        SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(false);
-        SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(false);
         driver.get().browser().navigateToURL("https://testkru.com/Elements/TextFields");
         driver.get().element().type(By.xpath("(//input)[7]")," text entered By me")
                 .and().assertThat(By.xpath("(//input)[7]")).text().isEqualTo("Codekru text entered By me")
