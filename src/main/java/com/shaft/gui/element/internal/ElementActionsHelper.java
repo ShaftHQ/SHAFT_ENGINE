@@ -859,15 +859,14 @@ public class ElementActionsHelper {
         var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver(), elementLocator));
         var attemptClearBeforeTyping = SHAFT.Properties.flags.attemptClearBeforeTyping();
         var attemptClearBeforeTypingUsingBackspace = SHAFT.Properties.flags.attemptClearBeforeTypingUsingBackspace();
-        if (attemptClearBeforeTyping && attemptClearBeforeTypingUsingBackspace) {
-            clearBeforeTypingUsingBackSpace(elementInformation);
-        }
-        else if (attemptClearBeforeTyping) {
-            clearBeforeTypingUsingNativeClear(elementInformation);
-        }
-        else if(attemptClearBeforeTypingUsingBackspace){
-            clearBeforeTypingUsingBackSpace(elementInformation);
-
+       
+        if (attemptClearBeforeTyping) {
+            if(attemptClearBeforeTypingUsingBackspace){
+                clearBeforeTypingUsingBackSpace(elementInformation);
+            }
+            else {
+                clearBeforeTypingUsingNativeClear(elementInformation);
+            }
         }
     }
     private static void clearBeforeTypingUsingNativeClear(ElementInformation elementInformation) {
