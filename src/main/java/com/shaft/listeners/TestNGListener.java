@@ -2,10 +2,7 @@ package com.shaft.listeners;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.ImageProcessingActions;
-import com.shaft.listeners.internal.CucumberHelper;
-import com.shaft.listeners.internal.JiraHelper;
-import com.shaft.listeners.internal.RetryAnalyzer;
-import com.shaft.listeners.internal.TestNGListenerHelper;
+import com.shaft.listeners.internal.*;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.internal.ExecutionSummaryReport;
@@ -73,6 +70,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         SHAFT.Properties.reporting.set().disableLogging(false);
 
         ReportManagerHelper.logEngineVersion();
+        UpdateChecker.check();
         ImageProcessingActions.loadOpenCV();
 
         ReportManagerHelper.initializeAllureReportingEnvironment();
