@@ -59,7 +59,7 @@
         <mysql-connector-java.version>8.2.0</mysql-connector-java.version>
         <postgresql.version>9.1-901-1.jdbc4</postgresql.version>
         <!-- <ojdbc8.version>19.3.0.0</ojdbc8.version> -->
-        <apachepoi.version>5.2.4</apachepoi.version>
+        <apachepoi.version>5.2.5</apachepoi.version>
         <org.slf4j.version>2.0.1</org.slf4j.version>
         <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
         <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
