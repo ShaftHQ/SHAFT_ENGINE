@@ -18,7 +18,7 @@ jobs:
   #      - name: Checkout Code
   #        uses: actions/checkout@v4
   #      - name: Set up JDK 21
-  #        uses: actions/setup-java@v3
+  #        uses: actions/setup-java@v4
   #        with:
   #          java-version: '21'
   #          distribution: 'zulu'
@@ -54,7 +54,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -95,7 +95,7 @@ jobs:
       - name: Set up Native Selenium Grid
         run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=0 --scale firefox=4 -d
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -138,7 +138,7 @@ jobs:
       - name: Set up Native Selenium Grid
         run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=4 --scale edge=0 --scale firefox=0 -d
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -181,7 +181,7 @@ jobs:
       - name: Set up Native Selenium Grid
         run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=4 --scale firefox=0 -d
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -222,7 +222,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -261,7 +261,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -300,7 +300,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -339,7 +339,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -449,7 +449,7 @@ jobs:
           $ANDROID_HOME/tools/bin/sdkmanager --update
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -526,7 +526,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -565,7 +565,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -604,7 +604,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -643,7 +643,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -682,7 +682,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -727,7 +727,7 @@ jobs:
         if: runner.os == 'Linux'
         run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=4 --scale edge=0 --scale firefox=0 -d
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -773,7 +773,7 @@ jobs:
         with:
           node-version: '16'
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -816,7 +816,7 @@ jobs:
         with:
           node-version: '16'
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -859,7 +859,7 @@ jobs:
         with:
           node-version: '16'
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -902,7 +902,7 @@ jobs:
         with:
           node-version: '16'
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -945,7 +945,7 @@ jobs:
         with:
           node-version: '16'
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -988,7 +988,7 @@ jobs:
         with:
           node-version: '16'
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
