@@ -26,19 +26,21 @@ public class MultipleTypeCyclesTest {
 @Test
     public void _02clearUsingBackSpace(){
         SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(true);
-        driver.get().browser().navigateToURL("https://testkru.com/Elements/TextFields");
-        driver.get().element().type(By.xpath("(//input)[7]"),"text entered By me")
-                .and().assertThat(By.xpath("(//input)[7]")).text().isEqualTo("text entered By me")
-                .perform();
+        driver.get().browser().navigateToURL(testElement);
+        driver.get().element().type(locator, "first string")
+                              .type(locator, "Second string")
+            .and().assertThat(locator).text().isEqualTo("Second string")
+                  .perform();
     }
 
     @Test
     public void _03NoClearBeforeTypingTest(){
         SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
         SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(true);
-        driver.get().browser().navigateToURL("https://testkru.com/Elements/TextFields");
-        driver.get().element().type(By.xpath("(//input)[7]")," text entered By me")
-                .and().assertThat(By.xpath("(//input)[7]")).text().isEqualTo("Codekru text entered By me")
+        driver.get().browser().navigateToURL(testElement);
+        driver.get().element().type(locator, "first string")
+                .type(locator, " + Second string")
+                .and().assertThat(locator).text().isEqualTo("first string + Second string")
                 .perform();
     }
 
