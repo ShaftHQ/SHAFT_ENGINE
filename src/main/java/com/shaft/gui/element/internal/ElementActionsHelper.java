@@ -7,6 +7,7 @@ import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.enums.internal.ClipboardAction;
 import com.shaft.enums.internal.ElementAction;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
+import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
 import com.shaft.gui.internal.image.ImageProcessingActions;
@@ -673,6 +674,8 @@ public class ElementActionsHelper {
         }
     }
 
+
+
     private static String confirmTypingWasSuccessful(ElementInformation elementInformation, TextDetectionStrategy successfulTextLocationStrategy) {
         //get a fresh instance of the element
         var updatedElementInformation = ElementInformation.fromList(identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementInformation.getLocator()));
@@ -682,6 +685,8 @@ public class ElementActionsHelper {
         }
         return readTextBasedOnSuccessfulLocationStrategy(updatedElementInformation, updatedSuccessfulTextLocationStrategy);
     }
+
+
 
     private static TextDetectionStrategy determineSuccessfulTextLocationStrategy(ElementInformation elementInformation) {
         if (DriverFactoryHelper.isMobileNativeExecution()) {
@@ -737,6 +742,9 @@ public class ElementActionsHelper {
         }
         return "";
     }
+
+
+
 
     public static boolean performClipboardActions(WebDriver driver, ClipboardAction action) {
         try {
@@ -819,6 +827,114 @@ public class ElementActionsHelper {
             return adjustedTargetText;
         }
     }
+    public static String readElementText(ElementInformation elementInformation) {
+
+          //  var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementLocator));
+            String elementText;
+            try {
+                elementText = (elementInformation.getFirstElement()).getText();
+            } catch (WebDriverException webDriverException) {
+                elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementInformation.getLocator(), ElementAction.GET_TEXT)).getActionResult();
+            }
+            if ((elementText == null || elementText.isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
+                try {
+                    elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.CONTENT.getValue());
+                } catch (WebDriverException webDriverException) {
+                    elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementInformation.getLocator(), ElementAction.GET_CONTENT)).getActionResult();
+                }
+            }
+            if ((elementText == null || elementText.isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
+                try {
+                    elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.VALUE.getValue());
+                } catch (WebDriverException webDriverException) {
+                    elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementInformation.getLocator(), ElementAction.GET_VALUE)).getActionResult();
+                }
+            }
+            if (elementText == null) {
+                elementText = "";
+            }
+            return elementText;
+    }
+    private static void newClearBeforeTyping(By elementLocator){
+        var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver(), elementLocator));
+        var attemptClearBeforeTyping = SHAFT.Properties.flags.attemptClearBeforeTyping();
+        var attemptClearBeforeTypingUsingBackspace = SHAFT.Properties.flags.attemptClearBeforeTypingUsingBackspace();
+       
+        if (attemptClearBeforeTyping) {
+            if(attemptClearBeforeTypingUsingBackspace){
+                clearBeforeTypingUsingBackSpace(elementInformation);
+            }
+            else {
+                clearBeforeTypingUsingNativeClear(elementInformation);
+            }
+        }
+    }
+    private static void clearBeforeTypingUsingNativeClear(ElementInformation elementInformation) {
+            // try clearing text
+        ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver(), elementInformation.getLocator(), ElementAction.CLEAR);
+            var currentTextAfterClearingUsingNativeClear = readElementText(elementInformation);
+            if (currentTextAfterClearingUsingNativeClear.isBlank()) {
+                ReportManager.logDiscrete("text cleared Using Native Clear");
+                }
+            else {
+               ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), "Expected to clear existing text, but ended up with: \"" + currentTextAfterClearingUsingNativeClear + "\"", elementInformation.getLocator());
+            }
+        }
+
+    private static void clearBeforeTypingUsingBackSpace(ElementInformation elementInformation) {
+        var currentText = readElementText(elementInformation);
+        // try deleting letter by letter using backspaces
+        for (var ignored : currentText.toCharArray()) {
+            try {
+                (elementInformation.getFirstElement()).sendKeys(Keys.BACK_SPACE);
+            } catch (WebDriverException webDriverException) {
+                ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver(), elementInformation.getLocator(), ElementAction.BACKSPACE);
+            }
+        }
+        var currentTextAfterClearingUsingBackSpace = readElementText(elementInformation);
+            if (currentTextAfterClearingUsingBackSpace.isBlank()) {
+                ReportManager.logDiscrete("text cleared Using BackSpace");
+            } else {
+              ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), "Expected to clear existing text, but ended up with: \"" + currentTextAfterClearingUsingBackSpace + "\"",
+                       elementInformation.getLocator());
+            }
+    }
+
+    private static String confirmTextWasTypedCorrectly(ElementInformation elementInformation , String adjustedTargetText){
+        //get a fresh instance of the element
+        var updatedElementInformation = ElementInformation.fromList(identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementInformation.getLocator()));
+        String actualTextAfterPerformType = readElementText(elementInformation);
+        if (adjustedTargetText.equals(actualTextAfterPerformType) || OBFUSCATED_STRING.repeat(adjustedTargetText.length()).equals(actualTextAfterPerformType)) {
+            return adjustedTargetText;
+        } else {
+            // attempt once to type using javascript then confirm typing was successful
+            // again
+            ElementActionsHelper.setValueUsingJavascript(elementInformation, adjustedTargetText);
+            var textAfterSettingValueUsingJavascript = new ElementActions().getText(elementInformation.getLocator());
+            if (textAfterSettingValueUsingJavascript.isEmpty()) {
+                return adjustedTargetText;
+            }
+            return textAfterSettingValueUsingJavascript;
+        }
+
+    }
+
+    // typewrappper responsible for clearing 'if user enabled any clear flag'
+    // and performing type ,
+    // and double check if typed correctly 'if user enabled the flag'
+    public static String newTypeWrapper(ElementInformation elementInformation, String targetText) {
+            newClearBeforeTyping(elementInformation.getLocator());
+            var adjustedTargetText = targetText != null && !targetText.isEmpty() ? targetText : "";
+            performType(elementInformation, adjustedTargetText);
+            //sometimes the text is returned as empty
+            if (SHAFT.Properties.flags.forceCheckTextWasTypedCorrectly()) {
+                return confirmTextWasTypedCorrectly(elementInformation, adjustedTargetText);
+            } else {
+               return adjustedTargetText;
+            }
+        }
+
+
 
     private static boolean isFoundInStacktrace(Class<?> classObject, Throwable throwable) {
         var targetClassName = classObject.getName();

@@ -12,6 +12,7 @@ public class FlagsTests {
     boolean forceCheckElementLocatorIsUnique;
     boolean forceCheckTextWasTypedCorrectly;
     boolean attemptClearBeforeTypingUsingBackspace;
+    boolean attemptClearBeforeTyping ;
     boolean forceCheckNavigationWasSuccessful;
     boolean respectBuiltInWaitsInNativeMode;
     boolean forceCheckStatusOfRemoteServer;
@@ -31,6 +32,7 @@ public class FlagsTests {
         forceCheckForElementVisibility = SHAFT.Properties.flags.forceCheckForElementVisibility();
         forceCheckElementLocatorIsUnique = SHAFT.Properties.flags.forceCheckElementLocatorIsUnique();
         forceCheckTextWasTypedCorrectly = SHAFT.Properties.flags.forceCheckTextWasTypedCorrectly();
+        attemptClearBeforeTyping = SHAFT.Properties.flags.attemptClearBeforeTyping();
         attemptClearBeforeTypingUsingBackspace = SHAFT.Properties.flags.attemptClearBeforeTypingUsingBackspace();
         forceCheckNavigationWasSuccessful = SHAFT.Properties.flags.forceCheckNavigationWasSuccessful();
         respectBuiltInWaitsInNativeMode = SHAFT.Properties.flags.respectBuiltInWaitsInNativeMode();
@@ -63,6 +65,7 @@ public class FlagsTests {
         SHAFT.Properties.flags.set().attemptToClickBeforeTyping(attemptToClickBeforeTyping);
         SHAFT.Properties.flags.set().disableCache(disableCache);
         SHAFT.Properties.flags.set().enableTrueNativeMode(enableTrueNativeMode);
+        SHAFT.Properties.flags.set().attemptClearBeforeTyping(attemptClearBeforeTyping);
 
     }
 }

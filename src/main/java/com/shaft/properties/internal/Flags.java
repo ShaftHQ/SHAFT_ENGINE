@@ -41,6 +41,10 @@ public interface Flags extends EngineProperties {
     @DefaultValue("false")
     boolean attemptClearBeforeTypingUsingBackspace();
 
+    @Key("attemptClearBeforeTyping")
+    @DefaultValue("true")
+    boolean attemptClearBeforeTyping();
+
     @Key("forceCheckNavigationWasSuccessful")
     @DefaultValue("false")
     boolean forceCheckNavigationWasSuccessful();
@@ -120,6 +124,11 @@ public interface Flags extends EngineProperties {
 
         public SetProperty forceCheckTextWasTypedCorrectly(boolean value) {
             setProperty("forceCheckTextWasTypedCorrectly", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty attemptClearBeforeTyping(boolean value) {
+            setProperty("attemptClearBeforeTyping", String.valueOf(value));
             return this;
         }
 

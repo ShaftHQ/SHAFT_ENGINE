@@ -12,7 +12,8 @@ public class MultipleTypeCyclesTest {
     By locator = SHAFT.GUI.Locator.hasTagName("input").build();
 
     @Test
-    public void typeClearTypeTypeAppend() {
+    public void _01typeClearTypeTypeAppend() {
+        driver.get().browser().navigateToURL(testElement);
         driver.get().element().type(locator, "first string")
                 .type(locator, "second ")
                 .typeAppend(locator, "string")
@@ -20,15 +21,41 @@ public class MultipleTypeCyclesTest {
                 .perform();
     }
 
+
+
+@Test
+    public void _02clearUsingBackSpace(){
+        SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(true);
+        driver.get().browser().navigateToURL(testElement);
+        driver.get().element().type(locator, "first string")
+                              .type(locator, "Second string")
+            .and().assertThat(locator).text().isEqualTo("Second string")
+                  .perform();
+    }
+
+    @Test
+    public void _03NoClearBeforeTypingTest(){
+        SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
+        SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(true);
+        driver.get().browser().navigateToURL(testElement);
+        driver.get().element().type(locator, "first string")
+                .type(locator, " + Second string")
+                .and().assertThat(locator).text().isEqualTo("first string + Second string")
+                .perform();
+    }
+
     @BeforeMethod
     public void beforeMethod() {
         driver.set(SHAFT.GUI.WebDriver.getInstance());
-        driver.get().browser().navigateToURL(testElement);
+
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
         driver.get().quit();
         driver.remove();
+        //Resetting flags to default values after each method
+        SHAFT.Properties.flags.set().attemptClearBeforeTyping(true);
+        SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(false);
     }
 }
