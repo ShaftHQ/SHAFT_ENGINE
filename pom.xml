@@ -45,7 +45,7 @@
         <selenium.version>4.15.0</selenium.version>  <!-- MAKE SURE TO UPDATE DriverFactoryHelper import devtools.v119.network.Network TO LATEST VERSION WITH UPDATING SELENIUM-->
         <appium-java-client.version>9.0.0</appium-java-client.version>
         <webdrivermanager.version>5.6.2</webdrivermanager.version>
-        <allure.version>2.24.0</allure.version> <!-- 2.21.0 DO NOT UPDATE || internal.properties -->
+        <allure.version>2.25.0</allure.version> <!-- 2.21.0 DO NOT UPDATE || internal.properties -->
         <extentreports.version>5.1.0</extentreports.version>
         <aspectj.version>1.9.20.1</aspectj.version>
         <rest-assured.version>5.3.2</rest-assured.version>
