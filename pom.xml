@@ -70,7 +70,7 @@
         <maven-scm-publish-plugin.version>3.2.1</maven-scm-publish-plugin.version>
         <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
-        <cucumber.version>7.14.0</cucumber.version>
+        <cucumber.version>7.14.1</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
         <applitools-eyes.version>4.14.0</applitools-eyes.version>
         <sikulixapi.version>2.0.5</sikulixapi.version> <!-- Do not update before running the test locally -->
