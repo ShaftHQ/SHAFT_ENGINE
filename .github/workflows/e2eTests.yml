@@ -373,151 +373,151 @@ jobs:
           name: MacOSX_Chrome_Local_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
-  Android_Native_Emulator:
-    runs-on: macOS-12
-    timeout-minutes: 60
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - uses: hankolsen/setup-android-tools@master
-        with:
-          packages: |
-            cmdline-tools;latest
-            emulator
-            patcher;v4
-            platform-tools
-            build-tools;27.0.0
-            platforms;android-27
-            skiaparser;3
-            sources;android-27
-            system-images;android-27;default;x86_64
-          cache: true
-
-      - name: Create Android emulator
-        run: |
-              # Delete old file
-              brew cleanup --prune=1 -s
-              rm -rf "$(brew --cache)"
-
-              # Install HAXM
-              #brew install intel-haxm
-
-              # Install AVD files
-              echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --install 'system-images;android-27;default;x86_64'
-              echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --licenses
-
-              # Create emulator
-              $ANDROID_HOME/tools/bin/avdmanager create avd -n Pixel_API_27_DEFAULT_x86_64 -d pixel --package 'system-images;android-27;default;x86_64'
-              $ANDROID_HOME/emulator/emulator -list-avds
-              if false; then
-              emulator_config=~/.android/avd/Pixel_API_27_DEFAULT_x86_64.avd/config.ini
-              # The following madness is to support empty OR populated config.ini files,
-              # the state of which is dependant on the version of the emulator used (which we don't control),
-              # so let's be defensive to be safe.
-              # Replace existing config (NOTE we're on MacOS so sed works differently!)
-              sed -i .bak 's/hw.lcd.density=.*/hw.lcd.density=420/' "$emulator_config"
-              sed -i .bak 's/hw.lcd.height=.*/hw.lcd.height=1920/' "$emulator_config"
-              sed -i .bak 's/hw.lcd.width=.*/hw.lcd.width=1080/' "$emulator_config"
-              # Or, add new config
-              if ! grep -q "hw.lcd.density" "$emulator_config"; then
-                echo "hw.lcd.density=420" >> "$emulator_config"
-              fi
-              if ! grep -q "hw.lcd.height" "$emulator_config"; then
-                echo "hw.lcd.height=1920" >> "$emulator_config"
-              fi
-              if ! grep -q "hw.lcd.width" "$emulator_config"; then
-                echo "hw.lcd.width=1080" >> "$emulator_config"
-              fi
-              echo "Emulator settings ($emulator_config)"
-              cat "$emulator_config"
-              fi
-
-      - name: List all sdkmanager options
-        run: |
-          $ANDROID_HOME/tools/bin/sdkmanager --list
-
-      - name: Update Android emulator
-        run: |
-          echo "$PATH"
-          echo $PATH
-          export PATH=$PATH:$ANDROID_HOME/tools/bin
-          export PATH=$PATH:$ANDROID_HOME/emulator/emulator
-          echo "$PATH"
-          echo $PATH
-          $ANDROID_HOME/tools/bin/sdkmanager --update
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
-        with:
-          maven-version: 3.9.5
-
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Set up Appium
-        run: |
-          npm install --global appium@next
-          appium driver install uiautomator2
-          appium driver install xcuitest
-
-      - name: Run Appium Server
-        run: appium --log-timestamp --log appiumServer.log &
-
-      - name: Poll for Appium Server to Start
-        run: |
-          until $(curl --output /dev/null --silent --head --fail http://localhost:4723/sessions); do
-            sleep 5
-          done
-
-      - name: Start Android emulator
-        run: |
-          echo "Starting emulator and waiting for boot to complete...."
-          ls -la $ANDROID_HOME/emulator
-          nohup $ANDROID_HOME/tools/emulator -avd Pixel_API_27_DEFAULT_x86_64 -gpu host -no-audio -no-boot-anim -camera-back none -camera-front none -qemu -m 2048 2>&1 &
-          $ANDROID_HOME/platform-tools/adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\r') ]]; do echo "wait..."; sleep 1; done; input keyevent 82'
-          #$ANDROID_HOME/platform-tools/adb wait-for-device
-          echo "Emulator has finished booting"
-          $ANDROID_HOME/platform-tools/adb devices
-          sleep 30
-          screencapture screenshot.jpg
-          #$ANDROID_HOME/platform-tools/adb exec-out screencap -p > emulator.png
-          #osascript click.as
-
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=localhost:4723" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-Dmobile_app=src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
-
-      - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: Android_Native_Emulator_Allure
-          path: "generatedReport_*.zip"
-
-      - name: Upload Execution Summary Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: Android_Native_Emulator_Summary
-          path: "execution-summary/ExecutionSummaryReport_*.html"
+  #  Android_Native_Emulator:
+  #    runs-on: macOS-12
+  #    timeout-minutes: 60
+  #
+  #    steps:
+  #      - name: Checkout Code
+  #        uses: actions/checkout@v4
+  #
+  #      - uses: hankolsen/setup-android-tools@master
+  #        with:
+  #          packages: |
+  #            cmdline-tools;latest
+  #            emulator
+  #            patcher;v4
+  #            platform-tools
+  #            build-tools;27.0.0
+  #            platforms;android-27
+  #            skiaparser;3
+  #            sources;android-27
+  #            system-images;android-27;default;x86_64
+  #          cache: true
+  #
+  #      - name: Create Android emulator
+  #        run: |
+  #              # Delete old file
+  #              brew cleanup --prune=1 -s
+  #              rm -rf "$(brew --cache)"
+  #
+  #              # Install HAXM
+  #              #brew install intel-haxm
+  #
+  #              # Install AVD files
+  #              echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --install 'system-images;android-27;default;x86_64'
+  #              echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --licenses
+  #
+  #              # Create emulator
+  #              $ANDROID_HOME/tools/bin/avdmanager create avd -n Pixel_API_27_DEFAULT_x86_64 -d pixel --package 'system-images;android-27;default;x86_64'
+  #              $ANDROID_HOME/emulator/emulator -list-avds
+  #              if false; then
+  #              emulator_config=~/.android/avd/Pixel_API_27_DEFAULT_x86_64.avd/config.ini
+  #              # The following madness is to support empty OR populated config.ini files,
+  #              # the state of which is dependant on the version of the emulator used (which we don't control),
+  #              # so let's be defensive to be safe.
+  #              # Replace existing config (NOTE we're on MacOS so sed works differently!)
+  #              sed -i .bak 's/hw.lcd.density=.*/hw.lcd.density=420/' "$emulator_config"
+  #              sed -i .bak 's/hw.lcd.height=.*/hw.lcd.height=1920/' "$emulator_config"
+  #              sed -i .bak 's/hw.lcd.width=.*/hw.lcd.width=1080/' "$emulator_config"
+  #              # Or, add new config
+  #              if ! grep -q "hw.lcd.density" "$emulator_config"; then
+  #                echo "hw.lcd.density=420" >> "$emulator_config"
+  #              fi
+  #              if ! grep -q "hw.lcd.height" "$emulator_config"; then
+  #                echo "hw.lcd.height=1920" >> "$emulator_config"
+  #              fi
+  #              if ! grep -q "hw.lcd.width" "$emulator_config"; then
+  #                echo "hw.lcd.width=1080" >> "$emulator_config"
+  #              fi
+  #              echo "Emulator settings ($emulator_config)"
+  #              cat "$emulator_config"
+  #              fi
+  #
+  #      - name: List all sdkmanager options
+  #        run: |
+  #          $ANDROID_HOME/tools/bin/sdkmanager --list
+  #
+  #      - name: Update Android emulator
+  #        run: |
+  #          echo "$PATH"
+  #          echo $PATH
+  #          export PATH=$PATH:$ANDROID_HOME/tools/bin
+  #          export PATH=$PATH:$ANDROID_HOME/emulator/emulator
+  #          echo "$PATH"
+  #          echo $PATH
+  #          $ANDROID_HOME/tools/bin/sdkmanager --update
+  #
+  #      - name: Set up JDK 21
+  #        uses: actions/setup-java@v4
+  #        with:
+  #          java-version: '21'
+  #          distribution: 'zulu'
+  #          cache: 'maven'
+  #      - name: Set up Maven
+  #        uses: stCarolas/setup-maven@v4.5
+  #        with:
+  #          maven-version: 3.9.5
+  #
+  #      - name: Setup Node.js environment
+  #        uses: actions/setup-node@v4
+  #        with:
+  #          node-version: '18'
+  #
+  #      - name: Set up Appium
+  #        run: |
+  #          npm install --global appium@next
+  #          appium driver install uiautomator2
+  #          appium driver install xcuitest
+  #
+  #      - name: Run Appium Server
+  #        run: appium --log-timestamp --log appiumServer.log &
+  #
+  #      - name: Poll for Appium Server to Start
+  #        run: |
+  #          until $(curl --output /dev/null --silent --head --fail http://localhost:4723/sessions); do
+  #            sleep 5
+  #          done
+  #
+  #      - name: Start Android emulator
+  #        run: |
+  #          echo "Starting emulator and waiting for boot to complete...."
+  #          ls -la $ANDROID_HOME/emulator
+  #          nohup $ANDROID_HOME/tools/emulator -avd Pixel_API_27_DEFAULT_x86_64 -gpu host -no-audio -no-boot-anim -camera-back none -camera-front none -qemu -m 2048 2>&1 &
+  #          $ANDROID_HOME/platform-tools/adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\r') ]]; do echo "wait..."; sleep 1; done; input keyevent 82'
+  #          #$ANDROID_HOME/platform-tools/adb wait-for-device
+  #          echo "Emulator has finished booting"
+  #          $ANDROID_HOME/platform-tools/adb devices
+  #          sleep 30
+  #          screencapture screenshot.jpg
+  #          #$ANDROID_HOME/platform-tools/adb exec-out screencap -p > emulator.png
+  #          #osascript click.as
+  #
+  #      - name: Run tests
+  #        continue-on-error: true
+  #        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=localhost:4723" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-Dmobile_app=src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
+  #
+  #      - name: Upload coverage to Codecov
+  #        uses:  codecov/codecov-action@v3
+  #        with:
+  #          token: ${{ secrets.CODECOV_TOKEN }}
+  #          fail_ci_if_error: false
+  #          files: ./target/jacoco/jacoco.xml
+  #          verbose: true
+  #
+  #      - name: Upload Allure Report as Pipeline Artifact
+  #        if: always()
+  #        uses: actions/upload-artifact@v3
+  #        with:
+  #          name: Android_Native_Emulator_Allure
+  #          path: "generatedReport_*.zip"
+  #
+  #      - name: Upload Execution Summary Report as Pipeline Artifact
+  #        if: always()
+  #        uses: actions/upload-artifact@v3
+  #        with:
+  #          name: Android_Native_Emulator_Summary
+  #          path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Android_Native_BrowserStack:
     runs-on: macOS-12
