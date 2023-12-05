@@ -217,7 +217,13 @@ public class ScreenshotManager {
     }
 
     public static byte[] takeViewportScreenshot(WebDriver driver) {
-        return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+        try {
+            return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+        } catch (RuntimeException runtimeException) {
+            // java.lang.RuntimeException: Unexpected result for screenshot command: com.google.common.collect.Maps$TransformedEntriesMap instance
+            ReportManagerHelper.log(runtimeException);
+            return new byte[0];
+        }
     }
 
     public static byte[] takeFullPageScreenshot(WebDriver driver) {
