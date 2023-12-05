@@ -869,18 +869,8 @@ public class ElementActions {
      * @return currentFrame the current frame name
      */
     public String getCurrentFrame() {
-        String currentFrame = "";
-        try {
-            if (LocatorBuilder.getIFrameLocator() != null) {
-                currentFrame = (String) ((JavascriptExecutor) DriverFactoryHelper.getDriver().switchTo().frame(DriverFactoryHelper.getDriver().findElement(LocatorBuilder.getIFrameLocator())))
-                        .executeScript("return self.name");
-            } else {
-                currentFrame = (String) ((JavascriptExecutor) DriverFactoryHelper.getDriver()).executeScript("return self.name");
-            }
-            ReportManager.logDiscrete("Current frame name: \"" + currentFrame + "\"");
-        } catch (Exception rootCauseException) {
-            ReportManager.logDiscrete(String.valueOf(rootCauseException));
-        }
+        String currentFrame = (String) ((JavascriptExecutor) DriverFactoryHelper.getDriver()).executeScript("return self.name");
+        ReportManager.logDiscrete("Current frame name: \"" + currentFrame + "\"");
         return currentFrame;
     }
 

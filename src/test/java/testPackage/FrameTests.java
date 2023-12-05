@@ -4,8 +4,8 @@ import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class FrameTests {
@@ -15,8 +15,9 @@ public class FrameTests {
     String testPage = """
              data:text/html,
              <html>
-                 <div id="parentFrameDiv">Parent Frame</div>
+                 <div id="parentFrameDiv">Parent Frame
                  <iframe src="https://shafthq.github.io/" height="500" width="500" title="SHAFT User Guide" name="iframe Name"></iframe>
+                 </div>
              </html>
             """;
 
@@ -62,12 +63,12 @@ public class FrameTests {
                 .and().assertThat(By.xpath("//input[@name='cardnumber']")).text().contains("1234").perform();
     }
 
-    @BeforeClass // Set-up method, to be run once before the first test
+    @BeforeMethod
     public void beforeClass() {
         driver = new SHAFT.GUI.WebDriver();
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     public void afterClass() {
         driver.quit();
     }
