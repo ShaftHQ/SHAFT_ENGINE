@@ -39,7 +39,7 @@ public class Test_LTMobAPKAPPURL {
         SHAFT.Properties.platform.set().executionAddress("lambdatest");
         SHAFT.Properties.lambdaTest.set().platformVersion("11");
         SHAFT.Properties.lambdaTest.set().deviceName("Poco X3 Pro");
-        SHAFT.Properties.lambdaTest.set().appUrl("lt://APP10160631101690358821236765");
+        SHAFT.Properties.lambdaTest.set().appUrl("lt://APP10160241051701775434992467");
         SHAFT.Properties.mobile.set().browserName("");
         driver = new SHAFT.GUI.WebDriver();
     }
