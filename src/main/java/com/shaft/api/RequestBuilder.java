@@ -7,6 +7,8 @@ import io.restassured.config.SSLConfig;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
+import lombok.AccessLevel;
+import lombok.Getter;
 
 import java.util.List;
 import java.util.Map;
@@ -15,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 import static io.restassured.RestAssured.config;
 
+@Getter(AccessLevel.PACKAGE) //for unit tests
 @SuppressWarnings("unused")
 public class RequestBuilder {
     private RestActions session;
