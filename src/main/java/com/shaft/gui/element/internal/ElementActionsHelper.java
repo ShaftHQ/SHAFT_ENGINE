@@ -286,9 +286,6 @@ public class ElementActionsHelper {
     }
 
     private static String performAction(ElementInformation elementInformation, ElementAction action, Object parameter) {
-        if (LocatorBuilder.getIFrameLocator() != null) {
-            DriverFactoryHelper.getDriver().switchTo().frame(DriverFactoryHelper.getDriver().findElement(LocatorBuilder.getIFrameLocator()));
-        }
         switch (action) {
             case CLICK -> {
                 //move to element
@@ -828,9 +825,7 @@ public class ElementActionsHelper {
         }
     }
     public static String readElementText(ElementInformation elementInformation) {
-
-          //  var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementLocator));
-            String elementText;
+        String elementText;
             try {
                 elementText = (elementInformation.getFirstElement()).getText();
             } catch (WebDriverException webDriverException) {
@@ -855,13 +850,10 @@ public class ElementActionsHelper {
             }
             return elementText;
     }
-    private static void newClearBeforeTyping(By elementLocator){
-        var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver(), elementLocator));
-        var attemptClearBeforeTyping = SHAFT.Properties.flags.attemptClearBeforeTyping();
-        var attemptClearBeforeTypingUsingBackspace = SHAFT.Properties.flags.attemptClearBeforeTypingUsingBackspace();
-       
-        if (attemptClearBeforeTyping) {
-            if(attemptClearBeforeTypingUsingBackspace){
+
+    private static void newClearBeforeTyping(ElementInformation elementInformation) {
+        if (SHAFT.Properties.flags.attemptClearBeforeTyping()) {
+            if (SHAFT.Properties.flags.attemptClearBeforeTypingUsingBackspace()) {
                 clearBeforeTypingUsingBackSpace(elementInformation);
             }
             else {
@@ -871,7 +863,11 @@ public class ElementActionsHelper {
     }
     private static void clearBeforeTypingUsingNativeClear(ElementInformation elementInformation) {
             // try clearing text
-        ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver(), elementInformation.getLocator(), ElementAction.CLEAR);
+        try {
+            elementInformation.getFirstElement().clear();
+        } catch (Throwable throwable) {
+            ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver(), elementInformation.getLocator(), ElementAction.CLEAR);
+        }
             var currentTextAfterClearingUsingNativeClear = readElementText(elementInformation);
             if (currentTextAfterClearingUsingNativeClear.isBlank()) {
                 ReportManager.logDiscrete("text cleared Using Native Clear");
@@ -923,7 +919,7 @@ public class ElementActionsHelper {
     // and performing type ,
     // and double check if typed correctly 'if user enabled the flag'
     public static String newTypeWrapper(ElementInformation elementInformation, String targetText) {
-            newClearBeforeTyping(elementInformation.getLocator());
+        newClearBeforeTyping(elementInformation);
             var adjustedTargetText = targetText != null && !targetText.isEmpty() ? targetText : "";
             performType(elementInformation, adjustedTargetText);
             //sometimes the text is returned as empty

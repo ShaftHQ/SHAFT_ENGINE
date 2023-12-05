@@ -822,12 +822,11 @@ public class ElementActions {
      */
     public ElementActions switchToIframe(By elementLocator) {
         try {
-//            DriverFactoryHelper.getDriver().switchTo().frame(
             var elementInformation = ElementInformation.fromList(
                     ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator));
-//                            .getFirstElement());
             LocatorBuilder.setIFrameLocator(elementInformation.getLocator());
             // note to self: remove elementLocator in case of bug in screenshot manager
+            DriverFactoryHelper.getDriver().switchTo().frame(elementInformation.getFirstElement());
             boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(elementLocator), null, elementInformation.getElementName());
@@ -916,6 +915,7 @@ public class ElementActions {
 
 */
     public ElementActions type(By elementLocator, String text){
+        //TODO: refactor to reduce number of webdriver calls
        //getting element information using locator
         var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementLocator));
         String actualTextAfterTyping = ElementActionsHelper.newTypeWrapper(elementInformation, text);
@@ -926,10 +926,6 @@ public class ElementActions {
             ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), "Expected to type: \"" + text + "\", but ended up with: \"" + actualTextAfterTyping + "\"",
                     elementLocator);
         }
-//    } catch (Throwable throwable) {
-//        // has to be throwable to catch assertion errors in case element was not found
-//        ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
-//    }
         return this;
 
     }
