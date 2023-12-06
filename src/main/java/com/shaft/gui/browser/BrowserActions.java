@@ -323,23 +323,8 @@ public class BrowserActions {
             ReportManager.logDiscrete(
                     "Target URL: \"" + modifiedTargetUrl + "\", and after redirection: \"" + targetUrlAfterRedirection + "\"");
         }
-//         force stop any current navigation
-        //noinspection SpellCheckingInspection
+        forceStopCurrentNavigation();
         try {
-            ((JavascriptExecutor) DriverFactoryHelper.getDriver()).executeScript("return window.stop;");
-        } catch (Exception rootCauseException) {
-            ReportManagerHelper.logDiscrete(rootCauseException);
-            /*
-             * org.openqa.selenium.NoSuchSessionException: Session ID is null. Using
-             * WebDriver after calling quit()? Build info: version: '3.141.59', revision:
-             * 'e82be7d358', time: '2018-11-14T08:17:03' System info: host:
-             * 'gcp-test-automation-sys-187-jenkins-fullaccess', ip: '10.128.0.11', os.name:
-             * 'Linux', os.arch: 'amd64', os.version: '4.15.0-1027-gcp', java.version:
-             * '1.8.0_202' Driver info: driver.version: RemoteWebDriver
-             */
-        }
-        try {
-            JavaScriptWaitManager.waitForLazyLoading();
             String initialURL = "";
 
             if (DriverFactoryHelper.getDriver() instanceof AppiumDriver appiumDriver) {
@@ -371,6 +356,23 @@ public class BrowserActions {
             BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), modifiedTargetUrl, rootCauseException);
         }
         return this;
+    }
+
+    private void forceStopCurrentNavigation() {
+        try {
+            JavaScriptWaitManager.waitForLazyLoading();
+            ((JavascriptExecutor) DriverFactoryHelper.getDriver()).executeScript("return window.stop;");
+        } catch (Exception rootCauseException) {
+            ReportManagerHelper.logDiscrete(rootCauseException);
+            /*
+             * org.openqa.selenium.NoSuchSessionException: Session ID is null. Using
+             * WebDriver after calling quit()? Build info: version: '3.141.59', revision:
+             * 'e82be7d358', time: '2018-11-14T08:17:03' System info: host:
+             * 'gcp-test-automation-sys-187-jenkins-fullaccess', ip: '10.128.0.11', os.name:
+             * 'Linux', os.arch: 'amd64', os.version: '4.15.0-1027-gcp', java.version:
+             * '1.8.0_202' Driver info: driver.version: RemoteWebDriver
+             */
+        }
     }
 
     @SuppressWarnings("UnusedReturnValue")
@@ -436,6 +438,7 @@ public class BrowserActions {
         var newURL = "";
         try {
             initialURL = DriverFactoryHelper.getDriver().getCurrentUrl();
+            forceStopCurrentNavigation();
             switch (navigationAction) {
                 case FORWARD -> DriverFactoryHelper.getDriver().navigate().forward();
                 case BACK -> DriverFactoryHelper.getDriver().navigate().back();

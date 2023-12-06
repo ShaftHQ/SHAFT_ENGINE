@@ -86,15 +86,15 @@ Feature: Basic SHAFT_Engine BDD POC
 
   Scenario: Element visual assertions
     Given I Open the target browser
-    When I Navigate to "https://www.google.com/ncr" and get redirected to "https://www.google.com/"
-    Then I Assert that the element found by "xpath": "//img[contains(@src,'googlelogo')]", exactly matches with the expected reference image using Artificial Intelligence OpenCV
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'googlelogo')]", does not exactly match with the expected reference image using Artificial Intelligence OpenCV
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'googlelogo')]", exactly matches with the expected reference image using Artificial Intelligence Applitools Eyes
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'googlelogo')]", does not exactly match with the expected reference image using Artificial Intelligence Applitools Eyes
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'googlelogo')]", strictly matches with the expected reference image using Artificial Intelligence Applitools Eyes
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'googlelogo')]", does not strictly match with the expected reference image using Artificial Intelligence Applitools Eyes
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'googlelogo')]", matches the content of the expected reference image using Artificial Intelligence Applitools Eyes
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'googlelogo')]", does not match the content of the expected reference image using Artificial Intelligence Applitools Eyes
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'googlelogo')]", matches the layout of the expected reference image using Artificial Intelligence Applitools Eyes
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'googlelogo')]", does not match the layout of the expected reference image using Artificial Intelligence Applitools Eyes
+    When I Navigate to "https://shafthq.github.io/"
+    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", exactly matches with the expected reference image using Artificial Intelligence OpenCV
+#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", does not exactly match with the expected reference image using Artificial Intelligence OpenCV
+#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", exactly matches with the expected reference image using Artificial Intelligence Applitools Eyes
+#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", does not exactly match with the expected reference image using Artificial Intelligence Applitools Eyes
+#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", strictly matches with the expected reference image using Artificial Intelligence Applitools Eyes
+#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", does not strictly match with the expected reference image using Artificial Intelligence Applitools Eyes
+#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", matches the content of the expected reference image using Artificial Intelligence Applitools Eyes
+#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", does not match the content of the expected reference image using Artificial Intelligence Applitools Eyes
+#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", matches the layout of the expected reference image using Artificial Intelligence Applitools Eyes
+#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", does not match the layout of the expected reference image using Artificial Intelligence Applitools Eyes
     And I Close the current window

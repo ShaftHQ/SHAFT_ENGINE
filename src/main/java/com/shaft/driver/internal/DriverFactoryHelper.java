@@ -609,7 +609,7 @@ public class DriverFactoryHelper {
             }
         }
 
-        // stage 2: create remove driver instance (requires some time with dockerized appium)
+        // stage 2: create remote driver instance (requires some time with dockerized appium)
         ReportManager.logDiscrete("Attempting to instantiate remote driver instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
         try {
             driver = attemptRemoteServerConnection(capabilities);
