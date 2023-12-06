@@ -38,6 +38,11 @@ public class JunitListener implements LauncherSessionListener {
                 }
 
                 @Override
+                public void testPlanExecutionFinished(TestPlan testPlan) {
+                    engineTeardown();
+                }
+
+                @Override
                 public void executionSkipped(TestIdentifier testIdentifier, String reason) {
                     afterInvocation();
                     onTestSkipped(testIdentifier, reason);
@@ -65,12 +70,6 @@ public class JunitListener implements LauncherSessionListener {
             });
         }
     }
-
-    @Override
-    public void launcherSessionClosed(LauncherSession session) {
-        engineTeardown();
-    }
-
     private void engineSetup() {
         ReportManagerHelper.setDiscreteLogging(true);
         PropertiesHelper.initialize();
