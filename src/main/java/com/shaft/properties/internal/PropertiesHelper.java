@@ -59,8 +59,17 @@ public class PropertiesHelper {
         overrideScreenMaximizationForRemoteExecution();
         overrideScreenShotTypeForAnimatedGIF();
         overrideScreenshotTypeForSafariBrowser();
+        overrideScreenShotTypeForMobilePlatforms();
         overridePropertiesForMaximumPerformanceMode();
         setMobilePlatform();
+    }
+
+    private static void overrideScreenShotTypeForMobilePlatforms() {
+        if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString(),
+                org.openqa.selenium.Platform.IOS.toString()).contains(Properties.platform.targetPlatform().toLowerCase())) {
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
+        }
+
     }
 
     private static void overrideScreenMaximizationForRemoteExecution() {
