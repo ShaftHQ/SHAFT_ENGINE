@@ -596,7 +596,7 @@ public class ValidationsHelper {
                 message.append(" Validation Type \"").append(validationType).append("\".");
             }
         }
-        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver() != null) {
+        if (DriverFactoryHelper.getDriver() != null) {
             // create a screenshot attachment if needed for webdriver
             if (lastUsedElementLocator != null) {
                 attachments.add(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver(), lastUsedElementLocator,
@@ -609,7 +609,7 @@ public class ValidationsHelper {
             lastUsedElementLocator = null;
             //}
         }
-        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver() != null && !WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Never")) {
+        if (DriverFactoryHelper.getDriver() != null && !WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Never")) {
             if ((WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Always") || WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("ValidationPointsOnly"))
                     || (Boolean.FALSE.equals(validationState.getValue()) && WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("FailuresOnly"))) {
                 var logMessage = "";
