@@ -222,6 +222,7 @@ public class ScreenshotManager {
             return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
         } catch (RuntimeException runtimeException) {
             // java.lang.RuntimeException: Unexpected result for screenshot command: com.google.common.collect.Maps$TransformedEntriesMap instance
+            // org.openqa.selenium.WebDriverException: unknown error: unhandled inspector error: {"code":-32000,"message":"Unable to capture screenshot"}
             FailureReporter.fail(ScreenshotManager.class, "Failed to capture screenshot", runtimeException);
             return null;
         }
