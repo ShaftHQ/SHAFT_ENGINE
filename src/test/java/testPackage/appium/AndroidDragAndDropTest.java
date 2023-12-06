@@ -65,7 +65,7 @@ public class AndroidDragAndDropTest {
         SHAFT.Properties.browserStack.set().deviceName("Google Pixel 7");
         SHAFT.Properties.browserStack.set().appName("Android-NativeDemoApp-0.4.0.apk");
         SHAFT.Properties.browserStack.set().appRelativeFilePath("");
-        SHAFT.Properties.browserStack.set().appUrl("bs://2505d332f9f4965dc1540e7f0bf6ebd7c540b819");
+        SHAFT.Properties.browserStack.set().appUrl("bs://832ef13a11caa84ad714e0d4f8d9553cd3c5a3ca");
         driver = new SHAFT.GUI.WebDriver();
     }
 
