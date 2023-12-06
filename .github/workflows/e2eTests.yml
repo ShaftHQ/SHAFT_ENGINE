@@ -108,7 +108,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -151,7 +151,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -194,7 +194,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -238,7 +238,7 @@ jobs:
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -275,9 +275,13 @@ jobs:
         uses: stCarolas/setup-maven@v4.5
         with:
           maven-version: 3.9.5
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -316,7 +320,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=SAFARI" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=SAFARI" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -359,7 +363,7 @@ jobs:
           chrome-version: stable
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -502,7 +506,7 @@ jobs:
   #
   #      - name: Run tests
   #        continue-on-error: true
-  #        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=localhost:4723" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-Dmobile_app=src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
+  #        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=localhost:4723" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-Dmobile_app=src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
   #
   #      - name: Upload coverage to Codecov
   #        uses:  codecov/codecov-action@v3
@@ -544,7 +548,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appName=ApiDemos-debug.apk" "-DbrowserStack.appRelativeFilePath=src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appName=ApiDemos-debug.apk" "-DbrowserStack.appRelativeFilePath=src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -583,7 +587,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=IOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-Dmobile_browserName=SAFARI" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=IOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-Dmobile_browserName=SAFARI" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -622,7 +626,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-Dmobile_browserName=CHROME" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-Dmobile_browserName=CHROME" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -661,7 +665,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-Dmobile_browserName=samsung" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-Dmobile_browserName=samsung" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -700,7 +704,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -749,7 +753,7 @@ jobs:
       - name: Run tests on Linux/MacOS
         if: runner.os != 'Windows'
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=.*CucumberTests.*"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=.*CucumberTests.*"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -789,10 +793,15 @@ jobs:
         uses: stCarolas/setup-maven@v4.5
         with:
           maven-version: 3.9.5
+      - uses: browser-actions/setup-edge@v1
+        with:
+          edge-version: stable
+      - name: Print Edge version
+        run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
       - name: Run tests on Windows
         if: runner.os == 'Windows'
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" -DexecutionAddress="local" -DtargetOperatingSystem="WINDOWS" -DmaximumPerformanceMode="2" -DtargetBrowserName="MicrosoftEdge" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTests.*"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" -DexecutionAddress="local" -DtargetOperatingSystem="WINDOWS" -DmaximumPerformanceMode="2" -DtargetBrowserName="MicrosoftEdge" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTests.*"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -834,7 +843,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTests.*"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTests.*"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -877,7 +886,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobAPK*.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobAPK*.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -920,7 +929,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobIPA*.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobIPA*.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -963,7 +972,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTWebApp*.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTWebApp*.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -1006,7 +1015,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTDesktopWeb*.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTDesktopWeb*.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
