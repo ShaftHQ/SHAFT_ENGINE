@@ -33,7 +33,7 @@ public interface Timeouts extends EngineProperties {
     int pageLoadTimeout();
 
     @Key("scriptExecutionTimeout")
-    @DefaultValue("30")
+    @DefaultValue("60")
     int scriptExecutionTimeout();
 
     @Key("defaultElementIdentificationTimeout")
