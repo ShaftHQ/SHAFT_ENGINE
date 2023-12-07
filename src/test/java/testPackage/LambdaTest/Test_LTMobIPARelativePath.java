@@ -43,6 +43,7 @@ public class Test_LTMobIPARelativePath {
         SHAFT.Properties.lambdaTest.set().isRealMobile(true);
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
+        SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
         driver = DriverFactory.getDriver();
 
     }
