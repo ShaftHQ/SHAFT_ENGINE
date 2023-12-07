@@ -933,7 +933,7 @@ public class ReportManagerHelper {
 
     private static void createAllureReportArchive() {
         if (FileActions.getInstance().doesFileExist(allureExtractionLocation)) {
-            FileActions.getInstance().zipFiles("allure-report/", "allure-report_" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".zip");
+            FileActions.getInstance().zipFiles("allure-report/", "generatedReport_" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".zip");
         }
     }
 
