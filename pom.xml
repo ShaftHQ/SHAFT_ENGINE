@@ -1076,7 +1076,8 @@
                             <useFile>false</useFile>
                             <encoding>UTF-8</encoding>
                            <argLine>
-                               @{argLine} ${surefireArgLine} -javaagent:${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar                            
+                               @{argLine} ${surefireArgLine}
+                               -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
                             </argLine>
                             <properties>
                                 <property>
@@ -1130,7 +1131,8 @@
                             <useFile>false</useFile>
                             <encoding>UTF-8</encoding>
                            <argLine>
-                               @{argLine} ${surefireArgLine} -javaagent:${user.home}/.m2/repository/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar                            
+                               @{argLine} ${surefireArgLine}
+                               -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
                             </argLine>
                             <properties>
                                 <property>
