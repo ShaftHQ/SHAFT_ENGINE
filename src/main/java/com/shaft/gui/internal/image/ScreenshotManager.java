@@ -10,6 +10,7 @@ import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.ElementInformation;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.imgscalr.Scalr;
 import org.openqa.selenium.Rectangle;
@@ -217,7 +218,14 @@ public class ScreenshotManager {
     }
 
     public static byte[] takeViewportScreenshot(WebDriver driver) {
-        return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+        try {
+            return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+        } catch (RuntimeException runtimeException) {
+            // java.lang.RuntimeException: Unexpected result for screenshot command: com.google.common.collect.Maps$TransformedEntriesMap instance
+            // org.openqa.selenium.WebDriverException: unknown error: unhandled inspector error: {"code":-32000,"message":"Unable to capture screenshot"}
+            FailureReporter.fail(ScreenshotManager.class, "Failed to capture screenshot", runtimeException);
+            return null;
+        }
     }
 
     public static byte[] takeFullPageScreenshot(WebDriver driver) {
