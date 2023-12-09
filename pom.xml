@@ -160,7 +160,7 @@
                 </exclusion>
             </exclusions>
         </dependency>
-
+        
         <!-- APPIUM -->
         <dependency>
             <groupId>io.appium</groupId>

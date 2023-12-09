@@ -62,12 +62,15 @@ public class PropertiesHelper {
         overrideScreenShotTypeForMobilePlatforms();
         overridePropertiesForMaximumPerformanceMode();
         setMobilePlatform();
+
         setExtraAllureProperties();
+        System.setProperty("webdriver.http.factory", "jdk-http-client");
     }
 
     private static void setExtraAllureProperties() {
         System.setProperty("allure.testng.hide.configuration.failures", "true");
         System.setProperty("allure.testng.hide.disabled.tests", "true");
+
     }
 
     private static void overrideScreenShotTypeForMobilePlatforms() {
