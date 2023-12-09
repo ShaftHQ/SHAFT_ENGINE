@@ -174,24 +174,24 @@ public class ElementActionsHelper {
                     .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                     .ignoreAll(getExpectedExceptions(isValidToCheckForVisibility))
                     .until(nestedDriver -> {
-                            final WebElement[] targetElement = new WebElement[1];
+                        WebElement targetElement;
                             ElementInformation elementInformation = new ElementInformation();
                         // BLOCK #1 :: GETTING THE ELEMENT
                                 if (ShadowLocatorBuilder.shadowDomLocator != null
                                         && ShadowLocatorBuilder.cssSelector == elementLocator) {
-                                    targetElement[0] = driver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElement(ShadowLocatorBuilder.cssSelector);
+                                    targetElement = driver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElement(ShadowLocatorBuilder.cssSelector);
                                 } else if (LocatorBuilder.getIFrameLocator() != null) {
                                     try {
-                                        targetElement[0] = driver.switchTo().frame(driver.findElement(LocatorBuilder.getIFrameLocator())).findElement(elementLocator);
+                                        targetElement = driver.switchTo().frame(driver.findElement(LocatorBuilder.getIFrameLocator())).findElement(elementLocator);
                                     } catch (NoSuchElementException exception) {
-                                        targetElement[0] = driver.findElement(elementLocator);
+                                        targetElement = driver.findElement(elementLocator);
                                     }
                                 } else {
-                                    targetElement[0] = driver.findElement(elementLocator);
+                                    targetElement = driver.findElement(elementLocator);
                                 }
                         // BLOCK #2 :: GETTING THE ELEMENT LOCATION (RECT)
                                 try {
-                                    elementInformation.setElementRect(targetElement[0].getRect());
+                                    elementInformation.setElementRect(targetElement.getRect());
                                 } catch (ElementNotInteractableException elementNotInteractableException) {
                                     // this exception happens sometimes with certain browsers and causes a timeout
                                     // this empty block should handle that issue
@@ -202,18 +202,18 @@ public class ElementActionsHelper {
                                         try {
                                             // native Javascript scroll to center (smooth / auto)
                                             var scriptOutput = ((JavascriptExecutor) driver).executeScript("""
-                                                    arguments[0].scrollIntoView({behavior: "smooth", block: "center", inline: "center"});""", targetElement[0]);
+                                                    arguments[0].scrollIntoView({behavior: "smooth", block: "center", inline: "center"});""", targetElement);
                                         } catch (Throwable throwable) {
                                             try {
                                                 // w3c compliant scroll
-                                                new Actions(driver).scrollToElement(targetElement[0]).perform();
+                                                new Actions(driver).scrollToElement(targetElement).perform();
                                             } catch (Throwable throwable1) {
                                                 // old school selenium scroll
                                                 ((Locatable) driver).getCoordinates().inViewPort();
                                             }
                                         }
                                     } else {
-                                        targetElement[0].isDisplayed();
+                                        targetElement.isDisplayed();
                                     }
                                 }
                         // BLOCK #4 :: GETTING THE NUMBER OF FOUND ELEMENTS
@@ -225,14 +225,14 @@ public class ElementActionsHelper {
                                 }
                                 // BLOCK #5 :: GETTING THE INNER AND OUTER HTML
                                 if (!isMobileExecution && GET_ELEMENT_HTML) {
-                                    elementInformation.setOuterHTML(targetElement[0].getAttribute("outerHTML"));
-                                    elementInformation.setInnerHTML(targetElement[0].getAttribute("innerHTML"));
+                                    elementInformation.setOuterHTML(targetElement.getAttribute("outerHTML"));
+                                    elementInformation.setInnerHTML(targetElement.getAttribute("innerHTML"));
                                 }
                         // BLOCK #5 :: GETTING ELEMENT NAME
                                 if (SHAFT.Properties.reporting.captureElementName()) {
                                     var elementName = formatLocatorToString(elementLocator);
                                     try {
-                                        var accessibleName = targetElement[0].getAccessibleName();
+                                        var accessibleName = targetElement.getAccessibleName();
                                         if (accessibleName != null && !accessibleName.isBlank()) {
                                             elementName = accessibleName;
                                         }
@@ -244,7 +244,7 @@ public class ElementActionsHelper {
                                     elementInformation.setElementName(elementName);
                                 }
 
-                            elementInformation.setFirstElement(targetElement[0]);
+                        elementInformation.setFirstElement(targetElement);
                             elementInformation.setLocator(elementLocator);
 
                             // BLOCK #6 :: PERFORMING ACTION  (WITH OPTIONAL ARGS)

@@ -62,6 +62,7 @@ public class PropertiesHelper {
         overrideScreenShotTypeForMobilePlatforms();
         overridePropertiesForMaximumPerformanceMode();
         setMobilePlatform();
+        System.setProperty("webdriver.http.factory", "jdk-http-client");
     }
 
     private static void overrideScreenShotTypeForMobilePlatforms() {
