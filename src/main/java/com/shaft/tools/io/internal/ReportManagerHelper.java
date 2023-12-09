@@ -857,6 +857,8 @@ public class ReportManagerHelper {
             URL allureSHAFTConfigArchive = ReportManagerHelper.class.getResource("/resources/allure/allureBinary_SHAFTEngineConfigFiles.zip");
             FileActions.getInstance().unpackArchive(allureSHAFTConfigArchive,
                     allureExtractionLocation + "allure-" + allureVersion + File.separator);
+            // deleting custom-logo.svg to avoid generating extra folder with report in single mode
+            FileActions.getInstance().deleteFile(allureExtractionLocation + "allure-" + allureVersion + File.separator + "plugins"+File.separator+"custom-logo-plugin"+File.separator+"static"+File.separator+"custom-logo.svg" );
 
             if (!SystemUtils.IS_OS_WINDOWS) {
                 // make allure executable on Unix-based shells
@@ -920,11 +922,11 @@ public class ReportManagerHelper {
                 + "/bin/allure";
 
         if (SystemUtils.IS_OS_WINDOWS) {
-            commandToCreateAllureReport = allureBinaryPath + ".bat" + " generate --single-file '"
+            commandToCreateAllureReport = allureBinaryPath + ".bat" + " generate --single-file --clean'"
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
                     + "' -o 'allure-report'";
         } else {
-            commandToCreateAllureReport = allureBinaryPath + " generate --single-file "
+            commandToCreateAllureReport = allureBinaryPath + " generate --single-file --clean "
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
                     + " -o allure-report";
         }
