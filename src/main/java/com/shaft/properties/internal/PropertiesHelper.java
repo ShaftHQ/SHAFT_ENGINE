@@ -20,6 +20,12 @@ public class PropertiesHelper {
     public static void initialize() {
         //initialize default properties
         initializeDefaultProperties();
+        //override defaults for mobile platforms
+        if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString(),
+                org.openqa.selenium.Platform.IOS.toString()).contains(Properties.platform.targetPlatform().toLowerCase())) {
+            overrideScreenShotTypeForMobilePlatforms();
+            overrideForcedFlagsForMobilePlatforms();
+        }
         //attach property files
         attachPropertyFiles();
         //load properties
@@ -57,20 +63,25 @@ public class PropertiesHelper {
     public static void postProcessing() {
         overrideTargetOperatingSystemForLocalExecution();
         overrideScreenMaximizationForRemoteExecution();
-        overrideScreenShotTypeForAnimatedGIF();
-        overrideScreenshotTypeForSafariBrowser();
-        overrideScreenShotTypeForMobilePlatforms();
         overridePropertiesForMaximumPerformanceMode();
         setMobilePlatform();
-        System.setProperty("webdriver.http.factory", "jdk-http-client");
+        overrideScreenShotTypeForAnimatedGIF();
+        overrideScreenshotTypeForSafariBrowser();
+    }
+
+    private static void overrideForcedFlagsForMobilePlatforms() {
+        SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(false);
+        SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
+        SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(false);
+        SHAFT.Properties.flags.set().enableTrueNativeMode(true);
+        SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(false);
+        SHAFT.Properties.flags.set().respectBuiltInWaitsInNativeMode(false);
+        SHAFT.Properties.flags.set().handleNonSelectDropDown(false);
+        SHAFT.Properties.flags.set().validateSwipeToElement(false);
     }
 
     private static void overrideScreenShotTypeForMobilePlatforms() {
-        if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString(),
-                org.openqa.selenium.Platform.IOS.toString()).contains(Properties.platform.targetPlatform().toLowerCase())) {
             SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
-        }
-
     }
 
     private static void overrideScreenMaximizationForRemoteExecution() {
@@ -113,7 +124,7 @@ public class PropertiesHelper {
 
     private static void initializeDefaultProperties() {
         //  https://www.selenium.dev/blog/2022/using-java11-httpclient/
-//        System.setProperty("webdriver.http.factory", "jdk-http-client");
+        System.setProperty("webdriver.http.factory", "jdk-http-client");
 
         URL propertiesFolder = PropertyFileManager.class.getResource(DEFAULT_PROPERTIES_FOLDER_PATH.replace("src/main", "") + "/");
         var propertiesFolderPath = "";
