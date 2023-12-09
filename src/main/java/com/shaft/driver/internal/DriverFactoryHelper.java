@@ -214,6 +214,11 @@ public class DriverFactoryHelper {
                     ffProfile.setPreference("browser.cache.offline.enable", false);
                     ffProfile.setPreference("network.http.use-cache", false);
                 }
+
+                // attempted fix for `org.openqa.selenium.WebDriverException: SecurityError: Permission denied to access property "pageXOffset" on cross-origin object`
+                ffProfile.setPreference("browser.contentblocking.enabled", false);
+//                ffProfile.setPreference("privacy.trackingprotection.enabled", false);
+
                 ffOptions.setProfile(ffProfile);
                 if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local"))
                     ffOptions.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
@@ -864,15 +869,8 @@ public class DriverFactoryHelper {
     }
 
     public static void initializeDriver() {
-        if (Properties.mobile.selfManaged() && (Properties.platform.targetPlatform().equalsIgnoreCase(Platform.ANDROID.toString())
-                || Properties.platform.targetPlatform().equalsIgnoreCase(Platform.IOS.toString()))) {
-            //singleton initialization
-            AppiumSelfManagementHelper.setupAppiumSelfManagedExecutionPrerequisites();
-        }
-
         var mobile_browserName = SHAFT.Properties.mobile.browserName();
         String targetBrowserName = SHAFT.Properties.web.targetBrowserName();
-
         // it's null in case of native cucumber execution
         if (Reporter.getCurrentTestResult() != null) {
             var overridingBrowserName = Reporter.getCurrentTestResult().getTestContext().getCurrentXmlTest().getParameter("targetBrowserName");
