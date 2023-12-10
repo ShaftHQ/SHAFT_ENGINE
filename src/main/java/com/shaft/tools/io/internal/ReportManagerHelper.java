@@ -922,7 +922,7 @@ public class ReportManagerHelper {
                 + "/bin/allure";
 
         if (SystemUtils.IS_OS_WINDOWS) {
-            commandToCreateAllureReport = allureBinaryPath + ".bat" + " generate --single-file --clean'"
+            commandToCreateAllureReport = allureBinaryPath + ".bat" + " generate --single-file --clean '"
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
                     + "' -o 'allure-report'";
         } else {
