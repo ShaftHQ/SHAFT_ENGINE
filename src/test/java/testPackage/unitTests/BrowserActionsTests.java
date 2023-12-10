@@ -18,19 +18,21 @@ public class BrowserActionsTests {
         driver.get().browser().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
     }
 
-    //TODO: Investigate flaky pipeline failures
-    //@Test
+    @Test
     public void navigateBack() {
-        driver.get().browser().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
+        driver.get().browser().navigateToURL("https://duckduckgo.com/?");
+        driver.get().browser().navigateToURL("https://shafthq.github.io/");
         driver.get().browser().navigateBack();
         driver.get().assertThat().browser().url().contains("duckduckgo").perform();
     }
 
     @Test
     public void navigateForward() {
-        driver.get().browser().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
+        driver.get().browser().navigateToURL("https://duckduckgo.com/?");
+        driver.get().browser().navigateToURL("https://shafthq.github.io/");
         driver.get().browser().navigateBack();
         driver.get().browser().navigateForward();
+        driver.get().assertThat().browser().url().contains("shafthq").perform();
     }
 
     @Test
@@ -86,7 +88,7 @@ public class BrowserActionsTests {
     @BeforeMethod
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL("https://duckduckgo.com/?");
+        driver.get().browser().navigateToURL("https://shafthq.github.io/");
     }
 
     @AfterMethod(alwaysRun = true)
