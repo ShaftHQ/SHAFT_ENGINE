@@ -20,16 +20,16 @@ public class PropertiesHelper {
     public static void initialize() {
         //initialize default properties
         initializeDefaultProperties();
-        //override defaults for mobile platforms
+        //attach property files
+        attachPropertyFiles();
+        //load properties
+        loadProperties();
+        //override key settings for mobile platforms
         if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString(),
                 org.openqa.selenium.Platform.IOS.toString()).contains(Properties.platform.targetPlatform().toLowerCase())) {
             overrideScreenShotTypeForMobilePlatforms();
             overrideForcedFlagsForMobilePlatforms();
         }
-        //attach property files
-        attachPropertyFiles();
-        //load properties
-        loadProperties();
     }
 
     public static void loadProperties() {
@@ -57,7 +57,6 @@ public class PropertiesHelper {
         Properties.timeouts = ConfigFactory.create(Timeouts.class);
         Properties.performance = ConfigFactory.create(Performance.class);
         Properties.lambdaTest = ConfigFactory.create(LambdaTest.class);
-
     }
 
     public static void postProcessing() {
