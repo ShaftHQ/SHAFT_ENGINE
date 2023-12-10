@@ -5,8 +5,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class MobileTests {
-    boolean selfManaged;
-    int selfManagedAndroidSDKVersion;
     String platformName;
     String platformVersion;
     String deviceName;
@@ -21,8 +19,6 @@ public class MobileTests {
 
     @BeforeClass
     public void beforeClass() {
-        selfManaged = SHAFT.Properties.mobile.selfManaged();
-        selfManagedAndroidSDKVersion = SHAFT.Properties.mobile.selfManagedAndroidSDKVersion();
         platformName = SHAFT.Properties.mobile.platformName();
         platformVersion = SHAFT.Properties.mobile.platformVersion();
         deviceName = SHAFT.Properties.mobile.deviceName();
@@ -33,13 +29,10 @@ public class MobileTests {
         app = SHAFT.Properties.mobile.app();
         appPackage = SHAFT.Properties.mobile.appPackage();
         appActivity = SHAFT.Properties.mobile.appActivity();
-
     }
 
     @Test
     public void test() {
-        SHAFT.Properties.mobile.set().selfManaged(selfManaged);
-        SHAFT.Properties.mobile.set().selfManagedAndroidSDKVersion(selfManagedAndroidSDKVersion);
         SHAFT.Properties.mobile.set().platformName(platformName);
         SHAFT.Properties.mobile.set().platformVersion(platformVersion);
         SHAFT.Properties.mobile.set().deviceName(deviceName);
@@ -50,6 +43,5 @@ public class MobileTests {
         SHAFT.Properties.mobile.set().app(app);
         SHAFT.Properties.mobile.set().appPackage(appPackage);
         SHAFT.Properties.mobile.set().appActivity(appActivity);
-
     }
 }

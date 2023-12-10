@@ -12,13 +12,6 @@ import org.aeonbits.owner.ConfigFactory;
         "classpath:MobileCapabilities.properties",
 })
 public interface Mobile extends EngineProperties {
-    @Key("selfManaged")
-    @DefaultValue("false")
-    boolean selfManaged();
-
-    @Key("selfManagedAndroidSDKVersion")
-    @DefaultValue("31")
-    int selfManagedAndroidSDKVersion();
 
     @Key("mobile_platformName")
     @DefaultValue("")
