@@ -48,7 +48,7 @@
         <allure.version>2.25.0</allure.version> <!-- 2.21.0 DO NOT UPDATE || internal.properties -->
         <extentreports.version>5.1.0</extentreports.version>
         <aspectj.version>1.9.20.1</aspectj.version>
-        <rest-assured.version>5.3.2</rest-assured.version>
+        <rest-assured.version>5.4.0</rest-assured.version>
         <json-simple.version>1.1.1</json-simple.version>
         <json-path.version>2.8.0</json-path.version>
         <json-schema-validator.version>5.3.2</json-schema-validator.version>
