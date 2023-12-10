@@ -214,6 +214,11 @@ public class DriverFactoryHelper {
                     ffProfile.setPreference("browser.cache.offline.enable", false);
                     ffProfile.setPreference("network.http.use-cache", false);
                 }
+
+                // attempted fix for `org.openqa.selenium.WebDriverException: SecurityError: Permission denied to access property "pageXOffset" on cross-origin object`
+                ffProfile.setPreference("browser.contentblocking.enabled", false);
+//                ffProfile.setPreference("privacy.trackingprotection.enabled", false);
+
                 ffOptions.setProfile(ffProfile);
                 if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local"))
                     ffOptions.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
@@ -221,7 +226,7 @@ public class DriverFactoryHelper {
                     ffOptions.addArguments("-headless");
                 }
                 ffOptions.setLogLevel(FirefoxDriverLogLevel.WARN);
-                ffOptions.setPageLoadStrategy(PageLoadStrategy.EAGER);
+                ffOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
@@ -245,7 +250,7 @@ public class DriverFactoryHelper {
                 ieOptions = new InternetExplorerOptions();
                 if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local"))
                     ieOptions.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
-                ieOptions.setPageLoadStrategy(PageLoadStrategy.EAGER);
+                ieOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
                 ieOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ieOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
@@ -280,7 +285,7 @@ public class DriverFactoryHelper {
                 if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local"))
                     sfOptions.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
                 sfOptions.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
-                sfOptions.setPageLoadStrategy(PageLoadStrategy.EAGER);
+                sfOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
                 sfOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 sfOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
@@ -864,15 +869,8 @@ public class DriverFactoryHelper {
     }
 
     public static void initializeDriver() {
-        if (Properties.mobile.selfManaged() && (Properties.platform.targetPlatform().equalsIgnoreCase(Platform.ANDROID.toString())
-                || Properties.platform.targetPlatform().equalsIgnoreCase(Platform.IOS.toString()))) {
-            //singleton initialization
-            AppiumSelfManagementHelper.setupAppiumSelfManagedExecutionPrerequisites();
-        }
-
         var mobile_browserName = SHAFT.Properties.mobile.browserName();
         String targetBrowserName = SHAFT.Properties.web.targetBrowserName();
-
         // it's null in case of native cucumber execution
         if (Reporter.getCurrentTestResult() != null) {
             var overridingBrowserName = Reporter.getCurrentTestResult().getTestContext().getCurrentXmlTest().getParameter("targetBrowserName");
