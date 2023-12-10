@@ -11,6 +11,11 @@ import java.util.Date;
 public class UpdateChecker {
 
     public static void check() {
+        
+        boolean isLoggingDisabled = SHAFT.Properties.reporting.disableLogging();
+        ReportManager.logDiscrete("Checking for engine updates...");
+        SHAFT.Properties.reporting.set().disableLogging(true);
+        
         String lastCheckedFile = "engine_check";
         String todayDate = new SimpleDateFormat("dd-MM-yyyy").format(new Date());
         boolean doesEngineCheckFileExists = SHAFT.CLI.file().doesFileExist("target/", lastCheckedFile,1);
@@ -18,11 +23,9 @@ public class UpdateChecker {
 
         if (!doesEngineCheckFileExists || !doesFileContainTodayDate) {
 
-            boolean isLoggingDisabled = SHAFT.Properties.reporting.disableLogging();
             String logMessage = "";
             try {
-                ReportManager.logDiscrete("Checking for engine updates...");
-                SHAFT.Properties.reporting.set().disableLogging(true);
+               
                 String latestVersion = RestAssured.given().baseUri("https://api.github.com/").and().basePath("repos/ShaftHQ/SHAFT_ENGINE/releases/")
                         .when().get("latest")
                         .thenReturn().body().jsonPath().getString("name");
@@ -44,7 +47,8 @@ public class UpdateChecker {
             SHAFT.CLI.file().writeToFile("target/", lastCheckedFile, todayDate);
         }
         else {
-            ReportManager.logDiscrete("Engine Update check done for the day");
+            SHAFT.Properties.reporting.set().disableLogging(isLoggingDisabled);
+            ReportManager.logDiscrete("Engine Update check done for the day. \uD83D\uDC4D");
         }
     }
 
