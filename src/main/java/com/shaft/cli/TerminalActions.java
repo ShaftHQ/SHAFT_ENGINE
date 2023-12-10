@@ -320,7 +320,7 @@ public class TerminalActions {
 
         String finalDirectory = directory;
         internalCommands.forEach(command -> {
-            command = command.contains(".bat") && !command.contains(".\\") ? ".\\" + command : command;
+            command = command.contains(".bat") && !command.contains(".\\") && !command.matches("(^.:\\\\.*$)") ? ".\\" + command : command;
             ReportManager.logDiscrete("Executing: \"" + command + "\" locally.");
             try {
                 ProcessBuilder pb = getProcessBuilder(command, finalDirectory, isWindows);

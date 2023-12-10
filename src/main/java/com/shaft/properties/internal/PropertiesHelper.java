@@ -66,6 +66,7 @@ public class PropertiesHelper {
         setMobilePlatform();
         overrideScreenShotTypeForAnimatedGIF();
         overrideScreenshotTypeForSafariBrowser();
+        setExtraAllureProperties();
     }
 
     private static void overrideForcedFlagsForMobilePlatforms() {
@@ -79,8 +80,16 @@ public class PropertiesHelper {
         SHAFT.Properties.flags.set().validateSwipeToElement(false);
     }
 
+    private static void setExtraAllureProperties() {
+        System.setProperty("allure.testng.hide.configuration.failures", "true");
+        System.setProperty("allure.testng.hide.disabled.tests", "true");
+    }
+
     private static void overrideScreenShotTypeForMobilePlatforms() {
+        if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString(),
+                org.openqa.selenium.Platform.IOS.toString()).contains(Properties.platform.targetPlatform().toLowerCase())) {
             SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
+        }
     }
 
     private static void overrideScreenMaximizationForRemoteExecution() {
