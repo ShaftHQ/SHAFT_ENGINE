@@ -3,15 +3,14 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>7.4.20231210</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
+    <version>7.4.20231211</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
     <name>${project.groupId}:${project.artifactId}</name>
     <description>SHAFT is a unified test automation engine. Powered by best-in-class frameworks, SHAFT provides a
         wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve.
         Stop reinventing the wheel. Upgrade now!
     </description>
     <url>https://shafthq.github.io/</url>
-    <!--    <packaging>jar</packaging>-->
-    <packaging>multi-release-jar</packaging>
+    <packaging>jar</packaging>
     <licenses>
         <license>
             <name>MIT License</name>
@@ -40,45 +39,6 @@
         <maven.compiler.maxmem>10240m</maven.compiler.maxmem>
         <maven.compiler.meminitial>2048m</maven.compiler.meminitial>
         <maven.compiler.optimize>true</maven.compiler.optimize>
-
-        <!-- Dependencies and Plug-ins Version Numbers Parameters -->
-        <selenium.version>4.16.1</selenium.version>  <!-- MAKE SURE TO UPDATE DriverFactoryHelper import devtools.v119.network.Network TO LATEST VERSION WITH UPDATING SELENIUM-->
-        <appium-java-client.version>9.0.0</appium-java-client.version>
-        <webdrivermanager.version>5.6.2</webdrivermanager.version>
-        <allure.version>2.25.0</allure.version> <!-- 2.21.0 DO NOT UPDATE || internal.properties -->
-        <extentreports.version>5.1.0</extentreports.version>
-        <aspectj.version>1.9.20.1</aspectj.version>
-        <rest-assured.version>5.4.0</rest-assured.version>
-        <json-simple.version>1.1.1</json-simple.version>
-        <json-path.version>2.8.0</json-path.version>
-        <json-schema-validator.version>5.4.0</json-schema-validator.version>
-        <skyscreamer-jsonassert.version>1.5.1</skyscreamer-jsonassert.version>
-        <mime-util.version>2.1.3</mime-util.version>
-        <testng.version>7.8.0</testng.version>
-        <mssql-jdbc.version>9.4.1.jre16-preview</mssql-jdbc.version>
-        <mysql-connector-java.version>8.2.0</mysql-connector-java.version>
-        <postgresql.version>9.1-901-1.jdbc4</postgresql.version>
-        <!-- <ojdbc8.version>19.3.0.0</ojdbc8.version> -->
-        <apachepoi.version>5.2.5</apachepoi.version>
-        <org.slf4j.version>2.0.1</org.slf4j.version>
-        <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
-        <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
-        <maven-surefire-plugin.version>3.2.2</maven-surefire-plugin.version>
-        <maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
-        <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
-        <maven-javadoc-plugin.version>3.6.3</maven-javadoc-plugin.version>
-        <maven-scm-publish-plugin.version>3.2.1</maven-scm-publish-plugin.version>
-        <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
-        <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
-        <cucumber.version>7.14.1</cucumber.version>
-        <cverges-expect4j.version>1.9</cverges-expect4j.version>
-        <applitools-eyes.version>4.14.0</applitools-eyes.version>
-        <sikulixapi.version>2.0.5</sikulixapi.version> <!-- Do not update before running the test locally -->
-        <jave-all-deps.version>3.4.0</jave-all-deps.version>
-        <video-recorder-testng.version>2.0</video-recorder-testng.version>
-        <pdfbox.version>2.0.29</pdfbox.version>
-        <org.yaml.version>2.2</org.yaml.version>
-        <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
         <surefireArgLine></surefireArgLine>
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install -DskipTests</installToLocalRepository>
@@ -106,7 +66,7 @@
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
-            <version>${testng.version}</version>
+            <version>7.8.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.guava</groupId>
@@ -131,7 +91,7 @@
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-junit5</artifactId>
-            <version>${allure.version}</version>
+            <version>2.25.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.junit.jupiter</groupId>
@@ -148,7 +108,7 @@
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
-            <version>${selenium.version}</version>
+            <version>4.16.1</version> <!-- MAKE SURE TO UPDATE DriverFactoryHelper import devtools.v119.network.Network TO LATEST VERSION WITH UPDATING SELENIUM-->
             <exclusions>
                 <exclusion>
                     <groupId>com.google.guava</groupId>
@@ -165,7 +125,7 @@
         <dependency>
             <groupId>io.appium</groupId>
             <artifactId>java-client</artifactId>
-            <version>${appium-java-client.version}</version>
+            <version>9.0.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.seleniumhq.selenium</groupId>
@@ -198,7 +158,7 @@
         <dependency>
             <groupId>io.github.bonigarcia</groupId>
             <artifactId>webdrivermanager</artifactId>
-            <version>${webdrivermanager.version}</version>
+            <version>5.6.2</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -211,12 +171,12 @@
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-java</artifactId>
-            <version>${cucumber.version}</version>
+            <version>7.14.1</version>
         </dependency>
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-testng</artifactId>
-            <version>${cucumber.version}</version>
+            <version>7.14.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.testng</groupId>
@@ -235,7 +195,7 @@
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-picocontainer</artifactId>
-            <version>${cucumber.version}</version>
+            <version>7.14.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.cucumber</groupId>
@@ -252,7 +212,7 @@
         <dependency>
            <groupId>org.apache.poi</groupId>
                <artifactId>poi</artifactId>
-               <version>${apachepoi.version}</version>
+               <version>5.2.5</version>
            <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -267,7 +227,7 @@
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
-            <version>${apachepoi.version}</version>
+            <version>5.2.5</version>
             <exclusions>
             <exclusion>
             	<groupId>xml-apis</groupId>
@@ -284,7 +244,7 @@
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-testng</artifactId>
-            <version>${allure.version}</version>
+            <version>2.25.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -299,7 +259,7 @@
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-java-commons</artifactId>
-            <version>${allure.version}</version>
+            <version>2.25.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -310,7 +270,7 @@
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-cucumber7-jvm</artifactId>
-            <version>${allure.version}</version>
+            <version>2.25.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.cucumber</groupId>
@@ -325,14 +285,14 @@
         <dependency>
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjweaver</artifactId>
-            <version>${aspectj.version}</version>
+            <version>1.9.20.1</version>
         </dependency>
 
         <!-- EXTENT REPORTS -->
         <dependency>
             <groupId>com.aventstack</groupId>
             <artifactId>extentreports</artifactId>
-            <version>${extentreports.version}</version>
+            <version>5.1.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.projectlombok</groupId>
@@ -345,19 +305,19 @@
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>
-            <version>${pdfbox.version}</version>
+            <version>2.0.29</version>
         </dependency>
 
         <!-- REST ASSURED -->
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
-            <version>${rest-assured.version}</version>
+            <version>5.4.0</version>
         </dependency>
         <dependency>
             <groupId>com.googlecode.json-simple</groupId>
             <artifactId>json-simple</artifactId>
-            <version>${json-simple.version}</version>
+            <version>1.1.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>junit</groupId>
@@ -368,7 +328,7 @@
         <dependency>
             <groupId>com.jayway.jsonpath</groupId>
             <artifactId>json-path</artifactId>
-            <version>${json-path.version}</version>
+            <version>2.8.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -383,12 +343,12 @@
         <dependency>
             <groupId>org.skyscreamer</groupId>
             <artifactId>jsonassert</artifactId>
-            <version>${skyscreamer-jsonassert.version}</version>
+            <version>1.5.1</version>
         </dependency>
         <dependency>
             <groupId>eu.medsea.mimeutil</groupId>
             <artifactId>mime-util</artifactId>
-            <version>${mime-util.version}</version>
+            <version>2.1.3</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -407,7 +367,7 @@
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>json-schema-validator</artifactId>
-            <version>${json-schema-validator.version}</version>
+            <version>5.4.0</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.datatype/jackson-datatype-jdk8 -->
         <dependency>
@@ -420,7 +380,7 @@
         <dependency>
             <groupId>com.applitools</groupId>
             <artifactId>eyes-images-java4</artifactId>
-            <version>${applitools-eyes.version}</version>
+            <version>4.14.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -438,7 +398,7 @@
         <dependency>
             <groupId>com.sikulix</groupId>
             <artifactId>sikulixapi</artifactId>
-            <version>${sikulixapi.version}</version>
+            <version>2.0.5</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.netty</groupId>
@@ -587,24 +547,24 @@
         <dependency>
             <groupId>com.jcraft</groupId>
             <artifactId>jsch</artifactId>
-            <version>${jcraft-jsch.version}</version>
+            <version>0.1.55</version>
         </dependency>
 
         <!-- DATABASE CONNECTORS -->
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
-            <version>${mysql-connector-java.version}</version>
+            <version>8.2.0</version>
         </dependency>
         <dependency>
             <groupId>com.microsoft.sqlserver</groupId>
             <artifactId>mssql-jdbc</artifactId>
-            <version>${mssql-jdbc.version}</version>
+            <version>9.4.1.jre16-preview</version>
         </dependency>
         <dependency>
             <groupId>postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>${postgresql.version}</version>
+            <version>9.1-901-1.jdbc4</version>
         </dependency>
         <dependency>
             <groupId>com.ibm.db2.jcc</groupId>
@@ -614,7 +574,7 @@
         <!-- <dependency> -->
         <!-- <groupId>com.oracle.jdbc</groupId> -->
         <!-- <artifactId>ojdbc8</artifactId> -->
-        <!-- <version>${ojdbc8.version}</version> -->
+        <!-- <version>19.3.0.0</version> -->
         <!-- </dependency> -->
 
         <!-- VIDEO RECORDING -->
@@ -622,7 +582,7 @@
         <dependency>
             <groupId>ws.schild</groupId>
             <artifactId>jave-all-deps</artifactId>
-            <version>${jave-all-deps.version}</version>
+            <version>3.4.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -635,7 +595,7 @@
         <dependency>
             <groupId>com.automation-remarks</groupId>
             <artifactId>video-recorder-testng</artifactId>
-            <version>${video-recorder-testng.version}</version>
+            <version>2.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -729,7 +689,7 @@
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
-            <version>${org.yaml.version}</version>
+            <version>2.2</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.aeonbits.owner/owner -->
@@ -748,7 +708,7 @@
         <dependency>
             <groupId>org.jacoco</groupId>
             <artifactId>jacoco-maven-plugin</artifactId>
-            <version>${jacoco-maven-plugin.version}</version>
+            <version>0.8.10</version>
             <type>maven-plugin</type>
         </dependency>
 
@@ -790,37 +750,23 @@
             </resource>
         </resources>
 
-        <!--Extensions -->
-        <extensions>
-            <extension>
-                <!-- https://mvnrepository.com/artifact/pw.krejci/multi-release-jar-maven-plugin -->
-                <!-- https://github.com/metlos/multi-release-jar-maven-plugin -->
-                <groupId>pw.krejci</groupId>
-                <artifactId>multi-release-jar-maven-plugin</artifactId>
-                <version>0.1.5</version>
-            </extension>
-        </extensions>
-
         <!--Plugins -->
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven-compiler-plugin.version}</version>
+                <version>3.11.0</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>${maven-jar-plugin.version}</version>
+                <version>3.3.0</version>
                 <configuration>
                     <classesDirectory>target/classes</classesDirectory>
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
                         </manifest>
-                        <manifestEntries>
-                            <Multi-Release>true</Multi-Release>
-                        </manifestEntries>
                     </archive>
                     <includes>
                         <include>com/**/*</include>
@@ -831,7 +777,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>${maven-javadoc-plugin.version}</version>
+                <version>3.6.3</version>
                 <configuration>
                     <javadocExecutable>${java.home}/bin/javadoc</javadocExecutable>
                     <sourcepath>
@@ -857,7 +803,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-scm-publish-plugin</artifactId>
-                <version>${maven-scm-publish-plugin.version}</version>
+                <version>3.2.1</version>
                 <configuration>
                     <checkoutDirectory>${project.basedir}/../SHAFT_ENGINE_apidocs</checkoutDirectory>
                     <tryUpdate>true</tryUpdate>
@@ -872,7 +818,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>${maven-source-plugin.version}</version>
+                <version>3.3.0</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
@@ -896,7 +842,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
-                <version>${maven-resources-plugin.version}</version>
+                <version>3.3.1</version>
                 <configuration>
                     <encoding>UTF-8</encoding>
                     <outputDirectory>target/classes</outputDirectory>
@@ -905,7 +851,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>${jacoco-maven-plugin.version}</version>
+                <version>0.8.10</version>
                 <configuration>
                     <excludes>
                         <exclude>**/*Aspect</exclude>
@@ -1048,12 +994,12 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
-                        <version>${maven-surefire-plugin.version}</version>
+                        <version>3.2.2</version>
                         <dependencies>
                             <dependency>
                                 <groupId>org.aspectj</groupId>
                                 <artifactId>aspectjweaver</artifactId>
-                                <version>${aspectj.version}</version>
+                                <version>1.9.20.1</version>
                             </dependency>
                             <dependency>
                                 <groupId>org.apache.maven.surefire</groupId>
@@ -1077,7 +1023,7 @@
                             <encoding>UTF-8</encoding>
                            <argLine>
                                @{argLine} ${surefireArgLine}
-                               -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
+                               -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.20.1/aspectjweaver-1.9.20.1.jar"
                             </argLine>
                             <properties>
                                 <property>
@@ -1111,12 +1057,12 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
-                        <version>${maven-surefire-plugin.version}</version>
+                        <version>3.2.2</version>
                         <dependencies>
                             <dependency>
                                 <groupId>org.aspectj</groupId>
                                 <artifactId>aspectjweaver</artifactId>
-                                <version>${aspectj.version}</version>
+                                <version>1.9.20.1</version>
                             </dependency>
                         </dependencies>
                         <configuration>
@@ -1132,7 +1078,7 @@
                             <encoding>UTF-8</encoding>
                            <argLine>
                                @{argLine} ${surefireArgLine}
-                               -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
+                               -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.20.1/aspectjweaver-1.9.20.1.jar"
                             </argLine>
                             <properties>
                                 <property>
