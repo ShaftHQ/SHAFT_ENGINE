@@ -454,7 +454,7 @@ public class DriverFactoryHelper {
         return logPrefs;
     }
 
-    private static void createNewLocalDriverInstance(DriverType driverType, boolean retry) {
+    private static void createNewLocalDriverInstance(DriverType driverType, int retryAttempts) {
         String initialLog = "Attempting to run locally on: \"" + Properties.platform.targetPlatform() + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
         if (SHAFT.Properties.web.headlessExecution()) {
             initialLog = initialLog + ", Headless Execution";
@@ -478,7 +478,7 @@ public class DriverFactoryHelper {
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
             }
             ReportManager.log(initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".");
-        } catch (SessionNotCreatedException | WebDriverManagerException exception) {
+        } catch (SessionNotCreatedException | WebDriverManagerException | org.openqa.selenium.TimeoutException exception) {
             if (driverType.equals(DriverType.SAFARI)
                     && Throwables.getRootCause(exception).getMessage().toLowerCase().contains("safari instance is already paired with another webdriver session")) {
                 //this issue happens when running locally via safari/mac platform
@@ -498,13 +498,13 @@ public class DriverFactoryHelper {
             } finally {
                 driver = null;
             }
-            if (retry) {
+            if (retryAttempts>0) {
                 try {
                     Thread.sleep(5000);
                 } catch (InterruptedException e) {
                     //do nothing
                 }
-                createNewLocalDriverInstance(driverType, false);
+                createNewLocalDriverInstance(driverType, retryAttempts-1);
             }
             failAction("Failed to create new Browser Session", exception);
         }
@@ -925,7 +925,7 @@ public class DriverFactoryHelper {
                 //desktop execution
                 setDriverOptions(driverType, customDriverOptions);
                 switch (SHAFT.Properties.platform.executionAddress()) {
-                    case "local" -> createNewLocalDriverInstance(driverType, true);
+                    case "local" -> createNewLocalDriverInstance(driverType, 6);
                     case "dockerized" -> createNewDockerizedDriverInstance(driverType);
                     default -> createNewRemoteDriverInstance(driverType);
                 }
