@@ -478,7 +478,7 @@ public class DriverFactoryHelper {
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
             }
             ReportManager.log(initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".");
-        } catch (SessionNotCreatedException | WebDriverManagerException | org.openqa.selenium.TimeoutException exception) {
+        } catch (Exception exception) {
             if (driverType.equals(DriverType.SAFARI)
                     && Throwables.getRootCause(exception).getMessage().toLowerCase().contains("safari instance is already paired with another webdriver session")) {
                 //this issue happens when running locally via safari/mac platform
