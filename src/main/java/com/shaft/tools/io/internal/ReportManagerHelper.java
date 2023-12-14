@@ -13,6 +13,7 @@ import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.listeners.CucumberFeatureListener;
+import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.PropertyFileManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
@@ -190,9 +191,28 @@ public class ReportManagerHelper {
         allureResultsFolderPath = SHAFT.Properties.paths.allureResults();
         cleanAllureResultsDirectory();
         downloadAndExtractAllureBinaries();
+        overrideAllurePluginConfiguration();
         writeGenerateReportShellFilesToProjectDirectory();
         writeEnvironmentVariablesToAllureResultsDirectory();
+        createAllureListenersMetaFiles();
         ReportHelper.enableLogging();
+    }
+
+    private static void overrideAllurePluginConfiguration() {
+        String allureVersion = SHAFT.Properties.internal.allureVersion();
+        // extract allure from SHAFT_Engine jar
+        URL allureSHAFTConfigArchive = ReportManagerHelper.class.getResource("/resources/allure/allureBinary_SHAFTEngineConfigFiles.zip");
+        FileActions.getInstance().unpackArchive(allureSHAFTConfigArchive,
+                allureExtractionLocation + "allure-" + allureVersion + File.separator);
+        // deleting custom-logo.svg to avoid generating extra folder with report in single mode
+        FileActions.getInstance().deleteFile(allureExtractionLocation + "allure-" + allureVersion + File.separator + "plugins"+File.separator+"custom-logo-plugin"+File.separator+"static"+File.separator+"custom-logo.svg" );
+
+    }
+
+    private static void createAllureListenersMetaFiles() {
+        FileActions.getInstance().createFolder(com.shaft.properties.internal.Properties.paths.services());
+        Arrays.asList("io.qameta.allure.listener.ContainerLifecycleListener","io.qameta.allure.listener.FixtureLifecycleListener",
+                "io.qameta.allure.listener.StepLifecycleListener", "io.qameta.allure.listener.TestLifecycleListener").forEach(fileName -> FileActions.getInstance().writeToFile(Properties.paths.services(), fileName, "com.shaft.listeners.AllureListener"));
     }
 
     private static void initializeLogger() {
@@ -695,7 +715,6 @@ public class ReportManagerHelper {
             logAttachmentAction(attachmentType, attachmentName, byteArrayOutputStream);
         }
     }
-
     @SuppressWarnings("SpellCheckingInspection")
     private static void attachBasedOnFileType(String attachmentType, String attachmentName,
                                               ByteArrayOutputStream attachmentContent, String attachmentDescription) {
@@ -724,9 +743,7 @@ public class ReportManagerHelper {
         } else if (attachmentType.toLowerCase().contains("link")) {
             Allure.addAttachment(attachmentDescription, "text/uri-list", content, ".uri");
         } else if (attachmentType.toLowerCase().contains("engine logs")) {
-            if(Allure.getLifecycle().getCurrentTestCaseOrStep().isPresent()) {
                 Allure.addAttachment(attachmentDescription, "text/plain", content, ".txt");
-            }
         } else if (attachmentType.toLowerCase().contains("page snapshot")) {
             Allure.addAttachment(attachmentDescription, "multipart/related", content, ".mhtml");
         } else if (attachmentType.toLowerCase().contains("html")) {
@@ -855,12 +872,6 @@ public class ReportManagerHelper {
                             + "/allure-commandline-" + allureVersion + ".zip",
                     "target" + File.separator + "allureBinary.zip");
             FileActions.getInstance().unpackArchive(allureArchive, allureExtractionLocation);
-            // extract allure from SHAFT_Engine jar
-            URL allureSHAFTConfigArchive = ReportManagerHelper.class.getResource("/resources/allure/allureBinary_SHAFTEngineConfigFiles.zip");
-            FileActions.getInstance().unpackArchive(allureSHAFTConfigArchive,
-                    allureExtractionLocation + "allure-" + allureVersion + File.separator);
-            // deleting custom-logo.svg to avoid generating extra folder with report in single mode
-            FileActions.getInstance().deleteFile(allureExtractionLocation + "allure-" + allureVersion + File.separator + "plugins"+File.separator+"custom-logo-plugin"+File.separator+"static"+File.separator+"custom-logo.svg" );
 
             if (!SystemUtils.IS_OS_WINDOWS) {
                 // make allure executable on Unix-based shells

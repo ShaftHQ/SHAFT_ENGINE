@@ -30,7 +30,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     private static final List<ITestNGMethod> passedTests = new ArrayList<>();
     private static final List<ITestNGMethod> failedTests = new ArrayList<>();
     private static final List<ITestNGMethod> skippedTests = new ArrayList<>();
-
+    @Getter
+    private static ITestResult iTestResult;
     private static long executionStartTime;
 
     @Getter
@@ -164,6 +165,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
             TestNGListenerHelper.logTestInformation(iTestResult);
             TestNGListenerHelper.failFast(iTestResult);
             TestNGListenerHelper.skipTestsWithLinkedIssues(iTestResult);
+            TestNGListener.iTestResult = iTestResult;
 //        }
     }
 
@@ -184,7 +186,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
 //        if (isTestNGRun()) {
             IssueReporter.updateTestStatusInCaseOfVerificationFailure(iTestResult);
             IssueReporter.updateIssuesLog(iTestResult);
-            TestNGListenerHelper.updateConfigurationMethodLogs(iTestResult);
+            TestNGListenerHelper.updateTestMethods(iTestResult);
+//            TestNGListenerHelper.updateConfigurationMethodLogs(iTestResult);
             TestNGListenerHelper.logFinishedTestInformation(iTestResult);
             ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
 //        }
