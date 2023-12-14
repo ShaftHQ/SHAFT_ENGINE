@@ -222,7 +222,25 @@ public class ScreenshotManager {
             return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
         } catch (RuntimeException runtimeException) {
             // java.lang.RuntimeException: Unexpected result for screenshot command: com.google.common.collect.Maps$TransformedEntriesMap instance
-            // org.openqa.selenium.WebDriverException: unknown error: unhandled inspector error: {"code":-32000,"message":"Unable to capture screenshot"}
+            if (runtimeException.getMessage().contains("Permission denied to access property \"pageXOffset\" on cross-origin object")
+                || runtimeException.getMessage().contains("not connected to DevTools")){
+                // Ubuntu_Firefox_Grid
+                // org.openqa.selenium.WebDriverException: SecurityError: Permission denied to access property "pageXOffset" on cross-origin object
+                // MacOSX_Chrome_Local
+                // org.openqa.selenium.WebDriverException: disconnected: not connected to DevTools
+                driver.switchTo().defaultContent();
+                takeViewportScreenshot(driver);
+            }
+
+            if (runtimeException.getMessage().contains("unhandled inspector error: {\"code\":-32000,\"message\":\"Unable to capture screenshot\"}")){
+                // Ubuntu_Edge_Grid, Ubuntu_Chrome_Grid
+                // org.openqa.selenium.WebDriverException: unknown error: unhandled inspector error: {"code":-32000,"message":"Unable to capture screenshot"}
+                driver.switchTo().defaultContent();
+                takeViewportScreenshot(driver);
+            }
+
+
+
             FailureReporter.fail(ScreenshotManager.class, "Failed to capture screenshot", runtimeException);
             return null;
         }
