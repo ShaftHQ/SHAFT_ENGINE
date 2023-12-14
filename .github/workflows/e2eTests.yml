@@ -36,13 +36,13 @@ jobs:
   #          verbose: true
   #      - name: Upload Allure Report as Pipeline Artifact
   #        if: always()
-  #        uses: actions/upload-artifact@v3
+  #        uses: actions/upload-artifact@v4
   #        with:
   #          name: Ubuntu_Database_Allure
   #          path: "generatedReport_*.zip"
   #      - name: Upload Execution Summary Report as Pipeline Artifact
   #        if: always()
-  #        uses: actions/upload-artifact@v3
+  #        uses: actions/upload-artifact@v4
   #        with:
   #          name: Ubuntu_Database_Summary
   #          path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -75,13 +75,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_APIs_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_APIs_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -118,13 +118,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_Firefox_Grid_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_Firefox_Grid_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -161,13 +161,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_Chrome_Grid_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_Chrome_Grid_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -204,13 +204,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_Edge_Grid_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_Edge_Grid_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -248,13 +248,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Windows_Edge_Local_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Windows_Edge_Local_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -291,13 +291,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Windows_Chrome_Local_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Windows_Chrome_Local_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -330,13 +330,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MacOSX_Safari_Local_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MacOSX_Safari_Local_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -373,13 +373,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MacOSX_Chrome_Local_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MacOSX_Chrome_Local_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -518,14 +518,14 @@ jobs:
   #
   #      - name: Upload Allure Report as Pipeline Artifact
   #        if: always()
-  #        uses: actions/upload-artifact@v3
+  #        uses: actions/upload-artifact@v4
   #        with:
   #          name: Android_Native_Emulator_Allure
   #          path: "generatedReport_*.zip"
   #
   #      - name: Upload Execution Summary Report as Pipeline Artifact
   #        if: always()
-  #        uses: actions/upload-artifact@v3
+  #        uses: actions/upload-artifact@v4
   #        with:
   #          name: Android_Native_Emulator_Summary
   #          path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -558,13 +558,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Android_Native_BrowserStack_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Android_Native_BrowserStack_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -597,13 +597,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: iOS_Web_SAFARI_BrowserStack_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: iOS_Web_SAFARI_BrowserStack_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -636,13 +636,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Android_Web_Chrome_BrowserStack_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Android_Web_Chrome_BrowserStack_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -675,13 +675,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Android_Web_Samsung_BrowserStack_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Android_Web_Samsung_BrowserStack_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -714,13 +714,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MacOSX_Safari_BrowserStack_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MacOSX_Safari_BrowserStack_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -763,13 +763,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_Chrome_Cucumber_Grid_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_Chrome_Cucumber_Grid_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -811,13 +811,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Windows_Edge_Cucumber_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Windows_Edge_Cucumber_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -853,13 +853,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MacOSX_Safari_Cucumber_BrowserStack_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MacOSX_Safari_Cucumber_BrowserStack_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -896,13 +896,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LambdaTest_NativeAndroid_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LambdaTest_NativeAndroid_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -939,13 +939,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LambdaTest_NativeIOS_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LambdaTest_NativeIOS_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -982,13 +982,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LambdaTestWebApp_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LambdaTestWebApp_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -1025,13 +1025,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LambdaTestDesktopWeb_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LambdaTestDesktopWeb_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
