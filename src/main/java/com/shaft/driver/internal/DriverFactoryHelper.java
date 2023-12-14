@@ -340,52 +340,52 @@ public class DriverFactoryHelper {
 
 //         https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
 //         https://docs.google.com/spreadsheets/d/1n-vw_PCPS45jX3Jt9jQaAhFqBY6Ge1vWF_Pa0k7dCk4/edit#gid=1265672696
-        options.addArguments("--remote-allow-origins=*",
-                "--enable-automation"
-                , "--disable-background-timer-throttling"
-                , "--disable-backgrounding-occluded-windows"
-                , "--disable-features=CalculateNativeWinOcclusion"
-                , "--disable-hang-monitor"
-                , "--disable-domain-reliability"
-                , "--disable-renderer-backgrounding"
-                , "--disable-features=AutofillServerCommunication"
-                , "--metrics-recording-only"
-                , "--no-first-run"
-                , "--no-default-browser-check"
-                , "--silent-debugger-extension-api"
-                , "--disable-extensions"
-                , "--disable-component-extensions-with-background-pages"
-                , "--disable-dev-shm-usage"
-                , "--disable-features=MediaRouter"
-                , "--disable-features=Translate"
-                , "--disable-ipc-flooding-protection"
-                , "--disable-background-networking"
-                , "--mute-audio"
-                , "--disable-breakpad"
-                , "--ignore-certificate-errors"
-                , "--disable-device-discovery-notifications"
-                , "--force-color-profile=srgb"
-                , "--hide-scrollbars"
-                , "--host-resolver-rules"
-                , "--no-pings"
-                , "--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync"
-                , "--disable-features=CertificateTransparencyComponentUpdater"
-                , "--disable-sync"
-                , "--disable-features=OptimizationHints"
-                , "--disable-features=DialMediaRouteProvider"
-                , "--disable-features=GlobalMediaControls"
-                , "--disable-features=ImprovedCookieControls"
-                , "--disable-features=LazyFrameLoading"
-                , "--disable-field-trial-config"
-                , "--enable-features=NetworkService"
-                , "--enable-features=NetworkServiceInProcess"
-                , "--enable-use-zoom-for-dsf"
-                , "--log-net-log"
-                , "--net-log-capture-mode"
-                , "--disable-client-side-phishing-detection"
-                , "--disable-default-apps"
-                , "--disable-features=InterestFeedContentSuggestions"
-        );
+//        options.addArguments("--remote-allow-origins=*",
+//                "--enable-automation"
+//                , "--disable-background-timer-throttling"
+//                , "--disable-backgrounding-occluded-windows"
+//                , "--disable-features=CalculateNativeWinOcclusion"
+//                , "--disable-hang-monitor"
+//                , "--disable-domain-reliability"
+//                , "--disable-renderer-backgrounding"
+//                , "--disable-features=AutofillServerCommunication"
+//                , "--metrics-recording-only"
+//                , "--no-first-run"
+//                , "--no-default-browser-check"
+//                , "--silent-debugger-extension-api"
+//                , "--disable-extensions"
+//                , "--disable-component-extensions-with-background-pages"
+//                , "--disable-dev-shm-usage"
+//                , "--disable-features=MediaRouter"
+//                , "--disable-features=Translate"
+//                , "--disable-ipc-flooding-protection"
+//                , "--disable-background-networking"
+//                , "--mute-audio"
+//                , "--disable-breakpad"
+//                , "--ignore-certificate-errors"
+//                , "--disable-device-discovery-notifications"
+//                , "--force-color-profile=srgb"
+//                , "--hide-scrollbars"
+//                , "--host-resolver-rules"
+//                , "--no-pings"
+//                , "--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync"
+//                , "--disable-features=CertificateTransparencyComponentUpdater"
+//                , "--disable-sync"
+//                , "--disable-features=OptimizationHints"
+//                , "--disable-features=DialMediaRouteProvider"
+//                , "--disable-features=GlobalMediaControls"
+//                , "--disable-features=ImprovedCookieControls"
+//                , "--disable-features=LazyFrameLoading"
+//                , "--disable-field-trial-config"
+//                , "--enable-features=NetworkService"
+//                , "--enable-features=NetworkServiceInProcess"
+//                , "--enable-use-zoom-for-dsf"
+//                , "--log-net-log"
+//                , "--net-log-capture-mode"
+//                , "--disable-client-side-phishing-detection"
+//                , "--disable-default-apps"
+//                , "--disable-features=InterestFeedContentSuggestions"
+//        );
 
         Map<String, Object> chromePreferences = new HashMap<>();
         chromePreferences.put("profile.default_content_settings.popups", 0);
@@ -394,7 +394,7 @@ public class DriverFactoryHelper {
         options.setExperimentalOption("prefs", chromePreferences);
         options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
         options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
-        options.setPageLoadStrategy(PageLoadStrategy.NONE); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
+        options.setPageLoadStrategy(PageLoadStrategy.NORMAL); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
         options.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
         options.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
         //Add Proxy Setting if found
@@ -497,6 +497,16 @@ public class DriverFactoryHelper {
                 // ignore
             } finally {
                 driver = null;
+            }
+            if (exception.getMessage().contains("java.util.concurrent.TimeoutException")){
+                // this happens in case an auto closable BiDi session was left hanging
+                // the default timeout is 30 seconds, so this wait will waste 26 and the following will waste 5 more
+                // the desired effect will be to wait for the bidi session to timeout
+                try {
+                    Thread.sleep(Duration.ofSeconds(26));
+                } catch (InterruptedException e) {
+                    //do nothing
+                }
             }
             if (retryAttempts>0) {
                 try {
