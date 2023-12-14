@@ -985,7 +985,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
-                        <version>3.2.2</version>
+                        <version>3.2.3</version>
                         <dependencies>
                             <dependency>
                                 <groupId>org.aspectj</groupId>
@@ -995,7 +995,7 @@
                             <dependency>
                                 <groupId>org.apache.maven.surefire</groupId>
                                 <artifactId>surefire-testng</artifactId>
-                                <version>3.2.2</version>
+                                <version>3.2.3</version>
                             </dependency>
                         </dependencies>
                         <configuration>
@@ -1010,7 +1010,7 @@
                             <useFile>false</useFile>
                            <argLine>
                                @{argLine} ${surefireArgLine}
-                               -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.20.1/aspectjweaver-1.9.20.1.jar"
+                               -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.21/aspectjweaver-1.9.21.jar"
                             </argLine>
                             <properties>
                                 <property>
@@ -1044,7 +1044,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
-                        <version>3.2.2</version>
+                        <version>3.2.3</version>
                         <dependencies>
                             <dependency>
                                 <groupId>org.aspectj</groupId>
@@ -1064,7 +1064,7 @@
                             <useFile>false</useFile>
                            <argLine>
                                @{argLine} ${surefireArgLine}
-                               -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.20.1/aspectjweaver-1.9.20.1.jar"
+                               -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.21/aspectjweaver-1.9.21.jar"
                             </argLine>
                             <properties>
                                 <property>
