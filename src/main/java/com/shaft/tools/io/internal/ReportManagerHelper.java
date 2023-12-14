@@ -695,7 +695,6 @@ public class ReportManagerHelper {
             logAttachmentAction(attachmentType, attachmentName, byteArrayOutputStream);
         }
     }
-
     @SuppressWarnings("SpellCheckingInspection")
     private static void attachBasedOnFileType(String attachmentType, String attachmentName,
                                               ByteArrayOutputStream attachmentContent, String attachmentDescription) {
@@ -724,9 +723,7 @@ public class ReportManagerHelper {
         } else if (attachmentType.toLowerCase().contains("link")) {
             Allure.addAttachment(attachmentDescription, "text/uri-list", content, ".uri");
         } else if (attachmentType.toLowerCase().contains("engine logs")) {
-            if(Allure.getLifecycle().getCurrentTestCaseOrStep().isPresent()) {
                 Allure.addAttachment(attachmentDescription, "text/plain", content, ".txt");
-            }
         } else if (attachmentType.toLowerCase().contains("page snapshot")) {
             Allure.addAttachment(attachmentDescription, "multipart/related", content, ".mhtml");
         } else if (attachmentType.toLowerCase().contains("html")) {
