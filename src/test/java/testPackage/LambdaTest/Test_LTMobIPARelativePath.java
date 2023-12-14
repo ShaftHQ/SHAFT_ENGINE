@@ -7,9 +7,7 @@ import com.shaft.validation.Validations;
 import io.appium.java_client.AppiumBy;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.testng.annotations.*;
 
 public class Test_LTMobIPARelativePath {
     SHAFT.TestData.JSON testData;
@@ -27,7 +25,7 @@ public class Test_LTMobIPARelativePath {
                 .perform();
     }
 
-    @BeforeClass
+    @BeforeMethod
     public void setup() {
         testData = new SHAFT.TestData.JSON("credentials.json");
         // common attributes
@@ -48,7 +46,7 @@ public class Test_LTMobIPARelativePath {
 
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     public void teardown() {
         DriverFactory.closeAllDrivers();
     }

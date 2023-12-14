@@ -5,9 +5,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.ElementActions;
 import io.appium.java_client.AppiumBy;
 import org.openqa.selenium.Platform;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.testng.annotations.*;
 
 public class Test_LTMobIPAAppURL {
     SHAFT.TestData.JSON testData;
@@ -21,7 +19,7 @@ public class Test_LTMobIPAAppURL {
                 isEqualTo("hello@browserstack.com").perform();
     }
 
-    @BeforeClass
+    @BeforeMethod
     public void setup() {
         testData = new SHAFT.TestData.JSON("credentials.json");
         // common attributes
@@ -39,7 +37,7 @@ public class Test_LTMobIPAAppURL {
 
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     public void teardown() {
         DriverFactory.closeAllDrivers();
     }
