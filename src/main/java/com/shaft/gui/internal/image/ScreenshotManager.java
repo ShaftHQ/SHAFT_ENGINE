@@ -219,13 +219,13 @@ public class ScreenshotManager {
     }
 
     public static byte[] takeViewportScreenshot(WebDriver driver) {
-        return takeViewportScreenshot(driver, 5);
+        return takeViewportScreenshot(driver, 6);
     }
 
-    public static byte[] takeViewportScreenshot(WebDriver driver, int retryAttempts) {
+    private static byte[] takeViewportScreenshot(WebDriver driver, int retryAttempts) {
         try {
             return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-        } catch (Exception exception) {
+        } catch (RuntimeException exception) {
             if (retryAttempts<=0){
                 ReportManagerHelper.logDiscrete(exception, Level.WARN);
                 ReportManagerHelper.logDiscrete("Failed to take a screenshot after 5 attempts.", Level.WARN);
