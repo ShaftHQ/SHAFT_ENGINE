@@ -12,6 +12,7 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import org.apache.logging.log4j.Level;
 import org.imgscalr.Scalr;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.*;
@@ -218,31 +219,34 @@ public class ScreenshotManager {
     }
 
     public static byte[] takeViewportScreenshot(WebDriver driver) {
+        return takeViewportScreenshot(driver, 5);
+    }
+
+    public static byte[] takeViewportScreenshot(WebDriver driver, int retryAttempts) {
         try {
             return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-        } catch (RuntimeException runtimeException) {
+        } catch (Exception exception) {
+            if (retryAttempts<=0){
+                ReportManagerHelper.logDiscrete(exception, Level.WARN);
+                ReportManagerHelper.logDiscrete("Failed to take a screenshot after 5 attempts.", Level.WARN);
+                return null;
+            } else
             // java.lang.RuntimeException: Unexpected result for screenshot command: com.google.common.collect.Maps$TransformedEntriesMap instance
-            if (runtimeException.getMessage().contains("Permission denied to access property \"pageXOffset\" on cross-origin object")
-                || runtimeException.getMessage().contains("not connected to DevTools")){
+            if (exception.getMessage().contains("Permission denied to access property \"pageXOffset\" on cross-origin object")
+                || exception.getMessage().contains("not connected to DevTools")
+                || exception.getMessage().contains("unhandled inspector error: {\"code\":-32000,\"message\":\"Unable to capture screenshot\"}")){
                 // Ubuntu_Firefox_Grid
                 // org.openqa.selenium.WebDriverException: SecurityError: Permission denied to access property "pageXOffset" on cross-origin object
                 // MacOSX_Chrome_Local
                 // org.openqa.selenium.WebDriverException: disconnected: not connected to DevTools
-                driver.switchTo().defaultContent();
-                takeViewportScreenshot(driver);
-            }
-
-            if (runtimeException.getMessage().contains("unhandled inspector error: {\"code\":-32000,\"message\":\"Unable to capture screenshot\"}")){
                 // Ubuntu_Edge_Grid, Ubuntu_Chrome_Grid
                 // org.openqa.selenium.WebDriverException: unknown error: unhandled inspector error: {"code":-32000,"message":"Unable to capture screenshot"}
                 driver.switchTo().defaultContent();
-                takeViewportScreenshot(driver);
+                return takeViewportScreenshot(driver, retryAttempts-1);
+            } else {
+                FailureReporter.fail(ScreenshotManager.class, "Failed to capture a screenshot", exception);
+                return null;
             }
-
-
-
-            FailureReporter.fail(ScreenshotManager.class, "Failed to capture screenshot", runtimeException);
-            return null;
         }
     }
 
