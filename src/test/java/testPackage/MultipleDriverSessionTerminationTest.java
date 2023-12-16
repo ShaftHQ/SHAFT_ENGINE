@@ -1,12 +1,13 @@
 package testPackage;
 
 import com.shaft.driver.SHAFT;
+import org.openqa.selenium.remote.Browser;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class Test_closeDriver {
-    ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
+public class MultipleDriverSessionTerminationTest {
+    SHAFT.GUI.WebDriver driver;
 
     @Test
     public void test1() {
@@ -59,21 +60,21 @@ public class Test_closeDriver {
     }
 
     private void basicNavigation() {
-        var url = "https://github.com/ShaftHQ/SHAFT_ENGINE";
-        if (SHAFT.Properties.platform.executionAddress().equals("local")) {
+        var url = "https://shafthq.github.io/";
+        if (SHAFT.Properties.platform.executionAddress().equals("local")
+                && !SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
             url = SHAFT.Properties.paths.testData() + "test.html";
         }
-        driver.get().browser().navigateToURL(url);
+        driver.browser().navigateToURL(url);
     }
 
     @BeforeMethod
     public void beforeMethod() {
-        driver.set(new SHAFT.GUI.WebDriver());
+        driver = new SHAFT.GUI.WebDriver();
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.get().quit();
-        driver.remove();
+        driver.quit();
     }
 }
