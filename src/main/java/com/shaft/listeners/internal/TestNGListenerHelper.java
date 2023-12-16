@@ -2,6 +2,7 @@ package com.shaft.listeners.internal;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
@@ -168,7 +169,7 @@ public class TestNGListenerHelper {
                     suite.setParallel(XmlSuite.ParallelMode.TESTS);
                     suite.setThreadCount(3);
                     SHAFT.Properties.visuals.set().videoParamsRecordVideo(true);
-                    SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
+                    SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(Screenshots.VIEWPORT.getValue());
                 }
             });
 //        } else {

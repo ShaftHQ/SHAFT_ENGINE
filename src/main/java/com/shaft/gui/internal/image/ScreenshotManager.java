@@ -250,31 +250,24 @@ public class ScreenshotManager {
         }
     }
 
-    public static byte[] takeFullPageScreenshot(WebDriver driver) {
-        try {
-            if (!SHAFT.Properties.testNG.parallel().equals("NONE")) {
-                //in case of parallel execution, force regular screenshots
-                return takeViewportScreenshot(driver);
-            } else if (!SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().isEmpty()) {
-                List<WebElement> skippedElementsList = new ArrayList<>();
-                String[] skippedElementLocators =SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().split(";");
-                for (String locator : skippedElementLocators) {
-                    if (ElementActionsHelper.getElementsCount(driver, By.xpath(locator),
-                            RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION) == 1) {
-                        skippedElementsList.add(((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, By.xpath(locator)).get(1)));
-                    }
+    public static byte[] takeFullPageScreenshot(WebDriver driver) throws IOException {
+        if (!SHAFT.Properties.testNG.parallel().equals("NONE")) {
+            //in case of parallel execution, force regular screenshots
+            return takeViewportScreenshot(driver);
+        } else if (!SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().isEmpty()) {
+            List<WebElement> skippedElementsList = new ArrayList<>();
+            String[] skippedElementLocators =SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().split(";");
+            for (String locator : skippedElementLocators) {
+                if (ElementActionsHelper.getElementsCount(driver, By.xpath(locator),
+                        RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION) == 1) {
+                    skippedElementsList.add(((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, By.xpath(locator)).get(1)));
                 }
-
-                WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
-                skippedElementsArray = skippedElementsList.toArray(skippedElementsArray);
-
-                return ScreenshotHelper.makeFullScreenshot(driver, skippedElementsArray);
-            } else {
-                return ScreenshotHelper.makeFullScreenshot(driver);
             }
-        } catch (Exception e) {
-            ReportManagerHelper.logDiscrete(e);
-            return ScreenshotManager.takeViewportScreenshot(driver);
+            WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
+            skippedElementsArray = skippedElementsList.toArray(skippedElementsArray);
+            return ScreenshotHelper.makeFullScreenshot(driver, skippedElementsArray);
+        } else {
+            return ScreenshotHelper.makeFullScreenshot(driver);
         }
     }
 
@@ -427,9 +420,9 @@ public class ScreenshotManager {
                 case FULL -> {
                     try {
                         yield takeFullPageScreenshot(driver);
-                    } catch (Exception throwable) {
+                    } catch (Throwable throwable) {
                         ReportManagerHelper.logDiscrete(throwable);
-                        SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
+                        SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(Screenshots.VIEWPORT.getValue());
                         yield takeScreenshot(driver);
                     }
                 }

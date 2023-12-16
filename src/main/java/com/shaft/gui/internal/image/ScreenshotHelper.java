@@ -25,11 +25,19 @@ public class ScreenshotHelper {
         throw new IllegalStateException("Utility class");
     }
 
-    @SuppressWarnings("unchecked")
     protected static byte[] makeFullScreenshot(WebDriver driver, WebElement... skipElements) throws IOException {
         if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase("firefox")) {
             return ((FirefoxDriver) driver).getFullPageScreenshotAs(OutputType.BYTES);
         } else if (driver instanceof HasCdp cdpDriver) {
+            return takeFullPageScreenshotUsingCDP(driver, cdpDriver);
+        } else {
+            return takeFullPageScreenshotManually(driver, skipElements);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static byte[] takeFullPageScreenshotUsingCDP(WebDriver driver, HasCdp cdpDriver) throws IOException {
+        try {
             Map<String, Object> page_rect = cdpDriver.executeCdpCommand("Page.getLayoutMetrics", new HashMap<>());
             Map<String, Object> contentSize = (Map<String, Object>) page_rect.get("contentSize");
             Number contentWidth = (Number) contentSize.get("width");
@@ -48,71 +56,82 @@ public class ScreenshotHelper {
             var result = cdpDriver.executeCdpCommand("Page.captureScreenshot", screenshot_config);
             String base64EncodedPng = (String) ((Map<String, ?>) result).get("data");
             return OutputType.BYTES.convertFromBase64Png(base64EncodedPng);
-        } else {
-            // scroll up first to start taking screenshots
-            scrollVerticallyTo(driver, 0);
-            hideScroll(driver);
-            // No need to hide elements for first attempt
-            byte[] bytes = ScreenshotManager.takeViewportScreenshot(driver);
-
-            showHideElements(driver, true, skipElements);
-            long longScrollHeight = (Long) ((JavascriptExecutor) driver)
-                    .executeScript("return Math.max(" + "document.body.scrollHeight, document.documentElement.scrollHeight,"
-                            + "document.body.offsetHeight, document.documentElement.offsetHeight,"
-                            + "document.body.clientHeight, document.documentElement.clientHeight);");
-
-            BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
-            int capturedWidth = image.getWidth();
-            int capturedHeight = image.getHeight();
-
-            double devicePixelRatio = ((Number) ((JavascriptExecutor) driver).executeScript(JS_RETRIEVE_DEVICE_PIXEL_RATIO))
-                    .doubleValue();
-
-            int scrollHeight = (int) longScrollHeight;
-
-            int adaptedCapturedHeight = (int) (((double) capturedHeight) / devicePixelRatio);
-
-            BufferedImage resultingImage;
-
-            if (Math.abs(adaptedCapturedHeight - scrollHeight) > 40) {
-                int times = scrollHeight / adaptedCapturedHeight;
-                int leftover = scrollHeight % adaptedCapturedHeight;
-
-                final BufferedImage tiledImage = new BufferedImage(capturedWidth,
-                        (int) (((double) scrollHeight) * devicePixelRatio), BufferedImage.TYPE_INT_RGB);
-                Graphics2D g2dTile = tiledImage.createGraphics();
-                g2dTile.drawImage(image, 0, 0, null);
-
-                int scroll = 0;
-                for (int i = 0; i < times - 1; i++) {
-                    scroll += adaptedCapturedHeight;
-                    scrollVerticallyTo(driver, scroll);
-                    BufferedImage nextImage = ImageIO.read(new ByteArrayInputStream(ScreenshotManager.takeViewportScreenshot(driver)));
-                    g2dTile.drawImage(nextImage, 0, (i + 1) * capturedHeight, null);
-                }
-                if (leftover > 0) {
-                    scroll += adaptedCapturedHeight;
-                    scrollVerticallyTo(driver, scroll);
-                    BufferedImage nextImage = ImageIO.read(new ByteArrayInputStream(ScreenshotManager.takeViewportScreenshot(driver)));
-                    BufferedImage lastPart = nextImage.getSubimage(0,
-                            nextImage.getHeight() - (int) (((double) leftover) * devicePixelRatio), nextImage.getWidth(),
-                            leftover);
-                    g2dTile.drawImage(lastPart, 0, times * capturedHeight, null);
-                }
-
-                scrollVerticallyTo(driver, 0);
-
-                resultingImage = tiledImage;
-            } else {
-                resultingImage = image;
-            }
-            showScroll(driver);
-            showHideElements(driver, false, skipElements);
-
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            ImageIO.write(resultingImage, "png", byteArrayOutputStream);
-            return byteArrayOutputStream.toByteArray();
+        } catch (org.openqa.selenium.TimeoutException timeoutException){
+                /* Error:  org.openqa.selenium.TimeoutException: java.net.http.HttpTimeoutException: request timed out
+                    Build info: version: '4.16.1', revision: '9b4c83354e'
+                    System info: os.name: 'Mac OS X', os.arch: 'x86_64', os.version: '12.7.1', java.version: '21.0.1'
+                    Driver info: org.openqa.selenium.chrome.ChromeDriver
+                    Command: [c8e2c2f427babb721c36acfa4b04dc86, executeCdpCommand {cmd=Page.captureScreenshot, params={fromSurface=true, optimizeForSpeed=true, captureBeyondViewport=true, clip={width=1905, x=0, y=0, scale=1, height=2555}}}]
+                 */
+            // in some cases it was noticed that the full page screenshot Cdp command can timeout, and therefore a workaround should be implemented
+            return takeFullPageScreenshotManually(driver);
         }
+    }
+
+    private static byte[] takeFullPageScreenshotManually(WebDriver driver, WebElement... skipElements) throws IOException {
+        // scroll up first to start taking screenshots
+        scrollVerticallyTo(driver, 0);
+        hideScroll(driver);
+        // No need to hide elements for first attempt
+        byte[] bytes = ScreenshotManager.takeViewportScreenshot(driver);
+
+        showHideElements(driver, true, skipElements);
+        long longScrollHeight = (Long) ((JavascriptExecutor) driver)
+                .executeScript("return Math.max(" + "document.body.scrollHeight, document.documentElement.scrollHeight,"
+                        + "document.body.offsetHeight, document.documentElement.offsetHeight,"
+                        + "document.body.clientHeight, document.documentElement.clientHeight);");
+
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
+        int capturedWidth = image.getWidth();
+        int capturedHeight = image.getHeight();
+
+        double devicePixelRatio = ((Number) ((JavascriptExecutor) driver).executeScript(JS_RETRIEVE_DEVICE_PIXEL_RATIO))
+                .doubleValue();
+
+        int scrollHeight = (int) longScrollHeight;
+
+        int adaptedCapturedHeight = (int) (((double) capturedHeight) / devicePixelRatio);
+
+        BufferedImage resultingImage;
+
+        if (Math.abs(adaptedCapturedHeight - scrollHeight) > 40) {
+            int times = scrollHeight / adaptedCapturedHeight;
+            int leftover = scrollHeight % adaptedCapturedHeight;
+
+            final BufferedImage tiledImage = new BufferedImage(capturedWidth,
+                    (int) (((double) scrollHeight) * devicePixelRatio), BufferedImage.TYPE_INT_RGB);
+            Graphics2D g2dTile = tiledImage.createGraphics();
+            g2dTile.drawImage(image, 0, 0, null);
+
+            int scroll = 0;
+            for (int i = 0; i < times - 1; i++) {
+                scroll += adaptedCapturedHeight;
+                scrollVerticallyTo(driver, scroll);
+                BufferedImage nextImage = ImageIO.read(new ByteArrayInputStream(ScreenshotManager.takeViewportScreenshot(driver)));
+                g2dTile.drawImage(nextImage, 0, (i + 1) * capturedHeight, null);
+            }
+            if (leftover > 0) {
+                scroll += adaptedCapturedHeight;
+                scrollVerticallyTo(driver, scroll);
+                BufferedImage nextImage = ImageIO.read(new ByteArrayInputStream(ScreenshotManager.takeViewportScreenshot(driver)));
+                BufferedImage lastPart = nextImage.getSubimage(0,
+                        nextImage.getHeight() - (int) (((double) leftover) * devicePixelRatio), nextImage.getWidth(),
+                        leftover);
+                g2dTile.drawImage(lastPart, 0, times * capturedHeight, null);
+            }
+
+            scrollVerticallyTo(driver, 0);
+
+            resultingImage = tiledImage;
+        } else {
+            resultingImage = image;
+        }
+        showScroll(driver);
+        showHideElements(driver, false, skipElements);
+
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        ImageIO.write(resultingImage, "png", byteArrayOutputStream);
+        return byteArrayOutputStream.toByteArray();
     }
 
     private static void hideScroll(WebDriver driver) {

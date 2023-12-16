@@ -35,6 +35,7 @@ import org.openqa.selenium.remote.http.Route;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
@@ -796,10 +797,15 @@ public class BrowserActions {
     public BrowserActions captureScreenshot(Screenshots type) {
         var logText = "Capture " + type.getValue().toLowerCase() + " screenshot";
         switch (type) {
-            case FULL ->
+            case FULL -> {
+                try {
                     ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeFullPageScreenshot(DriverFactoryHelper.getDriver()), "captureScreenshot")));
+                } catch (IOException ioException){
+                    captureScreenshot(Screenshots.VIEWPORT);
+                }
+            }
             case VIEWPORT ->
-                    ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeViewportScreenshot(DriverFactoryHelper.getDriver()), "captureScreenshot")));
+                ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeViewportScreenshot(DriverFactoryHelper.getDriver()), "captureScreenshot")));
             case ELEMENT ->
                     BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), "Were you trying to use driver.element().captureScreenshot() instead?");
         }
