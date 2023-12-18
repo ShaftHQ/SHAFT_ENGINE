@@ -321,6 +321,15 @@ public class DriverFactoryHelper {
             options.addArguments("--headless=new");
             options.addArguments("--disable-gpu");
         }
+        // Fix "org.openqa.selenium.TimeoutException: timeout: Timed out receiving message from renderer: 10.000" on chrome/mac
+        // https://github.com/ultrafunkamsterdam/undetected-chromedriver/issues/1280
+        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
+            && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.MAC.name())){
+            options.addArguments("enable-automation");
+            options.addArguments("--no-sandbox");
+            options.addArguments("--disable-extensions");
+            options.addArguments("--dns-prefetch-disable");
+        }
         // Add if condtion to start the new session if flag=true on specific port
         if (SHAFT.Properties.performance.isEnabled()) {
             // TODO: implement lighthouse in the configuration manager and properties manager
