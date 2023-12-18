@@ -503,7 +503,7 @@ public class DriverFactoryHelper {
                 // the default timeout is 30 seconds, so this wait will waste 26 and the following will waste 5 more
                 // the desired effect will be to wait for the bidi session to timeout
                 try {
-                    Thread.sleep(Duration.ofSeconds(26));
+                    Thread.sleep(26000);
                 } catch (InterruptedException e) {
                     //do nothing
                 }
