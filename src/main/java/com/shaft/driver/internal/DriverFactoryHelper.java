@@ -20,6 +20,7 @@ import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.remote.options.UnhandledPromptBehavior;
 import io.github.bonigarcia.wdm.WebDriverManager;
+import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.qameta.allure.Step;
 import lombok.*;
 import org.apache.logging.log4j.Level;
@@ -324,8 +325,7 @@ public class DriverFactoryHelper {
         }
         // Fix "org.openqa.selenium.TimeoutException: timeout: Timed out receiving message from renderer: 10.000" on chrome/mac
         // https://github.com/ultrafunkamsterdam/undetected-chromedriver/issues/1280
-        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
-            && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.MAC.name())){
+        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName()) && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.MAC.name())) {
             options.addArguments("enable-automation");
             options.addArguments("--no-sandbox");
             options.addArguments("--disable-extensions");
