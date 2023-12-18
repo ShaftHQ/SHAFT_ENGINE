@@ -3,6 +3,7 @@ package com.shaft.properties.internal;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
+import com.shaft.enums.internal.Screenshots;
 import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.ConfigFactory;
 import org.apache.commons.io.FileUtils;
@@ -24,12 +25,9 @@ public class PropertiesHelper {
         attachPropertyFiles();
         //load properties
         loadProperties();
-        //override key settings for mobile platforms
-        if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString(),
-                org.openqa.selenium.Platform.IOS.toString()).contains(Properties.platform.targetPlatform().toLowerCase())) {
-            overrideScreenShotTypeForMobilePlatforms();
-            overrideForcedFlagsForMobilePlatforms();
-        }
+        //override key settings for special platforms
+        overrideScreenShotTypeForMobileAndMacPlatforms();
+        overrideForcedFlagsForMobilePlatforms();
     }
 
     public static void loadProperties() {
@@ -70,14 +68,17 @@ public class PropertiesHelper {
     }
 
     private static void overrideForcedFlagsForMobilePlatforms() {
-        SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(false);
-        SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
-        SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(false);
-        SHAFT.Properties.flags.set().enableTrueNativeMode(true);
-        SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(false);
-        SHAFT.Properties.flags.set().respectBuiltInWaitsInNativeMode(false);
-        SHAFT.Properties.flags.set().handleNonSelectDropDown(false);
-        SHAFT.Properties.flags.set().validateSwipeToElement(false);
+        if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString().toLowerCase(),
+                org.openqa.selenium.Platform.IOS.toString().toLowerCase()).contains(Properties.platform.targetPlatform().toLowerCase())) {
+            SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(false);
+            SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
+            SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(false);
+            SHAFT.Properties.flags.set().enableTrueNativeMode(true);
+            SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(false);
+            SHAFT.Properties.flags.set().respectBuiltInWaitsInNativeMode(false);
+            SHAFT.Properties.flags.set().handleNonSelectDropDown(false);
+            SHAFT.Properties.flags.set().validateSwipeToElement(false);
+        }
     }
 
     private static void setExtraAllureProperties() {
@@ -85,10 +86,10 @@ public class PropertiesHelper {
         System.setProperty("allure.testng.hide.disabled.tests", "true");
     }
 
-    private static void overrideScreenShotTypeForMobilePlatforms() {
-        if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString(),
-                org.openqa.selenium.Platform.IOS.toString()).contains(Properties.platform.targetPlatform().toLowerCase())) {
-            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
+    private static void overrideScreenShotTypeForMobileAndMacPlatforms() {
+        if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString().toLowerCase(), org.openqa.selenium.Platform.MAC.toString().toLowerCase(),
+                org.openqa.selenium.Platform.IOS.toString().toLowerCase()).contains(Properties.platform.targetPlatform().toLowerCase())) {
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(Screenshots.VIEWPORT.getValue());
         }
     }
 
@@ -100,7 +101,7 @@ public class PropertiesHelper {
 
     private static void overrideScreenShotTypeForAnimatedGIF() {
         if (SHAFT.Properties.visuals.createAnimatedGif()) {
-            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(Screenshots.VIEWPORT.getValue());
         }
     }
 
@@ -119,7 +120,7 @@ public class PropertiesHelper {
 
     private static void overrideScreenshotTypeForSafariBrowser() {
         if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
-            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(Screenshots.VIEWPORT.getValue());
         }
     }
 
@@ -180,7 +181,7 @@ public class PropertiesHelper {
                 SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
                 SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(true);
                 SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("AI");
-                SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
+                SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(Screenshots.VIEWPORT.getValue());
                 SHAFT.Properties.visuals.set().screenshotParamsWatermark(true);
                 SHAFT.Properties.visuals.set().createAnimatedGif(false);
                 SHAFT.Properties.visuals.set().videoParamsRecordVideo(false);

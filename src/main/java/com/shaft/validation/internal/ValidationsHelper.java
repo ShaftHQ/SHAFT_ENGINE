@@ -23,6 +23,7 @@ import org.openqa.selenium.remote.Browser;
 import org.testng.Assert;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -354,7 +355,12 @@ public class ValidationsHelper {
                 fail(validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, null, attachments);
             }
         } else {
-            byte[] pageScreenshot = ScreenshotManager.takeFullPageScreenshot(driver);
+            byte[] pageScreenshot;
+            try {
+                pageScreenshot = ScreenshotManager.takeFullPageScreenshot(driver);
+            } catch (IOException ioException){
+                pageScreenshot = ScreenshotManager.takeViewportScreenshot(driver);
+            }
             List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
                     pageScreenshot);
             attachments.add(actualValueAttachment);

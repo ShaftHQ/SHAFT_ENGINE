@@ -29,7 +29,7 @@ public interface Visuals extends EngineProperties {
     String screenshotParamsWhenToTakeAScreenshot();
 
     @Key("screenshotParams_screenshotType")
-    @DefaultValue("FullPage")
+    @DefaultValue("fullPage")
     String screenshotParamsScreenshotType();
 
     @Key("screenshotParams_highlightElements")

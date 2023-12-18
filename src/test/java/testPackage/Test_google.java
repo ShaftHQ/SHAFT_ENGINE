@@ -4,9 +4,7 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ExcelFileManager;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.testng.annotations.*;
 import poms.GoogleSearch;
 import poms.GoogleSearchResults;
 
@@ -25,9 +23,10 @@ public class Test_google {
         searchObject.assertPageIsOpen(); // Check that the correct page has been opened
     }
 
-    @Test(dependsOnMethods = {"navigateToURLandVerifyGoogleLogoIsDisplayed"}, description = "TC002 - Search for Query and Assert that the number of results is displayed")
+    @Test(description = "TC002 - Search for Query and Assert that the number of results is displayed")
     public void searchForQueryandAssertResultsNumDisplayed() {
         searchObject = new GoogleSearch(driver); // initialize a new instance of the page
+        searchObject.navigateToURL(); // Navigate to Page URL
         // temp steps for debugging changes to the type function
         searchObject.searchForQuery(testDataReader.getCellData("Search Query 2")); // Perform search for the query that
         // is
@@ -37,23 +36,13 @@ public class Test_google {
         // (expected to pass)
     }
 
-     //@Test(dependsOnMethods = {"searchForQueryandAssertResultsNumDisplayed"}, description = "TC003 - Clicks the next button to make sure that the framework can scroll element into view before clicking it")
-    public void clickNextThrice() {
-         resultsObject = new GoogleSearchResults(driver); // initialize a new instance of the page
-         resultsObject.clickNext(); // Clicks the next button to make sure that the framework can scroll element
-         resultsObject.clickNext(); // Clicks the next button to make sure that the framework can scroll element
-         resultsObject.clickNext(); // Clicks the next button to make sure that the framework can scroll element
-         // into
-         // view before clicking it
-     }
-
-    @BeforeClass // Set-up method, to be run once before the first test
+    @BeforeMethod // Set-up method
     public void beforeClass() {
         testDataReader = new ExcelFileManager(SHAFT.Properties.paths.testData() + "testSuite01/TestData.xlsx");
         driver = DriverFactory.getDriver();
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     public void afterClass() {
         DriverFactory.closeAllDrivers();
     }

@@ -8,18 +8,18 @@ import org.testng.annotations.Test;
 import java.util.List;
 import java.util.Map;
 
-import static com.shaft.validation.Validations.assertThat;
+import static com.shaft.driver.SHAFT.Validations.assertThat;
 
-public class Test_YAMLFileManager {
-    static SHAFT.TestData.YAML yaml;
+public class YAMLFileManagerTests {
+    private SHAFT.TestData.YAML yaml;
 
     @BeforeMethod
-    static void setUp() {
+    public void setUp() {
         yaml = new SHAFT.TestData.YAML("src/test/resources/testDataFiles/yaml/yaml_test_data.yaml");
     }
 
     @Test
-    static void getObject() {
+    public void getObject() {
         assertThat()
                 .object(yaml.get("object"))
                 .isEqualTo("object")
@@ -27,7 +27,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getString() {
+    public void getString() {
         assertThat()
                 .object(yaml.getString("string"))
                 .isEqualTo("text")
@@ -35,7 +35,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getLongString() {
+    public void getLongString() {
         assertThat()
                 .object(yaml.getString("long-text"))
                 .isEqualTo("this is not a normal string it" +
@@ -46,7 +46,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getLongString2() {
+    public void getLongString2() {
         assertThat()
                 .object(yaml.getString("long-text2"))
                 .isEqualTo("""
@@ -59,7 +59,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getIntegerAsString() {
+    public void getIntegerAsString() {
         assertThat()
                 .object(yaml.getTestData("integer"))
                 .isEqualTo("10")
@@ -67,7 +67,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getInteger() {
+    public void getInteger() {
         assertThat()
                 .object(yaml.getInteger("integer"))
                 .isEqualTo(10)
@@ -75,7 +75,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getHexAsInteger() {
+    public void getHexAsInteger() {
         assertThat()
                 .object(yaml.getInteger("hex-decimal"))
                 .isEqualTo(4820)
@@ -83,7 +83,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getOctalAsInteger() {
+    public void getOctalAsInteger() {
         assertThat()
                 .object(yaml.getInteger("octal"))
                 .isEqualTo(9946)
@@ -91,7 +91,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getDouble() {
+    public void getDouble() {
         assertThat()
                 .object(yaml.getDouble("double"))
                 .isEqualTo(5.3)
@@ -99,7 +99,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getExponentialAsDouble() {
+    public void getExponentialAsDouble() {
         assertThat()
                 .object(yaml.getDouble("exponential"))
                 .isEqualTo(1230150.0)
@@ -107,7 +107,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getInfinityAsDouble() {
+    public void getInfinityAsDouble() {
         assertThat()
                 .object(yaml.getDouble("infinity"))
                 .isEqualTo(Double.POSITIVE_INFINITY)
@@ -115,7 +115,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getNegativeInfinityAsDouble() {
+    public void getNegativeInfinityAsDouble() {
         assertThat()
                 .object(yaml.getDouble("negative-infinity"))
                 .isEqualTo(Double.NEGATIVE_INFINITY)
@@ -123,7 +123,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getNaNAsDouble() {
+    public void getNaNAsDouble() {
         assertThat()
                 .object(yaml.getDouble("not-a-number"))
                 .isEqualTo(Double.NaN)
@@ -131,7 +131,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getLong() {
+    public void getLong() {
         assertThat()
                 .object(yaml.getLong("long"))
                 .isEqualTo(10L)
@@ -139,7 +139,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getBoolean() {
+    public void getBoolean() {
         assertThat()
                 .object(yaml.getBoolean("boolean"))
                 .isTrue()
@@ -147,7 +147,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getBoolean1() {
+    public void getBoolean1() {
         assertThat()
                 .object(yaml.getBoolean("boolean1"))
                 .isFalse()
@@ -156,7 +156,7 @@ public class Test_YAMLFileManager {
 
     // TODO: has issue related to time zone always use the local time zone
 //    @Test
-    static void getDate() {
+    public void getDate() {
         assertThat()
                 .object(yaml.getDate("date"))
                 .isEqualTo("2010-02-11T00:00:00")
@@ -165,7 +165,7 @@ public class Test_YAMLFileManager {
 
     // TODO: has issue related to time zone always use the local time zone
 //    @Test
-    static void getDateTime() {
+    public void getDateTime() {
         assertThat()
                 .object(yaml.getDate("date-time"))
                 .isEqualTo("2010-02-11T11:02:57")
@@ -173,7 +173,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getNull0() {
+    public void getNull0() {
         assertThat()
                 .object(yaml.get("null0"))
                 .isNull()
@@ -181,7 +181,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getNull1() {
+    public void getNull1() {
         assertThat()
                 .object(yaml.get("null1"))
                 .isNull()
@@ -189,7 +189,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getAsString() {
+    public void getAsString() {
         assertThat()
                 .object(yaml.getAs("string", String.class))
                 .isEqualTo("text")
@@ -197,7 +197,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getMap() {
+    public void getMap() {
         assertThat()
                 .object(yaml.getMapAs("map", String.class))
                 .isEqualTo(Map.of("m1", "m1", "m2", "m2"))
@@ -205,7 +205,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getList() {
+    public void getList() {
         assertThat()
                 .object(yaml.getListAs("list", String.class))
                 .isEqualTo(List.of("l1", "l2"))
@@ -213,7 +213,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void nestedList() {
+    public void nestedList() {
         assertThat()
                 .object(yaml.getString("nested-list[0][0][0][0][0][0]"))
                 .isEqualTo("You caught me")
@@ -221,7 +221,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void nestedMap() {
+    public void nestedMap() {
         assertThat()
                 .object(yaml.getString("nested-map.a.b.c.d"))
                 .isEqualTo("I covered by maps:D")
@@ -229,7 +229,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void mixMapAdList() {
+    public void mixMapAdList() {
         assertThat()
                 .object(yaml.getString("mix-map-list.m1[1].l1.m2[1].l3"))
                 .isEqualTo("HOW DID YOU FIND ME!!!")
@@ -237,7 +237,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getValueWithWrongType() {
+    public void getValueWithWrongType() {
         Assert.assertThrows(
                 AssertionError.class,
                 () -> yaml.getAs("integer", Boolean.class)
@@ -245,7 +245,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test
-    static void getNotExistedKey() {
+    public void getNotExistedKey() {
         Assert.assertThrows(
                 AssertionError.class,
                 () -> yaml.get("not-existed-key")
@@ -253,7 +253,7 @@ public class Test_YAMLFileManager {
     }
 
     @Test()
-    static void getInvalidLong() {
+    public void getInvalidLong() {
         Assert.assertThrows(
                 AssertionError.class,
                 () -> yaml.getLong("invalid-long")

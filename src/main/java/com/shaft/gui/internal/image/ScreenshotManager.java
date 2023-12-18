@@ -12,6 +12,7 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import org.apache.logging.log4j.Level;
 import org.imgscalr.Scalr;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.*;
@@ -218,41 +219,55 @@ public class ScreenshotManager {
     }
 
     public static byte[] takeViewportScreenshot(WebDriver driver) {
+        return takeViewportScreenshot(driver, 6);
+    }
+
+    private static byte[] takeViewportScreenshot(WebDriver driver, int retryAttempts) {
         try {
             return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-        } catch (RuntimeException runtimeException) {
+        } catch (RuntimeException exception) {
+            if (retryAttempts<=0){
+                ReportManagerHelper.logDiscrete(exception, Level.WARN);
+                ReportManagerHelper.logDiscrete("Failed to take a screenshot after 5 attempts.", Level.WARN);
+                return null;
+            } else
             // java.lang.RuntimeException: Unexpected result for screenshot command: com.google.common.collect.Maps$TransformedEntriesMap instance
-            // org.openqa.selenium.WebDriverException: unknown error: unhandled inspector error: {"code":-32000,"message":"Unable to capture screenshot"}
-            FailureReporter.fail(ScreenshotManager.class, "Failed to capture screenshot", runtimeException);
-            return null;
+            if (exception.getMessage().contains("Permission denied to access property \"pageXOffset\" on cross-origin object")
+                || exception.getMessage().contains("not connected to DevTools")
+                || exception.getMessage().contains("unhandled inspector error: {\"code\":-32000,\"message\":\"Unable to capture screenshot\"}")){
+                // Ubuntu_Firefox_Grid
+                // org.openqa.selenium.WebDriverException: SecurityError: Permission denied to access property "pageXOffset" on cross-origin object
+                // MacOSX_Chrome_Local
+                // org.openqa.selenium.WebDriverException: disconnected: not connected to DevTools
+                // Ubuntu_Edge_Grid, Ubuntu_Chrome_Grid
+                // org.openqa.selenium.WebDriverException: unknown error: unhandled inspector error: {"code":-32000,"message":"Unable to capture screenshot"}
+                driver.switchTo().defaultContent();
+                return takeViewportScreenshot(driver, retryAttempts-1);
+            } else {
+                FailureReporter.fail(ScreenshotManager.class, "Failed to capture a screenshot", exception);
+                return null;
+            }
         }
     }
 
-    public static byte[] takeFullPageScreenshot(WebDriver driver) {
-        try {
-            if (!SHAFT.Properties.testNG.parallel().equals("NONE")) {
-                //in case of parallel execution, force regular screenshots
-                return takeViewportScreenshot(driver);
-            } else if (!SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().isEmpty()) {
-                List<WebElement> skippedElementsList = new ArrayList<>();
-                String[] skippedElementLocators =SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().split(";");
-                for (String locator : skippedElementLocators) {
-                    if (ElementActionsHelper.getElementsCount(driver, By.xpath(locator),
-                            RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION) == 1) {
-                        skippedElementsList.add(((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, By.xpath(locator)).get(1)));
-                    }
+    public static byte[] takeFullPageScreenshot(WebDriver driver) throws IOException {
+        if (!SHAFT.Properties.testNG.parallel().equals("NONE")) {
+            //in case of parallel execution, force regular screenshots
+            return takeViewportScreenshot(driver);
+        } else if (!SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().isEmpty()) {
+            List<WebElement> skippedElementsList = new ArrayList<>();
+            String[] skippedElementLocators =SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().split(";");
+            for (String locator : skippedElementLocators) {
+                if (ElementActionsHelper.getElementsCount(driver, By.xpath(locator),
+                        RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION) == 1) {
+                    skippedElementsList.add(((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, By.xpath(locator)).get(1)));
                 }
-
-                WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
-                skippedElementsArray = skippedElementsList.toArray(skippedElementsArray);
-
-                return ScreenshotHelper.makeFullScreenshot(driver, skippedElementsArray);
-            } else {
-                return ScreenshotHelper.makeFullScreenshot(driver);
             }
-        } catch (Exception e) {
-            ReportManagerHelper.logDiscrete(e);
-            return ScreenshotManager.takeViewportScreenshot(driver);
+            WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
+            skippedElementsArray = skippedElementsList.toArray(skippedElementsArray);
+            return ScreenshotHelper.makeFullScreenshot(driver, skippedElementsArray);
+        } else {
+            return ScreenshotHelper.makeFullScreenshot(driver);
         }
     }
 
@@ -405,9 +420,9 @@ public class ScreenshotManager {
                 case FULL -> {
                     try {
                         yield takeFullPageScreenshot(driver);
-                    } catch (Exception throwable) {
+                    } catch (Throwable throwable) {
                         ReportManagerHelper.logDiscrete(throwable);
-                        SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
+                        SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(Screenshots.VIEWPORT.getValue());
                         yield takeScreenshot(driver);
                     }
                 }
