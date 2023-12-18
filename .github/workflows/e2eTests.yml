@@ -548,7 +548,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appName=ApiDemos-debug.apk" "-DbrowserStack.appRelativeFilePath=src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appName=ApiDemos-debug.apk" "-DbrowserStack.appRelativeFilePath=src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroidBasic.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
