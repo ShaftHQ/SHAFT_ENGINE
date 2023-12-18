@@ -68,8 +68,8 @@ public class PropertiesHelper {
     }
 
     private static void overrideForcedFlagsForMobilePlatforms() {
-        if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString(),
-                org.openqa.selenium.Platform.IOS.toString()).contains(Properties.platform.targetPlatform().toLowerCase())) {
+        if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString().toLowerCase(),
+                org.openqa.selenium.Platform.IOS.toString().toLowerCase()).contains(Properties.platform.targetPlatform().toLowerCase())) {
             SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(false);
             SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
             SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(false);
@@ -87,8 +87,8 @@ public class PropertiesHelper {
     }
 
     private static void overrideScreenShotTypeForMobileAndMacPlatforms() {
-        if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString(), org.openqa.selenium.Platform.MAC.toString(),
-                org.openqa.selenium.Platform.IOS.toString()).contains(Properties.platform.targetPlatform().toLowerCase())) {
+        if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString().toLowerCase(), org.openqa.selenium.Platform.MAC.toString().toLowerCase(),
+                org.openqa.selenium.Platform.IOS.toString().toLowerCase()).contains(Properties.platform.targetPlatform().toLowerCase())) {
             SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(Screenshots.VIEWPORT.getValue());
         }
     }
