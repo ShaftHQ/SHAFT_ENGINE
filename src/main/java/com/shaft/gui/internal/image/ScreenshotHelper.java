@@ -26,8 +26,8 @@ public class ScreenshotHelper {
     }
 
     protected static byte[] makeFullScreenshot(WebDriver driver, WebElement... skipElements) throws IOException {
-        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase("firefox")) {
-            return ((FirefoxDriver) driver).getFullPageScreenshotAs(OutputType.BYTES);
+        if (driver instanceof FirefoxDriver firefoxDriver) {
+            return firefoxDriver.getFullPageScreenshotAs(OutputType.BYTES);
         } else if (driver instanceof HasCdp cdpDriver) {
             return takeFullPageScreenshotUsingCDP(driver, cdpDriver);
         } else {
