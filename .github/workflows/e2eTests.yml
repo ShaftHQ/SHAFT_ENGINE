@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  GLOBAL_TESTING_SCOPE: "!%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
+  GLOBAL_TESTING_SCOPE: "!%regex[.*Tests_Api.*], !%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
 
 jobs:
   #  Ubuntu_Database:
@@ -238,7 +238,7 @@ jobs:
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Tests_Api.*], !%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -281,7 +281,7 @@ jobs:
           chrome-version: stable
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Tests_Api.*], !%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -363,7 +363,7 @@ jobs:
           chrome-version: stable
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DdebugMode=true" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
