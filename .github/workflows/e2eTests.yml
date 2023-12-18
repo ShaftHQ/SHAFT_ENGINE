@@ -13,8 +13,7 @@ env:
 jobs:
   #  Ubuntu_Database:
   #    runs-on: ubuntu-latest
-  #    timeout-minutes: 60
-  #    steps:
+  #  #    steps:
   #      - name: Checkout Code
   #        uses: actions/checkout@v4
   #      - name: Set up JDK 21
@@ -49,7 +48,6 @@ jobs:
 
   Ubuntu_APIs:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -88,7 +86,6 @@ jobs:
 
   Ubuntu_Firefox_Grid:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -131,7 +128,6 @@ jobs:
 
   Ubuntu_Chrome_Grid:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -174,7 +170,6 @@ jobs:
 
   Ubuntu_Edge_Grid:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -217,7 +212,6 @@ jobs:
 
   Windows_Edge_Local:
     runs-on: windows-latest
-    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -261,7 +255,6 @@ jobs:
 
   Windows_Chrome_Local:
     runs-on: windows-latest
-    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -304,7 +297,6 @@ jobs:
 
   MacOSX_Safari_Local:
     runs-on: macos-latest
-    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -343,7 +335,6 @@ jobs:
 
   MacOSX_Chrome_Local:
     runs-on: macos-latest
-    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -386,8 +377,7 @@ jobs:
 
   #  Android_Native_Emulator:
   #    runs-on: macos-latest
-  #    timeout-minutes: 60
-  #
+  #  #
   #    steps:
   #      - name: Checkout Code
   #        uses: actions/checkout@v4
@@ -532,7 +522,6 @@ jobs:
 
   Android_Native_BrowserStack:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -571,7 +560,6 @@ jobs:
 
   iOS_Web_SAFARI_BrowserStack:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -610,7 +598,6 @@ jobs:
 
   Android_Web_Chrome_BrowserStack:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -649,7 +636,6 @@ jobs:
 
   Android_Web_Samsung_BrowserStack:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -688,7 +674,6 @@ jobs:
 
   MacOSX_Safari_BrowserStack:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
