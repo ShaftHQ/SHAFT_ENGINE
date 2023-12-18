@@ -12,7 +12,7 @@ env:
 
 jobs:
   #  Ubuntu_Database:
-  #    runs-on: ubuntu-22.04
+  #    runs-on: ubuntu-latest
   #    timeout-minutes: 60
   #    steps:
   #      - name: Checkout Code
@@ -48,7 +48,7 @@ jobs:
   #          path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Ubuntu_APIs:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - name: Checkout Code
@@ -87,7 +87,7 @@ jobs:
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Ubuntu_Firefox_Grid:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - name: Checkout Code
@@ -130,7 +130,7 @@ jobs:
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Ubuntu_Chrome_Grid:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - name: Checkout Code
@@ -173,7 +173,7 @@ jobs:
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Ubuntu_Edge_Grid:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - name: Checkout Code
@@ -303,7 +303,7 @@ jobs:
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   MacOSX_Safari_Local:
-    runs-on: macOS-12
+    runs-on: macos-latest
     timeout-minutes: 60
     steps:
       - name: Checkout Code
@@ -342,7 +342,7 @@ jobs:
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   MacOSX_Chrome_Local:
-    runs-on: macOS-12
+    runs-on: macos-latest
     timeout-minutes: 60
     steps:
       - name: Checkout Code
@@ -385,7 +385,7 @@ jobs:
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   #  Android_Native_Emulator:
-  #    runs-on: macOS-12
+  #    runs-on: macos-latest
   #    timeout-minutes: 60
   #
   #    steps:
@@ -531,7 +531,7 @@ jobs:
   #          path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Android_Native_BrowserStack:
-    runs-on: macOS-12
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - name: Checkout Code
@@ -570,7 +570,7 @@ jobs:
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   iOS_Web_SAFARI_BrowserStack:
-    runs-on: macOS-12
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - name: Checkout Code
@@ -609,7 +609,7 @@ jobs:
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Android_Web_Chrome_BrowserStack:
-    runs-on: macOS-12
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - name: Checkout Code
@@ -648,7 +648,7 @@ jobs:
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Android_Web_Samsung_BrowserStack:
-    runs-on: macOS-12
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - name: Checkout Code
@@ -687,7 +687,7 @@ jobs:
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   MacOSX_Safari_BrowserStack:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - name: Checkout Code
@@ -704,7 +704,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -726,7 +726,7 @@ jobs:
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Ubuntu_Chrome_Cucumber_Grid:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -823,7 +823,7 @@ jobs:
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   MacOSX_Safari_Cucumber_BrowserStack:
-    runs-on: macOS-12
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -843,7 +843,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTests.*"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTests.*"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -866,7 +866,7 @@ jobs:
 
 
   LambdaTest_NativeAndroid:
-    runs-on: macOS-12
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -908,7 +908,7 @@ jobs:
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   LambdaTest_NativeIOS:
-    runs-on: macOS-12
+    runs-on: ubuntu-latest
     needs: [ LambdaTest_NativeAndroid ]
     steps:
       - name: Checkout Code
@@ -951,7 +951,7 @@ jobs:
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   LambdaTest_WebApp:
-    runs-on: macOS-12
+    runs-on: ubuntu-latest
     needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS ]
     steps:
       - name: Checkout Code
@@ -994,7 +994,7 @@ jobs:
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   LambdaTest_DesktopWeb:
-    runs-on: macOS-12
+    runs-on: ubuntu-latest
     needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS, LambdaTest_WebApp ]
     steps:
       - name: Checkout Code
