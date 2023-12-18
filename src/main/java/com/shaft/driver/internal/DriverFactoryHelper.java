@@ -312,15 +312,15 @@ public class DriverFactoryHelper {
             options.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
         if (SHAFT.Properties.web.headlessExecution()) {
             options.addArguments("--headless=new");
-            options.addArguments("--disable-gpu");
+            // https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md#headless
+//            options.addArguments("--disable-gpu");
         }
         // Fix "org.openqa.selenium.TimeoutException: timeout: Timed out receiving message from renderer: 10.000" on chrome/mac
         // https://github.com/ultrafunkamsterdam/undetected-chromedriver/issues/1280
         if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName()) && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.MAC.name())) {
-            options.addArguments("enable-automation");
-            options.addArguments("--no-sandbox");
-            options.addArguments("--disable-extensions");
-            options.addArguments("--dns-prefetch-disable");
+            //         https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
+            //         https://docs.google.com/spreadsheets/d/1n-vw_PCPS45jX3Jt9jQaAhFqBY6Ge1vWF_Pa0k7dCk4/edit#gid=1265672696
+            options.addArguments("--remote-allow-origins=*", "--enable-automation", "--disable-background-timer-throttling", "--disable-backgrounding-occluded-windows", "--disable-features=CalculateNativeWinOcclusion", "--disable-hang-monitor", "--disable-domain-reliability", "--disable-renderer-backgrounding", "--disable-features=AutofillServerCommunication", "--metrics-recording-only", "--no-first-run", "--no-default-browser-check", "--silent-debugger-extension-api", "--disable-extensions", "--disable-component-extensions-with-background-pages", "--disable-dev-shm-usage", "--disable-features=MediaRouter", "--disable-features=Translate", "--disable-ipc-flooding-protection", "--disable-background-networking", "--mute-audio", "--disable-breakpad", "--ignore-certificate-errors", "--disable-device-discovery-notifications", "--force-color-profile=srgb", "--hide-scrollbars", "--host-resolver-rules", "--no-pings", "--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync", "--disable-features=CertificateTransparencyComponentUpdater", "--disable-sync", "--disable-features=OptimizationHints", "--disable-features=DialMediaRouteProvider", "--disable-features=GlobalMediaControls", "--disable-features=ImprovedCookieControls", "--disable-features=LazyFrameLoading", "--disable-field-trial-config", "--enable-features=NetworkService", "--enable-features=NetworkServiceInProcess", "--enable-use-zoom-for-dsf", "--log-net-log", "--net-log-capture-mode", "--disable-client-side-phishing-detection", "--disable-default-apps", "--disable-features=InterestFeedContentSuggestions");
         }
         // Add if condtion to start the new session if flag=true on specific port
         if (SHAFT.Properties.performance.isEnabled()) {
@@ -334,55 +334,6 @@ public class DriverFactoryHelper {
             options.addArguments("--window-position=0,0", "--window-size=" + TARGET_WINDOW_SIZE.getWidth() + "," + TARGET_WINDOW_SIZE.getHeight());
         }
         if (!SHAFT.Properties.flags.autoCloseDriverInstance()) options.setExperimentalOption("detach", true);
-
-//         https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
-//         https://docs.google.com/spreadsheets/d/1n-vw_PCPS45jX3Jt9jQaAhFqBY6Ge1vWF_Pa0k7dCk4/edit#gid=1265672696
-//        options.addArguments("--remote-allow-origins=*",
-//                "--enable-automation"
-//                , "--disable-background-timer-throttling"
-//                , "--disable-backgrounding-occluded-windows"
-//                , "--disable-features=CalculateNativeWinOcclusion"
-//                , "--disable-hang-monitor"
-//                , "--disable-domain-reliability"
-//                , "--disable-renderer-backgrounding"
-//                , "--disable-features=AutofillServerCommunication"
-//                , "--metrics-recording-only"
-//                , "--no-first-run"
-//                , "--no-default-browser-check"
-//                , "--silent-debugger-extension-api"
-//                , "--disable-extensions"
-//                , "--disable-component-extensions-with-background-pages"
-//                , "--disable-dev-shm-usage"
-//                , "--disable-features=MediaRouter"
-//                , "--disable-features=Translate"
-//                , "--disable-ipc-flooding-protection"
-//                , "--disable-background-networking"
-//                , "--mute-audio"
-//                , "--disable-breakpad"
-//                , "--ignore-certificate-errors"
-//                , "--disable-device-discovery-notifications"
-//                , "--force-color-profile=srgb"
-//                , "--hide-scrollbars"
-//                , "--host-resolver-rules"
-//                , "--no-pings"
-//                , "--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync"
-//                , "--disable-features=CertificateTransparencyComponentUpdater"
-//                , "--disable-sync"
-//                , "--disable-features=OptimizationHints"
-//                , "--disable-features=DialMediaRouteProvider"
-//                , "--disable-features=GlobalMediaControls"
-//                , "--disable-features=ImprovedCookieControls"
-//                , "--disable-features=LazyFrameLoading"
-//                , "--disable-field-trial-config"
-//                , "--enable-features=NetworkService"
-//                , "--enable-features=NetworkServiceInProcess"
-//                , "--enable-use-zoom-for-dsf"
-//                , "--log-net-log"
-//                , "--net-log-capture-mode"
-//                , "--disable-client-side-phishing-detection"
-//                , "--disable-default-apps"
-//                , "--disable-features=InterestFeedContentSuggestions"
-//        );
 
         Map<String, Object> chromePreferences = new HashMap<>();
         chromePreferences.put("profile.default_content_settings.popups", 0);
