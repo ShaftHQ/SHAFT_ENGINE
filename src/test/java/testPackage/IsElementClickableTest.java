@@ -16,17 +16,17 @@ public class IsElementClickableTest {
 
     @Test
     public void testIsElementClickable() {
-        BrowserActions.getInstance().navigateToURL("https://the-internet.herokuapp.com/");
-        Validations.assertThat().object(ElementActions.getInstance().isElementClickable(By.linkText("File Upload"))).isTrue().perform();
+        BrowserActions.getInstance(driver).navigateToURL("https://the-internet.herokuapp.com/");
+        Validations.assertThat().object(ElementActions.getInstance(driver).isElementClickable(By.linkText("File Upload"))).isTrue().perform();
     }
 
     @BeforeMethod
     public void beforeMethod() {
-        driver = DriverFactory.getDriver();
+        driver = DriverFactory.getHelper().getDriver();
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        BrowserActions.getInstance().closeCurrentWindow();
+        BrowserActions.getInstance(driver).closeCurrentWindow();
     }
 }

@@ -39,7 +39,7 @@ public class Test_google {
     @BeforeMethod // Set-up method
     public void beforeClass() {
         testDataReader = new ExcelFileManager(SHAFT.Properties.paths.testData() + "testSuite01/TestData.xlsx");
-        driver = DriverFactory.getDriver();
+        driver = DriverFactory.getHelper().getDriver();
     }
 
     @AfterMethod(alwaysRun = true)

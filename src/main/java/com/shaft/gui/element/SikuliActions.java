@@ -1,7 +1,7 @@
 package com.shaft.gui.element;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.internal.image.ScreenshotManager;
@@ -34,6 +34,10 @@ public class SikuliActions {
 
     public static SikuliActions getInstance() {
         return new SikuliActions();
+    }
+
+    public static SikuliActions getInstance(App applicationWindow) {
+        return new SikuliActions(applicationWindow);
     }
 
     public static List<Object> prepareElementScreenshotAttachment(Screen screen, App applicationWindow, Pattern element, String actionName, boolean passFailStatus) {
@@ -360,9 +364,6 @@ public class SikuliActions {
     }
 
     private void initializeSikuliEngineForCurrentScreen() {
-        if (DriverFactoryHelper.isWebExecution()) {
-            JavaScriptWaitManager.waitForLazyLoading();
-        }
         Settings.setShowActions(false);
         Settings.ActionLogs = true;
         Settings.InfoLogs = true;

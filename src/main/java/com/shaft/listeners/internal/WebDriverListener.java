@@ -1,7 +1,6 @@
 package com.shaft.listeners.internal;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
@@ -26,6 +25,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     private static final double DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
     private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 100; // milliseconds
 
+    private static WebDriver currentWebDriver;
     // Global
 
     public void afterAnyCall(Object target, Method method, Object[] args, Object result) {
@@ -34,25 +34,29 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
 
     public void onError(Object target, Method method, Object[] args, InvocationTargetException e) {
         ReportManager.log(JavaHelper.convertToSentenceCase(method.getName()) + " action failed.");
-        ReportManagerHelper.attach(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver(), method.getName(), false));
+        ReportManagerHelper.attach(ScreenshotManager.captureScreenShot(currentWebDriver, method.getName(), false));
         ReportManagerHelper.logDiscrete(e);
     }
 
     // WebDriver
 
     public void afterGet(WebDriver driver, String url) {
+        currentWebDriver = driver;
         ReportManager.log("Navigate to \"" + url + "\".");
     }
 
     public void afterGetCurrentUrl(String result, WebDriver driver) {
+        currentWebDriver = driver;
         ReportManager.log("Current url is: \"" + result + "\".");
     }
 
     public void afterGetTitle(WebDriver driver, String result) {
+        currentWebDriver = driver;
         ReportManager.log("Current Window Title is: \"" + result + "\".");
     }
 
     public void beforeFindElement(WebDriver driver, By locator) {
+        currentWebDriver = driver;
         if (SHAFT.Properties.flags.respectBuiltInWaitsInNativeMode()) {
             try {
                 new FluentWait<>(driver)
@@ -69,10 +73,12 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void afterClose(WebDriver driver) {
+        currentWebDriver = driver;
             ReportManager.log("Successfully Closed Driver.");
     }
 
     public void afterQuit(WebDriver driver) {
+        currentWebDriver = driver;
             ReportManager.log("Successfully Quit Driver.");
     }
 
@@ -81,7 +87,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     public void beforeClick(WebElement element) {
         if (SHAFT.Properties.flags.respectBuiltInWaitsInNativeMode()) {
             try {
-                (new WebDriverWait(DriverFactoryHelper.getDriver(), Duration.ofMillis((long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
+                (new WebDriverWait(currentWebDriver, Duration.ofMillis((long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
                         .until(ExpectedConditions.elementToBeClickable(element));
             } catch (org.openqa.selenium.TimeoutException timeoutException) {
                 ReportManagerHelper.logDiscrete(timeoutException);

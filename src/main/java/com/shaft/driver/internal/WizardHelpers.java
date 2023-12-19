@@ -1,38 +1,38 @@
 package com.shaft.driver.internal;
 
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.validation.internal.*;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 public class WizardHelpers {
+    static DriverFactoryHelper helper;
     public static class WebDriverAssertions {
-        public WebDriverAssertions() {
+        public WebDriverAssertions(DriverFactoryHelper helper) {
+            WizardHelpers.helper = helper;
         }
 
         public WebDriverBrowserValidationsBuilder browser() {
-            return com.shaft.validation.Validations.assertThat().browser();
+            return com.shaft.validation.Validations.assertThat().browser(helper.getDriver());
         }
 
         public WebDriverElementValidationsBuilder element(By locator) {
-            return com.shaft.validation.Validations.assertThat().element(locator);
+            return com.shaft.validation.Validations.assertThat().element(helper.getDriver(), locator);
         }
     }
 
     public static class WebDriverVerifications {
 
-        @SuppressWarnings("unused")
-        public WebDriverVerifications(ThreadLocal<WebDriver> driverThreadLocal) {
-        }
-
-        public WebDriverVerifications() {
+        public WebDriverVerifications(DriverFactoryHelper helper) {
+            WizardHelpers.helper = helper;
         }
 
         public WebDriverBrowserValidationsBuilder browser() {
-            return com.shaft.validation.Validations.verifyThat().browser();
+            return com.shaft.validation.Validations.verifyThat().browser(helper.getDriver());
         }
 
         public WebDriverElementValidationsBuilder element(By locator) {
-            return com.shaft.validation.Validations.verifyThat().element(locator);
+            return com.shaft.validation.Validations.verifyThat().element(helper.getDriver(), locator);
         }
     }
 

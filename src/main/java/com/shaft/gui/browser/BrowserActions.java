@@ -2,7 +2,7 @@ package com.shaft.gui.browser;
 
 import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
-import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.enums.internal.NavigationAction;
 import com.shaft.enums.internal.Screenshots;
@@ -48,7 +48,8 @@ import java.util.function.Predicate;
 @SuppressWarnings("unused")
 public class BrowserActions {
     private static final ThreadLocal<BrowserActions> INSTANCE = new ThreadLocal<>();
-
+    private static DriverFactoryHelper helper;
+    private static WebDriver driver;
     public BrowserActions() {
     }
 
@@ -56,36 +57,49 @@ public class BrowserActions {
     public BrowserActions(WebDriver driver) {
     }
 
-    public static BrowserActions getInstance() {
-        JavaScriptWaitManager.waitForLazyLoading();
+    public static BrowserActions getInstance(DriverFactoryHelper helper) {
+        BrowserActions.helper = helper;
+        BrowserActions.driver = helper.getDriver();
+        JavaScriptWaitManager.waitForLazyLoading(driver);
         if (INSTANCE.get() == null) {
             INSTANCE.set(new BrowserActions());
         }
         return INSTANCE.get();
     }
 
+    public static BrowserActions getInstance(WebDriver driver) {
+        BrowserActions.driver = helper.getDriver();
+        JavaScriptWaitManager.waitForLazyLoading(driver);
+        if (INSTANCE.get() == null) {
+            INSTANCE.set(new BrowserActions());
+        }
+        return INSTANCE.get();
+    }
+
+
+
     public TouchActions performTouchAction() {
-        return new TouchActions();
+        return new TouchActions(helper);
     }
 
     public AlertActions performAlertAction() {
-        return new AlertActions();
+        return new AlertActions(helper);
     }
 
     public ElementActions performElementAction() {
-        return ElementActions.getInstance();
+        return ElementActions.getInstance(helper);
     }
 
     public TouchActions touch() {
-        return new TouchActions();
+        return new TouchActions(helper);
     }
 
     public AlertActions alert() {
-        return new AlertActions();
+        return new AlertActions(helper);
     }
 
     public ElementActions element() {
-        return ElementActions.getInstance();
+        return ElementActions.getInstance(helper);
     }
 
     /**
@@ -96,7 +110,7 @@ public class BrowserActions {
      * @return wait actions reference to be used to chain actions
      */
     public WaitActions waitUntil(Function<? super WebDriver, ?> conditions) {
-        return new WaitActions().waitUntil(conditions);
+        return new WaitActions().waitUntil(helper, conditions);
     }
 
     public BrowserActions and() {
@@ -104,11 +118,11 @@ public class BrowserActions {
     }
 
     public WebDriverBrowserValidationsBuilder assertThat() {
-        return new WizardHelpers.WebDriverAssertions().browser();
+        return new WizardHelpers.WebDriverAssertions(helper).browser();
     }
 
     public WebDriverBrowserValidationsBuilder verifyThat() {
-        return new WizardHelpers.WebDriverVerifications().browser();
+        return new WizardHelpers.WebDriverVerifications(helper).browser();
     }
 
     /**
@@ -121,8 +135,8 @@ public class BrowserActions {
      */
     @SuppressWarnings("UnusedReturnValue")
     public BrowserActions capturePageSnapshot() {
-        var serializedPageData = BrowserActionsHelper.capturePageSnapshot(DriverFactoryHelper.getDriver());
-        BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), serializedPageData);
+        var serializedPageData = BrowserActionsHelper.capturePageSnapshot(driver);
+        BrowserActionsHelper.passAction(driver, serializedPageData);
         return this;
     }
 
@@ -134,10 +148,10 @@ public class BrowserActions {
     public String getCurrentURL() {
         var currentURL = "";
         try {
-            currentURL = DriverFactoryHelper.getDriver().getCurrentUrl();
-            BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), currentURL);
+            currentURL = driver.getCurrentUrl();
+            BrowserActionsHelper.passAction(driver, currentURL);
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), currentURL, rootCauseException);
+            BrowserActionsHelper.failAction(driver, currentURL, rootCauseException);
         }
         return currentURL;
     }
@@ -150,10 +164,10 @@ public class BrowserActions {
     public String getCurrentWindowTitle() {
         var currentWindowTitle = "";
         try {
-            currentWindowTitle = DriverFactoryHelper.getDriver().getTitle();
-            BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), currentWindowTitle);
+            currentWindowTitle = driver.getTitle();
+            BrowserActionsHelper.passAction(driver, currentWindowTitle);
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), currentWindowTitle, rootCauseException);
+            BrowserActionsHelper.failAction(driver, currentWindowTitle, rootCauseException);
         }
         return currentWindowTitle;
     }
@@ -166,14 +180,14 @@ public class BrowserActions {
     public String getPageSource() {
         var pageSource = "";
         try {
-            pageSource = DriverFactoryHelper.getDriver().getPageSource();
-            BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), pageSource);
+            pageSource = driver.getPageSource();
+            BrowserActionsHelper.passAction(driver, pageSource);
         } catch (org.openqa.selenium.JavascriptException javascriptException) {
             //try again
-            JavaScriptWaitManager.waitForLazyLoading();
+            JavaScriptWaitManager.waitForLazyLoading(driver);
             return getPageSource();
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), pageSource, rootCauseException);
+            BrowserActionsHelper.failAction(driver, pageSource, rootCauseException);
         }
         return pageSource;
     }
@@ -186,10 +200,10 @@ public class BrowserActions {
     public String getWindowHandle() {
         var windowHandle = "";
         try {
-            windowHandle = DriverFactoryHelper.getDriver().getWindowHandle();
-            BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), windowHandle);
+            windowHandle = driver.getWindowHandle();
+            BrowserActionsHelper.passAction(driver, windowHandle);
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), windowHandle, rootCauseException);
+            BrowserActionsHelper.failAction(driver, windowHandle, rootCauseException);
         }
         return windowHandle;
     }
@@ -202,10 +216,10 @@ public class BrowserActions {
     public String getWindowPosition() {
         var windowPosition = "";
         try {
-            windowPosition = DriverFactoryHelper.getDriver().manage().window().getPosition().toString();
-            BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), windowPosition);
+            windowPosition = driver.manage().window().getPosition().toString();
+            BrowserActionsHelper.passAction(driver, windowPosition);
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), windowPosition, rootCauseException);
+            BrowserActionsHelper.failAction(driver, windowPosition, rootCauseException);
         }
         return windowPosition;
     }
@@ -218,10 +232,10 @@ public class BrowserActions {
     public String getWindowSize() {
         var windowSize = "";
         try {
-            windowSize = DriverFactoryHelper.getDriver().manage().window().getSize().toString();
-            BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), windowSize);
+            windowSize = driver.manage().window().getSize().toString();
+            BrowserActionsHelper.passAction(driver, windowSize);
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), windowSize, rootCauseException);
+            BrowserActionsHelper.failAction(driver, windowSize, rootCauseException);
         }
         return windowSize;
     }
@@ -234,9 +248,9 @@ public class BrowserActions {
     public String getWindowHeight() {
         var windowHeight = "";
         try {
-            windowHeight = String.valueOf(DriverFactoryHelper.getDriver().manage().window().getSize().getHeight());
+            windowHeight = String.valueOf(driver.manage().window().getSize().getHeight());
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), windowHeight, rootCauseException);
+            BrowserActionsHelper.failAction(driver, windowHeight, rootCauseException);
         }
         return windowHeight;
     }
@@ -249,9 +263,9 @@ public class BrowserActions {
     public String getWindowWidth() {
         var windowWidth = "";
         try {
-            windowWidth = String.valueOf(DriverFactoryHelper.getDriver().manage().window().getSize().getWidth());
+            windowWidth = String.valueOf(driver.manage().window().getSize().getWidth());
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), windowWidth, rootCauseException);
+            BrowserActionsHelper.failAction(driver, windowWidth, rootCauseException);
         }
         return windowWidth;
     }
@@ -269,24 +283,24 @@ public class BrowserActions {
     }
 
     public BrowserActions navigateToURL(String targetUrl, WindowType windowType) {
-        var handleBeforeNavigation = DriverFactoryHelper.getDriver().getWindowHandle();
+        var handleBeforeNavigation = driver.getWindowHandle();
         try {
             switch (windowType) {
                 case TAB ->
-                        DriverFactoryHelper.getDriver().switchTo().newWindow(WindowType.TAB).navigate().to(targetUrl);
+                        driver.switchTo().newWindow(WindowType.TAB).navigate().to(targetUrl);
                 case WINDOW ->
-                        DriverFactoryHelper.getDriver().switchTo().newWindow(WindowType.WINDOW).navigate().to(targetUrl);
+                        driver.switchTo().newWindow(WindowType.WINDOW).navigate().to(targetUrl);
             }
-            JavaScriptWaitManager.waitForLazyLoading();
-            var handleAfterNavigation = DriverFactoryHelper.getDriver().getWindowHandle();
+            JavaScriptWaitManager.waitForLazyLoading(driver);
+            var handleAfterNavigation = driver.getWindowHandle();
             if (!handleBeforeNavigation.equals(handleAfterNavigation)) {
                 ReportManager.logDiscrete("Old Tab Handle: \"" + handleBeforeNavigation + "\", New Tab handle : \"" + handleAfterNavigation + "\"");
-                BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), targetUrl);
+                BrowserActionsHelper.passAction(driver, targetUrl);
             } else {
-                BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), targetUrl);
+                BrowserActionsHelper.failAction(driver, targetUrl);
             }
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), targetUrl, rootCauseException);
+            BrowserActionsHelper.failAction(driver, targetUrl, rootCauseException);
         }
         return this;
     }
@@ -326,12 +340,12 @@ public class BrowserActions {
         }
         forceStopCurrentNavigation();
         try {
-            String initialURL = "";
+            String initialURL;
 
-            if (DriverFactoryHelper.getDriver() instanceof AppiumDriver appiumDriver) {
+            if (driver instanceof AppiumDriver appiumDriver) {
                 initialURL = appiumDriver.getCurrentUrl();
             } else {
-                initialURL = DriverFactoryHelper.getDriver().getCurrentUrl();
+                initialURL = driver.getCurrentUrl();
             }
 
             // remove trailing slash which may cause comparing the current and target urls
@@ -342,27 +356,27 @@ public class BrowserActions {
             ReportManager.logDiscrete("Initial URL: \"" + initialURL + "\"");
             if (!initialURL.equals(modifiedTargetUrl)) {
                 // navigate to new url
-                BrowserActionsHelper.navigateToNewUrl(DriverFactoryHelper.getDriver(), initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
+                BrowserActionsHelper.navigateToNewUrl(driver, initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
             } else {
                 // already on the same page
-                DriverFactoryHelper.getDriver().navigate().refresh();
+                driver.navigate().refresh();
             }
-            JavaScriptWaitManager.waitForLazyLoading();
+            JavaScriptWaitManager.waitForLazyLoading(driver);
             if (!targetUrl.contains("\n")) {
                 // it can contain line breaks for mocked HTML pages that are used for internal testing only
-                BrowserActionsHelper.confirmThatWebsiteIsNotDown(DriverFactoryHelper.getDriver(), modifiedTargetUrl);
+                BrowserActionsHelper.confirmThatWebsiteIsNotDown(driver, modifiedTargetUrl);
             }
-            BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), modifiedTargetUrl);
+            BrowserActionsHelper.passAction(driver, modifiedTargetUrl);
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), modifiedTargetUrl, rootCauseException);
+            BrowserActionsHelper.failAction(driver, modifiedTargetUrl, rootCauseException);
         }
         return this;
     }
 
     private void forceStopCurrentNavigation() {
         try {
-            JavaScriptWaitManager.waitForLazyLoading();
-            ((JavascriptExecutor) DriverFactoryHelper.getDriver()).executeScript("return window.stop;");
+            JavaScriptWaitManager.waitForLazyLoading(driver);
+            ((JavascriptExecutor) driver).executeScript("return window.stop;");
         } catch (Exception rootCauseException) {
             ReportManagerHelper.logDiscrete(rootCauseException);
             /*
@@ -382,10 +396,10 @@ public class BrowserActions {
             String domainName = BrowserActionsHelper.getDomainNameFromUrl(targetUrl);
             if (SHAFT.Properties.platform.executionAddress().equals("local")) {
                 Predicate<URI> uriPredicate = uri -> uri.getHost().contains(domainName);
-                ((HasAuthentication) DriverFactoryHelper.getDriver()).register(uriPredicate, UsernameAndPassword.of(username, password));
+                ((HasAuthentication) driver).register(uriPredicate, UsernameAndPassword.of(username, password));
             } else {
                 AtomicReference<DevTools> devToolsAtomicReference = new AtomicReference<>();
-                DriverFactoryHelper.setDriver(new Augmenter().addDriverAugmentation("chrome",
+                helper.setDriver(new Augmenter().addDriverAugmentation("chrome",
                         HasAuthentication.class,
                         (caps, exec) -> (whenThisMatches, useTheseCredentials) -> {
                             devToolsAtomicReference.get()
@@ -394,11 +408,11 @@ public class BrowserActions {
                                     .network()
                                     .addAuthHandler(whenThisMatches,
                                             useTheseCredentials);
-                        }).augment(DriverFactoryHelper.getDriver()));
-                DevTools devTools = ((HasDevTools) DriverFactoryHelper.getDriver()).getDevTools();
+                        }).augment(driver));
+                DevTools devTools = ((HasDevTools) driver).getDevTools();
                 devTools.createSession();
                 devToolsAtomicReference.set(devTools);
-                ((HasAuthentication) DriverFactoryHelper.getDriver()).register(UsernameAndPassword.of(username, password));
+                ((HasAuthentication) driver).register(UsernameAndPassword.of(username, password));
             }
         } catch (Exception e) {
             ReportManagerHelper.logDiscrete(e);
@@ -438,27 +452,27 @@ public class BrowserActions {
         String initialURL;
         var newURL = "";
         try {
-            initialURL = DriverFactoryHelper.getDriver().getCurrentUrl();
+            initialURL = driver.getCurrentUrl();
             forceStopCurrentNavigation();
             switch (navigationAction) {
-                case FORWARD -> DriverFactoryHelper.getDriver().navigate().forward();
-                case BACK -> DriverFactoryHelper.getDriver().navigate().back();
-                case REFRESH -> DriverFactoryHelper.getDriver().navigate().refresh();
+                case FORWARD -> driver.navigate().forward();
+                case BACK -> driver.navigate().back();
+                case REFRESH -> driver.navigate().refresh();
             }
-            JavaScriptWaitManager.waitForLazyLoading();
+            JavaScriptWaitManager.waitForLazyLoading(driver);
             if (!navigationAction.equals(NavigationAction.REFRESH)) {
-                BrowserActionsHelper.waitUntilUrlIsNot(DriverFactoryHelper.getDriver(), initialURL);
-                newURL = DriverFactoryHelper.getDriver().getCurrentUrl();
+                BrowserActionsHelper.waitUntilUrlIsNot(driver, initialURL);
+                newURL = driver.getCurrentUrl();
                 if (!newURL.equals(initialURL)) {
-                    BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), "Navigate " + navigationAction + " to " + newURL);
+                    BrowserActionsHelper.passAction(driver, "Navigate " + navigationAction + " to " + newURL);
                 } else {
-                    BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), newURL);
+                    BrowserActionsHelper.failAction(driver, newURL);
                 }
             } else {
-                BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), "Navigate " + navigationAction + " to " + newURL);
+                BrowserActionsHelper.passAction(driver, "Navigate " + navigationAction + " to " + newURL);
             }
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), newURL, rootCauseException);
+            BrowserActionsHelper.failAction(driver, newURL, rootCauseException);
         }
         return this;
     }
@@ -470,10 +484,10 @@ public class BrowserActions {
      * @return a self-reference to be used to chain actions
      */
     public BrowserActions closeCurrentWindow() {
-        if (DriverFactoryHelper.getDriver() != null) {
+        if (driver != null) {
             try {
                 // TODO: handle session timeout while attempting to close empty window
-                String lastPageSource = DriverFactoryHelper.getDriver().getPageSource();
+                String lastPageSource = driver.getPageSource();
                 DriverFactory.closeAllDrivers();
                 BrowserActionsHelper.passAction(lastPageSource);
             } catch (WebDriverException rootCauseException) {
@@ -504,7 +518,7 @@ public class BrowserActions {
         var targetWidth = 1920;
         var targetHeight = 1080;
 
-        initialWindowSize = DriverFactoryHelper.getDriver().manage().window().getSize();
+        initialWindowSize = driver.manage().window().getSize();
         ReportManager.logDiscrete("Initial window size: " + initialWindowSize.toString());
 
         String targetBrowserName = SHAFT.Properties.web.targetBrowserName();
@@ -512,12 +526,12 @@ public class BrowserActions {
         String executionAddress = SHAFT.Properties.platform.executionAddress();
 
         // try selenium WebDriver maximize
-        currentWindowSize = BrowserActionsHelper.attemptMaximizeUsingSeleniumWebDriver(DriverFactoryHelper.getDriver(), executionAddress, targetBrowserName,
+        currentWindowSize = BrowserActionsHelper.attemptMaximizeUsingSeleniumWebDriver(driver, executionAddress, targetBrowserName,
                 targetOperatingSystem);
         if ((initialWindowSize.height == currentWindowSize.height)
                 && (initialWindowSize.width == currentWindowSize.width)) {
             // attempt resize using toolkit
-            currentWindowSize = BrowserActionsHelper.attemptMaximizeUsingToolkitAndJavascript(DriverFactoryHelper.getDriver(), targetWidth, targetHeight);
+            currentWindowSize = BrowserActionsHelper.attemptMaximizeUsingToolkitAndJavascript(driver, targetWidth, targetHeight);
 
             if ((currentWindowSize.height != targetHeight)
                     || (currentWindowSize.width != targetWidth)) {
@@ -525,7 +539,7 @@ public class BrowserActions {
                 // also happens with chrome/windows
 
                 // attempt resize using WebDriver manage window
-                currentWindowSize = BrowserActionsHelper.attemptMaximizeUsingSeleniumWebDriverManageWindow(DriverFactoryHelper.getDriver(), targetWidth, targetHeight);
+                currentWindowSize = BrowserActionsHelper.attemptMaximizeUsingSeleniumWebDriverManageWindow(driver, targetWidth, targetHeight);
             }
 
             if ((currentWindowSize.height != targetHeight)
@@ -533,7 +547,7 @@ public class BrowserActions {
                 // attempt setting window to fullscreen
                 fullScreenWindow();
 
-                currentWindowSize = DriverFactoryHelper.getDriver().manage().window().getSize();
+                currentWindowSize = driver.manage().window().getSize();
                 ReportManager.logDiscrete("Window size after fullScreenWindow: " + currentWindowSize.toString());
             }
 
@@ -542,7 +556,7 @@ public class BrowserActions {
                 ReportManager.logDiscrete("skipping window maximization due to unknown error, marking step as passed.");
             }
         }
-        BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), "New screen size is now: " + currentWindowSize);
+        BrowserActionsHelper.passAction(driver, "New screen size is now: " + currentWindowSize);
         return this;
     }
 
@@ -557,25 +571,25 @@ public class BrowserActions {
         Dimension initialWindowSize;
         Dimension currentWindowSize;
 
-        initialWindowSize = DriverFactoryHelper.getDriver().manage().window().getSize();
+        initialWindowSize = driver.manage().window().getSize();
         ReportManager.logDiscrete("Initial window size: " + initialWindowSize.toString());
 
-        DriverFactoryHelper.getDriver().manage().window().setPosition(new Point(0, 0));
-        DriverFactoryHelper.getDriver().manage().window().setSize(new Dimension(width, height));
+        driver.manage().window().setPosition(new Point(0, 0));
+        driver.manage().window().setSize(new Dimension(width, height));
         // apparently we need to add +1 here to ensure that the new window size matches
         // the expected window size
 
-        currentWindowSize = DriverFactoryHelper.getDriver().manage().window().getSize();
+        currentWindowSize = driver.manage().window().getSize();
         ReportManager.logDiscrete("Window size after SWD: " + currentWindowSize.toString());
 
         if ((initialWindowSize.height == currentWindowSize.height)
                 && (initialWindowSize.width == currentWindowSize.width)) {
-            ((JavascriptExecutor) DriverFactoryHelper.getDriver()).executeScript(JavaScriptHelper.WINDOW_FOCUS.getValue());
-            ((JavascriptExecutor) DriverFactoryHelper.getDriver()).executeScript(JavaScriptHelper.WINDOW_RESET_LOCATION.getValue());
-            ((JavascriptExecutor) DriverFactoryHelper.getDriver()).executeScript(JavaScriptHelper.WINDOW_RESIZE.getValue()
+            ((JavascriptExecutor) driver).executeScript(JavaScriptHelper.WINDOW_FOCUS.getValue());
+            ((JavascriptExecutor) driver).executeScript(JavaScriptHelper.WINDOW_RESET_LOCATION.getValue());
+            ((JavascriptExecutor) driver).executeScript(JavaScriptHelper.WINDOW_RESIZE.getValue()
                     .replace("$WIDTH", String.valueOf(width)).replace("$HEIGHT", String.valueOf(height)));
 
-            currentWindowSize = DriverFactoryHelper.getDriver().manage().window().getSize();
+            currentWindowSize = driver.manage().window().getSize();
             ReportManager.logDiscrete("Window size after JavascriptExecutor: " + currentWindowSize.toString());
         }
 
@@ -584,23 +598,23 @@ public class BrowserActions {
             ReportManager.logDiscrete("skipping window resizing due to unknown error, marking step as passed.");
         }
 
-        BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), "New screen size is now: " + currentWindowSize);
+        BrowserActionsHelper.passAction(driver, "New screen size is now: " + currentWindowSize);
         return this;
     }
 
     public LocalStorage getLocalStorage() {
         if (SHAFT.Properties.platform.executionAddress().equals("local")) {
-            return ((WebStorage) DriverFactoryHelper.getDriver()).getLocalStorage();
+            return ((WebStorage) driver).getLocalStorage();
         } else {
-            return (LocalStorage) ((JavascriptExecutor) DriverFactoryHelper.getDriver()).executeScript("return window.localStorage;");
+            return (LocalStorage) ((JavascriptExecutor) driver).executeScript("return window.localStorage;");
         }
     }
 
     public SessionStorage getSessionStorage() {
         if (SHAFT.Properties.platform.executionAddress().equals("local")) {
-            return ((WebStorage) DriverFactoryHelper.getDriver()).getSessionStorage();
+            return ((WebStorage) driver).getSessionStorage();
         } else {
-            return (SessionStorage) ((JavascriptExecutor) DriverFactoryHelper.getDriver()).executeScript("return window.sessionStorage;");
+            return (SessionStorage) ((JavascriptExecutor) driver).executeScript("return window.sessionStorage;");
         }
     }
 
@@ -612,10 +626,10 @@ public class BrowserActions {
         ReportManager.logDiscrete("Attempting to configure network interceptor for \"" + requestPredicate + "\", will provide mocked response \"" + mockedResponse + "\"");
         try {
             NetworkInterceptor networkInterceptor = new NetworkInterceptor(
-                    DriverFactoryHelper.getDriver(),
+                    driver,
                     Route.matching(requestPredicate)
                             .to(() -> req -> mockedResponse));
-            BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), "Successfully configured network interceptor.");
+            BrowserActionsHelper.passAction(driver, "Successfully configured network interceptor.");
         } catch (Exception rootCauseException) {
             BrowserActionsHelper.failAction(rootCauseException);
         }
@@ -628,18 +642,18 @@ public class BrowserActions {
      * @return a self-reference to be used to chain actions
      */
     public BrowserActions fullScreenWindow() {
-        Dimension initialWindowSize = DriverFactoryHelper.getDriver().manage().window().getSize();
+        Dimension initialWindowSize = driver.manage().window().getSize();
         ReportManager.logDiscrete("Initial Windows Size: " + initialWindowSize.width + "x" + initialWindowSize.height);
 
         if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local")
                 && SHAFT.Properties.web.headlessExecution()) {
             maximizeWindow();
         } else {
-            DriverFactoryHelper.getDriver().manage().window().fullscreen();
+            driver.manage().window().fullscreen();
         }
 
-        ReportManager.logDiscrete("Current Windows Size after fullScreen: " + DriverFactoryHelper.getDriver().manage().window().getSize().width + "x" + DriverFactoryHelper.getDriver().manage().window().getSize().height);
-        BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), DriverFactoryHelper.getDriver().getPageSource());
+        ReportManager.logDiscrete("Current Windows Size after fullScreen: " + driver.manage().window().getSize().width + "x" + driver.manage().window().getSize().height);
+        BrowserActionsHelper.passAction(driver, driver.getPageSource());
         return this;
     }
 
@@ -670,11 +684,11 @@ public class BrowserActions {
      */
     @SuppressWarnings("UnusedReturnValue")
     public BrowserActions switchToWindow(String nameOrHandle) {
-        if (DriverFactoryHelper.getDriver().getWindowHandles().contains(nameOrHandle)) {
-            DriverFactoryHelper.getDriver().switchTo().window(nameOrHandle);
-            BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), nameOrHandle);
+        if (driver.getWindowHandles().contains(nameOrHandle)) {
+            driver.switchTo().window(nameOrHandle);
+            BrowserActionsHelper.passAction(driver, nameOrHandle);
         } else {
-            BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), nameOrHandle);
+            BrowserActionsHelper.failAction(driver, nameOrHandle);
         }
         return this;
     }
@@ -687,8 +701,8 @@ public class BrowserActions {
      * @return a self-reference to be used to chain actions
      */
     public BrowserActions addCookie(String key, String value) {
-        DriverFactoryHelper.getDriver().manage().addCookie(new Cookie(key, value));
-        BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), "Add Cookie", "Key: " + key + " | Value: " + value);
+        driver.manage().addCookie(new Cookie(key, value));
+        BrowserActionsHelper.passAction(driver, "Add Cookie", "Key: " + key + " | Value: " + value);
         return this;
     }
 
@@ -699,9 +713,9 @@ public class BrowserActions {
      * @return the cookie.
      */
     public Cookie getCookie(String cookieName) {
-        Cookie cookie = DriverFactoryHelper.getDriver().manage().getCookieNamed(cookieName);
+        Cookie cookie = driver.manage().getCookieNamed(cookieName);
         if (cookie == null) {
-            BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), "Get Cookie: " + cookieName);
+            BrowserActionsHelper.failAction(driver, "Get Cookie: " + cookieName);
         }
         return cookie;
     }
@@ -712,7 +726,7 @@ public class BrowserActions {
      * @return A Set of cookies for the current browsing context.
      */
     public Set<Cookie> getAllCookies() {
-        Set<Cookie> cookies = DriverFactoryHelper.getDriver().manage().getCookies();
+        Set<Cookie> cookies = driver.manage().getCookies();
         BrowserActionsHelper.passAction("");
         return cookies;
     }
@@ -725,7 +739,7 @@ public class BrowserActions {
      */
     public String getCookieDomain(String cookieName) {
         String cookieDomain = getCookie(cookieName).getDomain();
-        BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), "Get Cookie Domain with name: " + cookieName, cookieDomain);
+        BrowserActionsHelper.passAction(driver, "Get Cookie Domain with name: " + cookieName, cookieDomain);
         return cookieDomain;
     }
 
@@ -737,7 +751,7 @@ public class BrowserActions {
      */
     public String getCookieValue(String cookieName) {
         String cookieValue = getCookie(cookieName).getValue();
-        BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), "Get Cookie Value with name: " + cookieName, cookieValue);
+        BrowserActionsHelper.passAction(driver, "Get Cookie Value with name: " + cookieName, cookieValue);
         return cookieValue;
     }
 
@@ -749,7 +763,7 @@ public class BrowserActions {
      */
     public String getCookiePath(String cookieName) {
         String cookiePath = getCookie(cookieName).getPath();
-        BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), "Get Cookie Path with name: " + cookieName, cookiePath);
+        BrowserActionsHelper.passAction(driver, "Get Cookie Path with name: " + cookieName, cookiePath);
         return cookiePath;
     }
 
@@ -761,8 +775,8 @@ public class BrowserActions {
      */
     @SuppressWarnings("UnusedReturnValue")
     public BrowserActions deleteCookie(String cookieName) {
-        DriverFactoryHelper.getDriver().manage().deleteCookieNamed(cookieName);
-        BrowserActionsHelper.passAction(DriverFactoryHelper.getDriver(), "Delete Cookie", cookieName);
+        driver.manage().deleteCookieNamed(cookieName);
+        BrowserActionsHelper.passAction(driver, "Delete Cookie", cookieName);
         return this;
     }
 
@@ -773,7 +787,7 @@ public class BrowserActions {
      */
     @SuppressWarnings("UnusedReturnValue")
     public BrowserActions deleteAllCookies() {
-        DriverFactoryHelper.getDriver().manage().deleteAllCookies();
+        driver.manage().deleteAllCookies();
         BrowserActionsHelper.passAction("");
         return this;
     }
@@ -799,15 +813,15 @@ public class BrowserActions {
         switch (type) {
             case FULL -> {
                 try {
-                    ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeFullPageScreenshot(DriverFactoryHelper.getDriver()), "captureScreenshot")));
+                    ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeFullPageScreenshot(driver), "captureScreenshot")));
                 } catch (IOException ioException){
                     captureScreenshot(Screenshots.VIEWPORT);
                 }
             }
             case VIEWPORT ->
-                ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeViewportScreenshot(DriverFactoryHelper.getDriver()), "captureScreenshot")));
+                ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeViewportScreenshot(driver), "captureScreenshot")));
             case ELEMENT ->
-                    BrowserActionsHelper.failAction(DriverFactoryHelper.getDriver(), "Were you trying to use driver.element().captureScreenshot() instead?");
+                    BrowserActionsHelper.failAction(driver, "Were you trying to use driver.element().captureScreenshot() instead?");
         }
         return this;
     }
@@ -821,7 +835,7 @@ public class BrowserActions {
     @SuppressWarnings("UnusedReturnValue")
     public BrowserActions captureSnapshot() {
         var logMessage = "";
-        var pageSnapshot = BrowserActionsHelper.capturePageSnapshot(DriverFactoryHelper.getDriver());
+        var pageSnapshot = BrowserActionsHelper.capturePageSnapshot(driver);
         if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
             logMessage = "Capture page snapshot";
         } else if (pageSnapshot.startsWith("<html")) {
@@ -832,11 +846,11 @@ public class BrowserActions {
     }
 
     public void generateLightHouseReport() {
-        new LightHouseGenerateReport(DriverFactoryHelper.getDriver()).generateLightHouseReport();
+        new LightHouseGenerateReport(driver).generateLightHouseReport();
     }
 
     public BrowserActions waitForLazyLoading() {
-        JavaScriptWaitManager.waitForLazyLoading();
+        JavaScriptWaitManager.waitForLazyLoading(driver);
         return this;
     }
 

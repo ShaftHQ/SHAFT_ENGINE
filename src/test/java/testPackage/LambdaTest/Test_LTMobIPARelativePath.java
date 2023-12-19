@@ -16,8 +16,8 @@ public class Test_LTMobIPARelativePath {
     @Test
     public void test() {
 
-        ElementActions.getInstance().performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
-        ElementActions.getInstance().type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
+        ElementActions.getInstance(driver).performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
+        ElementActions.getInstance(driver).type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
         Validations.assertThat()
                 .element(driver, AppiumBy.accessibilityId("Text Output"))
                 .text()
@@ -42,7 +42,7 @@ public class Test_LTMobIPARelativePath {
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
         SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
-        driver = DriverFactory.getDriver();
+        driver = DriverFactory.getHelper().getDriver();
 
     }
 

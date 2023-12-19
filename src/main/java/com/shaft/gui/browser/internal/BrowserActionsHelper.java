@@ -135,7 +135,7 @@ public class BrowserActionsHelper {
             Command: [3650f46d33000b7ed76f29f53d7810b6, getPageSource {}]
             */
                 // try again
-                JavaScriptWaitManager.waitForLazyLoading();
+                JavaScriptWaitManager.waitForLazyLoading(driver);
                 confirmThatWebsiteIsNotDown(driver, targetUrl);
             }
         }

@@ -1,7 +1,7 @@
 package com.shaft.gui.waits;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.ElementActions;
@@ -16,35 +16,37 @@ import java.time.Duration;
 import java.util.function.Function;
 
 public class WaitActions {
+    private static DriverFactoryHelper helper;
 
     public TouchActions touch() {
-        return new TouchActions();
+        return new TouchActions(helper);
     }
 
     public AlertActions alert() {
-        return new AlertActions();
+        return new AlertActions(helper);
     }
 
     public BrowserActions browser() {
-        return BrowserActions.getInstance();
+        return BrowserActions.getInstance(helper);
     }
 
     public ElementActions element() {
-        return ElementActions.getInstance();
+        return ElementActions.getInstance(helper);
     }
 
     public WaitActions and() {
         return this;
     }
 
-    public WaitActions waitUntil(Function<? super WebDriver, ?> conditions) {
+    public WaitActions waitUntil(DriverFactoryHelper helper, Function<? super WebDriver, ?> conditions) {
+        WaitActions.helper = helper;
         explicitWaits(conditions, SHAFT.Properties.timeouts.waitUntilTimeout());
         return this;
     }
 
     public static void explicitWaits(Function<? super WebDriver, ?> conditions, int timeoutWithSeconds) {
         try {
-            new WebDriverWait(DriverFactoryHelper.getDriver(), Duration.ofSeconds(timeoutWithSeconds))
+            new WebDriverWait(helper.getDriver(), Duration.ofSeconds(timeoutWithSeconds))
                     .until(conditions);
             ReportManager.log("Explicit wait until: \"" + conditions + "\".");
         } catch (TimeoutException toe) {

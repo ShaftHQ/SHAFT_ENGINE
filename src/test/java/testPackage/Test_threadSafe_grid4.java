@@ -23,24 +23,24 @@ public class Test_threadSafe_grid4 {
 
 //    @Test
     public void testThread1(){
-        driver.set(DriverFactory.getDriver());
+        driver.set(DriverFactory.getHelper().getDriver());
         runTestSteps();
     }
 
 //    @Test
     public void testThread2(){
-        driver.set(DriverFactory.getDriver());
+        driver.set(DriverFactory.getHelper().getDriver());
         runTestSteps();
     }
 
 //    @Test
     public void testThread3(){
-        driver.set(DriverFactory.getDriver());
+        driver.set(DriverFactory.getHelper().getDriver());
         runTestSteps();
     }
 
     private void runTestSteps(){
-        BrowserActions.getInstance().navigateToURL("https://duckduckgo.com/?");
+        BrowserActions.getInstance(driver.get()).navigateToURL("https://duckduckgo.com/?");
         new ElementActions(driver.get()).type(searchBar, "SHAFT_Engine")
                 .keyPress(searchBar, Keys.ENTER);
         Validations.assertThat()
@@ -49,6 +49,6 @@ public class Test_threadSafe_grid4 {
                 .contains("ShaftHQ/SHAFT_ENGINE")
                 .withCustomReportMessage("Asserting that the second search result contains 'ShaftHQ/SHAFT_ENGINE'")
                 .perform();
-        BrowserActions.getInstance().closeCurrentWindow();
+        BrowserActions.getInstance(driver.get()).closeCurrentWindow();
     }
 }
