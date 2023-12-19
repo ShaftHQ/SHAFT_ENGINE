@@ -153,8 +153,10 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void beforeInvocation(IInvokedMethod method, ITestResult iTestResult, ITestContext iTestContext) {
         var elapsedTime = System.currentTimeMillis() - executionStartTime;
-        ReportManager.logDiscrete("elapsedTime: " +elapsedTime + "ms");
-        if (System.currentTimeMillis() - executionStartTime >= SHAFT.Properties.testNG.testSuiteTimeout() * 60000) {
+        if (SHAFT.Properties.reporting.debugMode()) {
+            ReportManager.logDiscrete("elapsedTime: " + elapsedTime + "ms");
+        }
+        if (elapsedTime >= SHAFT.Properties.testNG.testSuiteTimeout() * 60000) {
             throw new SkipException("Skipping method as the test suite has exceeded the defined timeout of " + SHAFT.Properties.testNG.testSuiteTimeout() + " minutes.");
         }
         xmlTest = method.getTestMethod().getXmlTest();
