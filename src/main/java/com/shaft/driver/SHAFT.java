@@ -64,6 +64,7 @@ public class SHAFT {
 
             public void quit() {
                 helper.closeDriver();
+                DriverFactory.setHelper(null);
                 helper = null;
             }
 
