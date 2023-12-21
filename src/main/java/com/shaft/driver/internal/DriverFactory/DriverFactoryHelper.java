@@ -62,6 +62,12 @@ public class DriverFactoryHelper {
 
     private final OptionsManager optionsManager = new OptionsManager();
 
+    public DriverFactoryHelper (){
+    }
+    public DriverFactoryHelper(WebDriver driver){
+        this.driver = driver;
+    }
+
     /**
      * Checks to see if the execution is a mobile-native execution
      *
@@ -564,7 +570,7 @@ public class DriverFactoryHelper {
             if (!isMobileExecution) {
                 var targetBrowserName = SHAFT.Properties.web.targetBrowserName().toLowerCase();
                 if (SHAFT.Properties.flags.autoMaximizeBrowserWindow() && (targetBrowserName.contains(Browser.SAFARI.browserName().toLowerCase()) || targetBrowserName.contains(Browser.FIREFOX.browserName().toLowerCase()))) {
-                    BrowserActions.getInstance(this).maximizeWindow();
+                    new BrowserActions(this).maximizeWindow();
                 }
             }
             // start session recording

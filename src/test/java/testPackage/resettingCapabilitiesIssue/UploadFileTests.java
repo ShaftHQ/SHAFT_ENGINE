@@ -16,27 +16,27 @@ public class UploadFileTests {
 
     //    @Test
     public void uploadFile_visibleUploadInput() {
-        BrowserActions.getInstance(driver).navigateToURL("https://demo.guru99.com/test/upload/");
-        ElementActions.getInstance(driver).typeFileLocationForUpload(By.id("uploadfile_0"), "src/main/resources/images/shaft.png");
+        new BrowserActions(driver).navigateToURL("https://demo.guru99.com/test/upload/");
+        new ElementActions(driver).typeFileLocationForUpload(By.id("uploadfile_0"), "src/main/resources/images/shaft.png");
         new ElementActions(driver).click(By.id("terms")).click(By.id("submitbutton"));
         Validations.assertThat().element(driver, By.id("res")).attribute("Text").contains("1 file").perform();
     }
 
     @Test
     public void uploadFile_invisibleUploadInput() {
-        BrowserActions.getInstance(driver).navigateToURL("https://fineuploader.com/demos.html#gallery-view");
-        ElementActions.getInstance(driver).typeFileLocationForUpload(By.xpath("//div[@id='fine-uploader-gallery']//input[@type='file']"), FileActions.getInstance().getAbsolutePath("src/main/resources/images/", "shaft.png"));
+        new BrowserActions(driver).navigateToURL("https://fineuploader.com/demos.html#gallery-view");
+        new ElementActions(driver).typeFileLocationForUpload(By.xpath("//div[@id='fine-uploader-gallery']//input[@type='file']"), FileActions.getInstance().getAbsolutePath("src/main/resources/images/", "shaft.png"));
         Validations.assertThat().element(driver, By.xpath("//div[@id='fine-uploader-gallery']//div[@class='qq-thumbnail-wrapper']/img")).attribute("src").contains("data:image/png;base64").perform();
     }
 
     @BeforeMethod
     public void beforeMethod() {
-        driver = DriverFactory.getHelper().getDriver();
-        BrowserActions.getInstance(driver).setWindowSize(1920, 1080);
+        driver = DriverFactory.getDriver();
+        new BrowserActions(driver).setWindowSize(1920, 1080);
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        BrowserActions.getInstance(driver).closeCurrentWindow();
+        new BrowserActions(driver).closeCurrentWindow();
     }
 }

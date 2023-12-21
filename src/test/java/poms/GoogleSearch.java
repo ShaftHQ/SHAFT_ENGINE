@@ -25,36 +25,36 @@ public class GoogleSearch {
     }
 
     public void navigateToURL() {
-        BrowserActions.getInstance(driver).navigateToURL(url, urlAfterRedirection);
+        new BrowserActions(driver).navigateToURL(url, urlAfterRedirection);
     }
 
     public void searchForQuery(String searchQuery) {
-        ElementActions.getInstance(driver).type(searchBox_textField, searchQuery);
-        ElementActions.getInstance(driver).keyPress(searchBox_textField, Keys.ENTER);
+        new ElementActions(driver).type(searchBox_textField, searchQuery);
+        new ElementActions(driver).keyPress(searchBox_textField, Keys.ENTER);
     }
 
     public void typeQuery(String searchQuery) {
-        ElementActions.getInstance(driver).type(searchBox_textField, searchQuery);
+        new ElementActions(driver).type(searchBox_textField, searchQuery);
     }
 
     public void copyQuery() {
-        ElementActions.getInstance(driver).clipboardActions(searchBox_textField, ClipboardAction.COPY);
+        new ElementActions(driver).clipboardActions(searchBox_textField, ClipboardAction.COPY);
     }
 
     public void pasteQuery() {
-        ElementActions.getInstance(driver).clipboardActions(searchBox_textField, ClipboardAction.PASTE);
+        new ElementActions(driver).clipboardActions(searchBox_textField, ClipboardAction.PASTE);
     }
 
     public void cutQuery() {
-        ElementActions.getInstance(driver).clipboardActions(searchBox_textField, ClipboardAction.CUT);
+        new ElementActions(driver).clipboardActions(searchBox_textField, ClipboardAction.CUT);
     }
 
     public void selectQuery() {
-        ElementActions.getInstance(driver).clipboardActions(searchBox_textField, ClipboardAction.SELECT_ALL);
+        new ElementActions(driver).clipboardActions(searchBox_textField, ClipboardAction.SELECT_ALL);
     }
 
     public void unSelectQuery() {
-        ElementActions.getInstance(driver).clipboardActions(searchBox_textField, ClipboardAction.UNSELECT_ALL);
+        new ElementActions(driver).clipboardActions(searchBox_textField, ClipboardAction.UNSELECT_ALL);
     }
 
     public void assertPageIsOpen() {

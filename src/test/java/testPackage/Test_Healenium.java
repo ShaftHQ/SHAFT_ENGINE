@@ -41,7 +41,7 @@ public class Test_Healenium {
         }
 
         //navigate to target url
-        BrowserActions.getInstance(driver).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
+        new BrowserActions(driver).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
 
         //define element locator
         By googleLogo_image = By.xpath("//*[@alt='Google']");
@@ -76,6 +76,6 @@ public class Test_Healenium {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod(){
-        BrowserActions.getInstance(driver).closeCurrentWindow();
+        new BrowserActions(driver).closeCurrentWindow();
     }
 }

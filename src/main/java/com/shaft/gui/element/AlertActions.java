@@ -27,11 +27,11 @@ public class AlertActions {
     }
 
     public ElementActions performElementAction() {
-        return ElementActions.getInstance(helper);
+        return new ElementActions(helper);
     }
 
     public ElementActions element() {
-        return ElementActions.getInstance(helper);
+        return new ElementActions(helper);
     }
 
     public TouchActions touch() {
@@ -39,7 +39,7 @@ public class AlertActions {
     }
 
     public BrowserActions browser() {
-        return BrowserActions.getInstance(helper);
+        return new BrowserActions(helper);
     }
 
     public AlertActions and() {

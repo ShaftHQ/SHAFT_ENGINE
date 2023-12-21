@@ -64,10 +64,11 @@ public class SHAFT {
 
             public void quit() {
                 helper.closeDriver();
+                helper = null;
             }
 
             public ElementActions element() {
-                return ElementActions.getInstance(helper);
+                return new ElementActions(helper);
             }
 
             public TouchActions touch() {
@@ -75,7 +76,7 @@ public class SHAFT {
             }
 
             public BrowserActions browser() {
-                return BrowserActions.getInstance(helper);
+                return new BrowserActions(helper);
             }
 
             public AlertActions alert() {

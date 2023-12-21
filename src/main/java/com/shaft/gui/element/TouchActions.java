@@ -50,11 +50,11 @@ public class TouchActions {
      * @return a FluentElementActions object
      */
     public ElementActions performElementAction() {
-        return ElementActions.getInstance(helper);
+        return new ElementActions(helper);
     }
 
     public ElementActions element() {
-        return ElementActions.getInstance(helper);
+        return new ElementActions(helper);
     }
 
     public TouchActions and() {

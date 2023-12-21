@@ -15,7 +15,7 @@ public class AsyncElementActions {
     private final ElementActions elementActions;
 
     public AsyncElementActions(DriverFactoryHelper helper) {
-        this.elementActions = ElementActions.getInstance(helper);
+        this.elementActions = new ElementActions(helper);
         actionsList = new ArrayList<>();
     }
 

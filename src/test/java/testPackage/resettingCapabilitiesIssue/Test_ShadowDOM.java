@@ -16,8 +16,8 @@ public class Test_ShadowDOM {
     @Test
     public void shadowDom() {
         String targetText = "Typing into SHADOW DOM...";
-        BrowserActions.getInstance(driver).navigateToURL("https://mdn.github.io/web-components-examples/popup-info-box-web-component/");
-        ElementActions.getInstance(driver).type(By.id("cvc"), targetText);
+        new BrowserActions(driver).navigateToURL("https://mdn.github.io/web-components-examples/popup-info-box-web-component/");
+        new ElementActions(driver).type(By.id("cvc"), targetText);
         Validations.assertThat().element(driver, By.id("cvc")).text().isEqualTo(targetText).perform();
     }
 
@@ -28,6 +28,6 @@ public class Test_ShadowDOM {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        BrowserActions.getInstance(driver).closeCurrentWindow();
+        new BrowserActions(driver).closeCurrentWindow();
     }
 }

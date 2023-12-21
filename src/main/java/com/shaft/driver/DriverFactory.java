@@ -12,13 +12,18 @@ import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import lombok.Getter;
+import lombok.Setter;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Platform;
+import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.Browser;
 import org.sikuli.script.App;
 
 @SuppressWarnings({"UnusedReturnValue", "unused"})
 public class DriverFactory {
+
+    @Setter
+    private static DriverFactoryHelper helper;
 
     /**
      * Read the target Selenium WebDriver value from the execution.properties file
@@ -26,17 +31,24 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance
      */
     public static DriverFactoryHelper getHelper() {
-        readLastMinuteUpdatedProperties();
-        if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("browserstack")) {
-            return getBrowserStackDriver(new MutableCapabilities());
-        }else if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("lambdatest")){
-            return getLambdaTestDriver(new MutableCapabilities());
+        if (helper == null) {
+            readLastMinuteUpdatedProperties();
+            if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("browserstack")) {
+                return getBrowserStackDriver(new MutableCapabilities());
+            } else if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("lambdatest")) {
+                return getLambdaTestDriver(new MutableCapabilities());
 
-        } else {
-            var helper = new DriverFactoryHelper();
-            helper.initializeDriver();
-            return helper;
+            } else {
+                var helper = new DriverFactoryHelper();
+                helper.initializeDriver();
+                DriverFactory.helper = helper;
+            }
         }
+        return helper;
+    }
+
+    public static WebDriver getDriver(){
+        return getHelper().getDriver();
     }
 
     /**
@@ -244,7 +256,10 @@ public class DriverFactory {
      * Close all open driver instances.
      */
     public static void closeAllDrivers() {
-        new DriverFactoryHelper().closeDriver();
+        if (helper !=null) {
+            helper.closeDriver();
+            DriverFactory.helper = null;
+        }
     }
 
     /**

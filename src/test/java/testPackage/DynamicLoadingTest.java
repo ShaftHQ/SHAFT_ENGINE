@@ -15,15 +15,15 @@ public class DynamicLoadingTest {
 
     @Test
     public void dynamicLoading_elementIsHidden() {
-        BrowserActions.getInstance(driver).navigateToURL("https://the-internet.herokuapp.com/dynamic_loading/1");
-        ElementActions.getInstance(driver).click(By.xpath("//button[text()='Start']"));
+        new BrowserActions(driver).navigateToURL("https://the-internet.herokuapp.com/dynamic_loading/1");
+        new ElementActions(driver).click(By.xpath("//button[text()='Start']"));
         Validations.assertThat().element(driver, By.id("finish")).text().contains("Hello World!").perform();
     }
 
     @Test
     public void dynamicLoading_elementIsRendered() {
-        BrowserActions.getInstance(driver).navigateToURL("https://the-internet.herokuapp.com/dynamic_loading/2");
-        ElementActions.getInstance(driver).click(By.xpath("//button[text()='Start']"));
+        new BrowserActions(driver).navigateToURL("https://the-internet.herokuapp.com/dynamic_loading/2");
+        new ElementActions(driver).click(By.xpath("//button[text()='Start']"));
         Validations.assertThat().element(driver, By.id("finish")).text().contains("Hello World!").perform();
     }
 
@@ -34,6 +34,6 @@ public class DynamicLoadingTest {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        BrowserActions.getInstance(driver).closeCurrentWindow();
+        new BrowserActions(driver).closeCurrentWindow();
     }
 }

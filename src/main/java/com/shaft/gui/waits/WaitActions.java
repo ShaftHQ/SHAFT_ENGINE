@@ -27,11 +27,11 @@ public class WaitActions {
     }
 
     public BrowserActions browser() {
-        return BrowserActions.getInstance(helper);
+        return new BrowserActions(helper);
     }
 
     public ElementActions element() {
-        return ElementActions.getInstance(helper);
+        return new ElementActions(helper);
     }
 
     public WaitActions and() {

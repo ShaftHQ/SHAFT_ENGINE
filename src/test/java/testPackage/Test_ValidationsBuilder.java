@@ -18,7 +18,7 @@ public class Test_ValidationsBuilder {
     public void elementValidations() {
         WebDriver driver;
         driver = DriverFactory.getHelper().getDriver();
-        BrowserActions.getInstance(driver).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
+        new BrowserActions(driver).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
         Validations.assertThat()
                 .element(driver, googleLogo)
                 .exists()
@@ -80,7 +80,7 @@ public class Test_ValidationsBuilder {
     public void browserValidations() {
         WebDriver driver;
         driver = DriverFactory.getHelper().getDriver();
-        BrowserActions.getInstance(driver).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
+        new BrowserActions(driver).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
         Validations.assertThat()
                 .browser(driver)
                 .url()

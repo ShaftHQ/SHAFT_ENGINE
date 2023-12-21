@@ -47,36 +47,25 @@ import java.util.function.Predicate;
 
 @SuppressWarnings("unused")
 public class BrowserActions {
-    private static final ThreadLocal<BrowserActions> INSTANCE = new ThreadLocal<>();
-    private static DriverFactoryHelper helper;
-    private static WebDriver driver;
+    private final DriverFactoryHelper helper;
+    private final WebDriver driver;
     public BrowserActions() {
+        this.helper = DriverFactory.getHelper();
+        this.driver = helper.getDriver();
+        JavaScriptWaitManager.waitForLazyLoading(this.driver);
     }
 
-    @Deprecated
     public BrowserActions(WebDriver driver) {
+        this.driver = driver;
+        this.helper = new DriverFactoryHelper(this.driver);
+        JavaScriptWaitManager.waitForLazyLoading(this.driver);
     }
 
-    public static BrowserActions getInstance(DriverFactoryHelper helper) {
-        BrowserActions.helper = helper;
-        BrowserActions.driver = helper.getDriver();
-        JavaScriptWaitManager.waitForLazyLoading(driver);
-        if (INSTANCE.get() == null) {
-            INSTANCE.set(new BrowserActions());
-        }
-        return INSTANCE.get();
+    public BrowserActions(DriverFactoryHelper helper) {
+        this.helper = helper;
+        this.driver = helper.getDriver();
+        JavaScriptWaitManager.waitForLazyLoading(this.driver);
     }
-
-    public static BrowserActions getInstance(WebDriver driver) {
-        BrowserActions.driver = helper.getDriver();
-        JavaScriptWaitManager.waitForLazyLoading(driver);
-        if (INSTANCE.get() == null) {
-            INSTANCE.set(new BrowserActions());
-        }
-        return INSTANCE.get();
-    }
-
-
 
     public TouchActions performTouchAction() {
         return new TouchActions(helper);
@@ -87,7 +76,7 @@ public class BrowserActions {
     }
 
     public ElementActions performElementAction() {
-        return ElementActions.getInstance(helper);
+        return new ElementActions(helper);
     }
 
     public TouchActions touch() {
@@ -99,7 +88,7 @@ public class BrowserActions {
     }
 
     public ElementActions element() {
-        return ElementActions.getInstance(helper);
+        return new ElementActions(helper);
     }
 
     /**

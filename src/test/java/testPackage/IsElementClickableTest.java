@@ -16,8 +16,8 @@ public class IsElementClickableTest {
 
     @Test
     public void testIsElementClickable() {
-        BrowserActions.getInstance(driver).navigateToURL("https://the-internet.herokuapp.com/");
-        Validations.assertThat().object(ElementActions.getInstance(driver).isElementClickable(By.linkText("File Upload"))).isTrue().perform();
+        new BrowserActions(driver).navigateToURL("https://the-internet.herokuapp.com/");
+        Validations.assertThat().object(new ElementActions(driver).isElementClickable(By.linkText("File Upload"))).isTrue().perform();
     }
 
     @BeforeMethod
@@ -27,6 +27,6 @@ public class IsElementClickableTest {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        BrowserActions.getInstance(driver).closeCurrentWindow();
+        new BrowserActions(driver).closeCurrentWindow();
     }
 }

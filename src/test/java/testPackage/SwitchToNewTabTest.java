@@ -16,10 +16,10 @@ public class SwitchToNewTabTest {
 	WebDriver driver;
     @Test
     public void switchToNewTab() {
-		BrowserActions.getInstance(driver).navigateToURL("https://duckduckgo.com/?");
-		BrowserActions.getInstance(driver).navigateToURL("https://www.google.com/", WindowType.TAB);
+		new BrowserActions(driver).navigateToURL("https://duckduckgo.com/?");
+		new BrowserActions(driver).navigateToURL("https://www.google.com/", WindowType.TAB);
         By searchbar = GoogleSearch.getSearchBox_textField();
-		ElementActions.getInstance(driver).type(searchbar, "SHAFT_Engine").keyPress(searchbar, Keys.ENTER);
+		new ElementActions(driver).type(searchbar, "SHAFT_Engine").keyPress(searchbar, Keys.ENTER);
     }
 
 	@BeforeMethod

@@ -1,6 +1,7 @@
 package com.shaft.gui.element;
 
 import com.shaft.cli.FileActions;
+import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.WizardHelpers;
@@ -36,32 +37,26 @@ import java.util.function.Function;
 @SuppressWarnings("unused")
 public class ElementActions {
 
-    private static final ThreadLocal<ElementActions> INSTANCE = new ThreadLocal<>();
-    private static DriverFactoryHelper helper;
-    private static WebDriver driver;
+    private final DriverFactoryHelper helper;
+    private final WebDriver driver;
+
+    public ElementActions() {
+        this.helper = DriverFactory.getHelper();
+        this.driver = helper.getDriver();
+        JavaScriptWaitManager.waitForLazyLoading(this.driver);
+    }
 
     public ElementActions(WebDriver driver) {
+        this.driver = driver;
+        this.helper = new DriverFactoryHelper(this.driver);
+        JavaScriptWaitManager.waitForLazyLoading(this.driver);
     }
 
-    public static ElementActions getInstance(DriverFactoryHelper helper) {
-        ElementActions.helper = helper;
-        ElementActions.driver = helper.getDriver();
-        JavaScriptWaitManager.waitForLazyLoading(driver);
-        if (INSTANCE.get() == null) {
-            INSTANCE.set(new ElementActions(driver));
-        }
-        return INSTANCE.get();
+    public ElementActions(DriverFactoryHelper helper) {
+        this.helper = helper;
+        this.driver = helper.getDriver();
+        JavaScriptWaitManager.waitForLazyLoading(this.driver);
     }
-
-    public static ElementActions getInstance(WebDriver driver) {
-        ElementActions.driver = driver;
-        JavaScriptWaitManager.waitForLazyLoading(driver);
-        if (INSTANCE.get() == null) {
-            INSTANCE.set(new ElementActions(driver));
-        }
-        return INSTANCE.get();
-    }
-
 
     /**
      * This is a convenience method to be able to call TouchActions Actions for
@@ -81,7 +76,7 @@ public class ElementActions {
     }
 
     public BrowserActions performBrowserAction() {
-        return BrowserActions.getInstance(helper);
+        return new BrowserActions(helper);
     }
 
     public SikuliActions performSikuliAction() {
@@ -101,7 +96,7 @@ public class ElementActions {
     }
 
     public BrowserActions browser() {
-        return BrowserActions.getInstance(helper);
+        return new BrowserActions(helper);
     }
 
     public SikuliActions sikulix() {
@@ -196,7 +191,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions click(By elementLocator) {
-        if (helper.isMobileNativeExecution()) {
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
             new TouchActions(helper).tap(elementLocator);
         } else {
             //rewriting click logic to optimize performance and fully support shadowDom elements
@@ -246,7 +241,7 @@ public class ElementActions {
      */
     public ElementActions scrollToElement(By elementLocator) {
         // if mobile, call swipeElementIntoView(null, targetElementLocator, swipeDirection); for convenience
-        if (helper.isMobileNativeExecution()) {
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
             performTouchAction().swipeElementIntoView(elementLocator, TouchActions.SwipeDirection.DOWN);
         }
         try {
@@ -584,14 +579,14 @@ public class ElementActions {
             } catch (WebDriverException webDriverException) {
                 elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementInformation.getLocator(), ElementAction.GET_TEXT)).getActionResult();
             }
-            if ((elementText == null || elementText.isBlank()) && !helper.isMobileNativeExecution()) {
+            if ((elementText == null || elementText.isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
                 try {
                     elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.CONTENT.getValue());
                 } catch (WebDriverException webDriverException) {
                     elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementInformation.getLocator(), ElementAction.GET_CONTENT)).getActionResult();
                 }
             }
-            if ((elementText == null || elementText.isBlank()) && !helper.isMobileNativeExecution()) {
+            if ((elementText == null || elementText.isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
                 try {
                     elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.VALUE.getValue());
                 } catch (WebDriverException webDriverException) {

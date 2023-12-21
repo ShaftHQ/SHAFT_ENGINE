@@ -149,14 +149,14 @@ public class ValidationsHelper {
         String actualValue;
         try {
             actualValue = switch (elementAttribute.toLowerCase()) {
-                case "text" -> ElementActions.getInstance(driver).getText(elementLocator);
-                case "texttrimmed" -> ElementActions.getInstance(driver).getText(elementLocator).trim();
+                case "text" -> new ElementActions(driver).getText(elementLocator);
+                case "texttrimmed" -> new ElementActions(driver).getText(elementLocator).trim();
                 case "tagname" ->
                         ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getTagName();
                 case "size" ->
                         ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getSize().toString();
-                case "selectedtext" -> ElementActions.getInstance(driver).getSelectedText(elementLocator);
-                default -> ElementActions.getInstance(driver).getAttribute(elementLocator, elementAttribute);
+                case "selectedtext" -> new ElementActions(driver).getSelectedText(elementLocator);
+                default -> new ElementActions(driver).getAttribute(elementLocator, elementAttribute);
             };
         } catch (Throwable e) {
             // force fail due to upstream failure
@@ -222,12 +222,12 @@ public class ValidationsHelper {
         String actualValue;
         try {
             actualValue = switch (browserAttribute.toLowerCase()) {
-                case "currenturl", "url" -> BrowserActions.getInstance(driver).getCurrentURL();
-                case "pagesource" -> BrowserActions.getInstance(driver).getPageSource();
-                case "title" -> BrowserActions.getInstance(driver).getCurrentWindowTitle();
-                case "windowhandle" -> BrowserActions.getInstance(driver).getWindowHandle();
-                case "windowposition" -> BrowserActions.getInstance(driver).getWindowPosition();
-                case "windowsize" -> BrowserActions.getInstance(driver).getWindowSize();
+                case "currenturl", "url" -> new BrowserActions(driver).getCurrentURL();
+                case "pagesource" -> new BrowserActions(driver).getPageSource();
+                case "title" -> new BrowserActions(driver).getCurrentWindowTitle();
+                case "windowhandle" -> new BrowserActions(driver).getWindowHandle();
+                case "windowposition" -> new BrowserActions(driver).getWindowPosition();
+                case "windowsize" -> new BrowserActions(driver).getWindowSize();
                 default -> "";
             };
         } catch (Throwable e) {

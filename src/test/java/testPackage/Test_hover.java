@@ -12,8 +12,8 @@ public class Test_hover {
 
 //    @Test(description = "TC001 - Test hover function.")
     public void dragAndDrop() {
-        BrowserActions.getInstance(driver).navigateToURL("http://store.demoqa.com/"); // PASSED
-        ElementActions.getInstance(driver).hover(By.xpath("//a[contains(text(),'Product Category')]"))
+        new BrowserActions(driver).navigateToURL("http://store.demoqa.com/"); // PASSED
+        new ElementActions(driver).hover(By.xpath("//a[contains(text(),'Product Category')]"))
                 .click(By.xpath("//a[contains(text(),'iPhones')]"));
     }
 
@@ -24,6 +24,6 @@ public class Test_hover {
 
     @AfterMethod(alwaysRun = true)
     public void afterClass() {
-        BrowserActions.getInstance(driver).closeCurrentWindow();
+        new BrowserActions(driver).closeCurrentWindow();
     }
 }
