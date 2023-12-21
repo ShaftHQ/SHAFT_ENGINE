@@ -6,7 +6,6 @@ import io.cucumber.java.en.When;
 
 import java.util.Objects;
 
-@SuppressWarnings("SpellCheckingInspection")
 public class BrowserSteps {
     private final ThreadLocal<SHAFT.GUI.WebDriver> driver;
 

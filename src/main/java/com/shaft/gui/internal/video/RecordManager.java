@@ -4,7 +4,7 @@ import com.automation.remarks.video.RecorderFactory;
 import com.automation.remarks.video.recorder.IVideoRecorder;
 import com.automation.remarks.video.recorder.VideoRecorder;
 import com.shaft.driver.SHAFT;
-import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.appium.java_client.android.AndroidDriver;

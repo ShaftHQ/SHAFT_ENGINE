@@ -10,7 +10,7 @@ import com.assertthat.selenium_shutterbug.core.Shutterbug;
 import com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesException;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
-import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;

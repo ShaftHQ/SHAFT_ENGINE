@@ -12,18 +12,18 @@ public class Test_hover {
 
 //    @Test(description = "TC001 - Test hover function.")
     public void dragAndDrop() {
-        BrowserActions.getInstance().navigateToURL("http://store.demoqa.com/"); // PASSED
-        ElementActions.getInstance().hover(By.xpath("//a[contains(text(),'Product Category')]"))
+        new BrowserActions(driver).navigateToURL("http://store.demoqa.com/"); // PASSED
+        new ElementActions(driver).hover(By.xpath("//a[contains(text(),'Product Category')]"))
                 .click(By.xpath("//a[contains(text(),'iPhones')]"));
     }
 
     @BeforeMethod
     public void beforeClass() {
-        driver = DriverFactory.getDriver();
+        driver = DriverFactory.getHelper().getDriver();
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterClass() {
-        BrowserActions.getInstance().closeCurrentWindow();
+        new BrowserActions(driver).closeCurrentWindow();
     }
 }

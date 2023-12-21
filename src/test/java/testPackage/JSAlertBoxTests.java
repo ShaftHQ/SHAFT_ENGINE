@@ -21,24 +21,24 @@ public class JSAlertBoxTests {
     @BeforeClass
     public void navigateToJSAlertPage() {
         driver = DriverFactory.getDriver();
-        BrowserActions.getInstance().navigateToURL("http://the-internet.herokuapp.com/javascript_alerts");
+        new BrowserActions(driver).navigateToURL("http://the-internet.herokuapp.com/javascript_alerts");
     }
 
     @AfterClass(alwaysRun = true)
     public void tearDownDriver() {
-        BrowserActions.getInstance().closeCurrentWindow();
+        new BrowserActions(driver).closeCurrentWindow();
     }
 
     @Test
     public void getJSAlertText() {
-        ElementActions.getInstance().click(JS_AlertBox);
+        new ElementActions(driver).click(JS_AlertBox);
         ReportManager.logDiscrete("Alert text is: [" + ElementActions.getInstance().performAlertAction().getAlertText() + "]");
         Validations.assertThat().object(ElementActions.getInstance().performAlertAction().getAlertText()).isEqualTo("I am a JS Alert").perform();
     }
 
     @Test(dependsOnMethods = "getJSAlertText")
     public void acceptAlert() {
-        ElementActions.getInstance().click(JS_AlertBox);
+        new ElementActions(driver).click(JS_AlertBox);
         ElementActions.getInstance().performAlertAction().acceptAlert();
     }
 

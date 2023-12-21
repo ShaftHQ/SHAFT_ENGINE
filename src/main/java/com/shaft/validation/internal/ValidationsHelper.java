@@ -3,7 +3,6 @@ package com.shaft.validation.internal;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
-import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.element.ElementActions;
@@ -55,7 +54,7 @@ public class ValidationsHelper {
 
     protected static void validateFail(ValidationCategory validationCategory, String... optionalCustomLogMessage) {
         processCustomLogMessage(optionalCustomLogMessage);
-        fail(validationCategory, null, null, null, null, null);
+        fail(null, validationCategory, null, null, null, null, null);
     }
 
     protected static void validateEquals(ValidationCategory validationCategory, Object expectedValue, Object actualValue,
@@ -65,10 +64,10 @@ public class ValidationsHelper {
         processCustomLogMessage(optionalCustomLogMessage);
         if (JavaHelper.compareTwoObjects(expectedValue, actualValue, validationComparisonType.getValue(),
                 validationType.getValue()) == 1) {
-            pass(validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), validationComparisonType, validationType);
+            pass(null, validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), validationComparisonType, validationType);
         } else {
             // failed comparison, invalid operator (not reachable) or exception
-            fail(validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), validationComparisonType, validationType,
+            fail(null, validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), validationComparisonType, validationType,
                     null);
         }
     }
@@ -79,16 +78,16 @@ public class ValidationsHelper {
         if (validationType.getValue()) {
             try {
                 Assert.assertNull(object);
-                pass(validationCategory, "NULL", "NULL", ValidationComparisonType.EQUALS, validationType);
+                pass(null, validationCategory, "NULL", "NULL", ValidationComparisonType.EQUALS, validationType);
             } catch (Exception | AssertionError failureReason) {
-                fail(validationCategory, "NULL", String.valueOf(object), ValidationComparisonType.EQUALS, validationType, failureReason);
+                fail(null, validationCategory, "NULL", String.valueOf(object), ValidationComparisonType.EQUALS, validationType, failureReason);
             }
         } else {
             try {
                 Assert.assertNotNull(object);
-                pass(validationCategory, "NULL", String.valueOf(object), ValidationComparisonType.EQUALS, validationType);
+                pass(null, validationCategory, "NULL", String.valueOf(object), ValidationComparisonType.EQUALS, validationType);
             } catch (Exception | AssertionError failureReason) {
-                fail(validationCategory, "NULL", "NULL", ValidationComparisonType.EQUALS, validationType, failureReason);
+                fail(null, validationCategory, "NULL", "NULL", ValidationComparisonType.EQUALS, validationType, failureReason);
             }
         }
     }
@@ -112,12 +111,12 @@ public class ValidationsHelper {
             switch (elementsCount) {
                 case 0 -> {
                     lastUsedElementLocator = null; //reset lastUsedElementLocator to avoid attempting to find the element again
-                    fail(validationCategory, expectedValue,
+                    fail(driver, validationCategory, expectedValue,
                             actualElementStates[1], ValidationComparisonType.EQUALS, validationType, null);
                 }
-                case 1 -> pass(validationCategory, expectedValue,
+                case 1 -> pass(driver, validationCategory, expectedValue,
                         actualElementStates[0], ValidationComparisonType.EQUALS, validationType);
-                default -> fail(validationCategory, expectedValue,
+                default -> fail(driver, validationCategory, expectedValue,
                         actualElementStates[2], ValidationComparisonType.EQUALS, validationType, null);
             }
         } else {
@@ -126,12 +125,12 @@ public class ValidationsHelper {
             switch (elementsCount) {
                 case 0 -> {
                     lastUsedElementLocator = null; //reset lastUsedElementLocator to avoid attempting to find the element again
-                    pass(validationCategory, expectedValue,
+                    pass(driver, validationCategory, expectedValue,
                             actualElementStates[1], ValidationComparisonType.EQUALS, validationType);
                 }
-                case 1 -> fail(validationCategory, expectedValue,
+                case 1 -> fail(driver, validationCategory, expectedValue,
                         actualElementStates[0], ValidationComparisonType.EQUALS, validationType, null);
-                default -> fail(validationCategory, expectedValue,
+                default -> fail(driver, validationCategory, expectedValue,
                         actualElementStates[2], ValidationComparisonType.EQUALS, validationType, null);
             }
         }
@@ -150,23 +149,23 @@ public class ValidationsHelper {
         String actualValue;
         try {
             actualValue = switch (elementAttribute.toLowerCase()) {
-                case "text" -> ElementActions.getInstance().getText(elementLocator);
-                case "texttrimmed" -> ElementActions.getInstance().getText(elementLocator).trim();
+                case "text" -> new ElementActions(driver).getText(elementLocator);
+                case "texttrimmed" -> new ElementActions(driver).getText(elementLocator).trim();
                 case "tagname" ->
                         ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getTagName();
                 case "size" ->
                         ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getSize().toString();
-                case "selectedtext" -> ElementActions.getInstance().getSelectedText(elementLocator);
-                default -> ElementActions.getInstance().getAttribute(elementLocator, elementAttribute);
+                case "selectedtext" -> new ElementActions(driver).getSelectedText(elementLocator);
+                default -> new ElementActions(driver).getAttribute(elementLocator, elementAttribute);
             };
         } catch (Throwable e) {
             // force fail due to upstream failure
             if (validationType.getValue()) {
-                fail(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + elementAttribute
+                fail(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + elementAttribute
                                 + locatorSeparator + formatLocatorToString(elementLocator) + "'",
                         "Failed to read the desired element attribute", validationComparisonType, validationType, e);
             } else {
-                fail(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + attributeSeparator + elementAttribute
+                fail(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + attributeSeparator + elementAttribute
                                 + locatorSeparator + formatLocatorToString(elementLocator) + "'",
                         "Failed to read the desired element attribute", validationComparisonType, validationType, e);
             }
@@ -176,12 +175,12 @@ public class ValidationsHelper {
         lastUsedElementLocator = elementLocator;
         int comparisonResult = JavaHelper.compareTwoObjects(expectedValue, actualValue,
                 validationComparisonType.getValue(), validationType.getValue());
-        reportValidationResultOfElementAttribute(new Object[]{expectedAttributeStates, attributeSeparator,
+        reportValidationResultOfElementAttribute(driver, new Object[]{expectedAttributeStates, attributeSeparator,
                 locatorSeparator, comparisonResult, elementLocator, elementAttribute, expectedValue, actualValue,
                 validationComparisonType, validationType, validationCategory});
     }
 
-    protected static void validateElementCSSProperty(ValidationCategory validationCategory, By elementLocator, String propertyName,
+    protected static void validateElementCSSProperty(WebDriver driver, ValidationCategory validationCategory, By elementLocator, String propertyName,
                                                      String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
                                                      String... optionalCustomLogMessage) {
         processCustomLogMessage(optionalCustomLogMessage);
@@ -190,15 +189,15 @@ public class ValidationsHelper {
         String locatorSeparator = "' CSS property, element locator '";
         String actualValue;
         try {
-            actualValue = new ElementActions().getCSSProperty(elementLocator, propertyName);
+            actualValue = new ElementActions(driver).getCSSProperty(elementLocator, propertyName);
         } catch (Throwable e) {
             // force fail due to upstream failure
             if (validationType.getValue()) {
-                fail(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
+                fail(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
                                 + locatorSeparator + formatLocatorToString(elementLocator) + "'",
                         "Failed to read the desired element CSS property", validationComparisonType, validationType, e);
             } else {
-                fail(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
+                fail(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
                                 + locatorSeparator + formatLocatorToString(elementLocator) + "'",
                         "Failed to read the desired element CSS property", validationComparisonType, validationType, e);
             }
@@ -207,7 +206,7 @@ public class ValidationsHelper {
         lastUsedElementLocator = elementLocator;
         int comparisonResult = JavaHelper.compareTwoObjects(expectedValue, actualValue,
                 validationComparisonType.getValue(), validationType.getValue());
-        reportValidationResultOfElementAttribute(new Object[]{expectedAttributeStates, propertySeparator,
+        reportValidationResultOfElementAttribute(driver, new Object[]{expectedAttributeStates, propertySeparator,
                 locatorSeparator, comparisonResult, elementLocator, propertyName, expectedValue, actualValue,
                 validationComparisonType, validationType, validationCategory});
     }
@@ -223,22 +222,22 @@ public class ValidationsHelper {
         String actualValue;
         try {
             actualValue = switch (browserAttribute.toLowerCase()) {
-                case "currenturl", "url" -> BrowserActions.getInstance().getCurrentURL();
-                case "pagesource" -> BrowserActions.getInstance().getPageSource();
-                case "title" -> BrowserActions.getInstance().getCurrentWindowTitle();
-                case "windowhandle" -> BrowserActions.getInstance().getWindowHandle();
-                case "windowposition" -> BrowserActions.getInstance().getWindowPosition();
-                case "windowsize" -> BrowserActions.getInstance().getWindowSize();
+                case "currenturl", "url" -> new BrowserActions(driver).getCurrentURL();
+                case "pagesource" -> new BrowserActions(driver).getPageSource();
+                case "title" -> new BrowserActions(driver).getCurrentWindowTitle();
+                case "windowhandle" -> new BrowserActions(driver).getWindowHandle();
+                case "windowposition" -> new BrowserActions(driver).getWindowPosition();
+                case "windowsize" -> new BrowserActions(driver).getWindowSize();
                 default -> "";
             };
         } catch (Throwable e) {
             // force fail due to upstream failure
             if (validationType.getValue()) {
-                fail(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + browserAttribute
+                fail(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + browserAttribute
                                 + attributeClosure,
                         "Failed to read the desired browser attribute", validationComparisonType, validationType, e);
             } else {
-                fail(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + attributeSeparator + browserAttribute
+                fail(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + attributeSeparator + browserAttribute
                                 + attributeClosure,
                         "Failed to read the desired browser attribute", validationComparisonType, validationType, e);
             }
@@ -246,7 +245,7 @@ public class ValidationsHelper {
         }
         int comparisonResult = JavaHelper.compareTwoObjects(expectedValue, actualValue,
                 validationComparisonType.getValue(), validationType.getValue());
-        reportValidationResultOfBrowserAttribute(new Object[]{expectedAttributeStates, attributeSeparator,
+        reportValidationResultOfBrowserAttribute(driver, new Object[]{expectedAttributeStates, attributeSeparator,
                 attributeClosure, comparisonResult, null, browserAttribute, expectedValue, actualValue,
                 validationComparisonType, validationType, validationCategory});
     }
@@ -277,9 +276,9 @@ public class ValidationsHelper {
             expectedValue = true;
         }
         if ((expectedValue && conditionalStatement) || (!expectedValue && !conditionalStatement)) {
-            pass(validationCategory, String.valueOf(expectedValue).toUpperCase(), String.valueOf(conditionalStatement).toUpperCase(), null, validationType);
+            pass(null, validationCategory, String.valueOf(expectedValue).toUpperCase(), String.valueOf(conditionalStatement).toUpperCase(), null, validationType);
         } else {
-            fail(validationCategory, String.valueOf(expectedValue).toUpperCase(), String.valueOf(conditionalStatement).toUpperCase(), null, validationType, null);
+            fail(null, validationCategory, String.valueOf(expectedValue).toUpperCase(), String.valueOf(conditionalStatement).toUpperCase(), null, validationType, null);
         }
     }
 
@@ -300,9 +299,9 @@ public class ValidationsHelper {
             reportedActualValue = "File does not exist";
         }
         if ((expectedValue && actualValue) || (!expectedValue && !actualValue)) {
-            pass(validationCategory, reportedExpectedValue, reportedActualValue, null, validationType);
+            pass(null, validationCategory, reportedExpectedValue, reportedActualValue, null, validationType);
         } else {
-            fail(validationCategory, reportedExpectedValue, reportedActualValue, null, validationType, null);
+            fail(null, validationCategory, reportedExpectedValue, reportedActualValue, null, validationType, null);
         }
     }
 
@@ -350,9 +349,9 @@ public class ValidationsHelper {
                 }
             }
             if (expectedResult.equals(actualResult)) {
-                pass(validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, attachments);
+                pass(driver, validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, attachments);
             } else {
-                fail(validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, null, attachments);
+                fail(driver, validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, null, attachments);
             }
         } else {
             byte[] pageScreenshot;
@@ -364,41 +363,41 @@ public class ValidationsHelper {
             List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
                     pageScreenshot);
             attachments.add(actualValueAttachment);
-            fail(validationCategory, reportedExpectedResult.toString(), "Element not found".toUpperCase(), visualValidationEngine, validationType, null, attachments);
+            fail(driver, validationCategory, reportedExpectedResult.toString(), "Element not found".toUpperCase(), visualValidationEngine, validationType, null, attachments);
         }
     }
 
-    private static void pass(ValidationCategory validationCategory, String expectedValue, String actualValue,
+    private static void pass(WebDriver driver, ValidationCategory validationCategory, String expectedValue, String actualValue,
                              Object validationComparisonType, ValidationType validationType, List<List<Object>> externalAttachments) {
-        reportValidationState(validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
+        reportValidationState(driver, validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
                 ValidationState.PASSED, null, externalAttachments);
     }
 
-    private static void pass(ValidationCategory validationCategory, String expectedValue, String actualValue,
+    private static void pass(WebDriver driver, ValidationCategory validationCategory, String expectedValue, String actualValue,
                              Object validationComparisonType, ValidationType validationType) {
-        reportValidationState(validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
+        reportValidationState(driver, validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
                 ValidationState.PASSED, null, null);
     }
 
     private static void pass(ValidationCategory validationCategory, Number expectedValue, Number actualValue,
                              Object comparativeRelationType, ValidationType validationType) {
-        reportValidationState(validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), comparativeRelationType, validationType,
+        reportValidationState(null, validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), comparativeRelationType, validationType,
                 ValidationState.PASSED, null, null);
     }
 
-    private static void fail(ValidationCategory validationCategory, String expectedValue, String actualValue,
+    private static void fail(WebDriver driver, ValidationCategory validationCategory, String expectedValue, String actualValue,
                              Object validationComparisonType, ValidationType validationType, @SuppressWarnings("SameParameterValue") Throwable failureReason, List<List<Object>> externalAttachments) {
         // reset state in case of failure to force reporting the failure
         ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
-        reportValidationState(validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
+        reportValidationState(driver, validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
                 ValidationState.FAILED, failureReason, externalAttachments);
     }
 
-    private static void fail(ValidationCategory validationCategory, String expectedValue, String actualValue,
+    private static void fail(WebDriver driver, ValidationCategory validationCategory, String expectedValue, String actualValue,
                              Object validationComparisonType, ValidationType validationType, Throwable failureReason) {
         // reset state in case of failure to force reporting the failure
         ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
-        reportValidationState(validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
+        reportValidationState(driver, validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
                 ValidationState.FAILED, failureReason, null);
     }
 
@@ -406,7 +405,7 @@ public class ValidationsHelper {
                              Object comparativeRelationType, ValidationType validationType) {
         // reset state in case of failure to force reporting the failure
         ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
-        reportValidationState(validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), comparativeRelationType, validationType,
+        reportValidationState(null, validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), comparativeRelationType, validationType,
                 ValidationState.FAILED, null, null);
     }
 
@@ -436,9 +435,9 @@ public class ValidationsHelper {
         attachments.add(actualValueAttachment);
 
         if ((comparisonResult && expectedValue) || (!comparisonResult && !expectedValue)) {
-            pass(validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, attachments);
+            pass(null, validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, attachments);
         } else {
-            fail(validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, null, attachments);
+            fail(null, validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, null, attachments);
         }
     }
 
@@ -468,14 +467,14 @@ public class ValidationsHelper {
         attachments.add(actualValueAttachment);
 
         if ((comparisonResult && expectedValue) || (!comparisonResult && !expectedValue)) {
-            pass(validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, attachments);
+            pass(null, validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, attachments);
         } else {
-            fail(validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, null, attachments);
+            fail(null, validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, null, attachments);
         }
     }
 
 
-    private static void reportValidationResultOfElementAttribute(Object[] args) {
+    private static void reportValidationResultOfElementAttribute(WebDriver driver, Object[] args) {
         String[] expectedAttributeStates = (String[]) args[0];
         String propertySeparator = (String) args[1];
         String locatorSeparator = (String) args[2];
@@ -491,12 +490,12 @@ public class ValidationsHelper {
             // expecting element attribute to have the correct value
             if (comparisonResult == 1) {
                 // match
-                pass(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
+                pass(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
                                 + locatorSeparator + formatLocatorToString(elementLocator) + "'", actualValue, validationComparisonType,
                         validationType);
             } else {
                 // no match, or unhandled issue
-                fail(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
+                fail(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
                                 + locatorSeparator + formatLocatorToString(elementLocator) + "'", actualValue, validationComparisonType,
                         validationType, null);
             }
@@ -504,19 +503,19 @@ public class ValidationsHelper {
             // expecting element attribute to not have the correct value
             if (comparisonResult == 1) {
                 // match
-                pass(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
+                pass(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
                                 + locatorSeparator + formatLocatorToString(elementLocator) + "'", actualValue, validationComparisonType,
                         validationType);
             } else {
                 // no match, or unhandled issue
-                fail(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
+                fail(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
                                 + locatorSeparator + formatLocatorToString(elementLocator) + "'", actualValue, validationComparisonType,
                         validationType, null);
             }
         }
     }
 
-    private static void reportValidationResultOfBrowserAttribute(Object[] args) {
+    private static void reportValidationResultOfBrowserAttribute(WebDriver driver, Object[] args) {
         String[] expectedAttributeStates = (String[]) args[0];
         String propertySeparator = (String) args[1];
         String attributeClosure = (String) args[2];
@@ -531,12 +530,12 @@ public class ValidationsHelper {
             // expecting element attribute to have the correct value
             if (comparisonResult == 1) {
                 // match
-                pass(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
+                pass(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
                                 + attributeClosure, actualValue, validationComparisonType,
                         validationType);
             } else {
                 // no match, or unhandled issue
-                fail(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
+                fail(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
                                 + attributeClosure, actualValue, validationComparisonType,
                         validationType, null);
             }
@@ -544,19 +543,19 @@ public class ValidationsHelper {
             // expecting element attribute to not have the correct value
             if (comparisonResult == 1) {
                 // match
-                pass(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
+                pass(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
                                 + attributeClosure, actualValue, validationComparisonType,
                         validationType);
             } else {
                 // no match, or unhandled issue
-                fail(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
+                fail(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
                                 + attributeClosure, actualValue, validationComparisonType,
                         validationType, null);
             }
         }
     }
 
-    private static void reportValidationState(ValidationCategory validationCategory, String expectedValue, String actualValue,
+    private static void reportValidationState(WebDriver driver, ValidationCategory validationCategory, String expectedValue, String actualValue,
                                               Object validationComparisonOrComparativeRelationType, ValidationType validationType,
                                               ValidationState validationState, Throwable failureReason, List<List<Object>> externalAttachments) {
         // prepare message and attachments
@@ -602,24 +601,24 @@ public class ValidationsHelper {
                 message.append(" Validation Type \"").append(validationType).append("\".");
             }
         }
-        if (DriverFactoryHelper.getDriver() != null) {
+        if (driver != null) {
             // create a screenshot attachment if needed for webdriver
             if (lastUsedElementLocator != null) {
-                attachments.add(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver(), lastUsedElementLocator,
+                attachments.add(ScreenshotManager.captureScreenShot(driver, lastUsedElementLocator,
                         validationMethodName, validationState.getValue()));
             } else {
-                attachments.add(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver(), validationMethodName,
+                attachments.add(ScreenshotManager.captureScreenShot(driver, validationMethodName,
                         validationState.getValue()));
             }
             // reset lastUsed variables
             lastUsedElementLocator = null;
             //}
         }
-        if (DriverFactoryHelper.getDriver() != null && !WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Never")) {
+        if (driver != null && !WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Never")) {
             if ((WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Always") || WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("ValidationPointsOnly"))
                     || (Boolean.FALSE.equals(validationState.getValue()) && WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("FailuresOnly"))) {
                 var logMessage = "";
-                var pageSnapshot = BrowserActionsHelper.capturePageSnapshot(DriverFactoryHelper.getDriver());
+                var pageSnapshot = BrowserActionsHelper.capturePageSnapshot(driver);
                 if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
                     logMessage = "page snapshot";
                 } else if (pageSnapshot.startsWith("<html")) {

@@ -3,7 +3,7 @@ package com.shaft.gui.internal.image;
 import com.epam.healenium.SelfHealingDriver;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
-import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.internal.ElementActionsHelper;
@@ -346,7 +346,7 @@ public class ScreenshotManager {
                         if ("JavaScript".equals(SHAFT.Properties.visuals.screenshotParamsHighlightMethod())) {
                             element = ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1));
                             js = (JavascriptExecutor) driver;
-                            regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
+                            regularElementStyle = highlightElementAndReturnDefaultStyle(driver, element, js,
                                     setHighlightedElementStyle());
                         } else {
                             // default to using AI
@@ -501,7 +501,7 @@ public class ScreenshotManager {
         }
     }
 
-    private static String highlightElementAndReturnDefaultStyle(WebElement element, JavascriptExecutor js,
+    private static String highlightElementAndReturnDefaultStyle(WebDriver driver, WebElement element, JavascriptExecutor js,
                                                                 String highlightedElementStyle) {
         String regularElementStyle = element.getAttribute("style");
         if (regularElementStyle != null && !regularElementStyle.isEmpty()) {
@@ -512,7 +512,7 @@ public class ScreenshotManager {
         }
 
         try {
-            JavaScriptWaitManager.waitForLazyLoading();
+            JavaScriptWaitManager.waitForLazyLoading(driver);
         } catch (Exception e) {
             ReportManagerHelper.logDiscrete(e);
         }

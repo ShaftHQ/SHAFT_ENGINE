@@ -1,5 +1,6 @@
 package com.shaft.gui.element;
 
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.enums.internal.ClipboardAction;
 import org.apache.commons.lang3.NotImplementedException;
 import org.openqa.selenium.By;
@@ -13,8 +14,8 @@ public class AsyncElementActions {
     private final List<Callable<ElementActions>> actionsList;
     private final ElementActions elementActions;
 
-    public AsyncElementActions() {
-        this.elementActions = ElementActions.getInstance();
+    public AsyncElementActions(DriverFactoryHelper helper) {
+        this.elementActions = new ElementActions(helper);
         actionsList = new ArrayList<>();
     }
 

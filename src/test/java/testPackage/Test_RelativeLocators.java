@@ -13,13 +13,13 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class Test_RelativeLocators {
-    ThreadLocal<WebDriver> driver = new ThreadLocal<>();
+    WebDriver driver;
 
     @Test
     public void relativeLocatorsTest1(){
-        BrowserActions.getInstance().navigateToURL("https://duckduckgo.com/?");
+        new BrowserActions(driver).navigateToURL("https://duckduckgo.com/?");
         By searchbar = By.xpath("//*[@id='search_form_input_homepage'] | //input[@name='q']");
-        new ElementActions(driver.get()).type(searchbar,"SHAFT_Engine")
+        new ElementActions(driver).type(searchbar,"SHAFT_Engine")
                 .keyPress(searchbar, Keys.ENTER);
 
         //the below locator matches all 10 search results
@@ -36,7 +36,7 @@ public class Test_RelativeLocators {
 
         //this method makes writing locators much easier! And now we can perform our validation
         Validations.assertThat()
-                .element(driver.get(), firstSearchResultRelatively)
+                .element(driver, firstSearchResultRelatively)
                 .text()
                 .doesNotEqual("")
                 .perform();
@@ -45,7 +45,7 @@ public class Test_RelativeLocators {
 
     @BeforeMethod
     public void beforeMethod(){
-        driver.set(DriverFactory.getDriver());
+        driver = DriverFactory.getHelper().getDriver();
     }
 
     @AfterMethod(alwaysRun = true)

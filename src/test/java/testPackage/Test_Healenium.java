@@ -41,7 +41,7 @@ public class Test_Healenium {
         }
 
         //navigate to target url
-        BrowserActions.getInstance().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
+        new BrowserActions(driver).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
 
         //define element locator
         By googleLogo_image = By.xpath("//*[@alt='Google']");
@@ -71,11 +71,11 @@ public class Test_Healenium {
     @BeforeMethod
     public void beforeMethod(){
         SHAFT.Properties.healenium.set().healEnabled(true);
-        driver = DriverFactory.getDriver();
+        driver = DriverFactory.getHelper().getDriver();
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod(){
-        BrowserActions.getInstance().closeCurrentWindow();
+        new BrowserActions(driver).closeCurrentWindow();
     }
 }

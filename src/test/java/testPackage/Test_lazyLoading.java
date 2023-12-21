@@ -1,7 +1,7 @@
 package testPackage;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;

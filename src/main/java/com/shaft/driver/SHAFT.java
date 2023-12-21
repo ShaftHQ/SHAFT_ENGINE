@@ -5,7 +5,7 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
-import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.*;
@@ -33,48 +33,55 @@ import java.util.function.Function;
 public class SHAFT {
     public static class GUI {
         public static class WebDriver {
+            static WebDriver shaftDriver;
+            DriverFactoryHelper helper;
             public static WebDriver getInstance() {
-                return new WebDriver();
+                shaftDriver = new WebDriver();
+                return shaftDriver;
             }
 
             public static WebDriver getInstance(DriverFactory.DriverType driverType) {
-                return new WebDriver(driverType);
+                shaftDriver = new WebDriver(driverType);
+                return shaftDriver;
             }
 
             public static WebDriver getInstance(DriverFactory.DriverType driverType, MutableCapabilities mutableCapabilities) {
-                return new WebDriver(driverType, mutableCapabilities);
+                shaftDriver =  new WebDriver(driverType, mutableCapabilities);
+                return shaftDriver;
             }
 
             public WebDriver() {
-                DriverFactory.getDriver();
+                helper = DriverFactory.getHelper();
             }
 
             public WebDriver(DriverFactory.DriverType driverType) {
-                DriverFactory.getDriver(driverType);
+                helper = DriverFactory.getDriver(driverType);
             }
 
             public WebDriver(DriverFactory.DriverType driverType, MutableCapabilities mutableCapabilities) {
-                DriverFactory.getDriver(driverType, mutableCapabilities);
+                helper = DriverFactory.getDriver(driverType, mutableCapabilities);
             }
 
             public void quit() {
-                DriverFactoryHelper.closeDriver();
+                helper.closeDriver();
+                DriverFactory.setHelper(null);
+                helper = null;
             }
 
             public ElementActions element() {
-                return ElementActions.getInstance();
+                return new ElementActions(helper);
             }
 
             public TouchActions touch() {
-                return new TouchActions();
+                return new TouchActions(helper);
             }
 
             public BrowserActions browser() {
-                return BrowserActions.getInstance();
+                return new BrowserActions(helper);
             }
 
             public AlertActions alert() {
-                return new AlertActions();
+                return new AlertActions(helper);
             }
 
             /**
@@ -85,15 +92,15 @@ public class SHAFT {
              * @return wait actions reference to be used to chain actions
              */
             public WaitActions waitUntil(Function<? super org.openqa.selenium.WebDriver, ?> conditions) {
-                return new WaitActions().waitUntil(conditions);
+                return new WaitActions().waitUntil(helper, conditions);
             }
 
             public WizardHelpers.WebDriverAssertions assertThat() {
-                return new WizardHelpers.WebDriverAssertions();
+                return new WizardHelpers.WebDriverAssertions(helper);
             }
 
             public WizardHelpers.WebDriverVerifications verifyThat() {
-                return new WizardHelpers.WebDriverVerifications();
+                return new WizardHelpers.WebDriverVerifications(helper);
             }
 
             /**
@@ -109,8 +116,7 @@ public class SHAFT {
                  * https://github.com/appium/java-client/blob/master/docs/The-event_firing.md#createproxy-api-since-java-client-830
                  * https://github.com/SeleniumHQ/selenium/blob/316f9738a8e2079265a0691954ca8847e68c598d/java/test/org/openqa/selenium/support/events/EventFiringDecoratorTest.java#L422
                  */
-
-                if (DriverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+                if (helper.getDriver() instanceof AndroidDriver androidDriver) {
 //                    AndroidDriver decoratedDriver = createProxy(
 //                            AndroidDriver.class,
 //                            new Object[] {androidDriver},
@@ -119,8 +125,8 @@ public class SHAFT {
 //                    );
 //                    return decoratedDriver;
 //                    return new EventFiringDecorator<>(AndroidDriver.class, listener).decorate(androidDriver);
-                    return DriverFactoryHelper.getDriver();
-                } else if (DriverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+                    return helper.getDriver();
+                } else if (helper.getDriver() instanceof IOSDriver iosDriver) {
 //                    IOSDriver decoratedDriver = createProxy(
 //                            IOSDriver.class,
 //                            new Object[] {iosDriver},
@@ -129,15 +135,15 @@ public class SHAFT {
 //                    );
 //                    return decoratedDriver;
 //                    return new EventFiringDecorator<>(IOSDriver.class, listener).decorate(iosDriver);
-                    return DriverFactoryHelper.getDriver();
+                    return helper.getDriver();
 //                } else if (driverThreadLocal.get() instanceof RemoteWebDriver remoteWebDriver) {
 //                    driverThreadLocal.set(new EventFiringDecorator<>(RemoteWebDriver.class, new WebDriverListener()).decorate(remoteWebDriver));
                 } else {
                     if(!SHAFT.Properties.flags.enableTrueNativeMode()){
-                        return new EventFiringDecorator<>(org.openqa.selenium.WebDriver.class, new WebDriverListener()).decorate(DriverFactoryHelper.getDriver());
+                        return new EventFiringDecorator<>(org.openqa.selenium.WebDriver.class, new WebDriverListener()).decorate(helper.getDriver());
                     }
                     else{
-                        return DriverFactoryHelper.getDriver();
+                        return helper.getDriver();
                     }
                     }
             }
@@ -148,7 +154,7 @@ public class SHAFT {
 
             public static class Async {
                 public AsyncElementActions element() {
-                    return new AsyncElementActions();
+                    return new AsyncElementActions(shaftDriver.helper);
                 }
 
             }

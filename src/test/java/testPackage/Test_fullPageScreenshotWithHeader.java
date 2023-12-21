@@ -12,7 +12,7 @@ public class Test_fullPageScreenshotWithHeader {
 
     @Test(description = "TC001 - Navigate to URL and Assert page title")
     public void navigateToURLandAssertPageTitle() {
-        BrowserActions.getInstance().navigateToURL("https://www.w3schools.com/howto/howto_js_sticky_header.asp");
+        new BrowserActions(driver).navigateToURL("https://www.w3schools.com/howto/howto_js_sticky_header.asp");
 
         // element screenshot
         Validations.assertThat().element(driver,By.xpath("//div[@id='main']/h2")).exists().perform();
@@ -26,11 +26,11 @@ public class Test_fullPageScreenshotWithHeader {
     public void beforeClass() {
 //	System.setProperty("screenshotParams_skippedElementsFromScreenshot",
 //		"//div[@id='topnav'];//div[@id='leftmenuinner']");
-        driver = DriverFactory.getDriver();
+        driver = DriverFactory.getHelper().getDriver();
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterClass() {
-        BrowserActions.getInstance().closeCurrentWindow();
+        new BrowserActions(driver).closeCurrentWindow();
     }
 }

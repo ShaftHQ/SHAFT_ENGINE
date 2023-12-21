@@ -23,7 +23,7 @@ public class GoogleSearchResults {
     }
 
     public void clickNext() {
-        ElementActions.getInstance().scrollToElement(next_button).click(next_button);
+        new ElementActions(driver).scrollToElement(next_button).click(next_button);
     }
 
 }
