@@ -1,6 +1,5 @@
 package com.shaft.listeners.internal;
 
-import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.properties.internal.PropertiesHelper;
@@ -73,9 +72,6 @@ public class CucumberHelper {
     public static void shaftTeardown() {
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
-            if (SHAFT.Properties.flags.autoCloseDriverInstance())
-                DriverFactory.closeAllDrivers();
-
             ReportHelper.attachEngineLog();
             ReportHelper.attachExtentReport();
             ReportHelper.attachCucumberReport();

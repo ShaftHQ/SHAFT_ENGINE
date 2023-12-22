@@ -33,39 +33,26 @@ import java.util.function.Function;
 public class SHAFT {
     public static class GUI {
         public static class WebDriver {
-            static WebDriver shaftDriver;
             DriverFactoryHelper helper;
-            public static WebDriver getInstance() {
-                shaftDriver = new WebDriver();
-                return shaftDriver;
-            }
-
-            public static WebDriver getInstance(DriverFactory.DriverType driverType) {
-                shaftDriver = new WebDriver(driverType);
-                return shaftDriver;
-            }
-
-            public static WebDriver getInstance(DriverFactory.DriverType driverType, MutableCapabilities mutableCapabilities) {
-                shaftDriver =  new WebDriver(driverType, mutableCapabilities);
-                return shaftDriver;
-            }
+            DriverFactory factory = new DriverFactory();
 
             public WebDriver() {
-                helper = DriverFactory.getHelper();
+                helper = factory.getHelper();
             }
 
             public WebDriver(DriverFactory.DriverType driverType) {
-                helper = DriverFactory.getDriver(driverType);
+                helper = factory.getHelper(driverType);
             }
 
             public WebDriver(DriverFactory.DriverType driverType, MutableCapabilities mutableCapabilities) {
-                helper = DriverFactory.getDriver(driverType, mutableCapabilities);
+                helper = factory.getHelper(driverType, mutableCapabilities);
             }
 
             public void quit() {
                 helper.closeDriver();
-                DriverFactory.setHelper(null);
+                factory.setHelper(null);
                 helper = null;
+                factory = null;
             }
 
             public ElementActions element() {
@@ -152,9 +139,9 @@ public class SHAFT {
                 return new Async();
             }
 
-            public static class Async {
+            public class Async {
                 public AsyncElementActions element() {
-                    return new AsyncElementActions(shaftDriver.helper);
+                    return new AsyncElementActions(helper);
                 }
 
             }

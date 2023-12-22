@@ -31,7 +31,7 @@ public class NoSuchElementFailureTest {
 
     @BeforeMethod
     void beforeMethod() {
-        driver = SHAFT.GUI.WebDriver.getInstance();
+        driver = new SHAFT.GUI.WebDriver();
     }
 
     @AfterMethod(alwaysRun = true)

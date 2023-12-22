@@ -20,7 +20,7 @@ public class JSConfirmBoxTests {
 
     @BeforeClass
     public void navigateToJSAlertPage() {
-        driver = DriverFactory.getDriver();
+        driver = new DriverFactory().getDriver();
         new BrowserActions(driver).navigateToURL("http://the-internet.herokuapp.com/javascript_alerts");
     }
 

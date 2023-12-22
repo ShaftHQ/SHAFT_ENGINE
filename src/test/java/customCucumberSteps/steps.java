@@ -27,7 +27,7 @@ public class steps {
     private DriverFactoryHelper helper;
     @Given("I open the target browser")
     public void i_open_the_target_browser() {
-        helper = DriverFactory.getHelper();
+        helper = new DriverFactory().getHelper();
         driver = helper.getDriver();
     }
     @When("I navigate to {string}")

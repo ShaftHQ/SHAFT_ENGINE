@@ -22,7 +22,7 @@ public class IsElementClickableTest {
 
     @BeforeMethod
     public void beforeMethod() {
-        driver = DriverFactory.getHelper().getDriver();
+        driver = new DriverFactory().getDriver();
     }
 
     @AfterMethod(alwaysRun = true)

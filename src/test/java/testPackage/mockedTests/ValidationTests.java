@@ -240,7 +240,7 @@ public class ValidationTests {
     public void beforeMethod() {
         defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
         SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
-        driver = SHAFT.GUI.WebDriver.getInstance();
+        driver = new SHAFT.GUI.WebDriver();
         String testElement = "data:text/html,<input type=\"text\"><br><br>";
         driver.browser().navigateToURL(testElement);
     }

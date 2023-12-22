@@ -4,7 +4,9 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.*;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class Test_BrowserValidations {
     private WebDriver driver;
@@ -21,13 +23,13 @@ public class Test_BrowserValidations {
 
     @BeforeMethod
     public void beforeMethod() {
-        driver = DriverFactory.getHelper().getDriver();
+        driver = new DriverFactory().getDriver();
         String url = "https://www.google.com/";
         new BrowserActions(driver).navigateToURL(url);
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        DriverFactory.closeAllDrivers();
+        driver.quit();
     }
 }

@@ -1,6 +1,5 @@
 package com.shaft.gui.browser;
 
-import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.FluentWebDriverAction;
@@ -45,13 +44,13 @@ import java.util.function.Predicate;
 @SuppressWarnings("unused")
 public class BrowserActions extends FluentWebDriverAction {
     public BrowserActions() {
-        new FluentWebDriverAction();
+        initialize();
     }
     public BrowserActions(WebDriver driver) {
-        new FluentWebDriverAction(driver);
+        initialize(driver);
     }
     public BrowserActions(DriverFactoryHelper helper) {
-        new FluentWebDriverAction(helper);
+        initialize(helper);
     }
     public BrowserActions and() {
         return this;
@@ -426,7 +425,7 @@ public class BrowserActions extends FluentWebDriverAction {
             try {
                 // TODO: handle session timeout while attempting to close empty window
                 String lastPageSource = driver.getPageSource();
-                DriverFactory.closeAllDrivers();
+                helper.closeDriver(driver);
                 BrowserActionsHelper.passAction(lastPageSource);
             } catch (WebDriverException rootCauseException) {
                 if (rootCauseException.getMessage() != null
@@ -793,47 +792,47 @@ public class BrowserActions extends FluentWebDriverAction {
     }
 
     public BrowserActions waitUntilTitleIs(String title) {
-        WaitActions.explicitWaits(ExpectedConditions.titleIs(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.titleIs(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
     
     public BrowserActions waitUntilTitleContains(String title) {
-        WaitActions.explicitWaits(ExpectedConditions.titleContains(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.titleContains(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
     
     public BrowserActions waitUntilTitleNotContains(String title) {
-        WaitActions.explicitWaits(ExpectedConditions.not(ExpectedConditions.titleContains(title)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.not(ExpectedConditions.titleContains(title)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlContains(String url) {
-        WaitActions.explicitWaits(ExpectedConditions.urlContains(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.urlContains(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlNotContains(String url) {
-        WaitActions.explicitWaits(ExpectedConditions.not(ExpectedConditions.urlContains(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.not(ExpectedConditions.urlContains(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlToBe(String url) {
-        WaitActions.explicitWaits(ExpectedConditions.urlToBe(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.urlToBe(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlNotToBe(String url) {
-        WaitActions.explicitWaits(ExpectedConditions.not(ExpectedConditions.urlToBe(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.not(ExpectedConditions.urlToBe(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlMatches(String urlRegex) {
-        WaitActions.explicitWaits(ExpectedConditions.urlMatches(urlRegex), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.urlMatches(urlRegex), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilNumberOfWindowsToBe(int numberOfWindows) {
-        WaitActions.explicitWaits(ExpectedConditions.numberOfWindowsToBe(numberOfWindows), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.numberOfWindowsToBe(numberOfWindows), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 

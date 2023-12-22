@@ -5,7 +5,8 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.*;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 
 public class Test_hover {
     WebDriver driver;
@@ -19,7 +20,7 @@ public class Test_hover {
 
     @BeforeMethod
     public void beforeClass() {
-        driver = DriverFactory.getHelper().getDriver();
+        driver = new DriverFactory().getDriver();
     }
 
     @AfterMethod(alwaysRun = true)

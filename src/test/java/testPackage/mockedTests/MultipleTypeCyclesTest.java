@@ -46,7 +46,7 @@ public class MultipleTypeCyclesTest {
 
     @BeforeMethod
     public void beforeMethod() {
-        driver.set(SHAFT.GUI.WebDriver.getInstance());
+        driver.set(new SHAFT.GUI.WebDriver());
 
     }
 

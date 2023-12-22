@@ -29,7 +29,7 @@ public class SikulixTests {
 
     @Test
     public void sampleWithSeleniumAndYoutube() {
-        WebDriver driver = DriverFactory.getHelper().getDriver();
+        WebDriver driver = new DriverFactory().getDriver();
         new BrowserActions(driver).navigateToURL("https://www.youtube.com/watch?v=6FbpNgZ8fZ8&t=2s");
         String pathToTargetElementImage = SHAFT.Properties.paths.testData() + "sikulixElements/youtube.png";
         new ElementActions(driver).performSikuliAction().click(pathToTargetElementImage);

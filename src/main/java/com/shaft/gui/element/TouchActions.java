@@ -34,14 +34,14 @@ public class TouchActions extends FluentWebDriverAction {
     private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = SHAFT.Properties.reporting.captureElementName();
 
     public TouchActions() {
-        new FluentWebDriverAction();
+        initialize();
     }
 
     public TouchActions(WebDriver driver) {
-        new FluentWebDriverAction(driver);
+        initialize(driver);
     }
     public TouchActions(DriverFactoryHelper helper) {
-        new FluentWebDriverAction(helper);
+        initialize(helper);
     }
     public TouchActions and() {
         return this;

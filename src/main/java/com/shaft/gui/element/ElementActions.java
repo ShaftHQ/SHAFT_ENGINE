@@ -33,13 +33,13 @@ import java.util.*;
 @SuppressWarnings("unused")
 public class ElementActions extends FluentWebDriverAction {
     public ElementActions() {
-        new FluentWebDriverAction();
+        initialize();
     }
     public ElementActions(WebDriver driver) {
-        new FluentWebDriverAction(driver);
+        initialize(driver);
     }
     public ElementActions(DriverFactoryHelper helper) {
-        new FluentWebDriverAction(helper);
+        initialize(helper);
     }
     public ElementActions and() {
         return this;
@@ -1162,37 +1162,37 @@ public class ElementActions extends FluentWebDriverAction {
     }
 
     public ElementActions waitUntilNumberOfElementsToBe(By elementLocator, int numberOfElements) {
-        WaitActions.explicitWaits(ExpectedConditions.numberOfElementsToBe(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.numberOfElementsToBe(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public ElementActions waitUntilNumberOfElementsToBeLessThan(By elementLocator, int numberOfElements) {
-        WaitActions.explicitWaits(ExpectedConditions.numberOfElementsToBeLessThan(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.numberOfElementsToBeLessThan(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public ElementActions waitUntilNumberOfElementsToBeMoreThan(By elementLocator, int numberOfElements) {
-        WaitActions.explicitWaits(ExpectedConditions.numberOfElementsToBeMoreThan(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.numberOfElementsToBeMoreThan(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public ElementActions waitUntilAttributeContains(By elementLocator, String attribute, String attributeContainsValue) {
-        WaitActions.explicitWaits(ExpectedConditions.attributeContains(elementLocator,attribute, attributeContainsValue), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.attributeContains(elementLocator, attribute, attributeContainsValue), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public ElementActions waitUntilElementTextToBe(By elementLocator, String text) {
-        WaitActions.explicitWaits(ExpectedConditions.textToBe(elementLocator, text), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.textToBe(elementLocator, text), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public ElementActions waitUntilElementToBeSelected(By elementLocator) {
-        WaitActions.explicitWaits(ExpectedConditions.elementToBeSelected(elementLocator), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.elementToBeSelected(elementLocator), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public ElementActions waitUntilPresenceOfAllElementsLocatedBy(By elementLocator) {
-        WaitActions.explicitWaits(ExpectedConditions.presenceOfAllElementsLocatedBy(elementLocator), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.presenceOfAllElementsLocatedBy(elementLocator), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
         return this;
     }
 

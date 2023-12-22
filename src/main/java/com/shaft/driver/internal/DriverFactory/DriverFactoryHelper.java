@@ -102,6 +102,7 @@ public class DriverFactoryHelper {
 
     public void closeDriver() {
         closeDriver(driver);
+        driver = null;
     }
 
     public void closeDriver(WebDriver driver) {

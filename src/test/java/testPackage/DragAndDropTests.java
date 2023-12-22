@@ -78,7 +78,7 @@ public class DragAndDropTests {
 
     @BeforeMethod
     public void beforeMethod() {
-        helper = DriverFactory.getHelper();
+        helper = new DriverFactory().getHelper();
         driver = helper.getDriver();
     }
 

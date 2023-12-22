@@ -15,14 +15,13 @@ import java.time.Duration;
 @SuppressWarnings("unused")
 public class AlertActions extends FluentWebDriverAction {
     public AlertActions() {
-        new FluentWebDriverAction();
+        initialize();
     }
-
     public AlertActions(WebDriver driver) {
-        new FluentWebDriverAction(driver);
+        initialize(driver);
     }
     public AlertActions(DriverFactoryHelper helper) {
-        new FluentWebDriverAction(helper);
+        initialize(helper);
     }
 
     private void waitForAlertToBePresent() {

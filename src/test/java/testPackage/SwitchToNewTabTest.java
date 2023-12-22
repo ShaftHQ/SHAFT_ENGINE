@@ -24,12 +24,12 @@ public class SwitchToNewTabTest {
 
 	@BeforeMethod
 	public void beforeMethod() {
-		driver = DriverFactory.getHelper().getDriver();
+		driver = new DriverFactory().getDriver();
 	}
 
 	@AfterMethod(alwaysRun = true)
 	public void afterMethod() {
-		DriverFactory.closeAllDrivers();
+		driver.quit();
 	}
 
 }

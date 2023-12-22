@@ -47,7 +47,7 @@ public class Test_verifyEquals {
 
     @BeforeMethod // Set-up method, to be run once before the first test
     public void beforeMethod() {
-        driver = DriverFactory.getHelper().getDriver();
+        driver = new DriverFactory().getDriver();
         new BrowserActions(driver).navigateToURL("https://www.google.com/ncr", "https://www.google.com/");
     }
 
