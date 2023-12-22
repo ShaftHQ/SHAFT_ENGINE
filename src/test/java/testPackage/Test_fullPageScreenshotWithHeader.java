@@ -5,7 +5,9 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.*;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class Test_fullPageScreenshotWithHeader {
     WebDriver driver;
@@ -26,7 +28,7 @@ public class Test_fullPageScreenshotWithHeader {
     public void beforeClass() {
 //	System.setProperty("screenshotParams_skippedElementsFromScreenshot",
 //		"//div[@id='topnav'];//div[@id='leftmenuinner']");
-        driver = DriverFactory.getHelper().getDriver();
+        driver = new DriverFactory().getDriver();
     }
 
     @AfterMethod(alwaysRun = true)

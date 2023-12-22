@@ -73,12 +73,12 @@ public class DragAndDropTests {
     public void dragAndDropByOffsetTouchEnabled() {
         new BrowserActions(helper).navigateToURL("https://jqueryui.com/resources/demos/draggable/default.html");
         By dragTargetLocator = By.id("draggable");
-        TouchActions.getInstance(helper).swipeByOffset(dragTargetLocator, 100, 50);
+        new TouchActions(helper).swipeByOffset(dragTargetLocator, 100, 50);
     }
 
     @BeforeMethod
     public void beforeMethod() {
-        helper = DriverFactory.getHelper();
+        helper = new DriverFactory().getHelper();
         driver = helper.getDriver();
     }
 

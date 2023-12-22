@@ -1,11 +1,12 @@
 package testPackage.LambdaTest;
 
-import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.ElementActions;
 import io.appium.java_client.AppiumBy;
 import org.openqa.selenium.Platform;
-import org.testng.annotations.*;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class Test_LTMobIPAAppURL {
     SHAFT.TestData.JSON testData;
@@ -39,6 +40,6 @@ public class Test_LTMobIPAAppURL {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() {
-        DriverFactory.closeAllDrivers();
+        driver.quit();
     }
 }

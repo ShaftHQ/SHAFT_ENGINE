@@ -18,7 +18,7 @@ public class NetworkInterceptionTest {
 
     @BeforeMethod
     public void setup() {
-        driver = SHAFT.GUI.WebDriver.getInstance();
+        driver = new SHAFT.GUI.WebDriver();
     }
 
     @AfterMethod

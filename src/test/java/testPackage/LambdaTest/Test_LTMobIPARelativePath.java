@@ -7,7 +7,9 @@ import com.shaft.validation.Validations;
 import io.appium.java_client.AppiumBy;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.*;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class Test_LTMobIPARelativePath {
     SHAFT.TestData.JSON testData;
@@ -42,12 +44,12 @@ public class Test_LTMobIPARelativePath {
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
         SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
-        driver = DriverFactory.getHelper().getDriver();
+        driver = new DriverFactory().getDriver();
 
     }
 
     @AfterMethod(alwaysRun = true)
     public void teardown() {
-        DriverFactory.closeAllDrivers();
+        driver.quit();
     }
 }

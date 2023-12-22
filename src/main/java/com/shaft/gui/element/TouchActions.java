@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.internal.image.ScreenshotManager;
@@ -28,39 +29,23 @@ import static com.shaft.gui.element.internal.ElementActionsHelper.formatLocatorT
 import static java.util.Arrays.asList;
 
 @SuppressWarnings({"unused"})
-public class TouchActions {
+public class TouchActions extends FluentWebDriverAction {
     private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 5;
     private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = SHAFT.Properties.reporting.captureElementName();
-    private static DriverFactoryHelper helper;
 
+    public TouchActions() {
+        initialize();
+    }
+
+    public TouchActions(WebDriver driver) {
+        initialize(driver);
+    }
     public TouchActions(DriverFactoryHelper helper) {
-        TouchActions.helper = helper;
+        initialize(helper);
     }
-
-    public static TouchActions getInstance(DriverFactoryHelper helper) {
-        return new TouchActions(helper);
-    }
-
-    /**
-     * This is a convenience method to be able to call Element Actions from within the current Touch Actions instance.
-     * <p>
-     * Sample use would look like this:
-     * new TouchActions(driver).tap(username_textbox).performElementAction().type(username_textbox, "username");
-     *
-     * @return a FluentElementActions object
-     */
-    public ElementActions performElementAction() {
-        return new ElementActions(helper);
-    }
-
-    public ElementActions element() {
-        return new ElementActions(helper);
-    }
-
     public TouchActions and() {
         return this;
     }
-
     public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
         return new WizardHelpers.WebDriverAssertions(helper).element(elementLocator);
     }

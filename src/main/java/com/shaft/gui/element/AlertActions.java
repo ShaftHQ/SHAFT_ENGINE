@@ -2,9 +2,8 @@ package com.shaft.gui.element;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
-import com.shaft.gui.browser.BrowserActions;
+import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.gui.element.internal.ElementActionsHelper;
-import com.shaft.gui.waits.WaitActions;
 import com.shaft.tools.io.ReportManager;
 import org.openqa.selenium.NoAlertPresentException;
 import org.openqa.selenium.WebDriver;
@@ -12,52 +11,20 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.Duration;
-import java.util.function.Function;
 
 @SuppressWarnings("unused")
-public class AlertActions {
-    private static DriverFactoryHelper helper;
-
+public class AlertActions extends FluentWebDriverAction {
+    public AlertActions() {
+        initialize();
+    }
+    public AlertActions(WebDriver driver) {
+        initialize(driver);
+    }
     public AlertActions(DriverFactoryHelper helper) {
-        AlertActions.helper = helper;
+        initialize(helper);
     }
 
-    public static AlertActions getInstance() {
-        return new AlertActions(helper);
-    }
-
-    public ElementActions performElementAction() {
-        return new ElementActions(helper);
-    }
-
-    public ElementActions element() {
-        return new ElementActions(helper);
-    }
-
-    public TouchActions touch() {
-        return new TouchActions(helper);
-    }
-
-    public BrowserActions browser() {
-        return new BrowserActions(helper);
-    }
-
-    public AlertActions and() {
-        return this;
-    }
-
-    /**
-     * Use this method to do any selenium explicit wait if needed. <br>
-     * Please note that most of the used wait methods are implemented in the related classes (browser & element)
-     *
-     * @param conditions Any Selenium explicit wait, also supports <a href="http://appium.io/docs/en/commands/mobile-command/">expected conditions</a>
-     * @return wait actions reference to be used to chain actions
-     */
-    public WaitActions waitUntil(Function<? super WebDriver, ?> conditions) {
-        return new WaitActions().waitUntil(helper, conditions);
-    }
-
-    private static void waitForAlertToBePresent() {
+    private void waitForAlertToBePresent() {
         try {
             (new WebDriverWait(helper.getDriver(), Duration.ofSeconds((long) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()))).until(ExpectedConditions.alertIsPresent());
             helper.getDriver().switchTo().alert();

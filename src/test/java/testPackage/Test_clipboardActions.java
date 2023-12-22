@@ -42,7 +42,7 @@ public class Test_clipboardActions {
 
     @BeforeMethod // Set-up method, to be run once before the first test
     public void beforeMethod() {
-        driver = DriverFactory.getHelper().getDriver();
+        driver = new DriverFactory().getDriver();
     }
 
     @AfterMethod(alwaysRun = true)

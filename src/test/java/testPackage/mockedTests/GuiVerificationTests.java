@@ -34,7 +34,7 @@ public class GuiVerificationTests {
         SHAFT.Properties.web.set().headlessExecution(true);
         defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
         SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
-        driver.set(SHAFT.GUI.WebDriver.getInstance());
+        driver.set(new SHAFT.GUI.WebDriver());
         String testElement = "data:text/html,<input type=\"text\"><br><br>";
         driver.get().browser().navigateToURL(testElement);
     }

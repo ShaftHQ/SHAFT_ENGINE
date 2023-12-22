@@ -4,7 +4,9 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ExcelFileManager;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.*;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 import poms.GoogleSearch;
 import poms.GoogleSearchResults;
 
@@ -39,11 +41,11 @@ public class Test_google {
     @BeforeMethod // Set-up method
     public void beforeClass() {
         testDataReader = new ExcelFileManager(SHAFT.Properties.paths.testData() + "testSuite01/TestData.xlsx");
-        driver = DriverFactory.getHelper().getDriver();
+        driver = new DriverFactory().getDriver();
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterClass() {
-        DriverFactory.closeAllDrivers();
+        driver.quit();
     }
 }

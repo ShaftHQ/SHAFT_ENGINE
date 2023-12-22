@@ -23,13 +23,13 @@ public class SikulixTests {
 //        byte[] searchTextBox = ScreenshotManager.takeElementScreenshot(driver, By.xpath("//input[@name='q']"));
 //        ElementActions.performSikuliAction(searchTextBox).type("SHAFT_Engine trial using SikuliX1" + Key.ENTER);
         String pathToTargetElementImage = "src/test/resources/DynamicObjectRepository/" + "sikuli_googleHome_searchBox_text.PNG";
-        SikuliActions.getInstance().click(pathToTargetElementImage).type(pathToTargetElementImage, "SHAFT_Engine trial using SikuliX1" + Key.ENTER);
+        new SikuliActions().click(pathToTargetElementImage).type(pathToTargetElementImage, "SHAFT_Engine trial using SikuliX1" + Key.ENTER);
         new BrowserActions().closeCurrentWindow();
     }
 
     @Test
     public void sampleWithSeleniumAndYoutube() {
-        WebDriver driver = DriverFactory.getHelper().getDriver();
+        WebDriver driver = new DriverFactory().getDriver();
         new BrowserActions(driver).navigateToURL("https://www.youtube.com/watch?v=6FbpNgZ8fZ8&t=2s");
         String pathToTargetElementImage = SHAFT.Properties.paths.testData() + "sikulixElements/youtube.png";
         new ElementActions(driver).performSikuliAction().click(pathToTargetElementImage);
@@ -38,7 +38,7 @@ public class SikulixTests {
 
     @Test
     public void sampleWithDesktopApplication() {
-        String result = SikuliActions.getInstance(calculator).click(pathToCalculatorElementsFolder + "1.png")
+        String result = new SikuliActions(calculator).click(pathToCalculatorElementsFolder + "1.png")
                 .click(pathToCalculatorElementsFolder + "+.png")
                 .click(pathToCalculatorElementsFolder + "3.png")
                 .click(pathToCalculatorElementsFolder + "=.png")

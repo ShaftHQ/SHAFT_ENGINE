@@ -96,7 +96,7 @@ public class ThreadSafeGuiWizardTests {
 
         defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
         SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
-        driver.set(SHAFT.GUI.WebDriver.getInstance());
+        driver.set(new SHAFT.GUI.WebDriver());
         testData.set(new SHAFT.TestData.JSON("simpleJSON.json"));
     }
 

@@ -17,7 +17,7 @@ public class Test_ValidationsBuilder {
     //@Test
     public void elementValidations() {
         WebDriver driver;
-        driver = DriverFactory.getHelper().getDriver();
+        driver = new DriverFactory().getDriver();
         new BrowserActions(driver).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
         Validations.assertThat()
                 .element(driver, googleLogo)
@@ -73,13 +73,13 @@ public class Test_ValidationsBuilder {
                 .withCustomReportMessage("checking that the text attribute contains google")
                 .perform();
 
-        DriverFactory.closeAllDrivers();
+        driver.quit();
     }
 
     //@Test
     public void browserValidations() {
         WebDriver driver;
-        driver = DriverFactory.getHelper().getDriver();
+        driver = new DriverFactory().getDriver();
         new BrowserActions(driver).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
         Validations.assertThat()
                 .browser(driver)
@@ -87,7 +87,7 @@ public class Test_ValidationsBuilder {
                 .contains("google")
                 .perform();
 
-        DriverFactory.closeAllDrivers();
+        driver.quit();
     }
 
     //@Test

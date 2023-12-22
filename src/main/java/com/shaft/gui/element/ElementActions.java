@@ -1,14 +1,12 @@
 package com.shaft.gui.element;
 
 import com.shaft.cli.FileActions;
-import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.enums.internal.ClipboardAction;
 import com.shaft.enums.internal.ElementAction;
-import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.ElementInformation;
 import com.shaft.gui.internal.image.ScreenshotManager;
@@ -27,105 +25,28 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.UnexpectedTagNameException;
 import org.openqa.selenium.support.ui.WebDriverWait;
-import org.sikuli.script.App;
 
 import java.nio.file.FileSystems;
 import java.time.Duration;
 import java.util.*;
-import java.util.function.Function;
 
 @SuppressWarnings("unused")
-public class ElementActions {
-
-    private final DriverFactoryHelper helper;
-    private final WebDriver driver;
-
+public class ElementActions extends FluentWebDriverAction {
     public ElementActions() {
-        this.helper = DriverFactory.getHelper();
-        this.driver = helper.getDriver();
-        JavaScriptWaitManager.waitForLazyLoading(this.driver);
+        initialize();
     }
-
     public ElementActions(WebDriver driver) {
-        this.driver = driver;
-        this.helper = new DriverFactoryHelper(this.driver);
-        JavaScriptWaitManager.waitForLazyLoading(this.driver);
+        initialize(driver);
     }
-
     public ElementActions(DriverFactoryHelper helper) {
-        this.helper = helper;
-        this.driver = helper.getDriver();
-        JavaScriptWaitManager.waitForLazyLoading(this.driver);
+        initialize(helper);
     }
-
-    /**
-     * This is a convenience method to be able to call TouchActions Actions for
-     * touch-enabled devices from within the regular Element Actions Class.
-     * <p>
-     * Sample use would look like this:
-     * ElementActions.performTouchAction().tap(driver, loginButton);
-     *
-     * @return a TouchActions object capable of performing actions on touch-enabled devices
-     */
-    public TouchActions performTouchAction() {
-        return new TouchActions(helper);
-    }
-
-    public AlertActions performAlertAction() {
-        return new AlertActions(helper);
-    }
-
-    public BrowserActions performBrowserAction() {
-        return new BrowserActions(helper);
-    }
-
-    public SikuliActions performSikuliAction() {
-        return new SikuliActions();
-    }
-
-    public SikuliActions performSikuliAction(App applicationWindow) {
-        return new SikuliActions(applicationWindow);
-    }
-
-    public TouchActions touch() {
-        return new TouchActions(helper);
-    }
-
-    public AlertActions alert() {
-        return new AlertActions(helper);
-    }
-
-    public BrowserActions browser() {
-        return new BrowserActions(helper);
-    }
-
-    public SikuliActions sikulix() {
-        return new SikuliActions();
-    }
-
-    public SikuliActions sikulix(App applicationWindow) {
-        return new SikuliActions(applicationWindow);
-    }
-
-    /**
-     * Use this method to do any selenium explicit wait if needed. <br>
-     * Please note that most of the used wait methods are implemented in the related classes (browser & element)
-     *
-     * @param conditions Any Selenium explicit wait, also supports <a href="http://appium.io/docs/en/commands/mobile-command/">expected conditions</a>
-     * @return wait actions reference to be used to chain actions
-     */
-    public WaitActions waitUntil(Function<? super WebDriver, ?> conditions) {
-        return new WaitActions().waitUntil(helper, conditions);
-    }
-
     public ElementActions and() {
         return this;
     }
-
     public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
         return new WizardHelpers.WebDriverAssertions(helper).element(elementLocator);
     }
-
     public WebDriverElementValidationsBuilder verifyThat(By elementLocator) {
         return new WizardHelpers.WebDriverVerifications(helper).element(elementLocator);
     }
@@ -1241,37 +1162,37 @@ public class ElementActions {
     }
 
     public ElementActions waitUntilNumberOfElementsToBe(By elementLocator, int numberOfElements) {
-        WaitActions.explicitWaits(ExpectedConditions.numberOfElementsToBe(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.numberOfElementsToBe(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public ElementActions waitUntilNumberOfElementsToBeLessThan(By elementLocator, int numberOfElements) {
-        WaitActions.explicitWaits(ExpectedConditions.numberOfElementsToBeLessThan(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.numberOfElementsToBeLessThan(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public ElementActions waitUntilNumberOfElementsToBeMoreThan(By elementLocator, int numberOfElements) {
-        WaitActions.explicitWaits(ExpectedConditions.numberOfElementsToBeMoreThan(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.numberOfElementsToBeMoreThan(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public ElementActions waitUntilAttributeContains(By elementLocator, String attribute, String attributeContainsValue) {
-        WaitActions.explicitWaits(ExpectedConditions.attributeContains(elementLocator,attribute, attributeContainsValue), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.attributeContains(elementLocator, attribute, attributeContainsValue), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public ElementActions waitUntilElementTextToBe(By elementLocator, String text) {
-        WaitActions.explicitWaits(ExpectedConditions.textToBe(elementLocator, text), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.textToBe(elementLocator, text), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public ElementActions waitUntilElementToBeSelected(By elementLocator) {
-        WaitActions.explicitWaits(ExpectedConditions.elementToBeSelected(elementLocator), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.elementToBeSelected(elementLocator), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public ElementActions waitUntilPresenceOfAllElementsLocatedBy(By elementLocator) {
-        WaitActions.explicitWaits(ExpectedConditions.presenceOfAllElementsLocatedBy(elementLocator), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.presenceOfAllElementsLocatedBy(elementLocator), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
         return this;
     }
 

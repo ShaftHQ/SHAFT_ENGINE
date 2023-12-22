@@ -23,14 +23,14 @@ import org.sikuli.script.App;
 public class DriverFactory {
 
     @Setter
-    private static DriverFactoryHelper helper;
+    private DriverFactoryHelper helper;
 
     /**
      * Read the target Selenium WebDriver value from the execution.properties file
      *
      * @return a new Selenium WebDriver instance
      */
-    public static DriverFactoryHelper getHelper() {
+    public DriverFactoryHelper getHelper() {
         if (helper == null) {
             readLastMinuteUpdatedProperties();
             if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("browserstack")) {
@@ -41,13 +41,13 @@ public class DriverFactory {
             } else {
                 var helper = new DriverFactoryHelper();
                 helper.initializeDriver();
-                DriverFactory.helper = helper;
+                this.helper = helper;
             }
         }
         return helper;
     }
 
-    public static WebDriver getDriver(){
+    public WebDriver getDriver() {
         return getHelper().getDriver();
     }
 
@@ -57,7 +57,7 @@ public class DriverFactory {
      * @param driverType one of the supported driver types
      * @return a new Selenium WebDriver instance
      */
-    public static DriverFactoryHelper getDriver(DriverType driverType) {
+    public DriverFactoryHelper getHelper(DriverType driverType) {
         readLastMinuteUpdatedProperties();
         if (driverType.equals(DriverType.BROWSERSTACK)) {
             return getBrowserStackDriver(new MutableCapabilities());
@@ -77,7 +77,7 @@ public class DriverFactory {
      * @param customDriverOptions the custom options that will be used to create this new driver instance, or null to use the default
      * @return a new Selenium WebDriver instance
      */
-    public static DriverFactoryHelper getDriver(DriverType driverType, MutableCapabilities customDriverOptions) {
+    public DriverFactoryHelper getHelper(DriverType driverType, MutableCapabilities customDriverOptions) {
         readLastMinuteUpdatedProperties();
         if (driverType.equals(DriverType.BROWSERSTACK)) {
             return getBrowserStackDriver(customDriverOptions);
@@ -250,16 +250,6 @@ public class DriverFactory {
     public static void closeSikuliApp(App application) {
         ReportManager.log("Closing app: [" + application.getName() + "]...");
         application.close();
-    }
-
-    /**
-     * Close all open driver instances.
-     */
-    public static void closeAllDrivers() {
-        if (helper !=null) {
-            helper.closeDriver();
-            DriverFactory.helper = null;
-        }
     }
 
     /**

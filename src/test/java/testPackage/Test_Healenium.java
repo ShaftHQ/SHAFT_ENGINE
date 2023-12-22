@@ -71,7 +71,7 @@ public class Test_Healenium {
     @BeforeMethod
     public void beforeMethod(){
         SHAFT.Properties.healenium.set().healEnabled(true);
-        driver = DriverFactory.getHelper().getDriver();
+        driver = new DriverFactory().getDriver();
     }
 
     @AfterMethod(alwaysRun = true)

@@ -32,7 +32,7 @@ public class MultipleElementsFailureTest {
     @BeforeMethod
 
     void beforeMethod() {
-        driver = SHAFT.GUI.WebDriver.getInstance();
+        driver = new SHAFT.GUI.WebDriver();
     }
 
 

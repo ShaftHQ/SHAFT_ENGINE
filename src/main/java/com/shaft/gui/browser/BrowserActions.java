@@ -1,16 +1,13 @@
 package com.shaft.gui.browser;
 
-import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.enums.internal.NavigationAction;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
-import com.shaft.gui.element.AlertActions;
-import com.shaft.gui.element.ElementActions;
-import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
@@ -42,74 +39,25 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 import java.util.function.Predicate;
 
 @SuppressWarnings("unused")
-public class BrowserActions {
-    private final DriverFactoryHelper helper;
-    private final WebDriver driver;
+public class BrowserActions extends FluentWebDriverAction {
     public BrowserActions() {
-        this.helper = DriverFactory.getHelper();
-        this.driver = helper.getDriver();
-        JavaScriptWaitManager.waitForLazyLoading(this.driver);
+        initialize();
     }
-
     public BrowserActions(WebDriver driver) {
-        this.driver = driver;
-        this.helper = new DriverFactoryHelper(this.driver);
-        JavaScriptWaitManager.waitForLazyLoading(this.driver);
+        initialize(driver);
     }
-
     public BrowserActions(DriverFactoryHelper helper) {
-        this.helper = helper;
-        this.driver = helper.getDriver();
-        JavaScriptWaitManager.waitForLazyLoading(this.driver);
+        initialize(helper);
     }
-
-    public TouchActions performTouchAction() {
-        return new TouchActions(helper);
-    }
-
-    public AlertActions performAlertAction() {
-        return new AlertActions(helper);
-    }
-
-    public ElementActions performElementAction() {
-        return new ElementActions(helper);
-    }
-
-    public TouchActions touch() {
-        return new TouchActions(helper);
-    }
-
-    public AlertActions alert() {
-        return new AlertActions(helper);
-    }
-
-    public ElementActions element() {
-        return new ElementActions(helper);
-    }
-
-    /**
-     * Use this method to do any selenium explicit wait if needed. <br>
-     * Please note that most of the used wait methods are implemented in the related classes (browser & element)
-     *
-     * @param conditions Any Selenium explicit wait, also supports <a href="http://appium.io/docs/en/commands/mobile-command/">expected conditions</a>
-     * @return wait actions reference to be used to chain actions
-     */
-    public WaitActions waitUntil(Function<? super WebDriver, ?> conditions) {
-        return new WaitActions().waitUntil(helper, conditions);
-    }
-
     public BrowserActions and() {
         return this;
     }
-
     public WebDriverBrowserValidationsBuilder assertThat() {
         return new WizardHelpers.WebDriverAssertions(helper).browser();
     }
-
     public WebDriverBrowserValidationsBuilder verifyThat() {
         return new WizardHelpers.WebDriverVerifications(helper).browser();
     }
@@ -477,7 +425,7 @@ public class BrowserActions {
             try {
                 // TODO: handle session timeout while attempting to close empty window
                 String lastPageSource = driver.getPageSource();
-                DriverFactory.closeAllDrivers();
+                helper.closeDriver(driver);
                 BrowserActionsHelper.passAction(lastPageSource);
             } catch (WebDriverException rootCauseException) {
                 if (rootCauseException.getMessage() != null
@@ -844,47 +792,47 @@ public class BrowserActions {
     }
 
     public BrowserActions waitUntilTitleIs(String title) {
-        WaitActions.explicitWaits(ExpectedConditions.titleIs(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.titleIs(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
     
     public BrowserActions waitUntilTitleContains(String title) {
-        WaitActions.explicitWaits(ExpectedConditions.titleContains(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.titleContains(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
     
     public BrowserActions waitUntilTitleNotContains(String title) {
-        WaitActions.explicitWaits(ExpectedConditions.not(ExpectedConditions.titleContains(title)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.not(ExpectedConditions.titleContains(title)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlContains(String url) {
-        WaitActions.explicitWaits(ExpectedConditions.urlContains(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.urlContains(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlNotContains(String url) {
-        WaitActions.explicitWaits(ExpectedConditions.not(ExpectedConditions.urlContains(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.not(ExpectedConditions.urlContains(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlToBe(String url) {
-        WaitActions.explicitWaits(ExpectedConditions.urlToBe(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.urlToBe(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlNotToBe(String url) {
-        WaitActions.explicitWaits(ExpectedConditions.not(ExpectedConditions.urlToBe(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.not(ExpectedConditions.urlToBe(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlMatches(String urlRegex) {
-        WaitActions.explicitWaits(ExpectedConditions.urlMatches(urlRegex), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.urlMatches(urlRegex), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilNumberOfWindowsToBe(int numberOfWindows) {
-        WaitActions.explicitWaits(ExpectedConditions.numberOfWindowsToBe(numberOfWindows), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(helper).explicitWaits(ExpectedConditions.numberOfWindowsToBe(numberOfWindows), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
