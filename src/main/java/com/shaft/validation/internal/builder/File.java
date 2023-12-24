@@ -1,8 +1,11 @@
-package com.shaft.validation.internal;
+package com.shaft.validation.internal.builder;
 
 import com.shaft.validation.ValidationEnums;
+import com.shaft.validation.internal.executor.GenericExecutor;
+import lombok.Getter;
 
-public class FileValidationsBuilder {
+@Getter
+public class File implements ValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
     protected String validationMethod;
     protected ValidationEnums.ValidationType validationType;
@@ -11,7 +14,7 @@ public class FileValidationsBuilder {
 
     protected final StringBuilder reportMessageBuilder;
 
-    public FileValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, String folderRelativePath, String fileName, StringBuilder reportMessageBuilder) {
+    public File(ValidationEnums.ValidationCategory validationCategory, String folderRelativePath, String fileName, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;
         this.folderRelativePath = folderRelativePath;
         this.fileName = fileName;
@@ -24,11 +27,11 @@ public class FileValidationsBuilder {
      *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor exists() {
+    public GenericExecutor exists() {
         this.validationMethod = "fileExists";
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("exists.");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 
     /**
@@ -36,11 +39,11 @@ public class FileValidationsBuilder {
      *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor doesNotExist() {
+    public GenericExecutor doesNotExist() {
         this.validationMethod = "fileExists";
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("does not exist.");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 
     /**
@@ -49,10 +52,10 @@ public class FileValidationsBuilder {
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     @SuppressWarnings("unused")
-    public NativeValidationsBuilder checksum() {
+    public Native checksum() {
         this.validationMethod = "fileChecksum";
         reportMessageBuilder.append("checksum ");
-        return new NativeValidationsBuilder(this);
+        return new Native(this);
     }
 
     /**
@@ -60,9 +63,9 @@ public class FileValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
-    public NativeValidationsBuilder content() {
+    public Native content() {
         this.validationMethod = "fileContent";
         reportMessageBuilder.append("content ");
-        return new NativeValidationsBuilder(this);
+        return new Native(this);
     }
 }

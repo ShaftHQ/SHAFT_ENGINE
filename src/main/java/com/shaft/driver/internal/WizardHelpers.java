@@ -1,9 +1,10 @@
 package com.shaft.driver.internal;
 
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
-import com.shaft.validation.internal.*;
+import com.shaft.validation.internal.builder.Number;
+import com.shaft.validation.internal.builder.*;
+import com.shaft.validation.internal.executor.GenericExecutor;
 import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
 
 public class WizardHelpers {
     static DriverFactoryHelper helper;
@@ -12,11 +13,11 @@ public class WizardHelpers {
             WizardHelpers.helper = helper;
         }
 
-        public WebDriverBrowserValidationsBuilder browser() {
+        public WebBrowser browser() {
             return com.shaft.validation.Validations.assertThat().browser(helper.getDriver());
         }
 
-        public WebDriverElementValidationsBuilder element(By locator) {
+        public WebElement element(By locator) {
             return com.shaft.validation.Validations.assertThat().element(helper.getDriver(), locator);
         }
     }
@@ -27,11 +28,11 @@ public class WizardHelpers {
             WizardHelpers.helper = helper;
         }
 
-        public WebDriverBrowserValidationsBuilder browser() {
+        public WebBrowser browser() {
             return com.shaft.validation.Validations.verifyThat().browser(helper.getDriver());
         }
 
-        public WebDriverElementValidationsBuilder element(By locator) {
+        public WebElement element(By locator) {
             return com.shaft.validation.Validations.verifyThat().element(helper.getDriver(), locator);
         }
     }
@@ -41,19 +42,19 @@ public class WizardHelpers {
 
         }
 
-        public NativeValidationsBuilder object(Object actual) {
+        public Native object(Object actual) {
             return com.shaft.validation.Validations.assertThat().object(actual);
         }
 
-        public NumberValidationsBuilder number(Number actual) {
+        public Number number(java.lang.Number actual) {
             return com.shaft.validation.Validations.assertThat().number(actual);
         }
 
-        public FileValidationsBuilder file(String folderRelativePath, String fileName) {
+        public File file(String folderRelativePath, String fileName) {
             return com.shaft.validation.Validations.assertThat().file(folderRelativePath, fileName);
         }
 
-        public ValidationsExecutor forceFail() {
+        public GenericExecutor forceFail() {
             return com.shaft.validation.Validations.assertThat().forceFail();
         }
     }
@@ -64,19 +65,19 @@ public class WizardHelpers {
 
         }
 
-        public NativeValidationsBuilder object(Object actual) {
+        public Native object(Object actual) {
             return com.shaft.validation.Validations.verifyThat().object(actual);
         }
 
-        public NumberValidationsBuilder number(Number actual) {
+        public Number number(java.lang.Number actual) {
             return com.shaft.validation.Validations.verifyThat().number(actual);
         }
 
-        public FileValidationsBuilder file(String folderRelativePath, String fileName) {
+        public File file(String folderRelativePath, String fileName) {
             return com.shaft.validation.Validations.verifyThat().file(folderRelativePath, fileName);
         }
 
-        public ValidationsExecutor forceFail() {
+        public GenericExecutor forceFail() {
             return com.shaft.validation.Validations.verifyThat().forceFail();
         }
     }

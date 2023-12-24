@@ -1,11 +1,15 @@
-package com.shaft.validation.internal;
+package com.shaft.validation.internal.builder;
 
 import com.shaft.validation.ValidationEnums;
+import com.shaft.validation.internal.executor.ValidationsExecutor;
+import com.shaft.validation.internal.executor.WebExecutor;
+import lombok.Getter;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 @SuppressWarnings("unused")
-public class WebDriverElementValidationsBuilder {
+@Getter
+public class WebElement implements ValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
     protected final WebDriver driver;
     protected final By locator;
@@ -18,7 +22,7 @@ public class WebDriverElementValidationsBuilder {
 
     protected final StringBuilder reportMessageBuilder;
 
-    public WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, WebDriver driver, By locator, StringBuilder reportMessageBuilder) {
+    public WebElement(ValidationEnums.ValidationCategory validationCategory, WebDriver driver, By locator, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;
         this.driver = driver;
         this.locator = locator;
@@ -31,11 +35,11 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor exists() {
+    public WebExecutor exists() {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.validationMethod = "elementExists";
         reportMessageBuilder.append("exists.");
-        return new ValidationsExecutor(this);
+        return new WebExecutor(this);
     }
 
     /**
@@ -43,11 +47,11 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor doesNotExist() {
+    public WebExecutor doesNotExist() {
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         this.validationMethod = "elementExists";
         reportMessageBuilder.append("does not exist.");
-        return new ValidationsExecutor(this);
+        return new WebExecutor(this);
     }
 
     /**
@@ -57,12 +61,12 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor matchesReferenceImage() {
+    public WebExecutor matchesReferenceImage() {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG;
         reportMessageBuilder.append("matches the reference image \"").append(ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG).append("\".");
-        return new ValidationsExecutor(this);
+        return new WebExecutor(this);
     }
 
     /**
@@ -71,12 +75,12 @@ public class WebDriverElementValidationsBuilder {
      * @param visualValidationEngine the selected visualValidationEngine that will be used to perform the image comparison
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor matchesReferenceImage(ValidationEnums.VisualValidationEngine visualValidationEngine) {
+    public WebExecutor matchesReferenceImage(ValidationEnums.VisualValidationEngine visualValidationEngine) {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = visualValidationEngine;
         reportMessageBuilder.append("matches the reference image \"").append(visualValidationEngine).append("\".");
-        return new ValidationsExecutor(this);
+        return new WebExecutor(this);
     }
 
     /**
@@ -86,12 +90,12 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor doesNotMatchReferenceImage() {
+    public WebExecutor doesNotMatchReferenceImage() {
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_OPENCV;
         reportMessageBuilder.append("does not match the reference image \"").append(ValidationEnums.VisualValidationEngine.EXACT_OPENCV).append("\".");
-        return new ValidationsExecutor(this);
+        return new WebExecutor(this);
     }
 
     /**
@@ -100,25 +104,12 @@ public class WebDriverElementValidationsBuilder {
      * @param visualValidationEngine the selected visualValidationEngine that will be used to perform the image comparison
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine visualValidationEngine) {
+    public WebExecutor doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine visualValidationEngine) {
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = visualValidationEngine;
         reportMessageBuilder.append("does not match the reference image \"").append(visualValidationEngine).append("\".");
-        return new ValidationsExecutor(this);
-    }
-
-    /**
-     * Use this to check against a certain element attribute
-     *
-     * @param elementAttribute the target element attribute that will be checked against
-     * @return a NativeValidationsBuilder object to continue building your validation
-     */
-    public NativeValidationsBuilder attribute(String elementAttribute) {
-        this.validationMethod = "elementAttributeEquals";
-        this.elementAttribute = elementAttribute;
-        reportMessageBuilder.append("attribute \"").append(elementAttribute).append("\" ");
-        return new NativeValidationsBuilder(this);
+        return new WebExecutor(this);
     }
 
     /**
@@ -130,7 +121,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "selected";
         reportMessageBuilder.append("is selected, selected attribute ");
-        return new NativeValidationsBuilder(this).isTrue();
+        return new Native(this).isTrue();
     }
 
     /**
@@ -142,7 +133,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "checked";
         reportMessageBuilder.append("is checked, checked attribute ");
-        return new NativeValidationsBuilder(this).isTrue();
+        return new Native(this).isTrue();
     }
 
     /**
@@ -154,7 +145,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "hidden";
         reportMessageBuilder.append("is visible, hidden attribute ");
-        return new NativeValidationsBuilder(this).isEqualTo("null");
+        return new Native(this).isEqualTo("null");
     }
 
     /**
@@ -166,7 +157,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "disabled";
         reportMessageBuilder.append("is enabled, disabled attribute ");
-        return new NativeValidationsBuilder(this).isEqualTo("null");
+        return new Native(this).isEqualTo("null");
     }
 
     /**
@@ -178,7 +169,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "selected";
         reportMessageBuilder.append("is not selected, selected attribute ");
-        return new NativeValidationsBuilder(this).isEqualTo("null");
+        return new Native(this).isEqualTo("null");
     }
 
     /**
@@ -190,7 +181,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "checked";
         reportMessageBuilder.append("is not checked, checked attribute ");
-        return new NativeValidationsBuilder(this).isEqualTo("null");
+        return new Native(this).isEqualTo("null");
     }
 
     /**
@@ -202,7 +193,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "hidden";
         reportMessageBuilder.append("is hidden, hidden attribute ");
-        return new NativeValidationsBuilder(this).isTrue();
+        return new Native(this).isTrue();
     }
 
     /**
@@ -214,7 +205,20 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "disabled";
         reportMessageBuilder.append("is disabled, disabled attribute ");
-        return new NativeValidationsBuilder(this).isTrue();
+        return new Native(this).isTrue();
+    }
+
+    /**
+     * Use this to check against a certain element attribute
+     *
+     * @param elementAttribute the target element attribute that will be checked against
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    public Native attribute(String elementAttribute) {
+        this.validationMethod = "elementAttributeEquals";
+        this.elementAttribute = elementAttribute;
+        reportMessageBuilder.append("attribute \"").append(elementAttribute).append("\" ");
+        return new Native(this);
     }
 
     /**
@@ -222,11 +226,11 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
-    public NativeValidationsBuilder text() {
+    public Native text() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "text";
         reportMessageBuilder.append("text ");
-        return new NativeValidationsBuilder(this);
+        return new Native(this);
     }
 
     /**
@@ -234,11 +238,11 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
-    public NativeValidationsBuilder textTrimmed() {
+    public Native textTrimmed() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "textTrimmed";
         reportMessageBuilder.append("text trimmed ");
-        return new NativeValidationsBuilder(this);
+        return new Native(this);
     }
 
     /**
@@ -247,11 +251,11 @@ public class WebDriverElementValidationsBuilder {
      * @param elementCssProperty the target element css property that will be checked against
      * @return a NativeValidationsBuilder object to continue building your validation
      */
-    public NativeValidationsBuilder cssProperty(String elementCssProperty) {
+    public Native cssProperty(String elementCssProperty) {
         this.validationMethod = "elementCssPropertyEquals";
         this.elementCssProperty = elementCssProperty;
         reportMessageBuilder.append("CSS property \"").append(elementCssProperty).append("\" ");
-        return new NativeValidationsBuilder(this);
+        return new Native(this);
     }
 
 

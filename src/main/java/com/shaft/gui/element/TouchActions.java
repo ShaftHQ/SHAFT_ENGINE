@@ -10,7 +10,7 @@ import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
-import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
+import com.shaft.validation.internal.builder.WebElement;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
@@ -46,11 +46,12 @@ public class TouchActions extends FluentWebDriverAction {
     public TouchActions and() {
         return this;
     }
-    public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
+
+    public WebElement assertThat(By elementLocator) {
         return new WizardHelpers.WebDriverAssertions(helper).element(elementLocator);
     }
 
-    public WebDriverElementValidationsBuilder verifyThat(By elementLocator) {
+    public WebElement verifyThat(By elementLocator) {
         return new WizardHelpers.WebDriverVerifications(helper).element(elementLocator);
     }
 
@@ -147,9 +148,9 @@ public class TouchActions extends FluentWebDriverAction {
             if (CAPTURE_CLICKED_ELEMENT_TEXT) {
                 try {
                     if (DriverFactoryHelper.isMobileNativeExecution()) {
-                        elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1)).getAttribute("text");
+                        elementText = ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1)).getAttribute("text");
                     } else {
-                        elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1)).getText();
+                        elementText = ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1)).getText();
                     }
                 } catch (Exception e) {
                     // do nothing
@@ -160,7 +161,7 @@ public class TouchActions extends FluentWebDriverAction {
 
             try {
 //                fixing https://github.com/ShaftHQ/SHAFT_ENGINE/issues/501
-                ((WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1)).click();
+                ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1)).click();
             } catch (Exception e) {
                 ElementActionsHelper.failAction(helper.getDriver(), elementLocator, e);
             }
@@ -187,7 +188,7 @@ public class TouchActions extends FluentWebDriverAction {
         try {
             String elementText = "";
             try {
-                elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1)).getText();
+                elementText = ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1)).getText();
             } catch (Exception e) {
                 // do nothing
             }
@@ -198,7 +199,7 @@ public class TouchActions extends FluentWebDriverAction {
             attachments.add(screenshot);
 
             try {
-                (new Actions(helper.getDriver())).doubleClick(((WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1))).perform();
+                (new Actions(helper.getDriver())).doubleClick(((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1))).perform();
             } catch (Exception e) {
                 ElementActionsHelper.failAction(helper.getDriver(), elementLocator, e);
             }
@@ -227,7 +228,7 @@ public class TouchActions extends FluentWebDriverAction {
         try {
             String elementText = "";
             try {
-                elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1)).getText();
+                elementText = ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1)).getText();
             } catch (Exception e) {
                 // do nothing
             }
@@ -237,7 +238,7 @@ public class TouchActions extends FluentWebDriverAction {
             attachments.add(screenshot);
 
             try {
-                new Actions(helper.getDriver()).clickAndHold(((WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1))).perform();
+                new Actions(helper.getDriver()).clickAndHold(((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1))).perform();
             } catch (Exception e) {
                 ElementActionsHelper.failAction(helper.getDriver(), elementLocator, e);
             }
@@ -321,8 +322,8 @@ public class TouchActions extends FluentWebDriverAction {
      */
     public TouchActions swipeToElement(By sourceElementLocator, By destinationElementLocator) {
         try {
-            WebElement sourceElement = ((WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), sourceElementLocator).get(1));
-            WebElement destinationElement = ((WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), destinationElementLocator).get(1));
+            org.openqa.selenium.WebElement sourceElement = ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), sourceElementLocator).get(1));
+            org.openqa.selenium.WebElement destinationElement = ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), destinationElementLocator).get(1));
 
             String startLocation = sourceElement.getLocation().toString();
 
@@ -332,7 +333,7 @@ public class TouchActions extends FluentWebDriverAction {
                 ElementActionsHelper.failAction(helper.getDriver(), sourceElementLocator, e);
             }
 
-            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), sourceElementLocator).get(1)).getLocation().toString();
+            String endLocation = ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), sourceElementLocator).get(1)).getLocation().toString();
             String reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
 
             if(SHAFT.Properties.flags.validateSwipeToElement()) {
@@ -366,7 +367,7 @@ public class TouchActions extends FluentWebDriverAction {
      */
     public TouchActions swipeByOffset(By elementLocator, int xOffset, int yOffset) {
         try {
-            WebElement sourceElement = ((WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1));
+            org.openqa.selenium.WebElement sourceElement = ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1));
             Point elementLocation = sourceElement.getLocation();
             String startLocation = elementLocation.toString();
             try {
@@ -375,7 +376,7 @@ public class TouchActions extends FluentWebDriverAction {
                 ElementActionsHelper.failAction(helper.getDriver(), elementLocator, e);
             }
 
-            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1)).getLocation().toString();
+            String endLocation = ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), elementLocator).get(1)).getLocation().toString();
             String reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
 
             if (!endLocation.equals(startLocation)) {
@@ -534,9 +535,9 @@ public class TouchActions extends FluentWebDriverAction {
                 } else {
                     // regular touch screen device
                     if (scrollableElementLocator != null) {
-                        new Actions(helper.getDriver()).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), scrollableElementLocator).get(1))).scrollToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), targetElementLocator).get(1))).perform();
+                        new Actions(helper.getDriver()).moveToElement(((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), scrollableElementLocator).get(1))).scrollToElement(((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), targetElementLocator).get(1))).perform();
                     } else {
-                        new Actions(helper.getDriver()).scrollToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), targetElementLocator).get(1))).perform();
+                        new Actions(helper.getDriver()).scrollToElement(((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), targetElementLocator).get(1))).perform();
                     }
                 }
                 ElementActionsHelper.passAction(helper.getDriver(), targetElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
@@ -695,7 +696,7 @@ public class TouchActions extends FluentWebDriverAction {
 
         if (scrollableElementLocator != null) {
             //scrolling inside an element
-            Rectangle elementRectangle = ((WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), scrollableElementLocator).get(1)).getRect();
+            Rectangle elementRectangle = ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), scrollableElementLocator).get(1)).getRect();
             scrollParameters.putAll(ImmutableMap.of(
                     "height", elementRectangle.getHeight() * 90 / 100
             ));

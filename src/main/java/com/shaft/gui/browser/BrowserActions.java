@@ -16,7 +16,7 @@ import com.shaft.performance.internal.LightHouseGenerateReport;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
-import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
+import com.shaft.validation.internal.builder.WebBrowser;
 import io.appium.java_client.AppiumDriver;
 import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.DevTools;
@@ -55,10 +55,12 @@ public class BrowserActions extends FluentWebDriverAction {
     public BrowserActions and() {
         return this;
     }
-    public WebDriverBrowserValidationsBuilder assertThat() {
+
+    public WebBrowser assertThat() {
         return new WizardHelpers.WebDriverAssertions(helper).browser();
     }
-    public WebDriverBrowserValidationsBuilder verifyThat() {
+
+    public WebBrowser verifyThat() {
         return new WizardHelpers.WebDriverVerifications(helper).browser();
     }
 

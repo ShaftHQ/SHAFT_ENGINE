@@ -1,11 +1,12 @@
-package com.shaft.validation.internal;
+package com.shaft.validation.internal.builder;
 
 import com.shaft.validation.ValidationEnums;
+import com.shaft.validation.internal.executor.GenericExecutor;
 
 @SuppressWarnings("unused")
-public class JSONValidationsBuilder extends NativeValidationsBuilder {
+public class JSON extends Native {
     //TODO: implement all the methods
-    public JSONValidationsBuilder(RestValidationsBuilder restValidationsBuilder) {
+    public JSON(API restValidationsBuilder) {
         super(restValidationsBuilder);
     }
 
@@ -15,12 +16,12 @@ public class JSONValidationsBuilder extends NativeValidationsBuilder {
      * @param expectedValue the test data / expected value for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor equalsIgnoringOrder(Object expectedValue) {
+    public GenericExecutor equalsIgnoringOrder(Object expectedValue) {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.MATCHES;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("equals \"").append(expectedValue).append("\", ignoring ordering.");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 
     /**
@@ -29,11 +30,11 @@ public class JSONValidationsBuilder extends NativeValidationsBuilder {
      * @param expectedValue the test data / expected value for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor doesNotEqualIgnoringOrder(Object expectedValue) {
+    public GenericExecutor doesNotEqualIgnoringOrder(Object expectedValue) {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.MATCHES;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("does not equal \"").append(expectedValue).append("\", ignoring ordering.");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 }

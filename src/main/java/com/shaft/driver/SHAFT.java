@@ -16,7 +16,6 @@ import com.shaft.tools.io.JSONFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.YAMLFileManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
-import com.shaft.validation.internal.RestValidationsBuilder;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.restassured.response.Response;
@@ -215,11 +214,11 @@ public class SHAFT {
             session.addCookieVariable(key, value);
         }
 
-        public RestValidationsBuilder assertThatResponse() {
+        public com.shaft.validation.internal.builder.API assertThatResponse() {
             return com.shaft.validation.Validations.assertThat().response(RestActions.getLastResponse());
         }
 
-        public RestValidationsBuilder verifyThatResponse() {
+        public com.shaft.validation.internal.builder.API verifyThatResponse() {
             return com.shaft.validation.Validations.verifyThat().response(RestActions.getLastResponse());
         }
 

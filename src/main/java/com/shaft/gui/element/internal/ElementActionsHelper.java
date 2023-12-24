@@ -20,7 +20,7 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
-import com.shaft.validation.internal.ValidationsHelper;
+import com.shaft.validation.internal.executor.Helper;
 import io.appium.java_client.AppiumDriver;
 import lombok.Getter;
 import org.jsoup.Jsoup;
@@ -1093,7 +1093,7 @@ public class ElementActionsHelper {
 
         //don't take a second screenshot in case of validation failure  because the original element action will have always failed first
         boolean skipPageScreenshot = rootCauseException.length >= 1 && (
-                isFoundInStacktrace(ValidationsHelper.class, rootCauseException[0])
+                isFoundInStacktrace(Helper.class, rootCauseException[0])
                         && isFoundInStacktrace(ElementActionsHelper.class, rootCauseException[0]));
 
         String elementName = elementLocator != null ? formatLocatorToString(elementLocator) : "";

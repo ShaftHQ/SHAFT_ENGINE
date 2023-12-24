@@ -14,7 +14,7 @@ import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.waits.WaitActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
-import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
+import com.shaft.validation.internal.builder.WebElement;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.NoSuchElementException;
@@ -44,10 +44,12 @@ public class ElementActions extends FluentWebDriverAction {
     public ElementActions and() {
         return this;
     }
-    public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
+
+    public WebElement assertThat(By elementLocator) {
         return new WizardHelpers.WebDriverAssertions(helper).element(elementLocator);
     }
-    public WebDriverElementValidationsBuilder verifyThat(By elementLocator) {
+
+    public WebElement verifyThat(By elementLocator) {
         return new WizardHelpers.WebDriverVerifications(helper).element(elementLocator);
     }
 
@@ -67,7 +69,7 @@ public class ElementActions extends FluentWebDriverAction {
             var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
             StringBuilder elementSelectedText = new StringBuilder();
             try {
-                new Select(((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1))).getAllSelectedOptions().forEach(selectedOption -> elementSelectedText.append(selectedOption.getText()));
+                new Select(((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1))).getAllSelectedOptions().forEach(selectedOption -> elementSelectedText.append(selectedOption.getText()));
                 ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementSelectedText.toString().trim(), null, elementName);
                 return elementSelectedText.toString().trim();
             } catch (UnexpectedTagNameException rootCauseException) {
@@ -185,7 +187,7 @@ public class ElementActions extends FluentWebDriverAction {
         try {
             var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
             List<Object> screenshot = ElementActionsHelper.takeScreenshot(driver, elementLocator, "clickAndHold", null, true);
-            WebElement element = (WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1);
+            org.openqa.selenium.WebElement element = (org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1);
             if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator, "clickAndHold"))) {
                 ElementActionsHelper.failAction(driver, "element is not clickable", elementLocator);
             }
@@ -237,7 +239,7 @@ public class ElementActions extends FluentWebDriverAction {
             List<List<Object>> attachments = new LinkedList<>();
             attachments.add(screenshot);
             try {
-                (new Actions(driver)).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).doubleClick().perform();
+                (new Actions(driver)).moveToElement(((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).doubleClick().perform();
             } catch (Exception e) {
                 ElementActionsHelper.failAction(driver, elementLocator, e);
             }
@@ -268,7 +270,7 @@ public class ElementActions extends FluentWebDriverAction {
             // replaced canFindUniqueElementForInternalUse, with countFoundElements for
             // destinationElement to bypass the check for element visibility
             // get source element start location
-            String startLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
+            String startLocation = ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
             // attempt to perform drag and drop
             try {
                 ElementActionsHelper.dragAndDropUsingJavascript(driver, sourceElementLocator, destinationElementLocator);
@@ -277,7 +279,7 @@ public class ElementActions extends FluentWebDriverAction {
                 ReportManagerHelper.logDiscrete(rootCauseException);
             }
             // get source element end location
-            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
+            String endLocation = ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
             String reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
             if (!endLocation.equals(startLocation)) {
                 ElementActionsHelper.passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementName);
@@ -291,7 +293,7 @@ public class ElementActions extends FluentWebDriverAction {
                     ElementActionsHelper.failAction(driver, sourceElementLocator, rootCauseException);
                 }
                 // get source element end location
-                endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
+                endLocation = ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
                 if (!endLocation.equals(startLocation)) {
                     ElementActionsHelper.passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementName);
                 } else {
@@ -320,16 +322,16 @@ public class ElementActions extends FluentWebDriverAction {
     public ElementActions dragAndDropByOffset(By sourceElementLocator, int xOffset, int yOffset) {
         try {
             var elementName = ElementActionsHelper.getElementName(driver, sourceElementLocator);
-            WebElement sourceElement = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1));
+            org.openqa.selenium.WebElement sourceElement = ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1));
             String startLocation = sourceElement.getLocation().toString();
             // attempt to perform drag and drop
             try {
-                (new Actions(driver)).dragAndDropBy(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)), xOffset, yOffset).build()
+                (new Actions(driver)).dragAndDropBy(((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)), xOffset, yOffset).build()
                         .perform();
             } catch (Exception rootCauseException) {
                 ElementActionsHelper.failAction(driver, sourceElementLocator, rootCauseException);
             }
-            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
+            String endLocation = ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
             if (!endLocation.equals(startLocation)) {
                 ElementActionsHelper.passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "Start point: " + startLocation + ", End point: " + endLocation, null, elementName);
             } else {
@@ -415,7 +417,7 @@ public class ElementActions extends FluentWebDriverAction {
     public String getCSSProperty(By elementLocator, String propertyName) {
         try {
             var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
-            String elementCssProperty = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getCssValue(propertyName);
+            String elementCssProperty = ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getCssValue(propertyName);
             ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementCssProperty, null, elementName);
             return elementCssProperty;
         } catch (Throwable throwable) {
@@ -563,7 +565,7 @@ public class ElementActions extends FluentWebDriverAction {
         try {
             var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
             try {
-                (new Actions(driver)).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).perform();
+                (new Actions(driver)).moveToElement(((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).perform();
             } catch (Exception rootCauseException) {
                 ElementActionsHelper.failAction(driver, elementLocator, rootCauseException);
             }
@@ -606,7 +608,7 @@ public class ElementActions extends FluentWebDriverAction {
             var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
             List<Object> screenshot = ElementActionsHelper.takeScreenshot(driver, elementLocator, "keyPress", null, true);
             // takes screenshot before moving the element out of view
-            ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).sendKeys(key);
+            ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).sendKeys(key);
             ElementActionsHelper.passAction(driver, elementLocator, key.name(), screenshot, elementName);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
@@ -666,13 +668,13 @@ public class ElementActions extends FluentWebDriverAction {
                 }
 
                 boolean isOptionFound = false;
-                List<WebElement> availableOptionsList = (new Select((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).getOptions();
+                List<org.openqa.selenium.WebElement> availableOptionsList = (new Select((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).getOptions();
 
                 for (int i = 0; i < availableOptionsList.size(); ++i) {
                     String visibleText = availableOptionsList.get(i).getText();
                     String value = availableOptionsList.get(i).getAttribute("value");
                     if (visibleText.trim().equals(valueOrVisibleText) || value.trim().equals(valueOrVisibleText)) {
-                        (new Select((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).selectByIndex(i);
+                        (new Select((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).selectByIndex(i);
                         ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), valueOrVisibleText, null, elementName);
                         isOptionFound = true;
                         break;
@@ -893,14 +895,14 @@ public class ElementActions extends FluentWebDriverAction {
             List<Object> screenshot = ElementActionsHelper.takeScreenshot(driver, elementLocator, "typeFileLocationForUpload", null, true);
             // takes screenshot before clicking the element out of view
             try {
-                ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).sendKeys(internalAbsoluteFilePath);
+                ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).sendKeys(internalAbsoluteFilePath);
             } catch (InvalidArgumentException e) {
                 //this happens when the file path doesn't exist
                 ElementActionsHelper.failAction(driver, internalAbsoluteFilePath, elementLocator, e);
             } catch (ElementNotInteractableException | NoSuchElementException exception1) {
                 ElementActionsHelper.changeWebElementVisibilityUsingJavascript(driver, elementLocator, true);
                 try {
-                    ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).sendKeys(internalAbsoluteFilePath);
+                    ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).sendKeys(internalAbsoluteFilePath);
                 } catch (WebDriverException rootCauseException) {
                     rootCauseException.addSuppressed(exception1);
                     // happened for the first time on MacOSX due to incorrect file path separator
@@ -1071,7 +1073,7 @@ public class ElementActions extends FluentWebDriverAction {
     public boolean isElementDisplayed(By elementLocator) {
         try {
             var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
-            boolean isDisplayed = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).isDisplayed();
+            boolean isDisplayed = ((org.openqa.selenium.WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).isDisplayed();
             ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
             return isDisplayed;
         } catch (Throwable throwable) {
@@ -1126,7 +1128,7 @@ public class ElementActions extends FluentWebDriverAction {
             ElementActionsHelper.failAction(driver, tableLocator, throwable);
             return null;
         }
-        WebElement table = driver.findElement(tableLocator);
+        org.openqa.selenium.WebElement table = driver.findElement(tableLocator);
         try {
             //Wait until any row is loaded because some websites use lazy loading,
             //and you need to wait for rows to be loaded
@@ -1136,13 +1138,13 @@ public class ElementActions extends FluentWebDriverAction {
             //Will return empty list to be used in case you want to assert if the table is empty
             return new ArrayList<>();
         }
-        List<WebElement> rows = table.findElement(By.tagName("tbody")).findElements(By.tagName("tr"));
-        List<WebElement> headerCells = table.findElement(By.tagName("thead")).findElements(By.tagName("th"));
+        List<org.openqa.selenium.WebElement> rows = table.findElement(By.tagName("tbody")).findElements(By.tagName("tr"));
+        List<org.openqa.selenium.WebElement> headerCells = table.findElement(By.tagName("thead")).findElements(By.tagName("th"));
 
         //extract the data into a List of Maps
-        for (WebElement row : rows) {
-            WebElement currentRow = wait.until(ExpectedConditions.visibilityOf(row));
-            List<WebElement> cells = row.findElements(By.tagName("td"));
+        for (org.openqa.selenium.WebElement row : rows) {
+            org.openqa.selenium.WebElement currentRow = wait.until(ExpectedConditions.visibilityOf(row));
+            List<org.openqa.selenium.WebElement> cells = row.findElements(By.tagName("td"));
             Map<String, String> rowData = new HashMap<>();
             for (int cellIndex = 0; cellIndex < cells.size(); cellIndex++) {
                 String columnName = headerCells.get(cellIndex).getText();

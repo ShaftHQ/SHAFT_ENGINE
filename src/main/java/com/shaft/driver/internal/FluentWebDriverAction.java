@@ -18,19 +18,19 @@ public class FluentWebDriverAction {
     protected DriverFactoryHelper helper;
     protected WebDriver driver;
 
-    public void initialize() {
+    protected void initialize() {
         this.helper = new DriverFactory().getHelper();
         this.driver = helper.getDriver();
         JavaScriptWaitManager.waitForLazyLoading(this.driver);
     }
 
-    public void initialize(WebDriver driver) {
+    protected void initialize(WebDriver driver) {
         this.driver = driver;
         this.helper = new DriverFactoryHelper(this.driver);
         JavaScriptWaitManager.waitForLazyLoading(this.driver);
     }
 
-    public void initialize(DriverFactoryHelper helper) {
+    protected void initialize(DriverFactoryHelper helper) {
         this.helper = helper;
         this.driver = helper.getDriver();
         JavaScriptWaitManager.waitForLazyLoading(this.driver);

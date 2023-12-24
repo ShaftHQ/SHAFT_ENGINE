@@ -1,6 +1,6 @@
 package com.shaft.tools.io.internal;
 
-import com.shaft.validation.internal.ValidationsHelper;
+import com.shaft.validation.internal.executor.Helper;
 import io.qameta.allure.model.Link;
 import io.qameta.allure.util.AnnotationUtils;
 import org.testng.ITestNGMethod;
@@ -23,10 +23,10 @@ public class IssueReporter {
     private static int newIssuesForFailedTestsCounter = 0;
 
     public static void updateTestStatusInCaseOfVerificationFailure(ITestResult testResult) {
-        if (testResult != null && ValidationsHelper.getVerificationErrorToForceFail() != null) {
+        if (testResult != null && Helper.getVerificationErrorToForceFail() != null) {
             testResult.setStatus(ITestResult.FAILURE);
-            testResult.setThrowable(ValidationsHelper.getVerificationErrorToForceFail());
-            ValidationsHelper.resetVerificationStateAfterFailing();
+            testResult.setThrowable(Helper.getVerificationErrorToForceFail());
+            Helper.resetVerificationStateAfterFailing();
         }
     }
 

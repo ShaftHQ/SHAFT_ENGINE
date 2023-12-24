@@ -1,13 +1,16 @@
-package com.shaft.validation.internal;
+package com.shaft.validation.internal.builder;
 
 import com.shaft.validation.ValidationEnums;
+import com.shaft.validation.internal.executor.GenericExecutor;
+import lombok.Getter;
 
-public class NumberValidationsBuilder {
+@Getter
+public class Number implements ValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
     protected ValidationEnums.ValidationType validationType;
     protected final String validationMethod;
 
-    protected Number expectedValue;
+    protected java.lang.Number expectedValue;
     protected Object actualValue;
 
     protected Object response;
@@ -17,7 +20,7 @@ public class NumberValidationsBuilder {
 
     protected final StringBuilder reportMessageBuilder;
 
-    public NumberValidationsBuilder(ValidationsBuilder validationsBuilder) {
+    public Number(Standalone validationsBuilder) {
         this.validationCategory = validationsBuilder.validationCategory;
         this.validationMethod = validationsBuilder.validationMethod;
         this.actualValue = validationsBuilder.actualValue;
@@ -25,7 +28,7 @@ public class NumberValidationsBuilder {
         this.reportMessageBuilder = validationsBuilder.reportMessageBuilder;
     }
 
-    public NumberValidationsBuilder(RestValidationsBuilder restValidationsBuilder) {
+    public Number(API restValidationsBuilder) {
         this.validationCategory = restValidationsBuilder.validationCategory;
         this.validationMethod = restValidationsBuilder.validationMethod;
         this.jsonPath = restValidationsBuilder.jsonPath;
@@ -40,12 +43,12 @@ public class NumberValidationsBuilder {
      * @param expectedValue the test data / expected value for the number under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor isEqualTo(Number expectedValue) {
+    public GenericExecutor isEqualTo(java.lang.Number expectedValue) {
         this.expectedValue = expectedValue;
         this.numbersComparativeRelation = ValidationEnums.NumbersComparativeRelation.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is equal to \"").append(expectedValue).append("\".");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 
     /**
@@ -57,7 +60,7 @@ public class NumberValidationsBuilder {
     @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
     @Override
     public boolean equals(Object expectedValue) {
-        isEqualTo((Number) expectedValue).perform();
+        isEqualTo((java.lang.Number) expectedValue).perform();
         return true;
     }
 
@@ -67,12 +70,12 @@ public class NumberValidationsBuilder {
      * @param expectedValue the test data / expected value for the number under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor doesNotEqual(Number expectedValue) {
+    public GenericExecutor doesNotEqual(java.lang.Number expectedValue) {
         this.expectedValue = expectedValue;
         this.numbersComparativeRelation = ValidationEnums.NumbersComparativeRelation.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("does not equal \"").append(expectedValue).append("\".");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 
     /**
@@ -81,12 +84,12 @@ public class NumberValidationsBuilder {
      * @param expectedValue the test data / expected value for the number under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor isGreaterThanOrEquals(Number expectedValue) {
+    public GenericExecutor isGreaterThanOrEquals(java.lang.Number expectedValue) {
         this.expectedValue = expectedValue;
         this.numbersComparativeRelation = ValidationEnums.NumbersComparativeRelation.GREATER_THAN_OR_EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is greater than or equal to \"").append(expectedValue).append("\".");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 
     /**
@@ -95,12 +98,12 @@ public class NumberValidationsBuilder {
      * @param expectedValue the test data / expected value for the number under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor isGreaterThan(Number expectedValue) {
+    public GenericExecutor isGreaterThan(java.lang.Number expectedValue) {
         this.expectedValue = expectedValue;
         this.numbersComparativeRelation = ValidationEnums.NumbersComparativeRelation.GREATER_THAN;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is greater than \"").append(expectedValue).append("\".");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 
     /**
@@ -109,12 +112,12 @@ public class NumberValidationsBuilder {
      * @param expectedValue the test data / expected value for the number under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor isLessThanOrEquals(Number expectedValue) {
+    public GenericExecutor isLessThanOrEquals(java.lang.Number expectedValue) {
         this.expectedValue = expectedValue;
         this.numbersComparativeRelation = ValidationEnums.NumbersComparativeRelation.LESS_THAN_OR_EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is less than or equal to \"").append(expectedValue).append("\".");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 
     /**
@@ -123,11 +126,11 @@ public class NumberValidationsBuilder {
      * @param expectedValue the test data / expected value for the number under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor isLessThan(Number expectedValue) {
+    public GenericExecutor isLessThan(java.lang.Number expectedValue) {
         this.expectedValue = expectedValue;
         this.numbersComparativeRelation = ValidationEnums.NumbersComparativeRelation.LESS_THAN;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is less than \"").append(expectedValue).append("\".");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 }

@@ -25,7 +25,7 @@ public class ChainableElementActionsTests {
                 .type(searchBox, "chained type 2")
                 .typeAppend(searchBox, "345");
 
-        driver.assertThat().element(searchBox).text().isEqualTo("chained type 2345");
+        driver.assertThat().element(searchBox).text().isEqualTo("chained type 2345").perform();
     }
 
     @AfterMethod(alwaysRun = true)

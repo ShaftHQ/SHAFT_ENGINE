@@ -1,4 +1,4 @@
-package com.shaft.validation.internal;
+package com.shaft.validation.internal.executor;
 
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
@@ -30,7 +30,7 @@ import java.util.List;
 import static com.shaft.gui.element.internal.ElementActionsHelper.formatLocatorToString;
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 
-public class ValidationsHelper {
+public class Helper {
     //TODO: implement element attribute and element exists validations for sikuli actions
     static final ThreadLocal<ArrayList<String>> optionalCustomLogMessage = new ThreadLocal<>();
     private static By lastUsedElementLocator = null;
@@ -39,7 +39,7 @@ public class ValidationsHelper {
     private static AssertionError verificationError = null;
     private static final String WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim();
 
-    private ValidationsHelper() {
+    private Helper() {
         throw new IllegalStateException("Utility class");
     }
 
@@ -266,19 +266,6 @@ public class ValidationsHelper {
             pass(validationCategory, expectedValue, actualValue, numbersComparativeRelation, validationType);
         } else {
             fail(validationCategory, expectedValue, actualValue, numbersComparativeRelation, validationType);
-        }
-    }
-
-    protected static void validateTrue(ValidationCategory validationCategory, Boolean conditionalStatement, ValidationType validationType, String... optionalCustomLogMessage) {
-        processCustomLogMessage(optionalCustomLogMessage);
-        Boolean expectedValue = false;
-        if (ValidationType.POSITIVE.equals(validationType)) {
-            expectedValue = true;
-        }
-        if ((expectedValue && conditionalStatement) || (!expectedValue && !conditionalStatement)) {
-            pass(null, validationCategory, String.valueOf(expectedValue).toUpperCase(), String.valueOf(conditionalStatement).toUpperCase(), null, validationType);
-        } else {
-            fail(null, validationCategory, String.valueOf(expectedValue).toUpperCase(), String.valueOf(conditionalStatement).toUpperCase(), null, validationType, null);
         }
     }
 
@@ -650,7 +637,7 @@ public class ValidationsHelper {
                 // set test state in case of failure
                 if (!validationState.getValue()) {
                     if (failureReason != null) {
-                        FailureReporter.fail(ValidationsHelper.class, message.toString(), failureReason);
+                        FailureReporter.fail(Helper.class, message.toString(), failureReason);
                     } else {
                         FailureReporter.fail(message.toString());
                     }
@@ -681,10 +668,10 @@ public class ValidationsHelper {
     }
 
     private static void processCustomLogMessage(String... optionalCustomLogMessage) {
-        ValidationsHelper.optionalCustomLogMessage.set(new ArrayList<>());
+        Helper.optionalCustomLogMessage.set(new ArrayList<>());
         for (String customMessage : optionalCustomLogMessage) {
             if (customMessage != null && !customMessage.isBlank()) {
-                ValidationsHelper.optionalCustomLogMessage.get().add(customMessage);
+                Helper.optionalCustomLogMessage.get().add(customMessage);
                 //ReportManager.log(customMessage + "...");
             }
         }

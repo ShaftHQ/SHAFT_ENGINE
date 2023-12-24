@@ -1,13 +1,16 @@
-package com.shaft.validation.internal;
+package com.shaft.validation.internal.builder;
 
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.validation.ValidationEnums;
+import com.shaft.validation.internal.executor.GenericExecutor;
+import lombok.Getter;
 
 
 @SuppressWarnings("unused")
-public class RestValidationsBuilder {
+@Getter
+public class API implements ValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
     protected String validationMethod;
     protected ValidationEnums.ValidationType validationType;
@@ -18,7 +21,7 @@ public class RestValidationsBuilder {
 
     protected final StringBuilder reportMessageBuilder;
 
-    public RestValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, Object response, StringBuilder reportMessageBuilder) {
+    public API(ValidationEnums.ValidationCategory validationCategory, Object response, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;
         this.response = response;
 
@@ -31,14 +34,14 @@ public class RestValidationsBuilder {
      * @param fileRelativePath relative path to the target expected response file
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor isEqualToFileContent(String fileRelativePath) {
+    public GenericExecutor isEqualToFileContent(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "responseEqualsFileContent";
         this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is equal to the contents of this file \"").append(fileRelativePath).append("\".");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 
     /**
@@ -47,14 +50,14 @@ public class RestValidationsBuilder {
      * @param fileRelativePath relative path to the target expected response file
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor isEqualToFileContentIgnoringOrder(String fileRelativePath) {
+    public GenericExecutor isEqualToFileContentIgnoringOrder(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "responseEqualsFileContent";
         this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS_IGNORING_ORDER;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is equal to the contents of this file \"").append(fileRelativePath).append("\" (Ignoring Ordering).");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 
     /**
@@ -63,14 +66,14 @@ public class RestValidationsBuilder {
      * @param fileRelativePath relative path to the target expected response file
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor doesNotEqualFileContent(String fileRelativePath) {
+    public GenericExecutor doesNotEqualFileContent(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "responseEqualsFileContent";
         this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("is not equal to the contents of this file \"").append(fileRelativePath).append("\".");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 
     /**
@@ -79,14 +82,14 @@ public class RestValidationsBuilder {
      * @param fileRelativePath relative path to the target expected response file
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor doesNotEqualFileContentIgnoringOrder(String fileRelativePath) {
+    public GenericExecutor doesNotEqualFileContentIgnoringOrder(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "responseEqualsFileContent";
         this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS_IGNORING_ORDER;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("is not equal to the contents of this file \"").append(fileRelativePath).append("\" (Ignoring Ordering).");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 
     /**
@@ -95,14 +98,14 @@ public class RestValidationsBuilder {
      * @param fileRelativePath relative path to the target expected response file
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor containsFileContent(String fileRelativePath) {
+    public GenericExecutor containsFileContent(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "responseEqualsFileContent";
         this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("contains the contents of this file \"").append(fileRelativePath).append("\".");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 
     /**
@@ -111,14 +114,14 @@ public class RestValidationsBuilder {
      * @param fileRelativePath relative path to the target expected response file
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor doesNotContainFileContent(String fileRelativePath) {
+    public GenericExecutor doesNotContainFileContent(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "responseEqualsFileContent";
         this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("does not contain the contents of this file \"").append(fileRelativePath).append("\".");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 
     /**
@@ -130,11 +133,11 @@ public class RestValidationsBuilder {
      *                 <a href="http://jsonpath.com/">jsonpath.com/</a>
      * @return a NativeValidationsBuilder object to continue building your validation
      */
-    public NativeValidationsBuilder extractedJsonValue(String jsonPath) {
+    public Native extractedJsonValue(String jsonPath) {
         this.validationMethod = "jsonPathValueEquals";
         this.jsonPath = jsonPath;
         reportMessageBuilder.append("extracted value from the JSON path \"").append(jsonPath).append("\" ");
-        return new NativeValidationsBuilder(this);
+        return new Native(this);
     }
 
     /**
@@ -146,23 +149,23 @@ public class RestValidationsBuilder {
      *                 <a href="http://jsonpath.com/">jsonpath.com/</a>
      * @return a NativeValidationsBuilder object to continue building your validation
      */
-    public NativeValidationsBuilder extractedJsonValueAsList(String jsonPath) {
+    public Native extractedJsonValueAsList(String jsonPath) {
         this.validationMethod = "jsonPathValueAsListEquals";
         this.jsonPath = jsonPath;
         reportMessageBuilder.append("extracted value from the JSON path \"").append(jsonPath).append("\" ");
-        return new NativeValidationsBuilder(this);
+        return new Native(this);
     }
 
-    public NativeValidationsBuilder body() {
+    public Native body() {
         this.validationMethod = "responseBody";
         reportMessageBuilder.append("Body ");
-        return new JSONValidationsBuilder(this);
+        return new JSON(this);
     }
 
-    public NumberValidationsBuilder time() {
+    public Number time() {
         this.validationMethod = "responseTime";
         reportMessageBuilder.append("Time ");
-        return new NumberValidationsBuilder(this);
+        return new Number(this);
     }
 
     /**
@@ -171,14 +174,14 @@ public class RestValidationsBuilder {
      * @param fileRelativePath relative path to the target expected response file
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor matchesSchema(String fileRelativePath) {
+    public GenericExecutor matchesSchema(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "checkResponseSchema";
         this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("schema matches that in this file \"").append(fileRelativePath).append("\".");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 
     /**
@@ -187,13 +190,13 @@ public class RestValidationsBuilder {
      * @param fileRelativePath relative path to the target expected response file
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
-    public ValidationsExecutor doesNotMatchSchema(String fileRelativePath) {
+    public GenericExecutor doesNotMatchSchema(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "checkResponseSchema";
         this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("schema does not match that in this file \"").append(fileRelativePath).append("\".");
-        return new ValidationsExecutor(this);
+        return new GenericExecutor(this);
     }
 }

@@ -1,9 +1,11 @@
-package com.shaft.validation.internal;
+package com.shaft.validation.internal.builder;
 
 import com.shaft.validation.ValidationEnums;
+import lombok.Getter;
 import org.openqa.selenium.WebDriver;
 
-public class WebDriverBrowserValidationsBuilder {
+@Getter
+public class WebBrowser implements ValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
     protected final WebDriver driver;
 
@@ -12,7 +14,7 @@ public class WebDriverBrowserValidationsBuilder {
 
     protected final StringBuilder reportMessageBuilder;
 
-    public WebDriverBrowserValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, WebDriver driver, StringBuilder reportMessageBuilder) {
+    public WebBrowser(ValidationEnums.ValidationCategory validationCategory, WebDriver driver, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;
         this.driver = driver;
 
@@ -25,11 +27,11 @@ public class WebDriverBrowserValidationsBuilder {
      * @param browserAttribute the target browser attribute that will be checked against
      * @return a NativeValidationsBuilder object to continue building your validation
      */
-    public NativeValidationsBuilder attribute(String browserAttribute) {
+    public Native attribute(String browserAttribute) {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = browserAttribute;
         reportMessageBuilder.append("attribute \"").append(browserAttribute).append("\" ");
-        return new NativeValidationsBuilder(this);
+        return new Native(this);
     }
 
     /**
@@ -38,11 +40,11 @@ public class WebDriverBrowserValidationsBuilder {
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     @SuppressWarnings("SpellCheckingInspection")
-    public NativeValidationsBuilder url() {
+    public Native url() {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = "currenturl";
         reportMessageBuilder.append("URL ");
-        return new NativeValidationsBuilder(this);
+        return new Native(this);
     }
 
     /**
@@ -50,11 +52,11 @@ public class WebDriverBrowserValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
-    public NativeValidationsBuilder title() {
+    public Native title() {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = "title";
         reportMessageBuilder.append("title ");
-        return new NativeValidationsBuilder(this);
+        return new Native(this);
     }
 
 }
