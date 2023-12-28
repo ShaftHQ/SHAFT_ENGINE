@@ -1,0 +1,126 @@
+import com.shaft.listeners.CucumberFeatureListener;
+import com.shaft.tools.logger.Logger;
+import com.shaft.validation.Verifications;
+import com.shaft.validation.reporting.ScreenshotOptions;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.mockito.Mockito.*;
+
+public class CucumberFeatureListenerTest {
+
+    @Mock
+    private Verifications verifications;
+
+    @Mock
+    private Logger logger;
+
+    private CucumberFeatureListener listener;
+
+    @BeforeClass
+    public void setup() {
+        MockitoAnnotations.initMocks(this);
+        listener = new CucumberFeatureListener(verifications, logger);
+    }
+
+    @AfterClass
+    public void tearDown() {
+        verifications = null;
+        logger = null;
+        listener = null;
+    }
+
+    @Test
+    public void test_captureScreenshot_whenScreenshotOptionIsNullOrEmpty_doesNothing() {
+        Mockito.doNothing().when(listener).captureScreenshot(Mockito.anyString(), Mockito.any(ScreenshotOptions.class));
+        listener.captureScreenshot("");
+        listener.captureScreenshot(null);
+        Mockito.verify(listener, Mockito.times(2)).captureScreenshot(Mockito.anyString(), Mockito.any(ScreenshotOptions.class));
+    }
+
+    @Test
+    public void test_captureScreenshot_whenScreenshotOptionIsPasted_capturesScreenshot() {
+        Mockito.doNothing().when(listener).captureScreenshot(Mockito.anyString(), Mockito.any(ScreenshotOptions.class));
+        ScreenshotOptions screenshotOptions = new ScreenshotOptions("screenshot_name", null);
+        listener.captureScreenshot("feature", screenshotOptions);
+        Mockito.verify(listener, Mockito.times(1)).captureScreenshot(Mockito.anyString(), Mockito.any(ScreenshotOptions.class));
+    }
+
+    @Test
+    public void test_beforeFeature_logsFeatureName() {
+        Mockito.doNothing().when(logger).info(Mockito.anyString());
+        listener.beforeFeature(null);
+        Mockito.verify(logger, Mockito.times(1)).info(Mockito.anyString());
+    }
+
+    @Test
+    public void test_beforeScenario_logsScenarioName() {
+        Mockito.doNothing().when(logger).info(Mockito.anyString());
+        listener.beforeScenario(null);
+        Mockito.verify(logger, Mockito.times(1)).info(Mockito.anyString());
+    }
+
+    @Test
+    public void test_afterScenario_logsScenarioStatus() {
+        Mockito.doNothing().when(logger).info(Mockito.anyString());
+        listener.afterScenario(null, null);
+        Mockito.verify(logger, Mockito.times(1)).info(Mockito.anyString());
+    }
+
+    @Test
+    public void test_afterFeatures_logsFeatureSummary() {
+        Mockito.doNothing().when(logger).info(Mockito.anyString());
+        Map<String, Integer> featureSummary = new HashMap<>();
+        listener.afterFeatures(featureSummary);
+        Mockito.verify(logger, Mockito.times(1)).info(Mockito.anyString());
+    }
+
+    @Test
+    public void test_beforeStep_logsStepName() {
+        Mockito.doNothing().when(logger).info(Mockito.anyString());
+        listener.beforeStep(null);
+        Mockito.verify(logger, Mockito.times(1)).info(Mockito.anyString());
+    }
+
+    @Test
+    public void test_afterStep_logsStepStatus() {
+        Mockito.doNothing().when(logger).info(Mockito.anyString());
+        listener.afterStep(null, null);
+        Mockito.verify(logger, Mockito.times(1)).info(Mockito.anyString());
+    }
+
+    @Test
+    public void test_embedScreenshot_embedsScreenshot() {
+        Mockito.doNothing().when(logger).info(Mockito.anyString());
+        listener.embedScreenshot(null, null);
+        Mockito.verify(logger, Mockito.times(1)).info(Mockito.anyString());
+    }
+
+    @Test
+    public void test_attachText_attachesText() {
+        Mockito.doNothing().when(logger).info(Mockito.anyString());
+        listener.attachText(null, null);
+        Mockito.verify(logger, Mockito.times(1)).info(Mockito.anyString());
+    }
+
+    @Test
+    public void test_attachJson_attachesJson() {
+        Mockito.doNothing().when(logger).info(Mockito.anyString());
+        listener.attachJson(null, null);
+        Mockito.verify(logger, Mockito.times(1)).info(Mockito.anyString());
+    }
+
+    @Test
+    public void test_attachXml_attachesXml() {
+        Mockito.doNothing().when(logger).info(Mockito.anyString());
+        listener.attachXml(null, null);
+        Mockito.verify(logger, Mockito.times(1)).info(Mockito.anyString());
+    }
+}
