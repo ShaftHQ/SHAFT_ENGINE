@@ -6,12 +6,13 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
 import com.shaft.db.DatabaseActions.DatabaseType;
-import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.listeners.TestNGListener;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import lombok.Getter;
+import lombok.Setter;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
@@ -21,22 +22,33 @@ import org.sikuli.script.App;
 @SuppressWarnings({"UnusedReturnValue", "unused"})
 public class DriverFactory {
 
+    @Setter
+    private DriverFactoryHelper helper;
+
     /**
      * Read the target Selenium WebDriver value from the execution.properties file
      *
      * @return a new Selenium WebDriver instance
      */
-    public static WebDriver getDriver() {
-        readLastMinuteUpdatedProperties();
-        if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("browserstack")) {
-            return getBrowserStackDriver(new MutableCapabilities());
-        }else if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("lambdatest")){
-            return getLambdaTestDriver(new MutableCapabilities());
+    public DriverFactoryHelper getHelper() {
+        if (helper == null) {
+            readLastMinuteUpdatedProperties();
+            if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("browserstack")) {
+                return getBrowserStackDriver(new MutableCapabilities());
+            } else if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("lambdatest")) {
+                return getLambdaTestDriver(new MutableCapabilities());
 
-        } else {
-            DriverFactoryHelper.initializeDriver();
-            return DriverFactoryHelper.getDriver();
+            } else {
+                var helper = new DriverFactoryHelper();
+                helper.initializeDriver();
+                this.helper = helper;
+            }
         }
+        return helper;
+    }
+
+    public WebDriver getDriver() {
+        return getHelper().getDriver();
     }
 
     /**
@@ -45,15 +57,16 @@ public class DriverFactory {
      * @param driverType one of the supported driver types
      * @return a new Selenium WebDriver instance
      */
-    public static WebDriver getDriver(DriverType driverType) {
+    public DriverFactoryHelper getHelper(DriverType driverType) {
         readLastMinuteUpdatedProperties();
         if (driverType.equals(DriverType.BROWSERSTACK)) {
             return getBrowserStackDriver(new MutableCapabilities());
         } else if (driverType.equals(DriverType.LAMBDATEST)) {
             return getLambdaTestDriver(new MutableCapabilities());
         }else {
-            DriverFactoryHelper.initializeDriver(driverType);
-            return DriverFactoryHelper.getDriver();
+            var helper = new DriverFactoryHelper();
+            helper.initializeDriver(driverType);
+            return helper;
         }
     }
 
@@ -64,15 +77,16 @@ public class DriverFactory {
      * @param customDriverOptions the custom options that will be used to create this new driver instance, or null to use the default
      * @return a new Selenium WebDriver instance
      */
-    public static WebDriver getDriver(DriverType driverType, MutableCapabilities customDriverOptions) {
+    public DriverFactoryHelper getHelper(DriverType driverType, MutableCapabilities customDriverOptions) {
         readLastMinuteUpdatedProperties();
         if (driverType.equals(DriverType.BROWSERSTACK)) {
             return getBrowserStackDriver(customDriverOptions);
         }else if (driverType.equals(DriverType.LAMBDATEST)) {
             return getLambdaTestDriver(customDriverOptions);
         } else {
-            DriverFactoryHelper.initializeDriver(driverType, customDriverOptions);
-            return DriverFactoryHelper.getDriver();
+            var helper = new DriverFactoryHelper();
+            helper.initializeDriver(driverType, customDriverOptions);
+            return helper;
         }
     }
 
@@ -114,8 +128,9 @@ public class DriverFactory {
      * @param browserStackOptions custom browserstack options to be merged with the default in the browserStack.properties file
      * @return a new Selenium WebDriver instance using BrowserStack
      */
-    private static WebDriver getBrowserStackDriver(MutableCapabilities browserStackOptions) {
+    private static DriverFactoryHelper getBrowserStackDriver(MutableCapabilities browserStackOptions) {
         String appUrl = SHAFT.Properties.browserStack.appUrl();
+        var helper = new DriverFactoryHelper();
         if ("".equals(appUrl)) {
             // new native app OR web execution
             if ("".equals(SHAFT.Properties.browserStack.appRelativeFilePath())) {
@@ -126,21 +141,20 @@ public class DriverFactory {
                     // desktop web
                     browserStackOptions = BrowserStack.setupDesktopWebExecution().merge(browserStackOptions);
                 }
-                DriverFactoryHelper.initializeDriver(browserStackOptions);
+                helper.initializeDriver(browserStackOptions);
             } else {
                 // this is the new native app scenario
                 browserStackOptions = BrowserStack.setupNativeAppExecution(SHAFT.Properties.browserStack.username(), SHAFT.Properties.browserStack.accessKey(),
                         SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), SHAFT.Properties.browserStack.appRelativeFilePath(), SHAFT.Properties.browserStack.appName()).merge(browserStackOptions);
-                DriverFactoryHelper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
+                helper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
             }
         } else {
             // this is the existing version from a native app scenario
             browserStackOptions = BrowserStack.setupNativeAppExecution(SHAFT.Properties.browserStack.username(), SHAFT.Properties.browserStack.accessKey(),
                     SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), appUrl).merge(browserStackOptions);
-            DriverFactoryHelper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
+            helper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
         }
-        return DriverFactoryHelper.getDriver();
-
+        return helper;
     }
 
     /**
@@ -149,8 +163,9 @@ public class DriverFactory {
      * @param lambdaTestOptions custom lambdaTest options to be merged with the default in the lambdaTest.properties file
      * @return a new Selenium WebDriver instance using lambdaTest
      */
-    private static WebDriver getLambdaTestDriver(MutableCapabilities lambdaTestOptions) {
+    private static DriverFactoryHelper getLambdaTestDriver(MutableCapabilities lambdaTestOptions) {
         String appUrl = SHAFT.Properties.lambdaTest.appUrl();
+        var helper = new DriverFactoryHelper();
         if ("".equals(appUrl)) {
             // new native app OR web execution
             if ("".equals(SHAFT.Properties.lambdaTest.appRelativeFilePath())) {
@@ -161,18 +176,18 @@ public class DriverFactory {
                     // desktop web
                     lambdaTestOptions = LambdaTest.setupDesktopWebExecution().merge(lambdaTestOptions);
                 }
-                DriverFactoryHelper.initializeDriver(lambdaTestOptions);
+                helper.initializeDriver(lambdaTestOptions);
             } else {
                 // this is the new native app scenario
                 lambdaTestOptions = LambdaTest.setupNativeAppExecution(SHAFT.Properties.lambdaTest.username(), SHAFT.Properties.lambdaTest.accessKey(), SHAFT.Properties.lambdaTest.deviceName(), SHAFT.Properties.lambdaTest.platformVersion(), SHAFT.Properties.lambdaTest.appRelativeFilePath(), SHAFT.Properties.lambdaTest.appName()).merge(lambdaTestOptions);
-                DriverFactoryHelper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, lambdaTestOptions);
+                helper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, lambdaTestOptions);
             }
         } else {
             // this is the existing version from a native app scenario
             lambdaTestOptions = LambdaTest.setupNativeAppExecution(SHAFT.Properties.lambdaTest.username(), SHAFT.Properties.lambdaTest.accessKey(), SHAFT.Properties.lambdaTest.deviceName(), SHAFT.Properties.lambdaTest.platformVersion(), appUrl).merge(lambdaTestOptions);
-            DriverFactoryHelper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, lambdaTestOptions);
+            helper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, lambdaTestOptions);
         }
-        return DriverFactoryHelper.getDriver();
+        return helper;
     }
 
     /**
@@ -235,13 +250,6 @@ public class DriverFactory {
     public static void closeSikuliApp(App application) {
         ReportManager.log("Closing app: [" + application.getName() + "]...");
         application.close();
-    }
-
-    /**
-     * Close all open driver instances.
-     */
-    public static void closeAllDrivers() {
-        DriverFactoryHelper.closeDriver();
     }
 
     /**

@@ -2,16 +2,16 @@ package com.shaft.gui.element;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
-import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.enums.internal.ClipboardAction;
 import com.shaft.enums.internal.ElementAction;
-import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.ElementInformation;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
+import com.shaft.gui.waits.WaitActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
@@ -25,96 +25,34 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.UnexpectedTagNameException;
 import org.openqa.selenium.support.ui.WebDriverWait;
-import org.sikuli.script.App;
 
 import java.nio.file.FileSystems;
 import java.time.Duration;
 import java.util.*;
 
 @SuppressWarnings("unused")
-public class ElementActions {
-
-    private static final ThreadLocal<ElementActions> INSTANCE = new ThreadLocal<>();
-
+public class ElementActions extends FluentWebDriverAction {
     public ElementActions() {
+        initialize();
     }
-
-    @Deprecated
     public ElementActions(WebDriver driver) {
+        initialize(driver);
     }
-
-    public static ElementActions getInstance() {
-        JavaScriptWaitManager.waitForLazyLoading();
-        if (INSTANCE.get() == null) {
-            INSTANCE.set(new ElementActions());
-        }
-        return INSTANCE.get();
+    public ElementActions(DriverFactoryHelper helper) {
+        initialize(helper);
     }
-
-
-    /**
-     * This is a convenience method to be able to call TouchActions Actions for
-     * touch-enabled devices from within the regular Element Actions Class.
-     * <p>
-     * Sample use would look like this:
-     * ElementActions.performTouchAction().tap(driver, loginButton);
-     *
-     * @return a TouchActions object capable of performing actions on touch-enabled devices
-     */
-    public TouchActions performTouchAction() {
-        return new TouchActions();
-    }
-
-    public AlertActions performAlertAction() {
-        return new AlertActions();
-    }
-
-    public BrowserActions performBrowserAction() {
-        return BrowserActions.getInstance();
-    }
-
-    public SikuliActions performSikuliAction() {
-        return new SikuliActions();
-    }
-
-    public SikuliActions performSikuliAction(App applicationWindow) {
-        return new SikuliActions(applicationWindow);
-    }
-
-    public TouchActions touch() {
-        return new TouchActions();
-    }
-
-    public AlertActions alert() {
-        return new AlertActions();
-    }
-
-    public BrowserActions browser() {
-        return BrowserActions.getInstance();
-    }
-
-    public SikuliActions sikulix() {
-        return new SikuliActions();
-    }
-
-    public SikuliActions sikulix(App applicationWindow) {
-        return new SikuliActions(applicationWindow);
-    }
-
     public ElementActions and() {
         return this;
     }
-
     public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
-        return new WizardHelpers.WebDriverAssertions().element(elementLocator);
+        return new WizardHelpers.WebDriverAssertions(helper).element(elementLocator);
     }
-
     public WebDriverElementValidationsBuilder verifyThat(By elementLocator) {
-        return new WizardHelpers.WebDriverVerifications().element(elementLocator);
+        return new WizardHelpers.WebDriverVerifications(helper).element(elementLocator);
     }
 
     public int getElementsCount(By elementLocator) {
-        return ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver(), elementLocator);
+        return ElementActionsHelper.getElementsCount(driver, elementLocator);
     }
 
     /**
@@ -126,19 +64,19 @@ public class ElementActions {
      */
     public String getSelectedText(By elementLocator) {
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator);
+            var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
             StringBuilder elementSelectedText = new StringBuilder();
             try {
-                new Select(((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementLocator).get(1))).getAllSelectedOptions().forEach(selectedOption -> elementSelectedText.append(selectedOption.getText()));
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementSelectedText.toString().trim(), null, elementName);
+                new Select(((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1))).getAllSelectedOptions().forEach(selectedOption -> elementSelectedText.append(selectedOption.getText()));
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementSelectedText.toString().trim(), null, elementName);
                 return elementSelectedText.toString().trim();
             } catch (UnexpectedTagNameException rootCauseException) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, rootCauseException);
+                ElementActionsHelper.failAction(driver, elementLocator, rootCauseException);
                 return null;
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return null;
     }
@@ -157,11 +95,11 @@ public class ElementActions {
      */
     public ElementActions executeNativeMobileCommand(String command, Map<String, String> parameters) {
         try {
-            ElementActionsHelper.executeNativeMobileCommandUsingJavascript(DriverFactoryHelper.getDriver(), command, parameters);
+            ElementActionsHelper.executeNativeMobileCommandUsingJavascript(driver, command, parameters);
             var testData = "Command: " + command + ", Parameters: " + parameters;
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+            ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
         } catch (Exception rootCauseException) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null, rootCauseException);
+            ElementActionsHelper.failAction(driver, null, rootCauseException);
         }
         return this;
     }
@@ -175,21 +113,21 @@ public class ElementActions {
      */
     public ElementActions click(By elementLocator) {
         if (DriverFactoryHelper.isMobileNativeExecution()) {
-            new TouchActions(DriverFactoryHelper.getDriver()).tap(elementLocator);
+            new TouchActions(helper).tap(elementLocator);
         } else {
             //rewriting click logic to optimize performance and fully support shadowDom elements
             // get screenshot before doing anything to be attached in animated GIF (if any) or if screenshots are set to always
-            List<Object> screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver(), elementLocator, "click", null, true);
+            List<Object> screenshot = ElementActionsHelper.takeScreenshot(driver, elementLocator, "click", null, true);
             ElementInformation elementInformation = new ElementInformation();
             try {
                 // try performing move to element followed by click
-                elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementLocator, ElementAction.CLICK));
+                elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementLocator, ElementAction.CLICK));
             } catch (Throwable throwable) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+                ElementActionsHelper.failAction(driver, elementLocator, throwable);
             }
             // get element name
             var elementName = elementInformation.getElementName();
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, "", screenshot, elementName);
+            ElementActionsHelper.passAction(driver, elementLocator, "", screenshot, elementName);
         }
         return this;
     }
@@ -204,12 +142,12 @@ public class ElementActions {
     public ElementActions clickUsingJavascript(By elementLocator) {
 
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator);
-            List<Object> screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver(), elementLocator, "clickUsingJavascript", null, true);
-            ElementActionsHelper.clickUsingJavascript(DriverFactoryHelper.getDriver(), elementLocator);
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, "", screenshot, elementName);
+            var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
+            List<Object> screenshot = ElementActionsHelper.takeScreenshot(driver, elementLocator, "clickUsingJavascript", null, true);
+            ElementActionsHelper.clickUsingJavascript(driver, elementLocator);
+            ElementActionsHelper.passAction(driver, elementLocator, "", screenshot, elementName);
         } catch (Throwable throwable) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
 
         return this;
@@ -228,10 +166,10 @@ public class ElementActions {
             performTouchAction().swipeElementIntoView(elementLocator, TouchActions.SwipeDirection.DOWN);
         }
         try {
-            ElementActionsHelper.scrollToFindElement(DriverFactoryHelper.getDriver(), elementLocator);
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator));
+            ElementActionsHelper.scrollToFindElement(driver, elementLocator);
+            ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, ElementActionsHelper.getElementName(driver, elementLocator));
         } catch (Exception throwable) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return this;
     }
@@ -245,16 +183,16 @@ public class ElementActions {
      */
     public ElementActions clickAndHold(By elementLocator) {
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator);
-            List<Object> screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver(), elementLocator, "clickAndHold", null, true);
-            WebElement element = (WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1);
-            if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(DriverFactoryHelper.getDriver(), elementLocator, "clickAndHold"))) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), "element is not clickable", elementLocator);
+            var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
+            List<Object> screenshot = ElementActionsHelper.takeScreenshot(driver, elementLocator, "clickAndHold", null, true);
+            WebElement element = (WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1);
+            if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator, "clickAndHold"))) {
+                ElementActionsHelper.failAction(driver, "element is not clickable", elementLocator);
             }
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, "", screenshot, elementName);
+            ElementActionsHelper.passAction(driver, elementLocator, "", screenshot, elementName);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return this;
     }
@@ -271,15 +209,15 @@ public class ElementActions {
      */
     public ElementActions clipboardActions(By elementLocator, ClipboardAction action) {
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator);
-            boolean wasActionPerformed = ElementActionsHelper.performClipboardActions(DriverFactoryHelper.getDriver(), action);
+            var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
+            boolean wasActionPerformed = ElementActionsHelper.performClipboardActions(driver, action);
             if (Boolean.TRUE.equals(wasActionPerformed)) {
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), action.getValue(), null, elementName);
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), action.getValue(), null, elementName);
             } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), action.getValue(), elementLocator);
+                ElementActionsHelper.failAction(driver, action.getValue(), elementLocator);
             }
         } catch (Exception throwable) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return this;
     }
@@ -293,20 +231,20 @@ public class ElementActions {
      */
     public ElementActions doubleClick(By elementLocator) {
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator);
+            var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
             // takes screenshot before clicking the element out of view
-            var screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver(), elementLocator, "doubleClick", null, true);
+            var screenshot = ElementActionsHelper.takeScreenshot(driver, elementLocator, "doubleClick", null, true);
             List<List<Object>> attachments = new LinkedList<>();
             attachments.add(screenshot);
             try {
-                (new Actions(DriverFactoryHelper.getDriver())).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1))).doubleClick().perform();
+                (new Actions(driver)).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).doubleClick().perform();
             } catch (Exception e) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, e);
+                ElementActionsHelper.failAction(driver, elementLocator, e);
             }
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, elementName);
+            ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, elementName);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return this;
     }
@@ -326,43 +264,43 @@ public class ElementActions {
     public ElementActions dragAndDrop(By sourceElementLocator, By destinationElementLocator) {
         try {
             Exception exception = new Exception();
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), sourceElementLocator);
+            var elementName = ElementActionsHelper.getElementName(driver, sourceElementLocator);
             // replaced canFindUniqueElementForInternalUse, with countFoundElements for
             // destinationElement to bypass the check for element visibility
             // get source element start location
-            String startLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), sourceElementLocator).get(1)).getLocation().toString();
+            String startLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
             // attempt to perform drag and drop
             try {
-                ElementActionsHelper.dragAndDropUsingJavascript(DriverFactoryHelper.getDriver(), sourceElementLocator, destinationElementLocator);
+                ElementActionsHelper.dragAndDropUsingJavascript(driver, sourceElementLocator, destinationElementLocator);
             } catch (Exception rootCauseException) {
                 exception = rootCauseException;
                 ReportManagerHelper.logDiscrete(rootCauseException);
             }
             // get source element end location
-            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), sourceElementLocator).get(1)).getLocation().toString();
+            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
             String reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
             if (!endLocation.equals(startLocation)) {
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementName);
+                ElementActionsHelper.passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementName);
             } else {
                 try {
-                    ElementActionsHelper.dragAndDropUsingActions(DriverFactoryHelper.getDriver(), sourceElementLocator, destinationElementLocator);
+                    ElementActionsHelper.dragAndDropUsingActions(driver, sourceElementLocator, destinationElementLocator);
                 } catch (Exception rootCauseException) {
                     if (!exception.equals(new Exception())) {
                         rootCauseException.addSuppressed(exception);
                     }
-                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), sourceElementLocator, rootCauseException);
+                    ElementActionsHelper.failAction(driver, sourceElementLocator, rootCauseException);
                 }
                 // get source element end location
-                endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), sourceElementLocator).get(1)).getLocation().toString();
+                endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
                 if (!endLocation.equals(startLocation)) {
-                    ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementName);
+                    ElementActionsHelper.passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementName);
                 } else {
-                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), reportMessage, sourceElementLocator);
+                    ElementActionsHelper.failAction(driver, reportMessage, sourceElementLocator);
                 }
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), sourceElementLocator, throwable);
+            ElementActionsHelper.failAction(driver, sourceElementLocator, throwable);
         }
         return this;
     }
@@ -381,24 +319,24 @@ public class ElementActions {
      */
     public ElementActions dragAndDropByOffset(By sourceElementLocator, int xOffset, int yOffset) {
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), sourceElementLocator);
-            WebElement sourceElement = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), sourceElementLocator).get(1));
+            var elementName = ElementActionsHelper.getElementName(driver, sourceElementLocator);
+            WebElement sourceElement = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1));
             String startLocation = sourceElement.getLocation().toString();
             // attempt to perform drag and drop
             try {
-                (new Actions(DriverFactoryHelper.getDriver())).dragAndDropBy(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), sourceElementLocator).get(1)), xOffset, yOffset).build()
+                (new Actions(driver)).dragAndDropBy(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)), xOffset, yOffset).build()
                         .perform();
             } catch (Exception rootCauseException) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), sourceElementLocator, rootCauseException);
+                ElementActionsHelper.failAction(driver, sourceElementLocator, rootCauseException);
             }
-            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), sourceElementLocator).get(1)).getLocation().toString();
+            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
             if (!endLocation.equals(startLocation)) {
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "Start point: " + startLocation + ", End point: " + endLocation, null, elementName);
+                ElementActionsHelper.passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "Start point: " + startLocation + ", End point: " + endLocation, null, elementName);
             } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), "Start point = End point: " + endLocation, sourceElementLocator);
+                ElementActionsHelper.failAction(driver, "Start point = End point: " + endLocation, sourceElementLocator);
             }
         } catch (Exception throwable) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), sourceElementLocator, throwable);
+            ElementActionsHelper.failAction(driver, sourceElementLocator, throwable);
         }
         return this;
     }
@@ -443,18 +381,18 @@ public class ElementActions {
     public String getAttribute(By elementLocator, String attributeName) {
         ReportManager.logDiscrete("Attempting to getAttribute \"" + attributeName + "\" from elementLocator \"" + elementLocator + "\".");
         try {
-            var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementLocator, ElementAction.GET_ATTRIBUTE, attributeName));
+            var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementLocator, ElementAction.GET_ATTRIBUTE, attributeName));
             try {
                 String elementAttribute = elementInformation.getActionResult();
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementAttribute, null, elementInformation.getElementName());
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementAttribute, null, elementInformation.getElementName());
                 return elementAttribute;
             } catch (UnsupportedCommandException rootCauseException) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, rootCauseException);
+                ElementActionsHelper.failAction(driver, elementLocator, rootCauseException);
                 return null;
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return null;
     }
@@ -476,13 +414,13 @@ public class ElementActions {
      */
     public String getCSSProperty(By elementLocator, String propertyName) {
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator);
-            String elementCssProperty = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1)).getCssValue(propertyName);
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementCssProperty, null, elementName);
+            var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
+            String elementCssProperty = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getCssValue(propertyName);
+            ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementCssProperty, null, elementName);
             return elementCssProperty;
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return null;
 
@@ -496,14 +434,14 @@ public class ElementActions {
      */
     public String getContext() {
         String context = "";
-        if (DriverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+        if (driver instanceof AndroidDriver androidDriver) {
             context = androidDriver.getContext();
-        } else if (DriverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+        } else if (driver instanceof IOSDriver iosDriver) {
             context = iosDriver.getContext();
         } else {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null);
+            ElementActionsHelper.failAction(driver, null);
         }
-        ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
+        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
         return context;
     }
 
@@ -515,14 +453,14 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions setContext(String context) {
-        if (DriverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+        if (driver instanceof AndroidDriver androidDriver) {
             androidDriver.context(context);
-        } else if (DriverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+        } else if (driver instanceof IOSDriver iosDriver) {
             iosDriver.context(context);
         } else {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), context, null);
+            ElementActionsHelper.failAction(driver, context, null);
         }
-        ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
+        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
         return this;
     }
 
@@ -534,14 +472,14 @@ public class ElementActions {
      */
     public List<String> getContextHandles() {
         List<String> windowHandles = new ArrayList<>();
-        if (DriverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+        if (driver instanceof AndroidDriver androidDriver) {
             windowHandles.addAll(androidDriver.getContextHandles());
-        } else if (DriverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+        } else if (driver instanceof IOSDriver iosDriver) {
             windowHandles.addAll(iosDriver.getContextHandles());
         } else {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), null);
+            ElementActionsHelper.failAction(driver, null);
         }
-        ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
+        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
         return windowHandles;
     }
 
@@ -554,36 +492,36 @@ public class ElementActions {
      */
     public String getText(By elementLocator) {
         try {
-            var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementLocator));
+            var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
             var elementName = elementInformation.getElementName();
             String elementText;
             try {
                 elementText = (elementInformation.getFirstElement()).getText();
             } catch (WebDriverException webDriverException) {
-                elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementInformation.getLocator(), ElementAction.GET_TEXT)).getActionResult();
+                elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementInformation.getLocator(), ElementAction.GET_TEXT)).getActionResult();
             }
             if ((elementText == null || elementText.isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
                 try {
                     elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.CONTENT.getValue());
                 } catch (WebDriverException webDriverException) {
-                    elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementInformation.getLocator(), ElementAction.GET_CONTENT)).getActionResult();
+                    elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementInformation.getLocator(), ElementAction.GET_CONTENT)).getActionResult();
                 }
             }
             if ((elementText == null || elementText.isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
                 try {
                     elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.VALUE.getValue());
                 } catch (WebDriverException webDriverException) {
-                    elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementInformation.getLocator(), ElementAction.GET_VALUE)).getActionResult();
+                    elementText = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementInformation.getLocator(), ElementAction.GET_VALUE)).getActionResult();
                 }
             }
             if (elementText == null) {
                 elementText = "";
             }
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementText, null, elementName);
+            ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementText, null, elementName);
             return elementText;
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return null;
     }
@@ -595,8 +533,8 @@ public class ElementActions {
      * @return window handle
      */
     public String getWindowHandle() {
-        String nameOrHandle = DriverFactoryHelper.getDriver().getWindowHandle();
-        ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), nameOrHandle, null, null);
+        String nameOrHandle = driver.getWindowHandle();
+        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), nameOrHandle, null, null);
         return nameOrHandle;
     }
 
@@ -607,8 +545,8 @@ public class ElementActions {
      * @return list of window handles
      */
     public List<String> getWindowHandles() {
-        List<String> windowHandles = new ArrayList<>(DriverFactoryHelper.getDriver().getWindowHandles());
-        ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
+        List<String> windowHandles = new ArrayList<>(driver.getWindowHandles());
+        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
         return windowHandles;
     }
 
@@ -623,16 +561,16 @@ public class ElementActions {
      */
     public ElementActions hover(By elementLocator) {
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator);
+            var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
             try {
-                (new Actions(DriverFactoryHelper.getDriver())).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1))).perform();
+                (new Actions(driver)).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).perform();
             } catch (Exception rootCauseException) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, rootCauseException);
+                ElementActionsHelper.failAction(driver, elementLocator, rootCauseException);
             }
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
+            ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return this;
     }
@@ -665,14 +603,14 @@ public class ElementActions {
      */
     public ElementActions keyPress(By elementLocator, Keys key) {
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator);
-            List<Object> screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver(), elementLocator, "keyPress", null, true);
+            var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
+            List<Object> screenshot = ElementActionsHelper.takeScreenshot(driver, elementLocator, "keyPress", null, true);
             // takes screenshot before moving the element out of view
-            ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1)).sendKeys(key);
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, key.name(), screenshot, elementName);
+            ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).sendKeys(key);
+            ElementActionsHelper.passAction(driver, elementLocator, key.name(), screenshot, elementName);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), key.name(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, key.name(), elementLocator, throwable);
         }
         return this;
     }
@@ -688,34 +626,31 @@ public class ElementActions {
      */
     public ElementActions select(By elementLocator, String valueOrVisibleText) {
         ElementInformation elementInformation = ElementInformation.fromList(ElementActionsHelper.
-                identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator));
+                identifyUniqueElement(driver, elementLocator));
 
         //Capture the Element Tag
         String elementTag = elementInformation.getElementTag();
 
-        //Temporary Solution to set the Condition to test the Logic
-        boolean handleNonSelectDropDown = true;
-        SHAFT.Properties.flags.set().skipTestsWithLinkedIssues(handleNonSelectDropDown);
-
         //The Logic to Handle non-Select dropDowns
         if (!elementTag.equals("select")) {
-            if(SHAFT.Properties.flags.skipTestsWithLinkedIssues()) {
+            if(SHAFT.Properties.flags.handleNonSelectDropDown()) {
                 click(elementInformation.getLocator());
                 elementInformation = ElementInformation.fromList(ElementActionsHelper.
-                        identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator));
-                RelativeLocator.RelativeBy relativeBy = null;
+                        identifyUniqueElement(driver, elementLocator));
                 try {
-                    relativeBy = SHAFT.GUI.Locator.hasAnyTagName().and().containsText(valueOrVisibleText).relativeBy().below(elementInformation.getLocator());
-                } catch (Exception e) {
+                    RelativeLocator.RelativeBy relativeBy = SHAFT.GUI.Locator.hasAnyTagName().and().containsText(valueOrVisibleText).relativeBy().below(elementInformation.getLocator());
+                    elementInformation = ElementInformation.fromList(ElementActionsHelper.
+                            identifyUniqueElement(driver, relativeBy));
+                } catch (Throwable var9) {
                     ReportManager.logDiscrete("Cannot Find Element with the following Locator in the DropDown Options: " + By.xpath("//*[text()='" + valueOrVisibleText + "']"));
-                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(),
-                            valueOrVisibleText, By.xpath("//*[text()='" + valueOrVisibleText + "']"), e);
+                    ElementActionsHelper.failAction(driver,
+                            By.xpath("//*[text()='" + valueOrVisibleText + "']").toString(), elementLocator, var9);
                 }
-               click(relativeBy);
+                click(elementInformation.getLocator());
             }
             else {
                 ReportManager.logDiscrete("Cannot Find Element with the following Locator in the DropDown Options: " + By.xpath("//*[text()='" + valueOrVisibleText + "']"));
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(),
+                ElementActionsHelper.failAction(driver,
                         "Select: " , valueOrVisibleText + "\" from Element : " +   " Tag should be <Select, yet it was found to be " + "<"+elementTag,elementLocator,null);
             }
 
@@ -725,20 +660,20 @@ public class ElementActions {
         } else {
 
             try {
-                String elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator);
-                if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(DriverFactoryHelper.getDriver(), elementLocator, ""))) {
-                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), valueOrVisibleText, elementLocator, new Throwable[0]);
+                String elementName = ElementActionsHelper.getElementName(driver, elementLocator);
+                if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(driver, elementLocator, ""))) {
+                    ElementActionsHelper.failAction(driver, valueOrVisibleText, elementLocator);
                 }
 
                 boolean isOptionFound = false;
-                List<WebElement> availableOptionsList = (new Select((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1))).getOptions();
+                List<WebElement> availableOptionsList = (new Select((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).getOptions();
 
                 for (int i = 0; i < availableOptionsList.size(); ++i) {
-                    String visibleText = ((WebElement) availableOptionsList.get(i)).getText();
-                    String value = ((WebElement) availableOptionsList.get(i)).getAttribute("value");
+                    String visibleText = availableOptionsList.get(i).getText();
+                    String value = availableOptionsList.get(i).getAttribute("value");
                     if (visibleText.trim().equals(valueOrVisibleText) || value.trim().equals(valueOrVisibleText)) {
-                        (new Select((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1))).selectByIndex(i);
-                        ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), valueOrVisibleText, (List) null, elementName);
+                        (new Select((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).selectByIndex(i);
+                        ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), valueOrVisibleText, null, elementName);
                         isOptionFound = true;
                         break;
                     }
@@ -748,7 +683,7 @@ public class ElementActions {
                     throw new NoSuchElementException("Cannot locate option with Value or Visible text =" + valueOrVisibleText);
                 }
             } catch (Throwable var9) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), valueOrVisibleText, elementLocator, new Throwable[]{var9});
+                ElementActionsHelper.failAction(driver, valueOrVisibleText, elementLocator, var9);
             }
 
         }
@@ -766,15 +701,15 @@ public class ElementActions {
      */
     public ElementActions setValueUsingJavaScript(By elementLocator, String value) {
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator);
-            Boolean valueSetSuccessfully = ElementActionsHelper.setValueUsingJavascript(elementLocator, value);
+            var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
+            Boolean valueSetSuccessfully = ElementActionsHelper.setValueUsingJavascript(driver, elementLocator, value);
             if (Boolean.TRUE.equals(valueSetSuccessfully)) {
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), value, null, elementName);
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), value, null, elementName);
             } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator);
+                ElementActionsHelper.failAction(driver, elementLocator);
             }
         } catch (Exception throwable) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return this;
     }
@@ -788,15 +723,15 @@ public class ElementActions {
      */
     public ElementActions submitFormUsingJavaScript(By elementLocator) {
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator);
+            var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
             try {
-                ElementActionsHelper.submitFormUsingJavascript(DriverFactoryHelper.getDriver(), elementLocator);
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
+                ElementActionsHelper.submitFormUsingJavascript(driver, elementLocator);
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
             } catch (Exception rootCauseException) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, rootCauseException);
+                ElementActionsHelper.failAction(driver, elementLocator, rootCauseException);
             }
         } catch (Exception throwable) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return this;
     }
@@ -812,19 +747,18 @@ public class ElementActions {
      */
     public ElementActions switchToIframe(By elementLocator) {
         try {
-//            DriverFactoryHelper.getDriver().switchTo().frame(
             var elementInformation = ElementInformation.fromList(
-                    ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator));
-//                            .getFirstElement());
+                    ElementActionsHelper.identifyUniqueElement(driver, elementLocator));
             LocatorBuilder.setIFrameLocator(elementInformation.getLocator());
             // note to self: remove elementLocator in case of bug in screenshot manager
+            driver.switchTo().frame(elementInformation.getFirstElement());
             boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(elementLocator), null, elementInformation.getElementName());
+            ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(elementLocator), null, elementInformation.getElementName());
             ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return this;
     }
@@ -839,18 +773,18 @@ public class ElementActions {
     @SuppressWarnings("UnusedReturnValue")
     public ElementActions switchToDefaultContent() {
         try {
-            DriverFactoryHelper.getDriver().switchTo().defaultContent();
+            driver.switchTo().defaultContent();
             LocatorBuilder.setIFrameLocator(null);
             boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+            ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
             ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
         } catch (Exception rootCauseException) {
-//            failAction(DriverFactoryHelper.getDriver(), null, rootCauseException);
+//            failAction(driver, null, rootCauseException);
         }
         // if there is no last used driver or no drivers in the drivers list, do
         // nothing...
-//        return new ElementActions(Objects.requireNonNull(DriverFactoryHelper.getDriver()).get());
+//        return new ElementActions(Objects.requireNonNull(driver).get());
         return this;
     }
 
@@ -860,78 +794,55 @@ public class ElementActions {
      * @return currentFrame the current frame name
      */
     public String getCurrentFrame() {
-        String currentFrame = "";
-        try {
-            if (LocatorBuilder.getIFrameLocator() != null) {
-                currentFrame = (String) ((JavascriptExecutor) DriverFactoryHelper.getDriver().switchTo().frame(DriverFactoryHelper.getDriver().findElement(LocatorBuilder.getIFrameLocator())))
-                        .executeScript("return self.name");
-            } else {
-                currentFrame = (String) ((JavascriptExecutor) DriverFactoryHelper.getDriver()).executeScript("return self.name");
-            }
-            ReportManager.logDiscrete("Current frame name: \"" + currentFrame + "\"");
-        } catch (Exception rootCauseException) {
-            ReportManager.logDiscrete(String.valueOf(rootCauseException));
-        }
+        String currentFrame = (String) ((JavascriptExecutor) driver).executeScript("return self.name");
+        ReportManager.logDiscrete("Current frame name: \"" + currentFrame + "\"");
         return currentFrame;
     }
 
-
-    /**
-     * Checks if there is any text in an element, clears it, then types the required
-     * string into the target element.
-     *
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc.)
-     * @param text           the target text that needs to be typed into the target
-     *                       webElement
-     * @return a self-reference to be used to chain actions
-     */
-    public ElementActions type(By elementLocator, String text) {
-        try {
-            var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementLocator));
-            String actualResult = ElementActionsHelper.typeWrapper(elementInformation, text);
-            var elementName = elementInformation.getElementName();
-            if (actualResult.equals(text)) {
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), "Expected to type: \"" + text + "\", but ended up with: \"" + actualResult + "\"",
-                        elementLocator);
-            }
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+    public ElementActions type(By elementLocator, String text){
+        //TODO: refactor to reduce number of webdriver calls
+       //getting element information using locator
+        var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
+        String actualTextAfterTyping = ElementActionsHelper.newTypeWrapper(driver, elementInformation, text);
+        var elementName = elementInformation.getElementName();
+        if (actualTextAfterTyping.equals(text)) {
+            ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
+        } else {
+            ElementActionsHelper.failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \"" + actualTextAfterTyping + "\"",
+                    elementLocator);
         }
         return this;
-    }
 
+    }
     public ElementActions clear(By elementLocator) {
         try {
             // try clearing text
-            var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver(), elementLocator, ElementAction.CLEAR));
+            var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElement(driver, elementLocator, ElementAction.CLEAR));
             var elementName = elementInformation.getElementName();
             elementInformation.getFirstElement().clear();
             var currentText = getText(elementLocator);
             if (currentText.isBlank()) {
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "", null, elementName);
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "", null, elementName);
             } else {
                 // try deleting letter by letter using backspaces
                 for (var ignored : currentText.toCharArray()) {
                     try {
                         (elementInformation.getFirstElement()).sendKeys(Keys.BACK_SPACE);
                     } catch (WebDriverException webDriverException) {
-                        ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver(), elementInformation.getLocator(), ElementAction.BACKSPACE);
+                        ElementActionsHelper.performActionAgainstUniqueElement(driver, elementInformation.getLocator(), ElementAction.BACKSPACE);
                     }
                 }
+                var currentTextAfterClearingUsingBackSpace = getText(elementLocator);
                 if (currentText.isBlank()) {
-                    ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "", null, elementName);
+                    ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "", null, elementName);
                 } else {
-                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), "Expected to clear existing text, but ended up with: \"" + currentText + "\"",
+                    ElementActionsHelper.failAction(driver, "Expected to clear existing text, but ended up with: \"" + currentText + "\"",
                             elementLocator);
                 }
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return this;
     }
@@ -949,13 +860,13 @@ public class ElementActions {
     public ElementActions typeAppend(By elementLocator, String text) {
         try {
             if (text != null) {
-                var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElement(DriverFactoryHelper.getDriver(), elementLocator, ElementAction.SEND_KEYS, text));
+                var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElement(driver, elementLocator, ElementAction.SEND_KEYS, text));
                 var elementName = elementInformation.getElementName();
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return this;
     }
@@ -978,25 +889,25 @@ public class ElementActions {
 
         String internalAbsoluteFilePath = absoluteFilePath.replace("/", FileSystems.getDefault().getSeparator());
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator);
-            List<Object> screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver(), elementLocator, "typeFileLocationForUpload", null, true);
+            var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
+            List<Object> screenshot = ElementActionsHelper.takeScreenshot(driver, elementLocator, "typeFileLocationForUpload", null, true);
             // takes screenshot before clicking the element out of view
             try {
-                ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementLocator).get(1)).sendKeys(internalAbsoluteFilePath);
+                ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).sendKeys(internalAbsoluteFilePath);
             } catch (InvalidArgumentException e) {
                 //this happens when the file path doesn't exist
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), internalAbsoluteFilePath, elementLocator, e);
+                ElementActionsHelper.failAction(driver, internalAbsoluteFilePath, elementLocator, e);
             } catch (ElementNotInteractableException | NoSuchElementException exception1) {
-                ElementActionsHelper.changeWebElementVisibilityUsingJavascript(DriverFactoryHelper.getDriver(), elementLocator, true);
+                ElementActionsHelper.changeWebElementVisibilityUsingJavascript(driver, elementLocator, true);
                 try {
-                    ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1)).sendKeys(internalAbsoluteFilePath);
+                    ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).sendKeys(internalAbsoluteFilePath);
                 } catch (WebDriverException rootCauseException) {
                     rootCauseException.addSuppressed(exception1);
                     // happened for the first time on MacOSX due to incorrect file path separator
-                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), internalAbsoluteFilePath, elementLocator, rootCauseException);
+                    ElementActionsHelper.failAction(driver, internalAbsoluteFilePath, elementLocator, rootCauseException);
                 }
                 try {
-                    ElementActionsHelper.changeWebElementVisibilityUsingJavascript(DriverFactoryHelper.getDriver(), elementLocator, false);
+                    ElementActionsHelper.changeWebElementVisibilityUsingJavascript(driver, elementLocator, false);
                 } catch (NoSuchElementException | StaleElementReferenceException e) {
                     // this exception is sometimes thrown on firefox after the upload has been
                     // successful, since we don't have to return the style to what it was, then it's
@@ -1004,10 +915,10 @@ public class ElementActions {
                     ReportManagerHelper.logDiscrete(e);
                 }
             }
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, internalAbsoluteFilePath, screenshot, elementName);
+            ElementActionsHelper.passAction(driver, elementLocator, internalAbsoluteFilePath, screenshot, elementName);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return this;
     }
@@ -1025,18 +936,18 @@ public class ElementActions {
      */
     public ElementActions typeSecure(By elementLocator, String text) {
         try {
-            var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementLocator));
-            String actualResult = ElementActionsHelper.typeWrapper(elementInformation, text);
+            var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
+            String actualResult = ElementActionsHelper.typeWrapper(driver, elementInformation, text);
             var elementName = (String) elementInformation.getElementName();
             if (actualResult.equals(text)) {
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), ElementActionsHelper.OBFUSCATED_STRING.repeat(text.length()), null, elementName);
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), ElementActionsHelper.OBFUSCATED_STRING.repeat(text.length()), null, elementName);
             } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), "Expected to type: \"" + text + "\", but ended up with: \""
+                ElementActionsHelper.failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \""
                         + actualResult + "\"", elementLocator);
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return this;
     }
@@ -1057,28 +968,28 @@ public class ElementActions {
         String reportMessage = "Waited for the element's state of visibility to be (" + isExpectedToBeVisible
                 + "). Element locator (" + ElementActionsHelper.formatLocatorToString(elementLocator) + ")";
         try {
-            var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver(), elementLocator, ElementAction.IS_DISPLAYED));
+            var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementLocator, ElementAction.IS_DISPLAYED));
             boolean isDisplayed = Boolean.parseBoolean(elementInformation.getActionResult());
             //element is present
             if (isExpectedToBeVisible == isDisplayed) {
                 //either expected to be visible and is displayed, or not expected to be visible and not displayed
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementInformation.getElementName());
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementInformation.getElementName());
             } else //noinspection ConstantValue
                 if (!isExpectedToBeVisible && isDisplayed) {
                     // Element is displayed and needed to wait until it's invisible
-                    if (ElementActionsHelper.waitForElementInvisibility(elementLocator)) {
-                        ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementInformation.getElementName());
+                    if (ElementActionsHelper.waitForElementInvisibility(driver, elementLocator)) {
+                        ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementInformation.getElementName());
                     } else {
                         // Element still exists after timeout
-                        ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), reportMessage, elementLocator);
+                        ElementActionsHelper.failAction(driver, reportMessage, elementLocator);
                     }
                 } else {
                     // Element is not displayed
-                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), reportMessage, elementLocator);
+                    ElementActionsHelper.failAction(driver, reportMessage, elementLocator);
                 }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), reportMessage, null, throwable);
+            ElementActionsHelper.failAction(driver, reportMessage, null, throwable);
         }
         return this;
     }
@@ -1106,19 +1017,19 @@ public class ElementActions {
     @SuppressWarnings("UnusedReturnValue")
     public ElementActions waitForTextToChange(By elementLocator, String initialValue) {
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator);
-            if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(DriverFactoryHelper.getDriver(), elementLocator, initialValue))) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), initialValue, elementLocator);
+            var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
+            if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(driver, elementLocator, initialValue))) {
+                ElementActionsHelper.failAction(driver, initialValue, elementLocator);
             }
             try {
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(),
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(),
                         "from: \"" + initialValue + "\", to: \"" + getText(elementLocator) + "\"", null, elementName);
             } catch (Exception e) {
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(),
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(),
                         "from: \"" + initialValue + "\", to a new value.", null, elementName);
             }
         } catch (Exception throwable) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return this;
     }
@@ -1135,16 +1046,16 @@ public class ElementActions {
      */
     public ElementActions waitToAttribute(By elementLocator, String att, String expectedAttValue) {
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator);
+            var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
             if (Boolean.FALSE.equals(ElementActionsHelper
-                    .waitForElementAttributeToBe(DriverFactoryHelper.getDriver(), elementLocator,
+                    .waitForElementAttributeToBe(driver, elementLocator,
                             att, expectedAttValue))) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator);
+                ElementActionsHelper.failAction(driver, elementLocator);
             }
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(),
+            ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(),
                     "wait for element attribute \"" + att + "\" to be \"" + expectedAttValue + "\"", null, elementName);
         } catch (Exception throwable) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return this;
     }
@@ -1159,13 +1070,13 @@ public class ElementActions {
      */
     public boolean isElementDisplayed(By elementLocator) {
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator);
-            boolean isDisplayed = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver(), elementLocator).get(1)).isDisplayed();
-            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
+            var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
+            boolean isDisplayed = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).isDisplayed();
+            ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
             return isDisplayed;
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return false;
     }
@@ -1180,18 +1091,18 @@ public class ElementActions {
      */
     public boolean isElementClickable(By elementLocator) {
         try {
-            var elementName = ElementActionsHelper.getElementName(DriverFactoryHelper.getDriver(), elementLocator);
-            if (ElementActionsHelper.waitForElementToBeClickable(DriverFactoryHelper.getDriver(), elementLocator, "")) {
+            var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
+            if (ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator, "")) {
                 //element is clickable
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "element is clickable", null, elementName);
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "element is clickable", null, elementName);
                 return true;
             } else {
                 //element is not clickable
-                ElementActionsHelper.passAction(DriverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "element is not clickable", null, elementName);
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "element is not clickable", null, elementName);
                 return false;
             }
         } catch (Exception throwable) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), elementLocator, throwable);
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
             //unreachable code
             return false;
         }
@@ -1207,15 +1118,15 @@ public class ElementActions {
     public List<Map<String, String>> getTableRowsData(By tableLocator) {
         List<Map<String, String>> tableData = new ArrayList<>();
         // Wait for the table to be present and visible
-        WebDriverWait wait = new WebDriverWait(DriverFactoryHelper.getDriver(), Duration.ofSeconds(10));
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
 
         try {
             wait.until(ExpectedConditions.visibilityOfElementLocated(tableLocator));
         } catch (Exception throwable) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver(), tableLocator, throwable);
+            ElementActionsHelper.failAction(driver, tableLocator, throwable);
             return null;
         }
-        WebElement table = DriverFactoryHelper.getDriver().findElement(tableLocator);
+        WebElement table = driver.findElement(tableLocator);
         try {
             //Wait until any row is loaded because some websites use lazy loading,
             //and you need to wait for rows to be loaded
@@ -1246,7 +1157,43 @@ public class ElementActions {
     }
 
     public ElementActions captureScreenshot(By elementLocator) {
-        ReportManagerHelper.log("Capture element screenshot", Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeElementScreenshot(DriverFactoryHelper.getDriver(), elementLocator), "captureScreenshot")));
+        ReportManagerHelper.log("Capture element screenshot", Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeElementScreenshot(driver, elementLocator), "captureScreenshot")));
         return this;
     }
+
+    public ElementActions waitUntilNumberOfElementsToBe(By elementLocator, int numberOfElements) {
+        new WaitActions(helper).explicitWaits(ExpectedConditions.numberOfElementsToBe(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public ElementActions waitUntilNumberOfElementsToBeLessThan(By elementLocator, int numberOfElements) {
+        new WaitActions(helper).explicitWaits(ExpectedConditions.numberOfElementsToBeLessThan(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public ElementActions waitUntilNumberOfElementsToBeMoreThan(By elementLocator, int numberOfElements) {
+        new WaitActions(helper).explicitWaits(ExpectedConditions.numberOfElementsToBeMoreThan(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public ElementActions waitUntilAttributeContains(By elementLocator, String attribute, String attributeContainsValue) {
+        new WaitActions(helper).explicitWaits(ExpectedConditions.attributeContains(elementLocator, attribute, attributeContainsValue), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public ElementActions waitUntilElementTextToBe(By elementLocator, String text) {
+        new WaitActions(helper).explicitWaits(ExpectedConditions.textToBe(elementLocator, text), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public ElementActions waitUntilElementToBeSelected(By elementLocator) {
+        new WaitActions(helper).explicitWaits(ExpectedConditions.elementToBeSelected(elementLocator), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
+    public ElementActions waitUntilPresenceOfAllElementsLocatedBy(By elementLocator) {
+        new WaitActions(helper).explicitWaits(ExpectedConditions.presenceOfAllElementsLocatedBy(elementLocator), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        return this;
+    }
+
 }

@@ -59,12 +59,12 @@ public class Test_ElementValidations {
 
     @BeforeMethod
     public void beforeMethod() {
-        driver.set(DriverFactory.getDriver());
+        driver.set(new DriverFactory().getDriver());
         driver.get().navigate().to("data:text/html,<script>var result;</script><button alt='Google' onclick='result=\"Clicked\"'>Go</button>");
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        DriverFactory.closeAllDrivers();
+        driver.get().quit();
     }
 }

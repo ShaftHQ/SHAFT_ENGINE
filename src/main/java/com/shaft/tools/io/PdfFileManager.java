@@ -5,7 +5,7 @@ import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.internal.FailureReporter;
 import org.apache.commons.io.FileUtils;
 import org.apache.pdfbox.cos.COSDocument;
-import org.apache.pdfbox.io.RandomAccessBufferedFileInputStream;
+import org.apache.pdfbox.io.RandomAccessReadBufferedFile;
 import org.apache.pdfbox.pdfparser.PDFParser;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -17,7 +17,7 @@ import java.io.IOException;
 public class PdfFileManager {
 
     private final File file;
-    private RandomAccessBufferedFileInputStream stream = null;
+    private RandomAccessReadBufferedFile stream = null;
     private PDFParser parser = null;
     private COSDocument cosDoc = null;
     private PDFTextStripper strip = null;
@@ -57,22 +57,17 @@ public class PdfFileManager {
      */
     public static String readFileContent(String relativeFilePath, boolean... deleteFileAfterReading) {
         if (FileActions.getInstance().doesFileExist(relativeFilePath)) {
-            try {
-                var randomAccessBufferedFileInputStream = new RandomAccessBufferedFileInputStream(new File(FileActions.getInstance().getAbsolutePath(relativeFilePath)));
-                var pdfParser = new PDFParser(randomAccessBufferedFileInputStream);
-                pdfParser.parse();
+            try (var pdfParser = new PDFParser(new RandomAccessReadBufferedFile(new File(FileActions.getInstance().getAbsolutePath(relativeFilePath)))).parse()) {
                 var pdfTextStripper = new PDFTextStripper();
                 pdfTextStripper.setSortByPosition(true);
                 var fileContent = pdfTextStripper.getText(new PDDocument(pdfParser.getDocument()));
-                randomAccessBufferedFileInputStream.close();
-
                 if (deleteFileAfterReading != null
                         && deleteFileAfterReading.length > 0
                         && deleteFileAfterReading[0]) {
                     FileActions.getInstance().deleteFile(relativeFilePath);
                 }
                 return fileContent;
-            } catch (java.io.IOException rootCauseException) {
+            } catch (IOException rootCauseException) {
                 FailureReporter.fail(PdfFileManager.class, "Failed to read this PDF file [" + relativeFilePath + "].", rootCauseException);
             }
 
@@ -96,7 +91,6 @@ public class PdfFileManager {
 
         stream = readFileInputStream(file);
         parser = parseStreamDocument(stream);
-
         cosDoc = getParsedDocument(parser);
         String content = getPdfText(cosDoc, startPageNumber, endPageNumber);
         closeStreamAndDeleteFile(file, stream, deleteFileAfterValidationStatus);
@@ -105,27 +99,24 @@ public class PdfFileManager {
     }
 
     public String readPDFContentFromDownloadedPDF(DeleteFileAfterValidationStatus deleteFileAfterValidationStatus) {
-
         stream = readFileInputStream(file);
         parser = parseStreamDocument(stream);
-
         cosDoc = getParsedDocument(parser);
         String content = getPdfText(cosDoc);
         closeStreamAndDeleteFile(file, stream, deleteFileAfterValidationStatus);
-
         return content;
     }
 
-    private RandomAccessBufferedFileInputStream readFileInputStream(File file) {
+    private RandomAccessReadBufferedFile readFileInputStream(File file) {
         try {
-            stream = new RandomAccessBufferedFileInputStream(file);
+            stream = new RandomAccessReadBufferedFile(file);
         } catch (IOException rootCauseException) {
             FailureReporter.fail(PdfFileManager.class, "Couldn't read the data from the provided file [" + file + "].", rootCauseException);
         }
         return stream;
     }
 
-    private PDFParser parseStreamDocument(RandomAccessBufferedFileInputStream stream) {
+    private PDFParser parseStreamDocument(RandomAccessReadBufferedFile stream) {
         try {
             parser = new PDFParser(stream);
             parser.parse();
@@ -136,8 +127,8 @@ public class PdfFileManager {
     }
 
     private COSDocument getParsedDocument(PDFParser parser) {
-        try {
-            cosDoc = parser.getDocument();
+        try (var parsedDocument = parser.parse()){
+            cosDoc = parsedDocument.getDocument();
         } catch (IOException rootCauseException) {
             FailureReporter.fail(PdfFileManager.class, "Couldn't get the document that was parsed. Check that the document parsed before get the document.", rootCauseException);
         }
@@ -145,18 +136,14 @@ public class PdfFileManager {
     }
 
     private String getPdfText(COSDocument cosDoc, int startPageNumber, int endPageNumber) {
-        try {
-            strip = new PDFTextStripper();
-            // By default, text extraction is done in the same sequence as the text in the
-            // PDF page content stream. PDF is a graphic format, not a text format, and
-            // unlike HTML, it has no requirements that text one on page be rendered in a
-            // certain order. The order is the one that was determined by the software that
-            // created the PDF
-            // To get text sorted from left to right and top to bottom
-            strip.setSortByPosition(true);
-        } catch (IOException rootCauseException) {
-            FailureReporter.fail(PdfFileManager.class, "Couldn't load PDFTextStripper properties.", rootCauseException);
-        }
+        strip = new PDFTextStripper();
+        // By default, text extraction is done in the same sequence as the text in the
+        // PDF page content stream. PDF is a graphic format, not a text format, and
+        // unlike HTML, it has no requirements that text one on page be rendered in a
+        // certain order. The order is the one that was determined by the software that
+        // created the PDF
+        // To get text sorted from left to right and top to bottom
+        strip.setSortByPosition(true);
 
         strip.setStartPage(startPageNumber);
         strip.setEndPage(endPageNumber);
@@ -172,12 +159,8 @@ public class PdfFileManager {
     }
 
     private String getPdfText(COSDocument cosDoc) {
-        try {
-            strip = new PDFTextStripper();
-            strip.setSortByPosition(true);
-        } catch (IOException rootCauseException) {
-            FailureReporter.fail(PdfFileManager.class, "Couldn't load PDFTextStripper properties.", rootCauseException);
-        }
+        strip = new PDFTextStripper();
+        strip.setSortByPosition(true);
 
         PDDocument pdDoc = new PDDocument(cosDoc);
 
@@ -190,7 +173,7 @@ public class PdfFileManager {
         return content;
     }
 
-    private void closeStreamAndDeleteFile(File file, RandomAccessBufferedFileInputStream stream,
+    private void closeStreamAndDeleteFile(File file, RandomAccessReadBufferedFile stream,
                                           DeleteFileAfterValidationStatus deleteFileAfterValidation) {
         try {
             stream.close();

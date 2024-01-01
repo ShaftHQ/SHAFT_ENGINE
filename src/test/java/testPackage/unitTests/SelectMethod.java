@@ -19,10 +19,17 @@ public class SelectMethod {
         driver.get().browser().navigateToURL("https://opensource-demo.orangehrmlive.com/web/index.php/auth/login");
 
     }
+
     @Test
-    public void testSelect(){
+    public void testValidSelect(){
         login("Admin","admin123")
                 .clickDropDownList("Support");
+    }
+
+    @Test(expectedExceptions = {AssertionError.class})    
+public void testInvalidSelect(){
+        login("Admin","admin123")
+                .clickDropDownList("sds");
     }
 
     @AfterMethod

@@ -8,7 +8,9 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.MutableCapabilities;
 
 import java.io.File;
+import java.time.LocalDateTime;
 import java.util.*;
+import java.util.regex.Pattern;
 
 @SuppressWarnings("SpellCheckingInspection")
 public class BrowserStack {
@@ -109,6 +111,12 @@ public class BrowserStack {
         browserstackOptions.put("local", SHAFT.Properties.browserStack.local());
         browserstackOptions.put("appiumVersion", SHAFT.Properties.browserStack.appiumVersion());
         browserstackOptions.put("deviceName", SHAFT.Properties.browserStack.deviceName());
+
+        var pathItems = System.getProperty("user.dir").split(Pattern.quote(File.separator));
+        var time = LocalDateTime.now();
+        browserstackOptions.put("projectName", ReportManagerHelper.getTestClassName());
+        browserstackOptions.put("buildName", pathItems[pathItems.length-1] + "_" + time.getYear() + time.getMonthValue() + time.getDayOfMonth());
+
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
 
         passAction(testData);
@@ -146,6 +154,12 @@ public class BrowserStack {
         if (geoLocation != null && !geoLocation.isEmpty()) {
             browserstackOptions.put("geoLocation", SHAFT.Properties.browserStack.geoLocation());
         }
+
+        var pathItems = System.getProperty("user.dir").split(Pattern.quote(File.separator));
+        var time = LocalDateTime.now();
+        browserstackOptions.put("projectName", ReportManagerHelper.getTestClassName());
+        browserstackOptions.put("buildName", pathItems[pathItems.length-1] + "_" + time.getYear() + time.getMonthValue() + time.getDayOfMonth());
+
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
 
         passAction(testData);
@@ -163,6 +177,12 @@ public class BrowserStack {
         browserstackOptions.put("acceptInsecureCerts", SHAFT.Properties.browserStack.acceptInsecureCerts());
         browserstackOptions.put("debug", SHAFT.Properties.browserStack.debug());
         browserstackOptions.put("networkLogs", SHAFT.Properties.browserStack.networkLogs());
+
+        var pathItems = System.getProperty("user.dir").split(Pattern.quote(File.separator));
+        var time = LocalDateTime.now();
+        browserstackOptions.put("projectName", ReportManagerHelper.getTestClassName());
+        browserstackOptions.put("buildName", pathItems[pathItems.length-1] + "_" + time.getYear() + time.getMonthValue() + time.getDayOfMonth());
+
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
         return browserStackCapabilities;
     }

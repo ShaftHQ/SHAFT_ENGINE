@@ -30,4 +30,12 @@ public interface TestNG extends EngineProperties {
     @DefaultValue("1")
     int dataProviderThreadCount();
 
+    /**
+     * Test Suite Timeout in Minutes
+     * Default is 1440 minutes == 24 hours
+     */
+    @Key("testSuiteTimeout")
+    @DefaultValue("1440")
+    long testSuiteTimeout();
+
 }

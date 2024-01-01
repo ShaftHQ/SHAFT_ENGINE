@@ -7,8 +7,8 @@ import com.shaft.validation.Validations;
 import io.appium.java_client.AppiumBy;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class Test_LTMobIPARelativePath {
@@ -18,8 +18,8 @@ public class Test_LTMobIPARelativePath {
     @Test
     public void test() {
 
-        ElementActions.getInstance().performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
-        ElementActions.getInstance().type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
+        new ElementActions(driver).performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
+        new ElementActions(driver).type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
         Validations.assertThat()
                 .element(driver, AppiumBy.accessibilityId("Text Output"))
                 .text()
@@ -27,7 +27,7 @@ public class Test_LTMobIPARelativePath {
                 .perform();
     }
 
-    @BeforeClass
+    @BeforeMethod
     public void setup() {
         testData = new SHAFT.TestData.JSON("credentials.json");
         // common attributes
@@ -43,12 +43,13 @@ public class Test_LTMobIPARelativePath {
         SHAFT.Properties.lambdaTest.set().isRealMobile(true);
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
-        driver = DriverFactory.getDriver();
+        SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
+        driver = new DriverFactory().getDriver();
 
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     public void teardown() {
-        DriverFactory.closeAllDrivers();
+        driver.quit();
     }
 }

@@ -4,8 +4,8 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class Test_BrowserValidations {
@@ -21,15 +21,15 @@ public class Test_BrowserValidations {
         Validations.assertThat().browser(driver).title().contains("oogle").perform();
     }
 
-    @BeforeClass
-    public void beforeClass() {
-        driver = DriverFactory.getDriver();
+    @BeforeMethod
+    public void beforeMethod() {
+        driver = new DriverFactory().getDriver();
         String url = "https://www.google.com/";
-        BrowserActions.getInstance().navigateToURL(url);
+        new BrowserActions(driver).navigateToURL(url);
     }
 
-    @AfterClass(alwaysRun = true)
-    public void afterClass() {
-        DriverFactory.closeAllDrivers();
+    @AfterMethod(alwaysRun = true)
+    public void afterMethod() {
+        driver.quit();
     }
 }

@@ -1,6 +1,7 @@
 package customCucumberSteps;
 
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;
@@ -23,14 +24,16 @@ public class steps {
      * cucumber.glue=customCucumberSteps
      */
     private WebDriver driver;
+    private DriverFactoryHelper helper;
     @Given("I open the target browser")
     public void i_open_the_target_browser() {
-        driver = DriverFactory.getDriver();
+        helper = new DriverFactory().getHelper();
+        driver = helper.getDriver();
     }
     @When("I navigate to {string}")
     public void i_navigate_to(String pageName) {
         if (pageName.equals("Google Home")) {
-            BrowserActions.getInstance().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
+            new BrowserActions(helper).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
         }
     }
     @When("I search for {string}")

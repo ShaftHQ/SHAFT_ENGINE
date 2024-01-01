@@ -3,14 +3,16 @@ package com.shaft.gui.internal.image;
 import com.epam.healenium.SelfHealingDriver;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
-import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.ElementInformation;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import org.apache.logging.log4j.Level;
 import org.imgscalr.Scalr;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.*;
@@ -217,34 +219,55 @@ public class ScreenshotManager {
     }
 
     public static byte[] takeViewportScreenshot(WebDriver driver) {
-        return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+        return takeViewportScreenshot(driver, 6);
     }
 
-    public static byte[] takeFullPageScreenshot(WebDriver driver) {
+    private static byte[] takeViewportScreenshot(WebDriver driver, int retryAttempts) {
         try {
-            if (!SHAFT.Properties.testNG.parallel().equals("NONE")) {
-                //in case of parallel execution, force regular screenshots
-                return takeViewportScreenshot(driver);
-            } else if (!SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().isEmpty()) {
-                List<WebElement> skippedElementsList = new ArrayList<>();
-                String[] skippedElementLocators =SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().split(";");
-                for (String locator : skippedElementLocators) {
-                    if (ElementActionsHelper.getElementsCount(driver, By.xpath(locator),
-                            RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION) == 1) {
-                        skippedElementsList.add(((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, By.xpath(locator)).get(1)));
-                    }
-                }
-
-                WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
-                skippedElementsArray = skippedElementsList.toArray(skippedElementsArray);
-
-                return ScreenshotHelper.makeFullScreenshot(driver, skippedElementsArray);
+            return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+        } catch (RuntimeException exception) {
+            if (retryAttempts<=0){
+                ReportManagerHelper.logDiscrete(exception, Level.WARN);
+                ReportManagerHelper.logDiscrete("Failed to take a screenshot after 5 attempts.", Level.WARN);
+                return null;
+            } else
+            // java.lang.RuntimeException: Unexpected result for screenshot command: com.google.common.collect.Maps$TransformedEntriesMap instance
+            if (exception.getMessage().contains("Permission denied to access property \"pageXOffset\" on cross-origin object")
+                || exception.getMessage().contains("not connected to DevTools")
+                || exception.getMessage().contains("unhandled inspector error: {\"code\":-32000,\"message\":\"Unable to capture screenshot\"}")){
+                // Ubuntu_Firefox_Grid
+                // org.openqa.selenium.WebDriverException: SecurityError: Permission denied to access property "pageXOffset" on cross-origin object
+                // MacOSX_Chrome_Local
+                // org.openqa.selenium.WebDriverException: disconnected: not connected to DevTools
+                // Ubuntu_Edge_Grid, Ubuntu_Chrome_Grid
+                // org.openqa.selenium.WebDriverException: unknown error: unhandled inspector error: {"code":-32000,"message":"Unable to capture screenshot"}
+                driver.switchTo().defaultContent();
+                return takeViewportScreenshot(driver, retryAttempts-1);
             } else {
-                return ScreenshotHelper.makeFullScreenshot(driver);
+                FailureReporter.fail(ScreenshotManager.class, "Failed to capture a screenshot", exception);
+                return null;
             }
-        } catch (Exception e) {
-            ReportManagerHelper.logDiscrete(e);
-            return ScreenshotManager.takeViewportScreenshot(driver);
+        }
+    }
+
+    public static byte[] takeFullPageScreenshot(WebDriver driver) throws IOException {
+        if (!SHAFT.Properties.testNG.parallel().equals("NONE")) {
+            //in case of parallel execution, force regular screenshots
+            return takeViewportScreenshot(driver);
+        } else if (!SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().isEmpty()) {
+            List<WebElement> skippedElementsList = new ArrayList<>();
+            String[] skippedElementLocators =SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().split(";");
+            for (String locator : skippedElementLocators) {
+                if (ElementActionsHelper.getElementsCount(driver, By.xpath(locator),
+                        RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION) == 1) {
+                    skippedElementsList.add(((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, By.xpath(locator)).get(1)));
+                }
+            }
+            WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
+            skippedElementsArray = skippedElementsList.toArray(skippedElementsArray);
+            return ScreenshotHelper.makeFullScreenshot(driver, skippedElementsArray);
+        } else {
+            return ScreenshotHelper.makeFullScreenshot(driver);
         }
     }
 
@@ -323,7 +346,7 @@ public class ScreenshotManager {
                         if ("JavaScript".equals(SHAFT.Properties.visuals.screenshotParamsHighlightMethod())) {
                             element = ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1));
                             js = (JavascriptExecutor) driver;
-                            regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
+                            regularElementStyle = highlightElementAndReturnDefaultStyle(driver, element, js,
                                     setHighlightedElementStyle());
                         } else {
                             // default to using AI
@@ -397,9 +420,9 @@ public class ScreenshotManager {
                 case FULL -> {
                     try {
                         yield takeFullPageScreenshot(driver);
-                    } catch (Exception throwable) {
+                    } catch (Throwable throwable) {
                         ReportManagerHelper.logDiscrete(throwable);
-                        SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
+                        SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(Screenshots.VIEWPORT.getValue());
                         yield takeScreenshot(driver);
                     }
                 }
@@ -478,7 +501,7 @@ public class ScreenshotManager {
         }
     }
 
-    private static String highlightElementAndReturnDefaultStyle(WebElement element, JavascriptExecutor js,
+    private static String highlightElementAndReturnDefaultStyle(WebDriver driver, WebElement element, JavascriptExecutor js,
                                                                 String highlightedElementStyle) {
         String regularElementStyle = element.getAttribute("style");
         if (regularElementStyle != null && !regularElementStyle.isEmpty()) {
@@ -489,7 +512,7 @@ public class ScreenshotManager {
         }
 
         try {
-            JavaScriptWaitManager.waitForLazyLoading();
+            JavaScriptWaitManager.waitForLazyLoading(driver);
         } catch (Exception e) {
             ReportManagerHelper.logDiscrete(e);
         }

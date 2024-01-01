@@ -23,7 +23,7 @@ public class TouchActionsTests {
 
     @BeforeMethod
     void beforeMethod() {
-        driver.set(SHAFT.GUI.WebDriver.getInstance());
+        driver.set(new SHAFT.GUI.WebDriver());
         driver.get().browser().navigateToURL(testElement);
     }
 

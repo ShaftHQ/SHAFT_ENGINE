@@ -5,6 +5,7 @@ import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.listeners.internal.JiraHelper;
 import com.shaft.listeners.internal.JunitListenerHelper;
 import com.shaft.listeners.internal.TestNGListenerHelper;
+import com.shaft.listeners.internal.UpdateChecker;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.internal.ExecutionSummaryReport;
@@ -37,6 +38,11 @@ public class JunitListener implements LauncherSessionListener {
                 }
 
                 @Override
+                public void testPlanExecutionFinished(TestPlan testPlan) {
+                    engineTeardown();
+                }
+
+                @Override
                 public void executionSkipped(TestIdentifier testIdentifier, String reason) {
                     afterInvocation();
                     onTestSkipped(testIdentifier, reason);
@@ -64,12 +70,6 @@ public class JunitListener implements LauncherSessionListener {
             });
         }
     }
-
-    @Override
-    public void launcherSessionClosed(LauncherSession session) {
-        engineTeardown();
-    }
-
     private void engineSetup() {
         ReportManagerHelper.setDiscreteLogging(true);
         PropertiesHelper.initialize();
@@ -83,6 +83,7 @@ public class JunitListener implements LauncherSessionListener {
         SHAFT.Properties.reporting.set().disableLogging(false);
 
         ReportManagerHelper.logEngineVersion();
+        UpdateChecker.check();
         ImageProcessingActions.loadOpenCV();
 
         ReportManagerHelper.initializeAllureReportingEnvironment();
@@ -133,8 +134,8 @@ public class JunitListener implements LauncherSessionListener {
             String caseName = testIdentifier.getDisplayName();
             String caseDescription = testIdentifier.getLegacyReportingName();
             String statusMessage = statusIcon.getValue() + status.name();
-            Boolean hasIssue = false;
-            ExecutionSummaryReport.casesDetailsIncrement(caseSuite, caseName, caseDescription, errorMessage, statusMessage, hasIssue);
+            // Will add empty strings o the tmsLink and issue params until we figure out how to get the values of the annotations using JUnit
+            ExecutionSummaryReport.casesDetailsIncrement("", caseSuite, caseName, caseDescription, errorMessage, statusMessage, "");
         }
 
     }

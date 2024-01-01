@@ -1,6 +1,5 @@
 package com.shaft.validation.internal;
 
-import com.shaft.driver.internal.DriverFactoryHelper;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -48,23 +47,8 @@ public class ValidationsBuilder {
     }
 
     public WebDriverElementValidationsBuilder element(WebDriver driver, By locator) {
-        return element(locator);
-    }
-
-    /**
-     * Build a WebDriver element validation to check against the target element
-     *
-     * @param locator the locator of the webElement under test (By xpath, id,
-     *                selector, name ...etc)
-     * @return a WebDriverElementValidationsBuilder object to continue building your validation
-     */
-    public WebDriverElementValidationsBuilder element(By locator) {
         reportMessageBuilder.append("The Element located by \"").append(formatLocatorToString(locator)).append("\" ");
-        return new WebDriverElementValidationsBuilder(validationCategory, DriverFactoryHelper.getDriver(), locator, reportMessageBuilder);
-    }
-
-    public WebDriverBrowserValidationsBuilder browser(WebDriver driver) {
-        return browser();
+        return new WebDriverElementValidationsBuilder(validationCategory, driver, locator, reportMessageBuilder);
     }
 
     /**
@@ -72,9 +56,9 @@ public class ValidationsBuilder {
      *
      * @return a WebDriverBrowserValidationsBuilder object to continue building your validation
      */
-    public WebDriverBrowserValidationsBuilder browser() {
+    public WebDriverBrowserValidationsBuilder browser(WebDriver driver) {
         reportMessageBuilder.append("The Browser ");
-        return new WebDriverBrowserValidationsBuilder(validationCategory, DriverFactoryHelper.getDriver(), reportMessageBuilder);
+        return new WebDriverBrowserValidationsBuilder(validationCategory, driver, reportMessageBuilder);
     }
 
     /**

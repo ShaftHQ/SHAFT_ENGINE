@@ -2,12 +2,10 @@ package com.shaft.listeners;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.ImageProcessingActions;
-import com.shaft.listeners.internal.CucumberHelper;
-import com.shaft.listeners.internal.JiraHelper;
-import com.shaft.listeners.internal.RetryAnalyzer;
-import com.shaft.listeners.internal.TestNGListenerHelper;
+import com.shaft.listeners.internal.*;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.security.GoogleTink;
+import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ExecutionSummaryReport;
 import com.shaft.tools.io.internal.IssueReporter;
 import com.shaft.tools.io.internal.ProjectStructureManager;
@@ -33,7 +31,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     private static final List<ITestNGMethod> passedTests = new ArrayList<>();
     private static final List<ITestNGMethod> failedTests = new ArrayList<>();
     private static final List<ITestNGMethod> skippedTests = new ArrayList<>();
-
+    @Getter
+    private static ITestResult iTestResult;
     private static long executionStartTime;
 
     @Getter
@@ -71,14 +70,12 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         GoogleTink.initialize();
         GoogleTink.decrypt();
         SHAFT.Properties.reporting.set().disableLogging(false);
-
         ReportManagerHelper.logEngineVersion();
+        UpdateChecker.check();
         ImageProcessingActions.loadOpenCV();
-
         ReportManagerHelper.initializeAllureReportingEnvironment();
         ReportManagerHelper.initializeExtentReportingEnvironment();
         ReportManagerHelper.cleanExecutionSummaryReportDirectory();
-
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
         ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
     }
@@ -116,10 +113,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void onStart(ISuite suite) {
-//        if (isTestNGRun()) {
-            TestNGListenerHelper.setTotalNumberOfTests(suite);
-            executionStartTime = System.currentTimeMillis();
-//        }
+        TestNGListenerHelper.setTotalNumberOfTests(suite);
+        executionStartTime = System.currentTimeMillis();
     }
 
     /**
@@ -140,9 +135,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void transform(ITestAnnotation annotation, Class testClass, Constructor testConstructor, Method testMethod) {
-//        if (isTestNGRun()) {
-            annotation.setRetryAnalyzer(RetryAnalyzer.class);
-//        }
+        annotation.setRetryAnalyzer(RetryAnalyzer.class);
     }
 
     /**
@@ -159,14 +152,20 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void beforeInvocation(IInvokedMethod method, ITestResult iTestResult, ITestContext iTestContext) {
-//        if (isTestNGRun()) {
-            xmlTest = method.getTestMethod().getXmlTest();
-            JiraHelper.prepareTestResultAttributes(method, iTestResult);
-            TestNGListenerHelper.setTestName(iTestContext);
-            TestNGListenerHelper.logTestInformation(iTestResult);
-            TestNGListenerHelper.failFast(iTestResult);
-            TestNGListenerHelper.skipTestsWithLinkedIssues(iTestResult);
-//        }
+        var elapsedTime = System.currentTimeMillis() - executionStartTime;
+        if (SHAFT.Properties.reporting.debugMode()) {
+            ReportManager.logDiscrete("elapsedTime: " + elapsedTime + "ms");
+        }
+        if (elapsedTime >= SHAFT.Properties.testNG.testSuiteTimeout() * 60000) {
+            throw new SkipException("Skipping method as the test suite has exceeded the defined timeout of " + SHAFT.Properties.testNG.testSuiteTimeout() + " minutes.");
+        }
+        xmlTest = method.getTestMethod().getXmlTest();
+        JiraHelper.prepareTestResultAttributes(method, iTestResult);
+        TestNGListenerHelper.setTestName(iTestContext);
+        TestNGListenerHelper.logTestInformation(iTestResult);
+        TestNGListenerHelper.failFast(iTestResult);
+        TestNGListenerHelper.skipTestsWithLinkedIssues(iTestResult);
+        TestNGListener.iTestResult = iTestResult;
     }
 
     /**
@@ -183,13 +182,12 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void afterInvocation(IInvokedMethod iInvokedMethod, ITestResult iTestResult, ITestContext iTestContext) {
-//        if (isTestNGRun()) {
-            IssueReporter.updateTestStatusInCaseOfVerificationFailure(iTestResult);
-            IssueReporter.updateIssuesLog(iTestResult);
-            TestNGListenerHelper.updateConfigurationMethodLogs(iTestResult);
-            TestNGListenerHelper.logFinishedTestInformation(iTestResult);
-            ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
-//        }
+        IssueReporter.updateTestStatusInCaseOfVerificationFailure(iTestResult);
+        IssueReporter.updateIssuesLog(iTestResult);
+        TestNGListenerHelper.updateTestMethods(iTestResult);
+//            TestNGListenerHelper.updateConfigurationMethodLogs(iTestResult);
+        TestNGListenerHelper.logFinishedTestInformation(iTestResult);
+        ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
     }
 
     /**
@@ -197,46 +195,38 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void onExecutionFinish() {
-//        if (isTestNGRun()) {
-            ReportManagerHelper.setDiscreteLogging(true);
-            JiraHelper.reportExecutionStatusToJira();
-            GoogleTink.encrypt();
-            ReportManagerHelper.generateAllureReportArchive();
-            ReportManagerHelper.openAllureReportAfterExecution();
-            ReportManagerHelper.openExtentReportAfterExecution();
-            long executionEndTime = System.currentTimeMillis();
-            ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
-            ReportManagerHelper.logEngineClosure();
-//        }
+        ReportManagerHelper.setDiscreteLogging(true);
+        JiraHelper.reportExecutionStatusToJira();
+        GoogleTink.encrypt();
+        ReportManagerHelper.generateAllureReportArchive();
+        ReportManagerHelper.openAllureReportAfterExecution();
+        ReportManagerHelper.openExtentReportAfterExecution();
+        long executionEndTime = System.currentTimeMillis();
+        ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
+        ReportManagerHelper.logEngineClosure();
     }
 
     @Override
     public void onTestSuccess(ITestResult result) {
-//        if (isTestNGRun()) {
-            passedTests.add(result.getMethod());
-            ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
-                    result.getMethod().getMethodName(), result.getMethod().getDescription(), "",
-                    ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
-//        }
+        passedTests.add(result.getMethod());
+        ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(result), result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
+                result.getMethod().getMethodName(), result.getMethod().getDescription(), "",
+                ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name(), TestNGListenerHelper.getIssueAnnotationValue(result));
     }
 
     @Override
     public void onTestFailure(ITestResult result) {
-//        if (isTestNGRun()) {
-            failedTests.add(result.getMethod());
-            ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
-                    result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
-                    ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
-//        }
+        failedTests.add(result.getMethod());
+        ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(result), result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
+                result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
+                ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name(), TestNGListenerHelper.getIssueAnnotationValue(result));
     }
 
     @Override
     public void onTestSkipped(ITestResult result) {
-//        if (isTestNGRun()) {
-            skippedTests.add(result.getMethod());
-            ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
-                    result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
-                    ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
-//        }
+        skippedTests.add(result.getMethod());
+        ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(result), result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
+                result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
+                ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name(), TestNGListenerHelper.getIssueAnnotationValue(result));
     }
 }

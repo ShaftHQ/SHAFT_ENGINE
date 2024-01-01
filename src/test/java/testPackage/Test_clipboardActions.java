@@ -42,11 +42,11 @@ public class Test_clipboardActions {
 
     @BeforeMethod // Set-up method, to be run once before the first test
     public void beforeMethod() {
-        driver = DriverFactory.getDriver();
+        driver = new DriverFactory().getDriver();
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        BrowserActions.getInstance().closeCurrentWindow();
+        new BrowserActions(driver).closeCurrentWindow();
     }
 }

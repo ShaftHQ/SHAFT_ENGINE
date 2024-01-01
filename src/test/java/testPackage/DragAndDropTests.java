@@ -1,6 +1,7 @@
 package testPackage;
 
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.TouchActions;
@@ -14,10 +15,11 @@ import org.testng.annotations.Test;
 
 public class DragAndDropTests {
     WebDriver driver;
+    DriverFactoryHelper helper;
 
     @Test(description = "TC001 - Test Drag and Drop function.")
     public void dragAndDrop() {
-        BrowserActions.getInstance().navigateToURL("http://the-internet.herokuapp.com/drag_and_drop"); // PASSED
+        new BrowserActions(helper).navigateToURL("http://the-internet.herokuapp.com/drag_and_drop"); // PASSED
         By dropDestinationLocator = By.xpath("//div[@id='columns']//*[contains (text(),'B')]");
         By dragTarget1Locator = By.xpath("//div[@id='columns']//*[contains (text(),'A')]");
 
@@ -31,21 +33,21 @@ public class DragAndDropTests {
 
         // ElementActions.click(driver, dragTarget1Locator);
         ReportManager.log("Attempting Drag and Drop");
-        ElementActions.getInstance().dragAndDrop(dragTarget1Locator, dropDestinationLocator);
+        new ElementActions(helper).dragAndDrop(dragTarget1Locator, dropDestinationLocator);
 
     }
 
     @Test(description = "TC002 - Test Drag and Drop by offset function.")
     public void dragAndDropByOffset() {
-        BrowserActions.getInstance().navigateToURL("https://jqueryui.com/resources/demos/draggable/default.html");
+        new BrowserActions(helper).navigateToURL("https://jqueryui.com/resources/demos/draggable/default.html");
         By dragTargetLocator = By.id("draggable");
 
-        ElementActions.getInstance().dragAndDropByOffset(dragTargetLocator, 100, 50);
+        new ElementActions(helper).dragAndDropByOffset(dragTargetLocator, 100, 50);
     }
 
     @Test
     public void dragAndDropJquery() {
-        BrowserActions.getInstance().navigateToURL("https://jqueryui.com/resources/demos/droppable/default.html");
+        new BrowserActions(helper).navigateToURL("https://jqueryui.com/resources/demos/droppable/default.html");
         ElementActions actions = new ElementActions(driver);
         String initialDroppableText = actions.getText(By.id("droppable"));
         actions.dragAndDrop(By.id("draggable"), By.id("droppable"));
@@ -57,8 +59,8 @@ public class DragAndDropTests {
 
     @Test
     public void dragAndDropTouchEnabled() {
-        BrowserActions.getInstance().navigateToURL("https://jqueryui.com/resources/demos/droppable/default.html");
-        ElementActions actions = ElementActions.getInstance();
+        new BrowserActions(helper).navigateToURL("https://jqueryui.com/resources/demos/droppable/default.html");
+        ElementActions actions = new ElementActions(helper);
         String initialDroppableText = actions.getText(By.id("droppable"));
         actions.touch().swipeToElement(By.id("draggable"), By.id("droppable"));
         String finalDroppableText = actions.getText(By.id("droppable"));
@@ -69,18 +71,19 @@ public class DragAndDropTests {
 
     @Test
     public void dragAndDropByOffsetTouchEnabled() {
-        BrowserActions.getInstance().navigateToURL("https://jqueryui.com/resources/demos/draggable/default.html");
+        new BrowserActions(helper).navigateToURL("https://jqueryui.com/resources/demos/draggable/default.html");
         By dragTargetLocator = By.id("draggable");
-        TouchActions.getInstance().swipeByOffset(dragTargetLocator, 100, 50);
+        new TouchActions(helper).swipeByOffset(dragTargetLocator, 100, 50);
     }
 
     @BeforeMethod
     public void beforeMethod() {
-        driver = DriverFactory.getDriver();
+        helper = new DriverFactory().getHelper();
+        driver = helper.getDriver();
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        BrowserActions.getInstance().closeCurrentWindow();
+        new BrowserActions(helper).closeCurrentWindow();
     }
 }

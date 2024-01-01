@@ -48,7 +48,7 @@ public class GUIWizardTests {
     public void test_ClickUsingJavaScript() {
         driver.browser().navigateToURL("https://www.saucedemo.com")
                 .element().type(emailField, "standard_user")
-                .type(passwordField, "secret_sauce")
+                .typeSecure(passwordField, "secret_sauce")
                 .clickUsingJavascript(loginButton)
                 .clickUsingJavascript(product1)
                 .clickUsingJavascript(shoppingCartButton)

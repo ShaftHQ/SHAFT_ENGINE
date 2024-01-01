@@ -2,24 +2,22 @@ name: E2E Tests
 
 on:
   pull_request:
-    # The branches below must be a subset of the branches above
     branches: [ main ]
   schedule:
     - cron: '00 1 * * *'
   workflow_dispatch:
 
 env:
-  GLOBAL_TESTING_SCOPE: "!%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
+  GLOBAL_TESTING_SCOPE: "!%regex[.*Tests_Api.*], !%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
 
 jobs:
   #  Ubuntu_Database:
-  #    runs-on: ubuntu-22.04
-  #    timeout-minutes: 60
-  #    steps:
+  #    runs-on: ubuntu-latest
+  #  #    steps:
   #      - name: Checkout Code
   #        uses: actions/checkout@v4
   #      - name: Set up JDK 21
-  #        uses: actions/setup-java@v3
+  #        uses: actions/setup-java@v4
   #        with:
   #          java-version: '21'
   #          distribution: 'zulu'
@@ -37,25 +35,24 @@ jobs:
   #          verbose: true
   #      - name: Upload Allure Report as Pipeline Artifact
   #        if: always()
-  #        uses: actions/upload-artifact@v3
+  #        uses: actions/upload-artifact@v4
   #        with:
   #          name: Ubuntu_Database_Allure
   #          path: "generatedReport_*.zip"
   #      - name: Upload Execution Summary Report as Pipeline Artifact
   #        if: always()
-  #        uses: actions/upload-artifact@v3
+  #        uses: actions/upload-artifact@v4
   #        with:
   #          name: Ubuntu_Database_Summary
   #          path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Ubuntu_APIs:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -76,27 +73,26 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_APIs_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_APIs_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Ubuntu_Firefox_Grid:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up Native Selenium Grid
         run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=0 --scale firefox=4 -d
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -109,7 +105,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -119,27 +115,26 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_Firefox_Grid_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_Firefox_Grid_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Ubuntu_Chrome_Grid:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up Native Selenium Grid
         run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=4 --scale edge=0 --scale firefox=0 -d
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -152,7 +147,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -162,27 +157,26 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_Chrome_Grid_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_Chrome_Grid_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Ubuntu_Edge_Grid:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up Native Selenium Grid
         run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=4 --scale firefox=0 -d
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -195,7 +189,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -205,25 +199,24 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_Edge_Grid_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_Edge_Grid_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Windows_Edge_Local:
     runs-on: windows-latest
-    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -232,9 +225,14 @@ jobs:
         uses: stCarolas/setup-maven@v4.5
         with:
           maven-version: 3.9.5
+      - uses: browser-actions/setup-edge@v1
+        with:
+          edge-version: stable
+      - name: Print Edge version
+        run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Tests_Api.*], !%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -244,25 +242,24 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Windows_Edge_Local_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Windows_Edge_Local_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Windows_Chrome_Local:
     runs-on: windows-latest
-    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -271,9 +268,13 @@ jobs:
         uses: stCarolas/setup-maven@v4.5
         with:
           maven-version: 3.9.5
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Tests_Api.*], !%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -283,25 +284,24 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Windows_Chrome_Local_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Windows_Chrome_Local_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   MacOSX_Safari_Local:
-    runs-on: macOS-12
-    timeout-minutes: 60
+    runs-on: macos-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -312,7 +312,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=SAFARI" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=SAFARI" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -322,25 +322,24 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MacOSX_Safari_Local_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MacOSX_Safari_Local_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   MacOSX_Chrome_Local:
-    runs-on: macOS-12
-    timeout-minutes: 60
+    runs-on: macos-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -349,11 +348,13 @@ jobs:
         uses: stCarolas/setup-maven@v4.5
         with:
           maven-version: 3.9.5
-      - name: Setup Chromium
-        uses: browser-actions/setup-chrome@latest
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -363,171 +364,169 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MacOSX_Chrome_Local_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MacOSX_Chrome_Local_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
-  Android_Native_Emulator:
-    runs-on: macOS-12
-    timeout-minutes: 60
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - uses: hankolsen/setup-android-tools@master
-        with:
-          packages: |
-            cmdline-tools;latest
-            emulator
-            patcher;v4
-            platform-tools
-            build-tools;27.0.0
-            platforms;android-27
-            skiaparser;3
-            sources;android-27
-            system-images;android-27;default;x86_64
-          cache: true
-
-      - name: Create Android emulator
-        run: |
-              # Delete old file
-              brew cleanup --prune=1 -s
-              rm -rf "$(brew --cache)"
-
-              # Install HAXM
-              #brew install intel-haxm
-
-              # Install AVD files
-              echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --install 'system-images;android-27;default;x86_64'
-              echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --licenses
-
-              # Create emulator
-              $ANDROID_HOME/tools/bin/avdmanager create avd -n Pixel_API_27_DEFAULT_x86_64 -d pixel --package 'system-images;android-27;default;x86_64'
-              $ANDROID_HOME/emulator/emulator -list-avds
-              if false; then
-              emulator_config=~/.android/avd/Pixel_API_27_DEFAULT_x86_64.avd/config.ini
-              # The following madness is to support empty OR populated config.ini files,
-              # the state of which is dependant on the version of the emulator used (which we don't control),
-              # so let's be defensive to be safe.
-              # Replace existing config (NOTE we're on MacOS so sed works differently!)
-              sed -i .bak 's/hw.lcd.density=.*/hw.lcd.density=420/' "$emulator_config"
-              sed -i .bak 's/hw.lcd.height=.*/hw.lcd.height=1920/' "$emulator_config"
-              sed -i .bak 's/hw.lcd.width=.*/hw.lcd.width=1080/' "$emulator_config"
-              # Or, add new config
-              if ! grep -q "hw.lcd.density" "$emulator_config"; then
-                echo "hw.lcd.density=420" >> "$emulator_config"
-              fi
-              if ! grep -q "hw.lcd.height" "$emulator_config"; then
-                echo "hw.lcd.height=1920" >> "$emulator_config"
-              fi
-              if ! grep -q "hw.lcd.width" "$emulator_config"; then
-                echo "hw.lcd.width=1080" >> "$emulator_config"
-              fi
-              echo "Emulator settings ($emulator_config)"
-              cat "$emulator_config"
-              fi
-
-      - name: List all sdkmanager options
-        run: |
-          $ANDROID_HOME/tools/bin/sdkmanager --list
-
-      - name: Update Android emulator
-        run: |
-          echo "$PATH"
-          echo $PATH
-          export PATH=$PATH:$ANDROID_HOME/tools/bin
-          export PATH=$PATH:$ANDROID_HOME/emulator/emulator
-          echo "$PATH"
-          echo $PATH
-          $ANDROID_HOME/tools/bin/sdkmanager --update
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v3
-        with:
-          java-version: '21'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
-        with:
-          maven-version: 3.9.5
-
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Set up Appium
-        run: |
-          npm install --global appium@next
-          appium driver install uiautomator2
-          appium driver install xcuitest
-
-      - name: Run Appium Server
-        run: appium --log-timestamp --log appiumServer.log &
-
-      - name: Poll for Appium Server to Start
-        run: |
-          until $(curl --output /dev/null --silent --head --fail http://localhost:4723/sessions); do
-            sleep 5
-          done
-
-      - name: Start Android emulator
-        run: |
-          echo "Starting emulator and waiting for boot to complete...."
-          ls -la $ANDROID_HOME/emulator
-          nohup $ANDROID_HOME/tools/emulator -avd Pixel_API_27_DEFAULT_x86_64 -gpu host -no-audio -no-boot-anim -camera-back none -camera-front none -qemu -m 2048 2>&1 &
-          $ANDROID_HOME/platform-tools/adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\r') ]]; do echo "wait..."; sleep 1; done; input keyevent 82'
-          #$ANDROID_HOME/platform-tools/adb wait-for-device
-          echo "Emulator has finished booting"
-          $ANDROID_HOME/platform-tools/adb devices
-          sleep 30
-          screencapture screenshot.jpg
-          #$ANDROID_HOME/platform-tools/adb exec-out screencap -p > emulator.png
-          #osascript click.as
-
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=localhost:4723" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-Dmobile_app=src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
-
-      - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: Android_Native_Emulator_Allure
-          path: "generatedReport_*.zip"
-
-      - name: Upload Execution Summary Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: Android_Native_Emulator_Summary
-          path: "execution-summary/ExecutionSummaryReport_*.html"
+  #  Android_Native_Emulator:
+  #    runs-on: macos-latest
+  #  #
+  #    steps:
+  #      - name: Checkout Code
+  #        uses: actions/checkout@v4
+  #
+  #      - uses: hankolsen/setup-android-tools@master
+  #        with:
+  #          packages: |
+  #            cmdline-tools;latest
+  #            emulator
+  #            patcher;v4
+  #            platform-tools
+  #            build-tools;27.0.0
+  #            platforms;android-27
+  #            skiaparser;3
+  #            sources;android-27
+  #            system-images;android-27;default;x86_64
+  #          cache: true
+  #
+  #      - name: Create Android emulator
+  #        run: |
+  #              # Delete old file
+  #              brew cleanup --prune=1 -s
+  #              rm -rf "$(brew --cache)"
+  #
+  #              # Install HAXM
+  #              #brew install intel-haxm
+  #
+  #              # Install AVD files
+  #              echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --install 'system-images;android-27;default;x86_64'
+  #              echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --licenses
+  #
+  #              # Create emulator
+  #              $ANDROID_HOME/tools/bin/avdmanager create avd -n Pixel_API_27_DEFAULT_x86_64 -d pixel --package 'system-images;android-27;default;x86_64'
+  #              $ANDROID_HOME/emulator/emulator -list-avds
+  #              if false; then
+  #              emulator_config=~/.android/avd/Pixel_API_27_DEFAULT_x86_64.avd/config.ini
+  #              # The following madness is to support empty OR populated config.ini files,
+  #              # the state of which is dependant on the version of the emulator used (which we don't control),
+  #              # so let's be defensive to be safe.
+  #              # Replace existing config (NOTE we're on MacOS so sed works differently!)
+  #              sed -i .bak 's/hw.lcd.density=.*/hw.lcd.density=420/' "$emulator_config"
+  #              sed -i .bak 's/hw.lcd.height=.*/hw.lcd.height=1920/' "$emulator_config"
+  #              sed -i .bak 's/hw.lcd.width=.*/hw.lcd.width=1080/' "$emulator_config"
+  #              # Or, add new config
+  #              if ! grep -q "hw.lcd.density" "$emulator_config"; then
+  #                echo "hw.lcd.density=420" >> "$emulator_config"
+  #              fi
+  #              if ! grep -q "hw.lcd.height" "$emulator_config"; then
+  #                echo "hw.lcd.height=1920" >> "$emulator_config"
+  #              fi
+  #              if ! grep -q "hw.lcd.width" "$emulator_config"; then
+  #                echo "hw.lcd.width=1080" >> "$emulator_config"
+  #              fi
+  #              echo "Emulator settings ($emulator_config)"
+  #              cat "$emulator_config"
+  #              fi
+  #
+  #      - name: List all sdkmanager options
+  #        run: |
+  #          $ANDROID_HOME/tools/bin/sdkmanager --list
+  #
+  #      - name: Update Android emulator
+  #        run: |
+  #          echo "$PATH"
+  #          echo $PATH
+  #          export PATH=$PATH:$ANDROID_HOME/tools/bin
+  #          export PATH=$PATH:$ANDROID_HOME/emulator/emulator
+  #          echo "$PATH"
+  #          echo $PATH
+  #          $ANDROID_HOME/tools/bin/sdkmanager --update
+  #
+  #      - name: Set up JDK 21
+  #        uses: actions/setup-java@v4
+  #        with:
+  #          java-version: '21'
+  #          distribution: 'zulu'
+  #          cache: 'maven'
+  #      - name: Set up Maven
+  #        uses: stCarolas/setup-maven@v4.5
+  #        with:
+  #          maven-version: 3.9.5
+  #
+  #      - name: Setup Node.js environment
+  #        uses: actions/setup-node@v4
+  #        with:
+  #          node-version: '18'
+  #
+  #      - name: Set up Appium
+  #        run: |
+  #          npm install --global appium@next
+  #          appium driver install uiautomator2
+  #          appium driver install xcuitest
+  #
+  #      - name: Run Appium Server
+  #        run: appium --log-timestamp --log appiumServer.log &
+  #
+  #      - name: Poll for Appium Server to Start
+  #        run: |
+  #          until $(curl --output /dev/null --silent --head --fail http://localhost:4723/sessions); do
+  #            sleep 5
+  #          done
+  #
+  #      - name: Start Android emulator
+  #        run: |
+  #          echo "Starting emulator and waiting for boot to complete...."
+  #          ls -la $ANDROID_HOME/emulator
+  #          nohup $ANDROID_HOME/tools/emulator -avd Pixel_API_27_DEFAULT_x86_64 -gpu host -no-audio -no-boot-anim -camera-back none -camera-front none -qemu -m 2048 2>&1 &
+  #          $ANDROID_HOME/platform-tools/adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\r') ]]; do echo "wait..."; sleep 1; done; input keyevent 82'
+  #          #$ANDROID_HOME/platform-tools/adb wait-for-device
+  #          echo "Emulator has finished booting"
+  #          $ANDROID_HOME/platform-tools/adb devices
+  #          sleep 30
+  #          screencapture screenshot.jpg
+  #          #$ANDROID_HOME/platform-tools/adb exec-out screencap -p > emulator.png
+  #          #osascript click.as
+  #
+  #      - name: Run tests
+  #        continue-on-error: true
+  #        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=localhost:4723" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-Dmobile_app=src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
+  #
+  #      - name: Upload coverage to Codecov
+  #        uses:  codecov/codecov-action@v3
+  #        with:
+  #          token: ${{ secrets.CODECOV_TOKEN }}
+  #          fail_ci_if_error: false
+  #          files: ./target/jacoco/jacoco.xml
+  #          verbose: true
+  #
+  #      - name: Upload Allure Report as Pipeline Artifact
+  #        if: always()
+  #        uses: actions/upload-artifact@v4
+  #        with:
+  #          name: Android_Native_Emulator_Allure
+  #          path: "generatedReport_*.zip"
+  #
+  #      - name: Upload Execution Summary Report as Pipeline Artifact
+  #        if: always()
+  #        uses: actions/upload-artifact@v4
+  #        with:
+  #          name: Android_Native_Emulator_Summary
+  #          path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Android_Native_BrowserStack:
-    runs-on: macOS-12
-    timeout-minutes: 60
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -538,7 +537,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appName=ApiDemos-debug.apk" "-DbrowserStack.appRelativeFilePath=src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appName=ApiDemos-debug.apk" "-DbrowserStack.appRelativeFilePath=src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroidBasic.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -548,25 +547,24 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Android_Native_BrowserStack_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Android_Native_BrowserStack_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   iOS_Web_SAFARI_BrowserStack:
-    runs-on: macOS-12
-    timeout-minutes: 60
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -577,7 +575,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=IOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-Dmobile_browserName=SAFARI" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=IOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-Dmobile_browserName=SAFARI" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -587,25 +585,24 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: iOS_Web_SAFARI_BrowserStack_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: iOS_Web_SAFARI_BrowserStack_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Android_Web_Chrome_BrowserStack:
-    runs-on: macOS-12
-    timeout-minutes: 60
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -616,7 +613,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-Dmobile_browserName=CHROME" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-Dmobile_browserName=CHROME" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -626,25 +623,24 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Android_Web_Chrome_BrowserStack_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Android_Web_Chrome_BrowserStack_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Android_Web_Samsung_BrowserStack:
-    runs-on: macOS-12
-    timeout-minutes: 60
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -655,7 +651,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-Dmobile_browserName=samsung" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-Dmobile_browserName=samsung" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -665,25 +661,24 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Android_Web_Samsung_BrowserStack_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Android_Web_Samsung_BrowserStack_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   MacOSX_Safari_BrowserStack:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -694,7 +689,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*ChainableElementActionsTests.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -704,31 +699,31 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MacOSX_Safari_BrowserStack_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MacOSX_Safari_BrowserStack_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Ubuntu_Chrome_Cucumber_Grid:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Setup Node.js environment
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '16'
       - name: Set up Native Selenium Grid
         if: runner.os == 'Linux'
         run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=4 --scale edge=0 --scale firefox=0 -d
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -743,7 +738,7 @@ jobs:
       - name: Run tests on Linux/MacOS
         if: runner.os != 'Windows'
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=.*CucumberTests.*"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=.*CucumberTests.*"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -753,13 +748,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_Chrome_Cucumber_Grid_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Ubuntu_Chrome_Cucumber_Grid_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
@@ -770,11 +765,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Setup Node.js environment
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '16'
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -783,10 +778,15 @@ jobs:
         uses: stCarolas/setup-maven@v4.5
         with:
           maven-version: 3.9.5
+      - uses: browser-actions/setup-edge@v1
+        with:
+          edge-version: stable
+      - name: Print Edge version
+        run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
       - name: Run tests on Windows
         if: runner.os == 'Windows'
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" -DexecutionAddress="local" -DtargetOperatingSystem="WINDOWS" -DmaximumPerformanceMode="2" -DtargetBrowserName="MicrosoftEdge" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTests.*"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" -DexecutionAddress="local" -DtargetOperatingSystem="WINDOWS" -DmaximumPerformanceMode="2" -DtargetBrowserName="MicrosoftEdge" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTests.*"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -796,28 +796,28 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Windows_Edge_Cucumber_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Windows_Edge_Cucumber_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   MacOSX_Safari_Cucumber_BrowserStack:
-    runs-on: macOS-12
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Setup Node.js environment
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '16'
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -828,7 +828,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTests.*"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTests.*"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -838,29 +838,29 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MacOSX_Safari_Cucumber_BrowserStack_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MacOSX_Safari_Cucumber_BrowserStack_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
 
   LambdaTest_NativeAndroid:
-    runs-on: macOS-12
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Setup Node.js environment
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '16'
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -871,7 +871,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobAPK*.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobAPK*.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -881,29 +881,29 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LambdaTest_NativeAndroid_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LambdaTest_NativeAndroid_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   LambdaTest_NativeIOS:
-    runs-on: macOS-12
+    runs-on: ubuntu-latest
     needs: [ LambdaTest_NativeAndroid ]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Setup Node.js environment
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '16'
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -914,7 +914,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobIPA*.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobIPA*.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -924,29 +924,29 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LambdaTest_NativeIOS_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LambdaTest_NativeIOS_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   LambdaTest_WebApp:
-    runs-on: macOS-12
+    runs-on: ubuntu-latest
     needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS ]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Setup Node.js environment
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '16'
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -957,7 +957,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTWebApp*.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTWebApp*.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -967,29 +967,29 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LambdaTestWebApp_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LambdaTestWebApp_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"
 
   LambdaTest_DesktopWeb:
-    runs-on: macOS-12
+    runs-on: ubuntu-latest
     needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS, LambdaTest_WebApp ]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Setup Node.js environment
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '16'
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -1000,7 +1000,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTDesktopWeb*.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTDesktopWeb*.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v3
         with:
@@ -1010,13 +1010,13 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LambdaTestDesktopWeb_Allure
           path: "generatedReport_*.zip"
       - name: Upload Execution Summary Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LambdaTestDesktopWeb_Summary
           path: "execution-summary/ExecutionSummaryReport_*.html"

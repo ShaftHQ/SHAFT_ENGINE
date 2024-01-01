@@ -16,8 +16,8 @@ public class IOSBasicInteractionsTest {
 
     @Test
     public void test() {
-        ElementActions.getInstance().performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
-        ElementActions.getInstance().type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
+        new ElementActions(driver).performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
+        new ElementActions(driver).type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
         Validations.assertThat()
                 .element(driver, AppiumBy.accessibilityId("Text Output"))
                 .text()
@@ -54,12 +54,12 @@ public class IOSBasicInteractionsTest {
 //        System.setProperty("browserStack.appName", "");
 //        System.setProperty("browserStack.appRelativeFilePath", "");
 //        System.setProperty("browserStack.appUrl", "bs://e2c374a22cf954e582b5c02e9a9f7cfd650a8325");
-        driver = DriverFactory.getDriver();
+        driver = new DriverFactory().getDriver();
 
     }
 
     @AfterClass(alwaysRun = true)
     public void teardown() {
-        DriverFactory.closeAllDrivers();
+        driver.quit();
     }
 }

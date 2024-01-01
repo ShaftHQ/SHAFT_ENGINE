@@ -1,13 +1,16 @@
 package com.shaft.listeners.internal;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
+import io.qameta.allure.TmsLink;
+import io.qameta.allure.TmsLinks;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.remote.Browser;
 import org.testng.*;
@@ -16,17 +19,13 @@ import org.testng.xml.XmlClass;
 import org.testng.xml.XmlSuite;
 import org.testng.xml.XmlTest;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class TestNGListenerHelper {
 
     private static final ArrayList<ITestResult> beforeMethods = new ArrayList<>();
     private static final ArrayList<ITestResult> afterMethods = new ArrayList<>();
     private static final ThreadLocal<String> testName = new ThreadLocal<>();
-
     public static void setTotalNumberOfTests(ISuite testSuite) {
         // This condition checks to confirm that this is not a cucumber test runner instance
         // If this condition is removed the total number of tests will be zero because the cucumber
@@ -35,41 +34,95 @@ public class TestNGListenerHelper {
             ReportManagerHelper.setTotalNumberOfTests(testSuite.getAllMethods().size());
         }
     }
+    public static void attachConfigurationMethods(){
+        attachBeforeConfigurationMethods();
+        attachAfterConfigurationMethods();
+    }
 
-    public static void updateConfigurationMethodLogs(ITestResult iTestResult) {
-        if (iTestResult.getMethod().isTest()) {
-            //attach before configuration logs to the current test
-            beforeMethods.forEach(TestNGListenerHelper::attachTestArtifacts);
-            beforeMethods.clear();
+    public static void updateConfigurationMethods(ITestResult iTestResult){
+        updateBeforeConfigurationMethods(iTestResult);
+        updateAfterConfigurationMethods(iTestResult);
+    }
 
-            //attach current test logs to the current test
-            TestNGListenerHelper.attachTestArtifacts(iTestResult);
-
-            //point Allure UUID to the current test method
-//            TestNGListenerHelper.writeAllureUUID();
-        } else {
-            if (iTestResult.getMethod().isBeforeMethodConfiguration()) {
-                // get test result and store it for later processing
-                beforeMethods.add(iTestResult);
-            } else if (iTestResult.getMethod().isAfterMethodConfiguration()) {
-                // get test result and store it for later processing
-                afterMethods.add(iTestResult);
+    private static void attachBeforeConfigurationMethods(){
+        if(beforeMethods.size() != 0) {
+            if (beforeMethods.size() > 1) {
+                TestNGListenerHelper.attachTestArtifacts(beforeMethods.get(beforeMethods.size() - 1));
+            } else {
+                TestNGListenerHelper.attachTestArtifacts(beforeMethods.get(0));
             }
+            beforeMethods.clear();
         }
+    }
 
-        /*
-         * unable to attach afterMethod logs to the relevant test method
-         * TODO: find a fix
-         */
-        if (!afterMethods.isEmpty()) {
-            //point Allure UUID to the last executed test method
-//            TestNGListenerHelper.readAllureUUID();
+    private static void updateBeforeConfigurationMethods(ITestResult iTestResult) {
+        if (iTestResult.getMethod().isBeforeMethodConfiguration() || iTestResult.getMethod().isBeforeTestConfiguration()
+                || iTestResult.getMethod().isBeforeClassConfiguration() || iTestResult.getMethod().isBeforeSuiteConfiguration()) {
+            // get test result and store it for later processing
+            beforeMethods.add(iTestResult);
+        }
+    }
 
-            //attach after configuration logs to the previous test
-            afterMethods.forEach(TestNGListenerHelper::attachTestArtifacts);
+    private static void attachAfterConfigurationMethods(){
+        if(afterMethods.size() != 0) {
+            if (afterMethods.size() > 1) {
+                TestNGListenerHelper.attachTestArtifacts(afterMethods.get(afterMethods.size() - 1));
+            } else {
+                TestNGListenerHelper.attachTestArtifacts(afterMethods.get(0));
+            }
             afterMethods.clear();
         }
     }
+
+    private static void updateAfterConfigurationMethods(ITestResult iTestResult) {
+        if (iTestResult.getMethod().isAfterMethodConfiguration() || iTestResult.getMethod().isAfterTestConfiguration()
+        || iTestResult.getMethod().isAfterClassConfiguration() || iTestResult.getMethod().isAfterSuiteConfiguration()) {
+            // get test result and store it for later processing
+            afterMethods.add(iTestResult);
+        }
+    }
+
+    public static void updateTestMethods(ITestResult iTestResult) {
+        if (iTestResult.getMethod().isTest()) {
+            // get test result and store it for later processing
+            TestNGListenerHelper.attachTestArtifacts(iTestResult);
+        }
+    }
+
+//    public static void updateConfigurationMethodLogs(ITestResult iTestResult) {
+//        if (iTestResult.getMethod().isTest()) {
+//
+//            //attach current test logs to the current test
+//            TestNGListenerHelper.attachTestArtifacts(iTestResult);
+//
+//            //point Allure UUID to the current test method
+////            TestNGListenerHelper.writeAllureUUID();
+//        } else {
+//            if (iTestResult.getMethod().isBeforeMethodConfiguration()) {
+//                // get test result and store it for later processing
+//
+//                beforeMethods.add(iTestResult);
+//                beforeMethods.forEach(TestNGListenerHelper::attachTestArtifacts);
+//                beforeMethods.clear();
+//            } else if (iTestResult.getMethod().isAfterMethodConfiguration()) {
+//                // get test result and store it for later processing
+//                afterMethods.add(iTestResult);
+//            }
+//        }
+//
+//        /*
+//         * unable to attach afterMethod logs to the relevant test method
+//         * TODO: find a fix
+//         */
+//        if (!afterMethods.isEmpty()) {
+//            //point Allure UUID to the last executed test method
+////            TestNGListenerHelper.readAllureUUID();
+//
+//            //attach after configuration logs to the previous test
+//            afterMethods.forEach(TestNGListenerHelper::attachTestArtifacts);
+//            afterMethods.clear();
+//        }
+//    }
 
     public static String getTestName() {
         return testName.get();
@@ -116,7 +169,7 @@ public class TestNGListenerHelper {
                     suite.setParallel(XmlSuite.ParallelMode.TESTS);
                     suite.setThreadCount(3);
                     SHAFT.Properties.visuals.set().videoParamsRecordVideo(true);
-                    SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("Regular");
+                    SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(Screenshots.VIEWPORT.getValue());
                 }
             });
 //        } else {
@@ -158,28 +211,6 @@ public class TestNGListenerHelper {
                 ReportManager.log("getGroupByInstances: " + suite.getGroupByInstances());
                 ReportManager.log("getParallel: " + suite.getParallel());
             }
-        });
-    }
-
-    public static void updateDefaultSuiteAndTestNames(List<XmlSuite> suites) {
-//        var prefix = "SHAFT: ";
-        var prefix = "";
-        // rename default suite and test
-        suites.forEach(suite -> {
-            if (suite.getName().trim().equalsIgnoreCase("default suite")
-                    || suite.getName().trim().equalsIgnoreCase("surefire suite")) {
-                suite.setName(prefix + "Suite");
-            } else {
-                suite.setName(prefix + suite.getName());
-            }
-            suite.getTests().forEach(test -> {
-                if (test.getName().trim().equalsIgnoreCase("default test")
-                        || test.getName().trim().equalsIgnoreCase("surefire test") || test.getName().trim().equalsIgnoreCase("SHAFT_ENGINE")) {
-                    test.setName(prefix + "Test");
-                } else {
-                    test.setName(prefix + test.getName());
-                }
-            });
         });
     }
 
@@ -259,10 +290,38 @@ public class TestNGListenerHelper {
         }
     }
 
-    public static Boolean testHasIssueAnnotation(ITestResult iTestResult) {
+    public static String getIssueAnnotationValue(ITestResult iTestResult) {
         var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
         Issue issue = method.getAnnotation(Issue.class);
-        return issue != null;
+        Issues issues = method.getAnnotation(Issues.class);
+        if (issues != null) {
+            return Arrays.toString(issues.value())
+                    .replace("[@io.qameta.allure.Issue(\"", "")
+                    .replace("@io.qameta.allure.Issue(\"", "")
+                    .replace("\")]", "")
+                    .replace("\"),", ",");
+        } else if (issue != null) {
+            return issue.value();
+        } else {
+            return "";
+        }
+    }
+
+    public static String getTmsLinkAnnotationValue(ITestResult iTestResult) {
+        var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
+        TmsLink tmsLink = method.getAnnotation(TmsLink.class);
+        TmsLinks tmsLinks = method.getAnnotation(TmsLinks.class);
+        if (tmsLinks != null) {
+            return Arrays.toString(tmsLinks.value())
+                    .replace("[@io.qameta.allure.TmsLink(\"", "")
+                    .replace("@io.qameta.allure.TmsLink(\"", "")
+                    .replace("\")]", "")
+                    .replace("\"),", ",");
+        } else if (tmsLink != null) {
+            return tmsLink.value();
+        } else {
+            return "";
+        }
     }
 
     public static void failFast(ITestResult iTestResult) {
@@ -300,29 +359,29 @@ public class TestNGListenerHelper {
         }
     }
 
-    public static void logFinishedTestInformation(ITestResult iTestResult) {
-        ITestNGMethod iTestNGMethod = iTestResult.getMethod();
-        String className;
-        String methodName;
-        String methodDescription = "";
-        String methodStatus = "";
+        public static void logFinishedTestInformation(ITestResult iTestResult) {
+            ITestNGMethod iTestNGMethod = iTestResult.getMethod();
+            String className;
+            String methodName;
+            String methodDescription = "";
+            String methodStatus = "";
 
-        if (!iTestNGMethod.getQualifiedName().contains("AbstractTestNGCucumberTests")) {
-            if (iTestNGMethod.isTest()) {
-                className = ReportManagerHelper.getTestClassName();
-                methodName = ReportManagerHelper.getTestMethodName();
-                if (iTestNGMethod.getDescription() != null) {
-                    methodDescription = iTestNGMethod.getDescription();
+            if (!iTestNGMethod.getQualifiedName().contains("AbstractTestNGCucumberTests")) {
+                if (iTestNGMethod.isTest()) {
+                    className = ReportManagerHelper.getTestClassName();
+                    methodName = ReportManagerHelper.getTestMethodName();
+                    if (iTestNGMethod.getDescription() != null) {
+                        methodDescription = iTestNGMethod.getDescription();
+                    }
+                    if (iTestResult.getStatus() == ITestResult.SUCCESS) {
+                        methodStatus = "Passed";
+                    } else if (iTestResult.getStatus() == ITestResult.FAILURE) {
+                        methodStatus = "Failed";
+                    } else if (iTestResult.getStatus() == ITestResult.SKIP) {
+                        methodStatus = "Skipped";
+                    }
+                    ReportManagerHelper.logFinishedTestInformation(className, methodName, methodDescription, methodStatus);
                 }
-                if (iTestResult.getStatus() == ITestResult.SUCCESS) {
-                    methodStatus = "Passed";
-                } else if (iTestResult.getStatus() == ITestResult.FAILURE) {
-                    methodStatus = "Failed";
-                } else if (iTestResult.getStatus() == ITestResult.SKIP) {
-                    methodStatus = "Skipped";
-                }
-                ReportManagerHelper.logFinishedTestInformation(className, methodName, methodDescription, methodStatus);
             }
         }
     }
-}

@@ -33,7 +33,7 @@ import java.util.*;
 
 public class BrowserActionsHelper {
     private static final Boolean HEADLESS_EXECUTION = SHAFT.Properties.web.headlessExecution();
-    private static final int NAVIGATION_TIMEOUT_INTEGER = SHAFT.Properties.timeouts.browserNavigationTimeout();
+    public static final int NAVIGATION_TIMEOUT_INTEGER = SHAFT.Properties.timeouts.browserNavigationTimeout();
 
     public static void passAction(String testData) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
@@ -135,7 +135,7 @@ public class BrowserActionsHelper {
             Command: [3650f46d33000b7ed76f29f53d7810b6, getPageSource {}]
             */
                 // try again
-                JavaScriptWaitManager.waitForLazyLoading();
+                JavaScriptWaitManager.waitForLazyLoading(driver);
                 confirmThatWebsiteIsNotDown(driver, targetUrl);
             }
         }

@@ -1,7 +1,7 @@
 package com.shaft.gui.browser.internal;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.JavascriptExecutor;
@@ -34,8 +34,8 @@ public class JavaScriptWaitManager {
     /**
      * Waits for jQuery, Angular, and/or Javascript if present on the current page.
      */
-    public static void waitForLazyLoading() {
-        setDriver(DriverFactoryHelper.getDriver());
+    public static void waitForLazyLoading(WebDriver driver) {
+        setDriver(driver);
         if (SHAFT.Properties.timeouts.waitForLazyLoading()
                 && !DriverFactoryHelper.isMobileNativeExecution()) {
             try {

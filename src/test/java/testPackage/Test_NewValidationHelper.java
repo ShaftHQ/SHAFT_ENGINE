@@ -312,13 +312,13 @@ public class Test_NewValidationHelper {
 
     @BeforeMethod(onlyForGroups = {"browserBasedTests"})
     public void openBrowser() {
-        driver = DriverFactory.getDriver();
-        BrowserActions.getInstance().navigateToURL("https://the-internet.herokuapp.com/");
+        driver = new DriverFactory().getDriver();
+        new BrowserActions(driver).navigateToURL("https://the-internet.herokuapp.com/");
     }
 
     @AfterMethod(onlyForGroups = {"browserBasedTests"}, alwaysRun = true)
     public void closeBrowser() {
-        DriverFactory.closeAllDrivers();
+        driver.quit();
     }
 
     @BeforeClass

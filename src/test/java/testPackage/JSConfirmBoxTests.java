@@ -20,18 +20,18 @@ public class JSConfirmBoxTests {
 
     @BeforeClass
     public void navigateToJSAlertPage() {
-        driver = DriverFactory.getDriver();
-        BrowserActions.getInstance().navigateToURL("http://the-internet.herokuapp.com/javascript_alerts");
+        driver = new DriverFactory().getDriver();
+        new BrowserActions(driver).navigateToURL("http://the-internet.herokuapp.com/javascript_alerts");
     }
 
     @AfterClass(alwaysRun = true)
     public void tearDownDriver() {
-        BrowserActions.getInstance().closeCurrentWindow();
+        new BrowserActions(driver).closeCurrentWindow();
     }
 
     @Test
     public void dismissAlert() {
-        ElementActions.getInstance().click(JS_ConfirmAlert);
+        new ElementActions(driver).click(JS_ConfirmAlert);
         ElementActions.getInstance().performAlertAction().dismissAlert();
     }
 
@@ -42,14 +42,14 @@ public class JSConfirmBoxTests {
 
     @Test(dependsOnMethods = "assertOnCancelAlertResultText")
     public void getAlertText() {
-        ElementActions.getInstance().click(JS_ConfirmAlert);
+        new ElementActions(driver).click(JS_ConfirmAlert);
         ReportManager.logDiscrete("Alert text is: [" + ElementActions.getInstance().performAlertAction().getAlertText() + "]");
         Validations.assertThat().object(ElementActions.getInstance().performAlertAction().getAlertText()).isEqualTo("I am a JS Confirm").perform();
     }
 
     @Test(dependsOnMethods = "getAlertText")
     public void acceptAlert() {
-        ElementActions.getInstance().click(JS_ConfirmAlert);
+        new ElementActions(driver).click(JS_ConfirmAlert);
         ElementActions.getInstance().performAlertAction().acceptAlert();
     }
 
