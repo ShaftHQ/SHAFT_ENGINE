@@ -416,7 +416,9 @@ public class ReportManagerHelper {
     }
 
     public static String getTestClassName() {
-        return Reporter.getCurrentTestResult().getMethod().getTestClass().getName();
+        var result = Reporter.getCurrentTestResult();
+       return  result != null ? result.getMethod().getTestClass().getName() : "";
+//        return Reporter.getCurrentTestResult().getMethod().getTestClass().getName();
     }
 
     public static String getTestMethodName() {

@@ -9,6 +9,7 @@ import com.shaft.listeners.internal.UpdateChecker;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.internal.ExecutionSummaryReport;
+import com.shaft.tools.io.internal.IssueReporter;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Allure;
