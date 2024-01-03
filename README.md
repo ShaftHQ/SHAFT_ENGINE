@@ -1,3 +1,5 @@
+[![Ceasefire now](https://img.shields.io/badge/%F0%9F%87%B5%F0%9F%87%B8_Ceasefire_Now-techforpalestine.org-000000?labelColor=gray&color=D83838&style=for-the-badge)](https://techforpalestine.org/learn-more)
+
 <img src="src/main/resources/images/shaft.png" alt="SHAFT_ENGINE" style="display:block; margin-left:auto; margin-right:auto;"/>
 
 <!-- Badges provided by https://shields.io/ -->
