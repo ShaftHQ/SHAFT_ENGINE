@@ -45,7 +45,7 @@ public class TestNGListenerHelper {
     }
 
     private static void attachBeforeConfigurationMethods(){
-        if(beforeMethods.size() != 0) {
+        if(!beforeMethods.isEmpty()) {
             if (beforeMethods.size() > 1) {
                 TestNGListenerHelper.attachTestArtifacts(beforeMethods.get(beforeMethods.size() - 1));
             } else {
@@ -56,15 +56,17 @@ public class TestNGListenerHelper {
     }
 
     private static void updateBeforeConfigurationMethods(ITestResult iTestResult) {
-        if (iTestResult.getMethod().isBeforeMethodConfiguration() || iTestResult.getMethod().isBeforeTestConfiguration()
-                || iTestResult.getMethod().isBeforeClassConfiguration() || iTestResult.getMethod().isBeforeSuiteConfiguration()) {
-            // get test result and store it for later processing
-            beforeMethods.add(iTestResult);
+        if(iTestResult != null){
+            if (iTestResult.getMethod().isBeforeMethodConfiguration() || iTestResult.getMethod().isBeforeTestConfiguration()
+                    || iTestResult.getMethod().isBeforeClassConfiguration() || iTestResult.getMethod().isBeforeSuiteConfiguration()) {
+                // get test result and store it for later processing
+                beforeMethods.add(iTestResult);
+            }
         }
     }
 
     private static void attachAfterConfigurationMethods(){
-        if(afterMethods.size() != 0) {
+        if(!afterMethods.isEmpty()) {
             if (afterMethods.size() > 1) {
                 TestNGListenerHelper.attachTestArtifacts(afterMethods.get(afterMethods.size() - 1));
             } else {
@@ -75,10 +77,12 @@ public class TestNGListenerHelper {
     }
 
     private static void updateAfterConfigurationMethods(ITestResult iTestResult) {
-        if (iTestResult.getMethod().isAfterMethodConfiguration() || iTestResult.getMethod().isAfterTestConfiguration()
-        || iTestResult.getMethod().isAfterClassConfiguration() || iTestResult.getMethod().isAfterSuiteConfiguration()) {
-            // get test result and store it for later processing
-            afterMethods.add(iTestResult);
+        if(iTestResult != null){
+            if (iTestResult.getMethod().isAfterMethodConfiguration() || iTestResult.getMethod().isAfterTestConfiguration()
+            || iTestResult.getMethod().isAfterClassConfiguration() || iTestResult.getMethod().isAfterSuiteConfiguration()) {
+                // get test result and store it for later processing
+                afterMethods.add(iTestResult);
+            }
         }
     }
 

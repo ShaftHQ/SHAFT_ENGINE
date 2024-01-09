@@ -47,7 +47,9 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
     @Override
     public void afterStepStop(StepResult result) {
         var iTestResult = TestNGListener.getITestResult();
-        TestNGListenerHelper.updateConfigurationMethods(iTestResult);
+        if(iTestResult != null) {
+            TestNGListenerHelper.updateConfigurationMethods(iTestResult);
+        }
     }
 
     //Before The Class starts
@@ -107,7 +109,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
     //Before The Configuration 'SetUp' "and probably 'TearDown' too" stops
     @Override
     public void beforeFixtureStop(FixtureResult result) {
-        TestNGListenerHelper.attachConfigurationMethods();
+            TestNGListenerHelper.attachConfigurationMethods();
     }
 
     //After The Configuration 'SetUp' "and probably 'TearDown' too" stops
