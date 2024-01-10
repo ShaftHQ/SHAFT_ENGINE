@@ -13,19 +13,11 @@ import java.time.Duration;
 import java.util.function.Function;
 
 public class WaitActions extends FluentWebDriverAction {
-    public WaitActions() {
-        initialize();
-    }
-
-    public WaitActions(WebDriver driver) {
-        initialize(driver);
-    }
-
     public WaitActions(DriverFactoryHelper helper) {
         initialize(helper);
     }
-    public WaitActions waitUntil(DriverFactoryHelper helper, Function<? super WebDriver, ?> conditions) {
-        this.helper = helper;
+
+    public WaitActions waitUntil(Function<? super WebDriver, ?> conditions) {
         explicitWaits(conditions, SHAFT.Properties.timeouts.waitUntilTimeout());
         return this;
     }
