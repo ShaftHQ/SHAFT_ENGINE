@@ -79,7 +79,7 @@ public class SHAFT {
              * @return wait actions reference to be used to chain actions
              */
             public WaitActions waitUntil(Function<? super org.openqa.selenium.WebDriver, ?> conditions) {
-                return new WaitActions().waitUntil(helper, conditions);
+                return new WaitActions(helper).waitUntil(conditions);
             }
 
             public WizardHelpers.WebDriverAssertions assertThat() {

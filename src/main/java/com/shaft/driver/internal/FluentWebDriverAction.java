@@ -90,6 +90,6 @@ public class FluentWebDriverAction {
     }
 
     public WaitActions waitUntil(Function<? super WebDriver, ?> conditions) {
-        return new WaitActions().waitUntil(helper, conditions);
+        return new WaitActions(helper).waitUntil(conditions);
     }
 }
