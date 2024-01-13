@@ -8,6 +8,10 @@ updates:
       interval: "daily"
       time: "00:00"
       timezone: "Africa/Cairo"
+    groups:
+      dev-dependencies:
+        patterns:
+          - "*"
 
   # Maintain dependencies for maven
   - package-ecosystem: "maven"
@@ -16,3 +20,7 @@ updates:
       interval: "daily"
       time: "00:00"
       timezone: "Africa/Cairo"
+    groups:
+      dev-dependencies:
+        patterns:
+          - "*"
