@@ -34,6 +34,10 @@ public interface Platform extends EngineProperties {
     @DefaultValue("true")
     boolean jvmProxySettings();
 
+    @Key("enableBiDi")
+    @DefaultValue("true")
+    boolean enableBiDi();
+
     private static void setProperty(String key, String value) {
         var updatedProps = new java.util.Properties();
         updatedProps.setProperty(key, value);
@@ -79,6 +83,11 @@ public interface Platform extends EngineProperties {
 
         public SetProperty jvmProxySettings(boolean value) {
             setProperty("jvmProxySettings", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty enableBiDi(boolean value) {
+            setProperty("enableBiDi", String.valueOf(value));
             return this;
         }
     }

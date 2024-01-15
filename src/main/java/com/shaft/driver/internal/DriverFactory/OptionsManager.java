@@ -85,7 +85,7 @@ public class OptionsManager {
                     ffOptions.setProxy(proxy);
                 }
                 // Enable BiDi
-                ffOptions.setCapability("webSocketUrl", true);
+                ffOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
                 //merge customWebDriverCapabilities.properties
                 ffOptions = ffOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
                 //merge hardcoded custom options
@@ -237,7 +237,8 @@ public class OptionsManager {
 
     @SuppressWarnings("SpellCheckingInspection")
     private ChromiumOptions<?> setupChromiumOptions(ChromiumOptions<?> options, MutableCapabilities customDriverOptions) {
-        if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local"))
+        String executionAddress = SHAFT.Properties.platform.executionAddress().toLowerCase();
+        if (!executionAddress.equalsIgnoreCase("local"))
             options.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
         if (SHAFT.Properties.web.headlessExecution()) {
             options.addArguments("--headless=new");
@@ -305,7 +306,7 @@ public class OptionsManager {
             options.setExperimentalOption("mobileEmulation", mobileEmulation);
         }
         // Enable BiDi
-        options.setCapability("webSocketUrl", true);
+        options.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
         //merge customWebdriverCapabilities.properties
         options = (ChromiumOptions<?>) options.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
         //merge hardcoded custom options

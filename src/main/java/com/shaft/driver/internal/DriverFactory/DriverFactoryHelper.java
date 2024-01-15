@@ -383,8 +383,8 @@ public class DriverFactoryHelper {
     }
 
     @SneakyThrows({java.net.MalformedURLException.class, InterruptedException.class})
-    private static RemoteWebDriver attemptRemoteServerConnection(Capabilities capabilities) {
-        RemoteWebDriver driver = null;
+    private static WebDriver attemptRemoteServerConnection(Capabilities capabilities) {
+        WebDriver driver = null;
         boolean isRemoteConnectionEstablished = false;
         var startTime = System.currentTimeMillis();
         var exception = "";
@@ -416,7 +416,7 @@ public class DriverFactoryHelper {
         return driver;
     }
 
-    private static RemoteWebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws MalformedURLException, URISyntaxException {
+    private static WebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws MalformedURLException, URISyntaxException {
         var targetHubUrl = isLegacy ? TARGET_HUB_URL + "wd/hub" : TARGET_HUB_URL;
         var targetLambdaTestHubURL = targetHubUrl.replace("http", "https");
         var targetPlatform = Properties.platform.targetPlatform();
@@ -444,9 +444,15 @@ public class DriverFactoryHelper {
             }
         } else {
             if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                return new RemoteWebDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities);
+                return new RemoteWebDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities, false);
             } else {
-                return new RemoteWebDriver(new URI(targetHubUrl).toURL(), capabilities);
+                // ToDo: Upgrade to using Augmenter and RemoteWebDriver builder instead of old native implementation
+//                return RemoteWebDriver.builder().address(new URI(targetHubUrl).toURL())
+//                        .augmentUsing(new Augmenter())
+//                        .addAlternative(capabilities)
+//                        .config(ClientConfig.defaultConfig())
+//                        .build();
+                return new RemoteWebDriver(new URI(targetHubUrl).toURL(), capabilities, false);
             }
         }
     }
@@ -533,7 +539,6 @@ public class DriverFactoryHelper {
         initializeSystemProperties();
         try {
             var isMobileExecution = Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform());
-
             if (isMobileExecution) {
                 //mobile execution
                 if (isMobileWebExecution()) {
