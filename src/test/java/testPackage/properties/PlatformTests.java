@@ -11,6 +11,7 @@ public class PlatformTests {
     String proxy;
     Boolean driverProxy;
     Boolean jvmProxy;
+    Boolean enableBiDi;
 
     @BeforeClass
     public void beforeClass() {
@@ -20,6 +21,7 @@ public class PlatformTests {
         proxy = SHAFT.Properties.platform.proxy();
         driverProxy = SHAFT.Properties.platform.driverProxySettings();
         jvmProxy = SHAFT.Properties.platform.jvmProxySettings();
+        enableBiDi = SHAFT.Properties.platform.enableBiDi();
     }
 
     @Test
@@ -30,5 +32,6 @@ public class PlatformTests {
         SHAFT.Properties.platform.set().proxySettings(proxy);
         SHAFT.Properties.platform.set().driverProxySettings(driverProxy);
         SHAFT.Properties.platform.set().jvmProxySettings(jvmProxy);
+        SHAFT.Properties.platform.set().enableBiDi(enableBiDi);
     }
 }
