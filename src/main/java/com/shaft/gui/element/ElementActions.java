@@ -35,18 +35,23 @@ public class ElementActions extends FluentWebDriverAction {
     public ElementActions() {
         initialize();
     }
+
     public ElementActions(WebDriver driver) {
         initialize(driver);
     }
+
     public ElementActions(DriverFactoryHelper helper) {
         initialize(helper);
     }
+
     public ElementActions and() {
         return this;
     }
+
     public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
         return new WizardHelpers.WebDriverAssertions(helper).element(elementLocator);
     }
+
     public WebDriverElementValidationsBuilder verifyThat(By elementLocator) {
         return new WizardHelpers.WebDriverVerifications(helper).element(elementLocator);
     }
@@ -324,8 +329,7 @@ public class ElementActions extends FluentWebDriverAction {
             String startLocation = sourceElement.getLocation().toString();
             // attempt to perform drag and drop
             try {
-                (new Actions(driver)).dragAndDropBy(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)), xOffset, yOffset).build()
-                        .perform();
+                (new Actions(driver)).dragAndDropBy(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)), xOffset, yOffset).build().perform();
             } catch (Exception rootCauseException) {
                 ElementActionsHelper.failAction(driver, sourceElementLocator, rootCauseException);
             }
@@ -625,33 +629,27 @@ public class ElementActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions select(By elementLocator, String valueOrVisibleText) {
-        ElementInformation elementInformation = ElementInformation.fromList(ElementActionsHelper.
-                identifyUniqueElement(driver, elementLocator));
+        ElementInformation elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElement(driver, elementLocator));
 
         //Capture the Element Tag
         String elementTag = elementInformation.getElementTag();
 
         //The Logic to Handle non-Select dropDowns
         if (!elementTag.equals("select")) {
-            if(SHAFT.Properties.flags.handleNonSelectDropDown()) {
+            if (SHAFT.Properties.flags.handleNonSelectDropDown()) {
                 click(elementInformation.getLocator());
-                elementInformation = ElementInformation.fromList(ElementActionsHelper.
-                        identifyUniqueElement(driver, elementLocator));
+                elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElement(driver, elementLocator));
                 try {
                     RelativeLocator.RelativeBy relativeBy = SHAFT.GUI.Locator.hasAnyTagName().and().containsText(valueOrVisibleText).relativeBy().below(elementInformation.getLocator());
-                    elementInformation = ElementInformation.fromList(ElementActionsHelper.
-                            identifyUniqueElement(driver, relativeBy));
+                    elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElement(driver, relativeBy));
                 } catch (Throwable var9) {
                     ReportManager.logDiscrete("Cannot Find Element with the following Locator in the DropDown Options: " + By.xpath("//*[text()='" + valueOrVisibleText + "']"));
-                    ElementActionsHelper.failAction(driver,
-                            By.xpath("//*[text()='" + valueOrVisibleText + "']").toString(), elementLocator, var9);
+                    ElementActionsHelper.failAction(driver, By.xpath("//*[text()='" + valueOrVisibleText + "']").toString(), elementLocator, var9);
                 }
                 click(elementInformation.getLocator());
-            }
-            else {
+            } else {
                 ReportManager.logDiscrete("Cannot Find Element with the following Locator in the DropDown Options: " + By.xpath("//*[text()='" + valueOrVisibleText + "']"));
-                ElementActionsHelper.failAction(driver,
-                        "Select: " , valueOrVisibleText + "\" from Element : " +   " Tag should be <Select, yet it was found to be " + "<"+elementTag,elementLocator,null);
+                ElementActionsHelper.failAction(driver, "Select: ", valueOrVisibleText + "\" from Element : " + " Tag should be <Select, yet it was found to be " + "<" + elementTag, elementLocator, null);
             }
 
             //End of non-select DropDowns Logic
@@ -747,8 +745,7 @@ public class ElementActions extends FluentWebDriverAction {
      */
     public ElementActions switchToIframe(By elementLocator) {
         try {
-            var elementInformation = ElementInformation.fromList(
-                    ElementActionsHelper.identifyUniqueElement(driver, elementLocator));
+            var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElement(driver, elementLocator));
             LocatorBuilder.setIFrameLocator(elementInformation.getLocator());
             // note to self: remove elementLocator in case of bug in screenshot manager
             driver.switchTo().frame(elementInformation.getFirstElement());
@@ -799,21 +796,21 @@ public class ElementActions extends FluentWebDriverAction {
         return currentFrame;
     }
 
-    public ElementActions type(By elementLocator, String text){
+    public ElementActions type(By elementLocator, String text) {
         //TODO: refactor to reduce number of webdriver calls
-       //getting element information using locator
+        //getting element information using locator
         var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
         String actualTextAfterTyping = ElementActionsHelper.newTypeWrapper(driver, elementInformation, text);
         var elementName = elementInformation.getElementName();
         if (actualTextAfterTyping.equals(text)) {
             ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
         } else {
-            ElementActionsHelper.failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \"" + actualTextAfterTyping + "\"",
-                    elementLocator);
+            ElementActionsHelper.failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \"" + actualTextAfterTyping + "\"", elementLocator);
         }
         return this;
 
     }
+
     public ElementActions clear(By elementLocator) {
         try {
             // try clearing text
@@ -836,8 +833,7 @@ public class ElementActions extends FluentWebDriverAction {
                 if (currentText.isBlank()) {
                     ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "", null, elementName);
                 } else {
-                    ElementActionsHelper.failAction(driver, "Expected to clear existing text, but ended up with: \"" + currentText + "\"",
-                            elementLocator);
+                    ElementActionsHelper.failAction(driver, "Expected to clear existing text, but ended up with: \"" + currentText + "\"", elementLocator);
                 }
             }
         } catch (Throwable throwable) {
@@ -884,7 +880,7 @@ public class ElementActions extends FluentWebDriverAction {
     public ElementActions typeFileLocationForUpload(By elementLocator, String filePath) {
         var absoluteFilePath = filePath;
         if (filePath.startsWith("src")) {
-            absoluteFilePath = FileActions.getInstance().getAbsolutePath(filePath);
+            absoluteFilePath = FileActions.getInstance(true).getAbsolutePath(filePath);
         }
 
         String internalAbsoluteFilePath = absoluteFilePath.replace("/", FileSystems.getDefault().getSeparator());
@@ -937,13 +933,12 @@ public class ElementActions extends FluentWebDriverAction {
     public ElementActions typeSecure(By elementLocator, String text) {
         try {
             var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
-            String actualResult = ElementActionsHelper.typeWrapper(driver, elementInformation, text);
+            String actualResult = ElementActionsHelper.newTypeWrapper(driver, elementInformation, text);
             var elementName = (String) elementInformation.getElementName();
             if (actualResult.equals(text)) {
                 ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), ElementActionsHelper.OBFUSCATED_STRING.repeat(text.length()), null, elementName);
             } else {
-                ElementActionsHelper.failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \""
-                        + actualResult + "\"", elementLocator);
+                ElementActionsHelper.failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \"" + actualResult + "\"", elementLocator);
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
@@ -965,8 +960,7 @@ public class ElementActions extends FluentWebDriverAction {
 
     public ElementActions waitToBeReady(By elementLocator, boolean isExpectedToBeVisible) {
         ReportManager.logDiscrete("Waiting for element to be present; elementLocator \"" + elementLocator + "\", isExpectedToBeVisible\"" + isExpectedToBeVisible + "\"...");
-        String reportMessage = "Waited for the element's state of visibility to be (" + isExpectedToBeVisible
-                + "). Element locator (" + ElementActionsHelper.formatLocatorToString(elementLocator) + ")";
+        String reportMessage = "Waited for the element's state of visibility to be (" + isExpectedToBeVisible + "). Element locator (" + ElementActionsHelper.formatLocatorToString(elementLocator) + ")";
         try {
             var elementInformation = ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementLocator, ElementAction.IS_DISPLAYED));
             boolean isDisplayed = Boolean.parseBoolean(elementInformation.getActionResult());
@@ -1022,11 +1016,9 @@ public class ElementActions extends FluentWebDriverAction {
                 ElementActionsHelper.failAction(driver, initialValue, elementLocator);
             }
             try {
-                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(),
-                        "from: \"" + initialValue + "\", to: \"" + getText(elementLocator) + "\"", null, elementName);
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "from: \"" + initialValue + "\", to: \"" + getText(elementLocator) + "\"", null, elementName);
             } catch (Exception e) {
-                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(),
-                        "from: \"" + initialValue + "\", to a new value.", null, elementName);
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "from: \"" + initialValue + "\", to a new value.", null, elementName);
             }
         } catch (Exception throwable) {
             ElementActionsHelper.failAction(driver, elementLocator, throwable);
@@ -1047,13 +1039,10 @@ public class ElementActions extends FluentWebDriverAction {
     public ElementActions waitToAttribute(By elementLocator, String att, String expectedAttValue) {
         try {
             var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
-            if (Boolean.FALSE.equals(ElementActionsHelper
-                    .waitForElementAttributeToBe(driver, elementLocator,
-                            att, expectedAttValue))) {
+            if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementAttributeToBe(driver, elementLocator, att, expectedAttValue))) {
                 ElementActionsHelper.failAction(driver, elementLocator);
             }
-            ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(),
-                    "wait for element attribute \"" + att + "\" to be \"" + expectedAttValue + "\"", null, elementName);
+            ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "wait for element attribute \"" + att + "\" to be \"" + expectedAttValue + "\"", null, elementName);
         } catch (Exception throwable) {
             ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }

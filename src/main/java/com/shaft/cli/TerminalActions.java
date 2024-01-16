@@ -7,7 +7,6 @@ import com.jcraft.jsch.Session;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
-import com.shaft.tools.io.internal.ReportHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import lombok.Getter;
 import org.apache.commons.lang3.SystemUtils;
@@ -265,7 +264,7 @@ public class TerminalActions {
             config.put("StrictHostKeyChecking", "no");
             JSch jsch = new JSch();
             if (sshKeyFileName != null && !sshKeyFileName.isEmpty()) {
-                jsch.addIdentity(FileActions.getInstance().getAbsolutePath(sshKeyFileFolderName, sshKeyFileName));
+                jsch.addIdentity(FileActions.getInstance(true).getAbsolutePath(sshKeyFileFolderName, sshKeyFileName));
             }
             session = jsch.getSession(sshUsername, sshHostName, sshPortNumber);
             session.setConfig(config);
@@ -313,11 +312,7 @@ public class TerminalActions {
             directory = System.getProperty("user.dir");
             internalCommands = new LinkedList<>(commands);
         }
-
-        ReportHelper.disableLogging();
-        FileActions.getInstance().createFolder(directory.replace("\"", ""));
-        ReportHelper.enableLogging();
-
+        FileActions.getInstance(true).createFolder(directory.replace("\"", ""));
         String finalDirectory = directory;
         internalCommands.forEach(command -> {
             command = command.contains(".bat") && !command.contains(".\\") && !command.matches("(^.:\\\\.*$)") ? ".\\" + command : command;

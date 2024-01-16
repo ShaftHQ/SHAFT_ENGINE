@@ -126,13 +126,12 @@ public class SHAFT {
 //                } else if (driverThreadLocal.get() instanceof RemoteWebDriver remoteWebDriver) {
 //                    driverThreadLocal.set(new EventFiringDecorator<>(RemoteWebDriver.class, new WebDriverListener()).decorate(remoteWebDriver));
                 } else {
-                    if(!SHAFT.Properties.flags.enableTrueNativeMode()){
+                    if (!SHAFT.Properties.flags.enableTrueNativeMode()) {
                         return new EventFiringDecorator<>(org.openqa.selenium.WebDriver.class, new WebDriverListener()).decorate(helper.getDriver());
-                    }
-                    else{
+                    } else {
                         return helper.getDriver();
                     }
-                    }
+                }
             }
 
             public Async async() {
@@ -151,14 +150,14 @@ public class SHAFT {
         }
 
         public static class SikuliDriver {
-            public static SikuliDriver getInstance(String applicationName) {
-                return new SikuliDriver(applicationName);
-            }
-
             private final App sikuliApp;
 
             public SikuliDriver(String applicationName) {
                 sikuliApp = DriverFactory.getSikuliApp(applicationName);
+            }
+
+            public static SikuliDriver getInstance(String applicationName) {
+                return new SikuliDriver(applicationName);
             }
 
             public void quit() {
@@ -179,12 +178,12 @@ public class SHAFT {
         private final RestActions session;
         private String serviceURI;
 
-        public static API getInstance(String serviceURI) {
-            return new API(serviceURI);
-        }
-
         public API(String serviceURI) {
             session = new RestActions(serviceURI);
+        }
+
+        public static API getInstance(String serviceURI) {
+            return new API(serviceURI);
         }
 
         public RequestBuilder get(String serviceName) {
@@ -275,13 +274,11 @@ public class SHAFT {
             super(customConnectionString);
         }
 
-        public DB(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
-                  String password) {
+        public DB(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username, String password) {
             super(databaseType, ip, port, name, username, password);
         }
 
-        public static DB getInstance(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
-                                     String password) {
+        public static DB getInstance(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username, String password) {
             return new DB(databaseType, ip, port, name, username, password);
         }
 
@@ -390,6 +387,7 @@ public class SHAFT {
         public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
             ReportManagerHelper.attach(attachmentType, attachmentName, attachmentContent);
         }
+
         public static void attach(String attachmentType, String attachmentName, InputStream attachmentContent) {
             ReportManagerHelper.attach(attachmentType, attachmentName, attachmentContent);
         }

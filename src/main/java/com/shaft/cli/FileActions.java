@@ -27,11 +27,17 @@ import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 public class FileActions {
-
+    private boolean internalInstance = false;
     private static final String ERROR_CANNOT_CREATE_DIRECTORY = "Could not create directory: ";
 
     public static FileActions getInstance() {
-        return new FileActions();
+        return getInstance(false);
+    }
+
+    public static FileActions getInstance(boolean internalInstance) {
+        var instance = new FileActions();
+        instance.internalInstance = internalInstance;
+        return instance;
     }
 
     /**
@@ -76,7 +82,6 @@ public class FileActions {
         } else {
             command = "robocopy  /e /v /fp " + sourceDirectory + " " + destinationDirectory + " " + fileName;
         }
-
         String terminalLog = terminalSession.performTerminalCommand(command);
         passAction("Source Directory: \"" + sourceDirectory + "\" | Destination Directory: \"" + destinationDirectory
                 + "\" | File Name: \"" + fileName + "\"", terminalLog);
@@ -90,10 +95,8 @@ public class FileActions {
                     TrueFileFilter.TRUE);
             filesList.forEach(file -> files.append(file.getName()).append(System.lineSeparator()));
         } catch (IllegalArgumentException rootCauseException) {
-
             failAction("Failed to list files in this directory: \"" + targetDirectory + "\"", rootCauseException);
         }
-
         passAction("Target Directory: \"" + targetDirectory + "\"", files.toString().trim());
         return files.toString().trim();
     }
@@ -105,10 +108,8 @@ public class FileActions {
                     recursively);
             filesList.forEach(file -> files.append(file.getName()).append(System.lineSeparator()));
         } catch (IllegalArgumentException rootCauseException) {
-
             failAction("Failed to list files in this directory: \"" + targetDirectory + "\"", rootCauseException);
         }
-
         passAction("Target Directory: \"" + targetDirectory + "\"", files.toString().trim());
         return files.toString().trim();
     }
@@ -121,7 +122,6 @@ public class FileActions {
                     TrueFileFilter.TRUE);
             filesList.forEach(file -> files.append(file.getAbsolutePath()).append(System.lineSeparator()));
         } catch (IllegalArgumentException rootCauseException) {
-
             failAction("Failed to list absolute file paths in this directory: \"" + targetDirectory + "\"", rootCauseException);
         }
         passAction("Target Directory: \"" + targetDirectory + "\"", files.toString().trim());
@@ -172,10 +172,8 @@ public class FileActions {
      */
     public String getFileChecksum(TerminalActions terminalSession, String targetFileFolderPath,
                                   String targetFileName, String... pathToTempDirectoryOnRemoteMachine) {
-
         String targetFilePath = copyFileToLocalMachine(terminalSession, targetFileFolderPath, targetFileName,
                 pathToTempDirectoryOnRemoteMachine);
-
         // read file
         byte[] fileBytes;
         String sha256 = "";
@@ -183,7 +181,6 @@ public class FileActions {
             fileBytes = Files.readAllBytes(Paths.get(targetFilePath));
             sha256 = Hashing.sha256().hashBytes(fileBytes).toString();
         } catch (IOException rootCauseException) {
-
             failAction("Failed to read file \"" + targetFilePath + "\"", rootCauseException);
         }
         passAction("Target File: \"" + targetFilePath + "\" | SHA-256: \"" + sha256 + "\"");
@@ -216,13 +213,11 @@ public class FileActions {
                                          String targetFileName, String... pathToTempDirectoryOnRemoteMachine) {
         String targetFilePath = targetFileFolderPath + targetFileName;
         TerminalActions terminalSessionForRemoteMachine = new TerminalActions();
-
         // fetch file from inside docker to the machine itself
         if (terminalSession.isDockerizedTerminal()) {
             terminalSessionForRemoteMachine = new TerminalActions(terminalSession.getSshHostName(),
                     terminalSession.getSshPortNumber(), terminalSession.getSshUsername(),
                     terminalSession.getSshKeyFileFolderName(), terminalSession.getSshKeyFileName());
-
             // copy from docker to machine
             terminalSessionForRemoteMachine.performTerminalCommand("rm -r " + pathToTempDirectoryOnRemoteMachine[0]);
             terminalSessionForRemoteMachine
@@ -231,11 +226,10 @@ public class FileActions {
                     + targetFilePath + " " + pathToTempDirectoryOnRemoteMachine[0] + targetFilePath);
             targetFilePath = pathToTempDirectoryOnRemoteMachine[0] + targetFilePath;
         }
-
         // fetch file from terminal session to local machine
         if (terminalSession.isRemoteTerminal()) {
             // remote regular
-            String sshParameters = "-i " + FileActions.getInstance().getAbsolutePath(terminalSession.getSshKeyFileFolderName(),
+            String sshParameters = "-i " + FileActions.getInstance(true).getAbsolutePath(terminalSession.getSshKeyFileFolderName(),
                     terminalSession.getSshKeyFileName()) + " -P " + terminalSession.getSshPortNumber();
 
             String pathToRemoteFileThatWillBeCopied = targetFilePath;
@@ -243,9 +237,9 @@ public class FileActions {
                     + pathToRemoteFileThatWillBeCopied;
 
             // creating local temp directory
-            String pathToLocalParentFolder = FileActions.getInstance().getAbsolutePath("target/temp");
-            FileActions.getInstance().deleteFolder(pathToLocalParentFolder);
-            FileActions.getInstance().createFolder(pathToLocalParentFolder);
+            String pathToLocalParentFolder = FileActions.getInstance(true).getAbsolutePath("target/temp");
+            FileActions.getInstance(true).deleteFolder(pathToLocalParentFolder);
+            FileActions.getInstance(true).createFolder(pathToLocalParentFolder);
 
             String destination = pathToLocalParentFolder + "/" + targetFileName;
             targetFilePath = destination;
@@ -255,13 +249,12 @@ public class FileActions {
 
             // restricting file access to bypass jenkins issue
             (new TerminalActions()).performTerminalCommand("chmod 400 " + FileActions
-                    .getInstance().getAbsolutePath(terminalSession.getSshKeyFileFolderName(), terminalSession.getSshKeyFileName()));
+                    .getInstance(true).getAbsolutePath(terminalSession.getSshKeyFileFolderName(), terminalSession.getSshKeyFileName()));
 
             (new TerminalActions()).performTerminalCommand(command);
         }
         // else local regular
         // it's already on the local machine so no need to do anything here
-
 
         // clean temp directory on remote machine
         if (terminalSession.isDockerizedTerminal() && terminalSession.isRemoteTerminal()) {
@@ -280,8 +273,8 @@ public class FileActions {
      */
     public void deleteFile(String targetFilePath) {
         boolean wasFileDeleted = FileUtils.deleteQuietly(new File(targetFilePath));
-        String negation = wasFileDeleted ? "" : "not";
-        passAction("Target File Path: \"" + targetFilePath + "\", file was " + negation + " deleted.");
+        String negation = wasFileDeleted ? "" : "not ";
+        passAction("Target File Path: \"" + targetFilePath + "\", file was " + negation + "deleted.");
     }
 
     public void writeToFile(String fileFolderName, String fileName, List<String> text) {
@@ -365,7 +358,6 @@ public class FileActions {
             } catch (Exception rootCauseException) {
                 ReportManagerHelper.logDiscrete(rootCauseException);
             }
-
             if (Boolean.FALSE.equals(doesFileExit)) {
                 try {
                     Thread.sleep(500);
@@ -637,13 +629,17 @@ public class FileActions {
     }
 
     private void passAction(String testData) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        reportActionResult(actionName, testData, null, true);
+        if (!internalInstance) {
+            String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+            reportActionResult(actionName, testData, null, true);
+        }
     }
 
     private void passAction(String testData, String log) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        reportActionResult(actionName, testData, log, true);
+        if (!internalInstance) {
+            String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+            reportActionResult(actionName, testData, log, true);
+        }
     }
 
     private void failAction(String testData, Exception... rootCauseException) {

@@ -34,7 +34,7 @@ public class RestValidationsBuilder {
     public ValidationsExecutor isEqualToFileContent(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "responseEqualsFileContent";
-        this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
+        this.fileAbsolutePath = FileActions.getInstance(true).getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is equal to the contents of this file \"").append(fileRelativePath).append("\".");
@@ -50,7 +50,7 @@ public class RestValidationsBuilder {
     public ValidationsExecutor isEqualToFileContentIgnoringOrder(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "responseEqualsFileContent";
-        this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
+        this.fileAbsolutePath = FileActions.getInstance(true).getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS_IGNORING_ORDER;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is equal to the contents of this file \"").append(fileRelativePath).append("\" (Ignoring Ordering).");
@@ -66,7 +66,7 @@ public class RestValidationsBuilder {
     public ValidationsExecutor doesNotEqualFileContent(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "responseEqualsFileContent";
-        this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
+        this.fileAbsolutePath = FileActions.getInstance(true).getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("is not equal to the contents of this file \"").append(fileRelativePath).append("\".");
@@ -82,7 +82,7 @@ public class RestValidationsBuilder {
     public ValidationsExecutor doesNotEqualFileContentIgnoringOrder(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "responseEqualsFileContent";
-        this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
+        this.fileAbsolutePath = FileActions.getInstance(true).getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS_IGNORING_ORDER;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("is not equal to the contents of this file \"").append(fileRelativePath).append("\" (Ignoring Ordering).");
@@ -98,7 +98,7 @@ public class RestValidationsBuilder {
     public ValidationsExecutor containsFileContent(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "responseEqualsFileContent";
-        this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
+        this.fileAbsolutePath = FileActions.getInstance(true).getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("contains the contents of this file \"").append(fileRelativePath).append("\".");
@@ -114,7 +114,7 @@ public class RestValidationsBuilder {
     public ValidationsExecutor doesNotContainFileContent(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "responseEqualsFileContent";
-        this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
+        this.fileAbsolutePath = FileActions.getInstance(true).getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("does not contain the contents of this file \"").append(fileRelativePath).append("\".");
@@ -174,7 +174,7 @@ public class RestValidationsBuilder {
     public ValidationsExecutor matchesSchema(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "checkResponseSchema";
-        this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
+        this.fileAbsolutePath = FileActions.getInstance(true).getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("schema matches that in this file \"").append(fileRelativePath).append("\".");
@@ -190,7 +190,7 @@ public class RestValidationsBuilder {
     public ValidationsExecutor doesNotMatchSchema(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "checkResponseSchema";
-        this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
+        this.fileAbsolutePath = FileActions.getInstance(true).getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("schema does not match that in this file \"").append(fileRelativePath).append("\".");
