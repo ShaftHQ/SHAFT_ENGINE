@@ -56,26 +56,32 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     }
 
     public static void engineSetup(ProjectStructureManager.RunType runType) {
-        ReportManagerHelper.setDiscreteLogging(true);
-        PropertiesHelper.initialize();
-        SHAFT.Properties.reporting.set().disableLogging(true);
         Allure.getLifecycle();
         Reporter.setEscapeHtml(false);
+        ReportManagerHelper.setDiscreteLogging(true);
+        PropertiesHelper.initialize();
+        ReportManager.logDiscrete("Initializing Engine Setup...");
+        SHAFT.Properties.reporting.set().disableLogging(true);
         switch (runType) {
-            case TESTNG -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.TESTNG);
-            case CUCUMBER -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.CUCUMBER);
-            case JUNIT -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.JUNIT);
+            case TESTNG ->
+                    Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.TESTNG));
+            case CUCUMBER ->
+                    Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.CUCUMBER));
+            case JUNIT ->
+                    Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.JUNIT));
         }
         TestNGListenerHelper.configureJVMProxy();
-        GoogleTink.initialize();
-        GoogleTink.decrypt();
+        Thread.ofVirtual().start(() -> {
+            GoogleTink.initialize();
+            GoogleTink.decrypt();
+        });
         SHAFT.Properties.reporting.set().disableLogging(false);
         ReportManagerHelper.logEngineVersion();
-        UpdateChecker.check();
-        ImageProcessingActions.loadOpenCV();
-        ReportManagerHelper.initializeAllureReportingEnvironment();
-        ReportManagerHelper.initializeExtentReportingEnvironment();
-        ReportManagerHelper.cleanExecutionSummaryReportDirectory();
+        Thread.ofVirtual().start(UpdateChecker::check);
+        Thread.ofVirtual().start(ImageProcessingActions::loadOpenCV);
+        Thread.ofVirtual().start(ReportManagerHelper::initializeAllureReportingEnvironment);
+        Thread.ofVirtual().start(ReportManagerHelper::initializeExtentReportingEnvironment);
+        Thread.ofVirtual().start(ReportManagerHelper::cleanExecutionSummaryReportDirectory);
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
         ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
     }

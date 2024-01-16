@@ -19,7 +19,10 @@ import org.testng.xml.XmlClass;
 import org.testng.xml.XmlSuite;
 import org.testng.xml.XmlTest;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 public class TestNGListenerHelper {
 
@@ -234,7 +237,6 @@ public class TestNGListenerHelper {
             System.setProperty("https.proxyPort", proxyHostPort[1]);
             System.setProperty("ftp.proxyHost", proxyHostPort[0]);
             System.setProperty("ftp.proxyPort", proxyHostPort[1]);
-
         }
     }
 

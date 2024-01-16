@@ -147,20 +147,20 @@ public class PropertiesHelper {
 
         // always override default properties
         if (isExternalRun) {
-            FileActions.getInstance().copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
+            FileActions.getInstance(true).copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
         } else {
-            FileActions.getInstance().copyFolder(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
+            FileActions.getInstance(true).copyFolder(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
         }
 
         // override target properties only if they do not exist
         var finalPropertiesFolderPath = propertiesFolderPath;
         Arrays.asList("/cucumber.properties", "/customWebdriverCapabilities.properties", "/log4j2.properties", "/TestNG.properties")
                 .forEach(file -> {
-                    if (!FileActions.getInstance().doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + file)) {
+                    if (!FileActions.getInstance(true).doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + file)) {
                         if (isExternalRun) {
-                            FileActions.getInstance().copyFileFromJar(finalPropertiesFolderPath, TARGET_PROPERTIES_FOLDER_PATH, file.replace("/", ""));
+                            FileActions.getInstance(true).copyFileFromJar(finalPropertiesFolderPath, TARGET_PROPERTIES_FOLDER_PATH, file.replace("/", ""));
                         } else {
-                            FileActions.getInstance().copyFile(finalPropertiesFolderPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);
+                            FileActions.getInstance(true).copyFile(finalPropertiesFolderPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);
                         }
                     }
                 });

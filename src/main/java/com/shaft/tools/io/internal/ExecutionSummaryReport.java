@@ -1,5 +1,6 @@
 package com.shaft.tools.io.internal;
 
+import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.support.HTMLHelper;
 import lombok.Getter;
@@ -48,7 +49,7 @@ public class ExecutionSummaryReport {
         StringBuilder detailsBuilder = new StringBuilder();
         casesDetails.forEach((key, value) -> detailsBuilder.append(String.format(HTMLHelper.EXECUTION_SUMMARY_DETAILS_FORMAT.getValue(), key, value.get(0), value.get(1), value.get(2), value.get(3), value.get(4), value.get(5))));
 
-        SHAFT.CLI.file().writeToFile(SHAFT.Properties.paths.executionSummaryReport(),
+        FileActions.getInstance(true).writeToFile(SHAFT.Properties.paths.executionSummaryReport(),
                 "ExecutionSummaryReport_" + new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa").format(System.currentTimeMillis()) + ".html",
                 createReportMessage(passed, failed, skipped, startTime, endTime, detailsBuilder));
 

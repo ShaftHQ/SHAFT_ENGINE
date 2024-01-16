@@ -41,12 +41,12 @@ public class LightHouseGenerateReport {
             writeReportPathToFilesInProjectDirectory(PageName);
              openLighthouseReportWhileExecution();
             SHAFT.Report.report("Lighthouse Report Generated successfully");
-            SHAFT.Report.attach("LightHouse HTML", "Report",  FileActions.getInstance().readFile("lighthouse-reports/"+PageName+".html"));
+            SHAFT.Report.attach("LightHouse HTML", "Report", FileActions.getInstance(true).readFile("lighthouse-reports/" + PageName + ".html"));
         }
     }
 
     public void createLighthouseReportFolderInProjectDirectory() {
-           FileActions.getInstance().createFolder("lighthouse-reports");
+        FileActions.getInstance(true).createFolder("lighthouse-reports");
     }
 
     public  void openLighthouseReportWhileExecution() {
@@ -70,7 +70,7 @@ public class LightHouseGenerateReport {
                         "import path from 'path';\n" +
                         "const __dirname = path.resolve();\n" +
                         "await open(__dirname +'/lighthouse-reports/" + pageName + ".html');\n");
-        FileActions.getInstance().writeToFile("", "OpenLHReport.js", commandsToServeLHReport);
+        FileActions.getInstance(true).writeToFile("", "OpenLHReport.js", commandsToServeLHReport);
     }
 
     public void writeNodeScriptFileInProjectDirectory() {
@@ -145,7 +145,7 @@ public class LightHouseGenerateReport {
                        await browser.disconnect();
                      })();""");
         }
-        FileActions.getInstance().writeToFile("", "GenerateLHScript.js", commandsToServeLHReport);
+        FileActions.getInstance(true).writeToFile("", "GenerateLHScript.js", commandsToServeLHReport);
     }
 
     public String getPageName(){

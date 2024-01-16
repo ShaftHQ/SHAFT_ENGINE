@@ -122,7 +122,7 @@ public class ReportManagerHelper {
 
     public static String prepareIssuesLog() {
         if (!listOfNewIssuesForFailedTests.isEmpty()) {
-            listOfNewIssuesForFailedTests.forEach(issue -> logIssue("Test Method '" + issue.get(0) + "." + issue.get(1)
+            listOfNewIssuesForFailedTests.forEach(issue -> logIssue("Test Method '" + issue.getFirst() + "." + issue.get(1)
                     + "' failed. Please investigate and open a new Issue if needed.\n"));
         }
         if (!listOfOpenIssuesForPassedTests.isEmpty()) {
@@ -187,7 +187,6 @@ public class ReportManagerHelper {
 
     public static void initializeAllureReportingEnvironment() {
         ReportManager.logDiscrete("Initializing Allure Reporting Environment...");
-        ReportHelper.disableLogging();
         allureResultsFolderPath = SHAFT.Properties.paths.allureResults();
         cleanAllureResultsDirectory();
         downloadAndExtractAllureBinaries();
@@ -195,24 +194,23 @@ public class ReportManagerHelper {
         writeGenerateReportShellFilesToProjectDirectory();
         writeEnvironmentVariablesToAllureResultsDirectory();
         createAllureListenersMetaFiles();
-        ReportHelper.enableLogging();
     }
 
     private static void overrideAllurePluginConfiguration() {
         String allureVersion = SHAFT.Properties.internal.allureVersion();
         // extract allure from SHAFT_Engine jar
         URL allureSHAFTConfigArchive = ReportManagerHelper.class.getResource("/resources/allure/allureBinary_SHAFTEngineConfigFiles.zip");
-        FileActions.getInstance().unpackArchive(allureSHAFTConfigArchive,
+        FileActions.getInstance(true).unpackArchive(allureSHAFTConfigArchive,
                 allureExtractionLocation + "allure-" + allureVersion + File.separator);
         // deleting custom-logo.svg to avoid generating extra folder with report in single mode
-        FileActions.getInstance().deleteFile(allureExtractionLocation + "allure-" + allureVersion + File.separator + "plugins"+File.separator+"custom-logo-plugin"+File.separator+"static"+File.separator+"custom-logo.svg" );
+        FileActions.getInstance(true).deleteFile(allureExtractionLocation + "allure-" + allureVersion + File.separator + "plugins" + File.separator + "custom-logo-plugin" + File.separator + "static" + File.separator + "custom-logo.svg");
 
     }
 
     private static void createAllureListenersMetaFiles() {
-        FileActions.getInstance().createFolder(com.shaft.properties.internal.Properties.paths.services());
+        FileActions.getInstance(true).createFolder(com.shaft.properties.internal.Properties.paths.services());
         Arrays.asList("io.qameta.allure.listener.ContainerLifecycleListener","io.qameta.allure.listener.FixtureLifecycleListener",
-                "io.qameta.allure.listener.StepLifecycleListener", "io.qameta.allure.listener.TestLifecycleListener").forEach(fileName -> FileActions.getInstance().writeToFile(Properties.paths.services(), fileName, "com.shaft.listeners.AllureListener"));
+                "io.qameta.allure.listener.StepLifecycleListener", "io.qameta.allure.listener.TestLifecycleListener").forEach(fileName -> FileActions.getInstance(true).writeToFile(Properties.paths.services(), fileName, "com.shaft.listeners.AllureListener"));
     }
 
     private static void initializeLogger() {
@@ -356,8 +354,8 @@ public class ReportManagerHelper {
             createLogEntry(engineLogCreated, true);
             byte[] engineLog = new byte[0];
             try {
-                engineLog = FileActions.getInstance().readFileAsByteArray(System.getProperty("appender.file.fileName"));
-                FileActions.getInstance().deleteFile(System.getProperty("appender.file.fileName"));
+                engineLog = FileActions.getInstance(true).readFileAsByteArray(System.getProperty("appender.file.fileName"));
+                FileActions.getInstance(true).deleteFile(System.getProperty("appender.file.fileName"));
             } catch (Exception throwable) {
                 logDiscrete(throwable);
             }
@@ -462,28 +460,24 @@ public class ReportManagerHelper {
         generateExtentReports = SHAFT.Properties.reporting.generateExtentReports();
         if (generateExtentReports) {
             ReportManager.logDiscrete("Initializing Extent Reporting Environment...");
-            ReportHelper.disableLogging();
             cleanExtentReportsDirectory();
             extentReportFileName = SHAFT.Properties.paths.extentReports() + "ExtentReports_" + (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis()) + ".html";
-
             var spark = new ExtentSparkReporter(extentReportFileName)
                     .viewConfigurer()
                     .viewOrder()
                     .as(new ViewName[]{ViewName.DASHBOARD, ViewName.TEST, ViewName.EXCEPTION, ViewName.LOG})
                     .apply();
-
             spark.config().setTheme(Theme.STANDARD);
             spark.config().setDocumentTitle("Extent Reports");
             spark.config().setReportName("Extent Reports - Powered by SHAFT_Engine");
             extentReport.attachReporter(spark);
-            ReportHelper.enableLogging();
         }
     }
 
     private static void cleanExtentReportsDirectory() {
         if (SHAFT.Properties.reporting.cleanExtentReportsDirectoryBeforeExecution()) {
             var extentReportsFolderPath = SHAFT.Properties.paths.extentReports();
-            FileActions.getInstance().deleteFolder(extentReportsFolderPath.substring(0, extentReportsFolderPath.length() - 1));
+            FileActions.getInstance(true).deleteFolder(extentReportsFolderPath.substring(0, extentReportsFolderPath.length() - 1));
         }
 
     }
@@ -813,8 +807,8 @@ public class ReportManagerHelper {
         // clean allure-results directory before execution
         if (SHAFT.Properties.reporting.cleanAllureResultsDirectoryBeforeExecution()) {
             try {
-                FileActions.getInstance().deleteFile("allure-report/");
-                FileActions.getInstance().deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
+                FileActions.getInstance(true).deleteFile("allure-report/");
+                FileActions.getInstance(true).deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
             } catch (Exception t) {
                 ReportManager.log("Failed to delete allure-results as it is currently open. Kindly restart your device to unlock the directory.");
             }
@@ -852,7 +846,7 @@ public class ReportManagerHelper {
             }
         }
         propertiesFileBuilder.append("</environment>");
-        FileActions.getInstance().writeToFile(SHAFT.Properties.paths.allureResults(), "environment.xml",
+        FileActions.getInstance(true).writeToFile(SHAFT.Properties.paths.allureResults(), "environment.xml",
                 RestActions.formatXML(propertiesFileBuilder.toString()));
     }
 
@@ -861,19 +855,19 @@ public class ReportManagerHelper {
         // already exist
         String allureVersion = SHAFT.Properties.internal.allureVersion();
         allureBinaryPath = allureExtractionLocation + "allure-" + allureVersion + File.separator + "bin" + File.separator + "allure";
-        if (!FileActions.getInstance().doesFileExist(allureBinaryPath)) {
+        if (!FileActions.getInstance(true).doesFileExist(allureBinaryPath)) {
             try {
-                FileActions.getInstance().deleteFolder(allureExtractionLocation);
+                FileActions.getInstance(true).deleteFolder(allureExtractionLocation);
             } catch (AssertionError e) {
                 ReportManager.logDiscrete("Couldn't clear the allure extraction directory. Kindly terminate any running java process or restart your machine to fix this issue.");
                 ReportManagerHelper.logDiscrete(e);
             }
             // download allure binary
-            URL allureArchive = FileActions.getInstance().downloadFile(
+            URL allureArchive = FileActions.getInstance(true).downloadFile(
                     "https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/" + allureVersion
                             + "/allure-commandline-" + allureVersion + ".zip",
                     "target" + File.separator + "allureBinary.zip");
-            FileActions.getInstance().unpackArchive(allureArchive, allureExtractionLocation);
+            FileActions.getInstance(true).unpackArchive(allureArchive, allureExtractionLocation);
 
             if (!SystemUtils.IS_OS_WINDOWS) {
                 // make allure executable on Unix-based shells
@@ -895,7 +889,7 @@ public class ReportManagerHelper {
                     "set path=" + allureExtractionLocation + "allure-" + allureVersion + "\\bin;%path%",
                     "allure serve " + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1) + " -h localhost",
                     "pause", "exit");
-            FileActions.getInstance().writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
+            FileActions.getInstance(true).writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
         } else {
             // create Unix-based sh file
             commandsToServeAllureReport = Arrays
@@ -906,7 +900,7 @@ public class ReportManagerHelper {
                             "exit"
 
                     );
-            FileActions.getInstance().writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
+            FileActions.getInstance(true).writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
             // make allure executable on Unix-based shells
             TerminalActions.getInstance(false, false).performTerminalCommand("chmod u+x generate_allure_report.sh");
         }
@@ -949,18 +943,16 @@ public class ReportManagerHelper {
     }
 
     private static void createAllureReportArchive() {
-        if (FileActions.getInstance().doesFileExist(allureExtractionLocation)) {
-            FileActions.getInstance().zipFiles("allure-report/", "generatedReport_" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".zip");
+        if (FileActions.getInstance(true).doesFileExist(allureExtractionLocation)) {
+            FileActions.getInstance(true).zipFiles("allure-report/", "generatedReport_" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".zip");
         }
     }
 
     public static void cleanExecutionSummaryReportDirectory() {
         if (SHAFT.Properties.reporting.cleanSummaryReportsDirectoryBeforeExecution()) {
             ReportManager.logDiscrete("Initializing Summary Reporting Environment...");
-            ReportHelper.disableLogging();
             String executionSummaryReportFolderPath = SHAFT.Properties.paths.executionSummaryReport();
-            FileActions.getInstance().deleteFolder(executionSummaryReportFolderPath.substring(0, executionSummaryReportFolderPath.length() - 1));
-            ReportHelper.enableLogging();
+            FileActions.getInstance(true).deleteFolder(executionSummaryReportFolderPath.substring(0, executionSummaryReportFolderPath.length() - 1));
         }
     }
 
@@ -988,7 +980,7 @@ public class ReportManagerHelper {
         if (!SHAFT.Properties.reporting.disableLogging()) {
             if (!logText.toLowerCase().contains("failed") && getDiscreteLogging() && isInternalStep()) {
                 createLogEntry(logText, Level.INFO);
-                if (attachments != null && !attachments.isEmpty() && (attachments.size() > 1 || (attachments.get(0) != null && !attachments.get(0).isEmpty()))) {
+                if (attachments != null && !attachments.isEmpty() && (attachments.size() > 1 || (attachments.getFirst() != null && !attachments.getFirst().isEmpty()))) {
                     attachments.forEach(attachment -> {
                         if (attachment != null && !attachment.isEmpty()) {
                             if (attachment.get(2) instanceof String) {
@@ -1002,7 +994,7 @@ public class ReportManagerHelper {
                     });
                 }
             } else {
-                if (attachments != null && !attachments.isEmpty() && (attachments.size() > 1 || (attachments.get(0) != null && !attachments.get(0).isEmpty()))) {
+                if (attachments != null && !attachments.isEmpty() && (attachments.size() > 1 || (attachments.getFirst() != null && !attachments.getFirst().isEmpty()))) {
                     CheckpointStatus status = (!logText.toLowerCase().contains("fail")) ? CheckpointStatus.PASS : CheckpointStatus.FAIL;
                     writeStepToReport(logText, attachments, status);
                 } else {
@@ -1018,8 +1010,8 @@ public class ReportManagerHelper {
 
         if (type.equals(CheckpointType.VERIFICATION) && status.equals(CheckpointStatus.FAIL)
                 || !SHAFT.Properties.reporting.disableLogging()) {
-            if (customLogMessages != null && !customLogMessages.isEmpty() && !customLogMessages.get(0).trim().isEmpty()) {
-                String customLogText = customLogMessages.get(0);
+            if (customLogMessages != null && !customLogMessages.isEmpty() && !customLogMessages.getFirst().trim().isEmpty()) {
+                String customLogText = customLogMessages.getFirst();
                 if (status == CheckpointStatus.PASS) {
                     customLogText = (type == CheckpointType.VERIFICATION) ? "Verification Passed: " + customLogText : "Assertion Passed: " + customLogText;
                 } else {
@@ -1031,10 +1023,10 @@ public class ReportManagerHelper {
                 } else {
                     writeNestedStepsToReport(customLogText);
                 }
-                CheckpointCounter.increment(type, customLogMessages.get(0), status);
+                CheckpointCounter.increment(type, customLogMessages.getFirst(), status);
                 ExecutionSummaryReport.validationsIncrement(status);
             } else {
-                if (attachments != null && !attachments.isEmpty() && !attachments.get(0).isEmpty()) {
+                if (attachments != null && !attachments.isEmpty() && !attachments.getFirst().isEmpty()) {
                     writeStepToReport(logText, attachments, status);
                 } else {
                     writeStepToReport(logText);

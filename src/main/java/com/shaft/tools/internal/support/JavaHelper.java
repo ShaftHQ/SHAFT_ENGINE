@@ -212,7 +212,7 @@ public class JavaHelper {
     }
 
     public static String appendTestDataToRelativePath(String relativePath){
-        if (FileActions.getInstance().doesFileExist(relativePath)){
+        if (FileActions.getInstance(true).doesFileExist(relativePath)) {
             //file path is valid
             return relativePath;
         } else{

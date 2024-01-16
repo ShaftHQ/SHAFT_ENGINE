@@ -286,7 +286,7 @@ public class ValidationsHelper {
                                              ValidationType validationType, String... optionalCustomLogMessage) {
         processCustomLogMessage(optionalCustomLogMessage);
         boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
-        boolean actualValue = FileActions.getInstance().doesFileExist(fileFolderName, fileName, numberOfRetries);
+        boolean actualValue = FileActions.getInstance(true).doesFileExist(fileFolderName, fileName, numberOfRetries);
         String filePrefix = "File '";
         String[] expectedAttributeStates = {"' should exist, after up to '", "' should not exist, after up to '"};
         String numberOfRetriesPostfix = "' retries";
@@ -427,7 +427,7 @@ public class ValidationsHelper {
                 jsonPathToTargetArray);
         // prepare attachments
         List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected JSON Value",
-                RestActions.parseBodyToJson(FileActions.getInstance().readFile(referenceJsonFilePath)));
+                RestActions.parseBodyToJson(FileActions.getInstance(true).readFile(referenceJsonFilePath)));
         List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual JSON Value",
                 RestActions.parseBodyToJson(response));
         List<List<Object>> attachments = new ArrayList<>();
@@ -459,7 +459,7 @@ public class ValidationsHelper {
         Boolean comparisonResult = response.equals(responseAfter);
         // prepare attachments
         List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected JSON Value",
-                RestActions.parseBodyToJson(FileActions.getInstance().readFile(referenceJsonFilePath)));
+                RestActions.parseBodyToJson(FileActions.getInstance(true).readFile(referenceJsonFilePath)));
         List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual JSON Value",
                 RestActions.parseBodyToJson(response));
         List<List<Object>> attachments = new ArrayList<>();

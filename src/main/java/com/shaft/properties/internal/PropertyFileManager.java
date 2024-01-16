@@ -38,7 +38,7 @@ public final class PropertyFileManager {
         var app = appiumDesiredCapabilities.get("mobile_app");
         if (app != null && !app.isEmpty() &&
                 (app.startsWith("src\\") || app.startsWith("src/"))) {
-            appiumDesiredCapabilities.put("mobile_app", FileActions.getInstance().getAbsolutePath(app));
+            appiumDesiredCapabilities.put("mobile_app", FileActions.getInstance(true).getAbsolutePath(app));
         }
         return appiumDesiredCapabilities;
     }
@@ -62,12 +62,12 @@ public final class PropertyFileManager {
                 if (propertiesFolderPath.contains(".jar")) {
                     // unpacks default properties to target folder
                     URL url = URI.create(propertiesFolderPath.substring(0, propertiesFolderPath.indexOf("!"))).toURL();
-                    FileActions.getInstance().unpackArchive(url, "target/");
+                    FileActions.getInstance(true).unpackArchive(url, "target/");
                     propertiesFolderPath = "target/resources/properties/default/";
                 }
                 // reading regular files
                 Collection<File> propertiesFilesList;
-                if (FileActions.getInstance().doesFileExist(propertiesFolderPath)) {
+                if (FileActions.getInstance(true).doesFileExist(propertiesFolderPath)) {
                     propertiesFilesList = FileUtils.listFiles(new File(propertiesFolderPath), new String[]{"properties"},
                             false);
                     File propertyFile;

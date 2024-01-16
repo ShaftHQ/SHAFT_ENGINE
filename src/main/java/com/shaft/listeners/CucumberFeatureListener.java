@@ -490,7 +490,7 @@ public class CucumberFeatureListener extends AllureCucumber7Jvm {
 
             @Override
             public InputStream getInputStream() {
-                return new ByteArrayInputStream(FileActions.getInstance().readFile(uri.getPath()).getBytes());
+                return new ByteArrayInputStream(FileActions.getInstance(true).readFile(uri.getPath()).getBytes());
             }
         });
     }

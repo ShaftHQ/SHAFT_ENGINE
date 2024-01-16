@@ -41,7 +41,7 @@ public class LambdaTest {
         // upload app to LambdaTest api
         List<Object> apkFile = new ArrayList<>();
         apkFile.add("appFile");
-        String appPath = FileActions.getInstance().getAbsolutePath(relativePathToAppFile);
+        String appPath = FileActions.getInstance(true).getAbsolutePath(relativePathToAppFile);
         apkFile.add(new File(appPath));
         ReportManager.logDiscrete("LambdaTest appPath: " + appPath);
 
