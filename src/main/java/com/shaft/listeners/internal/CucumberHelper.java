@@ -49,7 +49,6 @@ public class CucumberHelper {
         ImageProcessingActions.loadOpenCV();
 
         ReportManagerHelper.initializeAllureReportingEnvironment();
-        ReportManagerHelper.initializeExtentReportingEnvironment();
 
         ReportHelper.attachImportantLinks();
         ReportHelper.attachPropertyFiles();
@@ -73,7 +72,6 @@ public class CucumberHelper {
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
             ReportHelper.attachEngineLog();
-            ReportHelper.attachExtentReport();
             ReportHelper.attachCucumberReport();
             CheckpointCounter.attach();
             ReportHelper.attachIssuesLog();

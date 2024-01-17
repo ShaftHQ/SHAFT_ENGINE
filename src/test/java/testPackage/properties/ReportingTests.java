@@ -12,9 +12,6 @@ public class ReportingTests {
     boolean cleanAllureResultsDirectoryBeforeExecution;
     boolean generateAllureReportArchive;
     boolean openAllureReportAfterExecution;
-    boolean generateExtentReports;
-    boolean cleanExtentReportsDirectoryBeforeExecution;
-    boolean attachExtentReportsToAllureReport;
     boolean openLighthouseReportWhileExecution;
     boolean openExecutionSummaryReportAfterExecution;
     boolean disableLogging;
@@ -28,9 +25,6 @@ public class ReportingTests {
         cleanAllureResultsDirectoryBeforeExecution = SHAFT.Properties.reporting.cleanAllureResultsDirectoryBeforeExecution();
         generateAllureReportArchive = SHAFT.Properties.reporting.generateAllureReportArchive();
         openAllureReportAfterExecution = SHAFT.Properties.reporting.openAllureReportAfterExecution();
-        generateExtentReports = SHAFT.Properties.reporting.generateExtentReports();
-        cleanExtentReportsDirectoryBeforeExecution = SHAFT.Properties.reporting.cleanExtentReportsDirectoryBeforeExecution();
-        attachExtentReportsToAllureReport = SHAFT.Properties.reporting.attachExtentReportsToAllureReport();
         openLighthouseReportWhileExecution = SHAFT.Properties.reporting.openLighthouseReportWhileExecution();
         openExecutionSummaryReportAfterExecution = SHAFT.Properties.reporting.openExecutionSummaryReportAfterExecution();
         disableLogging = SHAFT.Properties.reporting.disableLogging();
@@ -45,8 +39,6 @@ public class ReportingTests {
         SHAFT.Properties.reporting.set().debugMode(debugMode);
         SHAFT.Properties.reporting.set().generateAllureReportArchive(generateAllureReportArchive);
         SHAFT.Properties.reporting.set().openAllureReportAfterExecution(openAllureReportAfterExecution);
-        SHAFT.Properties.reporting.set().generateExtentReports(generateExtentReports);
-        SHAFT.Properties.reporting.set().attachExtentReportsToAllureReport(attachExtentReportsToAllureReport);
         SHAFT.Properties.reporting.set().openLighthouseReportWhileExecution(openLighthouseReportWhileExecution);
         SHAFT.Properties.reporting.set().openExecutionSummaryReportAfterExecution(openExecutionSummaryReportAfterExecution);
         SHAFT.Properties.reporting.set().disableLogging(disableLogging);

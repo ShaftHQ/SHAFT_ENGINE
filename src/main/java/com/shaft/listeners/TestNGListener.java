@@ -80,7 +80,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         Thread.ofVirtual().start(UpdateChecker::check);
         Thread.ofVirtual().start(ImageProcessingActions::loadOpenCV);
         Thread.ofVirtual().start(ReportManagerHelper::initializeAllureReportingEnvironment);
-        Thread.ofVirtual().start(ReportManagerHelper::initializeExtentReportingEnvironment);
         Thread.ofVirtual().start(ReportManagerHelper::cleanExecutionSummaryReportDirectory);
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
         ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
@@ -206,7 +205,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         GoogleTink.encrypt();
         ReportManagerHelper.generateAllureReportArchive();
         ReportManagerHelper.openAllureReportAfterExecution();
-        ReportManagerHelper.openExtentReportAfterExecution();
         long executionEndTime = System.currentTimeMillis();
         ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
         ReportManagerHelper.logEngineClosure();

@@ -33,8 +33,6 @@ public class ProjectStructureManager {
                 }
             }
         }
-        // delete previous run execution log
-        FileActions.getInstance(true).deleteFile(System.getProperty("appender.file.fileName"));
     }
 
     public enum RunType {TESTNG, JUNIT, CUCUMBER}

@@ -68,9 +68,6 @@ public class CucumberTestRunnerListener extends AllureCucumber7Jvm {
         }
         ReportManagerHelper.setTestCaseName(testCase.getName());
         ReportManagerHelper.setTestCaseDescription(scenarioSteps.toString());
-        if (SHAFT.Properties.reporting.generateExtentReports()) {
-            ReportManagerHelper.extentReportsCreateTest(testCase.getName(), scenarioSteps.toString());
-        }
         lastStartedScenarioName = testCase.getName();
         ReportManagerHelper.logScenarioInformation(testCase.getKeyword(), lastStartedScenarioName, cleanScenarioSteps.toString());
     }

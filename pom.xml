@@ -271,19 +271,6 @@
             <version>1.9.21</version>
         </dependency>
 
-        <!-- EXTENT REPORTS -->
-        <dependency>
-            <groupId>com.aventstack</groupId>
-            <artifactId>extentreports</artifactId>
-            <version>5.1.1</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.projectlombok</groupId>
-                    <artifactId>lombok</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
         <!-- PDF Validation -->
         <dependency>
             <groupId>org.apache.pdfbox</groupId>

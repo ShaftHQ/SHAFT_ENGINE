@@ -41,10 +41,10 @@ public class ScreenshotManager {
             case "element" -> {
                 return Screenshots.ELEMENT;
             }
-            case "regular" -> {
+            case "regular", "viewport", "window" -> {
                 return Screenshots.VIEWPORT;
             }
-            case "fullpage" -> {
+            case "fullpage", "full" -> {
                 return Screenshots.FULL;
             }
             default -> {

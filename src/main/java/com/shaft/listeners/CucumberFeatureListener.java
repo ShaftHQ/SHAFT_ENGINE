@@ -184,9 +184,6 @@ public class CucumberFeatureListener extends AllureCucumber7Jvm {
         lastStartedScenarioName = scenarioDefinition.getName();
         ReportManagerHelper.setTestCaseName(lastStartedScenarioName);
         ReportManagerHelper.setTestCaseDescription(scenarioDefinition.getDescription());
-        if (SHAFT.Properties.reporting.generateExtentReports()) {
-            ReportManagerHelper.extentReportsCreateTest(feature.getName(), feature.getDescription());
-        }
         var testCase = event.getTestCase();
         var cleanScenarioSteps = new StringBuilder();
         testCase.getTestSteps().forEach(testStep -> {
