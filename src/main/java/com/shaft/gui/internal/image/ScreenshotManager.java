@@ -35,6 +35,24 @@ import java.util.*;
 
 public class ScreenshotManager {
     private static final int RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION = 1;
+    private static final int GIF_SIZE = 1280;
+    // TODO: parameterize the detailed gif value
+    private static final Boolean DETAILED_GIF = true;
+    private static final String DETAILED_GIF_REGEX = "(verify.*)|(assert.*)|(click.*)|(tap.*)|(key.*)|(navigate.*)";
+    static BufferedImage shaftLogo = null;
+    private static String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDER_PATH = "";
+    private static String screenshotFileName = "Screenshot";
+    private static By targetElementLocator;
+    private static boolean globalPassFailStatus = false;
+    private static String globalPassFailAppendedText = "";
+    private static String testCaseName = "";
+    private static String gifRelativePathWithFileName = "";
+    private static ThreadLocal<ImageOutputStream> gifOutputStream = new ThreadLocal<>();
+    private static ThreadLocal<AnimatedGifManager> gifWriter = new ThreadLocal<>();
+
+    private ScreenshotManager() {
+        throw new IllegalStateException("Utility class");
+    }
 
     private static Screenshots setScreenshotType() {
         switch (SHAFT.Properties.visuals.screenshotParamsScreenshotType().toLowerCase()) {
@@ -51,23 +69,6 @@ public class ScreenshotManager {
                 return null;
             }
         }
-    }
-    private static final int GIF_SIZE = 1280;
-    // TODO: parameterize the detailed gif value
-    private static final Boolean DETAILED_GIF = true;
-    private static final String DETAILED_GIF_REGEX = "(verify.*)|(assert.*)|(click.*)|(tap.*)|(key.*)|(navigate.*)";
-    private static String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDER_PATH = "";
-    private static String screenshotFileName = "Screenshot";
-    private static By targetElementLocator;
-    private static boolean globalPassFailStatus = false;
-    private static String globalPassFailAppendedText = "";
-    private static String testCaseName = "";
-    private static String gifRelativePathWithFileName = "";
-    private static ThreadLocal<ImageOutputStream> gifOutputStream = new ThreadLocal<>();
-    private static ThreadLocal<AnimatedGifManager> gifWriter = new ThreadLocal<>();
-
-    private ScreenshotManager() {
-        throw new IllegalStateException("Utility class");
     }
 
     public static String getAiAidedElementIdentificationFolderPath() {
@@ -152,7 +153,7 @@ public class ScreenshotManager {
     }
 
     public static List<Object> captureScreenShotUsingSikuliX(Screen screen, App applicationWindow, Pattern element, String actionName,
-                                                                          boolean passFailStatus) {
+                                                             boolean passFailStatus) {
 
         globalPassFailStatus = passFailStatus;
         if (passFailStatus) {
@@ -226,27 +227,27 @@ public class ScreenshotManager {
         try {
             return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
         } catch (RuntimeException exception) {
-            if (retryAttempts<=0){
+            if (retryAttempts <= 0) {
                 ReportManagerHelper.logDiscrete(exception, Level.WARN);
                 ReportManagerHelper.logDiscrete("Failed to take a screenshot after 5 attempts.", Level.WARN);
                 return null;
             } else
-            // java.lang.RuntimeException: Unexpected result for screenshot command: com.google.common.collect.Maps$TransformedEntriesMap instance
-            if (exception.getMessage().contains("Permission denied to access property \"pageXOffset\" on cross-origin object")
-                || exception.getMessage().contains("not connected to DevTools")
-                || exception.getMessage().contains("unhandled inspector error: {\"code\":-32000,\"message\":\"Unable to capture screenshot\"}")){
-                // Ubuntu_Firefox_Grid
-                // org.openqa.selenium.WebDriverException: SecurityError: Permission denied to access property "pageXOffset" on cross-origin object
-                // MacOSX_Chrome_Local
-                // org.openqa.selenium.WebDriverException: disconnected: not connected to DevTools
-                // Ubuntu_Edge_Grid, Ubuntu_Chrome_Grid
-                // org.openqa.selenium.WebDriverException: unknown error: unhandled inspector error: {"code":-32000,"message":"Unable to capture screenshot"}
-                driver.switchTo().defaultContent();
-                return takeViewportScreenshot(driver, retryAttempts-1);
-            } else {
-                FailureReporter.fail(ScreenshotManager.class, "Failed to capture a screenshot", exception);
-                return null;
-            }
+                // java.lang.RuntimeException: Unexpected result for screenshot command: com.google.common.collect.Maps$TransformedEntriesMap instance
+                if (exception.getMessage().contains("Permission denied to access property \"pageXOffset\" on cross-origin object")
+                        || exception.getMessage().contains("not connected to DevTools")
+                        || exception.getMessage().contains("unhandled inspector error: {\"code\":-32000,\"message\":\"Unable to capture screenshot\"}")) {
+                    // Ubuntu_Firefox_Grid
+                    // org.openqa.selenium.WebDriverException: SecurityError: Permission denied to access property "pageXOffset" on cross-origin object
+                    // MacOSX_Chrome_Local
+                    // org.openqa.selenium.WebDriverException: disconnected: not connected to DevTools
+                    // Ubuntu_Edge_Grid, Ubuntu_Chrome_Grid
+                    // org.openqa.selenium.WebDriverException: unknown error: unhandled inspector error: {"code":-32000,"message":"Unable to capture screenshot"}
+                    driver.switchTo().defaultContent();
+                    return takeViewportScreenshot(driver, retryAttempts - 1);
+                } else {
+                    FailureReporter.fail(ScreenshotManager.class, "Failed to capture a screenshot", exception);
+                    return null;
+                }
         }
     }
 
@@ -256,7 +257,7 @@ public class ScreenshotManager {
             return takeViewportScreenshot(driver);
         } else if (!SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().isEmpty()) {
             List<WebElement> skippedElementsList = new ArrayList<>();
-            String[] skippedElementLocators =SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().split(";");
+            String[] skippedElementLocators = SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().split(";");
             for (String locator : skippedElementLocators) {
                 if (ElementActionsHelper.getElementsCount(driver, By.xpath(locator),
                         RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION) == 1) {
@@ -317,95 +318,95 @@ public class ScreenshotManager {
      * @return screenshot list object
      */
     private static List<Object> internalCaptureScreenShot(WebDriver driver, By elementLocator,
-                                                                       String actionName, String appendedText, boolean takeScreenshot) {
+                                                          String actionName, String appendedText, boolean takeScreenshot) {
 //        if (!actionName.toLowerCase().contains("get")) {
         // Suggested: add to animated gif only in case of click, navigation, or validation actions.
-            if (takeScreenshot || (SHAFT.Properties.visuals.createAnimatedGif() && (DETAILED_GIF || actionName.matches(DETAILED_GIF_REGEX)))) {
-                /*
-                 * Force screenshot link to be shown in the results as a link not text
-                 */
-                System.setProperty("org.uncommons.reportng.escape-output", "false");
+        if (takeScreenshot || (SHAFT.Properties.visuals.createAnimatedGif() && (DETAILED_GIF || actionName.matches(DETAILED_GIF_REGEX)))) {
+            /*
+             * Force screenshot link to be shown in the results as a link not text
+             */
+            System.setProperty("org.uncommons.reportng.escape-output", "false");
 
-                /*
-                 * Declare regularElementStyle, the WebElement, and Javascript Executor to
-                 * highlight and unhighlight the WebElement
-                 */
-                String regularElementStyle = "";
-                JavascriptExecutor js = null;
-                WebElement element = null;
-                Rectangle elementLocation = null;
+            /*
+             * Declare regularElementStyle, the WebElement, and Javascript Executor to
+             * highlight and unhighlight the WebElement
+             */
+            String regularElementStyle = "";
+            JavascriptExecutor js = null;
+            WebElement element = null;
+            Rectangle elementLocation = null;
 
-                /*
-                 * If an elementLocator was passed, store regularElementStyle and highlight that
-                 * element before taking the screenshot
-                 */
-                if (takeScreenshot && Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsHighlightElements()) && elementLocator != null) {
-                    int elementCount = ElementActionsHelper.getElementsCount(driver, elementLocator, RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION);
-                    boolean isRelativeLocator = elementLocator instanceof RelativeLocator.RelativeBy;
-                    if ((!isRelativeLocator && elementCount == 1) || (isRelativeLocator && elementCount >= 1)) {
-                        if ("JavaScript".equals(SHAFT.Properties.visuals.screenshotParamsHighlightMethod())) {
-                            element = ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1));
-                            js = (JavascriptExecutor) driver;
-                            regularElementStyle = highlightElementAndReturnDefaultStyle(driver, element, js,
-                                    setHighlightedElementStyle());
-                        } else {
-                            // default to using AI
-                            elementLocation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator)).getElementRect();
-                        }
-                    }
-                }
-
-                /*
-                 * Take the screenshot and store it as a file
-                 */
-                byte[] src;
-
-                /*
-                 * Attempt to take a full page screenshot, take a regular screenshot upon
-                 * failure
-                 */
-                try {
-                    src = takeScreenshot(driver);
-
-                    /*
-                     * Declare screenshot file name
-                     */
-                    testCaseName = ReportManagerHelper.getTestMethodName();
-                    screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
-                    if (!"".equals(appendedText)) {
-                        screenshotFileName = screenshotFileName + "_" + appendedText;
-                    }
-
-                    /*
-                     * If an elementLocator was passed, unhighlight that element after taking the
-                     * screenshot
-                     *
-                     */
-                    if (takeScreenshot && SHAFT.Properties.visuals.screenshotParamsHighlightMethod().equals("JavaScript") && js != null) {
-                        js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, regularElementStyle);
-                    }
-
-                    if (takeScreenshot && !SHAFT.Properties.visuals.screenshotParamsHighlightMethod().equals("JavaScript") && elementLocation != null) {
-                        Color color;
-                        if (globalPassFailStatus) {
-                            color = new Color(67, 176, 42); // selenium-green
-                        } else {
-                            color = new Color(255, 255, 153); // yellow
-                        }
-                        src = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
-                    }
-                    startOrAppendToAnimatedGif(src);
-                    if (takeScreenshot) {
-                        return prepareImageForReport(src, actionName);
+            /*
+             * If an elementLocator was passed, store regularElementStyle and highlight that
+             * element before taking the screenshot
+             */
+            if (takeScreenshot && Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsHighlightElements()) && elementLocator != null) {
+                int elementCount = ElementActionsHelper.getElementsCount(driver, elementLocator, RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION);
+                boolean isRelativeLocator = elementLocator instanceof RelativeLocator.RelativeBy;
+                if ((!isRelativeLocator && elementCount == 1) || (isRelativeLocator && elementCount >= 1)) {
+                    if ("JavaScript".equals(SHAFT.Properties.visuals.screenshotParamsHighlightMethod())) {
+                        element = ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1));
+                        js = (JavascriptExecutor) driver;
+                        regularElementStyle = highlightElementAndReturnDefaultStyle(driver, element, js,
+                                setHighlightedElementStyle());
                     } else {
-                        return new ArrayList<>();
+                        // default to using AI
+                        elementLocation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator)).getElementRect();
                     }
-                } catch (WebDriverException e) {
-                    // this happens when a browser session crashes mid-execution, or the docker is
-                    // unregistered
-                    ReportManagerHelper.logDiscrete(e);
                 }
             }
+
+            /*
+             * Take the screenshot and store it as a file
+             */
+            byte[] src;
+
+            /*
+             * Attempt to take a full page screenshot, take a regular screenshot upon
+             * failure
+             */
+            try {
+                src = takeScreenshot(driver);
+
+                /*
+                 * Declare screenshot file name
+                 */
+                testCaseName = ReportManagerHelper.getTestMethodName();
+                screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
+                if (!"".equals(appendedText)) {
+                    screenshotFileName = screenshotFileName + "_" + appendedText;
+                }
+
+                /*
+                 * If an elementLocator was passed, unhighlight that element after taking the
+                 * screenshot
+                 *
+                 */
+                if (takeScreenshot && SHAFT.Properties.visuals.screenshotParamsHighlightMethod().equals("JavaScript") && js != null) {
+                    js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, regularElementStyle);
+                }
+
+                if (takeScreenshot && !SHAFT.Properties.visuals.screenshotParamsHighlightMethod().equals("JavaScript") && elementLocation != null) {
+                    Color color;
+                    if (globalPassFailStatus) {
+                        color = new Color(67, 176, 42); // selenium-green
+                    } else {
+                        color = new Color(255, 255, 153); // yellow
+                    }
+                    src = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
+                }
+                startOrAppendToAnimatedGif(src);
+                if (takeScreenshot) {
+                    return prepareImageForReport(src, actionName);
+                } else {
+                    return new ArrayList<>();
+                }
+            } catch (WebDriverException e) {
+                // this happens when a browser session crashes mid-execution, or the docker is
+                // unregistered
+                ReportManagerHelper.logDiscrete(e);
+            }
+        }
 //        }
         return new ArrayList<>();
     }
@@ -429,7 +430,7 @@ public class ScreenshotManager {
                 case ELEMENT -> takeElementScreenshot(driver, targetElementLocator, true);
                 default -> ScreenshotManager.takeViewportScreenshot(driver);
             };
-        }else {
+        } else {
             if (Objects.requireNonNull(setScreenshotType()).equals(Screenshots.ELEMENT)) {
                 return takeElementScreenshot(driver, targetElementLocator, true);
             } else {
@@ -495,7 +496,7 @@ public class ScreenshotManager {
                 ReportManagerHelper.logDiscrete(e);
                 return null;
             }
-        } else{
+        } else {
             //empty image byte array
             return null;
         }
@@ -562,7 +563,7 @@ public class ScreenshotManager {
                 // create a gif sequence with the type of the first image, 500 milliseconds
                 // between frames, which loops infinitely
                 gifWriter.set(
-                        new AnimatedGifManager(gifOutputStream.get(), firstImage.getType(),SHAFT.Properties.visuals.animatedGifFrameDelay()));
+                        new AnimatedGifManager(gifOutputStream.get(), firstImage.getType(), SHAFT.Properties.visuals.animatedGifFrameDelay()));
 
                 // draw initial blank image to set the size of the GIF...
                 BufferedImage initialImage = new BufferedImage(width, height, firstImage.getType());
@@ -587,7 +588,6 @@ public class ScreenshotManager {
         }
     }
 
-    static BufferedImage shaftLogo = null;
     private static BufferedImage overlayShaftEngineLogo(BufferedImage screenshot) {
         if (Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsWatermark())) {
             try {
@@ -659,7 +659,8 @@ public class ScreenshotManager {
             // solution is to recreate the gif
             // removed the old solution, the new fix is to ignore this exception, this will
             // leave the gif intact and will attach it even after failing to append to it
-        } catch (WebDriverException | IOException | IllegalStateException | IllegalArgumentException | NullPointerException e) {
+        } catch (WebDriverException | IOException | IllegalStateException | IllegalArgumentException |
+                 NullPointerException e) {
             ReportManagerHelper.logDiscrete(e);
         }
     }

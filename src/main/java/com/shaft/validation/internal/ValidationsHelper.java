@@ -33,11 +33,11 @@ import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 public class ValidationsHelper {
     //TODO: implement element attribute and element exists validations for sikuli actions
     static final ThreadLocal<ArrayList<String>> optionalCustomLogMessage = new ThreadLocal<>();
-    private static By lastUsedElementLocator = null;
     private static final Boolean discreetLoggingState = SHAFT.Properties.reporting.alwaysLogDiscreetly();
+    private static final String WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim();
+    private static By lastUsedElementLocator = null;
     private static List<String> verificationFailuresList = new ArrayList<>();
     private static AssertionError verificationError = null;
-    private static final String WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim();
 
     private ValidationsHelper() {
         throw new IllegalStateException("Utility class");
@@ -357,7 +357,7 @@ public class ValidationsHelper {
             byte[] pageScreenshot;
             try {
                 pageScreenshot = ScreenshotManager.takeFullPageScreenshot(driver);
-            } catch (IOException ioException){
+            } catch (IOException ioException) {
                 pageScreenshot = ScreenshotManager.takeViewportScreenshot(driver);
             }
             List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",

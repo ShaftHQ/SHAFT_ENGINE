@@ -129,14 +129,13 @@ public class JavaHelper {
         switch (comparisonType) {
             case 1 -> {
                 // case sensitive literal equivalence
-                if (expectedValue == null) {
-                    Assert.assertNull(actualValue);
-                } else if (expectedValue instanceof String expectedString && actualValue instanceof String actualString) {
-                    Assert.assertEquals(actualString, expectedString);
-                } else if (expectedValue instanceof Number expectedNumber && actualValue instanceof Number actualNumber) {
-                    Assert.assertEquals(actualNumber, expectedNumber);
-                } else {
-                    Assert.assertEquals(actualValue, expectedValue);
+                switch (expectedValue) {
+                    case null -> Assert.assertNull(actualValue);
+                    case String expectedString when actualValue instanceof String actualString ->
+                            Assert.assertEquals(actualString, expectedString);
+                    case Number expectedNumber when actualValue instanceof Number actualNumber ->
+                            Assert.assertEquals(actualNumber, expectedNumber);
+                    default -> Assert.assertEquals(actualValue, expectedValue);
                 }
             }
             case 2 ->
@@ -160,14 +159,13 @@ public class JavaHelper {
         switch (comparisonType) {
             case 1 -> {
                 // case sensitive literal equivalence
-                if (expectedValue == null) {
-                    Assert.assertNotNull(actualValue);
-                } else if (expectedValue instanceof String expectedString && actualValue instanceof String actualString) {
-                    Assert.assertNotEquals(actualString, expectedString);
-                } else if (expectedValue instanceof Number expectedNumber && actualValue instanceof Number actualNumber) {
-                    Assert.assertNotEquals(actualNumber, expectedNumber);
-                } else {
-                    Assert.assertNotEquals(actualValue, expectedValue);
+                switch (expectedValue) {
+                    case null -> Assert.assertNotNull(actualValue);
+                    case String expectedString when actualValue instanceof String actualString ->
+                            Assert.assertNotEquals(actualString, expectedString);
+                    case Number expectedNumber when actualValue instanceof Number actualNumber ->
+                            Assert.assertNotEquals(actualNumber, expectedNumber);
+                    default -> Assert.assertNotEquals(actualValue, expectedValue);
                 }
             }
             case 2 ->
@@ -211,11 +209,11 @@ public class JavaHelper {
                 + word.substring(1).toLowerCase();
     }
 
-    public static String appendTestDataToRelativePath(String relativePath){
+    public static String appendTestDataToRelativePath(String relativePath) {
         if (FileActions.getInstance(true).doesFileExist(relativePath)) {
             //file path is valid
             return relativePath;
-        } else{
+        } else {
             if (relativePath.startsWith("/")) {
                 //remove extra slash at the beginning if applicable
                 relativePath = relativePath.substring(1);

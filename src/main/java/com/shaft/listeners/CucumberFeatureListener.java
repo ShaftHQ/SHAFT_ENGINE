@@ -97,6 +97,24 @@ public class CucumberFeatureListener extends AllureCucumber7Jvm {
         // end of custom code
     }
 
+    private static StringBuilder getStringBuilder(List<List<String>> rowsInTable) {
+        final StringBuilder dataTableCsv = new StringBuilder();
+        for (List<String> columns : rowsInTable) {
+            if (!columns.isEmpty()) {
+                for (int i = 0; i < columns.size(); i++) {
+                    if (i == columns.size() - 1) {
+                        dataTableCsv.append(columns.get(i));
+                    } else {
+                        dataTableCsv.append(columns.get(i));
+                        dataTableCsv.append('\t');
+                    }
+                }
+                dataTableCsv.append('\n');
+            }
+        }
+        return dataTableCsv;
+    }
+
     /*
     Event Handlers
      */
@@ -123,7 +141,7 @@ public class CucumberFeatureListener extends AllureCucumber7Jvm {
     }
 
     @SuppressWarnings("unused")
-    private void handleFeatureFinishedHandler(final TestRunFinished event){
+    private void handleFeatureFinishedHandler(final TestRunFinished event) {
         // custom code
         shaftTeardown();
         // end of custom code
@@ -286,13 +304,13 @@ public class CucumberFeatureListener extends AllureCucumber7Jvm {
         );
     }
 
-    private void handleEmbedEvent(final EmbedEvent event) {
-        lifecycle.addAttachment(event.name, event.getMediaType(), null, new ByteArrayInputStream(event.getData()));
-    }
-
     /*
     Utility Methods
      */
+
+    private void handleEmbedEvent(final EmbedEvent event) {
+        lifecycle.addAttachment(event.name, event.getMediaType(), null, new ByteArrayInputStream(event.getData()));
+    }
 
     private String getTestContainerUuid() {
         return currentContainer.get();
@@ -376,24 +394,6 @@ public class CucumberFeatureListener extends AllureCucumber7Jvm {
                 .prepareAttachment("Data table", "text/tab-separated-values", "csv");
         lifecycle.writeAttachment(attachmentSource,
                 new ByteArrayInputStream(dataTableCsv.toString().getBytes(StandardCharsets.UTF_8)));
-    }
-
-    private static StringBuilder getStringBuilder(List<List<String>> rowsInTable) {
-        final StringBuilder dataTableCsv = new StringBuilder();
-        for (List<String> columns : rowsInTable) {
-            if (!columns.isEmpty()) {
-                for (int i = 0; i < columns.size(); i++) {
-                    if (i == columns.size() - 1) {
-                        dataTableCsv.append(columns.get(i));
-                    } else {
-                        dataTableCsv.append(columns.get(i));
-                        dataTableCsv.append('\t');
-                    }
-                }
-                dataTableCsv.append('\n');
-            }
-        }
-        return dataTableCsv;
     }
 
     private void handleHookStep(final TestStepFinished event) {

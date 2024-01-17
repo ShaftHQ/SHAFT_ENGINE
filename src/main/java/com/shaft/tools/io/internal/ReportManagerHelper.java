@@ -113,7 +113,7 @@ public class ReportManagerHelper {
         }
         if (!listOfOpenIssuesForPassedTests.isEmpty()) {
             listOfOpenIssuesForPassedTests.forEach(issue -> {
-                if (issue.get(3)!=null && !issue.get(3).trim().isEmpty()) {
+                if (issue.get(3) != null && !issue.get(3).trim().isEmpty()) {
                     logIssue("Test Method '" + issue.get(0) + "." + issue.get(1)
                             + "' passed. Please validate and close this open issue '" + issue.get(2) + "': '"
                             + issue.get(3) + "'.\n");
@@ -195,7 +195,7 @@ public class ReportManagerHelper {
 
     private static void createAllureListenersMetaFiles() {
         FileActions.getInstance(true).createFolder(com.shaft.properties.internal.Properties.paths.services());
-        Arrays.asList("io.qameta.allure.listener.ContainerLifecycleListener","io.qameta.allure.listener.FixtureLifecycleListener",
+        Arrays.asList("io.qameta.allure.listener.ContainerLifecycleListener", "io.qameta.allure.listener.FixtureLifecycleListener",
                 "io.qameta.allure.listener.StepLifecycleListener", "io.qameta.allure.listener.TestLifecycleListener").forEach(fileName -> FileActions.getInstance(true).writeToFile(Properties.paths.services(), fileName, "com.shaft.listeners.AllureListener"));
     }
 
@@ -404,7 +404,7 @@ public class ReportManagerHelper {
 
     public static String getTestClassName() {
         var result = Reporter.getCurrentTestResult();
-       return  result != null ? result.getMethod().getTestClass().getName() : "";
+        return result != null ? result.getMethod().getTestClass().getName() : "";
 //        return Reporter.getCurrentTestResult().getMethod().getTestClass().getName();
     }
 
@@ -619,6 +619,7 @@ public class ReportManagerHelper {
             logAttachmentAction(attachmentType, attachmentName, byteArrayOutputStream);
         }
     }
+
     @SuppressWarnings("SpellCheckingInspection")
     private static void attachBasedOnFileType(String attachmentType, String attachmentName,
                                               ByteArrayOutputStream attachmentContent, String attachmentDescription) {
@@ -642,7 +643,7 @@ public class ReportManagerHelper {
         } else if (attachmentType.toLowerCase().contains("link")) {
             Allure.addAttachment(attachmentDescription, "text/uri-list", content, ".uri");
         } else if (attachmentType.toLowerCase().contains("engine logs")) {
-                Allure.addAttachment(attachmentDescription, "text/plain", content, ".txt");
+            Allure.addAttachment(attachmentDescription, "text/plain", content, ".txt");
         } else if (attachmentType.toLowerCase().contains("page snapshot")) {
             Allure.addAttachment(attachmentDescription, "multipart/related", content, ".mhtml");
         } else if (attachmentType.toLowerCase().contains("html")) {

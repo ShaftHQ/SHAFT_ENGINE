@@ -15,14 +15,14 @@ import java.util.concurrent.Executors;
 
 @SuppressWarnings("unused")
 public class DatabaseActions {
+    private final ThreadLocal<ResultSet> resultSetThreadLocal = new ThreadLocal<>();
+    private final ThreadLocal<Integer> rowCountThreadLocal = new ThreadLocal<>();
     private DatabaseType dbType;
     private String dbServerIP;
     private String dbPort;
     private String dbName;
     private String username;
     private String password;
-    private final ThreadLocal<ResultSet> resultSetThreadLocal = new ThreadLocal<>();
-    private final ThreadLocal<Integer> rowCountThreadLocal = new ThreadLocal<>();
     private String customConnectionString = "";
 
     /**
@@ -53,11 +53,6 @@ public class DatabaseActions {
         }
     }
 
-    public static DatabaseActions getInstance(DatabaseType databaseType, String ip, String port, String name, String username,
-                                              String password) {
-        return new DatabaseActions(databaseType, ip, port, name, username, password);
-    }
-
     /**
      * This constructor is used for initializing the database variables that are
      * needed to create new connections and perform queries
@@ -70,6 +65,11 @@ public class DatabaseActions {
         } else {
             failAction("Custom Connection String: \"" + customConnectionString + "\"");
         }
+    }
+
+    public static DatabaseActions getInstance(DatabaseType databaseType, String ip, String port, String name, String username,
+                                              String password) {
+        return new DatabaseActions(databaseType, ip, port, name, username, password);
     }
 
     public static DatabaseActions getInstance(String customConnectionString) {
@@ -141,10 +141,6 @@ public class DatabaseActions {
         return str.toString().trim();
     }
 
-    public String getResult() {
-        return DatabaseActions.getResult(resultSetThreadLocal.get());
-    }
-
     /**
      * Returns a string value which represents the data of the target column
      *
@@ -174,10 +170,6 @@ public class DatabaseActions {
         return str.toString().trim();
     }
 
-    public String getRow(String columnName, String knownCellValue) {
-        return DatabaseActions.getRow(resultSetThreadLocal.get(), columnName, knownCellValue);
-    }
-
     /**
      * Returns the number of rows contained inside the provided resultSet
      *
@@ -201,14 +193,6 @@ public class DatabaseActions {
         return rowCount;
     }
 
-    public String getColumn(String columnName) {
-        return DatabaseActions.getColumn(resultSetThreadLocal.get(), columnName);
-    }
-
-    public int getRowCount() {
-        return rowCountThreadLocal.get();
-    }
-
     private static void passAction(String actionName, String testData, String queryResult) {
         reportActionResult(actionName, testData, queryResult, true);
     }
@@ -226,20 +210,6 @@ public class DatabaseActions {
     private static void passAction() {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         passAction(actionName, null, null);
-    }
-
-    private void setRowCountForSelectStatement(ResultSet resultSet) {
-        var rowCount = 0;
-        try {
-            resultSet.beforeFirst();
-            if (resultSet.last()) {
-                rowCount = resultSet.getRow();
-                resultSet.beforeFirst(); // reset pointer
-            }
-        } catch (SQLException rootCauseException) {
-            failAction(rootCauseException);
-        }
-        rowCountThreadLocal.set(rowCount);
     }
 
     private static void failAction(String testData, Exception... rootCauseException) {
@@ -338,6 +308,36 @@ public class DatabaseActions {
             failAction(rootCauseException);
         }
         return str.toString().trim();
+    }
+
+    public String getResult() {
+        return DatabaseActions.getResult(resultSetThreadLocal.get());
+    }
+
+    public String getRow(String columnName, String knownCellValue) {
+        return DatabaseActions.getRow(resultSetThreadLocal.get(), columnName, knownCellValue);
+    }
+
+    public String getColumn(String columnName) {
+        return DatabaseActions.getColumn(resultSetThreadLocal.get(), columnName);
+    }
+
+    public int getRowCount() {
+        return rowCountThreadLocal.get();
+    }
+
+    private void setRowCountForSelectStatement(ResultSet resultSet) {
+        var rowCount = 0;
+        try {
+            resultSet.beforeFirst();
+            if (resultSet.last()) {
+                rowCount = resultSet.getRow();
+                resultSet.beforeFirst(); // reset pointer
+            }
+        } catch (SQLException rootCauseException) {
+            failAction(rootCauseException);
+        }
+        rowCountThreadLocal.set(rowCount);
     }
 
     /**
@@ -448,7 +448,8 @@ public class DatabaseActions {
                         connectionString = "jdbc:sqlserver://" + dbServerIP + ":" + dbPort + ";databaseName=" + dbName;
                 case POSTGRES_SQL -> connectionString = "jdbc:postgresql://" + dbServerIP + ":" + dbPort + "/" + dbName;
                 case ORACLE -> connectionString = "jdbc:oracle:thin:@" + dbServerIP + ":" + dbPort + ":" + dbName;
-                case ORACLE_SERVICE_NAME -> connectionString = "jdbc:oracle:thin:@" + dbServerIP + ":" + dbPort + "/" + dbName;
+                case ORACLE_SERVICE_NAME ->
+                        connectionString = "jdbc:oracle:thin:@" + dbServerIP + ":" + dbPort + "/" + dbName;
                 case IBM_DB2 -> connectionString = "jdbc:db2://" + dbServerIP + ":" + dbPort + "/" + dbName;
                 default -> {
                     ReportManager.log("Database not supported");

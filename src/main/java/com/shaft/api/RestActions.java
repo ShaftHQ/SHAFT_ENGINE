@@ -63,6 +63,8 @@ public class RestActions {
     private static final String ERROR_INCORRECT_XML_PATH = "Incorrect xmlPath ";
     private static final String ERROR_FAILED_TO_PARSE_JSON = "Failed to parse the JSON document";
     private static final String GRAPHQL_END_POINT = "graphql";
+    @Getter
+    static Response lastResponse;
     private static boolean AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = true;
     private static int HTTP_SOCKET_TIMEOUT;
     private static int HTTP_CONNECTION_TIMEOUT;
@@ -72,8 +74,6 @@ public class RestActions {
     private final Map<String, Object> sessionCookies;
     private final RestAssuredConfig sessionConfig;
     private String headerAuthorization;
-    @Getter
-    static Response lastResponse;
 
     public RestActions(String serviceURI) {
         initializeSystemProperties();
@@ -173,7 +173,7 @@ public class RestActions {
         try {
             if (jsonPath.contains("?")) {
                 List<String> jsonValueAsList = JsonPath.read(response.asPrettyString(), jsonPath);
-                searchPool = String.valueOf(jsonValueAsList.get(0));
+                searchPool = String.valueOf(jsonValueAsList.getFirst());
             } else {
                 var jsonValue = JsonPath.read(response.asPrettyString(), jsonPath);
                 searchPool = String.valueOf(jsonValue);
@@ -204,7 +204,7 @@ public class RestActions {
             } else if (response instanceof Response responseObject) {
                 if (jsonPath.contains("?")) {
                     List<String> jsonValueAsList = JsonPath.read(responseObject.asPrettyString(), jsonPath);
-                    searchPool = String.valueOf(jsonValueAsList.get(0));
+                    searchPool = String.valueOf(jsonValueAsList.getFirst());
                 } else {
                     var jsonValue = JsonPath.read(responseObject.asPrettyString(), jsonPath);
                     searchPool = String.valueOf(jsonValue);
@@ -348,7 +348,7 @@ public class RestActions {
     }
 
     public static long getResponseTime(Response response) {
-        long time =  response.timeIn(TimeUnit.MILLISECONDS);
+        long time = response.timeIn(TimeUnit.MILLISECONDS);
         passAction(String.valueOf(time));
         return time;
     }
@@ -438,8 +438,9 @@ public class RestActions {
                         actualJsonArray);
                 case CONTAINS -> compareJSONContains(response, expectedJsonObject, expectedJsonArray,
                         actualJsonObject, jsonPathToTargetArray);
-                case EQUALS_IGNORING_ORDER -> compareJSONEqualsIgnoringOrder(expectedJsonObject, expectedJsonArray, actualJsonObject,
-                        actualJsonArray);
+                case EQUALS_IGNORING_ORDER ->
+                        compareJSONEqualsIgnoringOrder(expectedJsonObject, expectedJsonArray, actualJsonObject,
+                                actualJsonArray);
             };
         } catch (IOException rootCauseException) {
             failAction("Couldn't find the desired file. \"" + referenceJsonFilePath + "\".", rootCauseException);
@@ -766,8 +767,8 @@ public class RestActions {
     }
 
     private static boolean compareJSONEqualsIgnoringOrder(org.json.simple.JSONObject expectedJsonObject,
-                                             org.json.simple.JSONArray expectedJsonArray, org.json.simple.JSONObject actualJsonObject,
-                                             org.json.simple.JSONArray actualJsonArray) {
+                                                          org.json.simple.JSONArray expectedJsonArray, org.json.simple.JSONObject actualJsonObject,
+                                                          org.json.simple.JSONArray actualJsonArray) {
         if (expectedJsonObject != null && actualJsonObject != null) {
             // if expected is an object and actual is also an object
             try {
@@ -1017,12 +1018,12 @@ public class RestActions {
         builder.addCookies(sessionCookies);
         builder.addHeaders(sessionHeaders);
         //Add configs
-        RestAssuredConfig  userConfigs=sessionConfig.and().encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")
-        		.appendDefaultContentCharsetToContentTypeIfUndefined(appendDefaultContentCharsetToContentTypeIfUndefined)).and()
-        .httpClient(HttpClientConfig.httpClientConfig()
-                .setParam("http.connection.timeout", HTTP_CONNECTION_TIMEOUT * 1000)
-                .setParam("http.socket.timeout", HTTP_SOCKET_TIMEOUT * 1000)
-                .setParam("http.connection-manager.timeout", HTTP_CONNECTION_MANAGER_TIMEOUT * 1000));
+        RestAssuredConfig userConfigs = sessionConfig.and().encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")
+                        .appendDefaultContentCharsetToContentTypeIfUndefined(appendDefaultContentCharsetToContentTypeIfUndefined)).and()
+                .httpClient(HttpClientConfig.httpClientConfig()
+                        .setParam("http.connection.timeout", HTTP_CONNECTION_TIMEOUT * 1000)
+                        .setParam("http.socket.timeout", HTTP_SOCKET_TIMEOUT * 1000)
+                        .setParam("http.connection-manager.timeout", HTTP_CONNECTION_MANAGER_TIMEOUT * 1000));
         builder.setConfig(userConfigs);
         // timeouts documentation
         /*
@@ -1064,7 +1065,6 @@ public class RestActions {
         return this;
     }
 
-    
 
     protected String prepareRequestURL(String serviceURI, String urlArguments, String serviceName) {
         if (urlArguments != null && !urlArguments.isEmpty()) {
@@ -1084,7 +1084,7 @@ public class RestActions {
 
         if (body != null && contentType != null && !body.toString().isEmpty()) {
             prepareRequestBody(builder, body, contentType);
-        } else if (parameters != null && !parameters.isEmpty() && !parameters.get(0).get(0).equals("")) {
+        } else if (parameters != null && !parameters.isEmpty() && !parameters.getFirst().getFirst().equals("")) {
             prepareRequestBody(builder, parameters, parametersType);
         }
         return builder.build();

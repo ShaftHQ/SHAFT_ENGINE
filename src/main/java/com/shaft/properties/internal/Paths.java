@@ -11,6 +11,15 @@ import org.aeonbits.owner.ConfigFactory;
         "classpath:path.properties",
 })
 public interface Paths extends EngineProperties {
+    private static void setProperty(String key, String value) {
+        var updatedProps = new java.util.Properties();
+        updatedProps.setProperty(key, value);
+        Properties.paths = ConfigFactory.create(Paths.class, updatedProps);
+        // temporarily set the system property to support hybrid read/write mode
+        System.setProperty(key, value);
+        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
+    }
+
     @Key("propertiesFolderPath")
     @DefaultValue("src/main/resources/properties/")
     String properties();
@@ -54,15 +63,6 @@ public interface Paths extends EngineProperties {
     @Key("servicesFolderPath")
     @DefaultValue("src/test/resources/META-INF/services/")
     String services();
-
-    private static void setProperty(String key, String value) {
-        var updatedProps = new java.util.Properties();
-        updatedProps.setProperty(key, value);
-        Properties.paths = ConfigFactory.create(Paths.class, updatedProps);
-        // temporarily set the system property to support hybrid read/write mode
-        System.setProperty(key, value);
-        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
-    }
 
     default SetProperty set() {
         return new SetProperty();

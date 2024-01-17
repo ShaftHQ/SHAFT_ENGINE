@@ -70,6 +70,7 @@ public class JunitListener implements LauncherSessionListener {
             });
         }
     }
+
     private void engineSetup() {
         ReportManagerHelper.setDiscreteLogging(true);
         PropertiesHelper.initialize();

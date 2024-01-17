@@ -29,6 +29,7 @@ public class TestNGListenerHelper {
     private static final ArrayList<ITestResult> beforeMethods = new ArrayList<>();
     private static final ArrayList<ITestResult> afterMethods = new ArrayList<>();
     private static final ThreadLocal<String> testName = new ThreadLocal<>();
+
     public static void setTotalNumberOfTests(ISuite testSuite) {
         // This condition checks to confirm that this is not a cucumber test runner instance
         // If this condition is removed the total number of tests will be zero because the cucumber
@@ -37,18 +38,19 @@ public class TestNGListenerHelper {
             ReportManagerHelper.setTotalNumberOfTests(testSuite.getAllMethods().size());
         }
     }
-    public static void attachConfigurationMethods(){
+
+    public static void attachConfigurationMethods() {
         attachBeforeConfigurationMethods();
         attachAfterConfigurationMethods();
     }
 
-    public static void updateConfigurationMethods(ITestResult iTestResult){
+    public static void updateConfigurationMethods(ITestResult iTestResult) {
         updateBeforeConfigurationMethods(iTestResult);
         updateAfterConfigurationMethods(iTestResult);
     }
 
-    private static void attachBeforeConfigurationMethods(){
-        if(!beforeMethods.isEmpty()) {
+    private static void attachBeforeConfigurationMethods() {
+        if (!beforeMethods.isEmpty()) {
             if (beforeMethods.size() > 1) {
                 TestNGListenerHelper.attachTestArtifacts(beforeMethods.getLast());
             } else {
@@ -59,7 +61,7 @@ public class TestNGListenerHelper {
     }
 
     private static void updateBeforeConfigurationMethods(ITestResult iTestResult) {
-        if(iTestResult != null){
+        if (iTestResult != null) {
             if (iTestResult.getMethod().isBeforeMethodConfiguration() || iTestResult.getMethod().isBeforeTestConfiguration()
                     || iTestResult.getMethod().isBeforeClassConfiguration() || iTestResult.getMethod().isBeforeSuiteConfiguration()) {
                 // get test result and store it for later processing
@@ -68,8 +70,8 @@ public class TestNGListenerHelper {
         }
     }
 
-    private static void attachAfterConfigurationMethods(){
-        if(!afterMethods.isEmpty()) {
+    private static void attachAfterConfigurationMethods() {
+        if (!afterMethods.isEmpty()) {
             if (afterMethods.size() > 1) {
                 TestNGListenerHelper.attachTestArtifacts(afterMethods.getLast());
             } else {
@@ -80,9 +82,9 @@ public class TestNGListenerHelper {
     }
 
     private static void updateAfterConfigurationMethods(ITestResult iTestResult) {
-        if(iTestResult != null){
+        if (iTestResult != null) {
             if (iTestResult.getMethod().isAfterMethodConfiguration() || iTestResult.getMethod().isAfterTestConfiguration()
-            || iTestResult.getMethod().isAfterClassConfiguration() || iTestResult.getMethod().isAfterSuiteConfiguration()) {
+                    || iTestResult.getMethod().isAfterClassConfiguration() || iTestResult.getMethod().isAfterSuiteConfiguration()) {
                 // get test result and store it for later processing
                 afterMethods.add(iTestResult);
             }
@@ -328,29 +330,29 @@ public class TestNGListenerHelper {
         }
     }
 
-        public static void logFinishedTestInformation(ITestResult iTestResult) {
-            ITestNGMethod iTestNGMethod = iTestResult.getMethod();
-            String className;
-            String methodName;
-            String methodDescription = "";
-            String methodStatus = "";
+    public static void logFinishedTestInformation(ITestResult iTestResult) {
+        ITestNGMethod iTestNGMethod = iTestResult.getMethod();
+        String className;
+        String methodName;
+        String methodDescription = "";
+        String methodStatus = "";
 
-            if (!iTestNGMethod.getQualifiedName().contains("AbstractTestNGCucumberTests")) {
-                if (iTestNGMethod.isTest()) {
-                    className = ReportManagerHelper.getTestClassName();
-                    methodName = ReportManagerHelper.getTestMethodName();
-                    if (iTestNGMethod.getDescription() != null) {
-                        methodDescription = iTestNGMethod.getDescription();
-                    }
-                    if (iTestResult.getStatus() == ITestResult.SUCCESS) {
-                        methodStatus = "Passed";
-                    } else if (iTestResult.getStatus() == ITestResult.FAILURE) {
-                        methodStatus = "Failed";
-                    } else if (iTestResult.getStatus() == ITestResult.SKIP) {
-                        methodStatus = "Skipped";
-                    }
-                    ReportManagerHelper.logFinishedTestInformation(className, methodName, methodDescription, methodStatus);
+        if (!iTestNGMethod.getQualifiedName().contains("AbstractTestNGCucumberTests")) {
+            if (iTestNGMethod.isTest()) {
+                className = ReportManagerHelper.getTestClassName();
+                methodName = ReportManagerHelper.getTestMethodName();
+                if (iTestNGMethod.getDescription() != null) {
+                    methodDescription = iTestNGMethod.getDescription();
                 }
+                if (iTestResult.getStatus() == ITestResult.SUCCESS) {
+                    methodStatus = "Passed";
+                } else if (iTestResult.getStatus() == ITestResult.FAILURE) {
+                    methodStatus = "Failed";
+                } else if (iTestResult.getStatus() == ITestResult.SKIP) {
+                    methodStatus = "Skipped";
+                }
+                ReportManagerHelper.logFinishedTestInformation(className, methodName, methodDescription, methodStatus);
             }
         }
     }
+}

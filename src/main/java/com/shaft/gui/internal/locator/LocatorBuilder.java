@@ -14,12 +14,12 @@ public class LocatorBuilder {
 
     @Getter
     static By shadowDomLocator;
-    private String tagName = "*";
-    private ArrayList<String> parameters = new ArrayList<>();
-    private String order = "";
     @Setter
     private static Locators mode = Locators.XPATH;
     String partialXpath;
+    private String tagName = "*";
+    private ArrayList<String> parameters = new ArrayList<>();
+    private String order = "";
 
     @SuppressWarnings("unused")
     private LocatorBuilder() {

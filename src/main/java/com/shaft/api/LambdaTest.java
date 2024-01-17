@@ -81,6 +81,7 @@ public class LambdaTest {
         lambdaTestCapabilities.setCapability("lt:options", lambdaTestOptions);
         return lambdaTestCapabilities;
     }
+
     /**
      * Use this method to set up all the needed capabilities to be able to test an already uploaded version of your native application.
      * You can refer to the getting started guide for LambdaTest App Automate to get all the needed information here <a href="https://app-automate.LambdaTest.com/dashboard/v2/getting-started">LambdaTest: Getting Started</a>

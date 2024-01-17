@@ -1,6 +1,5 @@
 package com.shaft.gui.internal.image;
 
-import com.shaft.driver.SHAFT;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.OutputType;
@@ -56,7 +55,7 @@ public class ScreenshotHelper {
             var result = cdpDriver.executeCdpCommand("Page.captureScreenshot", screenshot_config);
             String base64EncodedPng = (String) ((Map<String, ?>) result).get("data");
             return OutputType.BYTES.convertFromBase64Png(base64EncodedPng);
-        } catch (org.openqa.selenium.TimeoutException timeoutException){
+        } catch (org.openqa.selenium.TimeoutException timeoutException) {
                 /* Error:  org.openqa.selenium.TimeoutException: java.net.http.HttpTimeoutException: request timed out
                     Build info: version: '4.16.1', revision: '9b4c83354e'
                     System info: os.name: 'Mac OS X', os.arch: 'x86_64', os.version: '12.7.1', java.version: '21.0.1'

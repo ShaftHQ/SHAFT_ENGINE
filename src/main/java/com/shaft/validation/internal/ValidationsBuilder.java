@@ -9,12 +9,11 @@ import static com.shaft.gui.element.internal.ElementActionsHelper.formatLocatorT
 @SuppressWarnings("unused")
 public class ValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
+    protected final StringBuilder reportMessageBuilder = new StringBuilder();
     protected String validationMethod;
     protected ValidationEnums.ValidationType validationType;
     protected boolean condition;
     protected Object actualValue;
-
-    protected final StringBuilder reportMessageBuilder = new StringBuilder();
 
     public ValidationsBuilder(ValidationEnums.ValidationCategory validationCategory) {
         this.validationCategory = validationCategory;

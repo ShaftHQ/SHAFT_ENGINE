@@ -11,33 +11,29 @@ import org.openqa.selenium.WebElement;
 import java.util.ArrayList;
 import java.util.List;
 
+@Setter
 @SuppressWarnings("unused")
 public class ElementInformation {
-    @Setter
     @Getter
     private int numberOfFoundElements = 0;
-    @Setter
     @Getter
     private WebElement firstElement = null;
-    @Setter
     @Getter
     private By locator = null;
-    @Setter
     @Getter
     private String outerHTML = "";
-    @Setter
     @Getter
     private String innerHTML = "";
-    @Setter
     @Getter
     private String elementName = "";
-    @Setter
     @Getter
     private String actionResult = "";
-    @Setter
     private String elementText = "";
-    @Setter
     private String elementTag = "";
+    @Getter
+    private Rectangle elementRect = null;
+    @Getter
+    private Element element = null;
 
     public static ElementInformation fromList(List<Object> elementInformation) {
         var temp = new ElementInformation();
@@ -52,26 +48,6 @@ public class ElementInformation {
         return temp;
     }
 
-    @Setter
-    @Getter
-    private Rectangle elementRect = null;
-    @Setter
-    @Getter
-    private Element element = null;
-
-
-    public String getElementText() {
-        if (this.element == null)
-            this.setElement(parseElement(this));
-        this.setElementText(parseElementText(this));
-        return this.elementText;
-    }
-    public String getElementTag() {
-        if (this.element == null)
-            this.setElement(parseElement(this));
-        this.setElementTag(parseElement(this).tagName());
-        return this.elementTag;
-    }
     //TODO: generalize this approach to parse all element information and not have to fetch it again
     private static String parseElementText(ElementInformation elementInformation) {
         if (!elementInformation.outerHTML.isEmpty()) {
@@ -92,9 +68,23 @@ public class ElementInformation {
 
     private static Element parseElement(ElementInformation elementInformation) {
         if (!elementInformation.outerHTML.isEmpty()) {
-            return Jsoup.parse(elementInformation.outerHTML).getElementsByTag("body").get(0).child(0);
+            return Jsoup.parse(elementInformation.outerHTML).getElementsByTag("body").getFirst().child(0);
         }
         return new Element("");
+    }
+
+    public String getElementText() {
+        if (this.element == null)
+            this.setElement(parseElement(this));
+        this.setElementText(parseElementText(this));
+        return this.elementText;
+    }
+
+    public String getElementTag() {
+        if (this.element == null)
+            this.setElement(parseElement(this));
+        this.setElementTag(parseElement(this).tagName());
+        return this.elementTag;
     }
 
     public List<Object> toList() {
@@ -107,6 +97,6 @@ public class ElementInformation {
         temp.add(elementName);
         temp.add(actionResult);
         temp.add(elementRect);
-            return temp;
-        }
+        return temp;
+    }
 }

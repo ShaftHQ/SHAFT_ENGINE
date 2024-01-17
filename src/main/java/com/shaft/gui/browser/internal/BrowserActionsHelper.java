@@ -32,8 +32,8 @@ import java.util.List;
 import java.util.*;
 
 public class BrowserActionsHelper {
-    private static final Boolean HEADLESS_EXECUTION = SHAFT.Properties.web.headlessExecution();
     public static final int NAVIGATION_TIMEOUT_INTEGER = SHAFT.Properties.timeouts.browserNavigationTimeout();
+    private static final Boolean HEADLESS_EXECUTION = SHAFT.Properties.web.headlessExecution();
 
     public static void passAction(String testData) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
@@ -154,7 +154,8 @@ public class BrowserActionsHelper {
         try {
             // upgrading to w3c compliant browsing context for navigation
             new BrowsingContext(driver, driver.getWindowHandle()).navigate(internalURL, ReadinessState.COMPLETE);
-        } catch (TimeoutException | java.lang.IllegalArgumentException | org.openqa.selenium.bidi.BiDiException illegalArgumentException) {
+        } catch (TimeoutException | java.lang.IllegalArgumentException |
+                 org.openqa.selenium.bidi.BiDiException illegalArgumentException) {
             // Caused by: java.lang.IllegalArgumentException: WebDriver instance must support BiDi protocol
             // Caused by: org.openqa.selenium.bidi.BiDiException: Unable to create a BiDi connection
             // TimeoutException: Happens sometimes with some proxy environments
@@ -273,7 +274,6 @@ public class BrowserActionsHelper {
             return serializedPageData;
         }
     }
-
 
 
     @SneakyThrows
