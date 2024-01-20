@@ -585,22 +585,30 @@ public enum HTMLHelper {
                 </div>
                 
                     <script>
-                        $(document).ready(function() {
-                            $("#search").on("keyup", function() {
-                                var value = $(this).val().toLowerCase();
-                                $("#table tr").filter(function() {
-                                    $(this).toggle($(this).text()
-                                    .toLowerCase().indexOf(value) > -1)
+                                $(document).ready(function() {
+                    
+                                    var search = function(){
+                                        var value1 = $("#search").val().toLowerCase();
+                                        var value2 = $("#searchDropDown").val();
+                    
+                                        console.log(value1 + value2)
+                                        $("#table tr").filter(function() {
+                                            $(this).toggle(
+                                                $(this).text().toLowerCase().indexOf(value1) > -1  &&
+                                                $(this).text().indexOf(value2) > -1
+                                            )
+                                        });
+                    
+                                    };
+                    
+                                    $("#search").on("keyup", function() {
+                                        search();
+                                    });
+                    				$("#searchDropDown").on("change", function(){
+                                        search();
+                    				});
                                 });
-                            });
-            				$("#searchDropDown").on("change", function(){
-            					var value = $(this).val();
-            					 $("#table tr").filter(function() {
-                                    $(this).toggle($(this).text().indexOf(value) > -1)
-                                });
-            				});
-                        });
-                    </script>
+                            </script>
             </center>
             </body>
             </html>
