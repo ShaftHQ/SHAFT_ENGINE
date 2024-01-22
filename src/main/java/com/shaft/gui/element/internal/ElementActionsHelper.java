@@ -103,7 +103,7 @@ public class ElementActionsHelper {
                 } catch (InterruptedException e) {
                     ReportManagerHelper.logDiscrete(e);
                 }
-                currentScreenImage = ScreenshotManager.takeViewportScreenshot(driver);
+                currentScreenImage = ScreenshotManager.takeScreenshot(driver);
                 coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage);
                 if (!Collections.emptyList().equals(coordinates)) {
                     isFound = true;
@@ -116,7 +116,7 @@ public class ElementActionsHelper {
         } else {
             // reference screenshot doesn't exist
             ReportManager.log("Reference screenshot not found. Kindly confirm the image exists under this path: \"" + elementReferenceScreenshot + "\"");
-            currentScreenImage = ScreenshotManager.takeViewportScreenshot(driver);
+            currentScreenImage = ScreenshotManager.takeScreenshot(driver);
             returnedValue.add(currentScreenImage);
             returnedValue.add(new byte[0]);
             returnedValue.add(Collections.emptyList());
@@ -596,19 +596,19 @@ public class ElementActionsHelper {
         if (passFailStatus) {
             try {
                 if (elementLocator != null) {
-                    return ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, true);
+                    return ScreenshotManager.takeScreenshot(driver, elementLocator, actionName, true);
                 } else if (testData != null) {
-                    return ScreenshotManager.captureScreenShot(driver, actionName, true);
+                    return ScreenshotManager.takeScreenshot(driver, null, actionName, true);
                 }
                 // else only happens when switching to default content so there is no need to
                 // take a screenshot
             } catch (Exception e) {
                 ReportManagerHelper.logDiscrete(e);
                 ReportManager.logDiscrete("Failed to take a screenshot of the element as it doesn't exist anymore. Taking a screenshot of the whole page.");
-                return ScreenshotManager.captureScreenShot(driver, actionName, true);
+                return ScreenshotManager.takeScreenshot(driver, null, actionName, true);
             }
         } else {
-            return ScreenshotManager.captureScreenShot(driver, actionName, false);
+            return ScreenshotManager.takeScreenshot(driver, null, actionName, false);
         }
         return new ArrayList<>();
     }
@@ -778,7 +778,7 @@ public class ElementActionsHelper {
         return elementText;
     }
 
-    private static void newClearBeforeTyping(WebDriver driver, ElementInformation elementInformation) {
+    private static void clearBeforeTyping(WebDriver driver, ElementInformation elementInformation) {
         if (SHAFT.Properties.flags.attemptClearBeforeTyping()) {
             if (SHAFT.Properties.flags.attemptClearBeforeTypingUsingBackspace()) {
                 clearBeforeTypingUsingBackSpace(driver, elementInformation);
@@ -843,8 +843,8 @@ public class ElementActionsHelper {
     // TypeWrapper responsible for clearing 'if user enabled any clear flag'
     // and performing type ,
     // and double check if typed correctly 'if user enabled the flag'
-    public static String newTypeWrapper(WebDriver driver, ElementInformation elementInformation, String targetText) {
-        newClearBeforeTyping(driver, elementInformation);
+    public static String typeWrapper(WebDriver driver, ElementInformation elementInformation, String targetText) {
+        clearBeforeTyping(driver, elementInformation);
         var adjustedTargetText = targetText != null && !targetText.isEmpty() ? targetText : "";
         performType(driver, elementInformation, adjustedTargetText);
         //sometimes the text is returned as empty

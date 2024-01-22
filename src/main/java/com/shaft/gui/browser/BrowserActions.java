@@ -32,7 +32,6 @@ import org.openqa.selenium.remote.http.Route;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
@@ -749,20 +748,8 @@ public class BrowserActions extends FluentWebDriverAction {
      * @return a self-reference for chainable actions
      */
     public BrowserActions captureScreenshot(Screenshots type) {
-        var logText = "Capture " + type.getValue().toLowerCase() + " screenshot";
-        switch (type) {
-            case FULL -> {
-                try {
-                    ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeFullPageScreenshot(driver), "captureScreenshot")));
-                } catch (IOException ioException) {
-                    captureScreenshot(Screenshots.VIEWPORT);
-                }
-            }
-            case VIEWPORT ->
-                    ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeViewportScreenshot(driver), "captureScreenshot")));
-            case ELEMENT ->
-                    BrowserActionsHelper.failAction(driver, "Were you trying to use driver.element().captureScreenshot() instead?");
-        }
+        var logText = "Capture " + type.name().toLowerCase() + " screenshot";
+        ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeScreenshot(driver), "captureScreenshot")));
         return this;
     }
 
@@ -781,7 +768,7 @@ public class BrowserActions extends FluentWebDriverAction {
         } else if (pageSnapshot.startsWith("<html")) {
             logMessage = "Capture page HTML";
         }
-        ReportManagerHelper.log(logMessage, List.of(Arrays.asList(logMessage, ScreenshotManager.generateAttachmentFileName("captureSnapshot"), new ByteArrayInputStream(pageSnapshot.getBytes()))));
+        ReportManagerHelper.log(logMessage, List.of(Arrays.asList(logMessage, ScreenshotManager.generateAttachmentFileName("captureSnapshot", null), new ByteArrayInputStream(pageSnapshot.getBytes()))));
         return this;
     }
 

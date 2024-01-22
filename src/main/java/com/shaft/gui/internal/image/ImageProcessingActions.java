@@ -366,7 +366,7 @@ public class ImageProcessingActions {
     public static byte[] getReferenceImage(By elementLocator) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
         if (aiFolderPath.isEmpty()) {
-            aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderPath();
+            aiFolderPath = ScreenshotHelper.getAiAidedElementIdentificationFolderPath();
         }
         String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
         if (FileActions.getInstance(true).doesFileExist(referenceImagePath)) {

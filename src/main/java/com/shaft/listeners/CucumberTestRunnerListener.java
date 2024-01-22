@@ -2,7 +2,7 @@ package com.shaft.listeners;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.image.AnimatedGifManager;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.ReportManager;
@@ -78,7 +78,7 @@ public class CucumberTestRunnerListener extends AllureCucumber7Jvm {
             if (SHAFT.Properties.visuals.videoParamsScope().equals("TestMethod")) {
                 RecordManager.attachVideoRecording();
             }
-            ScreenshotManager.attachAnimatedGif();
+            AnimatedGifManager.attachAnimatedGif();
             ReportManagerHelper.attachTestLog(lastStartedScenarioName,
                     TestNGListenerHelper.createTestLog(Reporter.getOutput()));
         }

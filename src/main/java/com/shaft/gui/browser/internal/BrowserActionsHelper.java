@@ -101,7 +101,7 @@ public class BrowserActionsHelper {
 
         message = message.replace("Browser Action: ", "");
         if (driver != null && !message.equals("Capture page snapshot.")) {
-            attachments.add(ScreenshotManager.captureScreenShot(driver, actionName, passFailStatus));
+            attachments.add(ScreenshotManager.takeScreenshot(driver, null, actionName, passFailStatus));
             ReportManagerHelper.log(message, attachments);
         } else if (!attachments.equals(new ArrayList<>())) {
             ReportManagerHelper.log(message, attachments);

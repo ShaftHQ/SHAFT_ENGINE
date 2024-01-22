@@ -3,7 +3,7 @@ package com.shaft.listeners.internal;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.enums.internal.Screenshots;
-import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.image.AnimatedGifManager;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -143,7 +143,7 @@ public class TestNGListenerHelper {
                     suite.setParallel(XmlSuite.ParallelMode.TESTS);
                     suite.setThreadCount(3);
                     SHAFT.Properties.visuals.set().videoParamsRecordVideo(true);
-                    SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(Screenshots.VIEWPORT.getValue());
+                    SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
                 }
             });
 //        } else {
@@ -219,7 +219,7 @@ public class TestNGListenerHelper {
                 if (!attachment.isEmpty())
                     attachments.add(attachment);
             }
-            attachment = ScreenshotManager.attachAnimatedGif();
+            attachment = AnimatedGifManager.attachAnimatedGif();
             if (!attachment.isEmpty())
                 attachments.add(attachment);
 

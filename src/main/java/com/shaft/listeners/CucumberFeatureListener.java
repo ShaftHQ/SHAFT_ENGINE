@@ -17,7 +17,7 @@ package com.shaft.listeners;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.image.AnimatedGifManager;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -221,7 +221,7 @@ public class CucumberFeatureListener extends AllureCucumber7Jvm {
             if (SHAFT.Properties.visuals.videoParamsScope().equals("TestMethod")) {
                 RecordManager.attachVideoRecording();
             }
-            ScreenshotManager.attachAnimatedGif();
+            AnimatedGifManager.attachAnimatedGif();
             // configuration method attachment is not added to the report (Allure ->
             // threadContext.getCurrent(); -> empty)
             ReportManagerHelper.attachTestLog(lastStartedScenarioName,
