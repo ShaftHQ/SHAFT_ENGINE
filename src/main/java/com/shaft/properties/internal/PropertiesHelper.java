@@ -47,11 +47,11 @@ public class PropertiesHelper {
         Properties.healenium = ConfigFactory.create(Healenium.class);
         Properties.jira = ConfigFactory.create(Jira.class);
         Properties.pattern = ConfigFactory.create(Pattern.class);
-        Properties.reporting=ConfigFactory.create(Reporting.class);
-        Properties.tinkey=ConfigFactory.create(Tinkey.class);
-        Properties.testNG=ConfigFactory.create(TestNG.class);
-        Properties.log4j=ConfigFactory.create(Log4j.class);
-        Properties.visuals=ConfigFactory.create(Visuals.class);
+        Properties.reporting = ConfigFactory.create(Reporting.class);
+        Properties.tinkey = ConfigFactory.create(Tinkey.class);
+        Properties.testNG = ConfigFactory.create(TestNG.class);
+        Properties.log4j = ConfigFactory.create(Log4j.class);
+        Properties.visuals = ConfigFactory.create(Visuals.class);
         Properties.timeouts = ConfigFactory.create(Timeouts.class);
         Properties.performance = ConfigFactory.create(Performance.class);
         Properties.lambdaTest = ConfigFactory.create(LambdaTest.class);
@@ -89,7 +89,7 @@ public class PropertiesHelper {
     private static void overrideScreenShotTypeForMobileAndMacPlatforms() {
         if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString().toLowerCase(), org.openqa.selenium.Platform.MAC.toString().toLowerCase(),
                 org.openqa.selenium.Platform.IOS.toString().toLowerCase()).contains(Properties.platform.targetPlatform().toLowerCase())) {
-            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(Screenshots.VIEWPORT.getValue());
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
         }
     }
 
@@ -101,7 +101,7 @@ public class PropertiesHelper {
 
     private static void overrideScreenShotTypeForAnimatedGIF() {
         if (SHAFT.Properties.visuals.createAnimatedGif()) {
-            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(Screenshots.VIEWPORT.getValue());
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
         }
     }
 
@@ -120,7 +120,7 @@ public class PropertiesHelper {
 
     private static void overrideScreenshotTypeForSafariBrowser() {
         if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
-            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(Screenshots.VIEWPORT.getValue());
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
         }
     }
 
@@ -181,7 +181,7 @@ public class PropertiesHelper {
                 SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
                 SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(true);
                 SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("AI");
-                SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(Screenshots.VIEWPORT.getValue());
+                SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
                 SHAFT.Properties.visuals.set().screenshotParamsWatermark(true);
                 SHAFT.Properties.visuals.set().createAnimatedGif(false);
                 SHAFT.Properties.visuals.set().videoParamsRecordVideo(false);

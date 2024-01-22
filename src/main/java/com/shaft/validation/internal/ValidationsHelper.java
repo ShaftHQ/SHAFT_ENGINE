@@ -3,6 +3,7 @@ package com.shaft.validation.internal;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
+import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.element.ElementActions;
@@ -22,7 +23,6 @@ import org.openqa.selenium.remote.Browser;
 import org.testng.Assert;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -33,11 +33,11 @@ import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 public class ValidationsHelper {
     //TODO: implement element attribute and element exists validations for sikuli actions
     static final ThreadLocal<ArrayList<String>> optionalCustomLogMessage = new ThreadLocal<>();
-    private static By lastUsedElementLocator = null;
     private static final Boolean discreetLoggingState = SHAFT.Properties.reporting.alwaysLogDiscreetly();
+    private static final String WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim();
+    private static By lastUsedElementLocator = null;
     private static List<String> verificationFailuresList = new ArrayList<>();
     private static AssertionError verificationError = null;
-    private static final String WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim();
 
     private ValidationsHelper() {
         throw new IllegalStateException("Utility class");
@@ -332,7 +332,7 @@ public class ValidationsHelper {
             byte[] elementScreenshot;
             Boolean actualResult;
 
-            elementScreenshot = ScreenshotManager.takeElementScreenshot(driver, elementLocator);
+            elementScreenshot = ScreenshotManager.takeScreenshot(driver, elementLocator, Screenshots.ELEMENT);
             actualResult = ImageProcessingActions.compareAgainstBaseline(driver, elementLocator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
 
             List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
@@ -354,12 +354,7 @@ public class ValidationsHelper {
                 fail(driver, validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, null, attachments);
             }
         } else {
-            byte[] pageScreenshot;
-            try {
-                pageScreenshot = ScreenshotManager.takeFullPageScreenshot(driver);
-            } catch (IOException ioException){
-                pageScreenshot = ScreenshotManager.takeViewportScreenshot(driver);
-            }
+            byte[] pageScreenshot = ScreenshotManager.takeScreenshot(driver);
             List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
                     pageScreenshot);
             attachments.add(actualValueAttachment);
@@ -603,13 +598,8 @@ public class ValidationsHelper {
         }
         if (driver != null) {
             // create a screenshot attachment if needed for webdriver
-            if (lastUsedElementLocator != null) {
-                attachments.add(ScreenshotManager.captureScreenShot(driver, lastUsedElementLocator,
-                        validationMethodName, validationState.getValue()));
-            } else {
-                attachments.add(ScreenshotManager.captureScreenShot(driver, validationMethodName,
-                        validationState.getValue()));
-            }
+            attachments.add(ScreenshotManager.takeScreenshot(driver, lastUsedElementLocator,
+                    validationMethodName, validationState.getValue()));
             // reset lastUsed variables
             lastUsedElementLocator = null;
             //}

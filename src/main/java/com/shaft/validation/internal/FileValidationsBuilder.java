@@ -4,12 +4,11 @@ import com.shaft.validation.ValidationEnums;
 
 public class FileValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
-    protected String validationMethod;
-    protected ValidationEnums.ValidationType validationType;
     protected final String folderRelativePath;
     protected final String fileName;
-
     protected final StringBuilder reportMessageBuilder;
+    protected String validationMethod;
+    protected ValidationEnums.ValidationType validationType;
 
     public FileValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, String folderRelativePath, String fileName, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;

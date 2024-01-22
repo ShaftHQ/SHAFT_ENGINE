@@ -3,7 +3,7 @@ package com.shaft.listeners.internal;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.enums.internal.Screenshots;
-import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.image.AnimatedGifManager;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -29,37 +29,39 @@ public class TestNGListenerHelper {
     private static final ArrayList<ITestResult> beforeMethods = new ArrayList<>();
     private static final ArrayList<ITestResult> afterMethods = new ArrayList<>();
     private static final ThreadLocal<String> testName = new ThreadLocal<>();
+
     public static void setTotalNumberOfTests(ISuite testSuite) {
         // This condition checks to confirm that this is not a cucumber test runner instance
         // If this condition is removed the total number of tests will be zero because the cucumber
         // test runner doesn't have any test methods
-        if (!(testSuite.getAllMethods().size() == 1 && testSuite.getAllMethods().get(0).getMethodName().equals("runScenario"))) {
+        if (!(testSuite.getAllMethods().size() == 1 && testSuite.getAllMethods().getFirst().getMethodName().equals("runScenario"))) {
             ReportManagerHelper.setTotalNumberOfTests(testSuite.getAllMethods().size());
         }
     }
-    public static void attachConfigurationMethods(){
+
+    public static void attachConfigurationMethods() {
         attachBeforeConfigurationMethods();
         attachAfterConfigurationMethods();
     }
 
-    public static void updateConfigurationMethods(ITestResult iTestResult){
+    public static void updateConfigurationMethods(ITestResult iTestResult) {
         updateBeforeConfigurationMethods(iTestResult);
         updateAfterConfigurationMethods(iTestResult);
     }
 
-    private static void attachBeforeConfigurationMethods(){
-        if(!beforeMethods.isEmpty()) {
+    private static void attachBeforeConfigurationMethods() {
+        if (!beforeMethods.isEmpty()) {
             if (beforeMethods.size() > 1) {
-                TestNGListenerHelper.attachTestArtifacts(beforeMethods.get(beforeMethods.size() - 1));
+                TestNGListenerHelper.attachTestArtifacts(beforeMethods.getLast());
             } else {
-                TestNGListenerHelper.attachTestArtifacts(beforeMethods.get(0));
+                TestNGListenerHelper.attachTestArtifacts(beforeMethods.getFirst());
             }
             beforeMethods.clear();
         }
     }
 
     private static void updateBeforeConfigurationMethods(ITestResult iTestResult) {
-        if(iTestResult != null){
+        if (iTestResult != null) {
             if (iTestResult.getMethod().isBeforeMethodConfiguration() || iTestResult.getMethod().isBeforeTestConfiguration()
                     || iTestResult.getMethod().isBeforeClassConfiguration() || iTestResult.getMethod().isBeforeSuiteConfiguration()) {
                 // get test result and store it for later processing
@@ -68,21 +70,21 @@ public class TestNGListenerHelper {
         }
     }
 
-    private static void attachAfterConfigurationMethods(){
-        if(!afterMethods.isEmpty()) {
+    private static void attachAfterConfigurationMethods() {
+        if (!afterMethods.isEmpty()) {
             if (afterMethods.size() > 1) {
-                TestNGListenerHelper.attachTestArtifacts(afterMethods.get(afterMethods.size() - 1));
+                TestNGListenerHelper.attachTestArtifacts(afterMethods.getLast());
             } else {
-                TestNGListenerHelper.attachTestArtifacts(afterMethods.get(0));
+                TestNGListenerHelper.attachTestArtifacts(afterMethods.getFirst());
             }
             afterMethods.clear();
         }
     }
 
     private static void updateAfterConfigurationMethods(ITestResult iTestResult) {
-        if(iTestResult != null){
+        if (iTestResult != null) {
             if (iTestResult.getMethod().isAfterMethodConfiguration() || iTestResult.getMethod().isAfterTestConfiguration()
-            || iTestResult.getMethod().isAfterClassConfiguration() || iTestResult.getMethod().isAfterSuiteConfiguration()) {
+                    || iTestResult.getMethod().isAfterClassConfiguration() || iTestResult.getMethod().isAfterSuiteConfiguration()) {
                 // get test result and store it for later processing
                 afterMethods.add(iTestResult);
             }
@@ -96,41 +98,6 @@ public class TestNGListenerHelper {
         }
     }
 
-//    public static void updateConfigurationMethodLogs(ITestResult iTestResult) {
-//        if (iTestResult.getMethod().isTest()) {
-//
-//            //attach current test logs to the current test
-//            TestNGListenerHelper.attachTestArtifacts(iTestResult);
-//
-//            //point Allure UUID to the current test method
-////            TestNGListenerHelper.writeAllureUUID();
-//        } else {
-//            if (iTestResult.getMethod().isBeforeMethodConfiguration()) {
-//                // get test result and store it for later processing
-//
-//                beforeMethods.add(iTestResult);
-//                beforeMethods.forEach(TestNGListenerHelper::attachTestArtifacts);
-//                beforeMethods.clear();
-//            } else if (iTestResult.getMethod().isAfterMethodConfiguration()) {
-//                // get test result and store it for later processing
-//                afterMethods.add(iTestResult);
-//            }
-//        }
-//
-//        /*
-//         * unable to attach afterMethod logs to the relevant test method
-//         * TODO: find a fix
-//         */
-//        if (!afterMethods.isEmpty()) {
-//            //point Allure UUID to the last executed test method
-////            TestNGListenerHelper.readAllureUUID();
-//
-//            //attach after configuration logs to the previous test
-//            afterMethods.forEach(TestNGListenerHelper::attachTestArtifacts);
-//            afterMethods.clear();
-//        }
-//    }
-
     public static String getTestName() {
         return testName.get();
     }
@@ -142,7 +109,7 @@ public class TestNGListenerHelper {
     public static void configureCrossBrowserExecution(List<XmlSuite> suites) {
         if (!"off".equals(SHAFT.Properties.platform.crossBrowserMode())) {
             suites.forEach(suite -> {
-                var firefox_test = (XmlTest) suite.getTests().get(0).clone();
+                var firefox_test = (XmlTest) suite.getTests().getFirst().clone();
                 firefox_test.setParameters(Map.of(
                         "executionAddress", "dockerized",
                         "targetOperatingSystem", Platform.LINUX.name(),
@@ -152,7 +119,7 @@ public class TestNGListenerHelper {
                 firefox_test.setParallel(XmlSuite.ParallelMode.valueOf(SHAFT.Properties.testNG.parallel()));
                 firefox_test.setName(firefox_test.getName() + " - FireFox");
 
-                var safari_test = (XmlTest) suite.getTests().get(0).clone();
+                var safari_test = (XmlTest) suite.getTests().getFirst().clone();
                 safari_test.setParameters(Map.of(
                         "executionAddress", "dockerized",
                         "targetOperatingSystem", Platform.LINUX.name(),
@@ -162,7 +129,7 @@ public class TestNGListenerHelper {
                 safari_test.setParallel(XmlSuite.ParallelMode.valueOf(SHAFT.Properties.testNG.parallel()));
                 safari_test.setName(safari_test.getName() + " - Safari");
 
-                var chrome_test = (XmlTest) suite.getTests().get(0);
+                var chrome_test = (XmlTest) suite.getTests().getFirst();
                 chrome_test.setParameters(Map.of(
                         "executionAddress", "dockerized",
                         "targetOperatingSystem", Platform.LINUX.name(),
@@ -176,7 +143,7 @@ public class TestNGListenerHelper {
                     suite.setParallel(XmlSuite.ParallelMode.TESTS);
                     suite.setThreadCount(3);
                     SHAFT.Properties.visuals.set().videoParamsRecordVideo(true);
-                    SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(Screenshots.VIEWPORT.getValue());
+                    SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
                 }
             });
 //        } else {
@@ -252,7 +219,7 @@ public class TestNGListenerHelper {
                 if (!attachment.isEmpty())
                     attachments.add(attachment);
             }
-            attachment = ScreenshotManager.attachAnimatedGif();
+            attachment = AnimatedGifManager.attachAnimatedGif();
             if (!attachment.isEmpty())
                 attachments.add(attachment);
 
@@ -353,41 +320,39 @@ public class TestNGListenerHelper {
                     methodDescription = iTestNGMethod.getDescription();
                 }
                 ReportManagerHelper.logTestInformation(className, methodName, methodDescription);
-                ReportManagerHelper.extentReportsCreateTest(className + "." + methodName, methodDescription);
             } else if (iTestNGMethod instanceof ConfigurationMethod configurationMethod) {
                 className = configurationMethod.getTestClass().getName();
                 methodName = configurationMethod.getMethodName();
                 var configurationMethodType = configurationMethod.getMethodName();
 
                 ReportManagerHelper.logConfigurationMethodInformation(className, methodName, configurationMethodType);
-                ReportManagerHelper.extentReportsReset();
             }
         }
     }
 
-        public static void logFinishedTestInformation(ITestResult iTestResult) {
-            ITestNGMethod iTestNGMethod = iTestResult.getMethod();
-            String className;
-            String methodName;
-            String methodDescription = "";
-            String methodStatus = "";
+    public static void logFinishedTestInformation(ITestResult iTestResult) {
+        ITestNGMethod iTestNGMethod = iTestResult.getMethod();
+        String className;
+        String methodName;
+        String methodDescription = "";
+        String methodStatus = "";
 
-            if (!iTestNGMethod.getQualifiedName().contains("AbstractTestNGCucumberTests")) {
-                if (iTestNGMethod.isTest()) {
-                    className = ReportManagerHelper.getTestClassName();
-                    methodName = ReportManagerHelper.getTestMethodName();
-                    if (iTestNGMethod.getDescription() != null) {
-                        methodDescription = iTestNGMethod.getDescription();
-                    }
-                    if (iTestResult.getStatus() == ITestResult.SUCCESS) {
-                        methodStatus = "Passed";
-                    } else if (iTestResult.getStatus() == ITestResult.FAILURE) {
-                        methodStatus = "Failed";
-                    } else if (iTestResult.getStatus() == ITestResult.SKIP) {
-                        methodStatus = "Skipped";
-                    }
-                    ReportManagerHelper.logFinishedTestInformation(className, methodName, methodDescription, methodStatus);
+        if (!iTestNGMethod.getQualifiedName().contains("AbstractTestNGCucumberTests")) {
+            if (iTestNGMethod.isTest()) {
+                className = ReportManagerHelper.getTestClassName();
+                methodName = ReportManagerHelper.getTestMethodName();
+                if (iTestNGMethod.getDescription() != null) {
+                    methodDescription = iTestNGMethod.getDescription();
                 }
+                if (iTestResult.getStatus() == ITestResult.SUCCESS) {
+                    methodStatus = "Passed";
+                } else if (iTestResult.getStatus() == ITestResult.FAILURE) {
+                    methodStatus = "Failed";
+                } else if (iTestResult.getStatus() == ITestResult.SKIP) {
+                    methodStatus = "Skipped";
+                }
+                ReportManagerHelper.logFinishedTestInformation(className, methodName, methodDescription, methodStatus);
             }
         }
     }
+}

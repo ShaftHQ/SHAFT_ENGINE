@@ -7,6 +7,7 @@ import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.enums.internal.ClipboardAction;
 import com.shaft.enums.internal.ElementAction;
+import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.ElementInformation;
 import com.shaft.gui.internal.image.ScreenshotManager;
@@ -565,12 +566,9 @@ public class ElementActions extends FluentWebDriverAction {
      */
     public ElementActions hover(By elementLocator) {
         try {
-            var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
-            try {
-                (new Actions(driver)).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).perform();
-            } catch (Exception rootCauseException) {
-                ElementActionsHelper.failAction(driver, elementLocator, rootCauseException);
-            }
+            var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
+            var elementName = elementInformation.getElementName();
+            ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementInformation.getLocator(), ElementAction.HOVER)).getActionResult();
             ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
@@ -800,7 +798,7 @@ public class ElementActions extends FluentWebDriverAction {
         //TODO: refactor to reduce number of webdriver calls
         //getting element information using locator
         var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
-        String actualTextAfterTyping = ElementActionsHelper.newTypeWrapper(driver, elementInformation, text);
+        String actualTextAfterTyping = ElementActionsHelper.typeWrapper(driver, elementInformation, text);
         var elementName = elementInformation.getElementName();
         if (actualTextAfterTyping.equals(text)) {
             ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
@@ -933,7 +931,7 @@ public class ElementActions extends FluentWebDriverAction {
     public ElementActions typeSecure(By elementLocator, String text) {
         try {
             var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
-            String actualResult = ElementActionsHelper.newTypeWrapper(driver, elementInformation, text);
+            String actualResult = ElementActionsHelper.typeWrapper(driver, elementInformation, text);
             var elementName = (String) elementInformation.getElementName();
             if (actualResult.equals(text)) {
                 ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), ElementActionsHelper.OBFUSCATED_STRING.repeat(text.length()), null, elementName);
@@ -1146,7 +1144,7 @@ public class ElementActions extends FluentWebDriverAction {
     }
 
     public ElementActions captureScreenshot(By elementLocator) {
-        ReportManagerHelper.log("Capture element screenshot", Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeElementScreenshot(driver, elementLocator), "captureScreenshot")));
+        ReportManagerHelper.log("Capture element screenshot", Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeScreenshot(driver, elementLocator, Screenshots.ELEMENT), "captureScreenshot")));
         return this;
     }
 

@@ -44,10 +44,6 @@ public class PdfFileManager {
         }
     }
 
-    public String readFileContent() {
-        return PdfFileManager.readFileContent(file.getPath());
-    }
-
     /**
      * Read PDF file content given relative path and optionally delete the file after reading it
      *
@@ -75,6 +71,10 @@ public class PdfFileManager {
             FailureReporter.fail("This PDF file [" + relativeFilePath + "] doesn't exist.");
         }
         return "";
+    }
+
+    public String readFileContent() {
+        return PdfFileManager.readFileContent(file.getPath());
     }
 
     /**
@@ -127,7 +127,7 @@ public class PdfFileManager {
     }
 
     private COSDocument getParsedDocument(PDFParser parser) {
-        try (var parsedDocument = parser.parse()){
+        try (var parsedDocument = parser.parse()) {
             cosDoc = parsedDocument.getDocument();
         } catch (IOException rootCauseException) {
             FailureReporter.fail(PdfFileManager.class, "Couldn't get the document that was parsed. Check that the document parsed before get the document.", rootCauseException);

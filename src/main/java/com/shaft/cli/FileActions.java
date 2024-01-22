@@ -27,8 +27,8 @@ import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 public class FileActions {
-    private boolean internalInstance = false;
     private static final String ERROR_CANNOT_CREATE_DIRECTORY = "Could not create directory: ";
+    private boolean internalInstance = false;
 
     public static FileActions getInstance() {
         return getInstance(false);

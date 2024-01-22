@@ -5,20 +5,19 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Objects;
 
 public class JavaScriptWaitManager {
-    private static int WAIT_DURATION_INTEGER;
     private static final String TARGET_DOCUMENT_READY_STATE = "complete";
     private static final ThreadLocal<WebDriver> jsWaitDriver = new ThreadLocal<>();
     private static final int delayBetweenPolls = 20; // milliseconds
+    private static int WAIT_DURATION_INTEGER;
     private static JavascriptExecutor jsExec;
 
     private JavaScriptWaitManager() {
@@ -38,24 +37,22 @@ public class JavaScriptWaitManager {
         setDriver(driver);
         if (SHAFT.Properties.timeouts.waitForLazyLoading()
                 && !DriverFactoryHelper.isMobileNativeExecution()) {
-            try {
-                waitForJQueryLoadIfDefined();
-                waitForAngularIfDefined();
-                waitForJSLoadIfDefined();
-            } catch (NoSuchSessionException | NullPointerException e) {
-                // do nothing
-            } catch (WebDriverException e) {
-                if (!e.getMessage().contains("jQuery is not defined")) {
-                    ReportManagerHelper.logDiscrete(e);
+            ArrayList<Thread> lazyLoadingThreads = new ArrayList<>();
+            lazyLoadingThreads.add(Thread.ofVirtual().start(JavaScriptWaitManager::waitForJQueryLoadIfDefined));
+            lazyLoadingThreads.add(Thread.ofVirtual().start(JavaScriptWaitManager::waitForAngularIfDefined));
+            lazyLoadingThreads.add(Thread.ofVirtual().start(JavaScriptWaitManager::waitForJSLoadIfDefined));
+            lazyLoadingThreads.forEach(thread -> {
+                try {
+                    thread.join();
+                } catch (InterruptedException e) {
+                    //do nothing
                 }
-                // else do nothing
-            } catch (Exception e) {
-                ReportManagerHelper.logDiscrete(e);
-            }
+            });
         }
     }
 
     private static void waitForJQueryLoadIfDefined() {
+        try {
         Boolean jQueryDefined = (Boolean) jsExec.executeScript("return typeof jQuery != 'undefined'");
         if (Boolean.TRUE.equals(jQueryDefined)) {
             ExpectedCondition<Boolean> jQueryLoad = null;
@@ -84,6 +81,9 @@ public class JavaScriptWaitManager {
                     jqueryReady = (Boolean) jsExec.executeScript("return jQuery.active == 0");
                 }
             }
+        }
+        } catch (Throwable throwable) {
+            // do nothing
         }
     }
 
@@ -116,6 +116,7 @@ public class JavaScriptWaitManager {
     }
 
     private static void waitForJSLoadIfDefined() {
+        try {
         JavascriptExecutor jsExec = (JavascriptExecutor) jsWaitDriver.get();
 
         // Wait for Javascript to load
@@ -146,6 +147,9 @@ public class JavaScriptWaitManager {
                         .equalsIgnoreCase(TARGET_DOCUMENT_READY_STATE);
             }
         }
+        } catch (Throwable throwable) {
+            // do nothing
+        }
     }
 
     private static void waitForAngularIfDefined() {
@@ -159,7 +163,7 @@ public class JavaScriptWaitManager {
                     waitForAngularLoad();
                 }
             }
-        } catch (WebDriverException e) {
+        } catch (Throwable throwable) {
             // do nothing
         }
     }

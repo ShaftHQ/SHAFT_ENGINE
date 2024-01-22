@@ -54,17 +54,16 @@ public class DriverFactoryHelper {
     @Getter(AccessLevel.PUBLIC)
     private static String targetBrowserName = "";
     @Getter(AccessLevel.PUBLIC)
+    private static boolean killSwitch = false;
+    private final OptionsManager optionsManager = new OptionsManager();
+    @Getter(AccessLevel.PUBLIC)
     @Setter(AccessLevel.PUBLIC)
     private WebDriver driver;
 
-    @Getter(AccessLevel.PUBLIC)
-    private static boolean killSwitch = false;
-
-    private final OptionsManager optionsManager = new OptionsManager();
-
-    public DriverFactoryHelper (){
+    public DriverFactoryHelper() {
     }
-    public DriverFactoryHelper(WebDriver driver){
+
+    public DriverFactoryHelper(WebDriver driver) {
         this.driver = driver;
     }
 
@@ -100,39 +99,6 @@ public class DriverFactoryHelper {
         return !isMobileExecution;
     }
 
-    public void closeDriver() {
-        closeDriver(driver);
-        driver = null;
-    }
-
-    public void closeDriver(WebDriver driver) {
-        if (driver != null) {
-            if (SHAFT.Properties.visuals.videoParamsScope().equals("DriverSession")) {
-                RecordManager.attachVideoRecording();
-            }
-            try {
-                attachWebDriverLogs();
-                //if dockerized wdm.quit the relevant one
-                if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("dockerized")) {
-                    var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver);
-                    webDriverManager.get().quit(driver);
-                    RecordManager.attachVideoRecording(pathToRecording);
-                } else {
-                    driver.quit();
-                }
-            } catch (WebDriverException | NullPointerException e) {
-                // driver was already closed at an earlier stage
-            } catch (Exception e) {
-                ReportManagerHelper.logDiscrete(e);
-            } finally {
-                webDriverManager.remove();
-                ReportManager.log("Successfully Closed Driver.");
-            }
-        } else {
-            ReportManager.log("Driver is already closed.");
-        }
-    }
-
     protected static void failAction(String testData, Throwable... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         String message = "Driver Factory Action \"" + actionName + "\" failed.";
@@ -155,196 +121,6 @@ public class DriverFactoryHelper {
         }
         failAction("Unsupported Driver Type \"" + driverName + "\".");
         return DriverType.CHROME;
-    }
-
-    private void disableCacheEdgeAndChrome() {
-        if (SHAFT.Properties.flags.disableCache() && driver instanceof HasDevTools hasDevToolsDriver) {
-            DevTools devTools = hasDevToolsDriver.getDevTools();
-            devTools.createSessionIfThereIsNotOne();
-            devTools.send(Network.enable(Optional.empty(), Optional.empty(), Optional.of(100000000)));
-            devTools.send(Network.setCacheDisabled(true));
-            devTools.send(Network.clearBrowserCookies());
-            devTools.addListener(Network.responseReceived(), responseReceived -> {
-                if (responseReceived.getResponse().getFromDiskCache().isPresent() && responseReceived.getResponse().getFromDiskCache().get().equals(true)) {
-                    failAction("Cache wasn't cleared");
-                }
-            });
-        }
-    }
-
-    private void createNewLocalDriverInstance(DriverType driverType, int retryAttempts) {
-        String initialLog = "Attempting to run locally on: \"" + Properties.platform.targetPlatform() + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
-        if (SHAFT.Properties.web.headlessExecution()) {
-            initialLog = initialLog + ", Headless Execution";
-        }
-        ReportManager.logDiscrete(initialLog + ".");
-        try {
-            ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
-            switch (driverType) {
-                case FIREFOX -> driver = new FirefoxDriver(optionsManager.getFfOptions());
-                case IE -> driver = new InternetExplorerDriver(optionsManager.getIeOptions());
-                case CHROME -> {
-                    driver = new ChromeDriver(optionsManager.getChOptions());
-                    disableCacheEdgeAndChrome();
-                }
-                case EDGE -> {
-                    driver = new EdgeDriver(optionsManager.getEdOptions());
-                    disableCacheEdgeAndChrome();
-                }
-                case SAFARI -> driver = new SafariDriver(optionsManager.getSfOptions());
-                default ->
-                        failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
-            }
-            ReportManager.log(initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".");
-        } catch (Exception exception) {
-            if (driverType.equals(DriverType.SAFARI) && Throwables.getRootCause(exception).getMessage().toLowerCase().contains("safari instance is already paired with another webdriver session")) {
-                //this issue happens when running locally via safari/mac platform
-                // sample failure can be found here: https://github.com/ShaftHQ/SHAFT_ENGINE/actions/runs/4527911969/jobs/7974202314#step:4:46621
-                // attempting blind fix by trying to quit existing safari instances if any
-                try {
-                    SHAFT.CLI.terminal().performTerminalCommand("osascript -e \"tell application \\\"Safari\\\" to quit\"\n");
-                } catch (Throwable throwable) {
-                    // ignore
-                }
-            }
-            // attempting blind fix by trying to quit existing driver if any
-            try {
-                driver.quit();
-            } catch (Throwable throwable) {
-                // ignore
-            } finally {
-                driver = null;
-            }
-            if (exception.getMessage().contains("java.util.concurrent.TimeoutException")) {
-                // this happens in case an auto closable BiDi session was left hanging
-                // the default timeout is 30 seconds, so this wait will waste 26 and the following will waste 5 more
-                // the desired effect will be to wait for the bidi session to timeout
-                try {
-                    Thread.sleep(26000);
-                } catch (InterruptedException e) {
-                    //do nothing
-                }
-            }
-            if (retryAttempts > 0) {
-                try {
-                    Thread.sleep(5000);
-                } catch (InterruptedException e) {
-                    //do nothing
-                }
-                createNewLocalDriverInstance(driverType, retryAttempts - 1);
-            }
-            failAction("Failed to create new Browser Session", exception);
-        }
-    }
-
-    private void createNewDockerizedDriverInstance(DriverType driverType) {
-        String initialLog = "Attempting to run dockerized on: \"" + Properties.platform.targetPlatform() + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
-        if (SHAFT.Properties.web.headlessExecution()) {
-            initialLog = initialLog + ", Headless Execution";
-        }
-        ReportManager.log(initialLog + ".");
-
-        try {
-            ReportManager.logDiscrete(WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE);
-            switch (driverType) {
-                case FIREFOX -> webDriverManager.set(WebDriverManager.firefoxdriver().capabilities(optionsManager.getFfOptions()));
-                case CHROME -> webDriverManager.set(WebDriverManager.chromedriver().capabilities(optionsManager.getChOptions()));
-                case EDGE -> webDriverManager.set(WebDriverManager.edgedriver().capabilities(optionsManager.getEdOptions()));
-                case SAFARI -> webDriverManager.set(WebDriverManager.safaridriver().capabilities(optionsManager.getSfOptions()));
-                default ->
-                        failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\". We only support Chrome, Edge, Firefox, and Safari in this dockerized mode.");
-            }
-            RemoteWebDriver remoteWebDriver = (RemoteWebDriver) webDriverManager.get().proxy(SHAFT.Properties.platform.proxy()).browserInDocker().dockerShmSize("2g").enableVnc().viewOnly().avoidUseChromiumDriverSnap().dockerScreenResolution(TARGET_WINDOW_SIZE.getWidth() + "x" + TARGET_WINDOW_SIZE.getHeight() + "x24")
-//                    .dockerVolumes("\\local\\path:\\container\\path")
-                    .enableRecording().dockerRecordingOutput(SHAFT.Properties.paths.video()).create();
-            remoteWebDriver.setFileDetector(new LocalFileDetector());
-//            driver =ThreadGuard.protect(remoteWebDriver));
-            driver = remoteWebDriver;
-            ReportManager.log("Successfully Opened " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".");
-        } catch (io.github.bonigarcia.wdm.config.WebDriverManagerException exception) {
-            failAction("Failed to create new Dockerized Browser Session, are you sure Docker is available on your machine?", exception);
-        }
-    }
-
-    private void createNewRemoteDriverInstance(DriverType driverType) {
-        var initialLog = new StringBuilder();
-        initialLog.append("Attempting to run remotely on: \"").append(Properties.platform.targetPlatform());
-
-        if (!Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
-            initialLog.append(" | ").append(JavaHelper.convertToSentenceCase(driverType.getValue()));
-        }
-
-        initialLog.append(" | ").append(TARGET_HUB_URL).append("\"");
-
-        if (SHAFT.Properties.web.headlessExecution() && !Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
-            initialLog.append(", Headless Execution");
-        }
-        ReportManager.log(initialLog + ".");
-
-        if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
-            optionsManager.initializeMobileDesiredCapabilities();
-        }
-
-        try {
-            configureRemoteDriverInstance(driverType, optionsManager.getAppiumCapabilities());
-        } catch (UnreachableBrowserException e) {
-            killSwitch = true;
-            failAction("Unreachable Browser, terminated test suite execution.", e);
-        } catch (WebDriverException e) {
-            if (e.getMessage().contains("Error forwarding the new session cannot find")) {
-                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + TARGET_HUB_URL + "\".");
-                failAction("Error forwarding the new session: Couldn't find a node that matches the desired capabilities.", e);
-            } else {
-                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + TARGET_HUB_URL + "\".");
-                failAction("Unhandled Error.", e);
-            }
-        } catch (NoClassDefFoundError e) {
-            failAction("Failed to create Remote WebDriver instance", e);
-        }
-    }
-
-    @Step("Setting up remote driver instance")
-    private void setRemoteDriverInstance(Capabilities capabilities) {
-        // stage 1: ensure that the server is up and running
-        if (SHAFT.Properties.timeouts.waitForRemoteServerToBeUp()) {
-            ReportManager.logDiscrete("Attempting to connect to remote server for up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + "min.");
-            try {
-                TARGET_HUB_URL = TARGET_HUB_URL.contains("0.0.0.0") ? TARGET_HUB_URL.replace("0.0.0.0", "localhost") : TARGET_HUB_URL;
-                if (Properties.flags.forceCheckStatusOfRemoteServer()) {
-                    var statusCode = attemptRemoteServerPing();
-                    ReportManager.logDiscrete("Remote server is online, established successful connection with status code: " + statusCode + ".");
-                }
-            } catch (Throwable throwable) {
-                ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
-                failAction("Failed to connect to remote server.", throwable);
-            }
-        }
-
-        // stage 2: create remote driver instance (requires some time with dockerized appium)
-        ReportManager.logDiscrete("Attempting to instantiate remote driver instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
-        try {
-            driver = attemptRemoteServerConnection(capabilities);
-            ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
-            if (!isWebExecution() && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase("Android")) {
-                // https://github.com/appium/appium-uiautomator2-driver#settings-api
-                ((AppiumDriver) driver).setSetting(Setting.WAIT_FOR_IDLE_TIMEOUT, 5000);
-                ((AppiumDriver) driver).setSetting(Setting.ALLOW_INVISIBLE_ELEMENTS, true);
-                ((AppiumDriver) driver).setSetting(Setting.IGNORE_UNIMPORTANT_VIEWS, false);
-                ((AppiumDriver) driver).setSetting("enableMultiWindows", true);
-//        elementResponseAttributes, shouldUseCompactResponses
-                ((AppiumDriver) driver).setSetting(Setting.MJPEG_SCALING_FACTOR, 25);
-                ((AppiumDriver) driver).setSetting(Setting.MJPEG_SERVER_SCREENSHOT_QUALITY, 100);
-                ((AppiumDriver) driver).setSetting("mjpegBilinearFiltering", true);
-                // ((AppiumDriver) driver).setSetting("limitXPathContextScope", false);
-//                ((AppiumDriver) driver).setSetting("disableIdLocatorAutocompletion", true);
-//        https://github.com/appium/appium-uiautomator2-driver#mobile-deeplink
-//        http://code2test.com/appium-tutorial/how-to-use-uiselector-in-appium/
-//        https://github.com/appium/appium-uiautomator2-driver
-            }
-            ReportManager.logDiscrete("Successfully instantiated remote driver instance.");
-        } catch (Throwable throwable) {
-            failAction("Failed to instantiate remote driver instance.", throwable);
-        }
     }
 
     @SneakyThrows(java.lang.InterruptedException.class)
@@ -446,14 +222,240 @@ public class DriverFactoryHelper {
             if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
                 return new RemoteWebDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities, false);
             } else {
-                // ToDo: Upgrade to using Augmenter and RemoteWebDriver builder instead of old native implementation
-//                return RemoteWebDriver.builder().address(new URI(targetHubUrl).toURL())
-//                        .augmentUsing(new Augmenter())
-//                        .addAlternative(capabilities)
-//                        .config(ClientConfig.defaultConfig())
-//                        .build();
                 return new RemoteWebDriver(new URI(targetHubUrl).toURL(), capabilities, false);
             }
+        }
+    }
+
+    public static void initializeSystemProperties() {
+        PropertiesHelper.postProcessing();
+        TARGET_HUB_URL = (SHAFT.Properties.platform.executionAddress().trim().toLowerCase().startsWith("http")) ? SHAFT.Properties.platform.executionAddress() : "http://" + SHAFT.Properties.platform.executionAddress() + "/";
+    }
+
+    public void closeDriver() {
+        closeDriver(driver);
+        driver = null;
+    }
+
+    public void closeDriver(WebDriver driver) {
+        if (driver != null) {
+            if (SHAFT.Properties.visuals.videoParamsScope().equals("DriverSession")) {
+                RecordManager.attachVideoRecording();
+            }
+            try {
+                attachWebDriverLogs();
+                //if dockerized wdm.quit the relevant one
+                if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("dockerized")) {
+                    var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver);
+                    webDriverManager.get().quit(driver);
+                    RecordManager.attachVideoRecording(pathToRecording);
+                } else {
+                    driver.quit();
+                }
+            } catch (WebDriverException | NullPointerException e) {
+                // driver was already closed at an earlier stage
+            } catch (Exception e) {
+                ReportManagerHelper.logDiscrete(e);
+            } finally {
+                webDriverManager.remove();
+                ReportManager.log("Successfully Closed Driver.");
+            }
+        } else {
+            ReportManager.log("Driver is already closed.");
+        }
+    }
+
+    private void disableCacheEdgeAndChrome() {
+        if (SHAFT.Properties.flags.disableCache() && driver instanceof HasDevTools hasDevToolsDriver) {
+            DevTools devTools = hasDevToolsDriver.getDevTools();
+            devTools.createSessionIfThereIsNotOne();
+            devTools.send(Network.enable(Optional.empty(), Optional.empty(), Optional.of(100000000)));
+            devTools.send(Network.setCacheDisabled(true));
+            devTools.send(Network.clearBrowserCookies());
+            devTools.addListener(Network.responseReceived(), responseReceived -> {
+                if (responseReceived.getResponse().getFromDiskCache().isPresent() && responseReceived.getResponse().getFromDiskCache().get().equals(true)) {
+                    failAction("Cache wasn't cleared");
+                }
+            });
+        }
+    }
+
+    private void createNewLocalDriverInstance(DriverType driverType, int retryAttempts) {
+        String initialLog = "Attempting to run locally on: \"" + Properties.platform.targetPlatform() + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
+        if (SHAFT.Properties.web.headlessExecution()) {
+            initialLog = initialLog + ", Headless Execution";
+        }
+        ReportManager.logDiscrete(initialLog + ".");
+        try {
+            ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
+            switch (driverType) {
+                case FIREFOX -> driver = new FirefoxDriver(optionsManager.getFfOptions());
+                case IE -> driver = new InternetExplorerDriver(optionsManager.getIeOptions());
+                case CHROME -> {
+                    driver = new ChromeDriver(optionsManager.getChOptions());
+                    disableCacheEdgeAndChrome();
+                }
+                case EDGE -> {
+                    driver = new EdgeDriver(optionsManager.getEdOptions());
+                    disableCacheEdgeAndChrome();
+                }
+                case SAFARI -> driver = new SafariDriver(optionsManager.getSfOptions());
+                default ->
+                        failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
+            }
+            ReportManager.log(initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".");
+        } catch (Exception exception) {
+            if (driverType.equals(DriverType.SAFARI) && Throwables.getRootCause(exception).getMessage().toLowerCase().contains("safari instance is already paired with another webdriver session")) {
+                //this issue happens when running locally via safari/mac platform
+                // sample failure can be found here: https://github.com/ShaftHQ/SHAFT_ENGINE/actions/runs/4527911969/jobs/7974202314#step:4:46621
+                // attempting blind fix by trying to quit existing safari instances if any
+                try {
+                    SHAFT.CLI.terminal().performTerminalCommand("osascript -e \"tell application \\\"Safari\\\" to quit\"\n");
+                } catch (Throwable throwable) {
+                    // ignore
+                }
+            }
+            // attempting blind fix by trying to quit existing driver if any
+            try {
+                driver.quit();
+            } catch (Throwable throwable) {
+                // ignore
+            } finally {
+                driver = null;
+            }
+            if (exception.getMessage().contains("java.util.concurrent.TimeoutException")) {
+                // this happens in case an auto closable BiDi session was left hanging
+                // the default timeout is 30 seconds, so this wait will waste 26 and the following will waste 5 more
+                // the desired effect will be to wait for the bidi session to timeout
+                try {
+                    Thread.sleep(26000);
+                } catch (InterruptedException e) {
+                    //do nothing
+                }
+            }
+            if (retryAttempts > 0) {
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException e) {
+                    //do nothing
+                }
+                createNewLocalDriverInstance(driverType, retryAttempts - 1);
+            }
+            failAction("Failed to create new Browser Session", exception);
+        }
+    }
+
+    private void createNewDockerizedDriverInstance(DriverType driverType) {
+        String initialLog = "Attempting to run dockerized on: \"" + Properties.platform.targetPlatform() + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
+        if (SHAFT.Properties.web.headlessExecution()) {
+            initialLog = initialLog + ", Headless Execution";
+        }
+        ReportManager.log(initialLog + ".");
+
+        try {
+            ReportManager.logDiscrete(WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE);
+            switch (driverType) {
+                case FIREFOX ->
+                        webDriverManager.set(WebDriverManager.firefoxdriver().capabilities(optionsManager.getFfOptions()));
+                case CHROME ->
+                        webDriverManager.set(WebDriverManager.chromedriver().capabilities(optionsManager.getChOptions()));
+                case EDGE ->
+                        webDriverManager.set(WebDriverManager.edgedriver().capabilities(optionsManager.getEdOptions()));
+                case SAFARI ->
+                        webDriverManager.set(WebDriverManager.safaridriver().capabilities(optionsManager.getSfOptions()));
+                default ->
+                        failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\". We only support Chrome, Edge, Firefox, and Safari in this dockerized mode.");
+            }
+            RemoteWebDriver remoteWebDriver = (RemoteWebDriver) webDriverManager.get().proxy(SHAFT.Properties.platform.proxy()).browserInDocker().dockerShmSize("2g").enableVnc().viewOnly().avoidUseChromiumDriverSnap().dockerScreenResolution(TARGET_WINDOW_SIZE.getWidth() + "x" + TARGET_WINDOW_SIZE.getHeight() + "x24")
+//                    .dockerVolumes("\\local\\path:\\container\\path")
+                    .enableRecording().dockerRecordingOutput(SHAFT.Properties.paths.video()).create();
+            remoteWebDriver.setFileDetector(new LocalFileDetector());
+//            driver =ThreadGuard.protect(remoteWebDriver));
+            driver = remoteWebDriver;
+            ReportManager.log("Successfully Opened " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".");
+        } catch (io.github.bonigarcia.wdm.config.WebDriverManagerException exception) {
+            failAction("Failed to create new Dockerized Browser Session, are you sure Docker is available on your machine?", exception);
+        }
+    }
+
+    private void createNewRemoteDriverInstance(DriverType driverType) {
+        var initialLog = new StringBuilder();
+        initialLog.append("Attempting to run remotely on: \"").append(Properties.platform.targetPlatform());
+
+        if (!Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
+            initialLog.append(" | ").append(JavaHelper.convertToSentenceCase(driverType.getValue()));
+        }
+
+        initialLog.append(" | ").append(TARGET_HUB_URL).append("\"");
+
+        if (SHAFT.Properties.web.headlessExecution() && !Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
+            initialLog.append(", Headless Execution");
+        }
+        ReportManager.log(initialLog + ".");
+
+        if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
+            optionsManager.initializeMobileDesiredCapabilities();
+        }
+
+        try {
+            configureRemoteDriverInstance(driverType, optionsManager.getAppiumCapabilities());
+        } catch (UnreachableBrowserException e) {
+            killSwitch = true;
+            failAction("Unreachable Browser, terminated test suite execution.", e);
+        } catch (WebDriverException e) {
+            if (e.getMessage().contains("Error forwarding the new session cannot find")) {
+                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + TARGET_HUB_URL + "\".");
+                failAction("Error forwarding the new session: Couldn't find a node that matches the desired capabilities.", e);
+            } else {
+                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + TARGET_HUB_URL + "\".");
+                failAction("Unhandled Error.", e);
+            }
+        } catch (NoClassDefFoundError e) {
+            failAction("Failed to create Remote WebDriver instance", e);
+        }
+    }
+
+    @Step("Setting up remote driver instance")
+    private void setRemoteDriverInstance(Capabilities capabilities) {
+        // stage 1: ensure that the server is up and running
+        if (SHAFT.Properties.timeouts.waitForRemoteServerToBeUp()) {
+            ReportManager.logDiscrete("Attempting to connect to remote server for up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + "min.");
+            try {
+                TARGET_HUB_URL = TARGET_HUB_URL.contains("0.0.0.0") ? TARGET_HUB_URL.replace("0.0.0.0", "localhost") : TARGET_HUB_URL;
+                if (Properties.flags.forceCheckStatusOfRemoteServer()) {
+                    var statusCode = attemptRemoteServerPing();
+                    ReportManager.logDiscrete("Remote server is online, established successful connection with status code: " + statusCode + ".");
+                }
+            } catch (Throwable throwable) {
+                ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
+                failAction("Failed to connect to remote server.", throwable);
+            }
+        }
+
+        // stage 2: create remote driver instance (requires some time with dockerized appium)
+        ReportManager.logDiscrete("Attempting to instantiate remote driver instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
+        try {
+            driver = attemptRemoteServerConnection(capabilities);
+            ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
+            if (!isWebExecution() && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase("Android")) {
+                // https://github.com/appium/appium-uiautomator2-driver#settings-api
+                ((AppiumDriver) driver).setSetting(Setting.WAIT_FOR_IDLE_TIMEOUT, 5000);
+                ((AppiumDriver) driver).setSetting(Setting.ALLOW_INVISIBLE_ELEMENTS, true);
+                ((AppiumDriver) driver).setSetting(Setting.IGNORE_UNIMPORTANT_VIEWS, false);
+                ((AppiumDriver) driver).setSetting("enableMultiWindows", true);
+//        elementResponseAttributes, shouldUseCompactResponses
+                ((AppiumDriver) driver).setSetting(Setting.MJPEG_SCALING_FACTOR, 25);
+                ((AppiumDriver) driver).setSetting(Setting.MJPEG_SERVER_SCREENSHOT_QUALITY, 100);
+                ((AppiumDriver) driver).setSetting("mjpegBilinearFiltering", true);
+                // ((AppiumDriver) driver).setSetting("limitXPathContextScope", false);
+//                ((AppiumDriver) driver).setSetting("disableIdLocatorAutocompletion", true);
+//        https://github.com/appium/appium-uiautomator2-driver#mobile-deeplink
+//        http://code2test.com/appium-tutorial/how-to-use-uiselector-in-appium/
+//        https://github.com/appium/appium-uiautomator2-driver
+            }
+            ReportManager.logDiscrete("Successfully instantiated remote driver instance.");
+        } catch (Throwable throwable) {
+            failAction("Failed to instantiate remote driver instance.", throwable);
         }
     }
 
@@ -590,10 +592,5 @@ public class DriverFactoryHelper {
 //            driver =ThreadGuard.protect(SelfHealingDriver.create(driver)));
             driver = SelfHealingDriver.create(driver);
         }
-    }
-
-    public static void initializeSystemProperties() {
-        PropertiesHelper.postProcessing();
-        TARGET_HUB_URL = (SHAFT.Properties.platform.executionAddress().trim().toLowerCase().startsWith("http")) ? SHAFT.Properties.platform.executionAddress() : "http://" + SHAFT.Properties.platform.executionAddress() + "/";
     }
 }

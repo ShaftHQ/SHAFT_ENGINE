@@ -115,7 +115,7 @@ public class BrowserStack {
         var pathItems = System.getProperty("user.dir").split(Pattern.quote(File.separator));
         var time = LocalDateTime.now();
         browserstackOptions.put("projectName", ReportManagerHelper.getTestClassName());
-        browserstackOptions.put("buildName", pathItems[pathItems.length-1] + "_" + time.getYear() + time.getMonthValue() + time.getDayOfMonth());
+        browserstackOptions.put("buildName", pathItems[pathItems.length - 1] + "_" + time.getYear() + time.getMonthValue() + time.getDayOfMonth());
 
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
 
@@ -158,7 +158,7 @@ public class BrowserStack {
         var pathItems = System.getProperty("user.dir").split(Pattern.quote(File.separator));
         var time = LocalDateTime.now();
         browserstackOptions.put("projectName", ReportManagerHelper.getTestClassName());
-        browserstackOptions.put("buildName", pathItems[pathItems.length-1] + "_" + time.getYear() + time.getMonthValue() + time.getDayOfMonth());
+        browserstackOptions.put("buildName", pathItems[pathItems.length - 1] + "_" + time.getYear() + time.getMonthValue() + time.getDayOfMonth());
 
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
 
@@ -181,7 +181,7 @@ public class BrowserStack {
         var pathItems = System.getProperty("user.dir").split(Pattern.quote(File.separator));
         var time = LocalDateTime.now();
         browserstackOptions.put("projectName", ReportManagerHelper.getTestClassName());
-        browserstackOptions.put("buildName", pathItems[pathItems.length-1] + "_" + time.getYear() + time.getMonthValue() + time.getDayOfMonth());
+        browserstackOptions.put("buildName", pathItems[pathItems.length - 1] + "_" + time.getYear() + time.getMonthValue() + time.getDayOfMonth());
 
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
         return browserStackCapabilities;

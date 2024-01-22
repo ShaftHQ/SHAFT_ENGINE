@@ -6,27 +6,21 @@ import org.openqa.selenium.WebDriver;
 
 public class NativeValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
+    protected final String validationMethod;
+    protected final StringBuilder reportMessageBuilder;
     protected WebDriver driver;
     protected By locator;
-
     protected ValidationEnums.ValidationType validationType;
-    protected final String validationMethod;
-
     protected String elementAttribute;
     protected String elementCssProperty;
     protected String browserAttribute;
-
     protected ValidationEnums.ValidationComparisonType validationComparisonType;
     protected Object expectedValue;
     protected Object actualValue;
-
     protected Object response;
     protected String jsonPath;
-
     protected String folderRelativePath;
     protected String fileName;
-
-    protected final StringBuilder reportMessageBuilder;
 
     public NativeValidationsBuilder(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;

@@ -1,13 +1,5 @@
 package com.shaft.tools.io.internal;
 
-import com.aventstack.extentreports.ExtentReports;
-import com.aventstack.extentreports.ExtentTest;
-import com.aventstack.extentreports.MediaEntityBuilder;
-import com.aventstack.extentreports.markuputils.CodeLanguage;
-import com.aventstack.extentreports.markuputils.MarkupHelper;
-import com.aventstack.extentreports.reporter.ExtentSparkReporter;
-import com.aventstack.extentreports.reporter.configuration.Theme;
-import com.aventstack.extentreports.reporter.configuration.ViewName;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
@@ -22,7 +14,6 @@ import io.qameta.allure.Step;
 import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
 import lombok.Getter;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -43,7 +34,6 @@ import java.util.stream.Collectors;
 @SuppressWarnings("unused")
 public class ReportManagerHelper {
     private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
-    private static final ExtentReports extentReport = new ExtentReports();
     private static final String SHAFT_ENGINE_VERSION_PROPERTY_NAME = "shaftEngineVersion";
     private static final String ALLURE_VERSION_PROPERTY_NAME = "allureVersion";
     private static final String REPORT_MANAGER_PREFIX = "[ReportManager] ";
@@ -69,11 +59,7 @@ public class ReportManagerHelper {
     private static List<List<String>> listOfOpenIssuesForPassedTests = new ArrayList<>();
     private static List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
     private static String featureName = "";
-    private static final ThreadLocal<ExtentTest> extentTest = new ThreadLocal<>();
     private static Logger logger;
-    @Getter
-    private static String extentReportFileName = "";
-    private static boolean generateExtentReports = true;
 
     private ReportManagerHelper() {
         throw new IllegalStateException("Utility class");
@@ -127,7 +113,7 @@ public class ReportManagerHelper {
         }
         if (!listOfOpenIssuesForPassedTests.isEmpty()) {
             listOfOpenIssuesForPassedTests.forEach(issue -> {
-                if (issue.get(3)!=null && !issue.get(3).trim().isEmpty()) {
+                if (issue.get(3) != null && !issue.get(3).trim().isEmpty()) {
                     logIssue("Test Method '" + issue.get(0) + "." + issue.get(1)
                             + "' passed. Please validate and close this open issue '" + issue.get(2) + "': '"
                             + issue.get(3) + "'.\n");
@@ -187,6 +173,10 @@ public class ReportManagerHelper {
 
     public static void initializeAllureReportingEnvironment() {
         ReportManager.logDiscrete("Initializing Allure Reporting Environment...");
+        /*
+         * Force screenshot link to be shown in the results as a link not text
+         */
+        System.setProperty("org.uncommons.reportng.escape-output", "false");
         allureResultsFolderPath = SHAFT.Properties.paths.allureResults();
         cleanAllureResultsDirectory();
         downloadAndExtractAllureBinaries();
@@ -209,11 +199,14 @@ public class ReportManagerHelper {
 
     private static void createAllureListenersMetaFiles() {
         FileActions.getInstance(true).createFolder(com.shaft.properties.internal.Properties.paths.services());
-        Arrays.asList("io.qameta.allure.listener.ContainerLifecycleListener","io.qameta.allure.listener.FixtureLifecycleListener",
+        Arrays.asList("io.qameta.allure.listener.ContainerLifecycleListener", "io.qameta.allure.listener.FixtureLifecycleListener",
                 "io.qameta.allure.listener.StepLifecycleListener", "io.qameta.allure.listener.TestLifecycleListener").forEach(fileName -> FileActions.getInstance(true).writeToFile(Properties.paths.services(), fileName, "com.shaft.listeners.AllureListener"));
     }
 
     private static void initializeLogger() {
+        // delete previous run execution log
+        FileActions.getInstance(true).deleteFile(System.getProperty("appender.file.fileName"));
+        // initialize
         Configurator.initialize(null, PropertyFileManager.getCUSTOM_PROPERTIES_FOLDER_PATH() + "/log4j2.properties");
         logger = LogManager.getLogger(ReportManager.class.getName());
     }
@@ -415,7 +408,7 @@ public class ReportManagerHelper {
 
     public static String getTestClassName() {
         var result = Reporter.getCurrentTestResult();
-       return  result != null ? result.getMethod().getTestClass().getName() : "";
+        return result != null ? result.getMethod().getTestClass().getName() : "";
 //        return Reporter.getCurrentTestResult().getMethod().getTestClass().getName();
     }
 
@@ -454,83 +447,6 @@ public class ReportManagerHelper {
 
     public static void setFeatureName(String featureName) {
         ReportManagerHelper.featureName = featureName;
-    }
-
-    public static void initializeExtentReportingEnvironment() {
-        generateExtentReports = SHAFT.Properties.reporting.generateExtentReports();
-        if (generateExtentReports) {
-            ReportManager.logDiscrete("Initializing Extent Reporting Environment...");
-            cleanExtentReportsDirectory();
-            extentReportFileName = SHAFT.Properties.paths.extentReports() + "ExtentReports_" + (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis()) + ".html";
-            var spark = new ExtentSparkReporter(extentReportFileName)
-                    .viewConfigurer()
-                    .viewOrder()
-                    .as(new ViewName[]{ViewName.DASHBOARD, ViewName.TEST, ViewName.EXCEPTION, ViewName.LOG})
-                    .apply();
-            spark.config().setTheme(Theme.STANDARD);
-            spark.config().setDocumentTitle("Extent Reports");
-            spark.config().setReportName("Extent Reports - Powered by SHAFT_Engine");
-            extentReport.attachReporter(spark);
-        }
-    }
-
-    private static void cleanExtentReportsDirectory() {
-        if (SHAFT.Properties.reporting.cleanExtentReportsDirectoryBeforeExecution()) {
-            var extentReportsFolderPath = SHAFT.Properties.paths.extentReports();
-            FileActions.getInstance(true).deleteFolder(extentReportsFolderPath.substring(0, extentReportsFolderPath.length() - 1));
-        }
-
-    }
-
-    public static void extentReportsReset() {
-        extentTest.remove();
-    }
-
-
-    public static void extentReportsCreateTest(String testName, String testDescription) {
-        if (extentReport.equals(new ExtentReports())) {
-            if (testDescription.isEmpty()) {
-                extentTest.set(extentReport.createTest(testName));
-            } else {
-                extentTest.set(extentReport.createTest(testDescription));
-            }
-        }
-    }
-
-    public static void extentReportsPass(String message) {
-        if (generateExtentReports && extentTest.get()!=null) {
-            extentTest.get().pass(message);
-        }
-    }
-
-    public static void extentReportsFail(String message) {
-        if (generateExtentReports && extentTest.get()!=null) {
-            extentTest.get().fail(message);
-        }
-    }
-
-    public static void extentReportsFail(Throwable t) {
-        if (generateExtentReports && extentTest.get()!=null) {
-            extentTest.get().fail(t);
-        }
-    }
-
-    public static void extentReportsSkip(String message) {
-        if (generateExtentReports && extentTest.get()!=null) {
-            extentTest.get().skip(message);
-        }
-    }
-
-    public static void extentReportsSkip(Throwable t) {
-        if (generateExtentReports && extentTest.get()!=null) {
-            extentTest.get().skip(t);
-        }
-    }
-
-    public static void extentReportsFlush() {
-        if (generateExtentReports) {
-            extentReport.flush();
-        }
     }
 
     private static String formatStackTraceToLogEntry(Throwable t, boolean isCause) {
@@ -572,10 +488,6 @@ public class ReportManagerHelper {
             }
             String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
             Reporter.log(log, false);
-            if (extentTest.get() != null && !logText.contains("created attachment") && !logText.contains("<html")) {
-                extentTest.get().info(logText);
-            }
-
             if (addToConsoleLog) {
                 if (logger == null) {
                     initializeLogger();
@@ -711,35 +623,31 @@ public class ReportManagerHelper {
             logAttachmentAction(attachmentType, attachmentName, byteArrayOutputStream);
         }
     }
+
     @SuppressWarnings("SpellCheckingInspection")
     private static void attachBasedOnFileType(String attachmentType, String attachmentName,
                                               ByteArrayOutputStream attachmentContent, String attachmentDescription) {
         var content = new ByteArrayInputStream(attachmentContent.toByteArray());
         if (attachmentType.toLowerCase().contains("screenshot")) {
             Allure.addAttachment(attachmentDescription, "image/png", content, ".png");
-            attachImageToExtentReport("image/png", new ByteArrayInputStream(attachmentContent.toByteArray()));
         } else if (attachmentType.toLowerCase().contains("recording")) {
             Allure.addAttachment(attachmentDescription, "video/mp4", content, ".mp4");
         } else if (attachmentType.toLowerCase().contains("gif")) {
             Allure.addAttachment(attachmentDescription, "image/gif", content, ".gif");
-            attachImageToExtentReport("image/gif", new ByteArrayInputStream(attachmentContent.toByteArray()));
         } else if (attachmentType.toLowerCase().contains("csv") || attachmentName.toLowerCase().contains("csv")) {
             Allure.addAttachment(attachmentDescription, "text/csv", content, ".csv");
-            attachCodeBlockToExtentReport("text/csv", new ByteArrayInputStream(attachmentContent.toByteArray()));
         } else if (attachmentType.toLowerCase().contains("xml") || attachmentName.toLowerCase().contains("xml")) {
             Allure.addAttachment(attachmentDescription, "text/xml", content, ".xml");
-            attachCodeBlockToExtentReport("text/xml", new ByteArrayInputStream(attachmentContent.toByteArray()));
         } else if (attachmentType.toLowerCase().contains("excel") || attachmentName.toLowerCase().contains("excel")) {
             Allure.addAttachment(attachmentDescription, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", content, ".xlsx");
         } else if (attachmentType.toLowerCase().contains("json") || attachmentName.toLowerCase().contains("json")) {
             Allure.addAttachment(attachmentDescription, "text/json", content, ".json");
-            attachCodeBlockToExtentReport("text/json", new ByteArrayInputStream(attachmentContent.toByteArray()));
         } else if (attachmentType.toLowerCase().contains("properties")) {
             Allure.addAttachment(attachmentDescription, "text/plain", content, ".properties");
         } else if (attachmentType.toLowerCase().contains("link")) {
             Allure.addAttachment(attachmentDescription, "text/uri-list", content, ".uri");
         } else if (attachmentType.toLowerCase().contains("engine logs")) {
-                Allure.addAttachment(attachmentDescription, "text/plain", content, ".txt");
+            Allure.addAttachment(attachmentDescription, "text/plain", content, ".txt");
         } else if (attachmentType.toLowerCase().contains("page snapshot")) {
             Allure.addAttachment(attachmentDescription, "multipart/related", content, ".mhtml");
         } else if (attachmentType.toLowerCase().contains("html")) {
@@ -769,36 +677,6 @@ public class ReportManagerHelper {
                     initializeLogger();
                 }
                 logger.info(logEntry);
-            }
-        }
-    }
-
-    private static void attachCodeBlockToExtentReport(String attachmentType, InputStream attachmentContent) {
-        if (extentTest.get() !=null) {
-            try {
-                var codeBlock = IOUtils.toString(attachmentContent, StandardCharsets.UTF_8);
-                switch (attachmentType) {
-                    case "text/json" -> extentTest.get().info(MarkupHelper.createCodeBlock(codeBlock, CodeLanguage.JSON));
-                    case "text/xml" -> extentTest.get().info(MarkupHelper.createCodeBlock(codeBlock, CodeLanguage.XML));
-                    default -> extentTest.get().info(MarkupHelper.createCodeBlock(codeBlock));
-                }
-            } catch (IOException e) {
-                ReportManager.logDiscrete("Failed to attach code block to extentReport.");
-            }
-        }
-    }
-
-    private static void attachImageToExtentReport(String attachmentType, InputStream attachmentContent) {
-        if (extentTest.get() !=null) {
-            try {
-                var image = Base64.getEncoder().encodeToString(IOUtils.toByteArray(attachmentContent));
-                if (attachmentType.toLowerCase().contains("gif")) {
-                    extentTest.get().addScreenCaptureFromBase64String(image);
-                } else {
-                    extentTest.get().info(MediaEntityBuilder.createScreenCaptureFromBase64String(image).build());
-                }
-            } catch (IOException e) {
-                ReportManager.logDiscrete("Failed to attach screenshot to extentReport.");
             }
         }
     }
@@ -962,16 +840,6 @@ public class ReportManagerHelper {
                 SHAFT.CLI.terminal().performTerminalCommand(".\\" + SHAFT.Properties.paths.executionSummaryReport() + "ExecutionSummaryReport_*.html");
             } else {
                 SHAFT.CLI.terminal().performTerminalCommand("open ./" + SHAFT.Properties.paths.executionSummaryReport() + "ExecutionSummaryReport_*.html");
-            }
-        }
-    }
-
-    public static void openExtentReportAfterExecution() {
-        if (SHAFT.Properties.reporting.openExtentReportAfterExecution()) {
-            if (SystemUtils.IS_OS_WINDOWS) {
-                SHAFT.CLI.terminal().performTerminalCommand(".\\" + SHAFT.Properties.paths.extentReports() + "ExtentReports_*.html");
-            } else {
-                SHAFT.CLI.terminal().performTerminalCommand("open ./" + SHAFT.Properties.paths.extentReports() + "ExtentReports_*.html");
             }
         }
     }

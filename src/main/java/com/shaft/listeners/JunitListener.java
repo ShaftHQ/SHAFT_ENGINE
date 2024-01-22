@@ -70,6 +70,7 @@ public class JunitListener implements LauncherSessionListener {
             });
         }
     }
+
     private void engineSetup() {
         ReportManagerHelper.setDiscreteLogging(true);
         PropertiesHelper.initialize();
@@ -87,7 +88,6 @@ public class JunitListener implements LauncherSessionListener {
         ImageProcessingActions.loadOpenCV();
 
         ReportManagerHelper.initializeAllureReportingEnvironment();
-        ReportManagerHelper.initializeExtentReportingEnvironment();
         ReportManagerHelper.cleanExecutionSummaryReportDirectory();
 
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
@@ -100,7 +100,6 @@ public class JunitListener implements LauncherSessionListener {
         GoogleTink.encrypt();
         ReportManagerHelper.generateAllureReportArchive();
         ReportManagerHelper.openAllureReportAfterExecution();
-        ReportManagerHelper.openExtentReportAfterExecution();
         long executionEndTime = System.currentTimeMillis();
         ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
         ReportManagerHelper.logEngineClosure();

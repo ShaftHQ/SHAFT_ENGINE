@@ -20,8 +20,8 @@ import java.util.Map;
 
 @SuppressWarnings("unused")
 public class JSONFileManager {
-    private final String jsonFilePath;
     private static final ThreadLocal<FileReader> reader = new ThreadLocal<>();
+    private final String jsonFilePath;
 
     /**
      * Creates a new instance of the test data json reader using the target json

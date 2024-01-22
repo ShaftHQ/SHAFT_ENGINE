@@ -23,7 +23,6 @@ public class ConfigurationHelper {
     @Step("Attaching Reports")
     private void attachLogsAndReports() {
         ReportHelper.attachEngineLog();
-        ReportHelper.attachExtentReport();
         ReportHelper.attachCucumberReport();
         CheckpointCounter.attach();
         ReportHelper.attachIssuesLog();
