@@ -201,13 +201,19 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onExecutionFinish() {
         ReportManagerHelper.setDiscreteLogging(true);
+        Thread allureArchiveGeneration = Thread.ofVirtual().start(ReportManagerHelper::generateAllureReportArchive);
         long executionEndTime = System.currentTimeMillis();
+        Thread summaryReportGeneration = Thread.ofVirtual().start(() -> ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime));
         Thread.ofVirtual().start(JiraHelper::reportExecutionStatusToJira);
         Thread.ofVirtual().start(GoogleTink::encrypt);
-        Thread.ofVirtual().start(ReportManagerHelper::generateAllureReportArchive);
         Thread.ofVirtual().start(ReportManagerHelper::openAllureReportAfterExecution);
-        Thread.ofVirtual().start(() -> ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime));
         Thread.ofVirtual().start(ReportManagerHelper::logEngineClosure);
+        try {
+            summaryReportGeneration.join();
+            allureArchiveGeneration.join();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
