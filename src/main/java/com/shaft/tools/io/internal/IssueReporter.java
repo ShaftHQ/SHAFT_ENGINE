@@ -36,22 +36,9 @@ public class IssueReporter {
             if (testResult.getStatus() == ITestResult.SUCCESS) {
                 // if test passed
                 reportOpenIssueStatus(testMethod, true);
-                ReportManagerHelper.extentReportsPass("Test Passed.");
             } else if (testResult.getStatus() == ITestResult.FAILURE) {
                 // if test failed
                 reportOpenIssueStatus(testMethod, false);
-                if (testResult.getThrowable() != null) {
-                    ReportManagerHelper.extentReportsFail(testResult.getThrowable());
-                } else {
-                    ReportManagerHelper.extentReportsFail("Test Failed.");
-                }
-            } else if (testResult.getStatus() == ITestResult.SKIP) {
-                // if test skipped
-                if (testResult.getThrowable() != null) {
-                    ReportManagerHelper.extentReportsSkip(testResult.getThrowable());
-                } else {
-                    ReportManagerHelper.extentReportsSkip("Test Skipped as it depends on unsuccessfully executed methods.");
-                }
             }
         }
     }
@@ -113,8 +100,8 @@ public class IssueReporter {
         List<String> newIssue = new ArrayList<>();
         newIssue.add(className);
         newIssue.add(methodName);
-        newIssue.add(listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(0));
-        newIssue.add(listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(1));
+        newIssue.add(listOfOpenIssues.getLast().get(0));
+        newIssue.add(listOfOpenIssues.getLast().get(1));
         listOfOpenIssuesForPassedTests.add(newIssue);
     }
 }

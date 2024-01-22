@@ -34,7 +34,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
 
     public void onError(Object target, Method method, Object[] args, InvocationTargetException e) {
         ReportManager.log(JavaHelper.convertToSentenceCase(method.getName()) + " action failed.");
-        ReportManagerHelper.attach(ScreenshotManager.captureScreenShot(currentWebDriver, method.getName(), false));
+        ReportManagerHelper.attach(ScreenshotManager.takeScreenshot(currentWebDriver, null, method.getName(), false));
         ReportManagerHelper.logDiscrete(e);
     }
 
@@ -74,12 +74,12 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
 
     public void afterClose(WebDriver driver) {
         currentWebDriver = driver;
-            ReportManager.log("Successfully Closed Driver.");
+        ReportManager.log("Successfully Closed Driver.");
     }
 
     public void afterQuit(WebDriver driver) {
         currentWebDriver = driver;
-            ReportManager.log("Successfully Quit Driver.");
+        ReportManager.log("Successfully Quit Driver.");
     }
 
     // WebElement
@@ -168,7 +168,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     // Alert
 
     public void beforeSendKeys(Alert alert, String text) {
-            ReportManager.log("Type \"" + text + "\" into Alert.");
+        ReportManager.log("Type \"" + text + "\" into Alert.");
     }
 
     // Options

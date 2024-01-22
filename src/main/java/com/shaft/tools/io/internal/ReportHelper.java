@@ -67,13 +67,4 @@ public class ReportHelper {
             ReportManagerHelper.attach("HTML", "Cucumber Execution Report", FileActions.getInstance(true).readFile("allure-results/cucumberReport.html"));
         }
     }
-
-    public static void attachExtentReport() {
-        ReportManagerHelper.extentReportsFlush();
-        if (SHAFT.Properties.reporting.attachExtentReportsToAllureReport()) {
-            if (SHAFT.Properties.reporting.generateExtentReports() && FileActions.getInstance(true).doesFileExist(ReportManagerHelper.getExtentReportFileName())) {
-                ReportManagerHelper.attach("HTML", "Extent Emailable Execution Report", FileActions.getInstance(true).readFile(ReportManagerHelper.getExtentReportFileName()));
-            }
-        }
-    }
 }

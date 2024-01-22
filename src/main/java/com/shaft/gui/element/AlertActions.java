@@ -17,9 +17,11 @@ public class AlertActions extends FluentWebDriverAction {
     public AlertActions() {
         initialize();
     }
+
     public AlertActions(WebDriver driver) {
         initialize(driver);
     }
+
     public AlertActions(DriverFactoryHelper helper) {
         initialize(helper);
     }
@@ -34,6 +36,7 @@ public class AlertActions extends FluentWebDriverAction {
             ElementActionsHelper.failAction(helper.getDriver(), null, rootCauseException);
         }
     }
+
     public boolean isAlertPresent() {
         try {
             helper.getDriver().switchTo().alert();

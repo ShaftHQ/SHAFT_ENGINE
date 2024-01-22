@@ -9,14 +9,13 @@ import com.shaft.validation.ValidationEnums;
 @SuppressWarnings("unused")
 public class RestValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
+    protected final Object response;
+    protected final StringBuilder reportMessageBuilder;
     protected String validationMethod;
     protected ValidationEnums.ValidationType validationType;
-    protected final Object response;
     protected String fileAbsolutePath;
     protected RestActions.ComparisonType restComparisonType;
     protected String jsonPath;
-
-    protected final StringBuilder reportMessageBuilder;
 
     public RestValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, Object response, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;

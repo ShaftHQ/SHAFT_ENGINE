@@ -18,7 +18,7 @@ public class JDK21VirtualThreadsAndAsyncActionsTests {
     LocatorBuilder locator = SHAFT.GUI.Locator.hasTagName("input");
 
     @Test
-    public void asyncActions() {
+    public void _2asyncActions() {
         driver.browser().navigateToURL(testElement);
         driver.async().element().type(locator.hasId("text1").build(), "first string")
                 .type(locator.hasId("text2").build(), "second string")
@@ -26,12 +26,12 @@ public class JDK21VirtualThreadsAndAsyncActionsTests {
                 .type(locator.hasId("text4").build(), "fourth string")
                 .type(locator.hasId("text5").build(), "fifth string")
                 .type(locator.hasId("text6").build(), "sixth string")
-                .perform();
-        driver.element().assertThat(locator.hasId("text1").build()).text().isEqualTo("first string").perform();
+                .synchronize()
+                .element().assertThat(locator.hasId("text1").build()).text().isEqualTo("first string").perform();
     }
 
     @Test
-    public void syncActions() {
+    public void _1syncActions() {
         driver.browser().navigateToURL(testElement);
         driver.element().type(locator.hasId("text1").build(), "first string")
                 .type(locator.hasId("text2").build(), "second string")

@@ -101,9 +101,10 @@
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
-            <version>4.16.1</version> <!-- MAKE SURE TO UPDATE DriverFactoryHelper import devtools.v120.network.Network TO LATEST VERSION WITH UPDATING SELENIUM-->
+            <version>4.16.1
+            </version> <!-- MAKE SURE TO UPDATE DriverFactoryHelper import devtools.v120.network.Network TO LATEST VERSION WITH UPDATING SELENIUM-->
         </dependency>
-        
+
         <!-- APPIUM -->
         <dependency>
             <groupId>io.appium</groupId>
@@ -193,10 +194,10 @@
 
         <!-- EXCEL FILE MANIPULATION -->
         <dependency>
-           <groupId>org.apache.poi</groupId>
-               <artifactId>poi</artifactId>
-               <version>5.2.5</version>
-           <exclusions>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>5.2.5</version>
+            <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>slf4j-api</artifactId>
@@ -205,21 +206,21 @@
                     <groupId>org.slf4j</groupId>
                     <artifactId>jcl-over-slf4j</artifactId>
                 </exclusion>
-           </exclusions>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
             <version>5.2.5</version>
             <exclusions>
-            <exclusion>
-            	<groupId>xml-apis</groupId>
-            	<artifactId>xml-apis</artifactId>
-            </exclusion>
-            <exclusion>
-            	<groupId>org.slf4j</groupId>
-            	<artifactId>slf4j-api</artifactId>
-            </exclusion>
+                <exclusion>
+                    <groupId>xml-apis</groupId>
+                    <artifactId>xml-apis</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
@@ -269,19 +270,6 @@
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjweaver</artifactId>
             <version>1.9.21</version>
-        </dependency>
-
-        <!-- EXTENT REPORTS -->
-        <dependency>
-            <groupId>com.aventstack</groupId>
-            <artifactId>extentreports</artifactId>
-            <version>5.1.1</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.projectlombok</groupId>
-                    <artifactId>lombok</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <!-- PDF Validation -->
@@ -811,7 +799,7 @@
                 <executions>
                     <execution>
                         <id>attach-sources</id>
-<!--                        <phase>verify</phase>-->
+                        <!--                        <phase>verify</phase>-->
                         <goals>
                             <goal>jar-no-fork</goal>
                         </goals>
@@ -907,9 +895,9 @@
             <!--                        <phase>compile</phase>-->
             <!--                        <goals>-->
             <!--                            <goal>initReport</goal>-->
-<!--                        </goals>-->
-<!--                    </execution>-->
-<!--                    <execution>-->
+            <!--                        </goals>-->
+            <!--                    </execution>-->
+            <!--                    <execution>-->
             <!--                        <id>hlmReportB</id>-->
             <!--                        <phase>test</phase>-->
             <!--                        <goals>-->
@@ -1008,9 +996,9 @@
                             <failIfNoTests>false</failIfNoTests>
                             <trimStackTrace>false</trimStackTrace>
                             <useFile>false</useFile>
-                           <argLine>
-                               @{argLine} ${surefireArgLine}
-                               -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.21/aspectjweaver-1.9.21.jar"
+                            <argLine>
+                                @{argLine} ${surefireArgLine}
+                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.21/aspectjweaver-1.9.21.jar"
                             </argLine>
                             <properties>
                                 <property>
@@ -1053,7 +1041,7 @@
                             </dependency>
                         </dependencies>
                         <configuration>
-                           <encoding>UTF-8</encoding>
+                            <encoding>UTF-8</encoding>
                             <systemPropertyVariables>
                                 <testng.dtd.http>true</testng.dtd.http>
                                 <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>
@@ -1062,9 +1050,9 @@
                             <failIfNoTests>false</failIfNoTests>
                             <trimStackTrace>false</trimStackTrace>
                             <useFile>false</useFile>
-                           <argLine>
-                               @{argLine} ${surefireArgLine}
-                               -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.21/aspectjweaver-1.9.21.jar"
+                            <argLine>
+                                @{argLine} ${surefireArgLine}
+                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.21/aspectjweaver-1.9.21.jar"
                             </argLine>
                             <properties>
                                 <property>

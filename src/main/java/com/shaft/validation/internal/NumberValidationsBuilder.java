@@ -4,18 +4,14 @@ import com.shaft.validation.ValidationEnums;
 
 public class NumberValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
-    protected ValidationEnums.ValidationType validationType;
     protected final String validationMethod;
-
+    protected final StringBuilder reportMessageBuilder;
+    protected ValidationEnums.ValidationType validationType;
     protected Number expectedValue;
     protected Object actualValue;
-
     protected Object response;
     protected String jsonPath;
-
     protected ValidationEnums.NumbersComparativeRelation numbersComparativeRelation;
-
-    protected final StringBuilder reportMessageBuilder;
 
     public NumberValidationsBuilder(ValidationsBuilder validationsBuilder) {
         this.validationCategory = validationsBuilder.validationCategory;

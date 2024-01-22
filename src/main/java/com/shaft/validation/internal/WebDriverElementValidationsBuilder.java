@@ -9,14 +9,12 @@ public class WebDriverElementValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
     protected final WebDriver driver;
     protected final By locator;
-
+    protected final StringBuilder reportMessageBuilder;
     protected ValidationEnums.ValidationType validationType;
     protected String validationMethod;
     protected ValidationEnums.VisualValidationEngine visualValidationEngine;
     protected String elementAttribute;
     protected String elementCssProperty;
-
-    protected final StringBuilder reportMessageBuilder;
 
     public WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, WebDriver driver, By locator, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;

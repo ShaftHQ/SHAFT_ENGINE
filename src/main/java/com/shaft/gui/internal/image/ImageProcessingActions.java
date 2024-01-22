@@ -287,7 +287,7 @@ public class ImageProcessingActions {
                     matchAccuracy = minMaxVal;
                 }
 
-                var accuracyMessage = "Match accuracy is " + (int) Math.round(matchAccuracy * 100) + "% and threshold is " + (int) Math.round(threshold * 100) + "%. Match Method: "+matchMethod+".";
+                var accuracyMessage = "Match accuracy is " + (int) Math.round(matchAccuracy * 100) + "% and threshold is " + (int) Math.round(threshold * 100) + "%. Match Method: " + matchMethod + ".";
                 ReportManager.logDiscrete(accuracyMessage);
 
                 if (SHAFT.Properties.reporting.debugMode()) {
@@ -331,7 +331,7 @@ public class ImageProcessingActions {
                     attachments.add(screenshot);
                     ReportManagerHelper.log("Successfully identified the element using AI; OpenCV. " + accuracyMessage, attachments);
                 } catch (IOException e) {
-                    ReportManager.log("Successfully identified the element using AI; OpenCV. "+accuracyMessage);
+                    ReportManager.log("Successfully identified the element using AI; OpenCV. " + accuracyMessage);
                 }
                 return Arrays.asList(x, y);
             } catch (org.opencv.core.CvException e) {
@@ -366,7 +366,7 @@ public class ImageProcessingActions {
     public static byte[] getReferenceImage(By elementLocator) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
         if (aiFolderPath.isEmpty()) {
-            aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderPath();
+            aiFolderPath = ScreenshotHelper.getAiAidedElementIdentificationFolderPath();
         }
         String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
         if (FileActions.getInstance(true).doesFileExist(referenceImagePath)) {
@@ -395,7 +395,7 @@ public class ImageProcessingActions {
 
             boolean doesReferenceFileExist = FileActions.getInstance(true).doesFileExist(referenceImagePath);
 
-            if (doesReferenceFileExist && (elementScreenshot!=null && elementScreenshot.length>0)) {
+            if (doesReferenceFileExist && (elementScreenshot != null && elementScreenshot.length > 0)) {
                 boolean actualResult = false;
                 try {
                     var snapshot = Shutterbug.shootElement(driver, elementLocator, CaptureElement.VIEWPORT, true);
@@ -408,7 +408,7 @@ public class ImageProcessingActions {
                     actualResult = compareAgainstBaseline(driver, elementLocator, elementScreenshot, VisualValidationEngine.EXACT_OPENCV);
                 }
                 return actualResult;
-            }else{
+            } else {
                 ReportManager.logDiscrete("Passing the test and saving a reference image");
                 FileActions.getInstance(true).writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
                 return true;

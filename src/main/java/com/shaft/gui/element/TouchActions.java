@@ -40,12 +40,15 @@ public class TouchActions extends FluentWebDriverAction {
     public TouchActions(WebDriver driver) {
         initialize(driver);
     }
+
     public TouchActions(DriverFactoryHelper helper) {
         initialize(helper);
     }
+
     public TouchActions and() {
         return this;
     }
+
     public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
         return new WizardHelpers.WebDriverAssertions(helper).element(elementLocator);
     }
@@ -142,7 +145,7 @@ public class TouchActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions tap(By elementLocator) {
-        try{
+        try {
             String elementText = "";
             if (CAPTURE_CLICKED_ELEMENT_TEXT) {
                 try {
@@ -335,7 +338,7 @@ public class TouchActions extends FluentWebDriverAction {
             String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(helper.getDriver(), sourceElementLocator).get(1)).getLocation().toString();
             String reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
 
-            if(SHAFT.Properties.flags.validateSwipeToElement()) {
+            if (SHAFT.Properties.flags.validateSwipeToElement()) {
                 if (!endLocation.equals(startLocation)) {
                     ElementActionsHelper.passAction(helper.getDriver(), sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, null);
                 } else {
@@ -566,11 +569,11 @@ public class TouchActions extends FluentWebDriverAction {
      * Attempts to scroll element into view using androidUIAutomator
      *
      * @param targetText element text to be used to swipe it into view
-     * @param movement           SwipeMovement.VERTICAL or HORIZONTAL
+     * @param movement   SwipeMovement.VERTICAL or HORIZONTAL
      * @return a self-reference to be used to chain actions
      */
-    public TouchActions swipeElementIntoView(String targetText,SwipeMovement movement) {
-        switch(movement) {
+    public TouchActions swipeElementIntoView(String targetText, SwipeMovement movement) {
+        switch (movement) {
             case VERTICAL:
                 helper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
                         + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
@@ -586,13 +589,13 @@ public class TouchActions extends FluentWebDriverAction {
     /**
      * Rotate between portrait and landscape modes
      *
-     * @param orientation           ScreenOrientation.LANDSCAPE or PORTRAIT
+     * @param orientation ScreenOrientation.LANDSCAPE or PORTRAIT
      * @return a self-reference to be used to chain actions
      */
-        public TouchActions rotate(ScreenOrientation orientation){
-            ((AndroidDriver) helper.getDriver()).rotate(orientation);
-            return this;
-        }
+    public TouchActions rotate(ScreenOrientation orientation) {
+        ((AndroidDriver) helper.getDriver()).rotate(orientation);
+        return this;
+    }
 
     @SuppressWarnings("unchecked")
     private List<Object> attemptToSwipeElementIntoViewInNativeApp(By scrollableElementLocator, String targetElementImage, SwipeDirection swipeDirection) {
@@ -619,11 +622,11 @@ public class TouchActions extends FluentWebDriverAction {
                 // for the animated GIF:
                 ElementActionsHelper.takeScreenshot(helper.getDriver(), null, "swipeElementIntoView", null, true);
                 canStillScroll = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, null);
-                if (!canStillScroll){
+                if (!canStillScroll) {
                     // check if element can be found after scrolling to the end of the page
                     visualIdentificationObjects = ElementActionsHelper.waitForElementPresence(helper.getDriver(), targetElementImage);
                     coordinates = (List<Integer>) visualIdentificationObjects.get(2);
-                    if(!Collections.emptyList().equals(coordinates)) {
+                    if (!Collections.emptyList().equals(coordinates)) {
                         isElementFound = true;
                         ReportManager.logDiscrete("Element found on screen.");
                     }
@@ -701,10 +704,14 @@ public class TouchActions extends FluentWebDriverAction {
             ));
             //percent 0.5 works for UP/DOWN, optimized to 0.8 to scroll faster and introduced delay 1000ms after every scroll action to increase stability
             switch (swipeDirection) {
-                case UP -> scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getHeight() - 100));
-                case DOWN -> scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", 100));
-                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", 100, "top", elementRectangle.getY()));
-                case LEFT -> scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth(), "left", elementRectangle.getX() + (elementRectangle.getWidth() * 50 / 100), "top", elementRectangle.getY()));
+                case UP ->
+                        scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getHeight() - 100));
+                case DOWN ->
+                        scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", 100));
+                case RIGHT ->
+                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", 100, "top", elementRectangle.getY()));
+                case LEFT ->
+                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth(), "left", elementRectangle.getX() + (elementRectangle.getWidth() * 50 / 100), "top", elementRectangle.getY()));
             }
         } else {
             //scrolling inside the screen
@@ -731,7 +738,7 @@ public class TouchActions extends FluentWebDriverAction {
                     "direction", swipeDirection.toString()
             ));
             //http://appium.github.io/appium-xcuitest-driver/4.16/execute-methods/#mobile-scroll
-            var ret= ((JavascriptExecutor) iosDriver).executeScript("mobile: scroll", scrollParameters);
+            var ret = ((JavascriptExecutor) iosDriver).executeScript("mobile: scroll", scrollParameters);
             canScrollMore = ret == null || (Boolean) ret;
         }
         var logMessageAfter = "Attempted to scroll using these parameters: \"" + scrollParameters + "\"";
@@ -839,7 +846,7 @@ public class TouchActions extends FluentWebDriverAction {
     }
 
     public enum SwipeMovement {
-        HORIZONTAL,VERTICAL
+        HORIZONTAL, VERTICAL
     }
 
     public enum SwipeTechnique {

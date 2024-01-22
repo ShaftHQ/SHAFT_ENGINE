@@ -6,8 +6,8 @@ import org.testng.IRetryAnalyzer;
 import org.testng.ITestResult;
 
 public class RetryAnalyzer implements IRetryAnalyzer {
-    private int counter = 0;
     private final int maxRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+    private int counter = 0;
 
     @Override
     public boolean retry(ITestResult iTestResult) {

@@ -254,8 +254,8 @@ public class ElementSteps {
      * multiplied by the default element identification timeout (in the POM.xml
      * file)
      *
-     * @param locatorType   can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
-     * @param locatorValue  the value/expression of the desired element locator
+     * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
+     * @param locatorValue the value/expression of the desired element locator
      */
     @When("I Wait for the element found by {string}: {string} to be not present")
     public void waitForElementToBeNotPresent(String locatorType, String locatorValue) {
@@ -268,9 +268,9 @@ public class ElementSteps {
      * multiplied by the default element identification timeout (in the POM.xml
      * file)
      *
-     * @param locatorType   can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
-     * @param locatorValue  the value/expression of the desired element locator
-     * @param initialValue  the initial text value of the target webElement
+     * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
+     * @param locatorValue the value/expression of the desired element locator
+     * @param initialValue the initial text value of the target webElement
      */
     @When("I Wait for the text inside the element found by {string}: {string} to change from the initial value {string}")
     public void waitForTextToChange(String locatorType, String locatorValue, String initialValue) {

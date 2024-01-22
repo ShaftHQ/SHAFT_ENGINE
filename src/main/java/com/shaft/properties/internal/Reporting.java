@@ -42,20 +42,8 @@ public interface Reporting extends EngineProperties {
     boolean generateAllureReportArchive();
 
     @Key("openAllureReportAfterExecution")
-    @DefaultValue("false")
+    @DefaultValue("true")
     boolean openAllureReportAfterExecution();
-
-    @Key("generateExtentReports")
-    @DefaultValue("true")
-    boolean generateExtentReports();
-
-    @Key("cleanExtentReportsDirectoryBeforeExecution")
-    @DefaultValue("true")
-    boolean cleanExtentReportsDirectoryBeforeExecution();
-
-    @Key("attachExtentReportsToAllureReport")
-    @DefaultValue("false")
-    boolean attachExtentReportsToAllureReport();
 
     @Key("openLighthouseReportWhileExecution")
     @DefaultValue("false")
@@ -66,17 +54,13 @@ public interface Reporting extends EngineProperties {
     boolean cleanSummaryReportsDirectoryBeforeExecution();
 
     @Key("openExecutionSummaryReportAfterExecution")
-    @DefaultValue("true")
-    boolean openExecutionSummaryReportAfterExecution();
-
-    @Key("openExtentReportAfterExecution")
     @DefaultValue("false")
-    boolean openExtentReportAfterExecution();
+    boolean openExecutionSummaryReportAfterExecution();
 
     @Key("disableLogging")
     @DefaultValue("true")
     boolean disableLogging();
-    
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -118,16 +102,6 @@ public interface Reporting extends EngineProperties {
             return this;
         }
 
-        public SetProperty generateExtentReports(boolean value) {
-            setProperty("generateExtentReports", String.valueOf(value));
-            return this;
-        }
-
-        public SetProperty attachExtentReportsToAllureReport(boolean value) {
-            setProperty("attachExtentReportsToAllureReport", String.valueOf(value));
-            return this;
-        }
-
         public SetProperty openLighthouseReportWhileExecution(boolean value) {
             setProperty("openLighthouseReportWhileExecution", String.valueOf(value));
             return this;
@@ -135,11 +109,6 @@ public interface Reporting extends EngineProperties {
 
         public SetProperty openExecutionSummaryReportAfterExecution(boolean value) {
             setProperty("openExecutionSummaryReportAfterExecution", String.valueOf(value));
-            return this;
-        }
-
-        public SetProperty openExtentReportAfterExecution(boolean value) {
-            setProperty("openExtentReportAfterExecution", String.valueOf(value));
             return this;
         }
 
