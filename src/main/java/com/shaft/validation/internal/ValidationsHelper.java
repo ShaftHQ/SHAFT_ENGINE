@@ -14,7 +14,9 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.ValidationEnums.*;
+import io.qameta.allure.Step;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -37,9 +39,10 @@ public class ValidationsHelper {
     private static By lastUsedElementLocator = null;
     protected static List<String> verificationFailuresList = new ArrayList<>();
     protected static AssertionError verificationError = null;
+    private final String validationCategoryString;
 
-    private ValidationsHelper() {
-        throw new IllegalStateException("Utility class");
+    ValidationsHelper(ValidationEnums.ValidationCategory validationCategory) {
+        this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
     }
 
     public static AssertionError getVerificationErrorToForceFail() {
@@ -51,16 +54,18 @@ public class ValidationsHelper {
         verificationError = null;
     }
 
-    protected static void validateFail(ValidationCategory validationCategory, String... optionalCustomLogMessage) {
-        processCustomLogMessage(optionalCustomLogMessage);
+    @Step(" {this.validationCategoryString} that {customReportMessage}")
+    protected void validateFail(ValidationCategory validationCategory, String customReportMessage) {
+        processCustomLogMessage(customReportMessage);
         fail(null, validationCategory, null, null, null, null, null);
     }
 
-    protected static void validateEquals(ValidationCategory validationCategory, Object expectedValue, Object actualValue,
+    @Step(" {this.validationCategoryString} that {customReportMessage}")
+    protected void validateEquals(ValidationCategory validationCategory, Object expectedValue, Object actualValue,
                                          ValidationComparisonType validationComparisonType, ValidationType validationType,
-                                         String... optionalCustomLogMessage) {
+                                  String customReportMessage) {
 
-        processCustomLogMessage(optionalCustomLogMessage);
+        processCustomLogMessage(customReportMessage);
         if (JavaHelper.compareTwoObjects(expectedValue, actualValue, validationComparisonType.getValue(),
                 validationType.getValue()) == 1) {
             pass(null, validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), validationComparisonType, validationType);
@@ -71,9 +76,10 @@ public class ValidationsHelper {
         }
     }
 
-    protected static void validateNull(ValidationCategory validationCategory, Object object, ValidationType validationType, String... optionalCustomLogMessage) {
+    @Step(" {this.validationCategoryString} that {customReportMessage}")
+    protected void validateNull(ValidationCategory validationCategory, Object object, ValidationType validationType, String customReportMessage) {
 
-        processCustomLogMessage(optionalCustomLogMessage);
+        processCustomLogMessage(customReportMessage);
         if (validationType.getValue()) {
             try {
                 Assert.assertNull(object);
@@ -91,10 +97,11 @@ public class ValidationsHelper {
         }
     }
 
-    protected static void validateElementExists(ValidationCategory validationCategory, WebDriver driver, By elementLocator, ValidationType validationType,
-                                                String... optionalCustomLogMessage) {
+    @Step(" {this.validationCategoryString} that {customReportMessage}")
+    protected void validateElementExists(ValidationCategory validationCategory, WebDriver driver, By elementLocator, ValidationType validationType,
+                                         String customReportMessage) {
 
-        processCustomLogMessage(optionalCustomLogMessage);
+        processCustomLogMessage(customReportMessage);
 
         String[] expectedElementStates = {"Element Should Exist", "Element Should not Exist"};
         String[] actualElementStates = {"Element Exists", "Element Doesn't Exists",
@@ -135,10 +142,11 @@ public class ValidationsHelper {
         }
     }
 
-    protected static void validateElementCSSProperty(WebDriver driver, ValidationCategory validationCategory, By elementLocator, String propertyName,
+    @Step(" {this.validationCategoryString} that {customReportMessage}")
+    protected void validateElementCSSProperty(WebDriver driver, ValidationCategory validationCategory, By elementLocator, String propertyName,
                                                      String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
-                                                     String... optionalCustomLogMessage) {
-        processCustomLogMessage(optionalCustomLogMessage);
+                                              String customReportMessage) {
+        processCustomLogMessage(customReportMessage);
         String[] expectedAttributeStates = {"Value Should be", "Value Should not be"};
         String propertySeparator = "' for the '";
         String locatorSeparator = "' CSS property, element locator '";
@@ -166,11 +174,11 @@ public class ValidationsHelper {
                 validationComparisonType, validationType, validationCategory});
     }
 
-    @SuppressWarnings({"SpellCheckingInspection", "unused"})
-    protected static void validateBrowserAttribute(ValidationCategory validationCategory, WebDriver driver, String browserAttribute,
+    @Step(" {this.validationCategoryString} that {customReportMessage}")
+    protected void validateBrowserAttribute(ValidationCategory validationCategory, WebDriver driver, String browserAttribute,
                                                    String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
-                                                   String... optionalCustomLogMessage) {
-        processCustomLogMessage(optionalCustomLogMessage);
+                                            String customReportMessage) {
+        processCustomLogMessage(customReportMessage);
         String[] expectedAttributeStates = {"Value Should be", "Value Should not be"};
         String attributeSeparator = "' for the '";
         String attributeClosure = "' attribute";
@@ -205,10 +213,11 @@ public class ValidationsHelper {
                 validationComparisonType, validationType, validationCategory});
     }
 
-    protected static void validateComparativeRelation(ValidationCategory validationCategory, Number expectedValue, Number actualValue,
+    @Step(" {this.validationCategoryString} that {customReportMessage}")
+    protected void validateComparativeRelation(ValidationCategory validationCategory, Number expectedValue, Number actualValue,
                                                       NumbersComparativeRelation numbersComparativeRelation, ValidationType validationType,
-                                                      String... optionalCustomLogMessage) {
-        processCustomLogMessage(optionalCustomLogMessage);
+                                               String customReportMessage) {
+        processCustomLogMessage(customReportMessage);
         Boolean comparisonState = switch (numbersComparativeRelation.getValue()) {
             case ">" -> actualValue.floatValue() > expectedValue.floatValue();
             case ">=" -> actualValue.floatValue() >= expectedValue.floatValue();
@@ -224,8 +233,9 @@ public class ValidationsHelper {
         }
     }
 
-    protected static void validateTrue(ValidationCategory validationCategory, Boolean conditionalStatement, ValidationType validationType, String... optionalCustomLogMessage) {
-        processCustomLogMessage(optionalCustomLogMessage);
+    @Step(" {this.validationCategoryString} that {customReportMessage}")
+    protected void validateTrue(ValidationCategory validationCategory, Boolean conditionalStatement, ValidationType validationType, String customReportMessage) {
+        processCustomLogMessage(customReportMessage);
         Boolean expectedValue = false;
         if (ValidationType.POSITIVE.equals(validationType)) {
             expectedValue = true;
@@ -237,9 +247,10 @@ public class ValidationsHelper {
         }
     }
 
-    protected static void validateFileExists(ValidationCategory validationCategory, String fileFolderName, String fileName, @SuppressWarnings("SameParameterValue") int numberOfRetries,
-                                             ValidationType validationType, String... optionalCustomLogMessage) {
-        processCustomLogMessage(optionalCustomLogMessage);
+    @Step(" {this.validationCategoryString} that {customReportMessage}")
+    protected void validateFileExists(ValidationCategory validationCategory, String fileFolderName, String fileName, @SuppressWarnings("SameParameterValue") int numberOfRetries,
+                                      ValidationType validationType, String customReportMessage) {
+        processCustomLogMessage(customReportMessage);
         boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
         boolean actualValue = FileActions.getInstance(true).doesFileExist(fileFolderName, fileName, numberOfRetries);
         String filePrefix = "File '";
@@ -260,15 +271,16 @@ public class ValidationsHelper {
         }
     }
 
-    protected static void validateElementMatches(ValidationCategory validationCategory, WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine, ValidationType validationType,
-                                                 String... optionalCustomLogMessage) {
+    @Step(" {this.validationCategoryString} that {customReportMessage}")
+    protected void validateElementMatches(ValidationCategory validationCategory, WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine, ValidationType validationType,
+                                          String customReportMessage) {
         lastUsedElementLocator = elementLocator;
         //TODO: remove this temporary fix when this bug is fixed with shutterbug
         //https://github.com/assertthat/selenium-shutterbug/issues/105
         if (Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
             visualValidationEngine = VisualValidationEngine.EXACT_OPENCV;
         }
-        processCustomLogMessage(optionalCustomLogMessage);
+        processCustomLogMessage(customReportMessage);
         StringBuilder reportedExpectedResult = new StringBuilder();
         reportedExpectedResult.append("Element should ");
         Boolean expectedResult = validationType.getValue();
@@ -359,9 +371,10 @@ public class ValidationsHelper {
                 ValidationState.FAILED, null, null);
     }
 
-    protected static void validateJSONFileContent(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
-                                                  RestActions.ComparisonType comparisonType, @SuppressWarnings("SameParameterValue") String jsonPathToTargetArray, ValidationType validationType, String... optionalCustomLogMessage) {
-        processCustomLogMessage(optionalCustomLogMessage);
+    @Step(" {this.validationCategoryString} that {customReportMessage}")
+    protected void validateJSONFileContent(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
+                                           RestActions.ComparisonType comparisonType, @SuppressWarnings("SameParameterValue") String jsonPathToTargetArray, ValidationType validationType, String customReportMessage) {
+        processCustomLogMessage(customReportMessage);
         boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
         StringBuilder reportedExpectedValue = new StringBuilder();
         reportedExpectedValue.append("Response data should ");
@@ -391,9 +404,10 @@ public class ValidationsHelper {
         }
     }
 
-    protected static void validateResponseFileSchema(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
-                                                     RestActions.ComparisonType comparisonType, @SuppressWarnings("SameParameterValue") String jsonPathToTargetArray, ValidationType validationType, String... optionalCustomLogMessage) {
-        processCustomLogMessage(optionalCustomLogMessage);
+    @Step(" {this.validationCategoryString} that {customReportMessage}")
+    protected void validateResponseFileSchema(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
+                                              RestActions.ComparisonType comparisonType, @SuppressWarnings("SameParameterValue") String jsonPathToTargetArray, ValidationType validationType, String customReportMessage) {
+        processCustomLogMessage(customReportMessage);
         boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
         StringBuilder reportedExpectedValue = new StringBuilder();
         reportedExpectedValue.append("Response data should ");
