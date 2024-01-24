@@ -30,15 +30,9 @@ public class ValidationsHelper2 {
     @Step(" {this.validationCategoryString} that {customReportMessage}")
     protected void validateElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
                                             String expectedValue, ValidationEnums.ValidationComparisonType validationComparisonType, ValidationEnums.ValidationType validationType, String customReportMessage) {
-        var isDiscrete = ReportManagerHelper.getDiscreteLogging();
-        String actualValue = "";
-
-        // convert internal steps to log entries to reduce report footprint
-        ReportManagerHelper.setDiscreteLogging(true);
-
         // read actual value based on desired attribute
         // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
-        actualValue = switch (elementAttribute.toLowerCase()) {
+        String actualValue = switch (elementAttribute.toLowerCase()) {
             case "text" -> new ElementActions(driver).getText(elementLocator);
             case "texttrimmed" -> new ElementActions(driver).getText(elementLocator).trim();
             case "tagname" ->
@@ -48,9 +42,6 @@ public class ValidationsHelper2 {
             case "selectedtext" -> new ElementActions(driver).getSelectedText(elementLocator);
             default -> new ElementActions(driver).getAttribute(elementLocator, elementAttribute);
         };
-
-        // re-enable full reporting
-        ReportManagerHelper.setDiscreteLogging(isDiscrete);
 
         // compare actual and expected results
         int comparisonResult = JavaHelper.compareTwoObjects(expectedValue, actualValue,
@@ -91,11 +82,12 @@ public class ValidationsHelper2 {
 
         // handle failure based on validation category
         if (!validationState) {
+            String failureMessage = "Failed to " + this.validationCategoryString.toLowerCase() + " that " + customReportMessage + " Actual value is \"" + actualValue + "\".";
             if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
-                FailureReporter.fail(customReportMessage);
+                FailureReporter.fail(failureMessage);
             } else {
                 // soft assert
-                ValidationsHelper.verificationFailuresList.add("Failed to " + this.validationCategoryString.toLowerCase() + " that " + customReportMessage);
+                ValidationsHelper.verificationFailuresList.add(failureMessage);
                 ValidationsHelper.verificationError = new AssertionError(String.join("\nAND ", ValidationsHelper.verificationFailuresList));
             }
         }
