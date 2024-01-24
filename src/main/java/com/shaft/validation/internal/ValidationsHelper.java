@@ -18,7 +18,6 @@ import com.shaft.validation.ValidationEnums.*;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.Browser;
 import org.testng.Assert;
 
@@ -36,8 +35,8 @@ public class ValidationsHelper {
     private static final Boolean discreetLoggingState = SHAFT.Properties.reporting.alwaysLogDiscreetly();
     private static final String WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim();
     private static By lastUsedElementLocator = null;
-    private static List<String> verificationFailuresList = new ArrayList<>();
-    private static AssertionError verificationError = null;
+    protected static List<String> verificationFailuresList = new ArrayList<>();
+    protected static AssertionError verificationError = null;
 
     private ValidationsHelper() {
         throw new IllegalStateException("Utility class");
@@ -134,50 +133,6 @@ public class ValidationsHelper {
                         actualElementStates[2], ValidationComparisonType.EQUALS, validationType, null);
             }
         }
-    }
-
-    @SuppressWarnings("SpellCheckingInspection")
-    protected static void validateElementAttribute(ValidationCategory validationCategory, WebDriver driver, By elementLocator, String elementAttribute,
-                                                   String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
-                                                   String... optionalCustomLogMessage) {
-        processCustomLogMessage(optionalCustomLogMessage);
-        String[] expectedAttributeStates = {"Value Should be", "Value Should not be"};
-        String attributeSeparator = "' for the '";
-        String locatorSeparator = "' attribute, element locator '";
-        var isDiscrete = ReportManagerHelper.getDiscreteLogging();
-        ReportManagerHelper.setDiscreteLogging(true);
-        String actualValue;
-        try {
-            actualValue = switch (elementAttribute.toLowerCase()) {
-                case "text" -> new ElementActions(driver).getText(elementLocator);
-                case "texttrimmed" -> new ElementActions(driver).getText(elementLocator).trim();
-                case "tagname" ->
-                        ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getTagName();
-                case "size" ->
-                        ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getSize().toString();
-                case "selectedtext" -> new ElementActions(driver).getSelectedText(elementLocator);
-                default -> new ElementActions(driver).getAttribute(elementLocator, elementAttribute);
-            };
-        } catch (Throwable e) {
-            // force fail due to upstream failure
-            if (validationType.getValue()) {
-                fail(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + elementAttribute
-                                + locatorSeparator + formatLocatorToString(elementLocator) + "'",
-                        "Failed to read the desired element attribute", validationComparisonType, validationType, e);
-            } else {
-                fail(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + attributeSeparator + elementAttribute
-                                + locatorSeparator + formatLocatorToString(elementLocator) + "'",
-                        "Failed to read the desired element attribute", validationComparisonType, validationType, e);
-            }
-            return;
-        }
-        ReportManagerHelper.setDiscreteLogging(isDiscrete);
-        lastUsedElementLocator = elementLocator;
-        int comparisonResult = JavaHelper.compareTwoObjects(expectedValue, actualValue,
-                validationComparisonType.getValue(), validationType.getValue());
-        reportValidationResultOfElementAttribute(driver, new Object[]{expectedAttributeStates, attributeSeparator,
-                locatorSeparator, comparisonResult, elementLocator, elementAttribute, expectedValue, actualValue,
-                validationComparisonType, validationType, validationCategory});
     }
 
     protected static void validateElementCSSProperty(WebDriver driver, ValidationCategory validationCategory, By elementLocator, String propertyName,

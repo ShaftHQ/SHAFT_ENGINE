@@ -46,7 +46,7 @@ public class ValidationsBuilder {
     }
 
     public WebDriverElementValidationsBuilder element(WebDriver driver, By locator) {
-        reportMessageBuilder.append("The Element located by \"").append(formatLocatorToString(locator)).append("\" ");
+        reportMessageBuilder.append("the element located by \"").append(formatLocatorToString(locator)).append("\" ");
         return new WebDriverElementValidationsBuilder(validationCategory, driver, locator, reportMessageBuilder);
     }
 

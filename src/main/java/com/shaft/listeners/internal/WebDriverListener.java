@@ -1,7 +1,6 @@
 package com.shaft.listeners.internal;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -34,7 +33,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
 
     public void onError(Object target, Method method, Object[] args, InvocationTargetException e) {
         ReportManager.log(JavaHelper.convertToSentenceCase(method.getName()) + " action failed.");
-        ReportManagerHelper.attach(ScreenshotManager.takeScreenshot(currentWebDriver, null, method.getName(), false));
+//        ReportManagerHelper.attach(ScreenshotManager.takeScreenshot(currentWebDriver, null, method.getName(), false));
         ReportManagerHelper.logDiscrete(e);
     }
 

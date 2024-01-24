@@ -320,10 +320,6 @@ public class ReportManagerHelper {
         }
     }
 
-    public static void attach(List<Object> screenshot) {
-        attach((String) screenshot.get(0), (String) screenshot.get(1), (InputStream) screenshot.get(2));
-    }
-
     /**
      * Returns the log of the current test, and attaches it in the end of the test
      * execution report.
@@ -909,9 +905,7 @@ public class ReportManagerHelper {
         writeNestedStepsToReport(logText, attachments);
     }
 
-    @Step("{customLog}")
-    private static void writeNestedStepsToReport(String customLog, List<List<Object>> attachments) {
-        createLogEntry(customLog, false);
+    public static void attach(List<List<Object>> attachments) {
         if (attachments != null && !attachments.isEmpty()) {
             attachments.forEach(attachment -> {
                 if (attachment != null && !attachment.isEmpty() && attachment.get(2).getClass().toString().toLowerCase().contains("string")
@@ -929,6 +923,12 @@ public class ReportManagerHelper {
                 }
             });
         }
+    }
+
+    @Step("{customLog}")
+    private static void writeNestedStepsToReport(String customLog, List<List<Object>> attachments) {
+        createLogEntry(customLog, false);
+        attach(attachments);
     }
 
     @Step("{customLog}")

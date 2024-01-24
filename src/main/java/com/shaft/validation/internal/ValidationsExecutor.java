@@ -7,7 +7,6 @@ import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.validation.ValidationEnums;
-import io.qameta.allure.Step;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -146,7 +145,7 @@ public class ValidationsExecutor {
         performValidation();
     }
 
-    @Step(" {this.validationCategoryString} {this.validationMethodString}")
+    //    @Step(" {this.validationCategoryString} {this.validationMethodString}")
     private void performValidation() {
         switch (validationMethod) {
             case "forceFail" -> ValidationsHelper.validateFail(validationCategory, customReportMessage);
@@ -161,7 +160,7 @@ public class ValidationsExecutor {
             case "elementMatches" ->
                     ValidationsHelper.validateElementMatches(validationCategory, driver, locator, visualValidationEngine, validationType, customReportMessage);
             case "elementAttributeEquals" ->
-                    ValidationsHelper.validateElementAttribute(validationCategory, driver, locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType, customReportMessage);
+                    new ValidationsHelper2(validationCategory).validateElementAttribute(driver, locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType, customReportMessage);
             case "elementCssPropertyEquals" ->
                     ValidationsHelper.validateElementCSSProperty(driver, validationCategory, locator, elementCssProperty, String.valueOf(expectedValue), validationComparisonType, validationType, customReportMessage);
             case "browserAttributeEquals" ->
