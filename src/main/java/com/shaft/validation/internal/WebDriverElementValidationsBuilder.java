@@ -127,7 +127,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isSelected() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "selected";
-        reportMessageBuilder.append("is selected, selected attribute ");
+        reportMessageBuilder.append("is selected; selected attribute ");
         return new NativeValidationsBuilder(this).isTrue();
     }
 
@@ -139,7 +139,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isChecked() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "checked";
-        reportMessageBuilder.append("is checked, checked attribute ");
+        reportMessageBuilder.append("is checked; checked attribute ");
         return new NativeValidationsBuilder(this).isTrue();
     }
 
@@ -151,7 +151,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isVisible() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "hidden";
-        reportMessageBuilder.append("is visible, hidden attribute ");
+        reportMessageBuilder.append("is visible; hidden attribute ");
         return new NativeValidationsBuilder(this).isEqualTo("null");
     }
 
@@ -163,7 +163,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isEnabled() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "disabled";
-        reportMessageBuilder.append("is enabled, disabled attribute ");
+        reportMessageBuilder.append("is enabled; disabled attribute ");
         return new NativeValidationsBuilder(this).isEqualTo("null");
     }
 
@@ -175,7 +175,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isNotSelected() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "selected";
-        reportMessageBuilder.append("is not selected, selected attribute ");
+        reportMessageBuilder.append("is not selected; selected attribute ");
         return new NativeValidationsBuilder(this).isEqualTo("null");
     }
 
@@ -187,7 +187,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isNotChecked() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "checked";
-        reportMessageBuilder.append("is not checked, checked attribute ");
+        reportMessageBuilder.append("is not checked; checked attribute ");
         return new NativeValidationsBuilder(this).isEqualTo("null");
     }
 
@@ -199,7 +199,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isHidden() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "hidden";
-        reportMessageBuilder.append("is hidden, hidden attribute ");
+        reportMessageBuilder.append("is hidden; hidden attribute ");
         return new NativeValidationsBuilder(this).isTrue();
     }
 
@@ -211,7 +211,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isDisabled() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "disabled";
-        reportMessageBuilder.append("is disabled, disabled attribute ");
+        reportMessageBuilder.append("is disabled; disabled attribute ");
         return new NativeValidationsBuilder(this).isTrue();
     }
 

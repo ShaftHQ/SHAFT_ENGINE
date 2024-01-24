@@ -46,7 +46,7 @@ public class ValidationsBuilder {
     }
 
     public WebDriverElementValidationsBuilder element(WebDriver driver, By locator) {
-        reportMessageBuilder.append("The Element located by \"").append(formatLocatorToString(locator)).append("\" ");
+        reportMessageBuilder.append("the element located by \"").append(formatLocatorToString(locator)).append("\" ");
         return new WebDriverElementValidationsBuilder(validationCategory, driver, locator, reportMessageBuilder);
     }
 
@@ -56,7 +56,7 @@ public class ValidationsBuilder {
      * @return a WebDriverBrowserValidationsBuilder object to continue building your validation
      */
     public WebDriverBrowserValidationsBuilder browser(WebDriver driver) {
-        reportMessageBuilder.append("The Browser ");
+        reportMessageBuilder.append("the Browser ");
         return new WebDriverBrowserValidationsBuilder(validationCategory, driver, reportMessageBuilder);
     }
 
@@ -67,7 +67,7 @@ public class ValidationsBuilder {
      * @return a RestValidationsBuilder object to continue building your validation
      */
     public RestValidationsBuilder response(Object response) {
-        reportMessageBuilder.append("The API response ");
+        reportMessageBuilder.append("the API response ");
         return new RestValidationsBuilder(validationCategory, response, reportMessageBuilder);
     }
 
@@ -79,7 +79,7 @@ public class ValidationsBuilder {
      * @return a FileValidationsBuilder object to continue building your validation
      */
     public FileValidationsBuilder file(String folderRelativePath, String fileName) {
-        reportMessageBuilder.append("The File \"").append(folderRelativePath).append(fileName).append("\" ");
+        reportMessageBuilder.append("the File \"").append(folderRelativePath).append(fileName).append("\" ");
         return new FileValidationsBuilder(validationCategory, folderRelativePath, fileName, reportMessageBuilder);
     }
 
