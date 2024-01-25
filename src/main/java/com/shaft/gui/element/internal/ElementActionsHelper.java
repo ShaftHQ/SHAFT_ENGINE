@@ -259,7 +259,9 @@ public class ElementActionsHelper {
                     elementInformation.setLocator(elementLocator);
 
                     // fail if multiple elements are found and flag is enabled
-                    if (elementInformation.getNumberOfFoundElements() > 1 && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique())
+                    if (elementInformation.getNumberOfFoundElements() > 1
+                            && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique() &&
+                            !(elementLocator instanceof RelativeLocator.RelativeBy))
                         FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", new MultipleElementsFoundException("Multiple elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\""));
 
                     // BLOCK #6 :: PERFORMING ACTION  (WITH OPTIONAL ARGS)
