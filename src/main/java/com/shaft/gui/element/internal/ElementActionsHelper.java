@@ -154,7 +154,6 @@ public class ElementActionsHelper {
         // to handle failure inside a virtual thread
         expectedExceptions.add(ExecutionException.class);
         expectedExceptions.add(InterruptedException.class);
-        expectedExceptions.add(RuntimeException.class);
 
         return expectedExceptions;
     }
@@ -257,6 +256,10 @@ public class ElementActionsHelper {
 
                     elementInformation.setFirstElement(targetElement[0]);
                     elementInformation.setLocator(elementLocator);
+
+                    // fail if multiple elements are found and flag is enabled
+                    if (elementInformation.getNumberOfFoundElements() > 1 && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique())
+                        FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", new MultipleElementsFoundException("Multiple elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\""));
 
                     // BLOCK #6 :: PERFORMING ACTION  (WITH OPTIONAL ARGS)
                     // attempt to perform action inside the loop to guarantee higher odds of success and reduced WebDriver calls
