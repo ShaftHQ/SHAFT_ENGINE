@@ -568,7 +568,7 @@ public class ElementActions extends FluentWebDriverAction {
         try {
             var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
             var elementName = elementInformation.getElementName();
-            ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementInformation.getLocator(), ElementAction.HOVER)).getActionResult();
+            ElementInformation.fromList(ElementActionsHelper.performActionAgainstUniqueElement(driver, elementInformation.getLocator(), ElementAction.HOVER)).getActionResult();
             ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found

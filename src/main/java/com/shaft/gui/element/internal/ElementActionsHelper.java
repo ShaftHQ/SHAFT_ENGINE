@@ -344,7 +344,7 @@ public class ElementActionsHelper {
             case SET_VALUE_USING_JAVASCRIPT ->
                     ((JavascriptExecutor) driver).executeScript("arguments[0].value = arguments[1];", elementInformation.getFirstElement(), parameter);
             case HOVER ->
-                    (new Actions(driver)).pause(Duration.ofMillis(300)).moveToElement(elementInformation.getFirstElement()).perform();
+                    (new Actions(driver)).pause(Duration.ofMillis(400)).moveToElement(elementInformation.getFirstElement()).perform();
         }
         return "";
     }
