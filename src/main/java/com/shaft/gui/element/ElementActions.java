@@ -797,14 +797,19 @@ public class ElementActions extends FluentWebDriverAction {
     public ElementActions type(By elementLocator, String text) {
         //TODO: refactor to reduce number of webdriver calls
         //getting element information using locator
-        var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
-        String actualTextAfterTyping = ElementActionsHelper.typeWrapper(driver, elementInformation, text);
-        var elementName = elementInformation.getElementName();
-        if (actualTextAfterTyping.equals(text)) {
-            ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
-        } else {
-            ElementActionsHelper.failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \"" + actualTextAfterTyping + "\"", elementLocator);
-        }
+        try {
+            var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
+            String actualTextAfterTyping = ElementActionsHelper.typeWrapper(driver, elementInformation, text);
+            var elementName = elementInformation.getElementName();
+            if (actualTextAfterTyping.equals(text)) {
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
+            } else {
+                ElementActionsHelper.failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \"" + actualTextAfterTyping + "\"", elementLocator);
+            }
+        } catch (Throwable throwable) {
+        // has to be throwable to catch assertion errors in case element was not found
+        ElementActionsHelper.failAction(driver, elementLocator, throwable);
+    }
         return this;
 
     }
