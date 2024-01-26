@@ -16,8 +16,6 @@ import com.shaft.gui.waits.WaitActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
-import io.appium.java_client.android.AndroidDriver;
-import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
@@ -432,63 +430,6 @@ public class ElementActions extends FluentWebDriverAction {
     }
 
     /**
-     * Returns the handle for currently active context. This can be used to switch
-     * to this context at a later time.
-     *
-     * @return The current context handle
-     */
-    public String getContext() {
-        String context = "";
-        if (driver instanceof AndroidDriver androidDriver) {
-            context = androidDriver.getContext();
-        } else if (driver instanceof IOSDriver iosDriver) {
-            context = iosDriver.getContext();
-        } else {
-            ElementActionsHelper.failAction(driver, null);
-        }
-        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
-        return context;
-    }
-
-    /**
-     * Switches focus to another context
-     *
-     * @param context The name of the context or the handle as returned by
-     *                ElementActions.getContext(WebDriver driver)
-     * @return a self-reference to be used to chain actions
-     */
-    public ElementActions setContext(String context) {
-        if (driver instanceof AndroidDriver androidDriver) {
-            androidDriver.context(context);
-        } else if (driver instanceof IOSDriver iosDriver) {
-            iosDriver.context(context);
-        } else {
-            ElementActionsHelper.failAction(driver, context, null);
-        }
-        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
-        return this;
-    }
-
-    /**
-     * Returns a list of unique handles for all the currently open contexts. This
-     * can be used to switch to any of these contexts at a later time.
-     *
-     * @return list of context handles
-     */
-    public List<String> getContextHandles() {
-        List<String> windowHandles = new ArrayList<>();
-        if (driver instanceof AndroidDriver androidDriver) {
-            windowHandles.addAll(androidDriver.getContextHandles());
-        } else if (driver instanceof IOSDriver iosDriver) {
-            windowHandles.addAll(iosDriver.getContextHandles());
-        } else {
-            ElementActionsHelper.failAction(driver, null);
-        }
-        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
-        return windowHandles;
-    }
-
-    /**
      * Retrieves text from the target element and returns it as a string value.
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
@@ -529,30 +470,6 @@ public class ElementActions extends FluentWebDriverAction {
             ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return null;
-    }
-
-    /**
-     * Returns the unique handle for currently active window. This can be used to
-     * switch to this window at a later time.
-     *
-     * @return window handle
-     */
-    public String getWindowHandle() {
-        String nameOrHandle = driver.getWindowHandle();
-        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), nameOrHandle, null, null);
-        return nameOrHandle;
-    }
-
-    /**
-     * Returns a list of unique handles for all the currently open windows. This can
-     * be used to switch to any of these windows at a later time.
-     *
-     * @return list of window handles
-     */
-    public List<String> getWindowHandles() {
-        List<String> windowHandles = new ArrayList<>(driver.getWindowHandles());
-        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
-        return windowHandles;
     }
 
     /**
@@ -723,6 +640,9 @@ public class ElementActions extends FluentWebDriverAction {
             try {
                 ElementActionsHelper.submitFormUsingJavascript(driver, elementLocator);
                 ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
+            } catch (JavascriptException javascriptException) {
+                driver.findElement(elementLocator).submit();
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
             } catch (Exception rootCauseException) {
                 ElementActionsHelper.failAction(driver, elementLocator, rootCauseException);
             }
@@ -795,18 +715,19 @@ public class ElementActions extends FluentWebDriverAction {
     }
 
     public ElementActions type(By elementLocator, String text) {
-        //TODO: refactor to reduce number of webdriver calls
-        //getting element information using locator
-        var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
-        String actualTextAfterTyping = ElementActionsHelper.typeWrapper(driver, elementInformation, text);
-        var elementName = elementInformation.getElementName();
-        if (actualTextAfterTyping.equals(text)) {
-            ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
-        } else {
-            ElementActionsHelper.failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \"" + actualTextAfterTyping + "\"", elementLocator);
+        try {
+            ElementInformation elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
+            String actualTextAfterTyping = ElementActionsHelper.typeWrapper(driver, elementInformation, text);
+            var elementName = elementInformation.getElementName();
+            if (actualTextAfterTyping.equals(text)) {
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
+            } else {
+                ElementActionsHelper.failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \"" + actualTextAfterTyping + "\"", elementLocator);
+            }
+        } catch (Throwable throwable) {
+            ElementActionsHelper.failAction(driver, elementLocator, throwable);
         }
         return this;
-
     }
 
     public ElementActions clear(By elementLocator) {

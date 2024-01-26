@@ -2,7 +2,6 @@ package com.shaft.gui.internal.image;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
-import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.imgscalr.Scalr;
 import org.openqa.selenium.NoSuchSessionException;
@@ -28,7 +27,7 @@ public class AnimatedGifManager {
     private static final ThreadLocal<ImageWriteParam> imageWriteParam = new ThreadLocal<>();
     private static final ThreadLocal<IIOMetadata> imageMetaData = new ThreadLocal<>();
     protected static final Boolean DETAILED_GIF = true;
-    protected static final String DETAILED_GIF_REGEX = "(verify.*)|(assert.*)|(click.*)|(tap.*)|(key.*)|(navigate.*)";
+    protected static final String DETAILED_GIF_REGEX = "(verify.*)|(assert.*)|(click.*)|(tap.*)|(key.*)|(navigate.*)|(type.*)";
     private static final int GIF_SIZE = 1280;
     private static String gifRelativePathWithFileName = "";
     private static ThreadLocal<ImageOutputStream> gifOutputStream = new ThreadLocal<>();
@@ -98,10 +97,6 @@ public class AnimatedGifManager {
                 String gifFileName = FileSystems.getDefault().getSeparator() + System.currentTimeMillis() + ".gif";
                 gifRelativePathWithFileName = SHAFT.Properties.paths.allureResults() + "/screenshots/" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + gifFileName;
 
-                // get the width and height of the current window of the browser
-                var height = DriverFactoryHelper.getTARGET_WINDOW_SIZE().getHeight();
-                var width = DriverFactoryHelper.getTARGET_WINDOW_SIZE().getWidth();
-
                 // grab the output image type from the first image in the sequence
                 BufferedImage firstImage = ImageIO.read(new ByteArrayInputStream(screenshot));
 
@@ -118,11 +113,11 @@ public class AnimatedGifManager {
                         new AnimatedGifManager(gifOutputStream.get(), firstImage.getType(), SHAFT.Properties.visuals.animatedGifFrameDelay()));
 
                 // draw initial blank image to set the size of the GIF...
-                BufferedImage initialImage = new BufferedImage(width, height, firstImage.getType());
+                BufferedImage initialImage = new BufferedImage(firstImage.getWidth(), firstImage.getHeight(), firstImage.getType());
                 Graphics2D initialImageGraphics = initialImage.createGraphics();
                 initialImageGraphics.setBackground(Color.WHITE);
                 initialImageGraphics.setColor(Color.WHITE);
-                initialImageGraphics.clearRect(0, 0, width, height);
+                initialImageGraphics.clearRect(0, 0, firstImage.getWidth(), firstImage.getHeight());
 
                 // write out initialImage to the sequence...
                 gifManager.get().writeToSequence(initialImage);

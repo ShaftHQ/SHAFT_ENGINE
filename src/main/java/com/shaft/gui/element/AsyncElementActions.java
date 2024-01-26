@@ -70,11 +70,6 @@ public class AsyncElementActions extends FluentWebDriverAction {
         return this;
     }
 
-    public AsyncElementActions setContext(String context) {
-        actionThreads.add(Thread.ofVirtual().start(() -> elementActions.setContext(context)));
-        return this;
-    }
-
     public AsyncElementActions typeAppend(By elementLocator, String text) {
         actionThreads.add(Thread.ofVirtual().start(() -> elementActions.typeAppend(elementLocator, text)));
         return this;

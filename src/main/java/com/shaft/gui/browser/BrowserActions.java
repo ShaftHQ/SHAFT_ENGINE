@@ -8,6 +8,7 @@ import com.shaft.enums.internal.NavigationAction;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
+import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
@@ -18,6 +19,8 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
 import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
@@ -33,10 +36,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
@@ -596,24 +596,6 @@ public class BrowserActions extends FluentWebDriverAction {
         return this;
     }
 
-
-    /**
-     * Switches focus to another Tab
-     *
-     * @param targetUrl The name of the URL you want to navigate to
-     * @return a self-reference to be used to chain actions
-     */
-    @Deprecated
-    public BrowserActions switchToNewTab(String targetUrl) {
-        return navigateToURL(targetUrl, WindowType.TAB);
-    }
-
-    @Deprecated
-    public BrowserActions switchToNewWindow(String targetUrl) {
-        return navigateToURL(targetUrl, WindowType.WINDOW);
-    }
-
-
     /**
      * Switches focus to another window
      *
@@ -621,7 +603,6 @@ public class BrowserActions extends FluentWebDriverAction {
      *                     ElementActions.getWindowHandle(WebDriver driver)
      * @return a self-reference to be used to chain actions
      */
-    @SuppressWarnings("UnusedReturnValue")
     public BrowserActions switchToWindow(String nameOrHandle) {
         if (driver.getWindowHandles().contains(nameOrHandle)) {
             driver.switchTo().window(nameOrHandle);
@@ -824,6 +805,75 @@ public class BrowserActions extends FluentWebDriverAction {
     public BrowserActions waitUntilNumberOfWindowsToBe(int numberOfWindows) {
         new WaitActions(helper).explicitWaits(ExpectedConditions.numberOfWindowsToBe(numberOfWindows), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
+    }
+
+    /**
+     * Returns the handle for currently active context. This can be used to switch
+     * to this context at a later time.
+     *
+     * @return The current context handle
+     */
+    public String getContext() {
+        String context = "";
+        if (driver instanceof AndroidDriver androidDriver) {
+            context = androidDriver.getContext();
+        } else if (driver instanceof IOSDriver iosDriver) {
+            context = iosDriver.getContext();
+        } else {
+            ElementActionsHelper.failAction(driver, null);
+        }
+        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
+        return context;
+    }
+
+    /**
+     * Switches focus to another context
+     *
+     * @param context The name of the context or the handle as returned by
+     *                ElementActions.getContext(WebDriver driver)
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions setContext(String context) {
+        if (driver instanceof AndroidDriver androidDriver) {
+            androidDriver.context(context);
+        } else if (driver instanceof IOSDriver iosDriver) {
+            iosDriver.context(context);
+        } else {
+            ElementActionsHelper.failAction(driver, context, null);
+        }
+        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
+        return this;
+    }
+
+    /**
+     * Returns a list of unique handles for all the currently open windows. This can
+     * be used to switch to any of these windows at a later time.
+     *
+     * @return list of window handles
+     */
+    public List<String> getWindowHandles() {
+        List<String> windowHandles = new ArrayList<>(driver.getWindowHandles());
+        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
+        return windowHandles;
+    }
+
+    /**
+     * Returns a list of unique handles for all the currently open contexts. This
+     * can be used to switch to any of these contexts at a later time.
+     *
+     * @return list of context handles
+     */
+    public List<String> getContextHandles() {
+        List<String> windowHandles = new ArrayList<>();
+        if (driver instanceof AndroidDriver androidDriver) {
+            windowHandles.addAll(androidDriver.getContextHandles());
+        } else if (driver instanceof IOSDriver iosDriver) {
+            windowHandles.addAll(iosDriver.getContextHandles());
+        } else {
+            ElementActionsHelper.failAction(driver, null);
+        }
+        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
+        return windowHandles;
     }
 
 }
