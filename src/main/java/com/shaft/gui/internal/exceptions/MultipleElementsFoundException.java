@@ -1,8 +1,6 @@
 package com.shaft.gui.internal.exceptions;
 
-import org.openqa.selenium.WebDriverException;
-
-public class MultipleElementsFoundException extends WebDriverException {
+public class MultipleElementsFoundException extends Exception {
     public MultipleElementsFoundException() {
         super();
     }

@@ -16,14 +16,17 @@ import java.time.Duration;
 public class AlertActions extends FluentWebDriverAction {
     public AlertActions() {
         initialize();
+        waitForAlertToBePresent();
     }
 
     public AlertActions(WebDriver driver) {
         initialize(driver);
+        waitForAlertToBePresent();
     }
 
     public AlertActions(DriverFactoryHelper helper) {
         initialize(helper);
+        waitForAlertToBePresent();
     }
 
     private void waitForAlertToBePresent() {
@@ -39,7 +42,7 @@ public class AlertActions extends FluentWebDriverAction {
 
     public boolean isAlertPresent() {
         try {
-            helper.getDriver().switchTo().alert();
+            waitForAlertToBePresent();
             ElementActionsHelper.passAction(helper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
             ReportManager.logDiscrete("Alert is present");
             return true;

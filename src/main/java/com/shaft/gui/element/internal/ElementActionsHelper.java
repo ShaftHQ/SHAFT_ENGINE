@@ -79,14 +79,6 @@ public class ElementActionsHelper {
         return waitForElementPresence(driver, elementLocator, 1, FORCE_CHECK_FOR_ELEMENT_VISIBILITY);
     }
 
-    public static List<Object> waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts) {
-        return waitForElementPresence(driver, elementLocator, numberOfAttempts, FORCE_CHECK_FOR_ELEMENT_VISIBILITY);
-    }
-
-    public static List<Object> waitForElementPresence(WebDriver driver, By elementLocator, boolean checkForVisibility) {
-        return waitForElementPresence(driver, elementLocator, 1, checkForVisibility);
-    }
-
     public static List<Object> waitForElementPresence(WebDriver driver, String elementReferenceScreenshot) {
         long startTime = System.currentTimeMillis();
         long elapsedTime;
@@ -165,25 +157,27 @@ public class ElementActionsHelper {
         var isMobileExecution = DriverFactoryHelper.isMobileNativeExecution() || DriverFactoryHelper.isMobileWebExecution();
 
         try {
-//            JavaScriptWaitManager.waitForLazyLoading(driver);
             return new FluentWait<>(driver).withTimeout(Duration.ofMillis((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L * numberOfAttempts))).pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY)).ignoreAll(getExpectedExceptions(isValidToCheckForVisibility)).until(nestedDriver -> {
                 try (ExecutorService myExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
                     final WebElement[] targetElement = new WebElement[1];
                     ElementInformation elementInformation = new ElementInformation();
-                    myExecutor.submit(() -> {
-                        // BLOCK #1 :: GETTING THE ELEMENT
-                        if (ShadowLocatorBuilder.shadowDomLocator != null && ShadowLocatorBuilder.cssSelector == elementLocator) {
-                            targetElement[0] = driver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElement(ShadowLocatorBuilder.cssSelector);
-                        } else if (LocatorBuilder.getIFrameLocator() != null) {
-                            try {
-                                targetElement[0] = driver.switchTo().frame(driver.findElement(LocatorBuilder.getIFrameLocator())).findElement(elementLocator);
-                            } catch (NoSuchElementException exception) {
-                                targetElement[0] = driver.findElement(elementLocator);
-                            }
-                        } else {
+                    // BLOCK #1 :: GETTING THE ELEMENT
+                    if (ShadowLocatorBuilder.shadowDomLocator != null && ShadowLocatorBuilder.cssSelector == elementLocator) {
+                        targetElement[0] = driver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElement(ShadowLocatorBuilder.cssSelector);
+                    } else if (LocatorBuilder.getIFrameLocator() != null) {
+                        try {
+                            targetElement[0] = driver.switchTo().frame(driver.findElement(LocatorBuilder.getIFrameLocator())).findElement(elementLocator);
+                        } catch (NoSuchElementException exception) {
                             targetElement[0] = driver.findElement(elementLocator);
                         }
-                    }).get();
+                    } else {
+                        try {
+                            targetElement[0] = driver.findElement(elementLocator);
+                        } catch (InvalidSelectorException invalidSelectorException) {
+                            //break and fail immediately if invalid selector
+                            FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", invalidSelectorException);
+                        }
+                    }
                     var threadRect = myExecutor.submit(() -> {
                         // BLOCK #2 :: GETTING THE ELEMENT LOCATION (RECT)
                         try {
@@ -258,14 +252,21 @@ public class ElementActionsHelper {
                     elementInformation.setFirstElement(targetElement[0]);
                     elementInformation.setLocator(elementLocator);
 
-                    // BLOCK #6 :: PERFORMING ACTION  (WITH OPTIONAL ARGS)
-                    // attempt to perform action inside the loop to guarantee higher odds of success and reduced WebDriver calls
-                    var len = action != null ? action.length : 0;
-                    switch (len) {
-                        case 1 ->
-                                elementInformation.setActionResult(performAction(driver, elementInformation, (ElementAction) action[0], ""));
-                        case 2 ->
-                                elementInformation.setActionResult(performAction(driver, elementInformation, (ElementAction) action[0], action[1]));
+                    if (action != null && action.length > 0) {
+                        // fail if multiple elements are found and flag is enabled
+                        if (elementInformation.getNumberOfFoundElements() > 1
+                                && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique() &&
+                                !(elementLocator instanceof RelativeLocator.RelativeBy))
+                            FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", new MultipleElementsFoundException("Multiple elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\""));
+
+                        // BLOCK #6 :: PERFORMING ACTION  (WITH OPTIONAL ARGS)
+                        // attempt to perform action inside the loop to guarantee higher odds of success and reduced WebDriver calls
+                        switch (action.length) {
+                            case 1 ->
+                                    elementInformation.setActionResult(performAction(driver, elementInformation, (ElementAction) action[0], ""));
+                            case 2 ->
+                                    elementInformation.setActionResult(performAction(driver, elementInformation, (ElementAction) action[0], action[1]));
+                        }
                     }
                     return elementInformation.toList();
                     // int numberOfFoundElements
