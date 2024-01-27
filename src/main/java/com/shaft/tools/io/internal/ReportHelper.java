@@ -50,13 +50,8 @@ public class ReportHelper {
         disableLogging();
         if (FileActions.getInstance(true).doesFileExist(SHAFT.Properties.paths.properties())) {
             List<List<Object>> attachments = new ArrayList<>();
-
-            var propertyFiles = Arrays.asList(FileActions.getInstance(true).listFilesInDirectory(SHAFT.Properties.paths.properties(), null).replaceAll("default" + System.lineSeparator(), "").replaceAll(".*json", "").trim().split(System.lineSeparator()));
+            var propertyFiles = Arrays.asList(FileActions.getInstance(true).listFilesInDirectory(SHAFT.Properties.paths.properties(), null).replaceAll("default" + System.lineSeparator(), "").trim().split(System.lineSeparator()));
             propertyFiles.forEach(file -> attachments.add(Arrays.asList("Properties", file.replace(".properties", ""), FileActions.getInstance(true).readFile(SHAFT.Properties.paths.properties() + File.separator + file))));
-
-            var jsonFiles = Arrays.asList(FileActions.getInstance(true).listFilesInDirectory(SHAFT.Properties.paths.properties(), null).replaceAll("default" + System.lineSeparator(), "").replaceAll(".*properties", "").trim().split(System.lineSeparator()));
-            jsonFiles.forEach(file -> attachments.add(Arrays.asList("JSON", file.replace(".json", ""), FileActions.getInstance(true).readFile(SHAFT.Properties.paths.properties() + File.separator + file))));
-
             ReportManagerHelper.logNestedSteps("Property Files", attachments);
         }
         enableLogging();
