@@ -27,7 +27,9 @@ public class FileValidationsBuilder {
         this.validationMethod = "fileExists";
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("exists.");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -39,7 +41,9 @@ public class FileValidationsBuilder {
         this.validationMethod = "fileExists";
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("does not exist.");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**

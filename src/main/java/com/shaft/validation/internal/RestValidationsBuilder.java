@@ -37,7 +37,9 @@ public class RestValidationsBuilder {
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is equal to the contents of this file \"").append(fileRelativePath).append("\".");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -53,7 +55,9 @@ public class RestValidationsBuilder {
         this.restComparisonType = RestActions.ComparisonType.EQUALS_IGNORING_ORDER;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is equal to the contents of this file \"").append(fileRelativePath).append("\" (Ignoring Ordering).");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -69,7 +73,9 @@ public class RestValidationsBuilder {
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("is not equal to the contents of this file \"").append(fileRelativePath).append("\".");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -85,7 +91,9 @@ public class RestValidationsBuilder {
         this.restComparisonType = RestActions.ComparisonType.EQUALS_IGNORING_ORDER;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("is not equal to the contents of this file \"").append(fileRelativePath).append("\" (Ignoring Ordering).");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -101,7 +109,9 @@ public class RestValidationsBuilder {
         this.restComparisonType = RestActions.ComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("contains the contents of this file \"").append(fileRelativePath).append("\".");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -117,7 +127,9 @@ public class RestValidationsBuilder {
         this.restComparisonType = RestActions.ComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("does not contain the contents of this file \"").append(fileRelativePath).append("\".");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -177,7 +189,9 @@ public class RestValidationsBuilder {
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("schema matches that in this file \"").append(fileRelativePath).append("\".");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -193,6 +207,8 @@ public class RestValidationsBuilder {
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("schema does not match that in this file \"").append(fileRelativePath).append("\".");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 }
