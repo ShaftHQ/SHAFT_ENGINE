@@ -33,9 +33,12 @@ public class CoverageTests {
         driver.browser().navigateToURL(testElement);
         driver.browser().getWindowHeight();
         driver.browser().getWindowWidth();
-        driver.browser().navigateToURLWithBasicAuthentication("https://authenticationtest.com/HTTPAuth/", "user", "pass", "https://authenticationtest.com/loginSuccess/");
-        driver.browser().getLocalStorage();
-        driver.browser().getSessionStorage();
+        if (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName()))
+            driver.browser().navigateToURLWithBasicAuthentication("https://authenticationtest.com/HTTPAuth/", "user", "pass", "https://authenticationtest.com/loginSuccess/");
+        if (SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local")) {
+            driver.browser().getLocalStorage();
+            driver.browser().getSessionStorage();
+        }
     }
 
     @Test
@@ -83,7 +86,8 @@ public class CoverageTests {
         nativeDriver.findElement(locator).submit();
         driver.element().assertThat(locator).text().isEqualTo("test").perform();
         nativeDriver.close();
-        nativeDriver.quit();
+        if (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName()))
+            nativeDriver.quit();
     }
 
     @Test
