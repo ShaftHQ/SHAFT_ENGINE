@@ -2,6 +2,7 @@ package testPackage.mockedTests;
 
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
+import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.remote.Browser;
 import org.testng.annotations.*;
 
@@ -86,8 +87,11 @@ public class CoverageTests {
         nativeDriver.findElement(locator).submit();
         driver.element().assertThat(locator).text().isEqualTo("test").perform();
         nativeDriver.close();
-        if (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName()))
+        try {
             nativeDriver.quit();
+        } catch (NoSuchSessionException noSuchSessionException) {
+            // do nothing
+        }
     }
 
     @Test
