@@ -7,16 +7,11 @@ import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.ElementInformation;
-import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import lombok.SneakyThrows;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.*;
 import org.openqa.selenium.support.locators.RelativeLocator;
-import org.sikuli.script.App;
-import org.sikuli.script.FindFailed;
-import org.sikuli.script.Pattern;
-import org.sikuli.script.Screen;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -85,65 +80,6 @@ public class ScreenshotManager {
                 return ScreenshotManager.takeViewportScreenshot(driver);
             }
         }
-    }
-
-    public static List<Object> takeScreenshotUsingSikuliX(Screen screen, App applicationWindow, Pattern element, String actionName,
-                                                          boolean passFailStatus) {
-        globalPassFailStatus = passFailStatus;
-        if (passFailStatus) {
-            globalPassFailAppendedText = "passed";
-        } else {
-            globalPassFailAppendedText = "failed";
-        }
-        boolean takeScreenshot = "Always".equals(SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot())
-                || ("ValidationPointsOnly".equals(SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot())
-                && (actionName.toLowerCase().contains("assert")
-                || actionName.toLowerCase().contains("verify")))
-                || !passFailStatus;
-        if (takeScreenshot || (SHAFT.Properties.visuals.createAnimatedGif() && (AnimatedGifManager.DETAILED_GIF || actionName.matches(AnimatedGifManager.DETAILED_GIF_REGEX)))) {
-            /*
-             * Take the screenshot and store it as a file
-             */
-            byte[] src = null;
-            try {
-                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                switch (Screenshots.getType()) {
-                    case ELEMENT:
-                        if (element != null) {
-                            try {
-                                ImageIO.write(screen.capture(screen.wait(element).getRect()).getImage(), "png", byteArrayOutputStream);
-                                src = byteArrayOutputStream.toByteArray();
-                                break;
-                            } catch (FindFailed e) {
-                                //do nothing and fall into the next type of screenshot
-                            }
-                        }
-                    case VIEWPORT:
-                        if (applicationWindow != null) {
-                            ImageIO.write(screen.capture(applicationWindow.waitForWindow()).getImage(), "png", byteArrayOutputStream);
-                            src = byteArrayOutputStream.toByteArray();
-                            break;
-                        }
-                    case FULL:
-                        ImageIO.write(screen.capture().getImage(), "png", byteArrayOutputStream);
-                        src = byteArrayOutputStream.toByteArray();
-                        break;
-                    default:
-                        break;
-                }
-            } catch (IOException e) {
-                ReportManager.logDiscrete("Failed to create attachment.");
-                ReportManagerHelper.logDiscrete(e);
-            }
-
-            AnimatedGifManager.startOrAppendToAnimatedGif(src);
-            if (takeScreenshot) {
-                return prepareImageForReport(src, actionName);
-            } else {
-                return null;
-            }
-        }
-        return null;
     }
 
     public static String generateAttachmentFileName(String actionName, String appendedText) {

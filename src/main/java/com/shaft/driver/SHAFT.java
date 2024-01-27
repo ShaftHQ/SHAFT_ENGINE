@@ -8,7 +8,10 @@ import com.shaft.db.DatabaseActions;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.element.*;
+import com.shaft.gui.element.AlertActions;
+import com.shaft.gui.element.AsyncElementActions;
+import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.waits.WaitActions;
 import com.shaft.listeners.internal.WebDriverListener;
 import com.shaft.tools.io.ExcelFileManager;
@@ -22,7 +25,6 @@ import io.appium.java_client.ios.IOSDriver;
 import io.restassured.response.Response;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.support.events.EventFiringDecorator;
-import org.sikuli.script.App;
 
 import java.io.InputStream;
 import java.sql.ResultSet;
@@ -147,30 +149,6 @@ public class SHAFT {
         }
 
         public static class Locator extends com.shaft.gui.internal.locator.Locator {
-        }
-
-        public static class SikuliDriver {
-            private final App sikuliApp;
-
-            public SikuliDriver(String applicationName) {
-                sikuliApp = DriverFactory.getSikuliApp(applicationName);
-            }
-
-            public static SikuliDriver getInstance(String applicationName) {
-                return new SikuliDriver(applicationName);
-            }
-
-            public void quit() {
-                DriverFactory.closeSikuliApp(sikuliApp);
-            }
-
-            public SikuliActions element() {
-                return new SikuliActions(sikuliApp);
-            }
-
-            public App getDriver(String applicationName) {
-                return sikuliApp;
-            }
         }
     }
 

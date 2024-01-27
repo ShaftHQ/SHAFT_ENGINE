@@ -8,7 +8,6 @@ import com.shaft.enums.internal.ClipboardAction;
 import com.shaft.enums.internal.ElementAction;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.gui.element.SikuliActions;
 import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
@@ -34,9 +33,6 @@ import org.openqa.selenium.support.locators.RelativeLocator;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
 import org.openqa.selenium.support.ui.WebDriverWait;
-import org.sikuli.script.App;
-import org.sikuli.script.Pattern;
-import org.sikuli.script.Screen;
 import org.testng.Assert;
 
 import java.awt.*;
@@ -858,7 +854,7 @@ public class ElementActionsHelper {
         }
     }
 
-    private static boolean isFoundInStacktrace(Class<?> classObject, Throwable throwable) {
+    public static boolean isFoundInStacktrace(Class<?> classObject, Throwable throwable) {
         var targetClassName = classObject.getName();
         for (StackTraceElement element : throwable.getStackTrace()) {
             if (element.getClassName().equals(targetClassName)) {
@@ -969,13 +965,6 @@ public class ElementActionsHelper {
         passAction(driver, elementLocator, actionName, testData, attachments, elementName);
     }
 
-    public static void passAction(Screen screen, App applicationWindow, Pattern element, String testData) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        List<List<Object>> attachments = new LinkedList<>();
-        attachments.add(SikuliActions.prepareElementScreenshotAttachment(screen, applicationWindow, element, actionName, true));
-        passAction(null, null, actionName, testData, attachments, null);
-    }
-
     public static void passAction(WebDriver driver, By elementLocator, String actionName, String testData, List<List<Object>> screenshots, String elementName) {
         reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, true);
     }
@@ -993,13 +982,6 @@ public class ElementActionsHelper {
     public static void failAction(WebDriver driver, String testData, By elementLocator, List<List<Object>> attachments, Throwable... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(driver, actionName, testData, elementLocator, attachments, rootCauseException);
-    }
-
-    public static void failAction(Screen screen, App applicationWindow, Pattern element, String testData, Throwable... rootCauseException) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        List<List<Object>> attachments = new LinkedList<>();
-        attachments.add(SikuliActions.prepareElementScreenshotAttachment(screen, applicationWindow, element, actionName, false));
-        failAction(null, actionName, testData, null, attachments, rootCauseException);
     }
 
     public static void failAction(WebDriver driver, String actionName, String testData, By elementLocator, List<List<Object>> screenshots, Throwable... rootCauseException) {
@@ -1050,7 +1032,7 @@ public class ElementActionsHelper {
         }
     }
 
-    private static String createReportMessage(String actionName, String testData, String elementName, Boolean passFailStatus) {
+    public static String createReportMessage(String actionName, String testData, String elementName, Boolean passFailStatus) {
         String message = "";
 
         if (Boolean.FALSE.equals(passFailStatus)) {
@@ -1138,7 +1120,7 @@ public class ElementActionsHelper {
         }
     }
 
-    private static String reportActionResult(WebDriver driver, String actionName, String testData, By elementLocator, List<List<Object>> screenshots, String elementName, Boolean passFailStatus, Throwable... rootCauseException) {
+    public static String reportActionResult(WebDriver driver, String actionName, String testData, By elementLocator, List<List<Object>> screenshots, String elementName, Boolean passFailStatus, Throwable... rootCauseException) {
         String message = createReportMessage(actionName, testData, elementName, passFailStatus);
         List<List<Object>> attachments = createReportAttachments(driver, actionName, testData, elementLocator, screenshots, passFailStatus, rootCauseException);
 
