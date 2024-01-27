@@ -12,7 +12,6 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.commons.lang3.SystemUtils;
 import org.openqa.selenium.Platform;
-import org.sikuli.basics.FileManager;
 
 import java.io.*;
 import java.net.JarURLConnection;
@@ -332,8 +331,13 @@ public class FileActions {
 
     public String readFile(String pathToTargetFile) {
         String absoluteFilePath = getAbsolutePath(pathToTargetFile);
-        String text = FileManager.readFileToString(new File(absoluteFilePath));
-        passAction("File Path: \"" + absoluteFilePath + "\"", text);
+        String text = "";
+        try {
+            text = Files.readString(new File(absoluteFilePath).toPath());
+            passAction("File Path: \"" + absoluteFilePath + "\"", text);
+        } catch (IOException rootCauseException) {
+            failAction(rootCauseException);
+        }
         return text;
     }
 
