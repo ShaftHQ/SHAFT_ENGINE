@@ -33,7 +33,9 @@ public class WebDriverElementValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.validationMethod = "elementExists";
         reportMessageBuilder.append("exists.");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -45,7 +47,9 @@ public class WebDriverElementValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         this.validationMethod = "elementExists";
         reportMessageBuilder.append("does not exist.");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -60,7 +64,9 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG;
         reportMessageBuilder.append("matches the reference image \"").append(ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG).append("\".");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -74,7 +80,9 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = visualValidationEngine;
         reportMessageBuilder.append("matches the reference image \"").append(visualValidationEngine).append("\".");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -89,7 +97,9 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_OPENCV;
         reportMessageBuilder.append("does not match the reference image \"").append(ValidationEnums.VisualValidationEngine.EXACT_OPENCV).append("\".");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -103,7 +113,9 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = visualValidationEngine;
         reportMessageBuilder.append("does not match the reference image \"").append(visualValidationEngine).append("\".");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**

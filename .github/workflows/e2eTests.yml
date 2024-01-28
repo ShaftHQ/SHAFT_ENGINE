@@ -11,40 +11,40 @@ env:
   GLOBAL_TESTING_SCOPE: "!%regex[.*MultipleBrowserInstancesTest.*], !%regex[.*Tests_Api.*], !%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
 
 jobs:
-  #  Ubuntu_Database:
-  #    runs-on: ubuntu-latest
-  #  #    steps:
-  #      - name: Checkout Code
-  #        uses: actions/checkout@v4
-  #      - name: Set up JDK 21
-  #        uses: actions/setup-java@v4
-  #        with:
-  #          java-version: '21'
-  #          distribution: 'zulu'
-  #          cache: 'maven'
-  #          check-latest: true
-  #      - name: Run tests
-  #        continue-on-error: true
-  #        run: mvn -e test "-DgenerateAllureReportArchive=true" "-Dtest=.*DatabaseTests.*"
-  #      - name: Upload coverage to Codecov
-  #        uses:  codecov/codecov-action@v3
-  #        with:
-  #          token: ${{ secrets.CODECOV_TOKEN }}
-  #          fail_ci_if_error: false
-  #          files: ./target/jacoco/jacoco.xml
-  #          verbose: true
-  #      - name: Upload Allure Report as Pipeline Artifact
-  #        if: always()
-  #        uses: actions/upload-artifact@v4
-  #        with:
-  #          name: Ubuntu_Database_Allure
-  #          path: "generatedReport_*.zip"
-  #      - name: Upload Execution Summary Report as Pipeline Artifact
-  #        if: always()
-  #        uses: actions/upload-artifact@v4
-  #        with:
-  #          name: Ubuntu_Database_Summary
-  #          path: "execution-summary/ExecutionSummaryReport_*.html"
+  Ubuntu_Database:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'zulu'
+          cache: 'maven'
+          check-latest: true
+      - name: Run tests
+        continue-on-error: true
+        run: mvn -e test "-DgenerateAllureReportArchive=true" "-Dtest=.*DatabaseActionsTests.*"
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+          files: ./target/jacoco/jacoco.xml
+          verbose: true
+      - name: Upload Allure Report as Pipeline Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ubuntu_Database_Allure
+          path: "generatedReport_*.zip"
+      - name: Upload Execution Summary Report as Pipeline Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ubuntu_Database_Summary
+          path: "execution-summary/ExecutionSummaryReport_*.html"
 
   Ubuntu_APIs:
     runs-on: ubuntu-latest

@@ -2,6 +2,7 @@ package testPackage.mockedTests;
 
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
+import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.remote.Browser;
 import org.testng.annotations.*;
 
@@ -33,9 +34,13 @@ public class CoverageTests {
         driver.browser().navigateToURL(testElement);
         driver.browser().getWindowHeight();
         driver.browser().getWindowWidth();
-        driver.browser().navigateToURLWithBasicAuthentication("https://authenticationtest.com/HTTPAuth/", "user", "pass", "https://authenticationtest.com/loginSuccess/");
-        driver.browser().getLocalStorage();
-        driver.browser().getSessionStorage();
+        if (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName()))
+            driver.browser().navigateToURLWithBasicAuthentication("https://authenticationtest.com/HTTPAuth/", "user", "pass", "https://authenticationtest.com/loginSuccess/");
+        if (SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local")
+           && (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName()))) {
+            driver.browser().getLocalStorage();
+            driver.browser().getSessionStorage();
+        }
     }
 
     @Test
@@ -83,7 +88,11 @@ public class CoverageTests {
         nativeDriver.findElement(locator).submit();
         driver.element().assertThat(locator).text().isEqualTo("test").perform();
         nativeDriver.close();
-        nativeDriver.quit();
+        try {
+            nativeDriver.quit();
+        } catch (NoSuchSessionException noSuchSessionException) {
+            // do nothing
+        }
     }
 
     @Test

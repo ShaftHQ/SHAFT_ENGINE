@@ -153,13 +153,13 @@ public class ValidationTests {
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_caseInsensitiveComparison_expectedToPass() {
         driver.element().type(locator, "AUTOMATION")
-                .assertThat(locator).text().equalsIgnoringCaseSensitivity("AutomaTion").perform();
+                .assertThat(locator).text().equalsIgnoringCaseSensitivity("AutomaTion").withCustomReportMessage("assertElementAttribute_true_caseInsensitiveComparison_expectedToPass").perform();
     }
 
     @Test(groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
     public void assertElementAttribute_true_caseInsensitiveComparison_expectedToFail() {
         driver.element().type(locator, "AUTOMATION");
-        driver.element().assertThat(locator).text().equalsIgnoringCaseSensitivity("AutomaTion123").perform();
+        driver.element().assertThat(locator).text().equalsIgnoringCaseSensitivity("AutomaTion123");
     }
 
     @Test(groups = {"WebBased"})
