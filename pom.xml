@@ -472,14 +472,14 @@
             <version>8.3.0</version>
         </dependency>
         <dependency>
-            <groupId>com.microsoft.sqlserver</groupId>
-            <artifactId>mssql-jdbc</artifactId>
-            <version>9.4.1.jre16-preview</version>
+             <groupId>com.microsoft.sqlserver</groupId>
+             <artifactId>mssql-jdbc</artifactId>
+             <version>12.5.0.jre11-preview</version>
         </dependency>
-        <dependency>
-            <groupId>postgresql</groupId>
+         <dependency>
+            <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>9.1-901-1.jdbc4</version>
+            <version>42.7.1</version>
         </dependency>
         <dependency>
             <groupId>com.ibm.db2.jcc</groupId>
