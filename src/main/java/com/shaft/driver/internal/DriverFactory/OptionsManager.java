@@ -84,6 +84,7 @@ public class OptionsManager {
                     proxy.setSslProxy(proxyServerSettings);
                     ffOptions.setProxy(proxy);
                 }
+                ffOptions.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
                 // Enable BiDi
                 ffOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
                 //merge customWebDriverCapabilities.properties
@@ -275,6 +276,7 @@ public class OptionsManager {
         options.setPageLoadStrategy(PageLoadStrategy.NORMAL); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
         options.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
         options.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
+        options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
         //Add Proxy Setting if found
         String proxy = Properties.platform.proxy();
         if (SHAFT.Properties.platform.driverProxySettings() && !"".equals(proxy)) {

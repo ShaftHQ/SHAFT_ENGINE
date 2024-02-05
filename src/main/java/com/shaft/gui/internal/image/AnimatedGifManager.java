@@ -74,7 +74,7 @@ public class AnimatedGifManager {
     private static void appendToAnimatedGif(byte[] screenshot) {
         try {
             BufferedImage image;
-            if (screenshot != null && gifWriter.get() != null) {
+            if (screenshot != null && gifManager.get() != null && gifWriter.get() != null) {
                 image = ImageIO.read(new ByteArrayInputStream(screenshot));
                 //scaling it down
                 image = Scalr.resize(image, Scalr.Method.BALANCED, GIF_SIZE);
@@ -104,7 +104,7 @@ public class AnimatedGifManager {
                 firstImage = Scalr.resize(firstImage, Scalr.Method.BALANCED, GIF_SIZE);
 
                 // create a new BufferedOutputStream
-                FileActions.getInstance(true).createFile(SHAFT.Properties.paths.allureResults() + "/screenshots/" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()), gifFileName);
+                FileActions.getInstance(true).createFile(gifRelativePathWithFileName.replace(gifFileName, ""), gifFileName);
                 gifOutputStream.set(new FileImageOutputStream(new File(gifRelativePathWithFileName)));
 
                 // create a gif sequence with the type of the first image, 500 milliseconds

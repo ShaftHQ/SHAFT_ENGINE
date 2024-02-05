@@ -12,14 +12,14 @@ import org.testng.annotations.Test;
 @Test
 public class SearchOptimizationTest {
     SHAFT.GUI.WebDriver driver;
-    By searchBox = SHAFT.GUI.Locator.hasAnyTagName().hasAttribute("type", "search").build();
+    public static By searchBox = By.xpath("(//*[@type='search'])|(//*[@name='q'])");
     LocatorBuilder genericLink = SHAFT.GUI.Locator.hasTagName("a");
 
     public void gitHub() {
         if (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
             driver.browser().navigateToURL("https://www.google.com/ncr")
                     .and().element().type(searchBox, "SHAFT_Engine").keyPress(searchBox, Keys.ENTER)
-                    .and().click(genericLink.hasAttribute("href", "https://github.com/ShaftHQ/SHAFT_ENGINE").isFirst().build())
+                    .and().click(genericLink.containsAttribute("href", "SHAFT_ENGINE").isFirst().build())
                     .and().assertThat(SHAFT.GUI.Locator.hasTagName("a").containsAttribute("href", "/ShaftHQ/SHAFT_ENGINE").isFirst().build()).text().contains("SHAFT_ENGINE")
                     .withCustomReportMessage("repo title is SHAFT_Engine").perform();
         }
