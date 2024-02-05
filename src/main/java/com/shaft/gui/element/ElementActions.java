@@ -637,12 +637,16 @@ public class ElementActions extends FluentWebDriverAction {
     public ElementActions submitFormUsingJavaScript(By elementLocator) {
         try {
             var elementName = ElementActionsHelper.getElementName(driver, elementLocator);
+            List<Object> screenshot = null;
             try {
+                screenshot = ElementActionsHelper.takeScreenshot(driver, elementLocator, "submitFormUsingJavaScript", null, true);
                 ElementActionsHelper.submitFormUsingJavascript(driver, elementLocator);
-                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, Collections.singletonList(screenshot), elementName);
             } catch (JavascriptException javascriptException) {
+                if (screenshot == null)
+                    screenshot = ElementActionsHelper.takeScreenshot(driver, elementLocator, "submitFormUsingJavaScript", null, true);
                 driver.findElement(elementLocator).submit();
-                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
+                ElementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, Collections.singletonList(screenshot), elementName);
             } catch (Exception rootCauseException) {
                 ElementActionsHelper.failAction(driver, elementLocator, rootCauseException);
             }

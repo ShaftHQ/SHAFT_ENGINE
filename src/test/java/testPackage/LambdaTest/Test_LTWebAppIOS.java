@@ -2,7 +2,6 @@ package testPackage.LambdaTest;
 
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -23,7 +22,7 @@ public class Test_LTWebAppIOS {
         driver.browser().navigateToURL(appleUrl);
         driver.element().click(appleMenuIcon);
         driver.element().click(macTab);
-        Assert.assertEquals(driver.element().getText(elementToValidate), exploreAllMacText);
+        driver.assertThat().element(elementToValidate).text().isEqualTo(exploreAllMacText).perform();
     }
 
 

@@ -5,6 +5,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.remote.Browser;
 import org.testng.annotations.*;
+import testPackage.SearchOptimizationTest;
 
 public class CoverageTests {
     SHAFT.GUI.WebDriver driver;
@@ -111,8 +112,8 @@ public class CoverageTests {
 
     @Test
     public void submitFormUsingJavaScript() {
-        By searchBox = By.xpath("//*[@type='search']");
-        By searchResult = SHAFT.GUI.Locator.hasTagName("a").hasAttribute("href", "https://github.com/ShaftHQ/SHAFT_ENGINE").isFirst().build();
+        By searchBox = SearchOptimizationTest.searchBox;
+        By searchResult = SHAFT.GUI.Locator.hasTagName("a").containsAttribute("href", "SHAFT_ENGINE").isFirst().build();
         boolean isElementDisplayed = driver.browser().navigateToURL("https://www.google.com/ncr")
                 .and().element().type(searchBox, "SHAFT_Engine")
                 .and().clear(searchBox)
