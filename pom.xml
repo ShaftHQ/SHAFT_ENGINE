@@ -47,7 +47,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.10.1</version>
+                <version>5.10.2</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -474,7 +474,7 @@
         <dependency>
              <groupId>com.microsoft.sqlserver</groupId>
              <artifactId>mssql-jdbc</artifactId>
-             <version>12.5.0.jre11-preview</version>
+             <version>12.6.0.jre11</version>
         </dependency>
          <dependency>
             <groupId>org.postgresql</groupId>
