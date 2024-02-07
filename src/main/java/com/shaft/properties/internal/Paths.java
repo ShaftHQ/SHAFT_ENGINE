@@ -52,6 +52,10 @@ public interface Paths extends EngineProperties {
     @DefaultValue("execution-summary/")
     String executionSummaryReport();
 
+    @Key("allureReportFolderPath")
+    @DefaultValue("allure-report/")
+    String allureReport();
+
     @Key("video.folder")
     @DefaultValue("allure-results/videos")
     String video();
@@ -93,6 +97,10 @@ public interface Paths extends EngineProperties {
             setProperty("allureResultsFolderPath", value);
             return this;
         }
+         public SetProperty allureReport(String value){
+            setProperty("allureReportFolderPath" , value);
+            return this;
+         }
 
         public SetProperty extentReports(String value) {
             setProperty("extentReportsFolderPath", value);

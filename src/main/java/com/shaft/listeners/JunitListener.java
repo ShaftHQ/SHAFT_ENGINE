@@ -98,6 +98,7 @@ public class JunitListener implements LauncherSessionListener {
         ReportManagerHelper.setDiscreteLogging(true);
         JiraHelper.reportExecutionStatusToJira();
         GoogleTink.encrypt();
+        ReportManagerHelper.writeAllureHtmlReport();
         ReportManagerHelper.generateAllureReportArchive();
         ReportManagerHelper.openAllureReportAfterExecution();
         long executionEndTime = System.currentTimeMillis();

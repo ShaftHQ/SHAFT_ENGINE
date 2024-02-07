@@ -53,6 +53,7 @@ public class ReportManagerHelper {
     @Getter
     private static int failedTestsWithoutOpenIssuesCounter = 0;
     private static String allureResultsFolderPath = "";
+    private static String allureReportFolderPath = "";
     private static String allureBinaryPath = "";
     // TODO: refactor to regular class that can be instantiated within the test and
     private static List<List<String>> listOfOpenIssuesForFailedTests = new ArrayList<>();
@@ -178,10 +179,12 @@ public class ReportManagerHelper {
          */
         System.setProperty("org.uncommons.reportng.escape-output", "false");
         allureResultsFolderPath = SHAFT.Properties.paths.allureResults();
-        cleanAllureResultsDirectory();
+        allureReportFolderPath = SHAFT.Properties.paths.allureReport();
+        //cleanAllureResultsDirectory();
+        cleanAllureHtmlReportDirectory();
         downloadAndExtractAllureBinaries();
         overrideAllurePluginConfiguration();
-        writeGenerateReportShellFilesToProjectDirectory();
+        //writeGenerateReportShellFilesToProjectDirectory();
         writeEnvironmentVariablesToAllureResultsDirectory();
         createAllureListenersMetaFiles();
     }
@@ -365,22 +368,22 @@ public class ReportManagerHelper {
     }
 
     public static void openAllureReportAfterExecution() {
-        String commandToOpenAllureReport;
         if (Boolean.TRUE.equals(SHAFT.Properties.reporting.openAllureReportAfterExecution())) {
             if (SystemUtils.IS_OS_WINDOWS) {
-                commandToOpenAllureReport = ("generate_allure_report.bat");
+                SHAFT.CLI.terminal().performTerminalCommand(".\\" + SHAFT.Properties.paths.allureReport() + "Allure_Report_*.html");
             } else {
-                commandToOpenAllureReport = ("sh generate_allure_report.sh");
+                SHAFT.CLI.terminal().performTerminalCommand("open ./" + SHAFT.Properties.paths.allureReport() + "Allure_Report_*.html");
             }
-            TerminalActions.getInstance(true, true).performTerminalCommand(commandToOpenAllureReport);
         }
     }
+
+
 
     public static void generateAllureReportArchive() {
         if (Boolean.TRUE.equals(SHAFT.Properties.reporting.generateAllureReportArchive())) {
             ReportManager.logDiscrete("Generating Allure Report Archive...");
             ReportHelper.disableLogging();
-            writeAllureReport();
+            //writeAllureHtmlReport();
             createAllureReportArchive();
             ReportHelper.enableLogging();
         }
@@ -681,10 +684,20 @@ public class ReportManagerHelper {
         // clean allure-results directory before execution
         if (SHAFT.Properties.reporting.cleanAllureResultsDirectoryBeforeExecution()) {
             try {
-                FileActions.getInstance(true).deleteFile("allure-report/");
+                //FileActions.getInstance(true).deleteFile("allure-report/");
                 FileActions.getInstance(true).deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
             } catch (Exception t) {
                 ReportManager.log("Failed to delete allure-results as it is currently open. Kindly restart your device to unlock the directory.");
+            }
+        }
+    }
+    private static void cleanAllureHtmlReportDirectory() {
+        // clean allure-html-report directory before execution
+        if (SHAFT.Properties.reporting.cleanAllureHtmlReportDirectoryBeforeExecution()) {
+            try {
+                FileActions.getInstance(true).deleteFolder("allure-report");
+            } catch (Exception t) {
+                ReportManager.log("Failed to delete allure-report as it is currently open. Kindly restart your device to unlock the directory.");
             }
         }
     }
@@ -798,7 +811,7 @@ public class ReportManagerHelper {
         createAttachment(attachmentType, attachmentName, attachmentContent);
     }
 
-    private static void writeAllureReport() {
+ /*   private static void writeAllureReport() {
         // add correct file extension based on target OS
         String commandToCreateAllureReport;
         allureBinaryPath = allureExtractionLocation + "allure-" + SHAFT.Properties.internal.allureVersion()
@@ -815,10 +828,40 @@ public class ReportManagerHelper {
         }
         TerminalActions.getInstance(false, false).performTerminalCommand(commandToCreateAllureReport);
     }
+*/
+    public static void writeAllureHtmlReport() {
+        //tempPath is for generating index.html because if the allure command detected files in the directory
+        // it will force us to delete and this will not be correct when enabling history
+        // temp path will be deleted after renaming index.html and moving it to allure-report folder
+
+        String allureHtmlReportTempPath = "temp-allure-report/";
+        FileActions.getInstance(true).createFolder(allureReportFolderPath);
+
+        // add correct file extension based on target OS
+        String commandToCreateAllureReport;
+        allureBinaryPath = allureExtractionLocation + "allure-" + SHAFT.Properties.internal.allureVersion()
+                + "/bin/allure";
+
+        if (SystemUtils.IS_OS_WINDOWS) {
+            commandToCreateAllureReport = allureBinaryPath + ".bat" + " generate --single-file '"
+                    + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
+                    + "' -o '"+allureHtmlReportTempPath+"'";
+        } else {
+            commandToCreateAllureReport = allureBinaryPath + " generate --single-file --clean "
+                    + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
+                    + " -o "+ allureHtmlReportTempPath ;
+        }
+        TerminalActions.getInstance(false, false).performTerminalCommand(commandToCreateAllureReport);
+        FileActions.getInstance(true).renameFile(allureHtmlReportTempPath+"/index.html" ,allureReportFolderPath+"Allure_Report_"+new SimpleDateFormat("yyyyMMddHHmmss").format(new Date())+".html" );
+        FileActions.getInstance(true).deleteFolder(allureHtmlReportTempPath);
+        FileActions.getInstance(true).deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
+
+    }
 
     private static void createAllureReportArchive() {
         if (FileActions.getInstance(true).doesFileExist(allureExtractionLocation)) {
-            FileActions.getInstance(true).zipFiles("allure-report/", "generatedReport_" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".zip");
+           // FileActions.getInstance(true).renameFile("allure-report/index.html","allure-report/AllureReport_"+new SimpleDateFormat("yyyyMMddHHmmss").format(new Date())+".html");
+            FileActions.getInstance(true).zipFiles("allure-report/", "generatedReport_" + new SimpleDateFormat("yyyyMMddHHmmss").format(new Date()) + ".zip");
         }
     }
 

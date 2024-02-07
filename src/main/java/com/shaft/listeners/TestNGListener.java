@@ -201,6 +201,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onExecutionFinish() {
         ReportManagerHelper.setDiscreteLogging(true);
+        Thread allureHtmlReport = Thread.ofVirtual().start(ReportManagerHelper::writeAllureHtmlReport);
         Thread allureArchiveGeneration = Thread.ofVirtual().start(ReportManagerHelper::generateAllureReportArchive);
         long executionEndTime = System.currentTimeMillis();
         Thread summaryReportGeneration = Thread.ofVirtual().start(() -> ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime));
@@ -210,6 +211,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         Thread.ofVirtual().start(ReportManagerHelper::logEngineClosure);
         try {
             summaryReportGeneration.join();
+            allureHtmlReport.join();
             allureArchiveGeneration.join();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);

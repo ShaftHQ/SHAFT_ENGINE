@@ -37,6 +37,11 @@ public interface Reporting extends EngineProperties {
     @DefaultValue("true")
     boolean cleanAllureResultsDirectoryBeforeExecution();
 
+    @Key("cleanAllureHtmlReportDirectoryBeforeExecution")
+    @DefaultValue("true")
+    boolean cleanAllureHtmlReportDirectoryBeforeExecution();
+
+
     @Key("generateAllureReportArchive")
     @DefaultValue("false")
     boolean generateAllureReportArchive();
