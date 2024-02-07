@@ -383,7 +383,7 @@ public class ReportManagerHelper {
         if (Boolean.TRUE.equals(SHAFT.Properties.reporting.generateAllureReportArchive())) {
             ReportManager.logDiscrete("Generating Allure Report Archive...");
             ReportHelper.disableLogging();
-            //writeAllureHtmlReport();
+            writeAllureHtmlReport();
             createAllureReportArchive();
             ReportHelper.enableLogging();
         }
