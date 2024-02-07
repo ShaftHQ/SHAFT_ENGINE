@@ -276,6 +276,17 @@ public class FileActions {
         passAction("Target File Path: \"" + targetFilePath + "\", file was " + negation + "deleted.");
     }
 
+    public void renameFile(String oldFilePath , String newFilePath)  {
+        try {
+            File oldFile = new File(oldFilePath);
+            File newFile = new File(newFilePath);
+            FileUtils.moveFile(oldFile , newFile);
+            passAction("File: \"" + oldFilePath + "\"Renamed Successfully To :\""+newFilePath);
+        } catch (IOException rootCauseException) {
+            failAction(rootCauseException);
+        }
+    }
+
     public void writeToFile(String fileFolderName, String fileName, List<String> text) {
         byte[] textToBytes = String.join(System.lineSeparator(), text).getBytes();
         writeToFile(fileFolderName, fileName, textToBytes);
@@ -549,6 +560,8 @@ public class FileActions {
             failAction(rootCauseException);
         }
     }
+
+
 
     @SuppressWarnings("UnusedReturnValue")
     public boolean zipFiles(String srcFolder, String destZipFile) {
