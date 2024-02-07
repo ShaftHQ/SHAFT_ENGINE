@@ -33,15 +33,15 @@ public class MobileTests {
 
     @Test
     public void test() {
-        SHAFT.Properties.mobile.set().platformName(platformName);
-        SHAFT.Properties.mobile.set().platformVersion(platformVersion);
-        SHAFT.Properties.mobile.set().deviceName(deviceName);
-        SHAFT.Properties.mobile.set().automationName(automationName);
-        SHAFT.Properties.mobile.set().udid(udid);
-        SHAFT.Properties.mobile.set().browserName(browserName);
-        SHAFT.Properties.mobile.set().browserVersion(browserVersion);
-        SHAFT.Properties.mobile.set().app(app);
-        SHAFT.Properties.mobile.set().appPackage(appPackage);
-        SHAFT.Properties.mobile.set().appActivity(appActivity);
+        SHAFT.Properties.mobile.set().platformName(platformName)
+                .platformVersion(platformVersion)
+                .deviceName(deviceName)
+                .automationName(automationName)
+                .udid(udid)
+                .browserName(browserName)
+                .browserVersion(browserVersion)
+                .app(app)
+                .appPackage(appPackage)
+                .appActivity(appActivity);
     }
 }

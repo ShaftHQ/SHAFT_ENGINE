@@ -26,13 +26,13 @@ public class WebTests {
         isMobileEmulation = SHAFT.Properties.web.isMobileEmulation();
         mobileEmulationIsCustomDevice = SHAFT.Properties.web.mobileEmulationIsCustomDevice();
         mobileEmulationDeviceName = SHAFT.Properties.web.mobileEmulationDeviceName();
-        mobileEmulationWidth = Integer.parseInt("0");
-        mobileEmulationHeight = Integer.parseInt("0");
+        mobileEmulationWidth = 0;
+        mobileEmulationHeight = 0;
         mobileEmulationPixelRatio = Double.parseDouble("0");
         mobileEmulationUserAgent = SHAFT.Properties.web.mobileEmulationUserAgent();
         baseURL = SHAFT.Properties.web.baseURL();
-        browserWindowWidth = Integer.parseInt("1920");
-        browserWindowHeight = Integer.parseInt("1080");
+        browserWindowWidth = 1920;
+        browserWindowHeight = 1080;
     }
 
     @Test

@@ -16,8 +16,7 @@ public class Test_LTMobIPAAppURL {
     public void test() {
         new ElementActions(driver.getDriver()).performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
         new ElementActions(driver.getDriver()).type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
-        SHAFT.Validations.assertThat().object(driver.element().getText(AppiumBy.accessibilityId("Text Output"))).
-                isEqualTo("hello@browserstack.com").perform();
+        driver.assertThat().element(AppiumBy.accessibilityId("Text Output")).text().isEqualTo("hello@browserstack.com").perform();
     }
 
     @BeforeMethod

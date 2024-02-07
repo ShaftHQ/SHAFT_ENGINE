@@ -5,7 +5,6 @@ import io.appium.java_client.AppiumBy;
 import io.appium.java_client.remote.AutomationName;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Platform;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -23,7 +22,7 @@ public class Test_LTMobAPKRelativePath {
         driver.element().click(app) ;
         driver.element().click(actionBar);
         driver.element().click(displayOptions);
-        Assert.assertEquals(driver.element().getText(displayShowCustom),"DISPLAY_SHOW_CUSTOM");
+        driver.assertThat().element(displayShowCustom).text().isEqualTo("DISPLAY_SHOW_CUSTOM").perform();
     }
 
 
