@@ -4,10 +4,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.security.GoogleTink;
-import com.shaft.tools.io.internal.CheckpointCounter;
-import com.shaft.tools.io.internal.ProjectStructureManager;
-import com.shaft.tools.io.internal.ReportHelper;
-import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.tools.io.internal.*;
 import org.testng.Reporter;
 import org.testng.xml.XmlSuite;
 
@@ -48,7 +45,7 @@ public class CucumberHelper {
         UpdateChecker.check();
         ImageProcessingActions.loadOpenCV();
 
-        ReportManagerHelper.initializeAllureReportingEnvironment();
+        AllureManager.initializeAllureReportingEnvironment();
 
         ReportHelper.attachImportantLinks();
         ReportHelper.attachPropertyFiles();
@@ -68,7 +65,7 @@ public class CucumberHelper {
         );
     }
 
-    public static void shaftTeardown() {
+    public static void shaftTearDown() {
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
             ReportHelper.attachEngineLog();
@@ -79,8 +76,8 @@ public class CucumberHelper {
             ReportManagerHelper.setDiscreteLogging(true);
             JiraHelper.reportExecutionStatusToJira();
             GoogleTink.encrypt();
-            ReportManagerHelper.generateAllureReportArchive();
-            ReportManagerHelper.openAllureReportAfterExecution();
+            AllureManager.generateAllureReportArchive();
+            AllureManager.openAllureReportAfterExecution();
             ReportManagerHelper.logEngineClosure();
         }
     }
