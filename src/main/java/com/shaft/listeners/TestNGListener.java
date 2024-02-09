@@ -6,10 +6,7 @@ import com.shaft.listeners.internal.*;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.internal.ExecutionSummaryReport;
-import com.shaft.tools.io.internal.IssueReporter;
-import com.shaft.tools.io.internal.ProjectStructureManager;
-import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.tools.io.internal.*;
 import io.qameta.allure.Allure;
 import lombok.Getter;
 import org.testng.*;
@@ -79,7 +76,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ReportManagerHelper.logEngineVersion();
         Thread.ofVirtual().start(UpdateChecker::check);
         Thread.ofVirtual().start(ImageProcessingActions::loadOpenCV);
-        Thread.ofVirtual().start(ReportManagerHelper::initializeAllureReportingEnvironment);
+        Thread.ofVirtual().start(AllureManager::initializeAllureReportingEnvironment);
         Thread.ofVirtual().start(ReportManagerHelper::cleanExecutionSummaryReportDirectory);
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
         ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
@@ -201,12 +198,12 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onExecutionFinish() {
         ReportManagerHelper.setDiscreteLogging(true);
-        Thread allureArchiveGeneration = Thread.ofVirtual().start(ReportManagerHelper::generateAllureReportArchive);
+        Thread allureArchiveGeneration = Thread.ofVirtual().start(AllureManager::generateAllureReportArchive);
         long executionEndTime = System.currentTimeMillis();
         Thread summaryReportGeneration = Thread.ofVirtual().start(() -> ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime));
         Thread.ofVirtual().start(JiraHelper::reportExecutionStatusToJira);
         Thread.ofVirtual().start(GoogleTink::encrypt);
-        Thread.ofVirtual().start(ReportManagerHelper::openAllureReportAfterExecution);
+        Thread.ofVirtual().start(AllureManager::openAllureReportAfterExecution);
         Thread.ofVirtual().start(ReportManagerHelper::logEngineClosure);
         try {
             summaryReportGeneration.join();

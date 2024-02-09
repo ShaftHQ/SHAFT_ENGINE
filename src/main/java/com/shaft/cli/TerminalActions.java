@@ -319,6 +319,7 @@ public class TerminalActions {
             ReportManager.logDiscrete("Executing: \"" + command + "\" locally.");
             try {
                 ProcessBuilder pb = getProcessBuilder(command, finalDirectory, isWindows);
+                pb.environment().put("JAVA_HOME", System.getProperty("java.home"));
                 if (!asynchronous) {
                     pb.redirectErrorStream(true);
                     Process localProcess = pb.start();

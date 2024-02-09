@@ -48,7 +48,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.shaft.listeners.internal.CucumberHelper.shaftSetup;
-import static com.shaft.listeners.internal.CucumberHelper.shaftTeardown;
+import static com.shaft.listeners.internal.CucumberHelper.shaftTearDown;
 import static io.qameta.allure.util.ResultsUtils.*;
 
 /**
@@ -143,7 +143,7 @@ public class CucumberFeatureListener extends AllureCucumber7Jvm {
     @SuppressWarnings("unused")
     private void handleFeatureFinishedHandler(final TestRunFinished event) {
         // custom code
-        shaftTeardown();
+        shaftTearDown();
         // end of custom code
     }
 

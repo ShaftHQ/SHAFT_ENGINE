@@ -54,6 +54,18 @@ public class FileActions {
         passAction("Source File: \"" + sourceFilePath + "\" | Destination File: \"" + destinationFilePath + "\"");
     }
 
+    public void renameFile(String filePath, String newFileName) {
+        try {
+            var targetFile = new File(filePath);
+            String targetDirectory = targetFile.getParentFile().getAbsolutePath();
+            FileUtils.copyFile(targetFile, new File(targetDirectory + File.separator + newFileName));
+            FileUtils.deleteQuietly(targetFile);
+            passAction("Target File Path: \"" + filePath + "\", file was renamed to \"" + newFileName + "\".");
+        } catch (IOException e) {
+            failAction(e);
+        }
+    }
+
     /**
      * Copies files from sourceDirectory to destinationDirectory using the provided
      * terminalSession. References: <a href="https://www.computerhope.com/unix/ucp.htm">computer hope/unix/ucp.htm</a>

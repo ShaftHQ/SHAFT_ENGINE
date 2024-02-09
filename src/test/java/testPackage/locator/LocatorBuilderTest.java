@@ -100,7 +100,7 @@ public class LocatorBuilderTest {
     @Test
     public void isLast() {
         By locator = Locator.hasTagName("p").isLast().build();
-        driver.assertThat().element(locator).text().contains("Are you still here?").perform();
+        driver.assertThat().element(locator).text().contains("Test Automation").perform();
     }
 
     @Test
