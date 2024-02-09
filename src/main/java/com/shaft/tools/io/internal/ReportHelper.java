@@ -27,12 +27,9 @@ public class ReportHelper {
         disableLogging();
         String importantLinks = """
                 <ul>
+                    <li>👤 <a href="https://shafthq.github.io/" target=”_blank”>User Guide</a></li>
                     <li>👨‍💻️ <a href="https://github.com/ShaftHQ/SHAFT_ENGINE" target=”_blank”>GitHub - Home</a></li>
-                    <li>👤 <a href="https://shafthq.github.io/SHAFT_Engine_Docusaurus/" target=”_blank”>User Guide</a></li>
-                    <li>⚙️ <a href="https://shafthq.github.io/SHAFT_ENGINE/" target=”_blank”>Configuration Manager</a></li>
-                    <li>📚 <a href="https://shafthq.github.io/SHAFT_ENGINE/apidocs/index.html" target=”_blank”>Javadocs</a></li>
                 </ul>""";
-
         ReportManagerHelper.attach("HTML", "Important Links", importantLinks);
         enableLogging();
     }

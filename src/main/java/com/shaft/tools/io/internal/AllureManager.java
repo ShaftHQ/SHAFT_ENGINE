@@ -10,17 +10,17 @@ import org.apache.commons.lang3.SystemUtils;
 
 import java.io.File;
 import java.net.URL;
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
 public class AllureManager {
-    private static final String SHAFT_ENGINE_VERSION_PROPERTY_NAME = "shaftEngineVersion";
     private static final String allureExtractionLocation = System.getProperty("user.home") + File.separator + ".m2"
             + File.separator + "repository" + File.separator + "allure" + File.separator;
     private static String allureResultsFolderPath = "";
     private static String allureBinaryPath = "";
+    private static final String allureReportPath = "allure-report";
 
     public static void initializeAllureReportingEnvironment() {
         ReportManager.logDiscrete("Initializing Allure Reporting Environment...");
@@ -38,14 +38,24 @@ public class AllureManager {
     }
 
     public static void openAllureReportAfterExecution() {
-        String commandToOpenAllureReport;
-        if (Boolean.TRUE.equals(SHAFT.Properties.reporting.openAllureReportAfterExecution())) {
+        writeAllureReport();
+        String newFileName = renameAllureReport();
+        openAllureReport(newFileName);
+    }
+
+    private static String renameAllureReport() {
+        String newFileName = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + "_AllureReport.html";
+        FileActions.getInstance(true).renameFile(System.getProperty("user.dir") + File.separator + allureReportPath + File.separator + "index.html", newFileName);
+        return newFileName;
+    }
+
+    private static void openAllureReport(String newFileName) {
+        if (SHAFT.Properties.reporting.openAllureReportAfterExecution()) {
             if (SystemUtils.IS_OS_WINDOWS) {
-                commandToOpenAllureReport = ("generate_allure_report.bat");
+                SHAFT.CLI.terminal().performTerminalCommand(".\\" + allureReportPath + File.separator + newFileName);
             } else {
-                commandToOpenAllureReport = ("sh generate_allure_report.sh");
+                SHAFT.CLI.terminal().performTerminalCommand("open ./" + allureReportPath + File.separator + newFileName);
             }
-            TerminalActions.getInstance(true, true).performTerminalCommand(commandToOpenAllureReport);
         }
     }
 
@@ -119,7 +129,6 @@ public class AllureManager {
         // clean allure-results directory before execution
         if (SHAFT.Properties.reporting.cleanAllureResultsDirectoryBeforeExecution()) {
             try {
-                FileActions.getInstance(true).deleteFile("allure-report/");
                 FileActions.getInstance(true).deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
             } catch (Exception t) {
                 ReportManager.log("Failed to delete allure-results as it is currently open. Kindly restart your device to unlock the directory.");
@@ -145,27 +154,25 @@ public class AllureManager {
     }
 
     private static void writeAllureReport() {
-        // add correct file extension based on target OS
         String commandToCreateAllureReport;
         allureBinaryPath = allureExtractionLocation + "allure-" + SHAFT.Properties.internal.allureVersion()
                 + "/bin/allure";
-
+        String outputDirectory = System.getProperty("user.dir") + File.separator + "target" + File.separator + allureReportPath;
         if (SystemUtils.IS_OS_WINDOWS) {
             commandToCreateAllureReport = allureBinaryPath + ".bat" + " generate --single-file --clean '"
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
-                    + "' -o 'allure-report'";
+                    + "' -o '" + outputDirectory + "'";
         } else {
             commandToCreateAllureReport = allureBinaryPath + " generate --single-file --clean "
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
-                    + " -o allure-report";
+                    + " -o " + outputDirectory;
         }
         TerminalActions.getInstance(false, false).performTerminalCommand(commandToCreateAllureReport);
+        FileActions.getInstance(true).copyFolder(outputDirectory, allureReportPath);
     }
 
     private static void createAllureReportArchive() {
-        if (FileActions.getInstance(true).doesFileExist(allureExtractionLocation)) {
-            FileActions.getInstance(true).zipFiles("allure-report/", "generatedReport_" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".zip");
-        }
+        FileActions.getInstance(true).zipFiles(allureReportPath + "/", "generatedReport_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + ".zip");
     }
 
     private static void writeEnvironmentVariablesToAllureResultsDirectory() {
@@ -189,7 +196,7 @@ public class AllureManager {
                 }
                 String parameter = "<parameter>" + "<key>" + propertyKey + "</key>" + "<value>" + propertyValue
                         + "</value>" + "</parameter>";
-                if (propertyKey.equals(SHAFT_ENGINE_VERSION_PROPERTY_NAME)) {
+                if (propertyKey.equals("shaftEngineVersion")) {
                     // there's an open issue, when fixed this will be displayed properly
                     // https://github.com/allure-framework/allure2/issues/382
                     propertiesFileBuilder.insert(13, parameter);
