@@ -1,0 +1,18 @@
+name=PropertiesConfig
+appender.console.type=Console
+appender.console.name=STDOUT
+appender.console.layout.type=PatternLayout
+appender.console.layout.disableAnsi=false
+appender.console.layout.pattern=%highlight{[%p]}{FATAL=red blink, ERROR=red bold, WARN=yellow bold, INFO=fg_#0060a8 bold, DEBUG=fg_#43b02a bold, TRACE=black} %style{%m }%style{| %-logger}{bright_black} %style{- %-thread}{bright_black} %style{- %d{hh:mm:ss a}}{bright_black} %n
+appender.console.filter.threshold.type=ThresholdFilter
+appender.console.filter.threshold.level=info
+appender.file.type=File
+appender.file.name=LOGFILE
+appender.file.fileName=target/logs/log4j.log
+appender.file.layout.type=PatternLayout
+appender.file.layout.pattern=[%-5level] %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %c{1} - %msg%n
+appender.file.filter.threshold.type=ThresholdFilter
+appender.file.filter.threshold.level=debug
+rootLogger=debug, STDOUT, LOGFILE
+logger.app.name=org.apache.http.impl.client
+logger.app.level=WARN
