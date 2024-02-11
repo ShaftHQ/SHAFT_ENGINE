@@ -40,9 +40,13 @@ public class AllureManager {
 
     public static void openAllureReportAfterExecution() {
         writeAllureReport();
-        FileActions.getInstance(true).copyFolder(allureOutPutDirectory, allureReportPath);
+        copyAllureFolder();
         String newFileName = renameAllureReport();
         openAllureReport(newFileName);
+    }
+
+    private static void copyAllureFolder(){
+        FileActions.getInstance(true).copyFolder(allureOutPutDirectory, allureReportPath);
     }
 
     private static String renameAllureReport() {
@@ -92,7 +96,7 @@ public class AllureManager {
 
             if (!SystemUtils.IS_OS_WINDOWS) {
                 // make allure executable on Unix-based shells
-                TerminalActions.getInstance(false, false).performTerminalCommand("chmod u+x " + allureBinaryPath);
+                TerminalActions.getInstance(true, false).performTerminalCommand("chmod u+x " + allureBinaryPath);
             }
         }
     }
