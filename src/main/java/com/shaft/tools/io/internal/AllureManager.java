@@ -96,7 +96,7 @@ public class AllureManager {
 
             if (!SystemUtils.IS_OS_WINDOWS) {
                 // make allure executable on Unix-based shells
-                TerminalActions.getInstance(true, false).performTerminalCommand("chmod u+x " + allureBinaryPath);
+                TerminalActions.getInstance(false, false).performTerminalCommand("chmod u+x " + allureBinaryPath);
             }
         }
     }
@@ -175,7 +175,6 @@ public class AllureManager {
                     + " -o " + outputDirectory;
         }
         TerminalActions.getInstance(true, false).performTerminalCommand(commandToCreateAllureReport);
-//        FileActions.getInstance(true).copyFolder(outputDirectory, allureReportPath);
     }
 
     private static void createAllureReportArchive() {
