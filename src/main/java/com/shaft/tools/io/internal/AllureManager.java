@@ -20,6 +20,7 @@ public class AllureManager {
             + File.separator + "repository" + File.separator + "allure" + File.separator;
     private static String allureResultsFolderPath = "";
     private static String allureBinaryPath = "";
+    private static String allureOutPutDirectory = "";
     private static final String allureReportPath = "allure-report";
 
     public static void initializeAllureReportingEnvironment() {
@@ -39,6 +40,7 @@ public class AllureManager {
 
     public static void openAllureReportAfterExecution() {
         writeAllureReport();
+        FileActions.getInstance(true).copyFolder(allureOutPutDirectory, allureReportPath);
         String newFileName = renameAllureReport();
         openAllureReport(newFileName);
     }
@@ -158,6 +160,7 @@ public class AllureManager {
         allureBinaryPath = allureExtractionLocation + "allure-" + SHAFT.Properties.internal.allureVersion()
                 + "/bin/allure";
         String outputDirectory = System.getProperty("user.dir") + File.separator + "target" + File.separator + allureReportPath;
+        allureOutPutDirectory = outputDirectory;
         if (SystemUtils.IS_OS_WINDOWS) {
             commandToCreateAllureReport = allureBinaryPath + ".bat" + " generate --single-file --clean '"
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
@@ -167,8 +170,8 @@ public class AllureManager {
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
                     + " -o " + outputDirectory;
         }
-        TerminalActions.getInstance(false, false).performTerminalCommand(commandToCreateAllureReport);
-        FileActions.getInstance(true).copyFolder(outputDirectory, allureReportPath);
+        TerminalActions.getInstance(true, false).performTerminalCommand(commandToCreateAllureReport);
+//        FileActions.getInstance(true).copyFolder(outputDirectory, allureReportPath);
     }
 
     private static void createAllureReportArchive() {
