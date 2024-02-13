@@ -203,7 +203,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         Thread summaryReportGeneration = Thread.ofVirtual().start(() -> ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime));
         Thread.ofVirtual().start(JiraHelper::reportExecutionStatusToJira);
         Thread.ofVirtual().start(GoogleTink::encrypt);
-        Thread.ofVirtual().start(AllureManager::openAllureReportAfterExecution);
         Thread.ofVirtual().start(ReportManagerHelper::logEngineClosure);
         try {
             summaryReportGeneration.join();
@@ -211,6 +210,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+        AllureManager.openAllureReportAfterExecution();
     }
 
     @Override

@@ -14,6 +14,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 public class AllureManager {
     private static final String allureExtractionLocation = System.getProperty("user.home") + File.separator + ".m2"
@@ -40,13 +42,13 @@ public class AllureManager {
 
     public static void openAllureReportAfterExecution() {
         writeAllureReport();
-        copyAllureFolder();
-        String newFileName = renameAllureReport();
-        openAllureReport(newFileName);
+        copyAndOpenAllure();
     }
 
-    private static void copyAllureFolder(){
+    public static void copyAndOpenAllure(){
         FileActions.getInstance(true).copyFolder(allureOutPutDirectory, allureReportPath);
+        String newFileName = renameAllureReport();
+        openAllureReport(newFileName);
     }
 
     private static String renameAllureReport() {
@@ -159,7 +161,7 @@ public class AllureManager {
                 "io.qameta.allure.listener.StepLifecycleListener", "io.qameta.allure.listener.TestLifecycleListener").forEach(fileName -> FileActions.getInstance(true).writeToFile(Properties.paths.services(), fileName, "com.shaft.listeners.AllureListener"));
     }
 
-    private static void writeAllureReport() {
+    public static void writeAllureReport() {
         String commandToCreateAllureReport;
         allureBinaryPath = allureExtractionLocation + "allure-" + SHAFT.Properties.internal.allureVersion()
                 + "/bin/allure";
@@ -174,7 +176,7 @@ public class AllureManager {
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
                     + " -o " + outputDirectory;
         }
-        TerminalActions.getInstance(true, false).performTerminalCommand(commandToCreateAllureReport);
+        TerminalActions.getInstance(false, false).performTerminalCommand(commandToCreateAllureReport);
     }
 
     private static void createAllureReportArchive() {
