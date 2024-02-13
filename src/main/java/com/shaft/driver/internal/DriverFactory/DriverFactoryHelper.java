@@ -287,7 +287,7 @@ public class DriverFactoryHelper {
         if (SHAFT.Properties.web.headlessExecution()) {
             initialLog = initialLog + ", Headless Execution";
         }
-        initialLog = initialLog.replace(targetPlatform, JavaHelper.convertToSentenceCase(targetPlatform) + getPlatformIcon(targetPlatform));
+        initialLog = initialLog.replace(targetPlatform, JavaHelper.convertToSentenceCase(targetPlatform));
         ReportManager.logDiscrete(initialLog + ".");
         try {
             ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
@@ -346,18 +346,6 @@ public class DriverFactoryHelper {
             }
             failAction("Failed to create new Browser Session", exception);
         }
-    }
-
-    //TODO: Implement
-    private String getPlatformIcon(String targetPlatform) {
-        return "";
-//        return switch (targetPlatform){
-//            case "linux" -> "<img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAUCAYAAACEYr13AAADMklEQVQ4T42Uf0yNURjHv+c9b7f3jXT7sWGYSWmWoutHo6jMmB8ZMhTKjz8YW9ZqzIyVYbmEja3ZpGtLZsgwNJmhZcVifkSoRe7yq7f8qu7tnvO+dq57W+6yebb3j/Oc836e53yf5zkEAxsBYPhsDeSDcPqaBEAHEAVgqyzLvYyxYgDNgPv8X2BfgHcdCOAFAUapAQFQVfWTpmkWAJ880fogvgAKgANIDA0Nrta0Tld09Hje0vJO6e7uyQFwDIAMgHnTHhCgKMrsdRu33H739okxfVaqfvPGFVr74N5BADv/CyDLSmJh9ojqrDXUqH9l4vmHv8u1Tz4cArADgMjynxkIAYVFntgW0LhyMYfDNZJvLqS05mn7/W+dHUkegLim2wa8gp+fssFWeqokjLzmMYlZ9EF9o56xahnRdX0eY6yqP6Q/QEQX6lrS01dVl5ef8//l0MlgRSI/vnfoYyOiSHt7exuAeAAfPQnovgBR/ztnzthSMjOzeK+zi+oGwLmBgoICVlR0RCaEnOOcZ3iz8AK8zTN8YmxsU93DOlWWRbUM9z6lfmhrsxsJCTNht9t7GGPhAD4LCbwA92kAe/Ly8vZYrVbucHRTk8kEQoj7Y4whLs6iNzS8FMEWA7gmSvqXiGFD8PjoidNxa9au511dP6miKO6fJUmCw+nAtKnx/PWbFqnX6VgO8AovgJjNCIodRWeU7kLJ3cbIYdGLLhrxk6OJy+UEpQRMl/HzeS5i5xzn6qBAOiLEmXb/aU8fACtSsOH8QVrCnBI+ay7MzQ1Gsa0S0+MngYDDoCreVy7As9pbPGJsCG39wq6mbu9M6xNpeRLWX7DKJ7VvhIWYif/FKn8yZn6NMcUS456+svJLOn+5ScpaoRJXl8T9BnM5O1/bd7zCsdutQfZS6VDRNpInSQSSkJNL2H9lHnoDLGhuasTZ8vO4nO+PJalheNPwC6XXu21ld1wH7F/RJADEDASNi0RCXASSZ08hC4MUI3z1XuRoTtQBGAJg3Nb5cm7yBGO0tYJvftQM279aWfhNKjC0B/jg89IIkBlAq6eJRNP9aRTPTIj6irV30sTU9Q/U3983TL8BY2A2NWvAuMMAAAAASUVORK5CYII=\">";
-//            case "mac", "ios" -> "<img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAUCAYAAACEYr13AAABmklEQVQ4T43UTYjNYRQG8N/4anxsWCizs1Eki2FnOZSabGY9iY2FnSL5WJAmNuzZTXYs1ExNYmWtRiIksaLYyJLB6Pn3nrrU3P899d7ufc9znvc5X3fMcBvDKrbiBqZxCN/Q+fKxlsWXM44FTOE99uJ3I+4Ag1ZBuVuHX7iC6w10Hrewvvn+IchlmMtCtgkfsQv3cGLA3+FLQeW6GXvwA28b+C6e4RF24zte4k9STGCk5sc5nGmgSH+BB/jcinccW1rur1pqC6XgNs62F1P1tYobX6z8R/LlKB63okRNToA5UVYBuQ8+dUr+d3AhF4tNYsBxDLNgQvQO+6qIX7CzvThsLkKc2mzAVVzDxgTksu/lUlUEpzCfuBD8DFOP9P8JLrfR7gg+YWLEFKoGyzhYCpZwrFV8lFSK5CJuRsHp1pJyjJJNYedDsAOvBzqRNvVZN8ZYrrZdwtxAm/oIapimahey88/bIpWzprB2pVZ8pXXtIWZCUGs8iafY1vc8PuAwvlYKRZK/rMz4djzB/dbm/ZjFAWQTT+JNxvovAt5eKpJZIkgAAAAASUVORK5CYII=\">";
-//            case "android" -> "<img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAUCAYAAACEYr13AAADd0lEQVQ4T5VUW0wTWxTd5wx1BgXFByLlUitRQCTxwYVw9eNGjH6I2Gj88IHxFXxEBQ0q12BiRHNVbtWbiDEx4odJlZAo8RUf0WjUEECjIJogCjRtxVKk0NJp6cycc3SGgo0hRvf8zJyz9zpr77PWIPgeCABY6uzoZNnH+trafK6wPUjLEAx+EbC1ZcAKAFquuq++hAcGALpmV+KmKQYhO8EwOp1RRu0d/iZ7u/95TWVnFQBwAECGisIBtOJth4z/mjYkHJSCDGSJanmjBAwYI7BU2PZXVdjNAKDlhjPQUJevjy8oKE26cPW8vWiRKfYwL3DjMAbo65Ed9Q/dZ1fvSjSXF7aYHt/5cnOIicogIkQnovJRRtvY8Tq97aP4Qj81MhNzCBBCIAUp6XIEXiXNjMp0tPubd5ua5oQA6HALhhlCUmlF2hNFZpgXcJQkURGY9gDCgCN0OFKRqI8y5j+4vfEvrwPcWgsL8+JMfCSObnzVf39J3oS18gClDBBFHMOMYe0AhChjBFGIQBwmlN657bD8nRO/ymmT2tC1pmymyAAPrti2LNtoqFQUteCHuwl9qi2JXiVYc+nTzs0l0y72fpG6kaU2iyqESQ2Puv7JXjz5BAKsG7kcGOYQ6u+T3c/u9RzPXTOlnBDmQVfqshghINff7Syenxt/igH6KYDPo7gf3+guM23U/y9LtGcYoO6ec9+CpXHmXwF4crP76PIN+jOyRN3IUptJCEFy/QPngd8ByFuvN8sy7UXXGrOZOrinNzqLfgWg36O4n912HVtZkHhaGqABVHoupQpzeEzd/c/mrYeSHwYCgDhO0zswCgQGtaRKVzUPlSUaPF3SmpNfOPU/e3ugafjCshaM/rPs8twXfW4CRAl5gFfrQFXioCd4DLpRCLYvez3NadVcqblRy4qJgbE7jqSci03gk+MShAx1zWEdqOUw6PRGIYsooHR/Cr60d/jfnCn5sAcAgiPZGYxGwXiienYHpUzet7IhhvFC7NmaOVbRS32F+Q0Gjw16w3USrjmtb8P0qJSTllnNlDKleEXDH3x01CRzdfpb0Uv9xeuaU3scAefQPH5koHk8KZVPLq+a954SBgU5dROiJ/KTKm7NaxW9RN5repfocoldI/0PwsF0ZRfTqgMiFY8XteSrszt6Kf26zyO5Tu5t3RKiPzjVb/EVYkWs9xx6A2AAAAAASUVORK5CYII=\">";
-//            case "windows" -> "<img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAACzUlEQVQ4T7WUy2tTURDGf+c+kpg0bdL0nWdLdWEkigp1qS5qFUu1KWqxFFz5D6gLQepjISiC4qJWsdUSH8WlT3Qt4kbQjeDGvRtdWNPc15GTm2JaSxWpAxeGc2e+eXwzI/gloqZqwKKunlxA1tktV0PEch3Ek2k+f3yvHBc/bxUnk3C2hUQ8RVO6m3iul1iml1iqm8a2FJGWDjQzxK2hQn0mGpG2Vho7kjRnu0lk19PQmeXTqzn6T08S7cwQaAhjBEFoID3wHPAs8CTYPypMH9gsSG3rY/eJ8zQkMkRauwg2NladdFMZweOTowxcuIema7iOh5TSRxAghJ+Q+udYFtNDmwWF4iiHp+5T/gqeiuqClC4CibNQ5uWFY+w5exczGK51sr4q1V6J0AVOpeID5geLDF+dwypLNE1XYatRVVkK8MW5cQYmZjGC6/zslhC2EuDQCMVrj7DmPYSmGPbl3wEHixy8+nBlwLJfcv+ZGYzQnzO8U9wq2DJylCPTJazvflb1GdoLipQxBi+XMIPVdv0uih8d7Apc35UXpDYVyA+P41Yksta/KnMauLbNp+cP2LB3FN00q6StJMrWcxzezl4RdBa2sv3wcWxbIuobroxsiw/PZijsO4ZmBhBSIuVSltU0SE3gug6vJ8/XSr5dojL/e8lOGR6fGmPwUgkjtHrJzgJc3533x2ZNScn/j7EZvjaH9WONBlut3qEb9yl/W1x4icRbtnqzmNU5rI78UqKXr16ubwc7T1wkkkgTaekkGA1jBEAzwJqHJ6dGGThXQhg6nuP661fbQP84CDRD7XLtOPwKZ5JItRFNpokme0j0bKCpI8vHpyX6J24Sbc8QCBvoAd9DnS/XVqPls2+VF5g5sOVvD+w6Yrl24l0ZmjI9NGd6iWd7iXV109CaJNzcitADTO3fWN+PevD6d2eVSw7xeBOhli6i6Rxf3r35CRf6Tre38smdAAAAAElFTkSuQmCC\">";
-//            default -> "";
-//        };
     }
 
     private void createNewDockerizedDriverInstance(DriverType driverType) {
