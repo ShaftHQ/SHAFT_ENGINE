@@ -45,6 +45,8 @@ public class AllureManager {
 
     public static void copyAndOpenAllure(){
         FileActions.getInstance(true).copyFolder(allureOutPutDirectory, allureReportPath);
+        FileActions.getInstance(true).deleteFile(allureOutPutDirectory);
+
         String newFileName = renameAllureReport();
         openAllureReport(newFileName);
     }
