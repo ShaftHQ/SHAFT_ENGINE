@@ -14,8 +14,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 public class AllureManager {
     private static final String allureExtractionLocation = System.getProperty("user.home") + File.separator + ".m2"
