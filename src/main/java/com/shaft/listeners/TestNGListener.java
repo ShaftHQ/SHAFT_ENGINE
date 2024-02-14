@@ -204,13 +204,14 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         Thread.ofVirtual().start(JiraHelper::reportExecutionStatusToJira);
         Thread.ofVirtual().start(GoogleTink::encrypt);
         Thread.ofVirtual().start(ReportManagerHelper::logEngineClosure);
+        Thread openAllureReportAfterExecution = Thread.ofVirtual().start(AllureManager::openAllureReportAfterExecution);
         try {
             summaryReportGeneration.join();
             allureArchiveGeneration.join();
+            openAllureReportAfterExecution.join();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-        AllureManager.openAllureReportAfterExecution();
     }
 
     @Override

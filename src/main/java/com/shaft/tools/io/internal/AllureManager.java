@@ -43,7 +43,7 @@ public class AllureManager {
         copyAndOpenAllure();
     }
 
-    public static void copyAndOpenAllure(){
+    private static void copyAndOpenAllure(){
         FileActions.getInstance(true).copyFolder(allureOutPutDirectory, allureReportPath);
         FileActions.getInstance(true).deleteFile(allureOutPutDirectory);
         String newFileName = renameAllureReport();
@@ -160,20 +160,19 @@ public class AllureManager {
                 "io.qameta.allure.listener.StepLifecycleListener", "io.qameta.allure.listener.TestLifecycleListener").forEach(fileName -> FileActions.getInstance(true).writeToFile(Properties.paths.services(), fileName, "com.shaft.listeners.AllureListener"));
     }
 
-    public static void writeAllureReport() {
+    private static void writeAllureReport() {
         String commandToCreateAllureReport;
         allureBinaryPath = allureExtractionLocation + "allure-" + SHAFT.Properties.internal.allureVersion()
                 + "/bin/allure";
-        String outputDirectory = System.getProperty("user.dir") + File.separator + "target" + File.separator + allureReportPath;
-        allureOutPutDirectory = outputDirectory;
+        allureOutPutDirectory = System.getProperty("user.dir") + File.separator + "target" + File.separator + allureReportPath;
         if (SystemUtils.IS_OS_WINDOWS) {
             commandToCreateAllureReport = allureBinaryPath + ".bat" + " generate --single-file --clean '"
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
-                    + "' -o '" + outputDirectory + "'";
+                    + "' -o '" + allureOutPutDirectory + "'";
         } else {
             commandToCreateAllureReport = allureBinaryPath + " generate --single-file --clean "
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
-                    + " -o " + outputDirectory;
+                    + " -o " + allureOutPutDirectory;
         }
         TerminalActions.getInstance(false, false).performTerminalCommand(commandToCreateAllureReport);
     }
