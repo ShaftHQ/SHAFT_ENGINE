@@ -269,7 +269,7 @@
         <dependency>
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjweaver</artifactId>
-            <version>1.9.21</version>
+            <version>1.9.21.1</version>
         </dependency>
 
         <!-- PDF Validation -->
@@ -497,7 +497,7 @@
         <dependency>
             <groupId>ws.schild</groupId>
             <artifactId>jave-all-deps</artifactId>
-            <version>3.4.0</version>
+            <version>3.5.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -922,7 +922,7 @@
                             <dependency>
                                 <groupId>org.aspectj</groupId>
                                 <artifactId>aspectjweaver</artifactId>
-                                <version>1.9.21</version>
+                                <version>1.9.21.1</version>
                             </dependency>
                             <dependency>
                                 <groupId>org.apache.maven.surefire</groupId>
@@ -981,7 +981,7 @@
                             <dependency>
                                 <groupId>org.aspectj</groupId>
                                 <artifactId>aspectjweaver</artifactId>
-                                <version>1.9.21</version>
+                                <version>1.9.21.1</version>
                             </dependency>
                         </dependencies>
                         <configuration>
