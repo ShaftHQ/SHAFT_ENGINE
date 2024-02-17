@@ -1,6 +1,9 @@
-package com.shaft.api;
+package com.shaft.driver.internal.DriverFactory;
 
+import com.shaft.api.RequestBuilder;
+import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
+import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -12,14 +15,44 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Pattern;
 
-@SuppressWarnings("SpellCheckingInspection")
-public class BrowserStack {
+public class BrowserStackHelper {
     private static final String hubUrl = "hub-cloud.browserstack.com";
     private static final String serviceUri = "https://api-cloud.browserstack.com/";
     private static final String appUploadServiceName = "app-automate/upload";
 
-    private BrowserStack() {
-        throw new IllegalStateException("Utility class");
+    /**
+     * Creates a new Selenium WebDriver instance using BrowserStack, use this to test Native Mobile apps over BrowserStack
+     *
+     * @param browserStackOptions custom browserstack options to be merged with the default in the browserStack.properties file
+     * @return a new Selenium WebDriver instance using BrowserStack
+     */
+    public static DriverFactoryHelper getBrowserStackDriver(MutableCapabilities browserStackOptions) {
+        String appUrl = SHAFT.Properties.browserStack.appUrl();
+        var helper = new DriverFactoryHelper();
+        if ("".equals(appUrl)) {
+            // new native app OR web execution
+            if ("".equals(SHAFT.Properties.browserStack.appRelativeFilePath())) {
+                // this means it's a web execution (desktop or mobile)
+                if (DriverFactoryHelper.isMobileWebExecution()) {
+                    browserStackOptions = setupMobileWebExecution().merge(browserStackOptions);
+                } else {
+                    // desktop web
+                    browserStackOptions = setupDesktopWebExecution().merge(browserStackOptions);
+                }
+                helper.initializeDriver(browserStackOptions);
+            } else {
+                // this is the new native app scenario
+                browserStackOptions = setupNativeAppExecution(SHAFT.Properties.browserStack.username(), SHAFT.Properties.browserStack.accessKey(),
+                        SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), SHAFT.Properties.browserStack.appRelativeFilePath(), SHAFT.Properties.browserStack.appName()).merge(browserStackOptions);
+                helper.initializeDriver(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
+            }
+        } else {
+            // this is the existing version from a native app scenario
+            browserStackOptions = setupNativeAppExecution(SHAFT.Properties.browserStack.username(), SHAFT.Properties.browserStack.accessKey(),
+                    SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), appUrl).merge(browserStackOptions);
+            helper.initializeDriver(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
+        }
+        return helper;
     }
 
     /**
@@ -34,7 +67,7 @@ public class BrowserStack {
      * @param appName               Name of your APK (excluding version number). This will be used as your CustomID so that you can keep uploading new versions of the same app and run your tests against them.
      * @return appURL for the newly uploaded app file on BrowserStack to be used for future tests
      */
-    public static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String relativePathToAppFile, String appName) {
+    private static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String relativePathToAppFile, String appName) {
         SHAFT.Properties.timeouts.set().apiSocketTimeout(600); //increasing socket timeout to 10 minutes to upload a new app file
         ReportManager.logDiscrete("Setting up BrowserStack configuration for new native app version...");
         String testData = "Username: " + username + ", Password: " + "•".repeat(password.length()) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", Relative Path to App File: " + relativePathToAppFile + ", App Name: " + appName;
@@ -85,7 +118,7 @@ public class BrowserStack {
      * @param appUrl     Url of the target app that was previously uploaded to be tested via BrowserStack
      * @return native app capabilities
      */
-    public static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String appUrl) {
+    private static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String appUrl) {
         ReportManager.logDiscrete("Setting up BrowserStack configuration for existing native app version...");
         String testData = "Username: " + username + ", Password: " + password + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", App URL: " + appUrl;
         // set properties
@@ -94,7 +127,7 @@ public class BrowserStack {
         return browserStackCapabilities;
     }
 
-    public static MutableCapabilities setupMobileWebExecution() {
+    private static MutableCapabilities setupMobileWebExecution() {
         ReportManager.logDiscrete("Setting up BrowserStack configuration for mobile web execution...");
         String username = SHAFT.Properties.browserStack.username();
         String password = SHAFT.Properties.browserStack.accessKey();
@@ -123,7 +156,7 @@ public class BrowserStack {
         return browserStackCapabilities;
     }
 
-    public static MutableCapabilities setupDesktopWebExecution() {
+    private static MutableCapabilities setupDesktopWebExecution() {
         ReportManager.logDiscrete("Setting up BrowserStack configuration for desktop web execution...");
         String username = SHAFT.Properties.browserStack.username();
         String password = SHAFT.Properties.browserStack.accessKey();
@@ -193,7 +226,7 @@ public class BrowserStack {
 
     private static void failAction(String testData, Throwable... rootCauseException) {
         String message = reportActionResult(Thread.currentThread().getStackTrace()[2].getMethodName(), testData, false, rootCauseException);
-        FailureReporter.fail(BrowserStack.class, message, rootCauseException[0]);
+        FailureReporter.fail(BrowserStackHelper.class, message, rootCauseException[0]);
     }
 
     private static String reportActionResult(String actionName, String testData, Boolean passFailStatus, Throwable... rootCauseException) {
