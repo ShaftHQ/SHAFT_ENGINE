@@ -107,65 +107,33 @@ public class TestNGListenerHelper {
     }
 
     public static void configureCrossBrowserExecution(List<XmlSuite> suites) {
-        if (!"off".equals(SHAFT.Properties.platform.crossBrowserMode())) {
+        String crossBrowserMode = SHAFT.Properties.platform.crossBrowserMode();
+        List<Browser> supportedBrowsers = Arrays.asList(Browser.CHROME, Browser.SAFARI, Browser.FIREFOX, Browser.EDGE);
+        if (!"off".equals(crossBrowserMode)) {
             suites.forEach(suite -> {
-                var firefox_test = (XmlTest) suite.getTests().getFirst().clone();
-                firefox_test.setParameters(Map.of(
-                        "executionAddress", "dockerized",
-                        "targetOperatingSystem", Platform.LINUX.name(),
-                        "targetBrowserName", Browser.FIREFOX.browserName()
-                ));
-                firefox_test.setThreadCount(SHAFT.Properties.testNG.threadCount());
-                firefox_test.setParallel(XmlSuite.ParallelMode.valueOf(SHAFT.Properties.testNG.parallel()));
-                firefox_test.setName(firefox_test.getName() + " - FireFox");
+                supportedBrowsers.forEach(supportedBrowser -> createTestSuite((XmlTest) suite.getTests().getFirst().clone(), supportedBrowser));
+                // removing first test which is now a duplicate
+                suite.getTests().removeFirst();
 
-                var safari_test = (XmlTest) suite.getTests().getFirst().clone();
-                safari_test.setParameters(Map.of(
-                        "executionAddress", "dockerized",
-                        "targetOperatingSystem", Platform.LINUX.name(),
-                        "targetBrowserName", Browser.SAFARI.browserName()
-                ));
-                safari_test.setThreadCount(SHAFT.Properties.testNG.threadCount());
-                safari_test.setParallel(XmlSuite.ParallelMode.valueOf(SHAFT.Properties.testNG.parallel()));
-                safari_test.setName(safari_test.getName() + " - Safari");
-
-                var chrome_test = (XmlTest) suite.getTests().getFirst();
-                chrome_test.setParameters(Map.of(
-                        "executionAddress", "dockerized",
-                        "targetOperatingSystem", Platform.LINUX.name(),
-                        "targetBrowserName", Browser.CHROME.browserName()
-                ));
-                chrome_test.setThreadCount(SHAFT.Properties.testNG.threadCount());
-                chrome_test.setParallel(XmlSuite.ParallelMode.valueOf(SHAFT.Properties.testNG.parallel()));
-                chrome_test.setName(chrome_test.getName() + " - Chrome");
-
-                if (SHAFT.Properties.platform.crossBrowserMode().equals("parallelized")) {
+                if (crossBrowserMode.equals("parallelized")) {
                     suite.setParallel(XmlSuite.ParallelMode.TESTS);
-                    suite.setThreadCount(3);
+                    suite.setThreadCount(supportedBrowsers.size());
                     SHAFT.Properties.visuals.set().videoParamsRecordVideo(true);
                     SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
                 }
             });
-//        } else {
-            // IMPORTANT: the below code block introduced the following issue:
-
-            //if not cross browser mode, still add some properties as parameters to the test suites for better reporting
-//            var parameters = new java.util.HashMap<>(Map.of(
-//                    "executionAddress", Properties.platform.executionAddress(),
-//                    "targetOperatingSystem", Properties.platform.targetOperatingSystem()
-//            ));
-//
-//            if (DriverFactoryHelper.isWebExecution()) {
-//                parameters.put("targetBrowserName", Properties.web.targetBrowserName());
-//            } else {
-//                parameters.put("automationName", Properties.mobile.automationName());
-//            }
-//            suites.forEach(suite -> {
-//                var params = suite.getParameters();
-//                params.putAll(parameters);
-//                suite.setParameters(params);
-//            });
         }
+    }
+
+    private static void createTestSuite(XmlTest xmlTest, Browser browser) {
+        xmlTest.setParameters(Map.of(
+                "executionAddress", "dockerized",
+                "targetOperatingSystem", Platform.LINUX.name(),
+                "targetBrowserName", browser.browserName()
+        ));
+        xmlTest.setThreadCount(SHAFT.Properties.testNG.threadCount());
+        xmlTest.setParallel(XmlSuite.ParallelMode.valueOf(SHAFT.Properties.testNG.parallel()));
+        xmlTest.setName(xmlTest.getName() + " - " + browser);
     }
 
     public static void configureTestNGProperties(List<XmlSuite> suites) {
