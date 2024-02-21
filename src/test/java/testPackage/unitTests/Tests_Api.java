@@ -36,6 +36,20 @@ public class Tests_Api {
         driver.assertThatResponse().extractedJsonValue("$[1].completed").isEqualTo("false").perform();
     }
 
+    @Test
+    public void test_jsonValue_htmlResponse() {
+        driver = new SHAFT.API("https://automationexercise.com/api");
+        driver.get("/productsList").perform();
+        driver.assertThatResponse().extractedJsonValue("responseCode").isEqualTo("200").perform();
+    }
+
+    @Test
+    public void test_jsonValueAdvancedEvaluation_htmlResponse() {
+        driver = new SHAFT.API("https://automationexercise.com/api");
+        driver.get("/productsList").perform();
+        driver.assertThatResponse().extractedJsonValue("$.products[?(@.id=='2')].name").isEqualTo("Men Tshirt").perform();
+    }
+
     /////////////////////////  Getters  /////////////////////////
     @Test
     public void test_getResponseBody() {

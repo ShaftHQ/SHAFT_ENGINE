@@ -49,4 +49,13 @@ public class tests_restActions {
         Validations.assertThat().object(uerId).isEqualTo("5").perform();
     }
 
+    @Test
+    public void validateProductId() {
+        RestActions apiObject = new RestActions("https://automationexercise.com/api");
+        Response users = apiObject.buildNewRequest("/productsList", RequestType.GET).setTargetStatusCode(200).performRequest();
+
+        String productId = RestActions.getResponseJSONValueFromList(users, "$.products", "id", "name", "Men Tshirt");
+        Validations.assertThat().object(productId).isEqualTo("2").perform();
+    }
+
 }
