@@ -1,6 +1,9 @@
-package com.shaft.api;
+package com.shaft.driver.internal.DriverFactory;
 
+import com.shaft.api.RequestBuilder;
+import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
+import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -11,15 +14,42 @@ import org.openqa.selenium.Platform;
 import java.io.File;
 import java.util.*;
 
-
-public class LambdaTest {
-
+public class LambdaTestHelper {
     private static final String hubUrl = "hub.lambdatest.com/wd/hub";
     private static final String serviceUri = "https://manual-api.lambdatest.com/";
     private static final String appUploadServiceName = "app/upload/realDevice";
 
-    private LambdaTest() {
-        throw new IllegalStateException("Utility class");
+    /**
+     * Creates a new Selenium WebDriver instance using lambdaTest, use this to test Native Mobile apps over lambdaTest
+     *
+     * @param lambdaTestOptions custom lambdaTest options to be merged with the default in the lambdaTest.properties file
+     * @return a new Selenium WebDriver instance using lambdaTest
+     */
+    public static DriverFactoryHelper getLambdaTestDriver(MutableCapabilities lambdaTestOptions) {
+        String appUrl = SHAFT.Properties.lambdaTest.appUrl();
+        var helper = new DriverFactoryHelper();
+        if ("".equals(appUrl)) {
+            // new native app OR web execution
+            if ("".equals(SHAFT.Properties.lambdaTest.appRelativeFilePath())) {
+                // this means it's a web execution (desktop or mobile)
+                if (DriverFactoryHelper.isMobileWebExecution()) {
+                    lambdaTestOptions = setupMobileWebExecution().merge(lambdaTestOptions);
+                } else {
+                    // desktop web
+                    lambdaTestOptions = setupDesktopWebExecution().merge(lambdaTestOptions);
+                }
+                helper.initializeDriver(lambdaTestOptions);
+            } else {
+                // this is the new native app scenario
+                lambdaTestOptions = setupNativeAppExecution(SHAFT.Properties.lambdaTest.username(), SHAFT.Properties.lambdaTest.accessKey(), SHAFT.Properties.lambdaTest.deviceName(), SHAFT.Properties.lambdaTest.platformVersion(), SHAFT.Properties.lambdaTest.appRelativeFilePath(), SHAFT.Properties.lambdaTest.appName()).merge(lambdaTestOptions);
+                helper.initializeDriver(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, lambdaTestOptions);
+            }
+        } else {
+            // this is the existing version from a native app scenario
+            lambdaTestOptions = setupNativeAppExecution(SHAFT.Properties.lambdaTest.username(), SHAFT.Properties.lambdaTest.accessKey(), SHAFT.Properties.lambdaTest.deviceName(), SHAFT.Properties.lambdaTest.platformVersion(), appUrl).merge(lambdaTestOptions);
+            helper.initializeDriver(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, lambdaTestOptions);
+        }
+        return helper;
     }
 
     /**
@@ -34,7 +64,7 @@ public class LambdaTest {
      * @param appName               Name of your APK (excluding version number). This will be used as your CustomID so that you can keep uploading new versions of the same app and run your tests against them.
      * @return appURL for the newly uploaded app file on LambdaTest to be used for future tests
      */
-    public static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String relativePathToAppFile, String appName) {
+    private static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String relativePathToAppFile, String appName) {
         SHAFT.Properties.timeouts.set().apiSocketTimeout(600); //increasing socket timeout to 10 minutes to upload a new app file
         ReportManager.logDiscrete("Setting up LambdaTest configuration for new native app version...");
         String testData = "Username: " + username + ", Password: " + "•".repeat(password.length()) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", Relative Path to App File: " + relativePathToAppFile + ", App Name: " + appName;
@@ -93,7 +123,7 @@ public class LambdaTest {
      * @param appUrl     Url of the target app that was previously uploaded to be tested via LambdaTest
      * @return native app capabilities
      */
-    public static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String appUrl) {
+    private static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String appUrl) {
         ReportManager.logDiscrete("Setting up LambdaTest configuration for existing native app version...");
         String testData = "Username: " + username + ", Password: " + password + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", App URL: " + appUrl;
         // set properties
@@ -115,7 +145,7 @@ public class LambdaTest {
         return LambdaTestCapabilities;
     }
 
-    public static MutableCapabilities setupMobileWebExecution() {
+    private static MutableCapabilities setupMobileWebExecution() {
         ReportManager.logDiscrete("Setting up LambdaTest configuration for mobile web execution...");
         String username = SHAFT.Properties.lambdaTest.username();
         String password = SHAFT.Properties.lambdaTest.accessKey();
@@ -163,7 +193,7 @@ public class LambdaTest {
         return lambdaTestCapabilities;
     }
 
-    public static MutableCapabilities setupDesktopWebExecution() {
+    private static MutableCapabilities setupDesktopWebExecution() {
         ReportManager.logDiscrete("Setting up LambdaTest configuration for desktop web execution...");
         String username = SHAFT.Properties.lambdaTest.username();
         String password = SHAFT.Properties.lambdaTest.accessKey();
@@ -229,7 +259,7 @@ public class LambdaTest {
 
     private static void failAction(String testData, Throwable... rootCauseException) {
         String message = reportActionResult(Thread.currentThread().getStackTrace()[2].getMethodName(), testData, false, rootCauseException);
-        FailureReporter.fail(LambdaTest.class, message, rootCauseException[0]);
+        FailureReporter.fail(LambdaTestHelper.class, message, rootCauseException[0]);
     }
 
     private static String
