@@ -21,8 +21,6 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
-          check-latest: true
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DgenerateAllureReportArchive=true" "-Dtest=.*DatabaseActionsTests.*"
@@ -50,9 +48,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
@@ -84,9 +81,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Check running containers
@@ -120,9 +116,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Check running containers
@@ -156,9 +151,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Check running containers
@@ -190,9 +184,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - uses: browser-actions/setup-edge@v1
@@ -227,9 +220,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Setup Chrome
@@ -263,9 +255,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
@@ -295,9 +286,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Setup Chrome
@@ -331,9 +321,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
@@ -363,9 +352,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
@@ -395,9 +383,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
@@ -427,9 +414,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
@@ -459,9 +445,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
@@ -498,9 +483,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Check running containers
@@ -538,9 +522,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - uses: browser-actions/setup-edge@v1
@@ -580,9 +563,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
@@ -617,9 +599,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
@@ -654,9 +635,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
@@ -691,9 +671,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
@@ -728,9 +707,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'maven'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
