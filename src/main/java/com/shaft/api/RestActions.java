@@ -1,10 +1,16 @@
 package com.shaft.api;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.PathNotFoundException;
+import com.jayway.jsonpath.spi.json.JsonOrgJsonProvider;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
@@ -26,11 +32,13 @@ import io.restassured.path.json.exception.JsonPathException;
 import io.restassured.path.xml.element.Node;
 import io.restassured.path.xml.element.NodeChildren;
 import io.restassured.response.Response;
+import io.restassured.response.ResponseBody;
 import io.restassured.specification.QueryableRequestSpecification;
 import io.restassured.specification.RequestSpecification;
 import io.restassured.specification.SpecificationQuerier;
 import lombok.Getter;
 import org.apache.commons.io.IOUtils;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -138,7 +146,7 @@ public class RestActions {
             } catch (IOException ioe) {
                 if (body.getClass().getName().toLowerCase().contains("restassured")) {
                     // if it's a string response body
-                    return ((io.restassured.response.ResponseBody<?>) body).asInputStream();
+                    return ((ResponseBody<?>) body).asInputStream();
                 } else {
                     return new ByteArrayInputStream((body.toString()).getBytes());
                 }
@@ -170,13 +178,30 @@ public class RestActions {
      */
     public static String getResponseJSONValue(Response response, String jsonPath) {
         String searchPool = "";
+        String jsonResponse = response.asPrettyString();
         try {
             if (jsonPath.contains("?")) {
-                List<String> jsonValueAsList = JsonPath.read(response.asPrettyString(), jsonPath);
+                List<String> jsonValueAsList = JsonPath.read(jsonResponse, jsonPath);
                 searchPool = String.valueOf(jsonValueAsList.getFirst());
             } else {
-                var jsonValue = JsonPath.read(response.asPrettyString(), jsonPath);
+                var jsonValue = JsonPath.read(jsonResponse, jsonPath);
                 searchPool = String.valueOf(jsonValue);
+            }
+        // This implementation is to handle the *PathNotFoundException* that happens when we have json object but inside html or xml tags, so it's not represented as json object
+        } catch (PathNotFoundException e) {
+            String jsonObject = jsonResponse.substring(jsonResponse.indexOf("{"), jsonResponse.lastIndexOf("}") + 1);
+            Configuration confOrgJsonProvider = Configuration.builder().jsonProvider(new JsonOrgJsonProvider()).build();
+            try {
+                if (jsonPath.contains("?")) {
+                    JSONArray jsonValue = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
+                    searchPool = String.valueOf(jsonValue.get(0));
+                } else {
+                    Object jsonValue = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
+                    searchPool = String.valueOf(jsonValue);
+                }
+            } catch (JSONException rootCauseException) {
+                ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
+                failAction(jsonPath, rootCauseException);
             }
         } catch (ClassCastException rootCauseException) {
             ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"");
@@ -202,12 +227,30 @@ public class RestActions {
                 JSONObject obj = new JSONObject(hashMapResponse);
                 searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
             } else if (response instanceof Response responseObject) {
-                if (jsonPath.contains("?")) {
-                    List<String> jsonValueAsList = JsonPath.read(responseObject.asPrettyString(), jsonPath);
-                    searchPool = String.valueOf(jsonValueAsList.getFirst());
-                } else {
-                    var jsonValue = JsonPath.read(responseObject.asPrettyString(), jsonPath);
-                    searchPool = String.valueOf(jsonValue);
+                String jsonResponse = responseObject.asPrettyString();
+                try {
+                    if (jsonPath.contains("?")) {
+                        List<String> jsonValueAsList = JsonPath.read(jsonResponse, jsonPath);
+                        searchPool = String.valueOf(jsonValueAsList.getFirst());
+                    } else {
+                        var jsonValue = JsonPath.read(jsonResponse, jsonPath);
+                        searchPool = String.valueOf(jsonValue);
+                    }
+                } catch (PathNotFoundException e) {
+                    String jsonObject = jsonResponse.substring(jsonResponse.indexOf("{"), jsonResponse.lastIndexOf("}") + 1);
+                    Configuration confOrgJsonProvider = Configuration.builder().jsonProvider(new JsonOrgJsonProvider()).build();
+                    try {
+                        if (jsonPath.contains("?")) {
+                            JSONArray jsonValue = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
+                            searchPool = String.valueOf(jsonValue.get(0));
+                        } else {
+                            Object jsonValue = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
+                            searchPool = String.valueOf(jsonValue);
+                        }
+                    } catch (JSONException rootCauseException) {
+                        ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
+                        failAction(jsonPath, rootCauseException);
+                    }
                 }
             }
         } catch (ClassCastException rootCauseException) {
@@ -229,8 +272,21 @@ public class RestActions {
 
     public static List<Object> getResponseJSONValueAsList(Response response, String jsonPath) {
         List<Object> searchPool = null;
+        String jsonResponse = response.asPrettyString();
         try {
-            searchPool = JsonPath.read(response.asPrettyString(), jsonPath);
+            searchPool = JsonPath.read(jsonResponse, jsonPath);
+        } catch (PathNotFoundException e) {
+            String jsonObject = jsonResponse.substring(jsonResponse.indexOf("{"), jsonResponse.lastIndexOf("}") + 1);
+            Configuration confOrgJsonProvider = Configuration.builder().jsonProvider(new JsonOrgJsonProvider()).build();
+            List<Object> jsonList = null;
+            try {
+                JSONArray jsonArray = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
+                jsonList = new ObjectMapper().readValue(Objects.requireNonNull(jsonArray).toString(), new TypeReference<>() {});
+            } catch (JSONException | JsonProcessingException rootCauseException ) {
+                ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
+                failAction(jsonPath, rootCauseException);
+            }
+            searchPool = jsonList;
         } catch (ClassCastException rootCauseException) {
             ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"");
             failAction(jsonPath, rootCauseException);
@@ -664,12 +720,12 @@ public class RestActions {
             if (body.getClass().getName().toLowerCase().contains("restassured")) {
                 // if it's a string (OR ARRAY) response body
                 try {
-                    String bodyString = ((io.restassured.response.ResponseBody<?>) body).asString();
+                    String bodyString = ((ResponseBody<?>) body).asString();
                     if (!bodyString.isEmpty()) {
                         actualJsonObject = (org.json.simple.JSONObject) parser.parse(bodyString);
                     }
                 } catch (ClassCastException e) {
-                    String bodyString = ((io.restassured.response.ResponseBody<?>) body).asString();
+                    String bodyString = ((ResponseBody<?>) body).asString();
                     if (!bodyString.isEmpty()) {
                         actualJsonArray = (org.json.simple.JSONArray) parser.parse(bodyString);
                     }
@@ -718,14 +774,14 @@ public class RestActions {
         if (body.getClass().getName().toLowerCase().contains("restassured")) {
             try {
                 // if it's a string response body
-                String bodyString = ((io.restassured.response.ResponseBody<?>) body).asString();
+                String bodyString = ((ResponseBody<?>) body).asString();
                 if (!bodyString.isEmpty()) {
                     actualJsonObject = (org.json.simple.JSONObject) parser.parse(bodyString);
                 }
             } catch (ClassCastException e) {
                 // java.lang.ClassCastException: org.json.simple.JSONArray cannot be cast to
                 // org.json.simple.JSONObject
-                String bodyString = ((io.restassured.response.ResponseBody<?>) body).asString();
+                String bodyString = ((ResponseBody<?>) body).asString();
                 if (!bodyString.isEmpty()) {
                     actualJsonArray = (org.json.simple.JSONArray) parser.parse(bodyString);
                 }
@@ -858,7 +914,7 @@ public class RestActions {
      */
     private static Response graphQlRequestHelper(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod) {
         ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod + "\"");
-        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody_forHelperMethod)
+        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
                 .setContentType(ContentType.JSON).performRequest();
     }
 
@@ -924,7 +980,7 @@ public class RestActions {
      */
     private static Response graphQlRequestHelperWithHeader(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod, String headerKey_forHelperMethod, String headerValue_forHelperMethod) {
         ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod + " | Header: \"" + headerKey_forHelperMethod + "\":\"" + headerValue_forHelperMethod + "\"\"");
-        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody_forHelperMethod)
+        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
                 .setContentType(ContentType.JSON).addHeader(headerKey_forHelperMethod, headerValue_forHelperMethod).performRequest();
     }
 
@@ -1093,7 +1149,7 @@ public class RestActions {
     private void prepareRequestBody(RequestSpecBuilder builder, Object body, ContentType contentType) {
         if (body instanceof String bodyString && bodyString.contains("\n")) {
             builder.setBody(bodyString);
-        } else if (body instanceof org.json.JSONObject || body instanceof org.json.JSONArray) {
+        } else if (body instanceof JSONObject || body instanceof JSONArray) {
             builder.setBody(body.toString());
         } else {
             try {
