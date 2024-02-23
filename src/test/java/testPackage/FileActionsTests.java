@@ -7,6 +7,6 @@ import org.testng.annotations.Test;
 public class FileActionsTests {
     @Test
     public void f() {
-        Validations.assertThat().object(FileActions.getInstance().listFilesInDirectory("/home/")).contains("").perform();
+        Validations.assertThat().object(FileActions.getInstance().listFilesInDirectory("src/main/java/com/shaft")).contains("SHAFT.java").perform();
     }
 }
