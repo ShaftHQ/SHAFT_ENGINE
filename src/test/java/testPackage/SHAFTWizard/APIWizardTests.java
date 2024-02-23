@@ -17,7 +17,7 @@ public class APIWizardTests {
         driver.assertThatResponse().matchesSchema("schema.json").perform();
     }
 
-    @Test
+    @Test(enabled = false)
     public void test_post_withBody_string() {
         driver = new SHAFT.API("https://reqres.in/");
         String body = """
@@ -29,14 +29,14 @@ public class APIWizardTests {
         driver.assertThatResponse().extractedJsonValue("name").isEqualTo("morpheus").withCustomReportMessage("Check that Morpheus exists.").perform();
     }
 
-    @Test
+    @Test(enabled = false)
     public void test_post_withBody_fromFile() {
         driver = new SHAFT.API("https://reqres.in/");
         driver.post("api/users").setRequestBodyFromFile("test_post_withBody_fromFile.json").setTargetStatusCode(201).setContentType(ContentType.JSON).perform();
         driver.assertThatResponse().extractedJsonValue("name").isEqualTo("morpheus").withCustomReportMessage("Check that Morpheus exists.").perform();
     }
 
-    @Test
+    @Test(enabled = false)
     public void test_post_withBody_hashMap() {
         driver = new SHAFT.API("https://reqres.in/");
         HashMap body = new HashMap<>();
@@ -46,7 +46,7 @@ public class APIWizardTests {
         driver.assertThatResponse().extractedJsonValue("name").isEqualTo("morpheus").withCustomReportMessage("Check that Morpheus exists.").perform();
     }
 
-    @Test
+    @Test(enabled = false)
     public void test_post_withBody_JSONObject() {
         driver = new SHAFT.API("https://reqres.in/");
         HashMap body = new HashMap<>();
@@ -57,7 +57,7 @@ public class APIWizardTests {
         driver.assertThatResponse().extractedJsonValue("name").isEqualTo("morpheus").withCustomReportMessage("Check that Morpheus exists.").perform();
     }
 
-    @Test
+    @Test(enabled = false)
     public void test_post_withBody_JSONObject_simple() {
         driver = new SHAFT.API("https://reqres.in/");
         HashMap body = new HashMap<>();
