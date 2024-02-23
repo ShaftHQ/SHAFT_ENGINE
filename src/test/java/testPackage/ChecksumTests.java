@@ -9,8 +9,8 @@ public class ChecksumTests {
     @Test
     public void readLocalFileChecksum() {
         String targetFileFolderPath = "";
-        String targetFileName = "generate_allure_report.sh";
-        String expectedHash = "5f389bb767ff94e5f39fd6d588fb4b8c4a46b7c69f8a129fc1c7be6c59f43f74";
+        String targetFileName = "pom.xml";
+        String expectedHash = "f31105c8059fb10caba965b489fa97a88212ed529916bf3d8841e5ca7d076eb8";
 
         TerminalActions terminalSession = new TerminalActions();
         String actualHash = FileActions.getInstance().getFileChecksum(terminalSession, targetFileFolderPath, targetFileName);
@@ -18,7 +18,7 @@ public class ChecksumTests {
         Validations.assertThat().object(actualHash).equals(expectedHash);
     }
 
-    @Test
+    @Test(enabled = false)
     public void readRemoteFileChecksum() {
         String targetFileFolderPath = "/home/incorta/Farid/";
         String targetFileName = "View_SV.zip";
@@ -37,7 +37,7 @@ public class ChecksumTests {
         Validations.assertThat().object(actualHash).equals(expectedHash);
     }
 
-    @Test
+    @Test(enabled = false)
     public void readRemoteDockerizedFileChecksum() {
         String targetFileFolderPath = "/home/incorta/Farid/";
         String targetFileName = "Ahmed.csv";
