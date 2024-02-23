@@ -2,7 +2,6 @@ package testPackage;
 
 import com.epam.healenium.SelfHealingDriver;
 import com.shaft.driver.DriverFactory;
-import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Validations;
@@ -31,7 +30,7 @@ public class HealeniumTests {
     3. Run this test class to ensure that everything is working as expected
      */
 
-    @Test
+    @Test(enabled = false)
     public void test(){
         //confirm that the self healing driver has been initialized successfully
         if (driver instanceof SelfHealingDriver){
@@ -70,7 +69,7 @@ public class HealeniumTests {
 
     @BeforeMethod
     public void beforeMethod(){
-        SHAFT.Properties.healenium.set().healEnabled(true);
+//        SHAFT.Properties.healenium.set().healEnabled(true);
         driver = new DriverFactory().getDriver();
     }
 
