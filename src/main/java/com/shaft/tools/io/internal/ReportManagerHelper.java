@@ -117,7 +117,7 @@ public class ReportManagerHelper {
         }
         if (!listOfOpenIssuesForFailedTests.isEmpty()) {
             listOfOpenIssuesForFailedTests.forEach(issue -> {
-                if (!issue.get(3).trim().isEmpty()) {
+                if (issue.get(3) != null && !issue.get(3).trim().isEmpty()) {
                     logIssue("Test Method '" + issue.get(0) + "." + issue.get(1) + "' failed with open issue '"
                             + issue.get(2) + "': '" + issue.get(3) + "'.\n");
                 } else {
