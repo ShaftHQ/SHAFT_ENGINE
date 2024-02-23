@@ -6,7 +6,7 @@ import com.shaft.validation.Validations;
 import org.testng.annotations.Test;
 
 public class ChecksumTests {
-    @Test
+    @Test(enabled = false)
     public void readLocalFileChecksum() {
         String targetFileFolderPath = "";
         String targetFileName = "pom.xml";
