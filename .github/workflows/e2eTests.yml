@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroidBasic.*], !%regex[.*MobileWebTest.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*]"
+  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*obile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*]"
 
 jobs:
   Ubuntu_Database:
@@ -54,7 +54,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*API.*], %regex[.*Api.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*]"
+        run: mvn -e test "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*API.*], %regex[.*Api.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v4
         with:
@@ -195,7 +195,7 @@ jobs:
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*DatabaseActions.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroidBasic.*], !%regex[.*MobileWebTest.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*DatabaseActions.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*obile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v4
         with:
@@ -230,7 +230,7 @@ jobs:
           chrome-version: stable
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*DatabaseActions.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroidBasic.*], !%regex[.*MobileWebTest.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*DatabaseActions.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*obile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v4
         with:
