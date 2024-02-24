@@ -33,7 +33,7 @@ public class AllureManager {
         cleanAllureResultsDirectory();
         downloadAndExtractAllureBinaries();
         overrideAllurePluginConfiguration();
-        writeGenerateReportShellFilesToProjectDirectory(); //TODO: refactor file to open the latest html file
+        writeGenerateReportShellFilesToProjectDirectory();
         writeEnvironmentVariablesToAllureResultsDirectory();
         createAllureListenersMetaFiles();
     }
@@ -97,7 +97,7 @@ public class AllureManager {
 
             if (!SystemUtils.IS_OS_WINDOWS) {
                 // make allure executable on Unix-based shells
-                TerminalActions.getInstance(false, false).performTerminalCommand("chmod u+x " + allureBinaryPath);
+                TerminalActions.getInstance(false, false, true).performTerminalCommand("chmod u+x " + allureBinaryPath);
             }
         }
     }
@@ -128,7 +128,7 @@ public class AllureManager {
                     );
             FileActions.getInstance(true).writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
             // make allure executable on Unix-based shells
-            TerminalActions.getInstance(false, false).performTerminalCommand("chmod u+x generate_allure_report.sh");
+            TerminalActions.getInstance(false, false, true).performTerminalCommand("chmod u+x generate_allure_report.sh");
         }
     }
 
@@ -174,7 +174,7 @@ public class AllureManager {
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
                     + " -o " + allureOutPutDirectory;
         }
-        TerminalActions.getInstance(false, false).performTerminalCommand(commandToCreateAllureReport);
+        TerminalActions.getInstance(false, false, true).performTerminalCommand(commandToCreateAllureReport);
     }
 
     private static void createAllureReportArchive() {

@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  GLOBAL_TESTING_SCOPE: "!%regex[.*MultipleBrowserInstancesTest.*], !%regex[.*Tests_Api.*], !%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
+  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*obile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*]"
 
 jobs:
   Ubuntu_Database:
@@ -23,7 +23,7 @@ jobs:
           distribution: 'zulu'
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DgenerateAllureReportArchive=true" "-Dtest=.*DatabaseActionsTests.*"
+        run: mvn -e test "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
@@ -37,6 +37,11 @@ jobs:
         with:
           name: Ubuntu_Database_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   Ubuntu_APIs:
     runs-on: ubuntu-latest
@@ -54,7 +59,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DgenerateAllureReportArchive=true" "-Dtest=.*Tests_Api.*, .*tests_restActions.*, *.Test_AssertApiResponseEquals.*, *.MatchJsonSchemaTests.*"
+        run: mvn -e test "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*API.*], %regex[.*Api.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v4
         with:
@@ -68,6 +73,11 @@ jobs:
         with:
           name: Ubuntu_APIs_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   Ubuntu_Firefox_Grid:
     runs-on: ubuntu-latest
@@ -103,6 +113,11 @@ jobs:
         with:
           name: Ubuntu_Firefox_Grid_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   Ubuntu_Chrome_Grid:
     runs-on: ubuntu-latest
@@ -138,6 +153,11 @@ jobs:
         with:
           name: Ubuntu_Chrome_Grid_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   Ubuntu_Edge_Grid:
     runs-on: ubuntu-latest
@@ -173,6 +193,11 @@ jobs:
         with:
           name: Ubuntu_Edge_Grid_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   Windows_Edge_Local:
     runs-on: windows-latest
@@ -195,7 +220,7 @@ jobs:
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Tests_Api.*], !%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*DatabaseActions.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*obile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v4
         with:
@@ -209,6 +234,11 @@ jobs:
         with:
           name: Windows_Edge_Local_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   Windows_Chrome_Local:
     runs-on: windows-latest
@@ -230,7 +260,7 @@ jobs:
           chrome-version: stable
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Tests_Api.*], !%regex[.*NetworkInterceptionTest.*], !%regex[.*DatabaseTests.*], !%regex[.*MobileEmulation.*], !%regex[.*Healenium.*], !%regex[.*Release.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*ikuli.*], !%regex[.*Comparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*Shell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*appium.*], !%regex[.*ndroid.*],!%regex[.*obile.*], !%regex[.*ios.*], !%regex[.*IOS.*], !%regex[.*BasicAuthentication.*], !%regex[.*Test_LT*.*], !%regex[.*Tests_Api.*], !%regex[.*tests_restActions.*], !%regex[.*Test_AssertApiResponseEquals.*], !%regex[.*MatchJsonSchemaTests.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*DatabaseActions.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*obile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v4
         with:
@@ -244,6 +274,11 @@ jobs:
         with:
           name: Windows_Chrome_Local_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   MacOSX_Safari_Local:
     runs-on: macos-latest
@@ -275,6 +310,11 @@ jobs:
         with:
           name: MacOSX_Safari_Local_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   MacOSX_Chrome_Local:
     runs-on: macos-latest
@@ -310,6 +350,11 @@ jobs:
         with:
           name: MacOSX_Chrome_Local_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   Android_Native_BrowserStack:
     runs-on: ubuntu-latest
@@ -341,6 +386,11 @@ jobs:
         with:
           name: Android_Native_BrowserStack_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   iOS_Web_SAFARI_BrowserStack:
     runs-on: ubuntu-latest
@@ -372,6 +422,11 @@ jobs:
         with:
           name: iOS_Web_SAFARI_BrowserStack_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   Android_Web_Chrome_BrowserStack:
     runs-on: ubuntu-latest
@@ -403,6 +458,11 @@ jobs:
         with:
           name: Android_Web_Chrome_BrowserStack_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   Android_Web_Samsung_BrowserStack:
     runs-on: ubuntu-latest
@@ -434,6 +494,11 @@ jobs:
         with:
           name: Android_Web_Samsung_BrowserStack_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   MacOSX_Safari_BrowserStack:
     runs-on: ubuntu-latest
@@ -465,6 +530,11 @@ jobs:
         with:
           name: MacOSX_Safari_BrowserStack_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   Ubuntu_Chrome_Cucumber_Grid:
     runs-on: ubuntu-latest
@@ -493,7 +563,7 @@ jobs:
       - name: Run tests on Linux/MacOS
         if: runner.os != 'Windows'
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=.*CucumberTests.*"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v4
         with:
@@ -507,6 +577,11 @@ jobs:
         with:
           name: Ubuntu_Chrome_Cucumber_Grid_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   Windows_Edge_Cucumber:
     runs-on: windows-latest
@@ -534,7 +609,7 @@ jobs:
       - name: Run tests on Windows
         if: runner.os == 'Windows'
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" -DexecutionAddress="local" -DtargetOperatingSystem="WINDOWS" -DmaximumPerformanceMode="2" -DtargetBrowserName="MicrosoftEdge" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTests.*"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" -DexecutionAddress="local" -DtargetOperatingSystem="WINDOWS" -DmaximumPerformanceMode="2" -DtargetBrowserName="MicrosoftEdge" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*CucumberTests.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v4
         with:
@@ -548,6 +623,11 @@ jobs:
         with:
           name: Windows_Edge_Cucumber_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   MacOSX_Safari_Cucumber_BrowserStack:
     runs-on: ubuntu-latest
@@ -569,7 +649,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTests.*"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*CucumberTests.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v4
         with:
@@ -583,7 +663,11 @@ jobs:
         with:
           name: MacOSX_Safari_Cucumber_BrowserStack_Allure
           path: "allure-report/*.html"
-
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   LambdaTest_NativeAndroid:
     runs-on: ubuntu-latest
@@ -619,6 +703,11 @@ jobs:
         with:
           name: LambdaTest_NativeAndroid_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   LambdaTest_NativeIOS:
     runs-on: ubuntu-latest
@@ -655,6 +744,11 @@ jobs:
         with:
           name: LambdaTest_NativeIOS_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   LambdaTest_WebApp:
     runs-on: ubuntu-latest
@@ -691,6 +785,11 @@ jobs:
         with:
           name: LambdaTestWebApp_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
 
   LambdaTest_DesktopWeb:
     runs-on: ubuntu-latest
@@ -727,3 +826,8 @@ jobs:
         with:
           name: LambdaTestDesktopWeb_Allure
           path: "allure-report/*.html"
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()

@@ -1,6 +1,7 @@
 package com.shaft.tools.io.internal;
 
 import com.shaft.cli.FileActions;
+import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.listeners.CucumberFeatureListener;
 import com.shaft.properties.internal.PropertyFileManager;
@@ -116,7 +117,7 @@ public class ReportManagerHelper {
         }
         if (!listOfOpenIssuesForFailedTests.isEmpty()) {
             listOfOpenIssuesForFailedTests.forEach(issue -> {
-                if (!issue.get(3).trim().isEmpty()) {
+                if (issue.get(3) != null && !issue.get(3).trim().isEmpty()) {
                     logIssue("Test Method '" + issue.get(0) + "." + issue.get(1) + "' failed with open issue '"
                             + issue.get(2) + "': '" + issue.get(3) + "'.\n");
                 } else {
@@ -641,9 +642,9 @@ public class ReportManagerHelper {
     public static void openExecutionSummaryReportAfterExecution() {
         if (SHAFT.Properties.reporting.openExecutionSummaryReportAfterExecution()) {
             if (SystemUtils.IS_OS_WINDOWS) {
-                SHAFT.CLI.terminal().performTerminalCommand(".\\" + SHAFT.Properties.paths.executionSummaryReport() + "ExecutionSummaryReport_*.html");
+                TerminalActions.getInstance(false, false, true).performTerminalCommand(".\\" + SHAFT.Properties.paths.executionSummaryReport() + "ExecutionSummaryReport_*.html");
             } else {
-                SHAFT.CLI.terminal().performTerminalCommand("open ./" + SHAFT.Properties.paths.executionSummaryReport() + "ExecutionSummaryReport_*.html");
+                TerminalActions.getInstance(false, false, true).performTerminalCommand("open ./" + SHAFT.Properties.paths.executionSummaryReport() + "ExecutionSummaryReport_*.html");
             }
         }
     }

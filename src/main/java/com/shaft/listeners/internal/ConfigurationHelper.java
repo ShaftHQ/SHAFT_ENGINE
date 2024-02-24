@@ -15,8 +15,8 @@ public class ConfigurationHelper {
         ReportHelper.attachPropertyFiles();
     }
 
-    @AfterTest(description = "Engine Teardown", alwaysRun = true)
-    public void engineTeardown() {
+    @AfterTest(description = "Engine Tear down", alwaysRun = true)
+    public void engineTearDown() {
         attachLogsAndReports();
     }
 

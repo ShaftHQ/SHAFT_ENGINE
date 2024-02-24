@@ -40,6 +40,8 @@ public class TerminalActions {
 
     private boolean asynchronous = false;
     private boolean verbose = false;
+    private boolean isInternal = false;
+
 
     /**
      * This constructor is used for local terminal actions.
@@ -56,9 +58,10 @@ public class TerminalActions {
         this.asynchronous = asynchronous;
     }
 
-    private TerminalActions(boolean asynchronous, boolean verbose) {
+    private TerminalActions(boolean asynchronous, boolean verbose, boolean isInternal) {
         this.asynchronous = asynchronous;
         this.verbose = verbose;
+        this.isInternal = isInternal;
     }
 
     /**
@@ -141,7 +144,11 @@ public class TerminalActions {
     }
 
     public static TerminalActions getInstance(boolean asynchronous, boolean verbose) {
-        return new TerminalActions(asynchronous, verbose);
+        return new TerminalActions(asynchronous, verbose, false);
+    }
+
+    public static TerminalActions getInstance(boolean asynchronous, boolean verbose, boolean isInternal) {
+        return new TerminalActions(asynchronous, verbose, isInternal);
     }
 
     private static String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus, Exception... rootCauseException) {
@@ -196,16 +203,15 @@ public class TerminalActions {
         String longCommand = buildLongCommand(internalCommands);
 
         if (internalCommands.size() == 1) {
-            if (internalCommands.get(0).contains(" && ")) {
-                internalCommands = List.of(internalCommands.get(0).split(" && "));
-            } else if (internalCommands.get(0).contains(" ; ")) {
-                internalCommands = List.of(internalCommands.get(0).split(" ; "));
+            if (internalCommands.getFirst().contains(" && ")) {
+                internalCommands = List.of(internalCommands.getFirst().split(" && "));
+            } else if (internalCommands.getFirst().contains(" ; ")) {
+                internalCommands = List.of(internalCommands.getFirst().split(" ; "));
             }
         }
 
         // Perform command
         List<String> exitLogs = isRemoteTerminal() ? executeRemoteCommand(internalCommands, longCommand) : executeLocalCommand(internalCommands, longCommand);
-
         String log = exitLogs.get(0);
         String exitStatus = exitLogs.get(1);
 
@@ -225,7 +231,8 @@ public class TerminalActions {
         reportMessage.append(" | Exit Status: \"").append(exitStatus).append("\"");
 
         if (log != null) {
-            passAction(reportMessage.toString(), log);
+            if (!isInternal)
+                passAction(reportMessage.toString(), log);
             return log;
         } else {
             return "";
@@ -304,10 +311,10 @@ public class TerminalActions {
         boolean isWindows = SystemUtils.IS_OS_WINDOWS;
         String directory;
         LinkedList<String> internalCommands;
-        if (commands.size() > 1 && commands.get(0).startsWith("cd ")) {
-            directory = commands.get(0).replace("cd ", "");
+        if (commands.size() > 1 && commands.getFirst().startsWith("cd ")) {
+            directory = commands.getFirst().replace("cd ", "");
             internalCommands = new LinkedList<>(commands);
-            internalCommands.remove(0);
+            internalCommands.removeFirst();
         } else {
             directory = System.getProperty("user.dir");
             internalCommands = new LinkedList<>(commands);

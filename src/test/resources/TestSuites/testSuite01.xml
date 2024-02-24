@@ -3,7 +3,7 @@
 <suite name="Suite01" verbose="10">
     <test name="Test01">
         <classes>
-            <class name="testPackage.Test_google">
+            <class name="testPackage.GoogleTests">
             </class>
         </classes>
     </test>
