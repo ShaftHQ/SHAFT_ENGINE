@@ -7,18 +7,17 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class SelectMethodTests {
-    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
+    private SHAFT.GUI.WebDriver driver;
     private final By dropDownList = By.className("dropdown");
 
     @BeforeMethod
     protected void setUp() {
-        driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "selectDemo.html");
+        driver= new SHAFT.GUI.WebDriver();
+        driver.browser().navigateToURL(SHAFT.Properties.paths.testData() + "selectDemo.html");
     }
 
     @Test
     public void testValidSelect() {
-        driver.get().assertThat().element(dropDownList).isVisible();
         clickDropDownList("Div 1");
         clickDropDownList("Div 2");
         clickDropDownList("Div 3");
@@ -32,11 +31,11 @@ public class SelectMethodTests {
 
     @AfterMethod
     protected void tearDown() {
-        driver.get().quit();
+        driver.quit();
     }
 
     private void clickDropDownList(String text) {
-        driver.get().element().select(dropDownList, text);
+        driver.element().select(dropDownList, text);
 
     }
 }
