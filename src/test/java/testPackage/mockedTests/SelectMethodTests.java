@@ -35,7 +35,9 @@ public class SelectMethodTests {
 
     @AfterMethod
     protected void tearDown() {
-        driver.quit();
+        if(driver != null) {
+            driver.quit();
+        }
     }
 
     private void clickDropDownList(String text) {
