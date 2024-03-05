@@ -22,7 +22,7 @@ public class SelectMethodTests {
         }
     }
 
-    @Test(expectedExceptions = {AssertionError.class})
+    @Test(expectedExceptions = AssertionError.class, alwaysRun = true)
     public void testInvalidSelect() {
         if (SHAFT.Properties.platform.executionAddress().equals("local")
                 && !SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
