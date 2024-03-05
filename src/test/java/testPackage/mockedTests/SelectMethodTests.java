@@ -2,6 +2,7 @@ package testPackage.mockedTests;
 
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
+import org.openqa.selenium.remote.Browser;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -12,8 +13,11 @@ public class SelectMethodTests {
 
     @BeforeMethod
     protected void setUp() {
+        if (SHAFT.Properties.platform.executionAddress().equals("local")
+                && !SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
         driver= new SHAFT.GUI.WebDriver();
         driver.browser().navigateToURL(SHAFT.Properties.paths.testData() + "selectDemo.html");
+        }
     }
 
     @Test
