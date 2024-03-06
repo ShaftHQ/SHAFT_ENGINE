@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 //@Getter
@@ -51,6 +52,23 @@ public class ReportManagerHelper {
     private static List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
     private static String featureName = "";
     private static Logger logger;
+    private static final HashMap<String, BiConsumer<String, ByteArrayOutputStream>> attachmentHandlers = new HashMap<>();
+
+    static {
+        attachmentHandlers.put("screenshot", ReportManagerHelper::handleScreenshot);
+        attachmentHandlers.put("recording", ReportManagerHelper::handleRecording);
+        attachmentHandlers.put("gif", ReportManagerHelper::handleGif);
+        attachmentHandlers.put("csv", ReportManagerHelper::handleCsv);
+        attachmentHandlers.put("xml", ReportManagerHelper::handleXml);
+        attachmentHandlers.put("excel", ReportManagerHelper::handleExcel);
+        attachmentHandlers.put("json", ReportManagerHelper::handleJson);
+        attachmentHandlers.put("properties", ReportManagerHelper::handleProperties);
+        attachmentHandlers.put("link", ReportManagerHelper::handleLink);
+        attachmentHandlers.put("engine logs", ReportManagerHelper::handleEngineLogs);
+        attachmentHandlers.put("page snapshot", ReportManagerHelper::handlePageSnapshot);
+        attachmentHandlers.put("html", ReportManagerHelper::handleHtml);
+        attachmentHandlers.put("default", ReportManagerHelper::handleDefault);
+    }
 
     private ReportManagerHelper() {
         throw new IllegalStateException("Utility class");
@@ -556,37 +574,88 @@ public class ReportManagerHelper {
         }
     }
 
+    private static void handleScreenshot(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "image/png", content, ".png");
+    }
+
+    private static void handleRecording(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "video/mp4", content, ".mp4");
+    }
+
+    private static void handleGif(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "image/gif", content, ".gif");
+    }
+
+    private static void handleCsv(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "text/csv", content, ".csv");
+    }
+
+    private static void handleXml(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "text/xml", content, ".xml");
+    }
+
     @SuppressWarnings("SpellCheckingInspection")
-    private static void attachBasedOnFileType(String attachmentType, String attachmentName,
-                                              ByteArrayOutputStream attachmentContent, String attachmentDescription) {
-        var content = new ByteArrayInputStream(attachmentContent.toByteArray());
-        if (attachmentType.toLowerCase().contains("screenshot")) {
-            Allure.addAttachment(attachmentDescription, "image/png", content, ".png");
-        } else if (attachmentType.toLowerCase().contains("recording")) {
-            Allure.addAttachment(attachmentDescription, "video/mp4", content, ".mp4");
-        } else if (attachmentType.toLowerCase().contains("gif")) {
-            Allure.addAttachment(attachmentDescription, "image/gif", content, ".gif");
-        } else if (attachmentType.toLowerCase().contains("csv") || attachmentName.toLowerCase().contains("csv")) {
-            Allure.addAttachment(attachmentDescription, "text/csv", content, ".csv");
-        } else if (attachmentType.toLowerCase().contains("xml") || attachmentName.toLowerCase().contains("xml")) {
-            Allure.addAttachment(attachmentDescription, "text/xml", content, ".xml");
-        } else if (attachmentType.toLowerCase().contains("excel") || attachmentName.toLowerCase().contains("excel")) {
-            Allure.addAttachment(attachmentDescription, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", content, ".xlsx");
-        } else if (attachmentType.toLowerCase().contains("json") || attachmentName.toLowerCase().contains("json")) {
-            Allure.addAttachment(attachmentDescription, "text/json", content, ".json");
-        } else if (attachmentType.toLowerCase().contains("properties")) {
-            Allure.addAttachment(attachmentDescription, "text/plain", content, ".properties");
-        } else if (attachmentType.toLowerCase().contains("link")) {
-            Allure.addAttachment(attachmentDescription, "text/uri-list", content, ".uri");
-        } else if (attachmentType.toLowerCase().contains("engine logs")) {
-            Allure.addAttachment(attachmentDescription, "text/plain", content, ".txt");
-        } else if (attachmentType.toLowerCase().contains("page snapshot")) {
-            Allure.addAttachment(attachmentDescription, "multipart/related", content, ".mhtml");
-        } else if (attachmentType.toLowerCase().contains("html")) {
-            Allure.addAttachment(attachmentDescription, "text/html", content, ".html");
-        } else {
-            Allure.addAttachment(attachmentDescription, content);
+    private static void handleExcel(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", content, ".xlsx");
+    }
+
+    private static void handleJson(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "text/json", content, ".json");
+    }
+
+    private static void handleProperties(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "text/plain", content, ".properties");
+    }
+
+    private static void handleLink(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "text/uri-list", content, ".uri");
+    }
+
+    private static void handleEngineLogs(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "text/plain", content, ".txt");
+    }
+
+    private static void handlePageSnapshot(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "multipart/related", content, ".mhtml");
+    }
+
+    private static void handleHtml(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "text/html", content, ".html");
+    }
+
+    private static void handleDefault(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, null, content, null);
+    }
+
+    public static void attachBasedOnFileType(String attachmentType, String attachmentName,
+                                             ByteArrayOutputStream attachmentContent, String attachmentDescription) {
+        // Get the appropriate handler based on the attachment type, or use the default handler(resilient in case any changes were to be made to getAttachmentCase)
+        BiConsumer<String, ByteArrayOutputStream> handler = attachmentHandlers.getOrDefault(getAttachmentCase(attachmentType, attachmentName), ReportManagerHelper::handleDefault);
+        // Call the handler with the provided parameters
+        handler.accept(attachmentDescription, attachmentContent);
+    }
+
+    private static void attachFileBased(String attachmentDescription, String contentType, ByteArrayOutputStream content, String fileExtension) {
+        Allure.addAttachment(attachmentDescription, contentType, new ByteArrayInputStream(content.toByteArray()), fileExtension);
+    }
+
+    private static String getAttachmentCase(String attachmentType, String attachmentName) {
+        for (String key : attachmentHandlers.keySet()) {
+            attachmentType = attachmentType.toLowerCase();
+            switch (attachmentType) {
+                case "screenshot", "properties", "link", "recording", "gif", "page snapshot", "engine logs", "html" -> {
+                    if (attachmentType.contains(key)) {
+                        return key;
+                    }
+                }
+                case "csv", "json", "xml", "excel" -> {
+                    if (attachmentType.contains(key) || attachmentName.toLowerCase().contains(key)) {
+                        return key;
+                    }
+                }
+            }
         }
+        return "default";
     }
 
     private static void logAttachmentAction(String attachmentType, String attachmentName, ByteArrayOutputStream attachmentContent) {
