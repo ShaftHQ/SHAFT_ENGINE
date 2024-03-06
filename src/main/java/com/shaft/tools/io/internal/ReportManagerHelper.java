@@ -641,17 +641,20 @@ public class ReportManagerHelper {
 
     private static String getAttachmentCase(String attachmentType, String attachmentName) {
         for (String key : attachmentHandlers.keySet()) {
-            attachmentType = attachmentType.toLowerCase();
-            switch (attachmentType) {
+            String lowerCaseAttachmentType = attachmentType.toLowerCase();
+            switch (lowerCaseAttachmentType) {
                 case "screenshot", "properties", "link", "recording", "gif", "page snapshot", "engine logs", "html" -> {
-                    if (attachmentType.contains(key)) {
+                    if (lowerCaseAttachmentType.contains(key)) {
                         return key;
                     }
                 }
                 case "csv", "json", "xml", "excel" -> {
-                    if (attachmentType.contains(key) || attachmentName.toLowerCase().contains(key)) {
+                    if (lowerCaseAttachmentType.contains(key) || attachmentName.toLowerCase().contains(key)) {
                         return key;
                     }
+                }
+                default -> {
+                    return "default";
                 }
             }
         }
