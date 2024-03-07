@@ -52,23 +52,6 @@ public class ReportManagerHelper {
     private static List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
     private static String featureName = "";
     private static Logger logger;
-    private static final HashMap<String, BiConsumer<String, ByteArrayOutputStream>> attachmentHandlers = new HashMap<>();
-
-    static {
-        attachmentHandlers.put("screenshot", ReportManagerHelper::handleScreenshot);
-        attachmentHandlers.put("recording", ReportManagerHelper::handleRecording);
-        attachmentHandlers.put("gif", ReportManagerHelper::handleGif);
-        attachmentHandlers.put("csv", ReportManagerHelper::handleCsv);
-        attachmentHandlers.put("xml", ReportManagerHelper::handleXml);
-        attachmentHandlers.put("excel", ReportManagerHelper::handleExcel);
-        attachmentHandlers.put("json", ReportManagerHelper::handleJson);
-        attachmentHandlers.put("properties", ReportManagerHelper::handleProperties);
-        attachmentHandlers.put("link", ReportManagerHelper::handleLink);
-        attachmentHandlers.put("engine logs", ReportManagerHelper::handleEngineLogs);
-        attachmentHandlers.put("page snapshot", ReportManagerHelper::handlePageSnapshot);
-        attachmentHandlers.put("html", ReportManagerHelper::handleHtml);
-        attachmentHandlers.put("default", ReportManagerHelper::handleDefault);
-    }
 
     private ReportManagerHelper() {
         throw new IllegalStateException("Utility class");
@@ -569,96 +552,9 @@ public class ReportManagerHelper {
                 Reporter.log(error, false);
             }
             String attachmentDescription = attachmentType + " - " + attachmentName;
-            attachBasedOnFileType(attachmentType, attachmentName, byteArrayOutputStream, attachmentDescription);
+            AttachmentReporter.attachBasedOnFileType(attachmentType, attachmentName, byteArrayOutputStream, attachmentDescription);
             logAttachmentAction(attachmentType, attachmentName, byteArrayOutputStream);
         }
-    }
-
-    private static void handleScreenshot(String attachmentDescription, ByteArrayOutputStream content) {
-        attachFileBased(attachmentDescription, "image/png", content, ".png");
-    }
-
-    private static void handleRecording(String attachmentDescription, ByteArrayOutputStream content) {
-        attachFileBased(attachmentDescription, "video/mp4", content, ".mp4");
-    }
-
-    private static void handleGif(String attachmentDescription, ByteArrayOutputStream content) {
-        attachFileBased(attachmentDescription, "image/gif", content, ".gif");
-    }
-
-    private static void handleCsv(String attachmentDescription, ByteArrayOutputStream content) {
-        attachFileBased(attachmentDescription, "text/csv", content, ".csv");
-    }
-
-    private static void handleXml(String attachmentDescription, ByteArrayOutputStream content) {
-        attachFileBased(attachmentDescription, "text/xml", content, ".xml");
-    }
-
-    @SuppressWarnings("SpellCheckingInspection")
-    private static void handleExcel(String attachmentDescription, ByteArrayOutputStream content) {
-        attachFileBased(attachmentDescription, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", content, ".xlsx");
-    }
-
-    private static void handleJson(String attachmentDescription, ByteArrayOutputStream content) {
-        attachFileBased(attachmentDescription, "text/json", content, ".json");
-    }
-
-    private static void handleProperties(String attachmentDescription, ByteArrayOutputStream content) {
-        attachFileBased(attachmentDescription, "text/plain", content, ".properties");
-    }
-
-    private static void handleLink(String attachmentDescription, ByteArrayOutputStream content) {
-        attachFileBased(attachmentDescription, "text/uri-list", content, ".uri");
-    }
-
-    private static void handleEngineLogs(String attachmentDescription, ByteArrayOutputStream content) {
-        attachFileBased(attachmentDescription, "text/plain", content, ".txt");
-    }
-
-    private static void handlePageSnapshot(String attachmentDescription, ByteArrayOutputStream content) {
-        attachFileBased(attachmentDescription, "multipart/related", content, ".mhtml");
-    }
-
-    private static void handleHtml(String attachmentDescription, ByteArrayOutputStream content) {
-        attachFileBased(attachmentDescription, "text/html", content, ".html");
-    }
-
-    private static void handleDefault(String attachmentDescription, ByteArrayOutputStream content) {
-        attachFileBased(attachmentDescription, null, content, null);
-    }
-
-    public static void attachBasedOnFileType(String attachmentType, String attachmentName,
-                                             ByteArrayOutputStream attachmentContent, String attachmentDescription) {
-        // Get the appropriate handler based on the attachment type, or use the default handler(resilient in case any changes were to be made to getAttachmentCase)
-        BiConsumer<String, ByteArrayOutputStream> handler = attachmentHandlers.getOrDefault(getAttachmentCase(attachmentType, attachmentName), ReportManagerHelper::handleDefault);
-        // Call the handler with the provided parameters
-        handler.accept(attachmentDescription, attachmentContent);
-    }
-
-    private static void attachFileBased(String attachmentDescription, String contentType, ByteArrayOutputStream content, String fileExtension) {
-        Allure.addAttachment(attachmentDescription, contentType, new ByteArrayInputStream(content.toByteArray()), fileExtension);
-    }
-
-    private static String getAttachmentCase(String attachmentType, String attachmentName) {
-        for (String key : attachmentHandlers.keySet()) {
-            String lowerCaseAttachmentType = attachmentType.toLowerCase();
-            switch (lowerCaseAttachmentType) {
-                case "screenshot", "properties", "link", "recording", "gif", "page snapshot", "engine logs", "html" -> {
-                    if (lowerCaseAttachmentType.contains(key)) {
-                        return key;
-                    }
-                }
-                case "csv", "json", "xml", "excel" -> {
-                    if (lowerCaseAttachmentType.contains(key) || attachmentName.toLowerCase().contains(key)) {
-                        return key;
-                    }
-                }
-                default -> {
-                    return "default";
-                }
-            }
-        }
-        return "default";
     }
 
     private static void logAttachmentAction(String attachmentType, String attachmentName, ByteArrayOutputStream attachmentContent) {
