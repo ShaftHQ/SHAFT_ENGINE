@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.enums.internal.ClipboardAction;
 import com.shaft.enums.internal.ElementAction;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
@@ -28,11 +29,8 @@ import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.interactions.Locatable;
-import org.openqa.selenium.remote.Browser;
 import org.openqa.selenium.support.locators.RelativeLocator;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.FluentWait;
-import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 
 import java.awt.*;
@@ -113,7 +111,8 @@ public class ElementActionsHelper {
     }
 
     public static boolean waitForElementInvisibility(WebDriver driver, By elementLocator) {
-        (new WebDriverWait(driver, Duration.ofMillis((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000)))).until(ExpectedConditions.invisibilityOfElementLocated(elementLocator));
+        new SynchronizationManager(driver).fluentWait(false)
+                .until(f -> ExpectedConditions.invisibilityOfElementLocated(elementLocator));
         return true;
     }
 
@@ -122,38 +121,14 @@ public class ElementActionsHelper {
         return checkForVisibility && !locatorString.contains("type='file'") && !locatorString.contains("type=\"file\"") && !locatorString.contains("frame") && !elementLocator.equals(By.tagName("html"));
     }
 
-    public static ArrayList<Class<? extends Exception>> getExpectedExceptions(boolean isValidToCheckForVisibility) {
-        ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
-        expectedExceptions.add(java.lang.ClassCastException.class);
-        expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
-        expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
-        expectedExceptions.add(org.openqa.selenium.JavascriptException.class);
-        expectedExceptions.add(org.openqa.selenium.ElementClickInterceptedException.class);
-        if (isValidToCheckForVisibility) {
-            expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
-            expectedExceptions.add(org.openqa.selenium.InvalidElementStateException.class);
-            expectedExceptions.add(org.openqa.selenium.interactions.MoveTargetOutOfBoundsException.class);
-        }
-        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
-            // the generic exception is added to handle a case with WebKit whereby the browser doesn't state the cause of the issue
-            expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
-        }
-
-        // to handle failure inside a virtual thread
-        expectedExceptions.add(ExecutionException.class);
-        expectedExceptions.add(InterruptedException.class);
-        expectedExceptions.add(RuntimeException.class);
-
-        return expectedExceptions;
-    }
-
     //TODO: keep enhancing this method until we only need to make ONE WebDriver call per element in case of Type and Click (including element name)
     public static List<Object> waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility, Object... action) {
         boolean isValidToCheckForVisibility = isValidToCheckForVisibility(elementLocator, checkForVisibility);
         var isMobileExecution = DriverFactoryHelper.isMobileNativeExecution() || DriverFactoryHelper.isMobileWebExecution();
 
         try {
-            return new FluentWait<>(driver).withTimeout(Duration.ofMillis((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L * numberOfAttempts))).pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY)).ignoreAll(getExpectedExceptions(isValidToCheckForVisibility)).until(nestedDriver -> {
+            return new SynchronizationManager(driver).fluentWait(isValidToCheckForVisibility)
+                    .until(f -> {
                 try (ExecutorService myExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
                     final WebElement[] targetElement = new WebElement[1];
                     ElementInformation elementInformation = new ElementInformation();
@@ -348,16 +323,16 @@ public class ElementActionsHelper {
 
     public static List<Object> scrollToFindElement(WebDriver driver, By elementLocator) {
         try {
-            return new FluentWait<>(driver).withTimeout(Duration.ofMillis((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L))).pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY)).ignoreAll(getExpectedExceptions(true)).until(nestedDriver -> {
+            return new SynchronizationManager(driver).fluentWait().until(f -> {
                 WebElement targetElement;
                 try {
-                    targetElement = nestedDriver.findElement(elementLocator);
+                    targetElement = driver.findElement(elementLocator);
                 } catch (NoSuchElementException noSuchElementException) {
-                    new Actions(nestedDriver).scrollByAmount(0, nestedDriver.manage().window().getSize().getHeight()).perform();
-                    targetElement = nestedDriver.findElement(elementLocator);
+                    new Actions(driver).scrollByAmount(0, driver.manage().window().getSize().getHeight()).perform();
+                    targetElement = driver.findElement(elementLocator);
                 }
                 var elementInformation = new ArrayList<>();
-                elementInformation.add(nestedDriver.findElements(elementLocator).size());
+                elementInformation.add(driver.findElements(elementLocator).size());
                 elementInformation.add(targetElement);
                 return elementInformation;
             });
@@ -373,19 +348,17 @@ public class ElementActionsHelper {
     }
 
 
+    //TODO: delete this method after understanding what the heck it's supposed to be doing!
     public static boolean waitForElementToBeClickable(WebDriver driver, By elementLocator, String actionToExecute) {
         var clickUsingJavascriptWhenWebDriverClickFails = SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails();
 
         if (!DriverFactoryHelper.isMobileNativeExecution()) {
             try {
-                (new WebDriverWait(driver, Duration.ofMillis((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L)))).until(ExpectedConditions.elementToBeClickable(elementLocator));
+                new SynchronizationManager(driver).fluentWait(false)
+                        .until(f -> ExpectedConditions.elementToBeClickable(elementLocator));
 
-                var expectedExceptions = getExpectedExceptions(true);
-                if (!clickUsingJavascriptWhenWebDriverClickFails) {
-                    expectedExceptions.add(ElementClickInterceptedException.class);
-                }
-
-                return new FluentWait<>(driver).withTimeout(Duration.ofMillis((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L))).pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY)).ignoreAll(expectedExceptions).until(nestedDriver -> {
+                return new SynchronizationManager(driver).fluentWait(true)
+                        .until(f -> {
                     if (!actionToExecute.isEmpty()) {
                         if (actionToExecute.equalsIgnoreCase("ClickAndHold")) {
                             (new Actions(driver)).clickAndHold(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).build().perform();
@@ -403,7 +376,8 @@ public class ElementActionsHelper {
 
     public static boolean waitForElementTextToBeNot(WebDriver driver, By elementLocator, String textShouldNotBe) {
         try {
-            (new WebDriverWait(driver, Duration.ofMillis((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L)))).until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, textShouldNotBe)));
+            new SynchronizationManager(driver).fluentWait()
+                    .until(f -> !driver.findElement(elementLocator).getText().equals(textShouldNotBe));
         } catch (org.openqa.selenium.TimeoutException e) {
             ReportManagerHelper.logDiscrete(e);
             return false;
@@ -422,7 +396,8 @@ public class ElementActionsHelper {
      */
     public static boolean waitForElementAttributeToBe(WebDriver driver, By elementLocator, String att, String expectedValue) {
         try {
-            (new WebDriverWait(driver, Duration.ofMillis((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L)))).until(ExpectedConditions.attributeToBe(elementLocator, att, expectedValue));
+            new SynchronizationManager(driver).fluentWait(false)
+                    .until(f -> ExpectedConditions.attributeToBe(elementLocator, att, expectedValue));
         } catch (org.openqa.selenium.TimeoutException e) {
             ReportManagerHelper.logDiscrete(e);
             return false;
