@@ -19,11 +19,11 @@ public interface TestNG extends EngineProperties {
     Integer verbose();
 
     @Key("setPreserveOrder")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean preserveOrder();
 
     @Key("setGroupByInstances")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean groupByInstances();
 
     @Key("setDataProviderThreadCount")
