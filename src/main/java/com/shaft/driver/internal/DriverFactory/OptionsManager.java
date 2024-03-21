@@ -9,6 +9,7 @@ import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.remote.options.UnhandledPromptBehavior;
 import lombok.Getter;
+import lombok.Setter;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.chromium.ChromiumOptions;
@@ -32,6 +33,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Getter
+@Setter
 public class OptionsManager {
 
     private ChromeOptions chOptions;

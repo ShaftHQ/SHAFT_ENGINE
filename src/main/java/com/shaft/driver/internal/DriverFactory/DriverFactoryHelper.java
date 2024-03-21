@@ -308,6 +308,28 @@ public class DriverFactoryHelper {
             }
             ReportManager.log(initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".");
         } catch (Exception exception) {
+            if (exception.getMessage().contains("cannot create default profile directory")) {
+                // this exception happens when the profile directory is not correct, very specific case
+                // should fail immediately
+                failAction("Failed to create new Browser Session", exception);
+            }
+            if (exception.getMessage().contains("Failed to initialize BiDi Mapper")) {
+                // this exception happens in some corner cases where the capabilities are not compatible with BiDi mode
+                // should force disable BiDi and try again
+                SHAFT.Properties.platform.set().enableBiDi(false);
+
+                var ffOptions = optionsManager.getFfOptions();
+                ffOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+                optionsManager.setFfOptions(ffOptions);
+
+                var chOptions = optionsManager.getChOptions();
+                chOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+                optionsManager.setChOptions(chOptions);
+
+                var EdOptions = optionsManager.getEdOptions();
+                EdOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+                optionsManager.setEdOptions(EdOptions);
+            }
             if (driverType.equals(DriverType.SAFARI) && Throwables.getRootCause(exception).getMessage().toLowerCase().contains("safari instance is already paired with another webdriver session")) {
                 //this issue happens when running locally via safari/mac platform
                 // sample failure can be found here: https://github.com/ShaftHQ/SHAFT_ENGINE/actions/runs/4527911969/jobs/7974202314#step:4:46621
