@@ -7,7 +7,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class MultipleDriverSessionTerminationTest {
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @Test
     public void test1() {
@@ -65,16 +65,16 @@ public class MultipleDriverSessionTerminationTest {
                 && !SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
             url = SHAFT.Properties.paths.testData() + "test.html";
         }
-        driver.browser().navigateToURL(url);
+        driver.get().browser().navigateToURL(url);
     }
 
     @BeforeMethod
     public void beforeMethod() {
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.quit();
+        driver.get().quit();
     }
 }

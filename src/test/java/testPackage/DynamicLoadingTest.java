@@ -11,29 +11,29 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class DynamicLoadingTest {
-    WebDriver driver;
+    private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
 
     @Test
     public void dynamicLoading_elementIsHidden() {
-        new BrowserActions(driver).navigateToURL("https://the-internet.herokuapp.com/dynamic_loading/1");
-        new ElementActions(driver).click(By.xpath("//button[text()='Start']"));
-        Validations.assertThat().element(driver, By.id("finish")).text().contains("Hello World!").perform();
+        new BrowserActions(driver.get()).navigateToURL("https://the-internet.herokuapp.com/dynamic_loading/1");
+        new ElementActions(driver.get()).click(By.xpath("//button[text()='Start']"));
+        Validations.assertThat().element(driver.get(), By.id("finish")).text().contains("Hello World!").perform();
     }
 
     @Test
     public void dynamicLoading_elementIsRendered() {
-        new BrowserActions(driver).navigateToURL("https://the-internet.herokuapp.com/dynamic_loading/2");
-        new ElementActions(driver).click(By.xpath("//button[text()='Start']"));
-        Validations.assertThat().element(driver, By.id("finish")).text().contains("Hello World!").perform();
+        new BrowserActions(driver.get()).navigateToURL("https://the-internet.herokuapp.com/dynamic_loading/2");
+        new ElementActions(driver.get()).click(By.xpath("//button[text()='Start']"));
+        Validations.assertThat().element(driver.get(), By.id("finish")).text().contains("Hello World!").perform();
     }
 
     @BeforeMethod
     public void beforeMethod() {
-        driver = new DriverFactory().getDriver();
+        driver.set(new DriverFactory().getDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        new BrowserActions(driver).closeCurrentWindow();
+        new BrowserActions(driver.get()).closeCurrentWindow();
     }
 }

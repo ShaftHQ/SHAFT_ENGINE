@@ -13,23 +13,23 @@ import org.testng.annotations.Test;
 import poms.GoogleSearch;
 
 public class SwitchToNewTabTest {
-	WebDriver driver;
+	private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
     @Test
     public void switchToNewTab() {
-		new BrowserActions(driver).navigateToURL("https://duckduckgo.com/?");
-		new BrowserActions(driver).navigateToURL("https://www.google.com/", WindowType.TAB);
+		new BrowserActions(driver.get()).navigateToURL("https://duckduckgo.com/?");
+		new BrowserActions(driver.get()).navigateToURL("https://www.google.com/", WindowType.TAB);
         By searchbar = GoogleSearch.getSearchBox_textField();
-		new ElementActions(driver).type(searchbar, "SHAFT_Engine").keyPress(searchbar, Keys.ENTER);
+		new ElementActions(driver.get()).type(searchbar, "SHAFT_Engine").keyPress(searchbar, Keys.ENTER);
     }
 
 	@BeforeMethod
 	public void beforeMethod() {
-		driver = new DriverFactory().getDriver();
+		driver.set(new DriverFactory().getDriver());
 	}
 
 	@AfterMethod(alwaysRun = true)
 	public void afterMethod() {
-		driver.quit();
+		driver.get().quit();
 	}
 
 }

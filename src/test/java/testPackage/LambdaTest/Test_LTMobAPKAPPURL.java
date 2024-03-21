@@ -10,7 +10,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class Test_LTMobAPKAPPURL {
-    private SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     SHAFT.TestData.JSON testData;
     private final By actionBar = AppiumBy.accessibilityId("Action Bar");
     private final By displayOptions = AppiumBy.accessibilityId("Display Options");
@@ -19,10 +19,10 @@ public class Test_LTMobAPKAPPURL {
 
     @Test
     public void wizard_scrollInExpandableLists_verticalScrolling_insideScreen() {
-        driver.element().click(app) ;
-        driver.element().click(actionBar);
-        driver.element().click(displayOptions);
-        driver.assertThat().element(displayShowCustom).text().isEqualTo("DISPLAY_SHOW_CUSTOM").perform();
+        driver.get().element().click(app);
+        driver.get().element().click(actionBar);
+        driver.get().element().click(displayOptions);
+        driver.get().assertThat().element(displayShowCustom).text().isEqualTo("DISPLAY_SHOW_CUSTOM").perform();
     }
 
 
@@ -40,13 +40,13 @@ public class Test_LTMobAPKAPPURL {
         SHAFT.Properties.lambdaTest.set().deviceName("Poco X3 Pro");
         SHAFT.Properties.lambdaTest.set().appUrl("lt://APP10160241051701775434992467");
         SHAFT.Properties.mobile.set().browserName("");
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void teardown() {
         if (driver != null) {
-            driver.quit();
+            driver.get().quit();
         }
     }
 }

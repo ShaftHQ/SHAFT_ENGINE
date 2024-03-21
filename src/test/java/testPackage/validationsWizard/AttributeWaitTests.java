@@ -10,27 +10,27 @@ public class AttributeWaitTests {
     private final String URL = "https://the-internet.herokuapp.com/dynamic_loading/1";
     private final By buttonStart = By.cssSelector("#start button");
     private final By divFinish = By.id("finish");
-    private SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @BeforeMethod
     void setup() {
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @Test
     void testWaitToAttribute() {
-        driver.browser().navigateToURL(URL);
-        driver.element().click(buttonStart);
+        driver.get().browser().navigateToURL(URL);
+        driver.get().element().click(buttonStart);
         if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase("safari")) {
-            driver.element().waitToAttribute(divFinish, "style", "display: none;");
+            driver.get().element().waitToAttribute(divFinish, "style", "display: none;");
         } else {
-            driver.element().waitToAttribute(divFinish, "style", "");
+            driver.get().element().waitToAttribute(divFinish, "style", "");
         }
-        driver.assertThat().element(divFinish).isVisible().perform();
+        driver.get().assertThat().element(divFinish).isVisible().perform();
     }
 
     @AfterMethod
     void tearDown() {
-        driver.quit();
+        driver.get().quit();
     }
 }

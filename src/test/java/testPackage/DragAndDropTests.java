@@ -14,7 +14,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class DragAndDropTests {
-    WebDriver driver;
+    private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
     DriverFactoryHelper helper;
 
     @Test(description = "TC001 - Test Drag and Drop function.")
@@ -48,7 +48,7 @@ public class DragAndDropTests {
     @Test
     public void dragAndDropJquery() {
         new BrowserActions(helper).navigateToURL("https://jqueryui.com/resources/demos/droppable/default.html");
-        ElementActions actions = new ElementActions(driver);
+        ElementActions actions = new ElementActions(driver.get());
         String initialDroppableText = actions.getText(By.id("droppable"));
         actions.dragAndDrop(By.id("draggable"), By.id("droppable"));
         String finalDroppableText = actions.getText(By.id("droppable"));
@@ -79,7 +79,7 @@ public class DragAndDropTests {
     @BeforeMethod
     public void beforeMethod() {
         helper = new DriverFactory().getHelper();
-        driver = helper.getDriver();
+        driver.set(helper.getDriver());
     }
 
     @AfterMethod(alwaysRun = true)

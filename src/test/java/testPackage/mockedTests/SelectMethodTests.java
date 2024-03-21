@@ -8,14 +8,14 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class SelectMethodTests {
-    private SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     private final By dropDownList = By.className("dropdown");
 
     @Test
     public void testValidSelect() {
         if (SHAFT.Properties.platform.executionAddress().equals("local")
                 && !SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
-            driver.browser().navigateToURL(SHAFT.Properties.paths.testData() + "selectDemo.html");
+            driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "selectDemo.html");
             clickDropDownList("Div 1");
             clickDropDownList("Div 2");
             clickDropDownList("Div 3");
@@ -26,7 +26,7 @@ public class SelectMethodTests {
     public void testInvalidSelect() {
         if (SHAFT.Properties.platform.executionAddress().equals("local")
                 && !SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
-            driver.browser().navigateToURL(SHAFT.Properties.paths.testData() + "selectDemo.html");
+            driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "selectDemo.html");
             try {
 
                 clickDropDownList("Div 1000");
@@ -38,19 +38,19 @@ public class SelectMethodTests {
     }
 
     private void clickDropDownList(String text) {
-        driver.element().select(dropDownList, text);
+        driver.get().element().select(dropDownList, text);
 
     }
 
     @BeforeMethod
     protected void setUp() {
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod
     protected void tearDown() {
         if (driver != null) {
-            driver.quit();
+            driver.get().quit();
         }
     }
 

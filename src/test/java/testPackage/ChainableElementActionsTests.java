@@ -8,28 +8,28 @@ import org.testng.annotations.Test;
 import poms.GoogleSearch;
 
 public class ChainableElementActionsTests {
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @BeforeMethod
     public void beforeMethod() {
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @Test
     public void chainElementActions() {
-        driver.browser().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
+        driver.get().browser().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
 
         By searchBox = GoogleSearch.getSearchBox_textField();
 
-        driver.element().type(searchBox, "chained type 1")
+        driver.get().element().type(searchBox, "chained type 1")
                 .type(searchBox, "chained type 2")
                 .typeAppend(searchBox, "345");
 
-        driver.assertThat().element(searchBox).text().isEqualTo("chained type 2345");
+        driver.get().assertThat().element(searchBox).text().isEqualTo("chained type 2345");
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod(){
-        driver.quit();
+        driver.get().quit();
     }
 }

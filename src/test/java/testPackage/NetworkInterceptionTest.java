@@ -14,22 +14,22 @@ import org.testng.annotations.Test;
 import java.util.function.Predicate;
 
 public class NetworkInterceptionTest {
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @BeforeMethod
     public void setup() {
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod
     public void tearDown() {
-        driver.quit();
+        driver.get().quit();
     }
 
     @Test(expectedExceptions = {AssertionError.class})
     public void interceptShaftLogoAndReplaceItWithYoutubeLogo() {
         // prepare the expected result => should always pass
-        driver.browser().navigateToURL("https://shafthq.github.io/")
+        driver.get().browser().navigateToURL("https://shafthq.github.io/")
                 .element().assertThat(By.xpath("//img[@alt='SHAFT_Engine']")).matchesReferenceImage().perform();
 
         //more samples here: https://www.selenium.dev/selenium/docs/api/java/org/openqa/selenium/devtools/NetworkInterceptor.html
@@ -41,7 +41,7 @@ public class NetworkInterceptionTest {
         Predicate<HttpRequest> requestPredicate = httpRequest -> httpRequest.getMethod() == HttpMethod.GET && httpRequest.getUri().endsWith("/img/shaft.svg");
 
         // mock and compare actual to expected => should always fail
-        driver.browser().mock(requestPredicate, mockedResponse)
+        driver.get().browser().mock(requestPredicate, mockedResponse)
                 .navigateToURL("https://shafthq.github.io/")
                 .element().assertThat(By.xpath("//img[@alt='SHAFT_Engine']")).matchesReferenceImage().perform();
     }

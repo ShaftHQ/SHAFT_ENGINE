@@ -9,7 +9,7 @@ import org.openqa.selenium.WebDriver;
 import org.testng.annotations.*;
 
 public class NewValidationHelperTests {
-    WebDriver driver;
+    private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
     double elementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
 
     @Test
@@ -105,13 +105,13 @@ public class NewValidationHelperTests {
 
     @Test(groups = {"browserBasedTests"})
     public void f8() {
-        Validations.assertThat().element(driver, By.tagName("h1")).exists().perform();
+        Validations.assertThat().element(driver.get(), By.tagName("h1")).exists().perform();
     }
 
     @Test(groups = {"browserBasedTests"})
     public void f9() throws Exception {
         try {
-            Validations.assertThat().element(driver, By.tagName("h3")).exists().perform();
+            Validations.assertThat().element(driver.get(), By.tagName("h3")).exists().perform();
             throw new Exception("Expected to fail but passed.");
         } catch (AssertionError e) {
             // pass
@@ -121,7 +121,7 @@ public class NewValidationHelperTests {
     @Test(groups = {"browserBasedTests"})
     public void f10() throws Exception {
         try {
-            Validations.assertThat().element(driver, By.tagName("div")).exists().perform();
+            Validations.assertThat().element(driver.get(), By.tagName("div")).exists().perform();
             throw new Exception("Expected to fail but passed.");
         } catch (AssertionError e) {
             // pass
@@ -130,14 +130,14 @@ public class NewValidationHelperTests {
 
     @Test(groups = {"browserBasedTests"})
     public void f11() {
-        Validations.assertThat().element(driver, By.tagName("h3")).doesNotExist()
+        Validations.assertThat().element(driver.get(), By.tagName("h3")).doesNotExist()
                 .withCustomReportMessage("Checking that false tag doesn't exist").perform();
     }
 
     @Test(groups = {"browserBasedTests"})
     public void f12() throws Exception {
         try {
-            Validations.assertThat().element(driver, By.tagName("h1")).doesNotExist().perform();
+            Validations.assertThat().element(driver.get(), By.tagName("h1")).doesNotExist().perform();
             throw new Exception("Expected to fail but passed.");
         } catch (AssertionError e) {
             // pass
@@ -147,7 +147,7 @@ public class NewValidationHelperTests {
     @Test(groups = {"browserBasedTests"})
     public void f13() throws Exception {
         try {
-            Validations.assertThat().element(driver, By.tagName("div")).doesNotExist().perform();
+            Validations.assertThat().element(driver.get(), By.tagName("div")).doesNotExist().perform();
             throw new Exception("Expected to fail but passed.");
         } catch (AssertionError e) {
             // pass
@@ -156,14 +156,14 @@ public class NewValidationHelperTests {
 
     @Test(groups = {"browserBasedTests"})
     public void f14() {
-        Validations.assertThat().element(driver, By.tagName("h1")).text().isEqualTo("Welcome to the-internet")
+        Validations.assertThat().element(driver.get(), By.tagName("h1")).text().isEqualTo("Welcome to the-internet")
                 .withCustomReportMessage("Asserting that the header text is correct").perform();
     }
 
     @Test(groups = {"browserBasedTests"})
     public void f15() throws Exception {
         try {
-            Validations.assertThat().element(driver, By.tagName("h1")).text().doesNotContain("Welcome").perform();
+            Validations.assertThat().element(driver.get(), By.tagName("h1")).text().doesNotContain("Welcome").perform();
             throw new Exception("Expected to fail but passed.");
         } catch (AssertionError e) {
             // pass
@@ -173,7 +173,7 @@ public class NewValidationHelperTests {
     @Test(groups = {"browserBasedTests"})
     public void f16() throws Exception {
         try {
-            Validations.assertThat().element(driver, By.tagName("h3")).text().doesNotContain("Welcome").perform();
+            Validations.assertThat().element(driver.get(), By.tagName("h3")).text().doesNotContain("Welcome").perform();
             throw new Exception("Expected to fail but passed.");
         } catch (AssertionError e) {
             // pass
@@ -182,23 +182,23 @@ public class NewValidationHelperTests {
 
     @Test(groups = {"browserBasedTests"})
     public void f17() {
-        Validations.assertThat().element(driver, By.tagName("h1")).attribute("text2").doesNotContain("Welcome").perform();
+        Validations.assertThat().element(driver.get(), By.tagName("h1")).attribute("text2").doesNotContain("Welcome").perform();
     }
 
     @Test(groups = {"browserBasedTests"})
     public void f18() {
-        Validations.assertThat().element(driver, By.tagName("h1")).attribute("text").doesNotContain("no").perform();
+        Validations.assertThat().element(driver.get(), By.tagName("h1")).attribute("text").doesNotContain("no").perform();
     }
 
     @Test(groups = {"browserBasedTests"})
     public void f20() {
-        Validations.assertThat().element(driver, By.tagName("h1")).attribute("size").doesNotContain("a").perform();
+        Validations.assertThat().element(driver.get(), By.tagName("h1")).attribute("size").doesNotContain("a").perform();
     }
 
     @Test(groups = {"browserBasedTests"})
     public void f21() throws Exception {
         try {
-            Validations.assertThat().element(driver, By.tagName("h3")).attribute("text").contains("Welcome").perform();
+            Validations.assertThat().element(driver.get(), By.tagName("h3")).attribute("text").contains("Welcome").perform();
             throw new Exception("Expected to fail but passed.");
         } catch (AssertionError e) {
             // pass
@@ -208,7 +208,7 @@ public class NewValidationHelperTests {
     @Test(groups = {"browserBasedTests"})
     public void f22() throws Exception {
         try {
-            Validations.assertThat().element(driver, By.tagName("h1")).attribute("text").contains("yyy").perform();
+            Validations.assertThat().element(driver.get(), By.tagName("h1")).attribute("text").contains("yyy").perform();
             throw new Exception("Expected to fail but passed.");
         } catch (AssertionError e) {
             // pass
@@ -312,13 +312,13 @@ public class NewValidationHelperTests {
 
     @BeforeMethod(onlyForGroups = {"browserBasedTests"})
     public void openBrowser() {
-        driver = new DriverFactory().getDriver();
-        new BrowserActions(driver).navigateToURL("https://the-internet.herokuapp.com/");
+        driver.set(new DriverFactory().getDriver());
+        new BrowserActions(driver.get()).navigateToURL("https://the-internet.herokuapp.com/");
     }
 
     @AfterMethod(onlyForGroups = {"browserBasedTests"}, alwaysRun = true)
     public void closeBrowser() {
-        driver.quit();
+        driver.get().quit();
     }
 
     @BeforeClass

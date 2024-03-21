@@ -16,78 +16,78 @@ public class ValidationsBuilderTests {
 
     //@Test
     public void elementValidations() {
-        WebDriver driver;
-        driver = new DriverFactory().getDriver();
-        new BrowserActions(driver).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
+        final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
+        driver.set(new DriverFactory().getDriver());
+        new BrowserActions(driver.get()).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
         Validations.assertThat()
-                .element(driver, googleLogo)
+                .element(driver.get(), googleLogo)
                 .exists()
                 .withCustomReportMessage("Check that google logo exists")
                 .perform();
 
         Validations.assertThat()
-                .element(driver, googleLogo)
+                .element(driver.get(), googleLogo)
                 .attribute("text")
                 .isEqualTo("")
                 .withCustomReportMessage("")
                 .perform();
 
         Validations.verifyThat()
-                .element(driver, googleLogo)
+                .element(driver.get(), googleLogo)
                 .doesNotExist()
                 .withCustomReportMessage("Check that google logo does not exist")
                 .perform();
 
         Validations.verifyThat()
-                .element(driver, googleLogo)
+                .element(driver.get(), googleLogo)
                 .matchesReferenceImage()
                 .perform();
 
         Validations.verifyThat()
-                .element(driver, googleLogo)
+                .element(driver.get(), googleLogo)
                 .doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine.EXACT_OPENCV)
                 .perform();
 
         Validations.verifyThat()
-                .element(driver, googleLogo)
+                .element(driver.get(), googleLogo)
                 .cssProperty("font-family")
                 .contains("arial")
                 .perform();
 
         Validations.verifyThat()
-                .element(driver, googleLogo)
+                .element(driver.get(), googleLogo)
                 .text()
                 .doesNotEqual("dummy text")
                 .withCustomReportMessage("Checking to confirm that google logo text doesn't contain dummy text")
                 .perform();
 
         Validations.verifyThat()
-                .element(driver, googleLogo)
+                .element(driver.get(), googleLogo)
                 .exists()
                 .perform();
 
         Validations.verifyThat()
-                .element(driver, googleLogo)
+                .element(driver.get(), googleLogo)
                 .attribute("text")
                 .contains("google")
                 .withCustomReportMessage("checking that the text attribute contains google")
                 .perform();
 
-        driver.quit();
+        driver.get().quit();
     }
 
     //@Test
     public void browserValidations() {
-        WebDriver driver;
-        driver = new DriverFactory().getDriver();
-        new BrowserActions(driver).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
+        final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
+        driver.set(new DriverFactory().getDriver());
+        new BrowserActions(driver.get()).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
         Validations.assertThat()
-                .browser(driver)
+                .browser(driver.get())
                 .url()
                 .contains("google")
                 .perform();
 
-        driver.quit();
+        driver.get().quit();
     }
 
     //@Test

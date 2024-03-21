@@ -15,13 +15,13 @@ import org.testng.annotations.Test;
 import java.time.Duration;
 
 public class androidBasicInteractionsTest {
-    private SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     private final String PACKAGE = "io.appium.android.apis";
 
     @Test
     public void wizard_scrollInExpandableLists_verticalScrolling_insideScreen() {
-        ((AndroidDriver) driver.getDriver()).runAppInBackground(Duration.ofSeconds(5));
-        driver.element().performTouchAction()
+        ((AndroidDriver) driver.get().getDriver()).runAppInBackground(Duration.ofSeconds(5));
+        driver.get().element().performTouchAction()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
                 .swipeElementIntoView(AppiumBy.accessibilityId("Expandable Lists"), TouchActions.SwipeDirection.DOWN)
@@ -40,7 +40,7 @@ public class androidBasicInteractionsTest {
 
     @Test
     public void scrollInExpandableLists_verticalScrolling_insideScreen() {
-        driver.touch()
+        driver.get().touch()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
                 .swipeElementIntoView(AppiumBy.accessibilityId("Expandable Lists"), TouchActions.SwipeDirection.DOWN)
@@ -56,7 +56,7 @@ public class androidBasicInteractionsTest {
 
     @Test
     public void scrollInExpandableLists_verticalScrolling_insideElement(){
-        driver.touch()
+        driver.get().touch()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
                 .swipeElementIntoView(AppiumBy.accessibilityId("Splitting Touches across Views"), TouchActions.SwipeDirection.DOWN)
@@ -69,7 +69,7 @@ public class androidBasicInteractionsTest {
 
     @Test
     public void scrollInExpandableLists_verticalScrolling_insideElement2(){
-        driver.touch()
+        driver.get().touch()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
                 .swipeElementIntoView(AppiumBy.accessibilityId("Splitting Touches across Views"), TouchActions.SwipeDirection.DOWN)
@@ -82,7 +82,7 @@ public class androidBasicInteractionsTest {
 
     @Test
     public void scrollInExpandableLists_horizontalScrolling_insideElement(){
-        driver.touch()
+        driver.get().touch()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
                 .swipeElementIntoView(AppiumBy.accessibilityId("Tabs"), TouchActions.SwipeDirection.DOWN)
@@ -103,31 +103,31 @@ public class androidBasicInteractionsTest {
         }
 
         var elementReferenceFilePath = "src/main/resources/dynamicObjectRepository/Android/" + referenceImageFile;
-        driver.touch()
+        driver.get().touch()
                 .swipeElementIntoView(elementReferenceFilePath, TouchActions.SwipeDirection.DOWN)
                 .waitUntilElementIsVisible(elementReferenceFilePath)
                 .tap(elementReferenceFilePath);
 
-        driver.assertThat().element(AppiumBy.accessibilityId("Assets")).exists().perform();
+        driver.get().assertThat().element(AppiumBy.accessibilityId("Assets")).exists().perform();
     }
 
     //    @Test
     public void visualElementIdentification_requiresProcessing() {
-        driver.touch()
+        driver.get().touch()
                 .swipeElementIntoView("src/main/resources/dynamicObjectRepository/content2.png", TouchActions.SwipeDirection.DOWN)
                 .tap("src/main/resources/dynamicObjectRepository/content2.png");
 
-        driver.assertThat().element(AppiumBy.accessibilityId("Assets")).exists().perform();
+        driver.get().assertThat().element(AppiumBy.accessibilityId("Assets")).exists().perform();
     }
 
     @Test
     public void testSendKeys() {
         String SEARCH_ACTIVITY = ".app.SearchInvoke";
 
-        ((AndroidDriver) driver.getDriver()).executeScript("mobile: startActivity", ImmutableMap.of("intent", PACKAGE + "/" + SEARCH_ACTIVITY));
-//        ((AndroidDriver) driver.getDriver()).startActivity(new Activity(PACKAGE, SEARCH_ACTIVITY));
+        ((AndroidDriver) driver.get().getDriver()).executeScript("mobile: startActivity", ImmutableMap.of("intent", PACKAGE + "/" + SEARCH_ACTIVITY));
+//        ((AndroidDriver) driver.get().getDriver()).startActivity(new Activity(PACKAGE, SEARCH_ACTIVITY));
 
-        driver.element().type(By.id("txt_query_prefill"), "Hello world!")
+        driver.get().element().type(By.id("txt_query_prefill"), "Hello world!")
                 .and().touch().tap(By.id("btn_start_search"))
                 .and().assertThat(By.id("android:id/search_src_text")).text().isEqualTo("Hello world!").perform();
     }
@@ -137,21 +137,21 @@ public class androidBasicInteractionsTest {
         // Open the "Alert Dialog" activity of the android app
         String ALERT_DIALOG_ACTIVITY = ".app.AlertDialogSamples";
 
-        ((AndroidDriver) driver.getDriver()).executeScript("mobile: startActivity", ImmutableMap.of("intent", PACKAGE + "/" + ALERT_DIALOG_ACTIVITY));
-//        ((AndroidDriver) driver.getDriver()).startActivity(new Activity(PACKAGE, ALERT_DIALOG_ACTIVITY));
+        ((AndroidDriver) driver.get().getDriver()).executeScript("mobile: startActivity", ImmutableMap.of("intent", PACKAGE + "/" + ALERT_DIALOG_ACTIVITY));
+//        ((AndroidDriver) driver.get().getDriver()).startActivity(new Activity(PACKAGE, ALERT_DIALOG_ACTIVITY));
 
         // Click button that opens a dialog
-        driver.element().touch().tap(By.id("io.appium.android.apis:id/two_buttons"));
+        driver.get().element().touch().tap(By.id("io.appium.android.apis:id/two_buttons"));
 
         // Check that the dialog is there
-        driver.verifyThat()
+        driver.get().verifyThat()
                 .element(By.id("android:id/alertTitle"))
                 .text()
                 .isEqualTo("Lorem ipsum dolor sit aie consectetur adipiscing\nPlloaso mako nuto siwuf cakso dodtos anr koop.")
                 .perform();
 
         // Close the dialog
-        driver.element().touch().tap(By.id("android:id/button1"));
+        driver.get().element().touch().tap(By.id("android:id/button1"));
     }
 
     @SuppressWarnings("CommentedOutCode")
@@ -189,11 +189,11 @@ public class androidBasicInteractionsTest {
 //        SHAFT.Properties.browserStack.set().appName("ApiDemos-debug.apk");
 //        SHAFT.Properties.browserStack.set().appRelativeFilePath("");
 //        SHAFT.Properties.browserStack.set().appUrl("bs://e744ef24a081b0d4cb5f9699a5dd69d6a3a2dbce");
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void teardown() {
-        driver.quit();
+        driver.get().quit();
     }
 }

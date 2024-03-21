@@ -8,7 +8,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class Test_LTDesktopWebMac {
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     SHAFT.TestData.JSON testData;
 
     //locators of test_ClickUsingJavaScript
@@ -21,7 +21,7 @@ public class Test_LTDesktopWebMac {
 
     @Test
     public void test_ClickUsingJavaScript() {
-        driver.browser().navigateToURL("https://www.saucedemo.com").element().type(emailField, "standard_user").type(passwordField, "secret_sauce").clickUsingJavascript(loginButton).clickUsingJavascript(product1).clickUsingJavascript(shoppingCartButton).verifyThat(productName).text().isEqualTo("Sauce Labs Backpack").perform();
+        driver.get().browser().navigateToURL("https://www.saucedemo.com").element().type(emailField, "standard_user").type(passwordField, "secret_sauce").clickUsingJavascript(loginButton).clickUsingJavascript(product1).clickUsingJavascript(shoppingCartButton).verifyThat(productName).text().isEqualTo("Sauce Labs Backpack").perform();
     }
 
     @BeforeMethod
@@ -37,11 +37,11 @@ public class Test_LTDesktopWebMac {
         SHAFT.Properties.lambdaTest.set().isRealMobile(false);
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.quit();
+        driver.get().quit();
     }
 }

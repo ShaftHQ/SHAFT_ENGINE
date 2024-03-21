@@ -16,35 +16,35 @@ public class JSAlertBoxTests {
 
     private static final By JS_AlertBox = By.xpath("//button[contains(text(),'Click for JS Alert')]");
     private static final By JS_ResultText = By.id("result");
-    private static WebDriver driver;
+    private static private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
 
     @BeforeClass
     public void navigateToJSAlertPage() {
-        driver = new DriverFactory().getDriver();
-        new BrowserActions(driver).navigateToURL("http://the-internet.herokuapp.com/javascript_alerts");
+        driver.set(new DriverFactory().getDriver());
+        new BrowserActions(driver.get()).navigateToURL("http://the-internet.herokuapp.com/javascript_alerts");
     }
 
     @AfterClass(alwaysRun = true)
     public void tearDownDriver() {
-        new BrowserActions(driver).closeCurrentWindow();
+        new BrowserActions(driver.get()).closeCurrentWindow();
     }
 
     @Test
     public void getJSAlertText() {
-        new ElementActions(driver).click(JS_AlertBox);
+        new ElementActions(driver.get()).click(JS_AlertBox);
         ReportManager.logDiscrete("Alert text is: [" + ElementActions.getInstance().performAlertAction().getAlertText() + "]");
         Validations.assertThat().object(ElementActions.getInstance().performAlertAction().getAlertText()).isEqualTo("I am a JS Alert").perform();
     }
 
     @Test(dependsOnMethods = "getJSAlertText")
     public void acceptAlert() {
-        new ElementActions(driver).click(JS_AlertBox);
+        new ElementActions(driver.get()).click(JS_AlertBox);
         ElementActions.getInstance().performAlertAction().acceptAlert();
     }
 
     @Test(dependsOnMethods = "acceptAlert")
     public void assertOnConfirmAlertResultText() {
-        Validations.assertThat().element(driver, JS_ResultText).text().isEqualTo("You successfully clicked an alert").perform();
+        Validations.assertThat().element(driver.get(), JS_ResultText).text().isEqualTo("You successfully clicked an alert").perform();
     }
 }
 */
