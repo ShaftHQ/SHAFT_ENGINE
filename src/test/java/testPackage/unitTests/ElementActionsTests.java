@@ -7,6 +7,7 @@ import org.testng.annotations.*;
 import poms.GoogleSearch;
 
 public class ElementActionsTests {
+    //TODO: use as paralellization sample
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     private static final double defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
 
@@ -59,6 +60,22 @@ public class ElementActionsTests {
     public void waitForElementToBePresent_moreThanOneElement_expectedToFail() {
         driver.get().browser().navigateToURL("https://www.google.com/ncr", "www.google.com");
         driver.get().element().waitToBeInvisible(By.xpath("//*"));
+    }
+
+    private final String URL = "https://the-internet.herokuapp.com/dynamic_loading/1";
+    private final By buttonStart = By.cssSelector("#start button");
+    private final By divFinish = By.id("finish");
+
+    @Test(expectedExceptions = AssertionError.class)
+    void testWaitToAttributeWithWrongAttribute() {
+        driver.get().browser().navigateToURL(URL);
+        driver.get().element().click(buttonStart).waitToAttribute(divFinish, "name", "test");
+    }
+
+    @Test(expectedExceptions = AssertionError.class)
+    void testWaitToAttributeWithWrongAttributeValue() {
+        driver.get().browser().navigateToURL(URL);
+        driver.get().element().click(buttonStart).waitToAttribute(divFinish, "style", "test");
     }
 
     @BeforeMethod
