@@ -7,7 +7,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class Test_LTWebAppIOS {
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     SHAFT.TestData.JSON testData;
 
     private final By noThanks = By.xpath("//*[@resource-id='com.apple.mobilesafari:id/negative_button']");
@@ -19,10 +19,10 @@ public class Test_LTWebAppIOS {
 
     @Test
     public void LT_Test_IOS_WebApp_V11() {
-        driver.browser().navigateToURL(appleUrl);
-        driver.element().click(appleMenuIcon);
-        driver.element().click(macTab);
-        driver.assertThat().element(elementToValidate).text().isEqualTo(exploreAllMacText).perform();
+        driver.get().browser().navigateToURL(appleUrl);
+        driver.get().element().click(appleMenuIcon);
+        driver.get().element().click(macTab);
+        driver.get().assertThat().element(elementToValidate).text().isEqualTo(exploreAllMacText).perform();
     }
 
 
@@ -40,11 +40,11 @@ public class Test_LTWebAppIOS {
         SHAFT.Properties.lambdaTest.set().isRealMobile(true);
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.quit();
+        driver.get().quit();
     }
 }

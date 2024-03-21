@@ -7,18 +7,18 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class BigPageActionsTest {
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @Test
     public void virtualThreads_1_sequential() {
-        driver.element().type(By.id("et_pb_contact_name_0"), "TEST_NAME");
-        driver.element().type(By.id("et_pb_contact_email_0"), "email@email.email");
-        driver.element().type(By.id("et_pb_contact_message_0"), """
+        driver.get().element().type(By.id("et_pb_contact_name_0"), "TEST_NAME");
+        driver.get().element().type(By.id("et_pb_contact_email_0"), "email@email.email");
+        driver.get().element().type(By.id("et_pb_contact_message_0"), """
                 This is a long message
                 it will have line breaks
                 and special characters ...######$%^&&*!!""");
 
-        driver.assertThat().element(By.id("et_pb_contact_message_0")).text().isEqualTo("""
+        driver.get().assertThat().element(By.id("et_pb_contact_message_0")).text().isEqualTo("""
                 This is a long message
                 it will have line breaks
                 and special characters ...######$%^&&*!!""").perform();
@@ -28,9 +28,9 @@ public class BigPageActionsTest {
 //    public void virtualThreads_2_oneService() throws InterruptedException {
 //        try (ExecutorService myExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
 //            myExecutor.submit(() -> {
-//                driver.element().type(By.id("et_pb_contact_name_0"), "TEST_NAME");
-//                driver.element().type(By.id("et_pb_contact_email_0"), "email@email.email");
-//                driver.element().type(By.id("et_pb_contact_message_0"), """
+//                driver.get().element().type(By.id("et_pb_contact_name_0"), "TEST_NAME");
+//                driver.get().element().type(By.id("et_pb_contact_email_0"), "email@email.email");
+//                driver.get().element().type(By.id("et_pb_contact_message_0"), """
 //                        This is a long message
 //                        it will have line breaks
 //                        and special characters ...######$%^&&*!!""");
@@ -38,7 +38,7 @@ public class BigPageActionsTest {
 //        } catch (ExecutionException e) {
 //            throw new RuntimeException(e);
 //        }
-//        driver.assertThat().element(By.id("et_pb_contact_message_0")).text().isEqualTo("""
+//        driver.get().assertThat().element(By.id("et_pb_contact_message_0")).text().isEqualTo("""
 //                This is a long message
 //                it will have line breaks
 //                and special characters ...######$%^&&*!!""").perform();
@@ -47,9 +47,9 @@ public class BigPageActionsTest {
 //    @Test
 //    public void virtualThreads_3_multiServices() {
 //        try (ExecutorService myExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
-//            var action1 = myExecutor.submit(() -> driver.element().type(By.id("et_pb_contact_name_0"), "TEST_NAME"));
-//            var action2 = myExecutor.submit(() -> driver.element().type(By.id("et_pb_contact_email_0"), "email@email.email"));
-//            var action3 = myExecutor.submit(() -> driver.element().type(By.id("et_pb_contact_message_0"), """
+//            var action1 = myExecutor.submit(() -> driver.get().element().type(By.id("et_pb_contact_name_0"), "TEST_NAME"));
+//            var action2 = myExecutor.submit(() -> driver.get().element().type(By.id("et_pb_contact_email_0"), "email@email.email"));
+//            var action3 = myExecutor.submit(() -> driver.get().element().type(By.id("et_pb_contact_message_0"), """
 //                    This is a long message
 //                    it will have line breaks
 //                    and special characters ...######$%^&&*!!"""));
@@ -62,7 +62,7 @@ public class BigPageActionsTest {
 //            throw new RuntimeException(e);
 //        }
 //
-//        driver.assertThat().element(By.id("et_pb_contact_message_0")).text().isEqualTo("""
+//        driver.get().assertThat().element(By.id("et_pb_contact_message_0")).text().isEqualTo("""
 //                This is a long message
 //                it will have line breaks
 //                and special characters ...######$%^&&*!!""").perform();
@@ -70,7 +70,7 @@ public class BigPageActionsTest {
 //
 //    @Test
 //    public void virtualThreads_4_multiServicesBuiltInAsync() {
-//        driver.async().element().type(By.id("et_pb_contact_name_0"), "TEST_NAME")
+//        driver.get().async().element().type(By.id("et_pb_contact_name_0"), "TEST_NAME")
 //                .type(By.id("et_pb_contact_email_0"), "email@email.email")
 //                .type(By.id("et_pb_contact_message_0"), """
 //                        This is a long message
@@ -78,7 +78,7 @@ public class BigPageActionsTest {
 //                        and special characters ...######$%^&&*!!""")
 //                .perform();
 //
-//        driver.assertThat().element(By.id("et_pb_contact_message_0")).text().isEqualTo("""
+//        driver.get().assertThat().element(By.id("et_pb_contact_message_0")).text().isEqualTo("""
 //                This is a long message
 //                it will have line breaks
 //                and special characters ...######$%^&&*!!""").perform();
@@ -88,7 +88,7 @@ public class BigPageActionsTest {
     @Test
     public void bigTest_1_Sequential() {
         this.testSteps();
-        driver.assertThat().element(By.id("et_pb_contact_message_2")).text().isEqualTo("""
+        driver.get().assertThat().element(By.id("et_pb_contact_message_2")).text().isEqualTo("""
                 This is a long message
                 it will have line breaks
                 and special characters ...######$%^&&*!!""").perform();
@@ -101,7 +101,7 @@ public class BigPageActionsTest {
 //        } catch (ExecutionException | InterruptedException e) {
 //            throw new RuntimeException(e);
 //        }
-//        driver.assertThat().element(By.id("et_pb_contact_message_2")).text().isEqualTo("""
+//        driver.get().assertThat().element(By.id("et_pb_contact_message_2")).text().isEqualTo("""
 //                This is a long message
 //                it will have line breaks
 //                and special characters ...######$%^&&*!!""").perform();
@@ -109,7 +109,7 @@ public class BigPageActionsTest {
 //
 //    @Test
 //    public void bigTest_3_VirtualThreads_multiServicesBuiltInAsync() {
-//        driver.async().element().type(By.id("et_pb_contact_name_0"), "TEST_NAME")
+//        driver.get().async().element().type(By.id("et_pb_contact_name_0"), "TEST_NAME")
 //                .type(By.id("et_pb_contact_email_0"), "email@email.email")
 //                .type(By.id("et_pb_contact_message_0"), """
 //                        This is a long message
@@ -129,18 +129,18 @@ public class BigPageActionsTest {
 //                        and special characters ...######$%^&&*!!""")
 //                .perform();
 //
-//        driver.element()
+//        driver.get().element()
 //                .captureScreenshot(By.id("et_pb_contact_message_2"))
 //                .and().browser().captureScreenshot();
 //
-//        driver.assertThat().element(By.id("et_pb_contact_message_2")).text().isEqualTo("""
+//        driver.get().assertThat().element(By.id("et_pb_contact_message_2")).text().isEqualTo("""
 //                This is a long message
 //                it will have line breaks
 //                and special characters ...######$%^&&*!!""").perform();
 //    }
 
     private void testSteps() {
-        driver.element().type(By.id("et_pb_contact_name_0"), "TEST_NAME")
+        driver.get().element().type(By.id("et_pb_contact_name_0"), "TEST_NAME")
                 .type(By.id("et_pb_contact_email_0"), "email@email.email")
                 .type(By.id("et_pb_contact_message_0"), """
                         This is a long message
@@ -165,13 +165,13 @@ public class BigPageActionsTest {
 
     @BeforeMethod
     public void beforeMethod() {
-        driver = new SHAFT.GUI.WebDriver();
-        driver.browser().navigateToURL("https://ultimateqa.com/complicated-page");
+        driver.set(new SHAFT.GUI.WebDriver());
+        driver.get().browser().navigateToURL("https://ultimateqa.com/complicated-page");
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        if (driver != null)
-            driver.quit();
+        if (driver.get() != null)
+            driver.get().quit();
     }
 }

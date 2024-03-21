@@ -14,7 +14,7 @@ import java.util.HashMap;
 import static com.shaft.driver.DriverFactory.DriverType.CHROME;
 
 public class MoonTests {
-    private SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     //    @BeforeAll
     public static void beforeAll() {
@@ -51,15 +51,15 @@ public class MoonTests {
 
     //    @Test
     public void regularDriver() {
-        var searchPage = new GoogleSearch(driver.getDriver());
+        var searchPage = new GoogleSearch(driver.get().getDriver());
         searchPage.navigateToURL();
         searchPage.assertPageIsOpen();
     }
 
     //    @Test
     public void augmentedDriver() {
-        var nativeDriver = driver.getDriver();
-        nativeDriver = new Augmenter().augment(driver.getDriver());
+        var nativeDriver = driver.get().getDriver();
+        nativeDriver = new Augmenter().augment(driver.get().getDriver());
         DevTools devTools = ((HasDevTools) nativeDriver).getDevTools();
         ReportManager.logDiscrete(devTools.getDomains().toString());
         var searchPage = new GoogleSearch(nativeDriver);
@@ -69,11 +69,11 @@ public class MoonTests {
 
     //    @BeforeEach
     public void beforeMethod() {
-        driver = new SHAFT.GUI.WebDriver(CHROME, getMoonCapabilities("test"));
+        driver.set(new SHAFT.GUI.WebDriver(CHROME, getMoonCapabilities("test")));
     }
 
     //    @AfterEach
     public void afterMethod() {
-        driver.quit();
+        driver.get().quit();
     }
 }

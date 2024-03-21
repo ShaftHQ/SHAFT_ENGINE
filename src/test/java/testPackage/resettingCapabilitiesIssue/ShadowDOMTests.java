@@ -11,23 +11,23 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class ShadowDOMTests {
-    WebDriver driver;
+    private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
 
     @Test
     public void shadowDom() {
         String targetText = "Typing into SHADOW DOM...";
-        new BrowserActions(driver).navigateToURL("https://mdn.github.io/web-components-examples/popup-info-box-web-component/");
-        new ElementActions(driver).type(By.id("cvc"), targetText);
-        Validations.assertThat().element(driver, By.id("cvc")).text().isEqualTo(targetText).perform();
+        new BrowserActions(driver.get()).navigateToURL("https://mdn.github.io/web-components-examples/popup-info-box-web-component/");
+        new ElementActions(driver.get()).type(By.id("cvc"), targetText);
+        Validations.assertThat().element(driver.get(), By.id("cvc")).text().isEqualTo(targetText).perform();
     }
 
     @BeforeMethod
     public void beforeMethod() {
-        driver = new DriverFactory().getDriver();
+        driver.set(new DriverFactory().getDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        new BrowserActions(driver).closeCurrentWindow();
+        new BrowserActions(driver.get()).closeCurrentWindow();
     }
 }

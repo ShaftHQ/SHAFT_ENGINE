@@ -9,7 +9,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class FrameTests {
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     By iframe_1 = By.xpath("//iframe[@title='SHAFT User Guide']");
     By nestedElement = By.className("hero__title");
     String testPage = """
@@ -40,24 +40,24 @@ public class FrameTests {
 
     @Test()
     public void switchToIframeAndAssertContent() {
-        driver.browser().navigateToURL(testPage)
+        driver.get().browser().navigateToURL(testPage)
                 .and().element().switchToIframe(iframe_1)
                 .and().assertThat(nestedElement).text().isEqualTo("SHAFT User Guide").perform();
     }
 
     @Test()
     public void switchToIframeAndBackToDefaultContent() {
-        driver.browser().navigateToURL(testPage);
-        driver.element().switchToIframe(iframe_1);
-        var currentFrame = driver.element().getCurrentFrame();
-        driver.element().switchToDefaultContent();
-        var currentFrameAfterSwitchingBackToParentFrame = driver.element().getCurrentFrame();
+        driver.get().browser().navigateToURL(testPage);
+        driver.get().element().switchToIframe(iframe_1);
+        var currentFrame = driver.get().element().getCurrentFrame();
+        driver.get().element().switchToDefaultContent();
+        var currentFrameAfterSwitchingBackToParentFrame = driver.get().element().getCurrentFrame();
         SHAFT.Validations.assertThat().object(currentFrameAfterSwitchingBackToParentFrame).doesNotEqual(currentFrame).perform();
     }
 
     @Test()
     public void switchToIFrameAndTypeIntoElement() {
-        driver.browser().navigateToURL("https://stripe-payments-demo.appspot.com/")
+        driver.get().browser().navigateToURL("https://stripe-payments-demo.appspot.com/")
                 .and().element().switchToIframe(By.xpath("//iframe[@title='Secure card payment input frame']"))
                 .and().type(By.xpath("//input[@name='cardnumber']"), "1234")
                 .and().assertThat(By.xpath("//input[@name='cardnumber']")).text().contains("1234").perform();
@@ -65,11 +65,11 @@ public class FrameTests {
 
     @BeforeMethod
     public void beforeClass() {
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterClass() {
-        driver.quit();
+        driver.get().quit();
     }
 }

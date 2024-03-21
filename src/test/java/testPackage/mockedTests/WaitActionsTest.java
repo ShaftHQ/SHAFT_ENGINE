@@ -8,13 +8,13 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class WaitActionsTest {
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     String testElement = "data:text/html,<input type=\"text\"/><br><br>";
     By locator = SHAFT.GUI.Locator.hasTagName("input").build();
 
     @Test
     public void lambdaExpression() {
-        driver.element().type(locator, "first string")
+        driver.get().element().type(locator, "first string")
                 .and().waitUntil(webDriver -> webDriver.findElement(locator).getAttribute("value").equalsIgnoreCase("first string"))
                 .and().element().assertThat(locator).text().isEqualTo("first string")
                 .perform();
@@ -22,7 +22,7 @@ public class WaitActionsTest {
 
     @Test
     public void expectedCondition() {
-        driver.element().type(locator, "second ")
+        driver.get().element().type(locator, "second ")
                 .typeAppend(locator, "string")
                 .and().waitUntil(ExpectedConditions.attributeToBe(locator, "value", "second string"))
                 .and().element().assertThat(locator).text().isEqualTo("second string")
@@ -31,12 +31,12 @@ public class WaitActionsTest {
 
     @BeforeMethod
     public void beforeMethod() {
-        driver = new SHAFT.GUI.WebDriver();
-        driver.browser().navigateToURL(testElement);
+        driver.set(new SHAFT.GUI.WebDriver());
+        driver.get().browser().navigateToURL(testElement);
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.quit();
+        driver.get().quit();
     }
 }

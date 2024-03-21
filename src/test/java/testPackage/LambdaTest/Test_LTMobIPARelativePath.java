@@ -13,15 +13,15 @@ import org.testng.annotations.Test;
 
 public class Test_LTMobIPARelativePath {
     SHAFT.TestData.JSON testData;
-    private WebDriver driver;
+    private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
 
     @Test
     public void test() {
 
-        new ElementActions(driver).performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
-        new ElementActions(driver).type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
+        new ElementActions(driver.get()).performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
+        new ElementActions(driver.get()).type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
         Validations.assertThat()
-                .element(driver, AppiumBy.accessibilityId("Text Output"))
+                .element(driver.get(), AppiumBy.accessibilityId("Text Output"))
                 .text()
                 .isEqualTo("hello@browserstack.com")
                 .perform();
@@ -44,12 +44,12 @@ public class Test_LTMobIPARelativePath {
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
         SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
-        driver = new DriverFactory().getDriver();
+        driver.set(new DriverFactory().getDriver());
 
     }
 
     @AfterMethod(alwaysRun = true)
     public void teardown() {
-        driver.quit();
+        driver.get().quit();
     }
 }

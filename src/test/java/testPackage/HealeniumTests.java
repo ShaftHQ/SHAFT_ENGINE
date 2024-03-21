@@ -13,7 +13,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class HealeniumTests {
-    WebDriver driver;
+    private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
 
     /*
     TODO:
@@ -40,14 +40,14 @@ public class HealeniumTests {
         }
 
         //navigate to target url
-        new BrowserActions(driver).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
+        new BrowserActions(driver.get()).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
 
         //define element locator
         By googleLogo_image = By.xpath("//*[@alt='Google']");
 
         //confirm that the locator is working
         try {
-            Validations.assertThat().element(driver, googleLogo_image).exists().perform();
+            Validations.assertThat().element(driver.get(), googleLogo_image).exists().perform();
             ReportManager.log("Successfully Found Element on initial check");
         }catch (AssertionError e){
             Validations.assertThat().forceFail()
@@ -55,11 +55,11 @@ public class HealeniumTests {
         }
 
         //break the locator
-        ((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('alt', 'NotGoogle')",driver.findElement(googleLogo_image));
+        ((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('alt', 'NotGoogle')", driver.get().findElement(googleLogo_image));
 
         //confirm that self healing is working
         try {
-            Validations.assertThat().element(driver, googleLogo_image).exists().perform();
+            Validations.assertThat().element(driver.get(), googleLogo_image).exists().perform();
             ReportManager.log("Successfully Healed the locator and Found Element.");
         }catch (AssertionError e){
             Validations.assertThat().forceFail()
@@ -70,11 +70,11 @@ public class HealeniumTests {
     @BeforeMethod
     public void beforeMethod(){
 //        SHAFT.Properties.healenium.set().healEnabled(true);
-        driver = new DriverFactory().getDriver();
+        driver.set(new DriverFactory().getDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod(){
-        new BrowserActions(driver).closeCurrentWindow();
+        new BrowserActions(driver.get()).closeCurrentWindow();
     }
 }

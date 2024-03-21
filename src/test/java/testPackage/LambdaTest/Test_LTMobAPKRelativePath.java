@@ -10,7 +10,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class Test_LTMobAPKRelativePath {
-    private SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     SHAFT.TestData.JSON testData;
     private final By actionBar = AppiumBy.accessibilityId("Action Bar");
     private final By displayOptions = AppiumBy.accessibilityId("Display Options");
@@ -19,10 +19,10 @@ public class Test_LTMobAPKRelativePath {
 
     @Test
     public void wizard_scrollInExpandableLists_verticalScrolling_insideScreen() {
-        driver.element().click(app) ;
-        driver.element().click(actionBar);
-        driver.element().click(displayOptions);
-        driver.assertThat().element(displayShowCustom).text().isEqualTo("DISPLAY_SHOW_CUSTOM").perform();
+        driver.get().element().click(app);
+        driver.get().element().click(actionBar);
+        driver.get().element().click(displayOptions);
+        driver.get().assertThat().element(displayShowCustom).text().isEqualTo("DISPLAY_SHOW_CUSTOM").perform();
     }
 
 
@@ -43,11 +43,11 @@ public class Test_LTMobAPKRelativePath {
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
         SHAFT.Properties.flags.set().automaticallyAssertResponseStatusCode(false);
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void teardown() {
-        driver.quit();
+        driver.get().quit();
     }
 }

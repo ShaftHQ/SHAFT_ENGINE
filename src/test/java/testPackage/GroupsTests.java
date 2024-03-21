@@ -10,39 +10,39 @@ import org.testng.annotations.Test;
 
 @Listeners({TestNGListener.class})
 public class GroupsTests {
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @Test(groups = {"regression"})
     public void test() {
-        driver.browser().navigateToURL("data:text/html,<script>var result;</script><button alt='Google' onclick='result=\"Clicked\"'>Go</button>");
-        driver.assertThat().element(By.cssSelector("button")).exists().perform();
+        driver.get().browser().navigateToURL("data:text/html,<script>var result;</script><button alt='Google' onclick='result=\"Clicked\"'>Go</button>");
+        driver.get().assertThat().element(By.cssSelector("button")).exists().perform();
     }
 
     @Test(groups = {"regression"})
     public void test1() {
-        driver.browser().navigateToURL("data:text/html,<script>var result;</script><button alt='Google' onclick='result=\"Clicked\"'>Go</button>");
-        driver.assertThat().element(By.cssSelector("button")).exists().perform();
+        driver.get().browser().navigateToURL("data:text/html,<script>var result;</script><button alt='Google' onclick='result=\"Clicked\"'>Go</button>");
+        driver.get().assertThat().element(By.cssSelector("button")).exists().perform();
     }
 
     @Test(groups = {"NOTregression"})
     public void test2() {
-        driver.browser().navigateToURL("data:text/html,<script>var result;</script><button alt='Google' onclick='result=\"Clicked\"'>Go</button>");
-        driver.assertThat().element(By.cssSelector("button")).exists().perform();
+        driver.get().browser().navigateToURL("data:text/html,<script>var result;</script><button alt='Google' onclick='result=\"Clicked\"'>Go</button>");
+        driver.get().assertThat().element(By.cssSelector("button")).exists().perform();
     }
 
     @Test(groups = {"regression"})
     public void test3() {
-        driver.browser().navigateToURL("data:text/html,<script>var result;</script><button alt='Google' onclick='result=\"Clicked\"'>Go</button>");
-        driver.assertThat().element(By.cssSelector("button")).exists().perform();
+        driver.get().browser().navigateToURL("data:text/html,<script>var result;</script><button alt='Google' onclick='result=\"Clicked\"'>Go</button>");
+        driver.get().assertThat().element(By.cssSelector("button")).exists().perform();
     }
 
     @BeforeMethod(description = "setup browser", alwaysRun = true)
     public void beforeMethod() {
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod(description = "quit browser", alwaysRun = true)
     public void afterMethod() {
-        driver.quit();
+        driver.get().quit();
     }
 }

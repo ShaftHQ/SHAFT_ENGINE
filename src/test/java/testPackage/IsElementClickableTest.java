@@ -12,21 +12,21 @@ import org.testng.annotations.Test;
 
 public class IsElementClickableTest {
 
-    private WebDriver driver;
+    private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
 
     @Test
     public void testIsElementClickable() {
-        new BrowserActions(driver).navigateToURL("https://the-internet.herokuapp.com/");
-        Validations.assertThat().object(new ElementActions(driver).isElementClickable(By.linkText("File Upload"))).isTrue().perform();
+        new BrowserActions(driver.get()).navigateToURL("https://the-internet.herokuapp.com/");
+        Validations.assertThat().object(new ElementActions(driver.get()).isElementClickable(By.linkText("File Upload"))).isTrue().perform();
     }
 
     @BeforeMethod
     public void beforeMethod() {
-        driver = new DriverFactory().getDriver();
+        driver.set(new DriverFactory().getDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        new BrowserActions(driver).closeCurrentWindow();
+        new BrowserActions(driver.get()).closeCurrentWindow();
     }
 }

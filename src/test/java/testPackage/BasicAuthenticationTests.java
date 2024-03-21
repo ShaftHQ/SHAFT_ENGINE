@@ -20,18 +20,18 @@ import java.net.URL;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class BasicAuthenticationTests {
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @Test
     public void basicAuthentication_traditional(){
-            driver.browser().navigateToURL("https://user:pass@authenticationtest.com/HTTPAuth/", "https://authenticationtest.com/loginSuccess/");
-            driver.assertThat().element(By.tagName("h1")).text().equals("Login Success");
+        driver.get().browser().navigateToURL("https://user:pass@authenticationtest.com/HTTPAuth/", "https://authenticationtest.com/loginSuccess/");
+        driver.get().assertThat().element(By.tagName("h1")).text().equals("Login Success");
     }
 
     @Test
     public void basicAuthentication_webdriverBiDi() {
-            driver.browser().navigateToURLWithBasicAuthentication("https://authenticationtest.com/HTTPAuth/", "user", "pass", "https://authenticationtest.com/loginSuccess/");
-            driver.assertThat().element(By.tagName("h1")).text().equals("Login Success");
+        driver.get().browser().navigateToURLWithBasicAuthentication("https://authenticationtest.com/HTTPAuth/", "user", "pass", "https://authenticationtest.com/loginSuccess/");
+        driver.get().assertThat().element(By.tagName("h1")).text().equals("Login Success");
     }
 
     //@Test
@@ -69,11 +69,11 @@ public class BasicAuthenticationTests {
 
     @BeforeMethod
     public void beforeMethod(){
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod(){
-        driver.quit();
+        driver.get().quit();
     }
 }

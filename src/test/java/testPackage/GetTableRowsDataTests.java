@@ -10,12 +10,12 @@ import org.testng.annotations.Test;
 import java.util.Map;
 
 public class GetTableRowsDataTests {
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     By tableLocator = By.id("example");
 
     @Test
     public void getFirstRow(){
-        Map<String, String> firstRow = driver.element().getTableRowsData(tableLocator).get(0);
+        Map<String, String> firstRow = driver.get().element().getTableRowsData(tableLocator).get(0);
         Assert.assertEquals(firstRow.get("Name"),"Airi Satou");
         Assert.assertEquals(firstRow.get("Age"), "33");
         Assert.assertEquals(firstRow.get("Start date"), "2008-11-28");
@@ -23,12 +23,12 @@ public class GetTableRowsDataTests {
     }
     @BeforeMethod(description = "Setup Browser instance.")
     public void beforeMethod() {
-        driver = new SHAFT.GUI.WebDriver();
-        driver.browser().navigateToURL("https://datatables.net/examples/basic_init/zero_configuration.html");
+        driver.set(new SHAFT.GUI.WebDriver());
+        driver.get().browser().navigateToURL("https://datatables.net/examples/basic_init/zero_configuration.html");
     }
 
     @AfterMethod(description = "Teardown Browser instance.")
     public void afterMethod() {
-        driver.quit();
+        driver.get().quit();
     }
 }

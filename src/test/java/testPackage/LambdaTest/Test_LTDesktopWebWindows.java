@@ -8,7 +8,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class Test_LTDesktopWebWindows {
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     SHAFT.TestData.JSON testData;
 
     //locators of test_ClickUsingJavaScript
@@ -20,7 +20,7 @@ public class Test_LTDesktopWebWindows {
     By productName = By.xpath("//div[@class='inventory_item_name']");
     @Test
     public void test_ClickUsingJavaScript() {
-        driver.browser().navigateToURL("https://www.saucedemo.com")
+        driver.get().browser().navigateToURL("https://www.saucedemo.com")
                 .element().type(emailField, "standard_user")
                 .type(passwordField, "secret_sauce")
                 .clickUsingJavascript(loginButton)
@@ -42,11 +42,11 @@ public class Test_LTDesktopWebWindows {
         SHAFT.Properties.lambdaTest.set().selenium_version("4.8.0");
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.quit();
+        driver.get().quit();
     }
 }

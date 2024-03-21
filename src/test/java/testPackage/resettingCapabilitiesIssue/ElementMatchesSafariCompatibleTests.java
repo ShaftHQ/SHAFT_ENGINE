@@ -7,14 +7,14 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class ElementMatchesSafariCompatibleTests {
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     String url = "https://duckduckgo.com/?";
     By searchbar = By.xpath("//*[@id='search_form_input_homepage'] | //input[@name='q']");
 
     @Test
     public void test(){
-        driver.browser().navigateToURL(url);
-        driver.assertThat().element(searchbar).matchesReferenceImage().perform();
+        driver.get().browser().navigateToURL(url);
+        driver.get().assertThat().element(searchbar).matchesReferenceImage().perform();
     }
     @SuppressWarnings("CommentedOutCode")
     @BeforeMethod
@@ -26,10 +26,10 @@ public class ElementMatchesSafariCompatibleTests {
 //        SHAFT.Properties.platform.set().executionAddress("browserstack");
 //        SHAFT.Properties.browserStack.set().browserVersion("15.3");
 //        SHAFT.Properties.browserStack.set().osVersion("Monterey");
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
     @AfterMethod(alwaysRun = true)
     public void afterMethod(){
-        driver.quit();
+        driver.get().quit();
     }
 }

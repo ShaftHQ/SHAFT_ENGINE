@@ -14,18 +14,18 @@ import org.testng.annotations.Test;
 public class JSPromptBoxTests {
     private static final By JS_PromptAlert = By.xpath("//button[contains(text(),'Click for JS Prompt')]");
     private static final By JS_ResultText = By.xpath("//p[@id='result']");
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     public void clickUsingJS(By Element) {
-        WebElement element = driver.getDriver().findElement(Element);
-        JavascriptExecutor executor = (JavascriptExecutor) driver.getDriver();
+        WebElement element = driver.get().getDriver().findElement(Element);
+        JavascriptExecutor executor = (JavascriptExecutor) driver.get().getDriver();
         executor.executeScript("arguments[0].click();", element);
     }
 
     @BeforeClass
     public void navigateToJSAlertPage() {
-        driver = new SHAFT.GUI.WebDriver();
-        driver.browser().navigateToURL("http://the-internet.herokuapp.com/javascript_alerts");
+        driver.set(new SHAFT.GUI.WebDriver());
+        driver.get().browser().navigateToURL("http://the-internet.herokuapp.com/javascript_alerts");
     }
 
     @Test
@@ -37,7 +37,7 @@ public class JSPromptBoxTests {
 
     @Test(dependsOnMethods = "dismissAlert")
     public void assertOnCancelAlertResultText() {
-        driver.assertThat().element(JS_ResultText).text().isEqualTo("You entered: null").perform();
+        driver.get().assertThat().element(JS_ResultText).text().isEqualTo("You entered: null").perform();
     }
 
     @Test(dependsOnMethods = "assertOnCancelAlertResultText")
@@ -55,7 +55,7 @@ public class JSPromptBoxTests {
 
     @Test(dependsOnMethods = "acceptPromptAlertWithoutTypingTextMessage")
     public void assertOnConfirmPromptAlertWithoutTypingTextMessageResultText() {
-        driver.assertThat().element(JS_ResultText).text().contains("You entered:").perform();
+        driver.get().assertThat().element(JS_ResultText).text().contains("You entered:").perform();
     }
 
     @Test(dependsOnMethods = "assertOnConfirmPromptAlertWithoutTypingTextMessageResultText")
@@ -67,12 +67,12 @@ public class JSPromptBoxTests {
 
     @Test(dependsOnMethods = "acceptPromptAlertWithTextMessage")
     public void assertOnConfirmPromptAlertWithTextMessageResultText() {
-        driver.assertThat().element(JS_ResultText).text().isEqualTo("You entered: Prompt Alert text message").perform();
+        driver.get().assertThat().element(JS_ResultText).text().isEqualTo("You entered: Prompt Alert text message").perform();
     }
 
     @AfterClass(alwaysRun = true)
     public void tearDownDriver() {
-        driver.browser().closeCurrentWindow();
+        driver.get().browser().closeCurrentWindow();
     }
 
 }

@@ -3,24 +3,24 @@ package testPackage;
 import com.shaft.driver.SHAFT;
 
 public class LightHouseTests {
-   SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     //@BeforeClass
     public void beforeClass() {
-         driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     //@Test (description = " Generate Lighthouse report for Google.com ")
     public void RunLightHouseGoogleSearch() {
-        driver.browser().navigateToURL("https://www.google.com/search?q=shaft_engine&safe=active&ssui=on");
-        driver.browser().generateLightHouseReport();
-//        driver.browser().navigateToURL("https://assets-es-pprd.dxlpreprod.local.vodafone.es/mves/login");
-//        driver.browser().generateLightHouseReport();
+        driver.get().browser().navigateToURL("https://www.google.com/search?q=shaft_engine&safe=active&ssui=on");
+        driver.get().browser().generateLightHouseReport();
+//        driver.get().browser().navigateToURL("https://assets-es-pprd.dxlpreprod.local.vodafone.es/mves/login");
+//        driver.get().browser().generateLightHouseReport();
     }
 
     //@AfterClass(alwaysRun = true)
     public void afterClass() {
-        driver.quit();
+        driver.get().quit();
     }
 
 }

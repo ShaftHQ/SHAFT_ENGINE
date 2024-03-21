@@ -12,14 +12,14 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class IOSBasicInteractionsTest {
-    private WebDriver driver;
+    private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
 
     @Test
     public void test() {
-        new ElementActions(driver).performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
-        new ElementActions(driver).type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
+        new ElementActions(driver.get()).performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
+        new ElementActions(driver.get()).type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
         Validations.assertThat()
-                .element(driver, AppiumBy.accessibilityId("Text Output"))
+                .element(driver.get(), AppiumBy.accessibilityId("Text Output"))
                 .text()
                 .isEqualTo("hello@browserstack.com")
                 .perform();
@@ -54,12 +54,12 @@ public class IOSBasicInteractionsTest {
 //        System.setProperty("browserStack.appName", "");
 //        System.setProperty("browserStack.appRelativeFilePath", "");
 //        System.setProperty("browserStack.appUrl", "bs://e2c374a22cf954e582b5c02e9a9f7cfd650a8325");
-        driver = new DriverFactory().getDriver();
+        driver.set(new DriverFactory().getDriver());
 
     }
 
     @AfterClass(alwaysRun = true)
     public void teardown() {
-        driver.quit();
+        driver.get().quit();
     }
 }

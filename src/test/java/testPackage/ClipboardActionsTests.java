@@ -14,13 +14,13 @@ import poms.GoogleSearch;
 
 public class ClipboardActionsTests {
     // Declaring webdriver and excelreader instances
-    WebDriver driver;
+    private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
     GoogleSearch searchObject;
 
     @Test
     public void typeTextAndCopyPaste() {
         if (!SHAFT.Properties.platform.targetPlatform().equals(Platform.MAC.name())) {
-            searchObject = new GoogleSearch(driver); // initialize a new instance of the page
+            searchObject = new GoogleSearch(driver.get()); // initialize a new instance of the page
             searchObject.navigateToURL(); // Navigate to Page URL
 
             searchObject.typeQuery("FIRST");
@@ -34,7 +34,7 @@ public class ClipboardActionsTests {
             searchObject.cutQuery();
             searchObject.pasteQuery();
             searchObject.pasteQuery();
-            Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().isEqualTo("FIRSTFIRST").perform();
+            Validations.assertThat().element(driver.get(), GoogleSearch.getSearchBox_textField()).text().isEqualTo("FIRSTFIRST").perform();
         } else {
             ReportManager.log("Native actions don't work on MAC.");
         }
@@ -42,11 +42,11 @@ public class ClipboardActionsTests {
 
     @BeforeMethod // Set-up method, to be run once before the first test
     public void beforeMethod() {
-        driver = new DriverFactory().getDriver();
+        driver.set(new DriverFactory().getDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        new BrowserActions(driver).closeCurrentWindow();
+        new BrowserActions(driver.get()).closeCurrentWindow();
     }
 }

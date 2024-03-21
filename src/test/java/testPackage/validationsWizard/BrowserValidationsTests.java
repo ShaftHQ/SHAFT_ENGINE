@@ -9,27 +9,27 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class BrowserValidationsTests {
-    private WebDriver driver;
+    private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
 
     @Test
     public void url() {
-        Validations.assertThat().browser(driver).url().contains("google.com").perform();
+        Validations.assertThat().browser(driver.get()).url().contains("google.com").perform();
     }
 
     @Test
     public void title() {
-        Validations.assertThat().browser(driver).title().contains("oogle").perform();
+        Validations.assertThat().browser(driver.get()).title().contains("oogle").perform();
     }
 
     @BeforeMethod
     public void beforeMethod() {
-        driver = new DriverFactory().getDriver();
+        driver.set(new DriverFactory().getDriver());
         String url = "https://www.google.com/";
-        new BrowserActions(driver).navigateToURL(url);
+        new BrowserActions(driver.get()).navigateToURL(url);
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.quit();
+        driver.get().quit();
     }
 }

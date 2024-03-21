@@ -20,42 +20,42 @@ public class JSConfirmBoxTests {
 
     @BeforeClass
     public void navigateToJSAlertPage() {
-        driver = new DriverFactory().getDriver();
-        new BrowserActions(driver).navigateToURL("http://the-internet.herokuapp.com/javascript_alerts");
+        driver.set(new DriverFactory().getDriver());
+        new BrowserActions(driver.get()).navigateToURL("http://the-internet.herokuapp.com/javascript_alerts");
     }
 
     @AfterClass(alwaysRun = true)
     public void tearDownDriver() {
-        new BrowserActions(driver).closeCurrentWindow();
+        new BrowserActions(driver.get()).closeCurrentWindow();
     }
 
     @Test
     public void dismissAlert() {
-        new ElementActions(driver).click(JS_ConfirmAlert);
+        new ElementActions(driver.get()).click(JS_ConfirmAlert);
         ElementActions.getInstance().performAlertAction().dismissAlert();
     }
 
     @Test(dependsOnMethods = "dismissAlert")
     public void assertOnCancelAlertResultText() {
-        Validations.assertThat().element(driver, JS_ResultText).text().isEqualTo("You clicked: Cancel").perform();
+        Validations.assertThat().element(driver.get(), JS_ResultText).text().isEqualTo("You clicked: Cancel").perform();
     }
 
     @Test(dependsOnMethods = "assertOnCancelAlertResultText")
     public void getAlertText() {
-        new ElementActions(driver).click(JS_ConfirmAlert);
+        new ElementActions(driver.get()).click(JS_ConfirmAlert);
         ReportManager.logDiscrete("Alert text is: [" + ElementActions.getInstance().performAlertAction().getAlertText() + "]");
         Validations.assertThat().object(ElementActions.getInstance().performAlertAction().getAlertText()).isEqualTo("I am a JS Confirm").perform();
     }
 
     @Test(dependsOnMethods = "getAlertText")
     public void acceptAlert() {
-        new ElementActions(driver).click(JS_ConfirmAlert);
+        new ElementActions(driver.get()).click(JS_ConfirmAlert);
         ElementActions.getInstance().performAlertAction().acceptAlert();
     }
 
     @Test(dependsOnMethods = "acceptAlert")
     public void assertOnConfirmAlertResultText() {
-        Validations.assertThat().element(driver, JS_ResultText).text().isEqualTo("You clicked: Ok").perform();
+        Validations.assertThat().element(driver.get(), JS_ResultText).text().isEqualTo("You clicked: Ok").perform();
     }
 }
 */

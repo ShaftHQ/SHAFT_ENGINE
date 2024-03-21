@@ -10,7 +10,7 @@ import org.testng.annotations.Test;
 
 public class ValidationTests {
     private final By locator = SHAFT.GUI.Locator.hasTagName("input").build();
-    private SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     private double defaultElementIdentificationTimeout;
 
     @Test(description = "Assert that assertEquals works as expected when the two values are equal.")
@@ -86,128 +86,128 @@ public class ValidationTests {
 
     @Test(groups = {"WebBased"})
     public void assertElementExists_true_expectedToPass() {
-        driver.element().assertThat(locator).exists().perform();
+        driver.get().element().assertThat(locator).exists().perform();
     }
 
     @Test(groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
     public void assertElementExists_true_expectedToFail() {
-        driver.element().assertThat(By.id("fakeElement")).exists().perform();
+        driver.get().element().assertThat(By.id("fakeElement")).exists().perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementExists_false_expectedToPass() {
-        driver.element().assertThat(By.id("fakeElement")).doesNotExist().perform();
+        driver.get().element().assertThat(By.id("fakeElement")).doesNotExist().perform();
     }
 
     @Test(groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
     public void assertElementExists_false_expectedToFail() {
-        driver.element().assertThat(locator).doesNotExist().perform();
+        driver.get().element().assertThat(locator).doesNotExist().perform();
     }
 
     @Test(groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
     public void assertElementExists_true_multipleElementsFound_expectedToFail() {
-        driver.element().assertThat(By.xpath("//div")).exists().perform();
+        driver.get().element().assertThat(By.xpath("//div")).exists().perform();
     }
 
     @Test(groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
     public void assertElementExists_false_multipleElementsFound_expectedToFail() {
-        driver.element().assertThat(By.xpath("//input")).doesNotExist().perform();
+        driver.get().element().assertThat(By.xpath("//input")).doesNotExist().perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_literalComparison_expectedToPass() {
-        driver.element().type(locator, "Automation")
+        driver.get().element().type(locator, "Automation")
                 .assertThat(locator).text().isEqualTo("Automation").perform();
     }
 
     @Test(groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
     public void assertElementAttribute_true_literalComparison_expectedToFail() {
-        driver.element().type(locator, "Automation");
-        driver.element().assertThat(locator).text().isEqualTo("Automation123").perform();
+        driver.get().element().type(locator, "Automation");
+        driver.get().element().assertThat(locator).text().isEqualTo("Automation123").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_regexComparison_expectedToPass() {
-        driver.element().type(locator, "Automation123")
+        driver.get().element().type(locator, "Automation123")
                 .assertThat(locator).text().matchesRegex("Automation.*").perform();
     }
 
     @Test(groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
     public void assertElementAttribute_true_regexComparison_expectedToFail() {
-        driver.element().type(locator, "Automation123");
-        driver.element().assertThat(locator).text().matchesRegex("Automation").perform();
+        driver.get().element().type(locator, "Automation123");
+        driver.get().element().assertThat(locator).text().matchesRegex("Automation").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_containsComparison_expectedToPass() {
-        driver.element().type(locator, "Automation123")
+        driver.get().element().type(locator, "Automation123")
                 .assertThat(locator).text().contains("Automation").perform();
     }
 
     @Test(groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
     public void assertElementAttribute_true_containsComparison_expectedToFail() {
-        driver.element().type(locator, "Automation123");
-        driver.element().assertThat(locator).text().contains("Automation1234").perform();
+        driver.get().element().type(locator, "Automation123");
+        driver.get().element().assertThat(locator).text().contains("Automation1234").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_caseInsensitiveComparison_expectedToPass() {
-        driver.element().type(locator, "AUTOMATION")
+        driver.get().element().type(locator, "AUTOMATION")
                 .assertThat(locator).text().equalsIgnoringCaseSensitivity("AutomaTion").withCustomReportMessage("assertElementAttribute_true_caseInsensitiveComparison_expectedToPass").perform();
     }
 
     @Test(groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
     public void assertElementAttribute_true_caseInsensitiveComparison_expectedToFail() {
-        driver.element().type(locator, "AUTOMATION");
-        driver.element().assertThat(locator).text().equalsIgnoringCaseSensitivity("AutomaTion123");
+        driver.get().element().type(locator, "AUTOMATION");
+        driver.get().element().assertThat(locator).text().equalsIgnoringCaseSensitivity("AutomaTion123");
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_literalComparison_expectedToPass() {
-        driver.element().type(locator, "Automation123")
+        driver.get().element().type(locator, "Automation123")
                 .assertThat(locator).text().doesNotEqual("Automation").perform();
     }
 
     @Test(groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
     public void assertElementAttribute_false_literalComparison_expectedToFail() {
-        driver.element().type(locator, "Automation");
-        driver.element().assertThat(locator).text().isEqualTo("Automation123").perform();
+        driver.get().element().type(locator, "Automation");
+        driver.get().element().assertThat(locator).text().isEqualTo("Automation123").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_regexComparison_expectedToPass() {
-        driver.element().type(locator, "Automation123")
+        driver.get().element().type(locator, "Automation123")
                 .assertThat(locator).text().doesNotMatchRegex("Automation").perform();
     }
 
     @Test(groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
     public void assertElementAttribute_false_regexComparison_expectedToFail() {
-        driver.element().type(locator, "Automation123");
-        driver.element().assertThat(locator).text().doesNotMatchRegex("Automation.*").perform();
+        driver.get().element().type(locator, "Automation123");
+        driver.get().element().assertThat(locator).text().doesNotMatchRegex("Automation.*").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_containsComparison_expectedToPass() {
-        driver.element().type(locator, "Automation123")
+        driver.get().element().type(locator, "Automation123")
                 .assertThat(locator).text().doesNotContain("Automation1234").perform();
     }
 
     @Test(groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
     public void assertElementAttribute_false_containsComparison_expectedToFail() {
-        driver.element().type(locator, "Automation123");
-        driver.element().assertThat(locator).text().doesNotContain("Automation").perform();
+        driver.get().element().type(locator, "Automation123");
+        driver.get().element().assertThat(locator).text().doesNotContain("Automation").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_caseInsensitiveComparison_expectedToPass() {
-        driver.element().type(locator, "AUTOMATION")
+        driver.get().element().type(locator, "AUTOMATION")
                 .assertThat(locator).text().doesNotContain("AutomaTion123").perform();
     }
 
     @Test(groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
     public void assertElementAttribute_false_caseInsensitiveComparison_expectedToFail() {
-        driver.element().type(locator, "AUTOMATION");
-        driver.element().assertThat(locator).text().doesNotEqualIgnoringCaseSensitivity("AutomaTion").perform();
+        driver.get().element().type(locator, "AUTOMATION");
+        driver.get().element().assertThat(locator).text().doesNotEqualIgnoringCaseSensitivity("AutomaTion").perform();
     }
 
     @Test
@@ -233,15 +233,15 @@ public class ValidationTests {
     @AfterMethod(onlyForGroups = {"WebBased"}, alwaysRun = true)
     public void afterMethod() {
         SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultElementIdentificationTimeout);
-        driver.quit();
+        driver.get().quit();
     }
 
     @BeforeMethod(onlyForGroups = {"WebBased"})
     public void beforeMethod() {
         defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
         SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
         String testElement = "data:text/html,<input type=\"text\"><br><br>";
-        driver.browser().navigateToURL(testElement);
+        driver.get().browser().navigateToURL(testElement);
     }
 }

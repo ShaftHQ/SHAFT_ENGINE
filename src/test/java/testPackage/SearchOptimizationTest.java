@@ -11,13 +11,13 @@ import org.testng.annotations.Test;
 
 @Test
 public class SearchOptimizationTest {
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     public static By searchBox = By.xpath("(//*[@type='search'])|(//*[@name='q'])");
     LocatorBuilder genericLink = SHAFT.GUI.Locator.hasTagName("a");
 
     public void gitHub() {
         if (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
-            driver.browser().navigateToURL("https://www.google.com/ncr")
+            driver.get().browser().navigateToURL("https://www.google.com/ncr")
                     .and().element().type(searchBox, "SHAFT_Engine").keyPress(searchBox, Keys.ENTER)
                     .and().click(genericLink.containsAttribute("href", "SHAFT_ENGINE").isFirst().build())
                     .and().assertThat(SHAFT.GUI.Locator.hasTagName("a").containsAttribute("href", "/ShaftHQ/SHAFT_ENGINE").isFirst().build()).text().contains("SHAFT_ENGINE")
@@ -27,7 +27,7 @@ public class SearchOptimizationTest {
 
     public void website() {
         if (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
-            driver.browser().navigateToURL("https://www.google.com/ncr")
+            driver.get().browser().navigateToURL("https://www.google.com/ncr")
                     .and().element().type(searchBox, "SHAFT_Engine").keyPress(searchBox, Keys.ENTER)
                     .and().click(genericLink.hasAttribute("href", "https://shafthq.github.io/").isFirst().build())
                     .and().assertThat(SHAFT.GUI.Locator.hasTagName("h1").hasClass("hero__title").build()).text().isEqualTo("SHAFT User Guide")
@@ -37,11 +37,11 @@ public class SearchOptimizationTest {
 
     @BeforeMethod
     void beforeMethod() {
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod
     void afterMethod() {
-        driver.quit();
+        driver.get().quit();
     }
 }

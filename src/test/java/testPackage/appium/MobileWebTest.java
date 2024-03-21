@@ -8,12 +8,12 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class MobileWebTest {
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     SHAFT.TestData.JSON testData;
 
     @Test
     public void test() {
-        driver.element().type(By.id("et_pb_contact_name_0"), "TEST_NAME")
+        driver.get().element().type(By.id("et_pb_contact_name_0"), "TEST_NAME")
                 .type(By.id("et_pb_contact_email_0"), "email@email.email")
                 .type(By.id("et_pb_contact_message_0"), """
                         This is a long message
@@ -38,13 +38,13 @@ public class MobileWebTest {
 
     @BeforeMethod
     public void beforeMethod() {
-        driver = new SHAFT.GUI.WebDriver();
-        driver.browser().navigateToURL("https://ultimateqa.com/complicated-page");
+        driver.set(new SHAFT.GUI.WebDriver());
+        driver.get().browser().navigateToURL("https://ultimateqa.com/complicated-page");
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.quit();
+        driver.get().quit();
     }
 
     @SuppressWarnings("CommentedOutCode")
