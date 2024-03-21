@@ -57,15 +57,15 @@ public class DriverFactoryHelper {
     @Getter(AccessLevel.PUBLIC)
     private static boolean killSwitch = false;
     private final OptionsManager optionsManager = new OptionsManager();
-    @Getter(AccessLevel.PUBLIC)
-    @Setter(AccessLevel.PUBLIC)
+    @Setter
+    @Getter
     private WebDriver driver;
 
     public DriverFactoryHelper() {
     }
 
     public DriverFactoryHelper(WebDriver driver) {
-        this.driver = driver;
+        setDriver(driver);
     }
 
     /**
@@ -235,7 +235,7 @@ public class DriverFactoryHelper {
 
     public void closeDriver() {
         closeDriver(driver);
-        driver = null;
+        setDriver(null);
     }
 
     public void closeDriver(WebDriver driver) {
@@ -292,17 +292,17 @@ public class DriverFactoryHelper {
         try {
             ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
             switch (driverType) {
-                case FIREFOX -> driver = new FirefoxDriver(optionsManager.getFfOptions());
-                case IE -> driver = new InternetExplorerDriver(optionsManager.getIeOptions());
+                case FIREFOX -> setDriver(new FirefoxDriver(optionsManager.getFfOptions()));
+                case IE -> setDriver(new InternetExplorerDriver(optionsManager.getIeOptions()));
                 case CHROME -> {
-                    driver = new ChromeDriver(optionsManager.getChOptions());
+                    setDriver(new ChromeDriver(optionsManager.getChOptions()));
                     disableCacheEdgeAndChrome();
                 }
                 case EDGE -> {
-                    driver = new EdgeDriver(optionsManager.getEdOptions());
+                    setDriver(new EdgeDriver(optionsManager.getEdOptions()));
                     disableCacheEdgeAndChrome();
                 }
-                case SAFARI -> driver = new SafariDriver(optionsManager.getSfOptions());
+                case SAFARI -> setDriver(new SafariDriver(optionsManager.getSfOptions()));
                 default ->
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
             }
@@ -324,7 +324,7 @@ public class DriverFactoryHelper {
             } catch (Throwable throwable) {
                 // ignore
             } finally {
-                driver = null;
+                setDriver(null);
             }
             if (exception.getMessage().contains("java.util.concurrent.TimeoutException")) {
                 // this happens in case an auto closable BiDi session was left hanging
@@ -374,7 +374,7 @@ public class DriverFactoryHelper {
                     .enableRecording().dockerRecordingOutput(SHAFT.Properties.paths.video()).create();
             remoteWebDriver.setFileDetector(new LocalFileDetector());
 //            driver =ThreadGuard.protect(remoteWebDriver));
-            driver = remoteWebDriver;
+            setDriver(remoteWebDriver);
             ReportManager.log("Successfully Opened " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".");
         } catch (WebDriverManagerException exception) {
             failAction("Failed to create new Dockerized Browser Session, are you sure Docker is available on your machine?", exception);
@@ -438,7 +438,7 @@ public class DriverFactoryHelper {
         // stage 2: create remote driver instance (requires some time with dockerized appium)
         ReportManager.logDiscrete("Attempting to instantiate remote driver instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
         try {
-            driver = attemptRemoteServerConnection(capabilities);
+            setDriver(attemptRemoteServerConnection(capabilities));
             ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
             if (!isWebExecution() && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase("Android")) {
                 // https://github.com/appium/appium-uiautomator2-driver#settings-api
@@ -593,7 +593,7 @@ public class DriverFactoryHelper {
         if (SHAFT.Properties.healenium.healEnabled()) {
             ReportManager.logDiscrete("Initializing Healenium's Self Healing Driver...");
 //            driver =ThreadGuard.protect(SelfHealingDriver.create(driver)));
-            driver = SelfHealingDriver.create(driver);
+            setDriver(SelfHealingDriver.create(driver));
         }
     }
 }

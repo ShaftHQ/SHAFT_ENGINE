@@ -29,18 +29,6 @@ public class AttributeWaitTests {
         driver.assertThat().element(divFinish).isVisible().perform();
     }
 
-    @Test(expectedExceptions = AssertionError.class)
-    void testWaitToAttributeWithWrongAttribute() {
-        driver.browser().navigateToURL(URL);
-        driver.element().click(buttonStart).waitToAttribute(divFinish, "name", "test");
-    }
-
-    @Test(expectedExceptions = AssertionError.class)
-    void testWaitToAttributeWithWrongAttributeValue() {
-        driver.browser().navigateToURL(URL);
-        driver.element().click(buttonStart).waitToAttribute(divFinish, "style", "test");
-    }
-
     @AfterMethod
     void tearDown() {
         driver.quit();

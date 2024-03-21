@@ -1,16 +1,13 @@
 package com.shaft.gui.element;
 
-import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.tools.io.ReportManager;
 import org.openqa.selenium.NoAlertPresentException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
-
-import java.time.Duration;
 
 @SuppressWarnings("unused")
 public class AlertActions extends FluentWebDriverAction {
@@ -31,7 +28,8 @@ public class AlertActions extends FluentWebDriverAction {
 
     private void waitForAlertToBePresent() {
         try {
-            (new WebDriverWait(helper.getDriver(), Duration.ofSeconds((long) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()))).until(ExpectedConditions.alertIsPresent());
+            new SynchronizationManager(driver).fluentWait(false)
+                    .until(f -> ExpectedConditions.alertIsPresent());
             helper.getDriver().switchTo().alert();
             ReportManager.logDiscrete("Alert is present");
         } catch (Exception rootCauseException) {
