@@ -30,7 +30,6 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.support.locators.RelativeLocator;
-import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.testng.Assert;
 
 import java.awt.*;
@@ -112,7 +111,7 @@ public class ElementActionsHelper {
 
     public static boolean waitForElementInvisibility(WebDriver driver, By elementLocator) {
         new SynchronizationManager(driver).fluentWait(false)
-                .until(f -> ExpectedConditions.invisibilityOfElementLocated(elementLocator));
+                .until(f -> !driver.findElement(elementLocator).isDisplayed());
         return true;
     }
 
@@ -355,7 +354,7 @@ public class ElementActionsHelper {
         if (!DriverFactoryHelper.isMobileNativeExecution()) {
             try {
                 new SynchronizationManager(driver).fluentWait(false)
-                        .until(f -> ExpectedConditions.elementToBeClickable(elementLocator));
+                        .until(f -> driver.findElement(elementLocator).isDisplayed() && driver.findElement(elementLocator).isEnabled());
 
                 return new SynchronizationManager(driver).fluentWait(true)
                         .until(f -> {
@@ -397,7 +396,7 @@ public class ElementActionsHelper {
     public static boolean waitForElementAttributeToBe(WebDriver driver, By elementLocator, String att, String expectedValue) {
         try {
             new SynchronizationManager(driver).fluentWait(false)
-                    .until(f -> ExpectedConditions.attributeToBe(elementLocator, att, expectedValue));
+                    .until(f -> driver.findElement(elementLocator).getAttribute(att).equals(expectedValue));
         } catch (org.openqa.selenium.TimeoutException e) {
             ReportManagerHelper.logDiscrete(e);
             return false;
