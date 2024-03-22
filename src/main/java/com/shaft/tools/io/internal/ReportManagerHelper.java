@@ -623,9 +623,12 @@ public class ReportManagerHelper {
                 if (attachments != null && !attachments.isEmpty() && (attachments.size() > 1 || (attachments.getFirst() != null && !attachments.getFirst().isEmpty()))) {
                     attachments.forEach(attachment -> {
                         if (attachment != null && !attachment.isEmpty()) {
-                            if (attachment.get(2) instanceof String) {
+                            if (attachment.get(2) instanceof String string) {
                                 attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
-                                        new ByteArrayInputStream(attachment.get(2).toString().getBytes()));
+                                        new ByteArrayInputStream(string.getBytes()));
+                            } else if (attachment.get(2) instanceof StringBuilder stringBuilder) {
+                                attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
+                                        new ByteArrayInputStream(stringBuilder.toString().getBytes()));
                             } else {
                                 attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
                                         (InputStream) attachment.get(2));
