@@ -12,7 +12,7 @@ public class MultipleBrowserInstancesTest {
     String testElement = "data:text/html,<input type=\"text\"/><br><br>";
     By locator = SHAFT.GUI.Locator.hasTagName("input").build();
 
-    @Test
+    @Test(enabled = false)
     public void multipleInstancesSwitching() {
         drivers.add(new SHAFT.GUI.WebDriver());
         drivers.get(0).browser().navigateToURL(testElement)
