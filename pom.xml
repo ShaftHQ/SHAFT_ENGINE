@@ -166,7 +166,7 @@
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-testng</artifactId>
-            <version>7.15.0</version>
+            <version>7.16.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.testng</groupId>
