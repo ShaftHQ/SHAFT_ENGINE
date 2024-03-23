@@ -1,7 +1,6 @@
 package com.shaft.driver.internal.DriverFactory;
 
 import com.epam.healenium.SelfHealingDriver;
-import com.google.common.base.Throwables;
 import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
@@ -17,12 +16,12 @@ import io.appium.java_client.Setting;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.github.bonigarcia.wdm.WebDriverManager;
+import io.github.bonigarcia.wdm.config.DriverManagerType;
 import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.qameta.allure.Step;
 import lombok.*;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
-import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.devtools.v122.network.Network;
@@ -295,7 +294,8 @@ public class DriverFactoryHelper {
                 case FIREFOX -> setDriver(new FirefoxDriver(optionsManager.getFfOptions()));
                 case IE -> setDriver(new InternetExplorerDriver(optionsManager.getIeOptions()));
                 case CHROME -> {
-                    setDriver(new ChromeDriver(optionsManager.getChOptions()));
+                    setDriver(WebDriverManager.getInstance(DriverManagerType.CHROME).capabilities(optionsManager.getChOptions()).create());
+//                    setDriver(new ChromeDriver(optionsManager.getChOptions()));
                     disableCacheEdgeAndChrome();
                 }
                 case EDGE -> {
@@ -340,12 +340,16 @@ public class DriverFactoryHelper {
                 var edOptions = optionsManager.getEdOptions();
                 edOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
                 optionsManager.setEdOptions(edOptions);
-            } else if (driverType.equals(DriverType.SAFARI) && Throwables.getRootCause(exception).getMessage().toLowerCase().contains("safari instance is already paired with another webdriver session")) {
+            } else if (message.contains("The Safari instance is already paired with another WebDriver session.")) {
                 //this issue happens when running locally via safari/mac platform
-                // sample failure can be found here: https://github.com/ShaftHQ/SHAFT_ENGINE/actions/runs/4527911969/jobs/7974202314#step:4:46621
                 // attempting blind fix by trying to quit existing safari instances if any
                 try {
-                    SHAFT.CLI.terminal().performTerminalCommand("osascript -e \"tell application \\\"Safari\\\" to quit\"\n");
+                    SHAFT.CLI.terminal().performTerminalCommands(Arrays.asList(
+                            "osascript -e 'quit app \"Safari\"'", "osascript -e 'quit app \"SafariDriver\"'",
+                            "pkill -x Safari", "pkill -x SafariDriver",
+                            "killall Safari", "killall SafariDriver"));
+                    //minimizing retry attempts to save execution time
+                    retryAttempts = 0;
                 } catch (Throwable throwable) {
                     // ignore
                 }

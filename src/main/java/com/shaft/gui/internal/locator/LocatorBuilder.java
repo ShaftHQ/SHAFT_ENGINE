@@ -114,12 +114,16 @@ public class LocatorBuilder {
     }
 
     public By build() {
+        By locator;
         AtomicBoolean isShadowElement = new AtomicBoolean(false);
         parameters.forEach(parameter -> isShadowElement.set(parameter.toLowerCase().contains("shadow")));
         if (mode.get() == Locators.CSS || isShadowElement.get()) {
-            return By.cssSelector(buildSelectorExpression());
+            locator = By.cssSelector(buildSelectorExpression());
+        } else {
+            locator = By.xpath(buildXpathExpression());
         }
-        return By.xpath(buildXpathExpression());
+        mode.set(Locators.XPATH);
+        return locator;
     }
 
     private String buildXpathExpression() {
