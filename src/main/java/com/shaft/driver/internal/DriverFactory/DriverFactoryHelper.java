@@ -16,12 +16,12 @@ import io.appium.java_client.Setting;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.github.bonigarcia.wdm.WebDriverManager;
+import io.github.bonigarcia.wdm.config.DriverManagerType;
 import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.qameta.allure.Step;
 import lombok.*;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
-import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.devtools.v122.network.Network;
@@ -294,7 +294,8 @@ public class DriverFactoryHelper {
                 case FIREFOX -> setDriver(new FirefoxDriver(optionsManager.getFfOptions()));
                 case IE -> setDriver(new InternetExplorerDriver(optionsManager.getIeOptions()));
                 case CHROME -> {
-                    setDriver(new ChromeDriver(optionsManager.getChOptions()));
+                    setDriver(WebDriverManager.getInstance(DriverManagerType.CHROME).capabilities(optionsManager.getChOptions()).create());
+//                    setDriver(new ChromeDriver(optionsManager.getChOptions()));
                     disableCacheEdgeAndChrome();
                 }
                 case EDGE -> {
