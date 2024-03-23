@@ -6,7 +6,6 @@ import org.testng.annotations.Test;
 
 public class TimeoutsTests {
     Boolean waitForLazyLoading;
-    int lazyLoadingTimeout;
     int browserNavigationTimeout;
     int pageLoadTimeout;
     int scriptExecutionTimeout;
@@ -27,7 +26,6 @@ public class TimeoutsTests {
     @BeforeClass
     public void beforeClass() {
         waitForLazyLoading = SHAFT.Properties.timeouts.waitForLazyLoading();
-        lazyLoadingTimeout = SHAFT.Properties.timeouts.lazyLoadingTimeout();
         browserNavigationTimeout = SHAFT.Properties.timeouts.browserNavigationTimeout();
         pageLoadTimeout = SHAFT.Properties.timeouts.pageLoadTimeout();
         scriptExecutionTimeout = SHAFT.Properties.timeouts.scriptExecutionTimeout();
@@ -49,7 +47,6 @@ public class TimeoutsTests {
     @Test
     public void test() {
         SHAFT.Properties.timeouts.set().waitForLazyLoading(waitForLazyLoading);
-        SHAFT.Properties.timeouts.set().lazyLoadingTimeout(lazyLoadingTimeout);
         SHAFT.Properties.timeouts.set().browserNavigationTimeout(browserNavigationTimeout);
         SHAFT.Properties.timeouts.set().pageLoadTimeout(pageLoadTimeout);
         SHAFT.Properties.timeouts.set().scriptExecutionTimeout(scriptExecutionTimeout);

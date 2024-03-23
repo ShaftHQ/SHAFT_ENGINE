@@ -20,10 +20,6 @@ public interface Timeouts extends EngineProperties {
     @DefaultValue("true")
     Boolean waitForLazyLoading();
 
-    @Key("lazyLoadingTimeout")
-    @DefaultValue("30")
-    int lazyLoadingTimeout();
-
     @Key("browserNavigationTimeout")
     @DefaultValue("60")
     int browserNavigationTimeout();
