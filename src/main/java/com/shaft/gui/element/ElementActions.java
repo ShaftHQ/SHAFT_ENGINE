@@ -668,7 +668,7 @@ public class ElementActions extends FluentWebDriverAction {
     public ElementActions switchToIframe(By elementLocator) {
         try {
             var elementInformation = ElementInformation.fromList(ElementActionsHelper.identifyUniqueElement(driver, elementLocator));
-            LocatorBuilder.setIFrameLocator(elementInformation.getLocator());
+            LocatorBuilder.getIFrameLocator().set(elementInformation.getLocator());
             // note to self: remove elementLocator in case of bug in screenshot manager
             driver.switchTo().frame(elementInformation.getFirstElement());
             boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
@@ -693,7 +693,7 @@ public class ElementActions extends FluentWebDriverAction {
     public ElementActions switchToDefaultContent() {
         try {
             driver.switchTo().defaultContent();
-            LocatorBuilder.setIFrameLocator(null);
+            LocatorBuilder.getIFrameLocator().remove();
             boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);

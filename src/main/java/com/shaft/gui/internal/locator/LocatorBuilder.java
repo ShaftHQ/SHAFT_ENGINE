@@ -1,21 +1,18 @@
 package com.shaft.gui.internal.locator;
 
 import lombok.Getter;
-import lombok.Setter;
 import org.openqa.selenium.By;
 import org.openqa.selenium.support.locators.RelativeLocator;
 
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class LocatorBuilder {
-    @Setter
     @Getter
-    static By iFrameLocator;
-
+    static ThreadLocal<By> iFrameLocator = new ThreadLocal<>();
     @Getter
-    static By shadowDomLocator;
-    @Setter
-    private static Locators mode = Locators.XPATH;
+    static ThreadLocal<By> shadowDomLocator = new ThreadLocal<>();
+    private static final ThreadLocal<Locators> mode = new ThreadLocal<>();
     String partialXpath;
     private String tagName = "*";
     private ArrayList<String> parameters = new ArrayList<>();
@@ -27,6 +24,7 @@ public class LocatorBuilder {
     }
 
     private LocatorBuilder(String tagName, ArrayList<String> parameters, @SuppressWarnings("SameParameterValue") String order) {
+        mode.set(Locators.XPATH);
         this.tagName = tagName;
         this.parameters = parameters;
         this.order = order;
@@ -110,13 +108,15 @@ public class LocatorBuilder {
     }
 
     public XpathAxis axisBy() {
-        mode = Locators.XPATH;
+        mode.set(Locators.XPATH);
         partialXpath = buildXpathExpression();
         return new XpathAxis(this);
     }
 
     public By build() {
-        if (mode == Locators.CSS) {
+        AtomicBoolean isShadowElement = new AtomicBoolean(false);
+        parameters.forEach(parameter -> isShadowElement.set(parameter.toLowerCase().contains("shadow")));
+        if (mode.get() == Locators.CSS || isShadowElement.get()) {
             return By.cssSelector(buildSelectorExpression());
         }
         return By.xpath(buildXpathExpression());
@@ -158,6 +158,7 @@ public class LocatorBuilder {
     }
 
     public ShadowLocatorBuilder insideShadowDom(By shadowDomLocator) {
+        mode.set(Locators.CSS);
         return new ShadowLocatorBuilder(shadowDomLocator, By.cssSelector(buildSelectorExpression()));
     }
 }

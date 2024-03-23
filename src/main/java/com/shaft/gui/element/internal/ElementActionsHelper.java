@@ -132,11 +132,15 @@ public class ElementActionsHelper {
                     final WebElement[] targetElement = new WebElement[1];
                     ElementInformation elementInformation = new ElementInformation();
                     // BLOCK #1 :: GETTING THE ELEMENT
-                    if (ShadowLocatorBuilder.shadowDomLocator != null && ShadowLocatorBuilder.cssSelector == elementLocator) {
-                        targetElement[0] = driver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElement(ShadowLocatorBuilder.cssSelector);
-                    } else if (LocatorBuilder.getIFrameLocator() != null) {
+                    By shadowDomLocator = ShadowLocatorBuilder.shadowDomLocator.get();
+                    By cssSelector = ShadowLocatorBuilder.cssSelector.get();
+                    if (shadowDomLocator != null && cssSelector == elementLocator) {
+                        targetElement[0] = driver.findElement(shadowDomLocator)
+                                .getShadowRoot()
+                                .findElement(cssSelector);
+                    } else if (LocatorBuilder.getIFrameLocator().get() != null) {
                         try {
-                            targetElement[0] = driver.switchTo().frame(driver.findElement(LocatorBuilder.getIFrameLocator())).findElement(elementLocator);
+                            targetElement[0] = driver.switchTo().frame(driver.findElement(LocatorBuilder.getIFrameLocator().get())).findElement(elementLocator);
                         } catch (NoSuchElementException exception) {
                             targetElement[0] = driver.findElement(elementLocator);
                         }
@@ -181,8 +185,11 @@ public class ElementActionsHelper {
                     });
                     var threadCount = myExecutor.submit(() -> {
                         // BLOCK #4 :: GETTING THE NUMBER OF FOUND ELEMENTS
-                        if (ShadowLocatorBuilder.shadowDomLocator != null && ShadowLocatorBuilder.cssSelector == elementLocator) {
-                            elementInformation.setNumberOfFoundElements(driver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElements(ShadowLocatorBuilder.cssSelector).size());
+                        if (shadowDomLocator != null && cssSelector == elementLocator) {
+                            elementInformation.setNumberOfFoundElements(driver.findElement(shadowDomLocator)
+                                    .getShadowRoot()
+                                    .findElements(cssSelector)
+                                    .size());
                         } else {
                             elementInformation.setNumberOfFoundElements(driver.findElements(elementLocator).size());
                         }
@@ -280,6 +287,7 @@ public class ElementActionsHelper {
                 } catch (Throwable throwable) {
                     //ignored
                 }
+                //perform click
                 try {
                     elementInformation.getFirstElement().click();
                 } catch (Throwable throwable) {

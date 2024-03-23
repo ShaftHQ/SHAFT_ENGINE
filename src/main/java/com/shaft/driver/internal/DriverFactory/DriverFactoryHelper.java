@@ -308,12 +308,23 @@ public class DriverFactoryHelper {
             }
             ReportManager.log(initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".");
         } catch (Exception exception) {
-            if (exception.getMessage().contains("cannot create default profile directory")) {
+            String message = exception.getMessage();
+            if (message.contains("cannot create default profile directory")) {
                 // this exception happens when the profile directory is not correct, very specific case
                 // should fail immediately
                 failAction("Failed to create new Browser Session", exception);
-            }
-            if (exception.getMessage().contains("Failed to initialize BiDi Mapper")) {
+            } else if (message.contains("DevToolsActivePort file doesn't exist")) {
+                // this exception was observed with `Windows_Edge_Local` pipeline to happen randomly
+                // suggested fix as per titus fortner: https://bugs.chromium.org/p/chromedriver/issues/detail?id=4403#c35
+
+                var chOptions = optionsManager.getChOptions();
+                chOptions.addArguments("--remote-debugging-pipe");
+                optionsManager.setChOptions(chOptions);
+
+                var edOptions = optionsManager.getEdOptions();
+                edOptions.addArguments("--remote-debugging-pipe");
+                optionsManager.setEdOptions(edOptions);
+            } else if (message.contains("Failed to initialize BiDi Mapper")) {
                 // this exception happens in some corner cases where the capabilities are not compatible with BiDi mode
                 // should force disable BiDi and try again
                 SHAFT.Properties.platform.set().enableBiDi(false);
@@ -326,11 +337,10 @@ public class DriverFactoryHelper {
                 chOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
                 optionsManager.setChOptions(chOptions);
 
-                var EdOptions = optionsManager.getEdOptions();
-                EdOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
-                optionsManager.setEdOptions(EdOptions);
-            }
-            if (driverType.equals(DriverType.SAFARI) && Throwables.getRootCause(exception).getMessage().toLowerCase().contains("safari instance is already paired with another webdriver session")) {
+                var edOptions = optionsManager.getEdOptions();
+                edOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+                optionsManager.setEdOptions(edOptions);
+            } else if (driverType.equals(DriverType.SAFARI) && Throwables.getRootCause(exception).getMessage().toLowerCase().contains("safari instance is already paired with another webdriver session")) {
                 //this issue happens when running locally via safari/mac platform
                 // sample failure can be found here: https://github.com/ShaftHQ/SHAFT_ENGINE/actions/runs/4527911969/jobs/7974202314#step:4:46621
                 // attempting blind fix by trying to quit existing safari instances if any
@@ -338,6 +348,15 @@ public class DriverFactoryHelper {
                     SHAFT.CLI.terminal().performTerminalCommand("osascript -e \"tell application \\\"Safari\\\" to quit\"\n");
                 } catch (Throwable throwable) {
                     // ignore
+                }
+            } else if (exception.getMessage().contains("java.util.concurrent.TimeoutException")) {
+                // this happens in case an auto closable BiDi session was left hanging
+                // the default timeout is 30 seconds, so this wait will waste 26 and the following will waste 5 more
+                // the desired effect will be to wait for the bidi session to timeout
+                try {
+                    Thread.sleep(26000);
+                } catch (InterruptedException e) {
+                    //do nothing
                 }
             }
             // attempting blind fix by trying to quit existing driver if any
@@ -348,16 +367,7 @@ public class DriverFactoryHelper {
             } finally {
                 setDriver(null);
             }
-            if (exception.getMessage().contains("java.util.concurrent.TimeoutException")) {
-                // this happens in case an auto closable BiDi session was left hanging
-                // the default timeout is 30 seconds, so this wait will waste 26 and the following will waste 5 more
-                // the desired effect will be to wait for the bidi session to timeout
-                try {
-                    Thread.sleep(26000);
-                } catch (InterruptedException e) {
-                    //do nothing
-                }
-            }
+            // evaluating retry attempts
             if (retryAttempts > 0) {
                 try {
                     Thread.sleep(5000);
