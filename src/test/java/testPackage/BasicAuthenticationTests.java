@@ -10,6 +10,7 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.remote.Augmenter;
+import org.openqa.selenium.remote.Browser;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -24,14 +25,20 @@ public class BasicAuthenticationTests {
 
     @Test
     public void basicAuthentication_traditional(){
-        driver.get().browser().navigateToURL("https://user:pass@authenticationtest.com/HTTPAuth/", "https://authenticationtest.com/loginSuccess/");
-        driver.get().assertThat().element(By.tagName("h1")).text().equals("Login Success");
+        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
+                || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
+            driver.get().browser().navigateToURL("https://user:pass@authenticationtest.com/HTTPAuth/", "https://authenticationtest.com/loginSuccess/");
+            driver.get().assertThat().element(By.tagName("h1")).text().equals("Login Success");
+        }
     }
 
     @Test
     public void basicAuthentication_webdriverBiDi() {
-        driver.get().browser().navigateToURLWithBasicAuthentication("https://authenticationtest.com/HTTPAuth/", "user", "pass", "https://authenticationtest.com/loginSuccess/");
-        driver.get().assertThat().element(By.tagName("h1")).text().equals("Login Success");
+        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
+                || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
+            driver.get().browser().navigateToURLWithBasicAuthentication("https://authenticationtest.com/HTTPAuth/", "user", "pass", "https://authenticationtest.com/loginSuccess/");
+            driver.get().assertThat().element(By.tagName("h1")).text().equals("Login Success");
+        }
     }
 
     //@Test
@@ -69,11 +76,17 @@ public class BasicAuthenticationTests {
 
     @BeforeMethod
     public void beforeMethod(){
-        driver.set(new SHAFT.GUI.WebDriver());
+        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
+                || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
+            driver.set(new SHAFT.GUI.WebDriver());
+        }
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod(){
-        driver.get().quit();
+        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
+                || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
+            driver.get().quit();
+        }
     }
 }
