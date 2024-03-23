@@ -259,8 +259,8 @@ public class BrowserActions extends FluentWebDriverAction {
      */
     public BrowserActions navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
         //reset scope in case user was stuck inside an iFrame
-        LocatorBuilder.setIFrameLocator(null);
-        ShadowLocatorBuilder.shadowDomLocator = null;
+        LocatorBuilder.getIFrameLocator().remove();
+        ShadowLocatorBuilder.shadowDomLocator.remove();
 
         String modifiedTargetUrl = targetUrl;
         var baseUrl = SHAFT.Properties.web.baseURL();
