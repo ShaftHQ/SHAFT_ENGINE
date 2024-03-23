@@ -132,8 +132,12 @@ public class ElementActionsHelper {
                     final WebElement[] targetElement = new WebElement[1];
                     ElementInformation elementInformation = new ElementInformation();
                     // BLOCK #1 :: GETTING THE ELEMENT
-                    if (ShadowLocatorBuilder.shadowDomLocator.get() != null && ShadowLocatorBuilder.cssSelector.get() == elementLocator) {
-                        targetElement[0] = driver.findElement(ShadowLocatorBuilder.shadowDomLocator.get()).getShadowRoot().findElement(ShadowLocatorBuilder.cssSelector.get());
+                    By shadowDomLocator = ShadowLocatorBuilder.shadowDomLocator.get();
+                    By cssSelector = ShadowLocatorBuilder.cssSelector.get();
+                    if (shadowDomLocator != null && cssSelector == elementLocator) {
+                        targetElement[0] = driver.findElement(shadowDomLocator)
+                                .getShadowRoot()
+                                .findElement(cssSelector);
                     } else if (LocatorBuilder.getIFrameLocator().get() != null) {
                         try {
                             targetElement[0] = driver.switchTo().frame(driver.findElement(LocatorBuilder.getIFrameLocator().get())).findElement(elementLocator);
@@ -181,8 +185,11 @@ public class ElementActionsHelper {
                     });
                     var threadCount = myExecutor.submit(() -> {
                         // BLOCK #4 :: GETTING THE NUMBER OF FOUND ELEMENTS
-                        if (ShadowLocatorBuilder.shadowDomLocator.get() != null && ShadowLocatorBuilder.cssSelector.get() == elementLocator) {
-                            elementInformation.setNumberOfFoundElements(driver.findElement(ShadowLocatorBuilder.shadowDomLocator.get()).getShadowRoot().findElements(ShadowLocatorBuilder.cssSelector.get()).size());
+                        if (shadowDomLocator != null && cssSelector == elementLocator) {
+                            elementInformation.setNumberOfFoundElements(driver.findElement(shadowDomLocator)
+                                    .getShadowRoot()
+                                    .findElements(cssSelector)
+                                    .size());
                         } else {
                             elementInformation.setNumberOfFoundElements(driver.findElements(elementLocator).size());
                         }

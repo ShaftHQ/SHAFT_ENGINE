@@ -1,8 +1,6 @@
 package testPackage.locator;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.internal.locator.LocatorBuilder;
-import com.shaft.gui.internal.locator.Locators;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.Browser;
@@ -37,7 +35,6 @@ public class ShadowDomTest {
     public void beforeMethod() {
         if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
                 || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
-            LocatorBuilder.getMode().set(Locators.CSS);
             driver.set(new SHAFT.GUI.WebDriver());
         }
     }
@@ -46,7 +43,6 @@ public class ShadowDomTest {
     public void afterMethod() {
         if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
                 || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
-            LocatorBuilder.getMode().set(Locators.XPATH);
             driver.get().quit();
         }
     }
@@ -55,7 +51,6 @@ public class ShadowDomTest {
     public void shaftLocator_2() {
         if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
                 || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
-            LocatorBuilder.getMode().set(Locators.CSS);
             driver.get().browser().navigateToURL("https://usercentrics.com");
             By shadowDom = By.id("usercentrics-root");
             By shadowElement = SHAFT.GUI.Locator.hasTagName("button")

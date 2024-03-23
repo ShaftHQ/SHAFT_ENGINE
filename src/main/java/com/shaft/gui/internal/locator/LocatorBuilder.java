@@ -5,13 +5,13 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.support.locators.RelativeLocator;
 
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class LocatorBuilder {
     @Getter
     static ThreadLocal<By> iFrameLocator = new ThreadLocal<>();
     @Getter
     static ThreadLocal<By> shadowDomLocator = new ThreadLocal<>();
-    @Getter
     private static final ThreadLocal<Locators> mode = new ThreadLocal<>();
     String partialXpath;
     private String tagName = "*";
@@ -114,7 +114,9 @@ public class LocatorBuilder {
     }
 
     public By build() {
-        if (mode.get() == Locators.CSS) {
+        AtomicBoolean isShadowElement = new AtomicBoolean(false);
+        parameters.forEach(parameter -> isShadowElement.set(parameter.toLowerCase().contains("shadow")));
+        if (mode.get() == Locators.CSS || isShadowElement.get()) {
             return By.cssSelector(buildSelectorExpression());
         }
         return By.xpath(buildXpathExpression());
@@ -156,6 +158,7 @@ public class LocatorBuilder {
     }
 
     public ShadowLocatorBuilder insideShadowDom(By shadowDomLocator) {
+        mode.set(Locators.CSS);
         return new ShadowLocatorBuilder(shadowDomLocator, By.cssSelector(buildSelectorExpression()));
     }
 }
