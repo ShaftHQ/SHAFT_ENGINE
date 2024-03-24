@@ -5,7 +5,6 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.internal.image.AnimatedGifManager;
 import com.shaft.gui.internal.video.RecordManager;
-import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
@@ -138,21 +137,14 @@ public class TestNGListenerHelper {
 
     public static void configureTestNGProperties(List<XmlSuite> suites) {
         suites.forEach(suite -> {
-            suite.setPreserveOrder(SHAFT.Properties.testNG.preserveOrder());
-            suite.setGroupByInstances(SHAFT.Properties.testNG.groupByInstances());
-            suite.setVerbose(SHAFT.Properties.testNG.verbose());
-            suite.setParallel(XmlSuite.ParallelMode.valueOf(SHAFT.Properties.testNG.parallel()));
-            suite.setThreadCount(SHAFT.Properties.testNG.threadCount());
             suite.setDataProviderThreadCount(SHAFT.Properties.testNG.dataProviderThreadCount());
-
-            if (SHAFT.Properties.reporting.debugMode()) {
-                ReportManager.log("getPreserveOrder: " + suite.getPreserveOrder());
-                ReportManager.log("getDataProviderThreadCount: " + suite.getDataProviderThreadCount());
-                ReportManager.log("getThreadCount: " + suite.getThreadCount());
-                ReportManager.log("getVerbose: " + suite.getVerbose());
-                ReportManager.log("getGroupByInstances: " + suite.getGroupByInstances());
-                ReportManager.log("getParallel: " + suite.getParallel());
-            }
+            suite.getTests().forEach(xmlTest -> {
+                xmlTest.setPreserveOrder(SHAFT.Properties.testNG.preserveOrder());
+                xmlTest.setGroupByInstances(SHAFT.Properties.testNG.groupByInstances());
+                xmlTest.setVerbose(SHAFT.Properties.testNG.verbose());
+                xmlTest.setParallel(XmlSuite.ParallelMode.valueOf(SHAFT.Properties.testNG.parallel()));
+                xmlTest.setThreadCount(SHAFT.Properties.testNG.threadCount());
+            });
         });
     }
 
