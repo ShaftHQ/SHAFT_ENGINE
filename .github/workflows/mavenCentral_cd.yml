@@ -51,9 +51,15 @@ jobs:
           gpgconf --kill gpg-agent
           gpg -K --keyid-format SHORT
           export GPG_TTY=$(tty)
-      - name: Deploy SHAFT to maven central
+      - name: Deploy to maven central
         continue-on-error: true
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
         run: mvn --batch-mode deploy "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
+      - name: Publish updated JavaDocs
+        continue-on-error: true
+        env:
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+        run: mvn resources:resources javadoc:javadoc scm-publish:publish-scm "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
