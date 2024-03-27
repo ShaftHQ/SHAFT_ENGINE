@@ -594,7 +594,7 @@
         <dependency>
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink-gcpkms</artifactId>
-            <version>1.9.0</version>
+            <version>1.10.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.auto.service</groupId>
