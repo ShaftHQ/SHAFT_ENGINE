@@ -107,7 +107,7 @@
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
-            <version>4.18.1
+            <version>4.19.0
             </version> <!-- MAKE SURE TO UPDATE DriverFactoryHelper import devtools.v122.network.Network TO LATEST VERSION WITH UPDATING SELENIUM-->
         </dependency>
 
