@@ -142,12 +142,16 @@ public class ValidationsExecutor {
 
     protected void internalPerform() {
         JavaScriptWaitManager.waitForLazyLoading(driver);
+        boolean clearCustomReportMessage = false;
         if (customReportMessage.isBlank()) {
             customReportMessage = reportMessageBuilder.toString();
+            clearCustomReportMessage = true;
         }
         validationMethodString = JavaHelper.convertToSentenceCase(validationMethod).toLowerCase();
         this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
         performValidation();
+        if (Boolean.TRUE.equals(clearCustomReportMessage))
+            customReportMessage = "";
     }
 
     private void performValidation() {
