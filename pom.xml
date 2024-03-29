@@ -107,8 +107,7 @@
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
-            <version>4.19.1
-            </version> <!-- MAKE SURE TO UPDATE DriverFactoryHelper import devtools.v122.network.Network TO LATEST VERSION WITH UPDATING SELENIUM-->
+            <version>4.19.1</version>
         </dependency>
 
         <!-- APPIUM -->

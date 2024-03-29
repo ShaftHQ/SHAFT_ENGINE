@@ -16,15 +16,15 @@ import io.appium.java_client.Setting;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.github.bonigarcia.wdm.WebDriverManager;
-import io.github.bonigarcia.wdm.config.DriverManagerType;
 import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.qameta.allure.Step;
 import lombok.*;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.devtools.Command;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
-import org.openqa.selenium.devtools.v122.network.Network;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.ie.InternetExplorerDriver;
@@ -36,7 +36,8 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
-import java.util.Optional;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class DriverFactoryHelper {
@@ -269,14 +270,13 @@ public class DriverFactoryHelper {
         if (SHAFT.Properties.flags.disableCache() && driver instanceof HasDevTools hasDevToolsDriver) {
             DevTools devTools = hasDevToolsDriver.getDevTools();
             devTools.createSessionIfThereIsNotOne();
-            devTools.send(Network.enable(Optional.empty(), Optional.empty(), Optional.of(100000000)));
-            devTools.send(Network.setCacheDisabled(true));
-            devTools.send(Network.clearBrowserCookies());
-            devTools.addListener(Network.responseReceived(), responseReceived -> {
-                if (responseReceived.getResponse().getFromDiskCache().isPresent() && responseReceived.getResponse().getFromDiskCache().get().equals(true)) {
-                    failAction("Cache wasn't cleared");
-                }
-            });
+            LinkedHashMap<String, Object> params = new LinkedHashMap<>();
+            params.put("maxPostDataSize", 100000000);
+            devTools.send(new Command<>("Network.enable", Map.copyOf(params)));
+            params = new LinkedHashMap<>();
+            params.put("cacheDisabled", true);
+            devTools.send(new Command<>("Network.setCacheDisabled", params));
+            devTools.send(new Command<>("Network.clearBrowserCookies", Map.copyOf(new LinkedHashMap<>())));
         }
     }
 
@@ -294,8 +294,7 @@ public class DriverFactoryHelper {
                 case FIREFOX -> setDriver(new FirefoxDriver(optionsManager.getFfOptions()));
                 case IE -> setDriver(new InternetExplorerDriver(optionsManager.getIeOptions()));
                 case CHROME -> {
-                    setDriver(WebDriverManager.getInstance(DriverManagerType.CHROME).capabilities(optionsManager.getChOptions()).create());
-//                    setDriver(new ChromeDriver(optionsManager.getChOptions()));
+                    setDriver(new ChromeDriver(optionsManager.getChOptions()));
                     disableCacheEdgeAndChrome();
                 }
                 case EDGE -> {
