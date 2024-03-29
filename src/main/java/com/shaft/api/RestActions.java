@@ -5,7 +5,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
@@ -16,9 +15,9 @@ import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
-import com.shaft.validation.Validations;
 import eu.medsea.mimeutil.MimeUtil;
 import eu.medsea.mimeutil.MimeUtil2;
+import io.qameta.allure.restassured.AllureRestAssured;
 import io.restassured.builder.MultiPartSpecBuilder;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.config.EncoderConfig;
@@ -33,11 +32,8 @@ import io.restassured.path.xml.element.Node;
 import io.restassured.path.xml.element.NodeChildren;
 import io.restassured.response.Response;
 import io.restassured.response.ResponseBody;
-import io.restassured.specification.QueryableRequestSpecification;
 import io.restassured.specification.RequestSpecification;
-import io.restassured.specification.SpecificationQuerier;
 import lombok.Getter;
-import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -56,7 +52,6 @@ import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import java.io.*;
 import java.net.URLConnection;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -82,6 +77,10 @@ public class RestActions {
     private final Map<String, Object> sessionCookies;
     private final RestAssuredConfig sessionConfig;
     private String headerAuthorization;
+
+    static AllureRestAssured allureFilter = new AllureRestAssured()
+            .setRequestAttachmentName("Request")
+            .setResponseAttachmentName("Response");
 
     public RestActions(String serviceURI) {
         initializeSystemProperties();
@@ -527,12 +526,12 @@ public class RestActions {
     private static String reportActionResult(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
                                              Boolean isDiscrete, List<Object> expectedFileBodyAttachment, Boolean passFailStatus, Throwable... rootCauseException) {
         actionName = JavaHelper.convertToSentenceCase(actionName);
-        actionName = actionName.equals("Perform request") ? "Request details: " : actionName;
+        actionName = actionName.equals("Perform request") ? "Request performed" : actionName;
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "API Action: " + actionName;
+            message = actionName;
         } else {
-            message = "API Action: " + actionName + " failed";
+            message = actionName + " failed";
         }
 
         List<List<Object>> attachments = new ArrayList<>();
@@ -541,230 +540,25 @@ public class RestActions {
                     testData);
             attachments.add(actualValueAttachment);
         } else if (testData != null && !testData.isEmpty()) {
-            message = message + " \"" + testData.trim() + "\"";
+            message = message + "; " + testData.trim();
         }
         message = message + ".";
-        message = message.replace("API Action: ", "");
 
         Boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
-        if (Boolean.TRUE.equals(isDiscrete)) {
-            if (requestBody != null && !requestBody.equals(new JsonObject())) {
-                reportRequestBody(requestBody);
-            }
-            reportResponseBody(response, true);
-            ReportManager.logDiscrete(message);
+        attachments.add(expectedFileBodyAttachment);
+
+        if (rootCauseException != null && rootCauseException.length >= 1) {
+            List<Object> actualValueAttachment = Arrays.asList("API Action Exception - " + actionName,
+                    "Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(rootCauseException[0]));
+            attachments.add(actualValueAttachment);
+        }
+
+        if (Boolean.FALSE.equals(initialLoggingState)) {
+            ReportManagerHelper.log(message, attachments);
         } else {
-            attachments.add(reportRequestSpecs(specs));
-            if (requestBody != null && !requestBody.equals(new JsonObject())) {
-                attachments.add(reportRequestBody(requestBody));
-            }
-            attachments.add(expectedFileBodyAttachment);
-            attachments.add(reportResponseBody(response, initialLoggingState));
-
-            if (rootCauseException != null && rootCauseException.length >= 1) {
-                List<Object> actualValueAttachment = Arrays.asList("API Action Exception - " + actionName,
-                        "Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(rootCauseException[0]));
-                attachments.add(actualValueAttachment);
-            }
-
-            if (Boolean.FALSE.equals(initialLoggingState)) {
-                ReportManagerHelper.log(message, attachments);
-            } else {
-                ReportManager.logDiscrete(message);
-            }
-
+            ReportManager.logDiscrete(message);
         }
         return message;
-    }
-
-    private static List<Object> reportRequestSpecs(RequestSpecification specs) {
-        List<Object> requestSpecsAttachment = new ArrayList<>();
-        if (specs != null) {
-            requestSpecsAttachment.add("API Request");
-            requestSpecsAttachment.add("Specifications");
-
-            StringBuilder builder = new StringBuilder();
-            QueryableRequestSpecification queryableRequestSpecification = SpecificationQuerier.query(specs);
-
-            var headers = queryableRequestSpecification.getHeaders().asList();
-            if (headers != null && !headers.isEmpty()) {
-                builder.append("Headers:")
-                        .append(System.lineSeparator())
-                        .append("_______________")
-                        .append(System.lineSeparator())
-                        .append(System.lineSeparator());
-                for (var header : headers) {
-                    builder.append(header.getName())
-                            .append("=")
-                            .append(header.getValue())
-                            .append(System.lineSeparator());
-                }
-                builder.append(System.lineSeparator());
-            }
-
-            var formParams = queryableRequestSpecification.getFormParams();
-            if (formParams != null && !formParams.isEmpty()) {
-                builder.append("Form Parameters:")
-                        .append(System.lineSeparator())
-                        .append("_______________")
-                        .append(System.lineSeparator())
-                        .append(System.lineSeparator());
-                for (String key : formParams.keySet()) {
-                    builder.append(key)
-                            .append("=")
-                            .append(formParams.get(key))
-                            .append(System.lineSeparator());
-                }
-                builder.append(System.lineSeparator());
-            }
-
-            var queryParams = queryableRequestSpecification.getQueryParams();
-            if (queryParams != null && !queryParams.isEmpty()) {
-                builder.append("Query Parameters:")
-                        .append(System.lineSeparator())
-                        .append("_______________")
-                        .append(System.lineSeparator())
-                        .append(System.lineSeparator());
-                for (String key : queryParams.keySet()) {
-                    builder.append(key)
-                            .append("=")
-                            .append(queryParams.get(key))
-                            .append(System.lineSeparator());
-                }
-            }
-            requestSpecsAttachment.add(builder);
-        }
-        return requestSpecsAttachment;
-    }
-
-    private static List<Object> reportRequestBody(Object requestBody) {
-        List<Object> requestBodyAttachment = new ArrayList<>();
-        if (requestBody.toString() != null && !requestBody.toString().isEmpty()) {
-            if (ReportManagerHelper.getDiscreteLogging()) {
-                try {
-                    ReportManager.logDiscrete("API Request - REST Body:\n"
-                            + IOUtils.toString(parseBodyToJson(requestBody), StandardCharsets.UTF_8));
-                } catch (IOException e) {
-                    ReportManager.logDiscrete("API Request - REST Body:\n" + requestBody);
-                }
-            } else {
-                requestBodyAttachment.add("API Request");
-                switch (identifyBodyObjectType(requestBody)) {
-                    case 1 -> {
-                        // json
-                        requestBodyAttachment.add("JSON Body");
-                        requestBodyAttachment.add(parseBodyToJson(requestBody));
-                    }
-                    case 2 -> {
-                        // xml
-                        requestBodyAttachment.add("XML Body");
-                        requestBodyAttachment.add(formatXML(String.valueOf(requestBody)));
-                    }
-                    case 3, 4 -> {
-                        // I don't remember... may be binary
-                        // binary... probably
-                        requestBodyAttachment.add("Body");
-                        requestBodyAttachment.add(parseBodyToJson(requestBody));
-                    }
-                    default -> requestBodyAttachment.add(parseBodyToJson(requestBody));
-                }
-                return requestBodyAttachment;
-            }
-        }
-        return null;
-    }
-
-    private static List<Object> reportResponseBody(Response responseBody, Boolean isDiscrete) {
-        List<Object> responseBodyAttachment = new ArrayList<>();
-        if (responseBody != null) {
-            if (Boolean.TRUE.equals(isDiscrete)) {
-                try {
-                    ReportManager.logDiscrete("API Response - REST Body:\n"
-                            + IOUtils.toString(parseBodyToJson(responseBody), StandardCharsets.UTF_8));
-                } catch (IOException e) {
-                    ReportManager.logDiscrete("API Response - REST Body:\n" + responseBody.asString());
-                }
-            } else {
-                responseBodyAttachment.add("API Response");
-                switch (identifyBodyObjectType(responseBody)) {
-                    case 1 -> {
-                        // json
-                        responseBodyAttachment.add("JSON Body");
-                        responseBodyAttachment.add(parseBodyToJson(responseBody));
-                    }
-                    case 2 -> {
-                        // xml
-                        responseBodyAttachment.add("XML Body");
-                        responseBodyAttachment.add(formatXML(String.valueOf(responseBody)));
-                    }
-                    case 3, 4 -> {
-                        // I don't remember... may be binary
-                        // binary... probably
-                        responseBodyAttachment.add("Body");
-                        responseBodyAttachment.add(parseBodyToJson(responseBody));
-                    }
-                    default -> responseBodyAttachment.add(parseBodyToJson(responseBody));
-                }
-                return responseBodyAttachment;
-            }
-        }
-        return null;
-    }
-
-    @SuppressWarnings("UnusedAssignment")
-    private static int identifyBodyObjectType(Object body) {
-        JSONParser parser = new JSONParser();
-        try {
-            org.json.simple.JSONObject actualJsonObject = null;
-            org.json.simple.JSONArray actualJsonArray = null;
-            if (body.getClass().getName().toLowerCase().contains("restassured")) {
-                // if it's a string (OR ARRAY) response body
-                try {
-                    String bodyString = ((ResponseBody<?>) body).asString();
-                    if (!bodyString.isEmpty()) {
-                        actualJsonObject = (org.json.simple.JSONObject) parser.parse(bodyString);
-                    }
-                } catch (ClassCastException e) {
-                    String bodyString = ((ResponseBody<?>) body).asString();
-                    if (!bodyString.isEmpty()) {
-                        actualJsonArray = (org.json.simple.JSONArray) parser.parse(bodyString);
-                    }
-                } catch (ParseException e) {
-                    // happens in case of ZIP file.......
-                    return 3;
-                }
-            } else if (body instanceof org.json.simple.JSONObject) {
-                actualJsonObject = (org.json.simple.JSONObject) body;
-            } else if (body instanceof org.json.simple.JSONArray) {
-                actualJsonArray = (org.json.simple.JSONArray) body;
-            } else if (body.getClass().getName().toLowerCase().contains("jsonobject")) {
-                actualJsonObject = (org.json.simple.JSONObject) parser
-                        .parse(body.toString().replace("\\n", "").replace("\\t", "").replace(" ", ""));
-            } else if (body instanceof Map<?, ?> bodyMap) {
-                return 1; //json sent as a hashmap
-            } else {
-                actualJsonObject = (org.json.simple.JSONObject) parser.parse(body.toString());
-            }
-            return 1; // json
-        } catch (Exception e) {
-            // response is not parsable to JSON
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            ObjectOutputStream oos;
-            try {
-                oos = new ObjectOutputStream(byteArrayOutputStream);
-                oos.writeObject(body);
-                oos.flush();
-                oos.close();
-                return 4; // I don't remember... may be binary
-            } catch (IOException ioe) {
-                if (body.getClass().getName().toLowerCase().contains("restassured")) {
-                    // if it's a string response body
-                    return 2; // xml
-                } else {
-                    return 3; // binary
-                }
-            }
-        }
     }
 
     private static InputStream parseJsonBody(Object body) throws ParseException {
@@ -1198,19 +992,19 @@ public class RestActions {
     Response sendRequest(RequestType requestType, String request, RequestSpecification specs) {
         switch (requestType) {
             case POST -> {
-                return given().spec(specs).when().post(request).andReturn();
+                return given().filter(allureFilter).spec(specs).when().post(request).andReturn();
             }
             case PATCH -> {
-                return given().spec(specs).when().patch(request).andReturn();
+                return given().filter(allureFilter).spec(specs).when().patch(request).andReturn();
             }
             case PUT -> {
-                return given().spec(specs).when().put(request).andReturn();
+                return given().filter(allureFilter).spec(specs).when().put(request).andReturn();
             }
             case GET -> {
-                return given().spec(specs).when().get(request).andReturn();
+                return given().filter(allureFilter).spec(specs).when().get(request).andReturn();
             }
             case DELETE -> {
-                return given().spec(specs).when().delete(request).andReturn();
+                return given().filter(allureFilter).spec(specs).when().delete(request).andReturn();
             }
             default -> {
             }
@@ -1261,15 +1055,17 @@ public class RestActions {
             ReportManager.logDiscrete("Response status code: \"" + statusCode + "\", status line: \"" + response.getStatusLine() + "\"");
             if (AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE) {
                 if (targetStatusCode != 0) {
-                    Validations.assertThat().number(statusCode)
-                            .isEqualTo(targetStatusCode)
-                            .withCustomReportMessage("Evaluating the actual response status code " + statusCode + " against the expected one " + targetStatusCode + ".")
-                            .perform();
+                    if (targetStatusCode == statusCode) {
+                        ReportManager.log("Actual response status code \"" + statusCode + "\" matches the expected one \"" + targetStatusCode + "\".");
+                    } else {
+                        failAction("Actual response status code \"" + statusCode + "\" does not match the expected one \"" + targetStatusCode + "\".");
+                    }
                 } else {
-                    Validations.assertThat().object(statusCode >= 200 && statusCode < 300)
-                            .isTrue()
-                            .withCustomReportMessage("Evaluating that the response is successful (Status code is between 200 and 299).")
-                            .perform();
+                    if (statusCode >= 200 && statusCode < 300) {
+                        ReportManager.log("Actual response status code \"" + statusCode + "\" is successful (Between 200 and 299).");
+                    } else {
+                        failAction("Actual response status code \"" + statusCode + "\" is a failure (Not between 200 and 299).");
+                    }
                 }
             }
             ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
@@ -1284,18 +1080,14 @@ public class RestActions {
         if (response != null) {
             extractCookiesFromResponse(response);
             extractHeadersFromResponse(response);
-
             StringBuilder reportMessage = new StringBuilder();
             reportMessage.append(requestType);
-            reportMessage.append(" | Target Status Code: ").append(targetStatusCode);
-            reportMessage.append(" | Service URL: ").append(serviceURI).append(serviceName);
-            reportMessage.append(" | Content Type: ").append(contentType);
+            if (0 != targetStatusCode)
+                reportMessage.append(" | Target Status Code: ").append(targetStatusCode);
             reportMessage.append(" | Response Time: ").append(response.timeIn(TimeUnit.MILLISECONDS)).append("ms");
-
             if (urlArguments != null) {
                 reportMessage.append(" | URL Arguments: ").append(urlArguments);
             }
-
             return reportMessage.toString().trim();
         }
         return "";
