@@ -273,6 +273,10 @@
             <artifactId>aspectjweaver</artifactId>
             <version>1.9.22</version>
         </dependency>
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-rest-assured</artifactId>
+        </dependency>
 
         <!-- PDF Validation -->
         <dependency>
