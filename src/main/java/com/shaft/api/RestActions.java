@@ -34,6 +34,7 @@ import io.restassured.response.Response;
 import io.restassured.response.ResponseBody;
 import io.restassured.specification.RequestSpecification;
 import lombok.Getter;
+import lombok.Setter;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -67,7 +68,8 @@ public class RestActions {
     private static final String ERROR_FAILED_TO_PARSE_JSON = "Failed to parse the JSON document";
     private static final String GRAPHQL_END_POINT = "graphql";
     @Getter
-    static Response lastResponse;
+    @Setter
+    private Response lastResponse;
     private static boolean AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = true;
     private static int HTTP_SOCKET_TIMEOUT;
     private static int HTTP_CONNECTION_TIMEOUT;

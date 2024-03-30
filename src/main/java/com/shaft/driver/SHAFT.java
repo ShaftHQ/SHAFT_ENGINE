@@ -193,43 +193,43 @@ public class SHAFT {
         }
 
         public RestValidationsBuilder assertThatResponse() {
-            return com.shaft.validation.Validations.assertThat().response(RestActions.getLastResponse());
+            return com.shaft.validation.Validations.assertThat().response(session.getLastResponse());
         }
 
         public RestValidationsBuilder verifyThatResponse() {
-            return com.shaft.validation.Validations.verifyThat().response(RestActions.getLastResponse());
+            return com.shaft.validation.Validations.verifyThat().response(session.getLastResponse());
         }
 
         public Response getResponse() {
-            return RestActions.getLastResponse();
+            return session.getLastResponse();
         }
 
         public String getResponseBody() {
-            return RestActions.getResponseBody(RestActions.getLastResponse());
+            return RestActions.getResponseBody(session.getLastResponse());
         }
 
         public int getResponseStatusCode() {
-            return RestActions.getResponseStatusCode(RestActions.getLastResponse());
+            return RestActions.getResponseStatusCode(session.getLastResponse());
         }
 
         public long getResponseTime() {
-            return RestActions.getResponseTime(RestActions.getLastResponse());
+            return RestActions.getResponseTime(session.getLastResponse());
         }
 
         public String getResponseJSONValue(String jsonPath) {
-            return RestActions.getResponseJSONValue(RestActions.getLastResponse(), jsonPath);
+            return RestActions.getResponseJSONValue(session.getLastResponse(), jsonPath);
         }
 
         public List<Object> getResponseJSONValueAsList(String jsonPath) {
-            return RestActions.getResponseJSONValueAsList(RestActions.getLastResponse(), jsonPath);
+            return RestActions.getResponseJSONValueAsList(session.getLastResponse(), jsonPath);
         }
 
         public String getResponseXMLValue(String xmlPath) {
-            return RestActions.getResponseXMLValue(RestActions.getLastResponse(), xmlPath);
+            return RestActions.getResponseXMLValue(session.getLastResponse(), xmlPath);
         }
 
         public List<Object> getResponseXMLValueAsList(String xmlPath) {
-            return RestActions.getResponseXMLValueAsList(RestActions.getLastResponse(), xmlPath);
+            return RestActions.getResponseXMLValueAsList(session.getLastResponse(), xmlPath);
         }
     }
 

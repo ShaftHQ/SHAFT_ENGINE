@@ -303,7 +303,7 @@ public class RequestBuilder {
                 RestActions.failAction(request, rootCauseException);
             }
         }
-        RestActions.lastResponse = response;
+        session.setLastResponse(response);
         return response;
     }
 
