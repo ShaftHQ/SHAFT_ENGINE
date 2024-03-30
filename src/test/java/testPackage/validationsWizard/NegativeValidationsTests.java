@@ -16,6 +16,15 @@ public class NegativeValidationsTests {
     private final By NotCheckedBox = By.xpath("//input[@type='checkbox'][1]");
 
 
+    @Test(expectedExceptions = AssertionError.class)
+    public void url() {
+        Validations.assertThat().browser(driver.get()).url().contains("google.comm").perform();
+    }
+
+    @Test(expectedExceptions = AssertionError.class)
+    public void title() {
+        Validations.assertThat().browser(driver.get()).title().contains("ooglem").perform();
+    }
 
 
     @Test(expectedExceptions = AssertionError.class)
