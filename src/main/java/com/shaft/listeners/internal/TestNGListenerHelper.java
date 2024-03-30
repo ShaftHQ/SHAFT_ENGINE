@@ -130,7 +130,11 @@ public class TestNGListenerHelper {
                 "targetOperatingSystem", Platform.LINUX.name(),
                 "targetBrowserName", browser.browserName()
         ));
-        xmlTest.setThreadCount(SHAFT.Properties.testNG.threadCount());
+        int threadCount = SHAFT.Properties.testNG.threadCount();
+        if ("DYNAMIC".equals(SHAFT.Properties.testNG.parallelMode())) {
+            threadCount = threadCount * Runtime.getRuntime().availableProcessors();
+        }
+        xmlTest.setThreadCount(threadCount);
         xmlTest.setParallel(XmlSuite.ParallelMode.valueOf(SHAFT.Properties.testNG.parallel()));
         xmlTest.setName(xmlTest.getName() + " - " + browser);
     }
@@ -143,7 +147,11 @@ public class TestNGListenerHelper {
                 xmlTest.setGroupByInstances(SHAFT.Properties.testNG.groupByInstances());
                 xmlTest.setVerbose(SHAFT.Properties.testNG.verbose());
                 xmlTest.setParallel(XmlSuite.ParallelMode.valueOf(SHAFT.Properties.testNG.parallel()));
-                xmlTest.setThreadCount(SHAFT.Properties.testNG.threadCount());
+                int threadCount = SHAFT.Properties.testNG.threadCount();
+                if ("DYNAMIC".equals(SHAFT.Properties.testNG.parallelMode())) {
+                    threadCount = threadCount * Runtime.getRuntime().availableProcessors();
+                }
+                xmlTest.setThreadCount(threadCount);
             });
         });
     }
