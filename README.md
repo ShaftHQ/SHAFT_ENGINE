@@ -1,33 +1,63 @@
+<!-- Badges provided by https://shields.io/ -->
 [![Ceasefire now](https://img.shields.io/badge/%F0%9F%87%B5%F0%9F%87%B8_Ceasefire_Now-techforpalestine.org-000000?labelColor=gray&color=D83838&style=for-the-badge)](https://techforpalestine.org/learn-more)
 
-<!-- Badges provided by https://shields.io/ -->
-[![License](https://img.shields.io/github/license/ShaftHQ/SHAFT_Engine?color=indigo&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE)
- [![Contributors)](https://img.shields.io/github/contributors/ShaftHQ/SHAFT_ENGINE?color=indigo&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/graphs/contributors)
- [![JFrog release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ShaftHQ/shaft_engine?include_prereleases&color=indigo&label=Latest%20Release&style=for-the-badge)](https://central.sonatype.com/artifact/io.github.shafthq/SHAFT_ENGINE)
-
-[![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/e2eTests.yml?branch=main&color=forestgreen&label=E2E%20Tests&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/e2eTests.yml)
- [![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/codeql-analysis.yml?branch=main&label=Security&color=forestgreen&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/codeql-analysis.yml)
-
-
-[![Codacy grade](https://img.shields.io/codacy/grade/4d6d48aba396411fa3170184330ba089?style=for-the-badge&color=blue&label=Code%20Quality)](https://www.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard)
- [![Codecov](https://img.shields.io/codecov/c/github/shafthq/shaft_engine?style=for-the-badge&label=Coverage&color=blue)](https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE)
- 
-
 # SHAFT: Unified Test Automation Engine
-
-<a href="https://ShaftHQ.github.io/" target="_blank"><img src="src/main/resources/images/shaft.png" alt="SHAFT_ENGINE" height="300px" style="display:block; margin-left:auto; margin-right:auto;"></a>
-
-
-🆓 [100% Free](https://ShaftHQ.github.io/) | 🟢 [Proud member of the Selenium Ecosystem](https://www.selenium.dev/ecosystem/#frameworks) | 🏆 [Winner of the 2023 Google Open Source Award](https://opensource.googleblog.com/2023/05/google-open-source-peer-bonus-program-announces-first-group-of-winners-2023.html)
+ 
+<table border="0" align="center">
+ <tr>
+  <td colspan="3" align="center">
+   <a href="https://ShaftHQ.github.io/" target="_blank"><img width="600" alt="SHAFT_ENGINE" src="src/main/resources/images/shaft.png"></a>
+  </td>
+ </tr>
+ <tr>
+  <td align="center">
+   Fully documented
+<br/><br/><a href="https://ShaftHQ.github.io/"><img width="200" alt="User Guide" src="https://github.com/ShaftHQ/SHAFT_ENGINE/assets/19201898/bdd6db98-4121-4a86-b7db-fb94b8830d11"><a/>
+  <br/></td>
+   <td align="center">
+   Award Winning
+<br/><br/><a href="https://opensource.googleblog.com/2023/05/google-open-source-peer-bonus-program-announces-first-group-of-winners-2023.html"><img width="200" alt="Google Open Source" src="https://github.com/ShaftHQ/SHAFT_ENGINE/assets/19201898/1b6296b4-418d-4cb1-829f-6b15e7d17e87"></a>
+  <br/></td>
+  <td align="center">
+   Selenium Ecosystem
+<br/><br/><a href="https://www.selenium.dev/ecosystem/#frameworks"><img width="200" alt="Selenium Ecosystem" src="https://github.com/ShaftHQ/SHAFT_ENGINE/assets/19201898/b13d4c2c-72ce-4de6-861f-d143f905c5ab"><a/>
+  <br/></td>
+ </tr>
+  <tr>
+  <td colspan="3" align="center">
+   <br/>
+   <a href="https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE" target="_blank"><img alt="License" src="https://img.shields.io/github/license/ShaftHQ/SHAFT_Engine?color=indigo&style=for-the-badge"></a>
+   <a href="https://github.com/ShaftHQ/SHAFT_ENGINE/graphs/contributors" target="_blank"><img alt="Contributors" src="https://img.shields.io/github/contributors/ShaftHQ/SHAFT_ENGINE?color=indigo&style=for-the-badge"></a>
+   <a href="https://central.sonatype.com/artifact/io.github.shafthq/SHAFT_ENGINE" target="_blank"><img alt="Latest Release" src="https://img.shields.io/github/v/release/ShaftHQ/shaft_engine?include_prereleases&color=indigo&label=Latest%20Release&style=for-the-badge"></a>
+   <br/>
+   <a href="https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/e2eTests.yml" target="_blank"><img alt="E2E Tests" src="https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/e2eTests.yml?branch=main&color=forestgreen&label=E2E%20Tests&style=for-the-badge"></a>
+   <a href="https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/codeql-analysis.yml" target="_blank"><img alt="Code QL" src="https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/codeql-analysis.yml?branch=main&label=Security&color=forestgreen&style=for-the-badge"></a>
+   <br/>
+   <a href="https://www.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard" target="_blank"><img alt="Codacy" src="https://img.shields.io/codacy/grade/4d6d48aba396411fa3170184330ba089?style=for-the-badge&color=blue&label=Code%20Quality"></a>
+   <a href="https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE" target="_blank"><img alt="Codecov" src="https://img.shields.io/codecov/c/github/shafthq/shaft_engine?style=for-the-badge&label=Coverage&color=blue"></a>
+   <br/><br/>
+  </td>
+ </tr>
+</table>
 
 <a id="quick-start-guide"></a>
 ## 🏃 Quick Start Guide
 
-### Option 1: Template Project
+### Option 1: Maven Archetype
+(Recommended for new local sandbox projects)
 
-- Use our [Template Project](https://github.com/ShaftHQ/using_SHAFT_Engine) to get started with one click.
+- The easiest and most straightforward way to create a new project that uses SHAFT.
+- Just [follow the simple steps here](https://github.com/ShaftHQ/testng-archetype) to generate your new project with one command (all configurations included).
 
-### Option 2: New Project
+### Option 2: Template Project
+(Recommended for new source controlled projects)
+
+- Use our [Template Project](https://github.com/ShaftHQ/using_SHAFT_Engine) to create a new project with one click.
+- Follow the steps in the ReadMe to handle project configuration.
+
+### Option 3: Start from scratch
+(Recommended if you're upgrading an existing project from Native Selenium WebDriver to SHAFT)
+
 #### Step 1: Initial Setup
 
 - Create a new Java/Maven project using Eclipse, IntelliJ or your favourite IDE.
@@ -98,6 +128,9 @@ public void afterClass(){
   <br/>`--plugin com.shaft.listeners.CucumberFeatureListener`
   <br/>- After saving the changes, remember to delete any old runs you may have triggered by mistake before adding the needed config.
 
+<a id="user-guide"></a>
+## 📚 User Guide
+- Check out our [comprehensive user guide](https://shafthq.github.io/) for details on the features we support.
 
 ## 👨‍💻 Tech Stack
 <a href="https://www.oracle.com/eg/java/technologies/downloads/" target="_blank"><img src="https://www.chrisjmendez.com/content/images/2019/01/Java_logo_icon.png" alt="Java" height="50px"></a>
@@ -127,12 +160,13 @@ public void afterClass(){
 <a href="https://www.browserstack.com/" target="_blank"><img src="https://ml.globenewswire.com/Resource/Download/745e80b7-4736-424e-b44b-850d2dc41940" alt="BrowserStack" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://applitools.com/" target="_blank"><img src="https://www.selenium.dev/images/sponsors/applitools.png" alt="Applitools" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.lambdatest.com/" target="_blank"><img src="https://www.lambdatest.com/resources/images/logos/logo.svg" alt="LambdaTest" height="50px"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.jetbrains.com/" target="_blank"><img src="https://cdn.icon-icons.com/icons2/2389/PNG/512/jetbrains_logo_icon_145150.png" alt="JetBrains" height="50px"></a>
 
 
 <a id="support-and-contributions"></a>
 ## 🤝 Support & Contributions
 - Join us via Slack & Facebook
-<br/><a href="https://join.slack.com/t/automatest-workspace/shared_invite/zt-oii5i2gg-0ZGnih_Y34NjK7QqDn01Dw" target="_blank"><img src="https://a.slack-edge.com/80588/marketing/img/icons/icon_slack_hash_colored.png" alt="automatest-workspace" height="50"/></a>  <a href="https://www.facebook.com/groups/Automatest" target="_blank"><img src="https://facebookbrand.com/wp-content/uploads/2019/04/f_logo_RGB-Hex-Blue_512.png" alt="Automatest" height="50"/></a>
+<br/><a href="https://join.slack.com/t/automatest-workspace/shared_invite/zt-oii5i2gg-0ZGnih_Y34NjK7QqDn01Dw" target="_blank"><img src="https://a.slack-edge.com/80588/marketing/img/icons/icon_slack_hash_colored.png" alt="automatest-workspace" height="50"/></a>  <a href="https://www.facebook.com/groups/Automatest" target="_blank"><img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjLMDbbgNWvnrNY3pjRSfgqZCPIbGMnVRm1jaaoGhgT2Buv-ipatDIe9zjRJIM1b8eZTZm7csh-R1vfHWwwW9nSlEC4agzoLrGqRsRWogha5oZIYS4LXXLSrAg7ekta6niiXxt5XHe_oLU/s200/f_logo_RGB-Blue_1024.png" alt="Automatest" height="50"/></a>
 - And feel free to create PRs directly. [This lovely tutorial](https://dev.to/genicsblog/how-to-create-a-pull-request-in-github-correctly-20np) will help.
 
 
