@@ -14,15 +14,35 @@ public class NegativeValidationsTests {
     private final By checkedBox = By.xpath("//input[@type='checkbox'][2]");
     private final By NotCheckedBox = By.xpath("//input[@type='checkbox'][1]");
 
+    private final String url = "data:text/html,<script>var result;</script><button alt='Google' onclick='result=\"Clicked\"'>Go</button> <div id=\"content\" class=\"large-12 columns\">\n" +
+            "        <div class=\"example\">\n" +
+            "  <h3>Checkboxes</h3>\n" +
+            "  <form id=\"checkboxes\">\n" +
+            "    <input type=\"checkbox\"> checkbox 1<br>\n" +
+            "    <input type=\"checkbox\" checked=\"\"> checkbox 2\n" +
+            "  </form>\n" +
+            "</div>\n" +
+            "      </div>";
 
     @Test(expectedExceptions = AssertionError.class)
-    public void url() {
+    public void url_failing() {
         Validations.assertThat().browser(driver.get()).url().contains("google.comm").perform();
     }
 
+    @Test
+    public void url_passing() {
+        driver.get().navigate().to("https://shafthq.github.io/");
+        Validations.assertThat().browser(driver.get()).url().isEqualTo("https://shafthq.github.io/").perform();
+    }
+
     @Test(expectedExceptions = AssertionError.class)
-    public void title() {
+    public void title_failing() {
         Validations.assertThat().browser(driver.get()).title().contains("ooglem").perform();
+    }
+
+    @Test
+    public void title_passing() {
+        Validations.assertThat().browser(driver.get()).title().isEqualTo("").perform();
     }
 
 
@@ -118,15 +138,7 @@ public class NegativeValidationsTests {
     @BeforeMethod
     public void beforeMethod() {
         driver.set(new DriverFactory().getDriver());
-        driver.get().navigate().to("data:text/html,<script>var result;</script><button alt='Google' onclick='result=\"Clicked\"'>Go</button> <div id=\"content\" class=\"large-12 columns\">\n" +
-                "        <div class=\"example\">\n" +
-                "  <h3>Checkboxes</h3>\n" +
-                "  <form id=\"checkboxes\">\n" +
-                "    <input type=\"checkbox\"> checkbox 1<br>\n" +
-                "    <input type=\"checkbox\" checked=\"\"> checkbox 2\n" +
-                "  </form>\n" +
-                "</div>\n" +
-                "      </div>");
+        driver.get().navigate().to(url);
     }
 
     @AfterMethod(alwaysRun = true)

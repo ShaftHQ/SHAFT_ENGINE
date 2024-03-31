@@ -3,6 +3,7 @@ package com.shaft.driver.internal;
 import com.shaft.driver.DriverFactory;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.ElementActions;
@@ -17,12 +18,13 @@ public class FluentWebDriverAction {
     protected DriverFactoryHelper driverFactoryHelper;
     protected WebDriver driver;
     protected ElementActionsHelper elementActionsHelper;
-
+    protected BrowserActionsHelper browserActionsHelper;
     public void initialize() {
         this.driverFactoryHelper = new DriverFactory().getHelper();
         this.driver = driverFactoryHelper.getDriver();
         JavaScriptWaitManager.waitForLazyLoading(this.driver);
         this.elementActionsHelper = new ElementActionsHelper(false);
+        this.browserActionsHelper = new BrowserActionsHelper(false);
     }
 
     public void initialize(WebDriver driver) {
@@ -30,11 +32,13 @@ public class FluentWebDriverAction {
         this.driverFactoryHelper = new DriverFactoryHelper(this.driver);
         JavaScriptWaitManager.waitForLazyLoading(this.driver);
         this.elementActionsHelper = new ElementActionsHelper(false);
+        this.browserActionsHelper = new BrowserActionsHelper(false);
     }
 
     public void initialize(WebDriver driver, boolean isSilent) {
         initialize(driver);
-        this.elementActionsHelper = new ElementActionsHelper(true);
+        this.elementActionsHelper = new ElementActionsHelper(isSilent);
+        this.browserActionsHelper = new BrowserActionsHelper(isSilent);
     }
 
     public void initialize(DriverFactoryHelper helper) {
@@ -42,6 +46,7 @@ public class FluentWebDriverAction {
         this.driver = helper.getDriver();
         JavaScriptWaitManager.waitForLazyLoading(this.driver);
         this.elementActionsHelper = new ElementActionsHelper(false);
+        this.browserActionsHelper = new BrowserActionsHelper(false);
     }
 
 

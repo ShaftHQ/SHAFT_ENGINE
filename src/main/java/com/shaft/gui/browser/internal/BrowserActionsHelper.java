@@ -32,34 +32,39 @@ import java.util.List;
 import java.util.*;
 
 public class BrowserActionsHelper {
-    public static final int NAVIGATION_TIMEOUT_INTEGER = SHAFT.Properties.timeouts.browserNavigationTimeout();
-    private static final Boolean HEADLESS_EXECUTION = SHAFT.Properties.web.headlessExecution();
+    private final boolean isSilent;
+    private final Boolean HEADLESS_EXECUTION = SHAFT.Properties.web.headlessExecution();
 
-    public static void passAction(String testData) {
+    public static final int NAVIGATION_TIMEOUT_INTEGER = SHAFT.Properties.timeouts.browserNavigationTimeout();
+    public BrowserActionsHelper(boolean isSilent) {
+        this.isSilent = isSilent;
+    }
+
+    public void passAction(String testData) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         passAction(null, actionName, testData);
     }
 
-    public static void passAction(WebDriver driver, String testData) {
+    public void passAction(WebDriver driver, String testData) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         passAction(driver, actionName, testData);
     }
 
-    public static void passAction(WebDriver driver, String actionName, String testData) {
+    public void passAction(WebDriver driver, String actionName, String testData) {
         reportActionResult(driver, actionName, testData, true);
     }
 
-    public static void failAction(Exception... rootCauseException) {
+    public void failAction(Exception... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(null, actionName, "", rootCauseException);
     }
 
-    public static void failAction(WebDriver driver, String testData, Exception... rootCauseException) {
+    public void failAction(WebDriver driver, String testData, Exception... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(driver, actionName, testData, rootCauseException);
     }
 
-    public static void failAction(WebDriver driver, String actionName, String testData,
+    public void failAction(WebDriver driver, String actionName, String testData,
                                   Exception... rootCauseException) {
         String message = reportActionResult(driver, actionName, testData, false, rootCauseException);
         if (rootCauseException != null && rootCauseException.length > 0) {
@@ -69,7 +74,7 @@ public class BrowserActionsHelper {
         }
     }
 
-    private static String reportActionResult(WebDriver driver, String actionName, String testData,
+    private String reportActionResult(WebDriver driver, String actionName, String testData,
                                              Boolean passFailStatus,
                                              Exception... rootCauseException) {
         actionName = JavaHelper.convertToSentenceCase(actionName);
@@ -100,18 +105,20 @@ public class BrowserActionsHelper {
         message = message + ".";
 
         message = message.replace("Browser Action: ", "");
-        if (driver != null && !message.equals("Capture page snapshot.")) {
-            attachments.add(new ScreenshotManager().takeScreenshot(driver, null, actionName, passFailStatus));
-            ReportManagerHelper.log(message, attachments);
-        } else if (!attachments.equals(new ArrayList<>())) {
-            ReportManagerHelper.log(message, attachments);
-        } else {
-            ReportManager.log(message);
+        if (!isSilent) {
+            if (driver != null && !message.equals("Capture page snapshot.")) {
+                attachments.add(new ScreenshotManager().takeScreenshot(driver, null, actionName, passFailStatus));
+                ReportManagerHelper.log(message, attachments);
+            } else if (!attachments.equals(new ArrayList<>())) {
+                ReportManagerHelper.log(message, attachments);
+            } else {
+                ReportManager.log(message);
+            }
         }
         return message;
     }
 
-    public static void confirmThatWebsiteIsNotDown(WebDriver driver, String targetUrl) {
+    public void confirmThatWebsiteIsNotDown(WebDriver driver, String targetUrl) {
         if (SHAFT.Properties.flags.forceCheckNavigationWasSuccessful()) {
             List<String> navigationErrorMessages = Arrays.asList("This site can’t be reached", "Unable to connect",
                     "Safari Can’t Connect to the Server", "This page can't be displayed", "Invalid URL",
@@ -141,7 +148,7 @@ public class BrowserActionsHelper {
         }
     }
 
-    public static void navigateToNewUrl(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
+    public void navigateToNewUrl(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
         var internalURL = targetUrl;
         try {
             if (targetUrl.startsWith(SHAFT.Properties.paths.testData())) {
@@ -169,7 +176,7 @@ public class BrowserActionsHelper {
         }
     }
 
-    public static void checkNavigationWasSuccessful(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
+    public void checkNavigationWasSuccessful(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
         if (!targetUrl.equals(targetUrlAfterRedirection)) {
             waitUntilUrlIsNot(driver, initialURL);
         } else {
@@ -179,7 +186,7 @@ public class BrowserActionsHelper {
         }
     }
 
-    public static void waitUntilUrlIsNot(WebDriver driver, String initialURL) {
+    public void waitUntilUrlIsNot(WebDriver driver, String initialURL) {
         try {
             (new WebDriverWait(driver, Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER))).until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
         } catch (TimeoutException rootCauseException) {
@@ -187,7 +194,7 @@ public class BrowserActionsHelper {
         }
     }
 
-    private static void waitUntilUrlContains(WebDriver driver, String targetURL) {
+    private void waitUntilUrlContains(WebDriver driver, String targetURL) {
         try {
             (new WebDriverWait(driver, Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER))).until(ExpectedConditions.urlContains(targetURL));
         } catch (TimeoutException rootCauseException) {
@@ -195,7 +202,7 @@ public class BrowserActionsHelper {
         }
     }
 
-    public static Dimension attemptMaximizeUsingSeleniumWebDriver(WebDriver driver, String executionAddress,
+    public Dimension attemptMaximizeUsingSeleniumWebDriver(WebDriver driver, String executionAddress,
                                                                   String targetBrowserName, String targetOperatingSystem) {
         if ((!"local".equals(executionAddress) && !"GoogleChrome".equals(targetBrowserName))
                 || ("local".equals(executionAddress)
@@ -215,7 +222,7 @@ public class BrowserActionsHelper {
         return driver.manage().window().getSize();
     }
 
-    public static Dimension attemptMaximizeUsingToolkitAndJavascript(WebDriver driver, int width, int height) {
+    public Dimension attemptMaximizeUsingToolkitAndJavascript(WebDriver driver, int width, int height) {
         int targetWidth = width;
         int targetHeight = height;
         try {
@@ -241,7 +248,7 @@ public class BrowserActionsHelper {
         }
     }
 
-    public static Dimension attemptMaximizeUsingSeleniumWebDriverManageWindow(WebDriver driver, int width,
+    public Dimension attemptMaximizeUsingSeleniumWebDriverManageWindow(WebDriver driver, int width,
                                                                               int height) {
         driver.manage().window().setPosition(new Point(0, 0));
         driver.manage().window().setSize(new Dimension(width, height));
@@ -251,7 +258,7 @@ public class BrowserActionsHelper {
         return driver.manage().window().getSize();
     }
 
-    public static String capturePageSnapshot(WebDriver driver) {
+    public String capturePageSnapshot(WebDriver driver) {
         var serializedPageData = "";
         try {
             if (driver instanceof ChromiumDriver chromiumDriver) {
@@ -277,7 +284,7 @@ public class BrowserActionsHelper {
 
 
     @SneakyThrows
-    public static String formatUrlForBasicAuthentication(String username, String password, String targetUrl) {
+    public String formatUrlForBasicAuthentication(String username, String password, String targetUrl) {
         if (targetUrl.startsWith("https://")) {
             return new URI("https://" + URLEncoder.encode(username, StandardCharsets.UTF_8) + ":" + URLEncoder.encode(password, StandardCharsets.UTF_8) + "@" + targetUrl.substring("https://".length())).toString();
         } else {
@@ -286,7 +293,7 @@ public class BrowserActionsHelper {
     }
 
     @SneakyThrows
-    public static String getDomainNameFromUrl(String url) {
+    public String getDomainNameFromUrl(String url) {
         // https://www.baeldung.com/java-domain-name-from-url#using-the-internetdomainname-class-from-guava-library
         URI uri = new URI(url);
         String host = uri.getHost();

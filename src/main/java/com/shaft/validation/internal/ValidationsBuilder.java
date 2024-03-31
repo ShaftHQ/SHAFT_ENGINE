@@ -55,7 +55,7 @@ public class ValidationsBuilder {
      * @return a WebDriverBrowserValidationsBuilder object to continue building your validation
      */
     public WebDriverBrowserValidationsBuilder browser(WebDriver driver) {
-        reportMessageBuilder.append("the Browser ");
+        reportMessageBuilder.append("the browser ");
         return new WebDriverBrowserValidationsBuilder(validationCategory, driver, reportMessageBuilder);
     }
 
@@ -78,7 +78,7 @@ public class ValidationsBuilder {
      * @return a FileValidationsBuilder object to continue building your validation
      */
     public FileValidationsBuilder file(String folderRelativePath, String fileName) {
-        reportMessageBuilder.append("the File \"").append(folderRelativePath).append(fileName).append("\" ");
+        reportMessageBuilder.append("the file \"").append(folderRelativePath).append(fileName).append("\" ");
         return new FileValidationsBuilder(validationCategory, folderRelativePath, fileName, reportMessageBuilder);
     }
 

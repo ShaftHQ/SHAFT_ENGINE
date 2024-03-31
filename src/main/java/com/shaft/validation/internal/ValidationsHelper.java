@@ -4,7 +4,6 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.enums.internal.Screenshots;
-import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.internal.image.ImageProcessingActions;
@@ -88,44 +87,6 @@ public class ValidationsHelper {
                 fail(null, validationCategory, "NULL", "NULL", ValidationComparisonType.EQUALS, validationType, failureReason);
             }
         }
-    }
-
-    protected void validateBrowserAttribute(ValidationCategory validationCategory, WebDriver driver, String browserAttribute,
-                                                   String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
-                                            String customReportMessage) {
-        processCustomLogMessage(customReportMessage);
-        String[] expectedAttributeStates = {"Value Should be", "Value Should not be"};
-        String attributeSeparator = "' for the '";
-        String attributeClosure = "' attribute";
-        String actualValue;
-        try {
-            actualValue = switch (browserAttribute.toLowerCase()) {
-                case "currenturl", "url" -> new BrowserActions(driver).getCurrentURL();
-                case "pagesource" -> new BrowserActions(driver).getPageSource();
-                case "title" -> new BrowserActions(driver).getCurrentWindowTitle();
-                case "windowhandle" -> new BrowserActions(driver).getWindowHandle();
-                case "windowposition" -> new BrowserActions(driver).getWindowPosition();
-                case "windowsize" -> new BrowserActions(driver).getWindowSize();
-                default -> "";
-            };
-        } catch (Throwable e) {
-            // force fail due to upstream failure
-            if (validationType.getValue()) {
-                fail(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + browserAttribute
-                                + attributeClosure,
-                        "Failed to read the desired browser attribute", validationComparisonType, validationType, e);
-            } else {
-                fail(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + attributeSeparator + browserAttribute
-                                + attributeClosure,
-                        "Failed to read the desired browser attribute", validationComparisonType, validationType, e);
-            }
-            return;
-        }
-        int comparisonResult = JavaHelper.compareTwoObjects(expectedValue, actualValue,
-                validationComparisonType.getValue(), validationType.getValue());
-        reportValidationResultOfBrowserAttribute(driver, new Object[]{expectedAttributeStates, attributeSeparator,
-                attributeClosure, comparisonResult, null, browserAttribute, expectedValue, actualValue,
-                validationComparisonType, validationType, validationCategory});
     }
 
     protected void validateComparativeRelation(ValidationCategory validationCategory, Number expectedValue, Number actualValue,
@@ -241,7 +202,7 @@ public class ValidationsHelper {
             if ((WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Always") || WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("ValidationPointsOnly"))
                     || (Boolean.FALSE.equals(validationState.getValue()) && WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("FailuresOnly"))) {
                 var logMessage = "";
-                var pageSnapshot = BrowserActionsHelper.capturePageSnapshot(driver);
+                var pageSnapshot = new BrowserActionsHelper(true).capturePageSnapshot(driver);
                 if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
                     logMessage = "page snapshot";
                 } else if (pageSnapshot.startsWith("<html")) {

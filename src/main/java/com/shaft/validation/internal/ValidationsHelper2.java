@@ -1,6 +1,7 @@
 package com.shaft.validation.internal;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
@@ -23,19 +24,42 @@ import java.util.List;
 public class ValidationsHelper2 {
     private final ValidationEnums.ValidationCategory validationCategory;
     private final String validationCategoryString;
-    private final ElementActionsHelper elementActionsHelper;
-
     ValidationsHelper2(ValidationEnums.ValidationCategory validationCategory) {
-        this.elementActionsHelper = new ElementActionsHelper(true);
         this.validationCategory = validationCategory;
         this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
+    }
+
+    protected void validateBrowserAttribute(WebDriver driver, String attribute,
+                                            String expected, ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
+        // read actual value based on desired attribute
+        // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
+        String actual = switch (attribute.toLowerCase()) {
+            case "currenturl", "pageurl", "windowurl", "url" -> new BrowserActions(driver, true).getCurrentURL();
+            case "pagesource", "windowsource", "source" -> new BrowserActions(driver, true).getPageSource();
+            case "title", "windowtitle", "pagetitle" -> new BrowserActions(driver, true).getCurrentWindowTitle();
+            case "windowhandle", "pagehndle", "handle" -> new BrowserActions(driver, true).getWindowHandle();
+            case "windowposition", "pageposition", "position" -> new BrowserActions(driver, true).getWindowPosition();
+            case "windowsize", "pagesize", "size" -> new BrowserActions(driver, true).getWindowSize();
+            default -> "";
+        };
+
+        //reporting block
+        List<Parameter> parameters = new ArrayList<>();
+        parameters.add(new Parameter().setName("Attribute").setValue(attribute).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Expected value").setValue(expected).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Actual value").setValue(actual).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
+        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
+        //end of reporting block
+        performValidation(driver, null, expected, actual, type, validation);
     }
 
     protected void validateElementAttribute(WebDriver driver, By locator, String attribute,
                                             String expected, ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
         // read actual value based on desired attribute
         // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
-        var elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, locator));
+        var elementInformation = ElementInformation.fromList(new ElementActionsHelper(true).identifyUniqueElementIgnoringVisibility(driver, locator));
         String actual = switch (attribute.toLowerCase()) {
             case "text" -> new ElementActions(driver, true).getText(locator);
             case "texttrimmed" -> new ElementActions(driver, true).getText(locator).trim();
@@ -126,7 +150,7 @@ public class ValidationsHelper2 {
         if (Boolean.FALSE.equals(validationState)
                 || Arrays.asList("always", "validationpointsonly").contains(whenToTakePageSourceSnapshot)) {
             var logMessage = "";
-            var pageSnapshot = BrowserActionsHelper.capturePageSnapshot(driver);
+            var pageSnapshot = new BrowserActionsHelper(true).capturePageSnapshot(driver);
             if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
                 logMessage = "page snapshot";
             } else if (pageSnapshot.startsWith("<html")) {
