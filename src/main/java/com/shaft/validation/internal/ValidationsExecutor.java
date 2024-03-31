@@ -171,9 +171,8 @@ public class ValidationsExecutor {
                     new ValidationsHelper2(validationCategory).validateElementAttribute(driver, locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "elementCssPropertyEquals" ->
                     new ValidationsHelper2(validationCategory).validateElementCSSProperty(driver, locator, elementCssProperty, String.valueOf(expectedValue), validationComparisonType, validationType);
-            case "browserAttributeEquals" -> {
-                new ValidationsHelper2(validationCategory).validateBrowserAttribute(driver, browserAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
-            }
+            case "browserAttributeEquals" ->
+                    new ValidationsHelper2(validationCategory).validateBrowserAttribute(driver, browserAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "comparativeRelationBetweenNumbers" ->
                     new ValidationsHelper().validateComparativeRelation(validationCategory, (Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType, customReportMessage);
             case "fileExists" ->

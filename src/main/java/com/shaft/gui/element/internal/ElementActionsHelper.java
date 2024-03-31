@@ -149,6 +149,7 @@ public class ElementActionsHelper {
                             targetElement[0] = driver.findElement(elementLocator);
                         } catch (InvalidSelectorException invalidSelectorException) {
                             //break and fail immediately if invalid selector
+                            reportActionResult(driver, null, null, null, null, null, false);
                             FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", invalidSelectorException);
                         }
                     }
@@ -233,9 +234,10 @@ public class ElementActionsHelper {
                         // fail if multiple elements are found and flag is enabled
                         if (elementInformation.getNumberOfFoundElements() > 1
                                 && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique() &&
-                                !(elementLocator instanceof RelativeLocator.RelativeBy))
+                                !(elementLocator instanceof RelativeLocator.RelativeBy)) {
+                            reportActionResult(driver, null, null, null, null, null, false);
                             FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", new MultipleElementsFoundException("Multiple elements found matching this locator \"" + JavaHelper.formatLocatorToString(elementLocator) + "\""));
-
+                        }
                         // BLOCK #6 :: PERFORMING ACTION  (WITH OPTIONAL ARGS)
                         // attempt to perform action inside the loop to guarantee higher odds of success and reduced WebDriver calls
                         switch (action.length) {
@@ -806,6 +808,7 @@ public class ElementActionsHelper {
             // in case of regular locator
             switch (Integer.parseInt(matchingElementsInformation.get(0).toString())) {
                 case 0 -> {
+                    reportActionResult(driver, null, null, null, null, null, false);
                     if (matchingElementsInformation.size() > 2 && matchingElementsInformation.get(2) instanceof Throwable) {
                         FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element using this locator \"" + JavaHelper.formatLocatorToString(elementLocator) + "\"", (Throwable) matchingElementsInformation.get(2));
                     }
@@ -816,6 +819,7 @@ public class ElementActionsHelper {
                 }
                 default -> {
                     if (SHAFT.Properties.flags.forceCheckElementLocatorIsUnique() && !(elementLocator instanceof RelativeLocator.RelativeBy)) {
+                        reportActionResult(driver, null, null, null, null, null, false);
                         FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", new MultipleElementsFoundException("Multiple elements found matching this locator \"" + JavaHelper.formatLocatorToString(elementLocator) + "\""));
                     }
                     return matchingElementsInformation;
@@ -997,8 +1001,8 @@ public class ElementActionsHelper {
             }
         }
 
-        if (driver != null && !WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Never")) {
-            if ((WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Always")) || (Boolean.FALSE.equals(passFailStatus) && WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("FailuresOnly"))) {
+        if (driver != null && (Boolean.FALSE.equals(passFailStatus)
+                || WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("always"))) {
                 var logMessage = "";
                 var pageSnapshot = new BrowserActionsHelper(false).capturePageSnapshot(driver);
                 if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
@@ -1008,7 +1012,6 @@ public class ElementActionsHelper {
                 }
                 List<Object> sourceAttachment = Arrays.asList(actionName, logMessage, pageSnapshot);
                 attachments.add(sourceAttachment);
-            }
         }
 
         if (rootCauseException != null && rootCauseException.length >= 1) {
@@ -1024,6 +1027,9 @@ public class ElementActionsHelper {
     }
 
     public String reportActionResult(WebDriver driver, String actionName, String testData, By elementLocator, List<List<Object>> screenshots, String elementName, Boolean passFailStatus, Throwable... rootCauseException) {
+        if (actionName == null) {
+            actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        }
         String message = createReportMessage(actionName, testData, elementName, passFailStatus);
         List<List<Object>> attachments = createReportAttachments(driver, actionName, testData, elementLocator, screenshots, passFailStatus, rootCauseException);
 
@@ -1031,7 +1037,7 @@ public class ElementActionsHelper {
             String rootCause = " Root cause: \"" + Throwables.getRootCause(rootCauseException[0]).getClass().getName() + ": " + Throwables.getRootCause(rootCauseException[0]).getLocalizedMessage().split("\n")[0] + "\"";
             message += rootCause;
         }
-        if (!isSilent) {
+        if (!isSilent || actionName.equals("identifyUniqueElement")) {
             if (attachments != null && !attachments.equals(new ArrayList<>())) {
                 ReportManagerHelper.log(message, attachments);
             } else {
