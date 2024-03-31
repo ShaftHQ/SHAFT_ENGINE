@@ -1,12 +1,11 @@
 package testPackage.validationsWizard;
 
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.testng.annotations.*;
 
 public class NegativeValidationsTests {
     private final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
@@ -27,13 +26,20 @@ public class NegativeValidationsTests {
     }
 
 
+    double defaultTimeout = 60;
+
     @Test(expectedExceptions = AssertionError.class)
-    public void exists() {
+    public void exists_failing() {
         Validations.assertThat().element(driver.get(), button2).exists().perform();
     }
 
+    @Test
+    public void exists_passing() {
+        Validations.assertThat().element(driver.get(), button).exists().perform();
+    }
+
     @Test(expectedExceptions = AssertionError.class)
-    public void notExists() {
+    public void notExists_failing() {
         Validations.assertThat().element(driver.get(), button).doesNotExist().perform();
     }
 
@@ -72,8 +78,13 @@ public class NegativeValidationsTests {
         Validations.assertThat().element(driver.get(), button).text().isEqualTo("Goo").perform();
     }
 
+    @Test
+    public void notExists_passing() {
+        Validations.assertThat().element(driver.get(), button2).doesNotExist().perform();
+    }
+
     @Test(expectedExceptions = AssertionError.class)
-    public void cssProperty() {
+    public void cssProperty_failing() {
         Validations.assertThat().element(driver.get(), button).cssProperty("appearance").matchesRegex("(autoo|buttonn)").perform();
     }
 
@@ -87,7 +98,21 @@ public class NegativeValidationsTests {
         Validations.assertThat().element(driver.get(), NotCheckedBox).isSelected().perform();
     }
 
+    @Test
+    public void cssProperty_passing() {
+        Validations.assertThat().element(driver.get(), button).cssProperty("appearance").matchesRegex("(auto|button)").perform();
+    }
 
+    @BeforeClass
+    public void beforeClass() {
+        defaultTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
+    }
+
+    @AfterClass
+    public void afterClass() {
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultTimeout);
+    }
 
 
     @BeforeMethod

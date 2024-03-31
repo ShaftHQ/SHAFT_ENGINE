@@ -3,7 +3,6 @@ package com.shaft.gui.waits;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.FluentWebDriverAction;
-import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.tools.io.ReportManager;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
@@ -28,7 +27,7 @@ public class WaitActions extends FluentWebDriverAction {
                     .until(conditions);
             ReportManager.log("Explicit wait until: \"" + conditions + "\".");
         } catch (TimeoutException toe) {
-            ElementActionsHelper.failAction(driver, null, toe);
+            elementActionsHelper.failAction(driver, null, toe);
         }
     }
 }

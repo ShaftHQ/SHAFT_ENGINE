@@ -4,6 +4,8 @@ import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import org.openqa.selenium.By;
+import org.openqa.selenium.support.locators.RelativeLocator;
 import org.testng.Assert;
 
 import java.util.ArrayList;
@@ -183,6 +185,14 @@ public class JavaHelper {
             }
         }
         return 1;
+    }
+
+    public static String formatLocatorToString(By locator) {
+        if (locator instanceof RelativeLocator.RelativeBy relativeLocator) {
+            return "Relative Locator: " + relativeLocator.getRemoteParameters().value().toString();
+        } else {
+            return locator.toString();
+        }
     }
 
     public static String convertToSentenceCase(String text) {

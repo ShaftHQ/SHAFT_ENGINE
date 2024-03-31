@@ -8,7 +8,6 @@ import com.shaft.enums.internal.NavigationAction;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
-import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
@@ -59,11 +58,11 @@ public class BrowserActions extends FluentWebDriverAction {
     }
 
     public WebDriverBrowserValidationsBuilder assertThat() {
-        return new WizardHelpers.WebDriverAssertions(helper).browser();
+        return new WizardHelpers.WebDriverAssertions(driverFactoryHelper).browser();
     }
 
     public WebDriverBrowserValidationsBuilder verifyThat() {
-        return new WizardHelpers.WebDriverVerifications(helper).browser();
+        return new WizardHelpers.WebDriverVerifications(driverFactoryHelper).browser();
     }
 
     /**
@@ -338,7 +337,7 @@ public class BrowserActions extends FluentWebDriverAction {
                 ((HasAuthentication) driver).register(uriPredicate, UsernameAndPassword.of(username, password));
             } else {
                 AtomicReference<DevTools> devToolsAtomicReference = new AtomicReference<>();
-                helper.setDriver(new Augmenter().addDriverAugmentation("chrome",
+                driverFactoryHelper.setDriver(new Augmenter().addDriverAugmentation("chrome",
                         HasAuthentication.class,
                         (caps, exec) -> (whenThisMatches, useTheseCredentials) -> {
                             devToolsAtomicReference.get()
@@ -427,7 +426,7 @@ public class BrowserActions extends FluentWebDriverAction {
             try {
                 // TODO: handle session timeout while attempting to close empty window
                 String lastPageSource = driver.getPageSource();
-                helper.closeDriver(driver);
+                driverFactoryHelper.closeDriver(driver);
                 BrowserActionsHelper.passAction(lastPageSource);
             } catch (WebDriverException rootCauseException) {
                 if (rootCauseException.getMessage() != null
@@ -730,7 +729,8 @@ public class BrowserActions extends FluentWebDriverAction {
      */
     public BrowserActions captureScreenshot(Screenshots type) {
         var logText = "Capture " + type.name().toLowerCase() + " screenshot";
-        ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeScreenshot(driver), "captureScreenshot")));
+        var screenshotManager = new ScreenshotManager();
+        ReportManagerHelper.log(logText, Collections.singletonList(screenshotManager.prepareImageForReport(screenshotManager.takeScreenshot(driver, null), "captureScreenshot")));
         return this;
     }
 
@@ -749,7 +749,7 @@ public class BrowserActions extends FluentWebDriverAction {
         } else if (pageSnapshot.startsWith("<html")) {
             logMessage = "Capture page HTML";
         }
-        ReportManagerHelper.log(logMessage, List.of(Arrays.asList(logMessage, ScreenshotManager.generateAttachmentFileName("captureSnapshot", null), new ByteArrayInputStream(pageSnapshot.getBytes()))));
+        ReportManagerHelper.log(logMessage, List.of(Arrays.asList(logMessage, new ScreenshotManager().generateAttachmentFileName("captureSnapshot"), new ByteArrayInputStream(pageSnapshot.getBytes()))));
         return this;
     }
 
@@ -763,47 +763,47 @@ public class BrowserActions extends FluentWebDriverAction {
     }
 
     public BrowserActions waitUntilTitleIs(String title) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.titleIs(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.titleIs(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilTitleContains(String title) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.titleContains(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.titleContains(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilTitleNotContains(String title) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.not(ExpectedConditions.titleContains(title)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.not(ExpectedConditions.titleContains(title)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlContains(String url) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.urlContains(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.urlContains(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlNotContains(String url) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.not(ExpectedConditions.urlContains(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.not(ExpectedConditions.urlContains(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlToBe(String url) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.urlToBe(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.urlToBe(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlNotToBe(String url) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.not(ExpectedConditions.urlToBe(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.not(ExpectedConditions.urlToBe(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlMatches(String urlRegex) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.urlMatches(urlRegex), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.urlMatches(urlRegex), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilNumberOfWindowsToBe(int numberOfWindows) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.numberOfWindowsToBe(numberOfWindows), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.numberOfWindowsToBe(numberOfWindows), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
@@ -820,9 +820,9 @@ public class BrowserActions extends FluentWebDriverAction {
         } else if (driver instanceof IOSDriver iosDriver) {
             context = iosDriver.getContext();
         } else {
-            ElementActionsHelper.failAction(driver, null);
+            elementActionsHelper.failAction(driver, null);
         }
-        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
+        elementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
         return context;
     }
 
@@ -839,9 +839,9 @@ public class BrowserActions extends FluentWebDriverAction {
         } else if (driver instanceof IOSDriver iosDriver) {
             iosDriver.context(context);
         } else {
-            ElementActionsHelper.failAction(driver, context, null);
+            elementActionsHelper.failAction(driver, context, null);
         }
-        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
+        elementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
         return this;
     }
 
@@ -853,7 +853,7 @@ public class BrowserActions extends FluentWebDriverAction {
      */
     public List<String> getWindowHandles() {
         List<String> windowHandles = new ArrayList<>(driver.getWindowHandles());
-        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
+        elementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
         return windowHandles;
     }
 
@@ -870,9 +870,9 @@ public class BrowserActions extends FluentWebDriverAction {
         } else if (driver instanceof IOSDriver iosDriver) {
             windowHandles.addAll(iosDriver.getContextHandles());
         } else {
-            ElementActionsHelper.failAction(driver, null);
+            elementActionsHelper.failAction(driver, null);
         }
-        ElementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
+        elementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
         return windowHandles;
     }
 

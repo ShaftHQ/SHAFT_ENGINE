@@ -11,6 +11,7 @@ import com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesExcep
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -38,8 +39,6 @@ import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.util.List;
 import java.util.*;
-
-import static com.shaft.gui.element.internal.ElementActionsHelper.formatLocatorToString;
 
 @SuppressWarnings("SpellCheckingInspection")
 public class ImageProcessingActions {
@@ -326,7 +325,7 @@ public class ImageProcessingActions {
                             new Scalar(67, 176, 42), 2, 8, 0); // selenium-green
                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
                     ImageIO.write((BufferedImage) HighGui.toBufferedImage(img_original), "png", baos);
-                    var screenshot = ScreenshotManager.prepareImageForReport(baos.toByteArray(), "AI identified element");
+                    var screenshot = new ScreenshotManager().prepareImageForReport(baos.toByteArray(), "AI identified element");
                     List<List<Object>> attachments = new LinkedList<>();
                     attachments.add(screenshot);
                     ReportManagerHelper.log("Successfully identified the element using AI; OpenCV. " + accuracyMessage, attachments);
@@ -358,7 +357,7 @@ public class ImageProcessingActions {
     }
 
     public static String formatElementLocatorToImagePath(By elementLocator) {
-        String elementFileName = ReportManagerHelper.getCallingMethodFullName() + "_" + formatLocatorToString(elementLocator);
+        String elementFileName = ReportManagerHelper.getCallingMethodFullName() + "_" + JavaHelper.formatLocatorToString(elementLocator);
         return elementFileName.replaceAll("[\\[\\]\\'\\/:]", "").replaceAll("[\\W\\s]", "_").replaceAll("_{2}", "_")
                 .replaceAll("_{2}", "_").replaceAll("contains", "_contains").replaceAll("_$", "");
     }

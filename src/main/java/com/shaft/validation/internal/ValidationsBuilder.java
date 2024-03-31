@@ -1,10 +1,9 @@
 package com.shaft.validation.internal;
 
+import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-
-import static com.shaft.gui.element.internal.ElementActionsHelper.formatLocatorToString;
 
 @SuppressWarnings("unused")
 public class ValidationsBuilder {
@@ -46,7 +45,7 @@ public class ValidationsBuilder {
     }
 
     public WebDriverElementValidationsBuilder element(WebDriver driver, By locator) {
-        reportMessageBuilder.append("the element located by \"").append(formatLocatorToString(locator)).append("\" ");
+        reportMessageBuilder.append("the element located by \"").append(JavaHelper.formatLocatorToString(locator)).append("\" ");
         return new WebDriverElementValidationsBuilder(validationCategory, driver, locator, reportMessageBuilder);
     }
 

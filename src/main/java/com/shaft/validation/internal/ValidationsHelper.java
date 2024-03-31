@@ -6,7 +6,6 @@ import com.shaft.driver.SHAFT;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
-import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
@@ -14,9 +13,7 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
-import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.ValidationEnums.*;
-import io.qameta.allure.Step;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -28,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static com.shaft.gui.element.internal.ElementActionsHelper.formatLocatorToString;
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 
 public class ValidationsHelper {
@@ -39,10 +35,10 @@ public class ValidationsHelper {
     private static By lastUsedElementLocator = null;
     protected static List<String> verificationFailuresList = new ArrayList<>();
     protected static AssertionError verificationError = null;
-    private final String validationCategoryString;
+    private final ElementActionsHelper elementActionsHelper;
 
-    ValidationsHelper(ValidationEnums.ValidationCategory validationCategory) {
-        this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
+    ValidationsHelper() {
+        this.elementActionsHelper = new ElementActionsHelper(false);
     }
 
     public static AssertionError getVerificationErrorToForceFail() {
@@ -54,13 +50,11 @@ public class ValidationsHelper {
         verificationError = null;
     }
 
-    @Step(" {this.validationCategoryString} that {customReportMessage}")
     protected void validateFail(ValidationCategory validationCategory, String customReportMessage) {
         processCustomLogMessage(customReportMessage);
         fail(null, validationCategory, null, null, null, null, null);
     }
 
-    @Step(" {this.validationCategoryString} that {customReportMessage}")
     protected void validateEquals(ValidationCategory validationCategory, Object expectedValue, Object actualValue,
                                          ValidationComparisonType validationComparisonType, ValidationType validationType,
                                   String customReportMessage) {
@@ -76,7 +70,6 @@ public class ValidationsHelper {
         }
     }
 
-    @Step(" {this.validationCategoryString} that {customReportMessage}")
     protected void validateNull(ValidationCategory validationCategory, Object object, ValidationType validationType, String customReportMessage) {
 
         processCustomLogMessage(customReportMessage);
@@ -97,84 +90,6 @@ public class ValidationsHelper {
         }
     }
 
-    @Step(" {this.validationCategoryString} that {customReportMessage}")
-    protected void validateElementExists(ValidationCategory validationCategory, WebDriver driver, By elementLocator, ValidationType validationType,
-                                         String customReportMessage) {
-
-        processCustomLogMessage(customReportMessage);
-
-        String[] expectedElementStates = {"Element Should Exist", "Element Should not Exist"};
-        String[] actualElementStates = {"Element Exists", "Element Doesn't Exists",
-                "Element Exists but is not unique"};
-        String locatorSeparator = ", locator '";
-
-        lastUsedElementLocator = elementLocator;
-        int elementsCount = ElementActionsHelper.getElementsCount(driver, elementLocator);
-
-        if (validationType.getValue()) {
-            // expecting a unique element to be present
-            final String expectedValue = expectedElementStates[0] + locatorSeparator + formatLocatorToString(elementLocator) + "'";
-            switch (elementsCount) {
-                case 0 -> {
-                    lastUsedElementLocator = null; //reset lastUsedElementLocator to avoid attempting to find the element again
-                    fail(driver, validationCategory, expectedValue,
-                            actualElementStates[1], ValidationComparisonType.EQUALS, validationType, null);
-                }
-                case 1 -> pass(driver, validationCategory, expectedValue,
-                        actualElementStates[0], ValidationComparisonType.EQUALS, validationType);
-                default -> fail(driver, validationCategory, expectedValue,
-                        actualElementStates[2], ValidationComparisonType.EQUALS, validationType, null);
-            }
-        } else {
-            // not expecting the element to be present
-            final String expectedValue = expectedElementStates[1] + locatorSeparator + formatLocatorToString(elementLocator) + "'";
-            switch (elementsCount) {
-                case 0 -> {
-                    lastUsedElementLocator = null; //reset lastUsedElementLocator to avoid attempting to find the element again
-                    pass(driver, validationCategory, expectedValue,
-                            actualElementStates[1], ValidationComparisonType.EQUALS, validationType);
-                }
-                case 1 -> fail(driver, validationCategory, expectedValue,
-                        actualElementStates[0], ValidationComparisonType.EQUALS, validationType, null);
-                default -> fail(driver, validationCategory, expectedValue,
-                        actualElementStates[2], ValidationComparisonType.EQUALS, validationType, null);
-            }
-        }
-    }
-
-    @Step(" {this.validationCategoryString} that {customReportMessage}")
-    protected void validateElementCSSProperty(WebDriver driver, ValidationCategory validationCategory, By elementLocator, String propertyName,
-                                                     String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
-                                              String customReportMessage) {
-        processCustomLogMessage(customReportMessage);
-        String[] expectedAttributeStates = {"Value Should be", "Value Should not be"};
-        String propertySeparator = "' for the '";
-        String locatorSeparator = "' CSS property, element locator '";
-        String actualValue;
-        try {
-            actualValue = new ElementActions(driver).getCSSProperty(elementLocator, propertyName);
-        } catch (Throwable e) {
-            // force fail due to upstream failure
-            if (validationType.getValue()) {
-                fail(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
-                                + locatorSeparator + formatLocatorToString(elementLocator) + "'",
-                        "Failed to read the desired element CSS property", validationComparisonType, validationType, e);
-            } else {
-                fail(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
-                                + locatorSeparator + formatLocatorToString(elementLocator) + "'",
-                        "Failed to read the desired element CSS property", validationComparisonType, validationType, e);
-            }
-            return;
-        }
-        lastUsedElementLocator = elementLocator;
-        int comparisonResult = JavaHelper.compareTwoObjects(expectedValue, actualValue,
-                validationComparisonType.getValue(), validationType.getValue());
-        reportValidationResultOfElementAttribute(driver, new Object[]{expectedAttributeStates, propertySeparator,
-                locatorSeparator, comparisonResult, elementLocator, propertyName, expectedValue, actualValue,
-                validationComparisonType, validationType, validationCategory});
-    }
-
-    @Step(" {this.validationCategoryString} that {customReportMessage}")
     protected void validateBrowserAttribute(ValidationCategory validationCategory, WebDriver driver, String browserAttribute,
                                                    String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
                                             String customReportMessage) {
@@ -213,7 +128,6 @@ public class ValidationsHelper {
                 validationComparisonType, validationType, validationCategory});
     }
 
-    @Step(" {this.validationCategoryString} that {customReportMessage}")
     protected void validateComparativeRelation(ValidationCategory validationCategory, Number expectedValue, Number actualValue,
                                                       NumbersComparativeRelation numbersComparativeRelation, ValidationType validationType,
                                                String customReportMessage) {
@@ -233,7 +147,6 @@ public class ValidationsHelper {
         }
     }
 
-    @Step(" {this.validationCategoryString} that {customReportMessage}")
     protected void validateTrue(ValidationCategory validationCategory, Boolean conditionalStatement, ValidationType validationType, String customReportMessage) {
         processCustomLogMessage(customReportMessage);
         Boolean expectedValue = false;
@@ -247,7 +160,6 @@ public class ValidationsHelper {
         }
     }
 
-    @Step(" {this.validationCategoryString} that {customReportMessage}")
     protected void validateFileExists(ValidationCategory validationCategory, String fileFolderName, String fileName, @SuppressWarnings("SameParameterValue") int numberOfRetries,
                                       ValidationType validationType, String customReportMessage) {
         processCustomLogMessage(customReportMessage);
@@ -268,254 +180,6 @@ public class ValidationsHelper {
             pass(null, validationCategory, reportedExpectedValue, reportedActualValue, null, validationType);
         } else {
             fail(null, validationCategory, reportedExpectedValue, reportedActualValue, null, validationType, null);
-        }
-    }
-
-    @Step(" {this.validationCategoryString} that {customReportMessage}")
-    protected void validateElementMatches(ValidationCategory validationCategory, WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine, ValidationType validationType,
-                                          String customReportMessage) {
-        lastUsedElementLocator = elementLocator;
-        //TODO: remove this temporary fix when this bug is fixed with shutterbug
-        //https://github.com/assertthat/selenium-shutterbug/issues/105
-        if (Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
-            visualValidationEngine = VisualValidationEngine.EXACT_OPENCV;
-        }
-        processCustomLogMessage(customReportMessage);
-        StringBuilder reportedExpectedResult = new StringBuilder();
-        reportedExpectedResult.append("Element should ");
-        Boolean expectedResult = validationType.getValue();
-        if (!expectedResult) {
-            reportedExpectedResult.append("not ");
-        }
-        reportedExpectedResult.append("match the reference screenshot");
-        List<List<Object>> attachments = new ArrayList<>();
-        byte[] referenceImage = ImageProcessingActions.getReferenceImage(elementLocator);
-        if (!Arrays.equals(new byte[0], referenceImage)) {
-            List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Reference Screenshot",
-                    referenceImage);
-            attachments.add(expectedValueAttachment);
-        }
-        if (ElementActionsHelper.getElementsCount(driver, elementLocator) == 1) {
-            byte[] elementScreenshot;
-            Boolean actualResult;
-
-            elementScreenshot = ScreenshotManager.takeScreenshot(driver, elementLocator, Screenshots.ELEMENT);
-            actualResult = ImageProcessingActions.compareAgainstBaseline(driver, elementLocator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
-
-            List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
-                    elementScreenshot);
-            attachments.add(actualValueAttachment);
-
-            if (visualValidationEngine.equals(VisualValidationEngine.EXACT_SHUTTERBUG) && !actualResult) {
-                //if shutterbug and failed, get differences screenshot
-                byte[] shutterbugDifferencesImage = ImageProcessingActions.getShutterbugDifferencesImage(elementLocator);
-                if (!Arrays.equals(new byte[0], shutterbugDifferencesImage)) {
-                    List<Object> differencesAttachment = Arrays.asList("Validation Test Data", "Differences",
-                            shutterbugDifferencesImage);
-                    attachments.add(differencesAttachment);
-                }
-            }
-            if (expectedResult.equals(actualResult)) {
-                pass(driver, validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, attachments);
-            } else {
-                fail(driver, validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, null, attachments);
-            }
-        } else {
-            byte[] pageScreenshot = ScreenshotManager.takeScreenshot(driver);
-            List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
-                    pageScreenshot);
-            attachments.add(actualValueAttachment);
-            fail(driver, validationCategory, reportedExpectedResult.toString(), "Element not found".toUpperCase(), visualValidationEngine, validationType, null, attachments);
-        }
-    }
-
-    private static void pass(WebDriver driver, ValidationCategory validationCategory, String expectedValue, String actualValue,
-                             Object validationComparisonType, ValidationType validationType, List<List<Object>> externalAttachments) {
-        reportValidationState(driver, validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
-                ValidationState.PASSED, null, externalAttachments);
-    }
-
-    private static void pass(WebDriver driver, ValidationCategory validationCategory, String expectedValue, String actualValue,
-                             Object validationComparisonType, ValidationType validationType) {
-        reportValidationState(driver, validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
-                ValidationState.PASSED, null, null);
-    }
-
-    private static void pass(ValidationCategory validationCategory, Number expectedValue, Number actualValue,
-                             Object comparativeRelationType, ValidationType validationType) {
-        reportValidationState(null, validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), comparativeRelationType, validationType,
-                ValidationState.PASSED, null, null);
-    }
-
-    private static void fail(WebDriver driver, ValidationCategory validationCategory, String expectedValue, String actualValue,
-                             Object validationComparisonType, ValidationType validationType, @SuppressWarnings("SameParameterValue") Throwable failureReason, List<List<Object>> externalAttachments) {
-        // reset state in case of failure to force reporting the failure
-        ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
-        reportValidationState(driver, validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
-                ValidationState.FAILED, failureReason, externalAttachments);
-    }
-
-    private static void fail(WebDriver driver, ValidationCategory validationCategory, String expectedValue, String actualValue,
-                             Object validationComparisonType, ValidationType validationType, Throwable failureReason) {
-        // reset state in case of failure to force reporting the failure
-        ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
-        reportValidationState(driver, validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
-                ValidationState.FAILED, failureReason, null);
-    }
-
-    private static void fail(ValidationCategory validationCategory, Number expectedValue, Number actualValue,
-                             Object comparativeRelationType, ValidationType validationType) {
-        // reset state in case of failure to force reporting the failure
-        ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
-        reportValidationState(null, validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), comparativeRelationType, validationType,
-                ValidationState.FAILED, null, null);
-    }
-
-    @Step(" {this.validationCategoryString} that {customReportMessage}")
-    protected void validateJSONFileContent(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
-                                           RestActions.ComparisonType comparisonType, @SuppressWarnings("SameParameterValue") String jsonPathToTargetArray, ValidationType validationType, String customReportMessage) {
-        processCustomLogMessage(customReportMessage);
-        boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
-        StringBuilder reportedExpectedValue = new StringBuilder();
-        reportedExpectedValue.append("Response data should ");
-        if (!expectedValue) {
-            reportedExpectedValue.append("not ");
-        }
-        reportedExpectedValue.append("match the JSON File in this path '").append(referenceJsonFilePath).append("'");
-        if (!jsonPathToTargetArray.isBlank()) {
-            reportedExpectedValue.append(", with path to Target Array '").append(jsonPathToTargetArray).append("'");
-        }
-
-        Boolean comparisonResult = RestActions.compareJSON(response, referenceJsonFilePath, comparisonType,
-                jsonPathToTargetArray);
-        // prepare attachments
-        List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected JSON Value",
-                RestActions.parseBodyToJson(FileActions.getInstance(true).readFile(referenceJsonFilePath)));
-        List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual JSON Value",
-                RestActions.parseBodyToJson(response));
-        List<List<Object>> attachments = new ArrayList<>();
-        attachments.add(expectedValueAttachment);
-        attachments.add(actualValueAttachment);
-
-        if ((comparisonResult && expectedValue) || (!comparisonResult && !expectedValue)) {
-            pass(null, validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, attachments);
-        } else {
-            fail(null, validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, null, attachments);
-        }
-    }
-
-    @Step(" {this.validationCategoryString} that {customReportMessage}")
-    protected void validateResponseFileSchema(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
-                                              RestActions.ComparisonType comparisonType, @SuppressWarnings("SameParameterValue") String jsonPathToTargetArray, ValidationType validationType, String customReportMessage) {
-        processCustomLogMessage(customReportMessage);
-        boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
-        StringBuilder reportedExpectedValue = new StringBuilder();
-        reportedExpectedValue.append("Response data should ");
-        if (!expectedValue) {
-            reportedExpectedValue.append("not ");
-        }
-        reportedExpectedValue.append("match the JSON File in this path '").append(referenceJsonFilePath).append("'");
-        if (!jsonPathToTargetArray.isBlank()) {
-            reportedExpectedValue.append(", with path to Target Array '").append(jsonPathToTargetArray).append("'");
-        }
-        var validatableResponse = response.then().body(matchesJsonSchema(new File(referenceJsonFilePath)));
-        var responseAfter = validatableResponse.extract().response();
-        Boolean comparisonResult = response.equals(responseAfter);
-        // prepare attachments
-        List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected JSON Value",
-                RestActions.parseBodyToJson(FileActions.getInstance(true).readFile(referenceJsonFilePath)));
-        List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual JSON Value",
-                RestActions.parseBodyToJson(response));
-        List<List<Object>> attachments = new ArrayList<>();
-        attachments.add(expectedValueAttachment);
-        attachments.add(actualValueAttachment);
-
-        if ((comparisonResult && expectedValue) || (!comparisonResult && !expectedValue)) {
-            pass(null, validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, attachments);
-        } else {
-            fail(null, validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, null, attachments);
-        }
-    }
-
-
-    private static void reportValidationResultOfElementAttribute(WebDriver driver, Object[] args) {
-        String[] expectedAttributeStates = (String[]) args[0];
-        String propertySeparator = (String) args[1];
-        String locatorSeparator = (String) args[2];
-        int comparisonResult = (int) args[3];
-        var elementLocator = (args[4] != null) ? (By) args[4] : null;
-        String propertyName = (String) args[5];
-        String expectedValue = (String) args[6];
-        String actualValue = (String) args[7];
-        ValidationComparisonType validationComparisonType = (ValidationComparisonType) args[8];
-        ValidationType validationType = (ValidationType) args[9];
-        ValidationCategory validationCategory = (ValidationCategory) args[10];
-        if (validationType.getValue()) {
-            // expecting element attribute to have the correct value
-            if (comparisonResult == 1) {
-                // match
-                pass(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
-                                + locatorSeparator + formatLocatorToString(elementLocator) + "'", actualValue, validationComparisonType,
-                        validationType);
-            } else {
-                // no match, or unhandled issue
-                fail(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
-                                + locatorSeparator + formatLocatorToString(elementLocator) + "'", actualValue, validationComparisonType,
-                        validationType, null);
-            }
-        } else {
-            // expecting element attribute to not have the correct value
-            if (comparisonResult == 1) {
-                // match
-                pass(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
-                                + locatorSeparator + formatLocatorToString(elementLocator) + "'", actualValue, validationComparisonType,
-                        validationType);
-            } else {
-                // no match, or unhandled issue
-                fail(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
-                                + locatorSeparator + formatLocatorToString(elementLocator) + "'", actualValue, validationComparisonType,
-                        validationType, null);
-            }
-        }
-    }
-
-    private static void reportValidationResultOfBrowserAttribute(WebDriver driver, Object[] args) {
-        String[] expectedAttributeStates = (String[]) args[0];
-        String propertySeparator = (String) args[1];
-        String attributeClosure = (String) args[2];
-        int comparisonResult = (int) args[3];
-        String propertyName = (String) args[5];
-        String expectedValue = (String) args[6];
-        String actualValue = (String) args[7];
-        ValidationComparisonType validationComparisonType = (ValidationComparisonType) args[8];
-        ValidationType validationType = (ValidationType) args[9];
-        ValidationCategory validationCategory = (ValidationCategory) args[10];
-        if (validationType.getValue()) {
-            // expecting element attribute to have the correct value
-            if (comparisonResult == 1) {
-                // match
-                pass(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
-                                + attributeClosure, actualValue, validationComparisonType,
-                        validationType);
-            } else {
-                // no match, or unhandled issue
-                fail(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
-                                + attributeClosure, actualValue, validationComparisonType,
-                        validationType, null);
-            }
-        } else {
-            // expecting element attribute to not have the correct value
-            if (comparisonResult == 1) {
-                // match
-                pass(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
-                                + attributeClosure, actualValue, validationComparisonType,
-                        validationType);
-            } else {
-                // no match, or unhandled issue
-                fail(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
-                                + attributeClosure, actualValue, validationComparisonType,
-                        validationType, null);
-            }
         }
     }
 
@@ -567,7 +231,7 @@ public class ValidationsHelper {
         }
         if (driver != null) {
             // create a screenshot attachment if needed for webdriver
-            attachments.add(ScreenshotManager.takeScreenshot(driver, lastUsedElementLocator,
+            attachments.add(new ScreenshotManager().takeScreenshot(driver, lastUsedElementLocator,
                     validationMethodName, validationState.getValue()));
             // reset lastUsed variables
             lastUsedElementLocator = null;
@@ -624,6 +288,209 @@ public class ValidationsHelper {
             }
             default -> {
             }
+        }
+    }
+
+    private static void pass(WebDriver driver, ValidationCategory validationCategory, String expectedValue, String actualValue,
+                             Object validationComparisonType, ValidationType validationType, List<List<Object>> externalAttachments) {
+        reportValidationState(driver, validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
+                ValidationState.PASSED, null, externalAttachments);
+    }
+
+    private static void pass(WebDriver driver, ValidationCategory validationCategory, String expectedValue, String actualValue,
+                             Object validationComparisonType, ValidationType validationType) {
+        reportValidationState(driver, validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
+                ValidationState.PASSED, null, null);
+    }
+
+    private static void pass(ValidationCategory validationCategory, Number expectedValue, Number actualValue,
+                             Object comparativeRelationType, ValidationType validationType) {
+        reportValidationState(null, validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), comparativeRelationType, validationType,
+                ValidationState.PASSED, null, null);
+    }
+
+    private static void fail(WebDriver driver, ValidationCategory validationCategory, String expectedValue, String actualValue,
+                             Object validationComparisonType, ValidationType validationType, @SuppressWarnings("SameParameterValue") Throwable failureReason, List<List<Object>> externalAttachments) {
+        // reset state in case of failure to force reporting the failure
+        ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
+        reportValidationState(driver, validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
+                ValidationState.FAILED, failureReason, externalAttachments);
+    }
+
+    private static void fail(WebDriver driver, ValidationCategory validationCategory, String expectedValue, String actualValue,
+                             Object validationComparisonType, ValidationType validationType, Throwable failureReason) {
+        // reset state in case of failure to force reporting the failure
+        ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
+        reportValidationState(driver, validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
+                ValidationState.FAILED, failureReason, null);
+    }
+
+    private static void fail(ValidationCategory validationCategory, Number expectedValue, Number actualValue,
+                             Object comparativeRelationType, ValidationType validationType) {
+        // reset state in case of failure to force reporting the failure
+        ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
+        reportValidationState(null, validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), comparativeRelationType, validationType,
+                ValidationState.FAILED, null, null);
+    }
+
+    protected void validateJSONFileContent(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
+                                           RestActions.ComparisonType comparisonType, @SuppressWarnings("SameParameterValue") String jsonPathToTargetArray, ValidationType validationType, String customReportMessage) {
+        processCustomLogMessage(customReportMessage);
+        boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
+        StringBuilder reportedExpectedValue = new StringBuilder();
+        reportedExpectedValue.append("Response data should ");
+        if (!expectedValue) {
+            reportedExpectedValue.append("not ");
+        }
+        reportedExpectedValue.append("match the JSON File in this path '").append(referenceJsonFilePath).append("'");
+        if (!jsonPathToTargetArray.isBlank()) {
+            reportedExpectedValue.append(", with path to Target Array '").append(jsonPathToTargetArray).append("'");
+        }
+
+        Boolean comparisonResult = RestActions.compareJSON(response, referenceJsonFilePath, comparisonType,
+                jsonPathToTargetArray);
+        // prepare attachments
+        List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected JSON Value",
+                RestActions.parseBodyToJson(FileActions.getInstance(true).readFile(referenceJsonFilePath)));
+        List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual JSON Value",
+                RestActions.parseBodyToJson(response));
+        List<List<Object>> attachments = new ArrayList<>();
+        attachments.add(expectedValueAttachment);
+        attachments.add(actualValueAttachment);
+
+        if ((comparisonResult && expectedValue) || (!comparisonResult && !expectedValue)) {
+            pass(null, validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, attachments);
+        } else {
+            fail(null, validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, null, attachments);
+        }
+    }
+
+    protected void validateResponseFileSchema(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
+                                              RestActions.ComparisonType comparisonType, @SuppressWarnings("SameParameterValue") String jsonPathToTargetArray, ValidationType validationType, String customReportMessage) {
+        processCustomLogMessage(customReportMessage);
+        boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
+        StringBuilder reportedExpectedValue = new StringBuilder();
+        reportedExpectedValue.append("Response data should ");
+        if (!expectedValue) {
+            reportedExpectedValue.append("not ");
+        }
+        reportedExpectedValue.append("match the JSON File in this path '").append(referenceJsonFilePath).append("'");
+        if (!jsonPathToTargetArray.isBlank()) {
+            reportedExpectedValue.append(", with path to Target Array '").append(jsonPathToTargetArray).append("'");
+        }
+        var validatableResponse = response.then().body(matchesJsonSchema(new File(referenceJsonFilePath)));
+        var responseAfter = validatableResponse.extract().response();
+        Boolean comparisonResult = response.equals(responseAfter);
+        // prepare attachments
+        List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected JSON Value",
+                RestActions.parseBodyToJson(FileActions.getInstance(true).readFile(referenceJsonFilePath)));
+        List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual JSON Value",
+                RestActions.parseBodyToJson(response));
+        List<List<Object>> attachments = new ArrayList<>();
+        attachments.add(expectedValueAttachment);
+        attachments.add(actualValueAttachment);
+
+        if ((comparisonResult && expectedValue) || (!comparisonResult && !expectedValue)) {
+            pass(null, validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, attachments);
+        } else {
+            fail(null, validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, null, attachments);
+        }
+    }
+
+    private static void reportValidationResultOfBrowserAttribute(WebDriver driver, Object[] args) {
+        String[] expectedAttributeStates = (String[]) args[0];
+        String propertySeparator = (String) args[1];
+        String attributeClosure = (String) args[2];
+        int comparisonResult = (int) args[3];
+        String propertyName = (String) args[5];
+        String expectedValue = (String) args[6];
+        String actualValue = (String) args[7];
+        ValidationComparisonType validationComparisonType = (ValidationComparisonType) args[8];
+        ValidationType validationType = (ValidationType) args[9];
+        ValidationCategory validationCategory = (ValidationCategory) args[10];
+        if (validationType.getValue()) {
+            // expecting element attribute to have the correct value
+            if (comparisonResult == 1) {
+                // match
+                pass(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
+                                + attributeClosure, actualValue, validationComparisonType,
+                        validationType);
+            } else {
+                // no match, or unhandled issue
+                fail(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
+                                + attributeClosure, actualValue, validationComparisonType,
+                        validationType, null);
+            }
+        } else {
+            // expecting element attribute to not have the correct value
+            if (comparisonResult == 1) {
+                // match
+                pass(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
+                                + attributeClosure, actualValue, validationComparisonType,
+                        validationType);
+            } else {
+                // no match, or unhandled issue
+                fail(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
+                                + attributeClosure, actualValue, validationComparisonType,
+                        validationType, null);
+            }
+        }
+    }
+
+    protected void validateElementMatches(ValidationCategory validationCategory, WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine, ValidationType validationType,
+                                          String customReportMessage) {
+        lastUsedElementLocator = elementLocator;
+        //TODO: remove this temporary fix when this bug is fixed with shutterbug
+        //https://github.com/assertthat/selenium-shutterbug/issues/105
+        if (Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
+            visualValidationEngine = VisualValidationEngine.EXACT_OPENCV;
+        }
+        processCustomLogMessage(customReportMessage);
+        StringBuilder reportedExpectedResult = new StringBuilder();
+        reportedExpectedResult.append("Element should ");
+        Boolean expectedResult = validationType.getValue();
+        if (!expectedResult) {
+            reportedExpectedResult.append("not ");
+        }
+        reportedExpectedResult.append("match the reference screenshot");
+        List<List<Object>> attachments = new ArrayList<>();
+        byte[] referenceImage = ImageProcessingActions.getReferenceImage(elementLocator);
+        if (!Arrays.equals(new byte[0], referenceImage)) {
+            List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Reference Screenshot",
+                    referenceImage);
+            attachments.add(expectedValueAttachment);
+        }
+        if (elementActionsHelper.getElementsCount(driver, elementLocator) == 1) {
+            byte[] elementScreenshot;
+            Boolean actualResult;
+
+            elementScreenshot = new ScreenshotManager().takeScreenshot(driver, elementLocator, Screenshots.ELEMENT);
+            actualResult = ImageProcessingActions.compareAgainstBaseline(driver, elementLocator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
+
+            List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
+                    elementScreenshot);
+            attachments.add(actualValueAttachment);
+
+            if (visualValidationEngine.equals(VisualValidationEngine.EXACT_SHUTTERBUG) && !actualResult) {
+                //if shutterbug and failed, get differences screenshot
+                byte[] shutterbugDifferencesImage = ImageProcessingActions.getShutterbugDifferencesImage(elementLocator);
+                if (!Arrays.equals(new byte[0], shutterbugDifferencesImage)) {
+                    List<Object> differencesAttachment = Arrays.asList("Validation Test Data", "Differences",
+                            shutterbugDifferencesImage);
+                    attachments.add(differencesAttachment);
+                }
+            }
+            if (expectedResult.equals(actualResult)) {
+                pass(driver, validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, attachments);
+            } else {
+                fail(driver, validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, null, attachments);
+            }
+        } else {
+            byte[] pageScreenshot = new ScreenshotManager().takeScreenshot(driver, null);
+            List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
+                    pageScreenshot);
+            attachments.add(actualValueAttachment);
+            fail(driver, validationCategory, reportedExpectedResult.toString(), "Element not found".toUpperCase(), visualValidationEngine, validationType, null, attachments);
         }
     }
 
