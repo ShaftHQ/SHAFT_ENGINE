@@ -16,7 +16,6 @@ import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.Browser;
-import org.testng.Assert;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -51,45 +50,6 @@ public class ValidationsHelper {
     protected void validateFail(ValidationCategory validationCategory, String customReportMessage) {
         processCustomLogMessage(customReportMessage);
         fail(null, validationCategory, null, null, null, null, null);
-    }
-
-    protected void validateNull(ValidationCategory validationCategory, Object object, ValidationType validationType, String customReportMessage) {
-
-        processCustomLogMessage(customReportMessage);
-        if (validationType.getValue()) {
-            try {
-                Assert.assertNull(object);
-                pass(null, validationCategory, "NULL", "NULL", ValidationComparisonType.EQUALS, validationType);
-            } catch (Exception | AssertionError failureReason) {
-                fail(null, validationCategory, "NULL", String.valueOf(object), ValidationComparisonType.EQUALS, validationType, failureReason);
-            }
-        } else {
-            try {
-                Assert.assertNotNull(object);
-                pass(null, validationCategory, "NULL", String.valueOf(object), ValidationComparisonType.EQUALS, validationType);
-            } catch (Exception | AssertionError failureReason) {
-                fail(null, validationCategory, "NULL", "NULL", ValidationComparisonType.EQUALS, validationType, failureReason);
-            }
-        }
-    }
-
-    protected void validateComparativeRelation(ValidationCategory validationCategory, Number expectedValue, Number actualValue,
-                                                      NumbersComparativeRelation numbersComparativeRelation, ValidationType validationType,
-                                               String customReportMessage) {
-        processCustomLogMessage(customReportMessage);
-        Boolean comparisonState = switch (numbersComparativeRelation.getValue()) {
-            case ">" -> actualValue.floatValue() > expectedValue.floatValue();
-            case ">=" -> actualValue.floatValue() >= expectedValue.floatValue();
-            case "<" -> actualValue.floatValue() < expectedValue.floatValue();
-            case "<=" -> actualValue.floatValue() <= expectedValue.floatValue();
-            case "==" -> actualValue.floatValue() == expectedValue.floatValue();
-            default -> false;
-        };
-        if ((ValidationType.POSITIVE.equals(validationType) && comparisonState.equals(true)) || (ValidationType.NEGATIVE.equals(validationType) && comparisonState.equals(false))) {
-            pass(validationCategory, expectedValue, actualValue, numbersComparativeRelation, validationType);
-        } else {
-            fail(validationCategory, expectedValue, actualValue, numbersComparativeRelation, validationType);
-        }
     }
 
     protected void validateTrue(ValidationCategory validationCategory, Boolean conditionalStatement, ValidationType validationType, String customReportMessage) {

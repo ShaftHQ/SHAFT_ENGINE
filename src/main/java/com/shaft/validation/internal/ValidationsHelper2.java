@@ -14,7 +14,6 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
 import io.qameta.allure.Allure;
 import io.qameta.allure.model.Parameter;
-import io.qameta.allure.model.Status;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
@@ -164,7 +163,7 @@ public class ValidationsHelper2 {
         if (type instanceof ValidationEnums.ValidationComparisonType validationComparisonType) {
             // comparison integer is used for all string-based, null, boolean, and Object comparisons
             comparisonResult = JavaHelper.compareTwoObjects(expected, actual,
-                    validationComparisonType, validation.getValue());
+                    validationComparisonType.getValue(), validation.getValue());
         } else if (type instanceof ValidationEnums.NumbersComparativeRelation numbersComparativeRelation) {
             // this means that it is a number-based comparison
             comparisonResult = JavaHelper.compareTwoObjects(expected, actual,
@@ -222,7 +221,6 @@ public class ValidationsHelper2 {
             String failureMessage = this.validationCategoryString.replace("erify", "erificat") + "ion failed; expected " + expected + ", but found " + actual;
             if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
                 Allure.getLifecycle().updateStep(stepResult -> {
-                    stepResult.setStatus(Status.FAILED);
                     FailureReporter.fail(failureMessage);
                 });
             } else {
@@ -230,13 +228,11 @@ public class ValidationsHelper2 {
                 ValidationsHelper.verificationFailuresList.add(failureMessage);
                 ValidationsHelper.verificationError = new AssertionError(String.join("\nAND ", ValidationsHelper.verificationFailuresList));
                 Allure.getLifecycle().updateStep(stepResult -> {
-                    stepResult.setStatus(Status.FAILED);
                     ReportManager.log(failureMessage);
                 });
             }
         } else {
             Allure.getLifecycle().updateStep(stepResult -> {
-                stepResult.setStatus(Status.PASSED);
                 ReportManager.log(this.validationCategoryString.replace("erify", "erificat") + "ion passed");
             });
         }

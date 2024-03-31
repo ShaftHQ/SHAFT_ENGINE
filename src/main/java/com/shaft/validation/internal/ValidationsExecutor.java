@@ -159,8 +159,6 @@ public class ValidationsExecutor {
             case "forceFail" -> new ValidationsHelper().validateFail(validationCategory, customReportMessage);
             case "objectsAreEqual" ->
                     new ValidationsHelper2(validationCategory).validateEquals(expectedValue, actualValue, validationComparisonType, validationType);
-            case "objectIsNull" ->
-                    new ValidationsHelper().validateNull(validationCategory, actualValue, validationType, customReportMessage);
             case "conditionIsTrue" ->
                     new ValidationsHelper().validateTrue(validationCategory, condition, validationType, customReportMessage);
             case "elementExists" ->
