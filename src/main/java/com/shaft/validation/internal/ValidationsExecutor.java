@@ -158,7 +158,7 @@ public class ValidationsExecutor {
         switch (validationMethod) {
             case "forceFail" -> new ValidationsHelper().validateFail(validationCategory, customReportMessage);
             case "objectsAreEqual" ->
-                    new ValidationsHelper().validateEquals(validationCategory, expectedValue, actualValue, validationComparisonType, validationType, customReportMessage);
+                    new ValidationsHelper2(validationCategory).validateEquals(expectedValue, actualValue, validationComparisonType, validationType);
             case "objectIsNull" ->
                     new ValidationsHelper().validateNull(validationCategory, actualValue, validationType, customReportMessage);
             case "conditionIsTrue" ->
@@ -180,14 +180,14 @@ public class ValidationsExecutor {
             case "responseEqualsFileContent" ->
                     new ValidationsHelper().validateJSONFileContent(validationCategory, (Response) response, fileAbsolutePath, restComparisonType, "", validationType, customReportMessage);
             case "jsonPathValueEquals" ->
-                    new ValidationsHelper().validateEquals(validationCategory, expectedValue, RestActions.getResponseJSONValue(response, jsonPath), validationComparisonType, validationType, customReportMessage);
+                    new ValidationsHelper2(validationCategory).validateEquals(expectedValue, RestActions.getResponseJSONValue(response, jsonPath), validationComparisonType, validationType);
             case "jsonPathValueAsListEquals" -> {
                 for (Object value : Objects.requireNonNull(RestActions.getResponseJSONValueAsList((Response) response, jsonPath))) {
-                    new ValidationsHelper().validateEquals(validationCategory, expectedValue, value.toString(), validationComparisonType, validationType, customReportMessage);
+                    new ValidationsHelper2(validationCategory).validateEquals(expectedValue, value.toString(), validationComparisonType, validationType);
                 }
             }
             case "responseBody" ->
-                    new ValidationsHelper().validateEquals(validationCategory, expectedValue, RestActions.getResponseBody((Response) response), validationComparisonType, validationType, customReportMessage);
+                    new ValidationsHelper2(validationCategory).validateEquals(expectedValue, RestActions.getResponseBody((Response) response), validationComparisonType, validationType);
             case "responseTime" ->
                     new ValidationsHelper().validateComparativeRelation(validationCategory, (Number) expectedValue, RestActions.getResponseTime((Response) response), numbersComparativeRelation, validationType, customReportMessage);
             case "checkResponseSchema" ->
@@ -199,11 +199,11 @@ public class ValidationsExecutor {
                 } else {
                     fileContent = FileActions.getInstance(true).readFile(folderRelativePath, fileName);
                 }
-                new ValidationsHelper().validateEquals(validationCategory, expectedValue, fileContent, validationComparisonType, validationType, customReportMessage);
+                new ValidationsHelper2(validationCategory).validateEquals(expectedValue, fileContent, validationComparisonType, validationType);
             }
             case "fileChecksum" -> {
                 var fileChecksum = FileActions.getInstance(true).getFileChecksum(new TerminalActions(), folderRelativePath, fileName);
-                new ValidationsHelper().validateEquals(validationCategory, expectedValue, fileChecksum, validationComparisonType, validationType, customReportMessage);
+                new ValidationsHelper2(validationCategory).validateEquals(expectedValue, fileChecksum, validationComparisonType, validationType);
             }
             default -> {
             }

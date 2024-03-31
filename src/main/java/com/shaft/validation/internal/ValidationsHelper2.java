@@ -29,6 +29,22 @@ public class ValidationsHelper2 {
         this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
     }
 
+    protected void validateEquals(Object expected, Object actual,
+                                  ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
+        // read actual value based on desired attribute
+        // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
+
+        //reporting block
+        List<Parameter> parameters = new ArrayList<>();
+        parameters.add(new Parameter().setName("Expected value").setValue(String.valueOf(expected)).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual)).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
+        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
+        //end of reporting block
+        performValidation(null, null, expected, actual, type, validation);
+    }
+
     protected void validateBrowserAttribute(WebDriver driver, String attribute,
                                             String expected, ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
         // read actual value based on desired attribute
@@ -142,24 +158,37 @@ public class ValidationsHelper2 {
         }
 
         List<List<Object>> attachments = new ArrayList<>();
-        // prepare screenshot with element highlighting
-        attachments.add(new ScreenshotManager().takeScreenshot(driver, locator, validationMethodName, validationState));
+        // prepare WebDriver attachments
+        if (driver != null) {
+            // prepare screenshot with element highlighting
+            attachments.add(new ScreenshotManager().takeScreenshot(driver, locator, validationMethodName, validationState));
 
-        // prepare page snapshot mhtml/html
-        var whenToTakePageSourceSnapshot = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().toLowerCase();
-        if (Boolean.FALSE.equals(validationState)
-                || Arrays.asList("always", "validationpointsonly").contains(whenToTakePageSourceSnapshot)) {
-            var logMessage = "";
-            var pageSnapshot = new BrowserActionsHelper(true).capturePageSnapshot(driver);
-            if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
-                logMessage = "page snapshot";
-            } else if (pageSnapshot.startsWith("<html")) {
-                logMessage = "page HTML";
+            // prepare page snapshot mhtml/html
+            var whenToTakePageSourceSnapshot = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().toLowerCase();
+            if (Boolean.FALSE.equals(validationState)
+                    || Arrays.asList("always", "validationpointsonly").contains(whenToTakePageSourceSnapshot)) {
+                var logMessage = "";
+                var pageSnapshot = new BrowserActionsHelper(true).capturePageSnapshot(driver);
+                if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
+                    logMessage = "page snapshot";
+                } else if (pageSnapshot.startsWith("<html")) {
+                    logMessage = "page HTML";
+                }
+                List<Object> pageSourceAttachment = Arrays.asList(validationMethodName, logMessage, pageSnapshot);
+                attachments.add(pageSourceAttachment);
             }
-            List<Object> pageSourceAttachment = Arrays.asList(validationMethodName, logMessage, pageSnapshot);
-            attachments.add(pageSourceAttachment);
+        } else {
+            // prepare testData attachments
+            boolean isExpectedOrActualValueLong = ValidationsHelper.isExpectedOrActualValueLong(String.valueOf(expected), String.valueOf(actual));
+            if (Boolean.TRUE.equals(isExpectedOrActualValueLong)) {
+                List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
+                        expected);
+                List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value", actual);
+                attachments.add(expectedValueAttachment);
+                attachments.add(actualValueAttachment);
+                ReportManager.logDiscrete("Expected and Actual values are attached.");
+            }
         }
-
         // add attachments
         ReportManagerHelper.attach(attachments);
 

@@ -9,7 +9,6 @@ import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.properties.internal.Properties;
-import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums.*;
@@ -52,21 +51,6 @@ public class ValidationsHelper {
     protected void validateFail(ValidationCategory validationCategory, String customReportMessage) {
         processCustomLogMessage(customReportMessage);
         fail(null, validationCategory, null, null, null, null, null);
-    }
-
-    protected void validateEquals(ValidationCategory validationCategory, Object expectedValue, Object actualValue,
-                                         ValidationComparisonType validationComparisonType, ValidationType validationType,
-                                  String customReportMessage) {
-
-        processCustomLogMessage(customReportMessage);
-        if (JavaHelper.compareTwoObjects(expectedValue, actualValue, validationComparisonType.getValue(),
-                validationType.getValue()) == 1) {
-            pass(null, validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), validationComparisonType, validationType);
-        } else {
-            // failed comparison, invalid operator (not reachable) or exception
-            fail(null, validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), validationComparisonType, validationType,
-                    null);
-        }
     }
 
     protected void validateNull(ValidationCategory validationCategory, Object object, ValidationType validationType, String customReportMessage) {
@@ -455,7 +439,7 @@ public class ValidationsHelper {
         }
     }
 
-    private static boolean isExpectedOrActualValueLong(String expectedValue, String actualValue) {
+    static boolean isExpectedOrActualValueLong(String expectedValue, String actualValue) {
         boolean isExpectedOrActualValueLong = false;
         if (actualValue == null && expectedValue != null) {
             isExpectedOrActualValueLong = expectedValue.length() >= 500;
