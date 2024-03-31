@@ -174,7 +174,7 @@ public class ValidationsExecutor {
             case "browserAttributeEquals" ->
                     new ValidationsHelper2(validationCategory).validateBrowserAttribute(driver, browserAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "comparativeRelationBetweenNumbers" ->
-                    new ValidationsHelper().validateComparativeRelation(validationCategory, (Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType, customReportMessage);
+                    new ValidationsHelper2(validationCategory).validateNumber((Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType);
             case "fileExists" ->
                     new ValidationsHelper().validateFileExists(validationCategory, folderRelativePath, fileName, 5, validationType, customReportMessage);
             case "responseEqualsFileContent" ->
@@ -189,7 +189,7 @@ public class ValidationsExecutor {
             case "responseBody" ->
                     new ValidationsHelper2(validationCategory).validateEquals(expectedValue, RestActions.getResponseBody((Response) response), validationComparisonType, validationType);
             case "responseTime" ->
-                    new ValidationsHelper().validateComparativeRelation(validationCategory, (Number) expectedValue, RestActions.getResponseTime((Response) response), numbersComparativeRelation, validationType, customReportMessage);
+                    new ValidationsHelper2(validationCategory).validateNumber((Number) expectedValue, RestActions.getResponseTime((Response) response), numbersComparativeRelation, validationType);
             case "checkResponseSchema" ->
                     new ValidationsHelper().validateResponseFileSchema(validationCategory, (Response) response, fileAbsolutePath, restComparisonType, "", validationType, customReportMessage);
             case "fileContent" -> {

@@ -14,6 +14,7 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
 import io.qameta.allure.Allure;
 import io.qameta.allure.model.Parameter;
+import io.qameta.allure.model.Status;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
@@ -31,6 +32,22 @@ public class ValidationsHelper2 {
 
     protected void validateEquals(Object expected, Object actual,
                                   ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
+        // read actual value based on desired attribute
+        // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
+
+        //reporting block
+        List<Parameter> parameters = new ArrayList<>();
+        parameters.add(new Parameter().setName("Expected value").setValue(String.valueOf(expected)).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual)).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
+        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
+        //end of reporting block
+        performValidation(null, null, expected, actual, type, validation);
+    }
+
+    protected void validateNumber(Number expected, Number actual,
+                                  ValidationEnums.NumbersComparativeRelation type, ValidationEnums.ValidationType validation) {
         // read actual value based on desired attribute
         // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
 
@@ -141,10 +158,18 @@ public class ValidationsHelper2 {
 
     private void performValidation(WebDriver driver, By locator,
                                    Object expected, Object actual,
-                                   ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
+                                   Object type, ValidationEnums.ValidationType validation) {
         // compare actual and expected results
-        int comparisonResult = JavaHelper.compareTwoObjects(expected, actual,
-                type.getValue(), validation.getValue());
+        int comparisonResult = 0;
+        if (type instanceof ValidationEnums.ValidationComparisonType validationComparisonType) {
+            // comparison integer is used for all string-based, null, boolean, and Object comparisons
+            comparisonResult = JavaHelper.compareTwoObjects(expected, actual,
+                    validationComparisonType, validation.getValue());
+        } else if (type instanceof ValidationEnums.NumbersComparativeRelation numbersComparativeRelation) {
+            // this means that it is a number-based comparison
+            comparisonResult = JavaHelper.compareTwoObjects(expected, actual,
+                    numbersComparativeRelation, validation.getValue());
+        }
 
         // get validation method name, replace validate with exact validation category (verify/assert)
         String validationMethodName = (new Throwable()).getStackTrace()[0].getMethodName().replace("performValidation", this.validationCategoryString);
@@ -194,16 +219,26 @@ public class ValidationsHelper2 {
 
         // handle reporting & failure based on validation category
         if (!validationState) {
-            String failureMessage = this.validationCategoryString + "ion failed; expected " + expected + ", but found " + actual;
+            String failureMessage = this.validationCategoryString.replace("erify", "erificat") + "ion failed; expected " + expected + ", but found " + actual;
             if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
-                FailureReporter.fail(failureMessage);
+                Allure.getLifecycle().updateStep(stepResult -> {
+                    stepResult.setStatus(Status.FAILED);
+                    FailureReporter.fail(failureMessage);
+                });
             } else {
                 // soft assert
                 ValidationsHelper.verificationFailuresList.add(failureMessage);
                 ValidationsHelper.verificationError = new AssertionError(String.join("\nAND ", ValidationsHelper.verificationFailuresList));
+                Allure.getLifecycle().updateStep(stepResult -> {
+                    stepResult.setStatus(Status.FAILED);
+                    ReportManager.log(failureMessage);
+                });
             }
         } else {
-            ReportManager.log(this.validationCategoryString + "ion passed");
+            Allure.getLifecycle().updateStep(stepResult -> {
+                stepResult.setStatus(Status.PASSED);
+                ReportManager.log(this.validationCategoryString.replace("erify", "erificat") + "ion passed");
+            });
         }
     }
 }

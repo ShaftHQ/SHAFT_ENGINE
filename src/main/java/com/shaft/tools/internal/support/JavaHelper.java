@@ -4,6 +4,7 @@ import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
 import org.openqa.selenium.support.locators.RelativeLocator;
 import org.testng.Assert;
@@ -94,7 +95,7 @@ public class JavaHelper {
      * of invalid comparison operator, -2 in case of another unhandled
      * exception
      */
-    public static int compareTwoObjects(Object expectedValue, Object actualValue, int comparisonType,
+    public static int compareTwoObjects(Object expectedValue, Object actualValue, Object comparisonType,
                                         Boolean validationType) {
         ReportManager.logDiscrete("Expected \"" + expectedValue + "\", and actual \"" + actualValue + "\"");
         if ("null".equals(expectedValue)) {
@@ -105,26 +106,46 @@ public class JavaHelper {
             actualValue = null;
         }
 
-        if (Boolean.TRUE.equals(validationType)) {
-            try {
-                return compareTwoObjectsPositively(expectedValue, actualValue, comparisonType);
-            } catch (AssertionError e) {
-                return 0;
-            } catch (Exception e) {
-                ReportManagerHelper.logDiscrete(e);
-                return -2;
+        if (comparisonType instanceof Integer comparisonInteger) {
+            // comparison integer is used for all string-based, null, boolean, and Object comparisons
+            if (Boolean.TRUE.equals(validationType)) {
+                try {
+                    return compareTwoObjectsPositively(expectedValue, actualValue, comparisonInteger);
+                } catch (AssertionError e) {
+                    return 0;
+                } catch (Exception e) {
+                    ReportManagerHelper.logDiscrete(e);
+                    return -2;
+                }
+            } else {
+                try {
+                    return compareTwoObjectsNegatively(expectedValue, actualValue, comparisonInteger);
+                } catch (AssertionError e) {
+                    return 0;
+                } catch (Exception e) {
+                    ReportManagerHelper.logDiscrete(e);
+                    return -2;
+                }
             }
-        } else {
-            try {
-                return compareTwoObjectsNegatively(expectedValue, actualValue, comparisonType);
-            } catch (AssertionError e) {
-                return 0;
-            } catch (Exception e) {
-                ReportManagerHelper.logDiscrete(e);
-                return -2;
-            }
+        } else if (comparisonType instanceof ValidationEnums.NumbersComparativeRelation numbersComparativeRelation) {
+            // this means that it is a number-based comparison
+            Boolean comparisonState = getNumberComparisonState(expectedValue, actualValue, numbersComparativeRelation);
+            return comparisonState ? 1 : 0;
         }
+        return -2;
+    }
 
+    private static Boolean getNumberComparisonState(Object expectedValue, Object actualValue, ValidationEnums.NumbersComparativeRelation numbersComparativeRelation) {
+        Float expected = Float.parseFloat(String.valueOf(expectedValue));
+        Float actual = Float.parseFloat(String.valueOf(actualValue));
+        return switch (numbersComparativeRelation.getValue()) {
+            case ">" -> actual > expected;
+            case ">=" -> actual >= expected;
+            case "<" -> actual < expected;
+            case "<=" -> actual <= expected;
+            case "==" -> actual.equals(expected);
+            default -> false;
+        };
     }
 
     private static int compareTwoObjectsPositively(Object expectedValue, Object actualValue, int comparisonType) {

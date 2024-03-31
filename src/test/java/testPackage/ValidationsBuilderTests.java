@@ -10,6 +10,7 @@ import io.restassured.builder.ResponseBuilder;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+import org.testng.annotations.Test;
 
 public class ValidationsBuilderTests {
     By googleLogo = By.xpath("//img[@alt='Google']");
@@ -133,7 +134,7 @@ public class ValidationsBuilderTests {
                 .perform();
     }
 
-    //@Test
+    @Test
     public void numberValidations() {
         Validations.assertThat()
                 .number(10)
