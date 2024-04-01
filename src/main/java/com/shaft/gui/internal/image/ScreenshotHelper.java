@@ -168,7 +168,7 @@ public class ScreenshotHelper {
         scrollVerticallyTo(driver, 0);
         hideScroll(driver);
         // No need to hide elements for first attempt
-        byte[] bytes = ScreenshotManager.takeScreenshot(driver, null, Screenshots.VIEWPORT);
+        byte[] bytes = new ScreenshotManager().takeScreenshot(driver, null, Screenshots.VIEWPORT);
 
         showHideElements(driver, true, skipElements);
         long longScrollHeight = (Long) ((JavascriptExecutor) driver)
@@ -202,13 +202,13 @@ public class ScreenshotHelper {
             for (int i = 0; i < times - 1; i++) {
                 scroll += adaptedCapturedHeight;
                 scrollVerticallyTo(driver, scroll);
-                BufferedImage nextImage = ImageIO.read(new ByteArrayInputStream(ScreenshotManager.takeScreenshot(driver, null, Screenshots.VIEWPORT)));
+                BufferedImage nextImage = ImageIO.read(new ByteArrayInputStream(new ScreenshotManager().takeScreenshot(driver, null, Screenshots.VIEWPORT)));
                 g2dTile.drawImage(nextImage, 0, (i + 1) * capturedHeight, null);
             }
             if (leftover > 0) {
                 scroll += adaptedCapturedHeight;
                 scrollVerticallyTo(driver, scroll);
-                BufferedImage nextImage = ImageIO.read(new ByteArrayInputStream(ScreenshotManager.takeScreenshot(driver, null, Screenshots.VIEWPORT)));
+                BufferedImage nextImage = ImageIO.read(new ByteArrayInputStream(new ScreenshotManager().takeScreenshot(driver, null, Screenshots.VIEWPORT)));
                 BufferedImage lastPart = nextImage.getSubimage(0,
                         nextImage.getHeight() - (int) (((double) leftover) * devicePixelRatio), nextImage.getWidth(),
                         leftover);

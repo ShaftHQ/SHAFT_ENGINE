@@ -15,8 +15,8 @@ public interface TestNG extends EngineProperties {
     String parallelMode();
 
     @Key("setThreadCount")
-    @DefaultValue("1")
-    int threadCount();
+    @DefaultValue("1.0d")
+    double threadCount();
 
     @Key("setVerbose")
     @DefaultValue("1")

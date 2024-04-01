@@ -1,10 +1,9 @@
 package com.shaft.validation.internal;
 
+import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-
-import static com.shaft.gui.element.internal.ElementActionsHelper.formatLocatorToString;
 
 @SuppressWarnings("unused")
 public class ValidationsBuilder {
@@ -46,7 +45,7 @@ public class ValidationsBuilder {
     }
 
     public WebDriverElementValidationsBuilder element(WebDriver driver, By locator) {
-        reportMessageBuilder.append("the element located by \"").append(formatLocatorToString(locator)).append("\" ");
+        reportMessageBuilder.append("the element located by \"").append(JavaHelper.formatLocatorToString(locator)).append("\" ");
         return new WebDriverElementValidationsBuilder(validationCategory, driver, locator, reportMessageBuilder);
     }
 
@@ -56,7 +55,7 @@ public class ValidationsBuilder {
      * @return a WebDriverBrowserValidationsBuilder object to continue building your validation
      */
     public WebDriverBrowserValidationsBuilder browser(WebDriver driver) {
-        reportMessageBuilder.append("the Browser ");
+        reportMessageBuilder.append("the browser ");
         return new WebDriverBrowserValidationsBuilder(validationCategory, driver, reportMessageBuilder);
     }
 
@@ -79,7 +78,7 @@ public class ValidationsBuilder {
      * @return a FileValidationsBuilder object to continue building your validation
      */
     public FileValidationsBuilder file(String folderRelativePath, String fileName) {
-        reportMessageBuilder.append("the File \"").append(folderRelativePath).append(fileName).append("\" ");
+        reportMessageBuilder.append("the file \"").append(folderRelativePath).append(fileName).append("\" ");
         return new FileValidationsBuilder(validationCategory, folderRelativePath, fileName, reportMessageBuilder);
     }
 

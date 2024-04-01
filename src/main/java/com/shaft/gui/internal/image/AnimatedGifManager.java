@@ -27,7 +27,7 @@ public class AnimatedGifManager {
     private static final ThreadLocal<ImageWriteParam> imageWriteParam = new ThreadLocal<>();
     private static final ThreadLocal<IIOMetadata> imageMetaData = new ThreadLocal<>();
     protected static final Boolean DETAILED_GIF = true;
-    protected static final String DETAILED_GIF_REGEX = "(verify.*)|(assert.*)|(click.*)|(tap.*)|(key.*)|(navigate.*)|(type.*)";
+    protected static final String LIGHTWEIGHT_GIF_REGEX = "(.*validation.*)|(.*verify.*)|(.*assert.*)|(.*click.*)|(.*tap.*)|(.*key.*)|(.*navigate.*)|(.*type.*)";
     private static final int GIF_SIZE = 1280;
     private static String gifRelativePathWithFileName = "";
     private static ThreadLocal<ImageOutputStream> gifOutputStream = new ThreadLocal<>();
