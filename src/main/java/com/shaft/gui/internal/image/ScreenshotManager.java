@@ -26,7 +26,7 @@ import java.util.Date;
 import java.util.List;
 
 public class ScreenshotManager {
-    private static final String VALIDATION_ACTION_REGEX = "(.*validation.*)|(.*verify.*)|(.*assert.*)|(.*click.*)|(.*tap.*)|(.*key.*)|(.*navigate.*)|(.*type.*)";
+    private static final String VALIDATION_ACTION_REGEX = "(.*validation.*)|(.*verify.*)|(.*assert.*)";
     private final ElementActionsHelper elementActionsHelper;
 
     public ScreenshotManager() {
