@@ -20,6 +20,10 @@ public interface Web extends EngineProperties {
     @DefaultValue("chrome")
     String targetBrowserName();
 
+    @Key("forceBrowserDownload")
+    @DefaultValue("false")
+    boolean forceBrowserDownload();
+
     @Key("headlessExecution")
     @DefaultValue("false")
     boolean headlessExecution();
@@ -79,6 +83,11 @@ public interface Web extends EngineProperties {
          */
         public SetProperty targetBrowserName(String value) {
             setProperty("targetBrowserName", value);
+            return this;
+        }
+
+        public SetProperty forceBrowserDownload(boolean value) {
+            setProperty("forceBrowserDownload", String.valueOf(value));
             return this;
         }
 
