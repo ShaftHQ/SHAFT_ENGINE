@@ -87,7 +87,7 @@ public class ValidationsHelper2 {
                     case "windowsize", "pagesize", "size" -> new BrowserActions(driver, true).getWindowSize();
                     default -> "";
                 });
-                validationState.set(performValidation(expected, actual, type, validation));
+                validationState.set(performValidation(expected, actual.get(), type, validation));
                 return validationState.get();
             });
         } catch (TimeoutException timeoutException) {
@@ -122,7 +122,7 @@ public class ValidationsHelper2 {
                     case "selectedtext" -> new ElementActions(driver, true).getSelectedText(locator);
                     default -> new ElementActions(driver, true).getAttribute(locator, attribute);
                 });
-                validationState.set(performValidation(expected, actual, type, validation));
+                validationState.set(performValidation(expected, actual.get(), type, validation));
                 return validationState.get();
             });
         } catch (TimeoutException timeoutException) {
@@ -149,7 +149,7 @@ public class ValidationsHelper2 {
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
                 actual.set(new ElementActions(driver, true).getCSSProperty(locator, property));
-                validationState.set(performValidation(expected, actual, type, validation));
+                validationState.set(performValidation(expected, actual.get(), type, validation));
                 return validationState.get();
             });
         } catch (TimeoutException timeoutException) {
@@ -181,7 +181,7 @@ public class ValidationsHelper2 {
                 expected.set(validation.getValue());
                 actual.set(elementCount.get() > 0);
                 // force validation type to be positive since the expected and actual values have been adjusted already
-                validationState.set(performValidation(expected, actual, ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE));
+                validationState.set(performValidation(expected.get(), actual.get(), ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE));
                 return validationState.get();
             });
         } catch (TimeoutException timeoutException) {
