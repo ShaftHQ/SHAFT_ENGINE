@@ -78,8 +78,8 @@ public class ValidationsHelper2 {
         //reporting block
         List<Parameter> parameters = new ArrayList<>();
         parameters.add(new Parameter().setName("Attribute").setValue(attribute).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Expected value").setValue(expected).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Actual value").setValue(actual).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Expected value").setValue(String.valueOf(expected)).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual)).setMode(Parameter.Mode.DEFAULT));
         parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
         parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
         Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
@@ -94,7 +94,7 @@ public class ValidationsHelper2 {
         var elementInformation = ElementInformation.fromList(new ElementActionsHelper(true).identifyUniqueElementIgnoringVisibility(driver, locator));
         String actual = switch (attribute.toLowerCase()) {
             case "text" -> new ElementActions(driver, true).getText(locator);
-            case "texttrimmed" -> new ElementActions(driver, true).getText(locator).trim();
+            case "texttrimmed", "trimmedtext" -> new ElementActions(driver, true).getText(locator).trim();
             case "tagname" -> elementInformation.getElementTag();
             case "size" -> elementInformation.getFirstElement().getSize().toString();
             case "selectedtext" -> new ElementActions(driver, true).getSelectedText(locator);
@@ -105,8 +105,8 @@ public class ValidationsHelper2 {
         List<Parameter> parameters = new ArrayList<>();
         parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
         parameters.add(new Parameter().setName("Attribute").setValue(attribute).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Expected value").setValue(expected).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Actual value").setValue(actual).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Expected value").setValue(String.valueOf(expected)).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual)).setMode(Parameter.Mode.DEFAULT));
         parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
         parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
         Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
@@ -124,8 +124,8 @@ public class ValidationsHelper2 {
         List<Parameter> parameters = new ArrayList<>();
         parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
         parameters.add(new Parameter().setName("CSS Property").setValue(property).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Expected value").setValue(expected).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Actual value").setValue(actual).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Expected value").setValue(String.valueOf(expected)).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual)).setMode(Parameter.Mode.DEFAULT));
         parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
         parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
         Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
@@ -138,21 +138,25 @@ public class ValidationsHelper2 {
         // read actual value based on desired existing state
         // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
         int elementCount = new ElementActions(driver, true).getElementsCount(locator);
-        boolean actual = validation.getValue() ? elementCount >= 1 : elementCount == 0;
+
+        boolean expected = validation.getValue();
+        boolean actual = elementCount > 0;
 
         //reporting block
         List<Parameter> parameters = new ArrayList<>();
         parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Should exist").setValue(String.valueOf(validation.getValue())).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Should exist").setValue(String.valueOf(expected)).setMode(Parameter.Mode.DEFAULT));
         parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
         Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
         //end of reporting block
+
+        // force validation type to be positive since the expected and actual values have been adjusted already
+        validation = ValidationEnums.ValidationType.POSITIVE;
 
         // force take page screenshot, (rather than element highlighted screenshot)
         if (elementCount == 0)
             locator = null;
-        performValidation(driver, locator, validation.getValue(), actual, ValidationEnums.ValidationComparisonType.EQUALS, validation);
+        performValidation(driver, locator, expected, actual, ValidationEnums.ValidationComparisonType.EQUALS, validation);
     }
 
     private void performValidation(WebDriver driver, By locator,
