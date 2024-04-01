@@ -289,13 +289,9 @@ jobs:
         uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
-      - name: Setup Chrome
-        uses: browser-actions/setup-chrome@v1
-        with:
-          chrome-version: stable
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*DatabaseActions.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*obile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*]"
+        run: mvn -e test "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DforceBrowserDownload=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*DatabaseActions.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*obile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v4
         with:
@@ -329,13 +325,9 @@ jobs:
         uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
-      - name: Setup Chrome
-        uses: browser-actions/setup-chrome@v1
-        with:
-          chrome-version: stable
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DforceBrowserDownload=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v4
         with:
