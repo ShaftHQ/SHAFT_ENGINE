@@ -130,7 +130,7 @@ public class JavaHelper {
         } else if (comparisonType instanceof ValidationEnums.NumbersComparativeRelation numbersComparativeRelation) {
             // this means that it is a number-based comparison
             Boolean comparisonState = getNumberComparisonState(expectedValue, actualValue, numbersComparativeRelation);
-            return comparisonState ? 1 : 0;
+            return (comparisonState && validationType) || (!comparisonState && !validationType) ? 1 : 0;
         }
         return -2;
     }
