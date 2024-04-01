@@ -507,7 +507,7 @@ public class ReportManagerHelper {
 
     @Step("{logText}")
     static void writeStepToReport(String logText, List<List<Object>> attachments, CheckpointStatus status) {
-        createLogEntry(logText, false);
+        createLogEntry(logText, true);
         if (attachments != null && !attachments.isEmpty()) {
             attachments.forEach(attachment -> {
                 if (attachment != null && !attachment.isEmpty() && attachment.get(2).getClass().toString().toLowerCase().contains("string")
