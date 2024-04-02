@@ -880,7 +880,6 @@
                             <goal>sign</goal>
                         </goals>
                         <configuration>
-                            <interactive>false</interactive>
                             <keyname>${gpg.keyname}</keyname>
                             <passphrase>${gpg.passphrase}</passphrase>
                             <!-- Prevent gpg from using pinentry programs -->
