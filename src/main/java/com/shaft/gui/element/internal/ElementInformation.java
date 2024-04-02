@@ -98,5 +98,11 @@ public class ElementInformation {
         temp.add(actionResult);
         temp.add(elementRect);
         return temp;
+        // int numberOfFoundElements
+        // WebElement firstElement
+        // By locator
+        // String outerHTML (or empty string)
+        // String innerHTML (or empty string)
+        // String elementName (or empty string)
     }
 }
