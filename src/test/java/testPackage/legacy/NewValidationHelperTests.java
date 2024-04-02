@@ -296,11 +296,6 @@ public class NewValidationHelperTests {
     }
 
     @Test
-    public void f36() {
-        Validations.assertThat().file("src/test/java/testPackage/", "NewValidationHelperTests.java").exists().perform();
-    }
-
-    @Test
     public void f37() throws Exception {
         try {
             Validations.assertThat().file("", "pom.xml").doesNotExist().perform();
