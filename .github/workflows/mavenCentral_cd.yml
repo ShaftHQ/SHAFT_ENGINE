@@ -9,6 +9,12 @@ on:
 
 jobs:
   build_release_and_deliver:
+    env:
+      gpg.keyname: ${{ secrets.GPG_KEYNAME }}
+      gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+      MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Code
@@ -45,7 +51,7 @@ jobs:
           tag: ${{ env.RELEASE_VERSION }}
       - name: Setup Prerequisites
         run: |
-          git config --global user.signingKey ${{ secrets.GPG_KEYNAME }}
+          git config --global user.signingKey "${{ secrets.GPG_KEYNAME }}"
           git config --global commit.gpgsign true
           gpg --version
           gpgconf --kill gpg-agent
