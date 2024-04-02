@@ -168,7 +168,7 @@ public class OptionsManager {
         }
     }
 
-    private void setSeleniumManagerOptions(MutableCapabilities options) {
+    private synchronized void setSeleniumManagerOptions(MutableCapabilities options) {
         if (SHAFT.Properties.web.forceBrowserDownload()) {
             if (options instanceof ChromeOptions chromeOptions) {
                 chromeOptions.setBrowserVersion("stable");

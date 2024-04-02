@@ -315,30 +315,39 @@ public class DriverFactoryHelper {
             } else if (message.contains("DevToolsActivePort file doesn't exist")) {
                 // this exception was observed with `Windows_Edge_Local` pipeline to happen randomly
                 // suggested fix as per titus fortner: https://bugs.chromium.org/p/chromedriver/issues/detail?id=4403#c35
-
-                var chOptions = optionsManager.getChOptions();
-                chOptions.addArguments("--remote-debugging-pipe");
-                optionsManager.setChOptions(chOptions);
-
-                var edOptions = optionsManager.getEdOptions();
-                edOptions.addArguments("--remote-debugging-pipe");
-                optionsManager.setEdOptions(edOptions);
+                switch (driverType) {
+                    case DriverType.CHROME -> {
+                        var chOptions = optionsManager.getChOptions();
+                        chOptions.addArguments("--remote-debugging-pipe");
+                        optionsManager.setChOptions(chOptions);
+                    }
+                    case DriverType.EDGE -> {
+                        var edOptions = optionsManager.getEdOptions();
+                        edOptions.addArguments("--remote-debugging-pipe");
+                        optionsManager.setEdOptions(edOptions);
+                    }
+                }
             } else if (message.contains("Failed to initialize BiDi Mapper")) {
                 // this exception happens in some corner cases where the capabilities are not compatible with BiDi mode
                 // should force disable BiDi and try again
                 SHAFT.Properties.platform.set().enableBiDi(false);
-
-                var ffOptions = optionsManager.getFfOptions();
-                ffOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
-                optionsManager.setFfOptions(ffOptions);
-
-                var chOptions = optionsManager.getChOptions();
-                chOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
-                optionsManager.setChOptions(chOptions);
-
-                var edOptions = optionsManager.getEdOptions();
-                edOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
-                optionsManager.setEdOptions(edOptions);
+                switch (driverType) {
+                    case DriverType.FIREFOX -> {
+                        var ffOptions = optionsManager.getFfOptions();
+                        ffOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+                        optionsManager.setFfOptions(ffOptions);
+                    }
+                    case DriverType.CHROME -> {
+                        var chOptions = optionsManager.getChOptions();
+                        chOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+                        optionsManager.setChOptions(chOptions);
+                    }
+                    case DriverType.EDGE -> {
+                        var edOptions = optionsManager.getEdOptions();
+                        edOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+                        optionsManager.setEdOptions(edOptions);
+                    }
+                }
             } else if (message.contains("The Safari instance is already paired with another WebDriver session.")) {
                 //this issue happens when running locally via safari/mac platform
                 // attempting blind fix by trying to quit existing safari instances if any
