@@ -13,7 +13,7 @@
     </test>
     <test name="Test02">
         <classes>
-            <class name="testPackage.JsonActionsTests">
+            <class name="testPackage.legacy.JsonActionsTests">
             </class>
         </classes>
     </test>
