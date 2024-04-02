@@ -85,7 +85,7 @@ public interface BrowserStack extends EngineProperties {
     boolean local();
 
     @Key("browserStack.seleniumVersion")
-    @DefaultValue("4.15.0")
+    @DefaultValue("4.18.1")
     String seleniumVersion();
 
     @Key("browserStack.acceptInsecureCerts")
@@ -93,11 +93,15 @@ public interface BrowserStack extends EngineProperties {
     boolean acceptInsecureCerts();
 
     @Key("browserStack.debug")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean debug();
 
+    @Key("browserStack.enableBiometric")
+    @DefaultValue("false")
+    boolean enableBiometric();
+
     @Key("browserStack.networkLogs")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean networkLogs();
 
     //Optional extra settings
@@ -107,7 +111,7 @@ public interface BrowserStack extends EngineProperties {
     String geoLocation();
 
     @Key("browserStack.appiumVersion")
-    @DefaultValue("2.0.1")
+    @DefaultValue("2.4.1")
     String appiumVersion();
 
     default SetProperty set() {
@@ -187,6 +191,11 @@ public interface BrowserStack extends EngineProperties {
 
         public SetProperty debug(boolean value) {
             setProperty("browserStack.debug", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty enableBiometric(boolean value) {
+            setProperty("browserStack.enableBiometric", String.valueOf(value));
             return this;
         }
 
