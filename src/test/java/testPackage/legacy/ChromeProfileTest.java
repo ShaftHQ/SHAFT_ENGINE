@@ -20,9 +20,9 @@ public class ChromeProfileTest extends Tests {
         ChromeOptions chromeOptions = new ChromeOptions();
         chromeOptions.addArguments("user-data-dir=" + userDataDirectory);
         chromeOptions.addArguments("profile-directory=" + profileDirectory);
-        driverThreadLocal.set(new SHAFT.GUI.WebDriver(DriverFactory.DriverType.CHROME, chromeOptions));
-        driverThreadLocal.get().browser().navigateToURL("https://www.google.com");
-        driverThreadLocal.get().browser().assertThat().url().contains("google").perform();
+        driver.set(new SHAFT.GUI.WebDriver(DriverFactory.DriverType.CHROME, chromeOptions));
+        driver.get().browser().navigateToURL("https://www.google.com");
+        driver.get().browser().assertThat().url().contains("google").perform();
     }
 
     @AfterMethod

@@ -5,15 +5,15 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
 public abstract class Tests {
-    static final ThreadLocal<SHAFT.GUI.WebDriver> driverThreadLocal = new ThreadLocal<>();
+    protected static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @BeforeMethod
     public void init() {
-        driverThreadLocal.set(new SHAFT.GUI.WebDriver());
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod
     public void tear() {
-        driverThreadLocal.get().quit();
+        driver.get().quit();
     }
 }
