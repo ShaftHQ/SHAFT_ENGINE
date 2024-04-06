@@ -6,6 +6,8 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
+import com.shaft.gui.element.internal.ElementInformation;
+import com.shaft.gui.element.internal.FlutterBy;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
@@ -15,6 +17,7 @@ import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
+import io.github.ashwith.flutter.FlutterFinder;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.*;
 import org.openqa.selenium.remote.RemoteWebDriver;
@@ -147,31 +150,40 @@ public class TouchActions extends FluentWebDriverAction {
     public TouchActions tap(By elementLocator) {
         try {
             String elementText = "";
-            if (CAPTURE_CLICKED_ELEMENT_TEXT) {
-                try {
-                    if (DriverFactoryHelper.isMobileNativeExecution()) {
-                        elementText = ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1)).getAttribute("text");
-                    } else {
-                        elementText = ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1)).getText();
+            if (elementLocator instanceof FlutterBy flutterBy) {
+                FlutterFinder finder = new FlutterFinder((RemoteWebDriver) driverFactoryHelper.getDriver());
+                ElementInformation elementInformation = ElementInformation.fromList(flutterBy.identifyFlutterElement(finder));
+                elementText = (elementInformation.getFirstElement()).getText();
+                List<Object> screenshot = elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), elementLocator, "tap", null, true);
+                elementInformation.getFirstElement().click();
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
+            } else {
+                if (CAPTURE_CLICKED_ELEMENT_TEXT) {
+                    try {
+                        if (DriverFactoryHelper.isMobileNativeExecution()) {
+                            elementText = ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1)).getAttribute("text");
+                        } else {
+                            elementText = ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1)).getText();
+                        }
+                    } catch (Exception e) {
+                        // do nothing
                     }
-                } catch (Exception e) {
-                    // do nothing
                 }
-            }
-            List<Object> screenshot = elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), elementLocator, "tap", null, true);
-            // takes screenshot before clicking the element out of view
+                List<Object> screenshot = elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), elementLocator, "tap", null, true);
+                // takes screenshot before clicking the element out of view
 
-            try {
+                try {
 //                fixing https://github.com/ShaftHQ/SHAFT_ENGINE/issues/501
-                ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1)).click();
-            } catch (Exception e) {
-                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), elementLocator, e);
-            }
+                    ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1)).click();
+                } catch (Exception e) {
+                    elementActionsHelper.failAction(driverFactoryHelper.getDriver(), elementLocator, e);
+                }
 
-            if (elementText == null || elementText.isEmpty()) {
-                elementText = JavaHelper.formatLocatorToString(elementLocator);
+                if (elementText == null || elementText.isEmpty()) {
+                    elementText = JavaHelper.formatLocatorToString(elementLocator);
+                }
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
             }
-            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), elementLocator, throwable);
