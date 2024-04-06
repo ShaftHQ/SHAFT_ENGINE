@@ -10,6 +10,7 @@ import com.shaft.enums.internal.ElementAction;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.ElementInformation;
+import com.shaft.gui.element.internal.FlutterBy;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.waits.WaitActions;
@@ -17,9 +18,11 @@ import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
+import io.github.ashwith.flutter.FlutterFinder;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.locators.RelativeLocator;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
@@ -443,33 +446,42 @@ public class ElementActions extends FluentWebDriverAction {
      */
     public String getText(By elementLocator) {
         try {
-            var elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
-            var elementName = elementInformation.getElementName();
             String elementText;
-            try {
+            if (elementLocator instanceof FlutterBy flutterBy) {
+                FlutterFinder finder = new FlutterFinder((RemoteWebDriver) driverFactoryHelper.getDriver());
+                ElementInformation elementInformation = ElementInformation.fromList(flutterBy.identifyFlutterElement(finder));
+
                 elementText = (elementInformation.getFirstElement()).getText();
-            } catch (WebDriverException webDriverException) {
-                elementText = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementInformation.getLocator(), ElementAction.GET_TEXT)).getActionResult();
-            }
-            if ((elementText == null || elementText.isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
+
+                elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementText, null, null);
+            } else {
+                var elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
+                var elementName = elementInformation.getElementName();
                 try {
-                    elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.CONTENT.getValue());
+                    elementText = (elementInformation.getFirstElement()).getText();
                 } catch (WebDriverException webDriverException) {
-                    elementText = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementInformation.getLocator(), ElementAction.GET_CONTENT)).getActionResult();
+                    elementText = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementInformation.getLocator(), ElementAction.GET_TEXT)).getActionResult();
                 }
-            }
-            if ((elementText == null || elementText.isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
-                try {
-                    elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.VALUE.getValue());
-                } catch (WebDriverException webDriverException) {
-                    elementText = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementInformation.getLocator(), ElementAction.GET_VALUE)).getActionResult();
+                if ((elementText == null || elementText.isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
+                    try {
+                        elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.CONTENT.getValue());
+                    } catch (WebDriverException webDriverException) {
+                        elementText = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementInformation.getLocator(), ElementAction.GET_CONTENT)).getActionResult();
+                    }
                 }
+                if ((elementText == null || elementText.isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
+                    try {
+                        elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.VALUE.getValue());
+                    } catch (WebDriverException webDriverException) {
+                        elementText = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementInformation.getLocator(), ElementAction.GET_VALUE)).getActionResult();
+                    }
+                }
+                if (elementText == null) {
+                    elementText = "";
+                }
+                elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementText, null, elementName);
+                return elementText;
             }
-            if (elementText == null) {
-                elementText = "";
-            }
-            elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementText, null, elementName);
-            return elementText;
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
             elementActionsHelper.failAction(driver, elementLocator, throwable);
