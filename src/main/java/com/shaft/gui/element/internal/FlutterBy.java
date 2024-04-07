@@ -2,18 +2,19 @@ package com.shaft.gui.element.internal;
 
 import com.shaft.enums.internal.FlutterFindingStrategy;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import io.github.ashwith.flutter.FlutterElement;
 import io.github.ashwith.flutter.FlutterFinder;
-import java.util.Collections;
 import org.openqa.selenium.By;
 import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.WebElement;
 
+import java.util.Collections;
 import java.util.List;
 
 @SuppressWarnings("unused")
 public abstract class FlutterBy extends By {
     private final FlutterFindingStrategy flutterFindingStrategy;
-    private ElementInformation elementInformation;
+
     protected FlutterBy(FlutterFindingStrategy findingStrategy) {
         this.flutterFindingStrategy = findingStrategy;
     }
@@ -34,20 +35,36 @@ public abstract class FlutterBy extends By {
         return new ByType(type);
     }
 
+    public static FlutterBy descendant(FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
+        return new ByDescendant(of, matching, matchRoot, firstMatchOnly);
+    }
+
+    public static FlutterBy ancestor(FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
+        return new ByAncestor(of, matching, matchRoot, firstMatchOnly);
+    }
+
     public List<Object> identifyFlutterElement(FlutterFinder finder) {
         try {
             switch (flutterFindingStrategy) {
                 case TYPE -> {
-                    return ((ByType)this).identifyElement(finder, ((ByType) this).type);
+                    return ((ByType) this).identifyElement(finder, ((ByType) this).type);
                 }
                 case VALUE_KEY_STRING -> {
-                    return ((ByValueKeyString)this).identifyElement(finder, ((ByValueKeyString) this).valueKeyString);
+                    return ((ByValueKeyString) this).identifyElement(finder, ((ByValueKeyString) this).valueKey);
                 }
                 case VALUE_KEY_INT -> {
-                    return ((ByValueKeyInt)this).identifyElement(finder, ((ByValueKeyInt) this).valueKeyInt);
+                    return ((ByValueKeyInt) this).identifyElement(finder, ((ByValueKeyInt) this).valueKey);
                 }
                 case TEXT -> {
-                    return ((ByText)this).identifyElement(finder, ((ByText) this).text);
+                    return ((ByText) this).identifyElement(finder, ((ByText) this).text);
+                }
+                case DESCENDANT -> {
+                    return ((ByDescendant) this).identifyElement(finder, ((ByDescendant) this).of, ((ByDescendant) this).matching,
+                            ((ByDescendant) this).matchRoot, ((ByDescendant) this).firstMatchOnly);
+                }
+                case ANCESTOR -> {
+                    return ((ByAncestor) this).identifyElement(finder, ((ByAncestor) this).of, ((ByAncestor) this).matching,
+                            ((ByAncestor) this).matchRoot, ((ByAncestor) this).firstMatchOnly);
                 }
                 default -> throw new IllegalStateException("Unsupported FindingStrategy: " + flutterFindingStrategy);
             }
@@ -101,17 +118,17 @@ public abstract class FlutterBy extends By {
     }
 
     public static class ByValueKeyString extends FlutterBy {
-        private final String valueKeyString;
+        private final String valueKey;
 
-        public ByValueKeyString(String valueKeyString) {
+        public ByValueKeyString(String valueKey) {
             super(FlutterFindingStrategy.VALUE_KEY_STRING);
-            this.valueKeyString = valueKeyString;
+            this.valueKey = valueKey;
         }
 
-        private List<Object> identifyElement(FlutterFinder finder,  String valueKeyString) {
+        private List<Object> identifyElement(FlutterFinder finder, String valueKey) {
             ElementInformation elementInformation;
             elementInformation = new ElementInformation();
-            elementInformation.setFirstElement(finder.byValueKey(valueKeyString));
+            elementInformation.setFirstElement(finder.byValueKey(valueKey));
             return elementInformation.toList();
         }
 
@@ -122,23 +139,23 @@ public abstract class FlutterBy extends By {
 
         @Override
         public String toString() {
-            return "By.valueKey: " + this.valueKeyString;
+            return "By.valueKey: " + this.valueKey;
         }
 
     }
 
     public static class ByValueKeyInt extends FlutterBy {
-        private final int valueKeyInt;
+        private final int valueKey;
 
-        public ByValueKeyInt(int valueKeyInt) {
+        public ByValueKeyInt(int valueKey) {
             super(FlutterFindingStrategy.VALUE_KEY_INT);
-            this.valueKeyInt = valueKeyInt;
+            this.valueKey = valueKey;
         }
 
-        private List<Object> identifyElement(FlutterFinder finder, int valueKeyInt) {
+        private List<Object> identifyElement(FlutterFinder finder, int valueKey) {
             ElementInformation elementInformation;
             elementInformation = new ElementInformation();
-            elementInformation.setFirstElement(finder.byValueKey(valueKeyInt));
+            elementInformation.setFirstElement(finder.byValueKey(valueKey));
             return elementInformation.toList();
         }
 
@@ -149,7 +166,7 @@ public abstract class FlutterBy extends By {
 
         @Override
         public String toString() {
-            return "By.valueKey: " + this.valueKeyInt;
+            return "By.valueKey: " + this.valueKey;
         }
 
     }
@@ -177,6 +194,102 @@ public abstract class FlutterBy extends By {
         @Override
         public String toString() {
             return "By.type: " + this.type;
+        }
+
+    }
+
+    public static class ByDescendant extends FlutterBy {
+        private final FlutterBy of;
+        private final FlutterBy matching;
+        private final boolean matchRoot;
+        private final boolean firstMatchOnly;
+
+        public ByDescendant(FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
+            super(FlutterFindingStrategy.DESCENDANT);
+            this.of = of;
+            this.matching = matching;
+            this.matchRoot = matchRoot;
+            this.firstMatchOnly = firstMatchOnly;
+        }
+
+        private List<Object> identifyElement(FlutterFinder finder, FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
+            ElementInformation elementInformation;
+            elementInformation = new ElementInformation();
+            elementInformation.setFirstElement(finder.byDescendant((FlutterElement) identifyElementType(finder, of).get(1),
+                    (FlutterElement) identifyElementType(finder, matching).get(1), matchRoot, firstMatchOnly));
+            return elementInformation.toList();
+        }
+
+        private List<Object> identifyElementType(FlutterFinder finder, FlutterBy flutterBy) {
+            if (flutterBy instanceof ByText byText) {
+                return ((ByText) flutterBy).identifyElement(finder, ((ByText) flutterBy).text);
+            } else if (flutterBy instanceof ByType byType) {
+                return ((ByType) flutterBy).identifyElement(finder, ((ByType) flutterBy).type);
+            } else if (flutterBy instanceof ByValueKeyString byValueKeyString) {
+                return ((ByValueKeyString) flutterBy).identifyElement(finder, ((ByValueKeyString) flutterBy).valueKey);
+            } else if (flutterBy instanceof ByValueKeyInt byValueKeyInt) {
+                return ((ByValueKeyInt) flutterBy).identifyElement(finder, ((ByValueKeyInt) flutterBy).valueKey);
+            }
+            return Collections.emptyList();
+        }
+
+        @Override
+        public List<WebElement> findElements(SearchContext context) {
+            return context.findElements(this);
+        }
+
+        @Override
+        public String toString() {
+            return "By.Descendant: \n" + "descendant of: " + this.of + "\nmatching: " +
+                    this.matching + "\nmatchRoot: " + this.matchRoot + "\nfirstMatchOnly: " + this.firstMatchOnly;
+        }
+
+    }
+
+    public static class ByAncestor extends FlutterBy {
+        private final FlutterBy of;
+        private final FlutterBy matching;
+        private final boolean matchRoot;
+        private final boolean firstMatchOnly;
+
+        public ByAncestor(FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
+            super(FlutterFindingStrategy.ANCESTOR);
+            this.of = of;
+            this.matching = matching;
+            this.matchRoot = matchRoot;
+            this.firstMatchOnly = firstMatchOnly;
+        }
+
+        private List<Object> identifyElement(FlutterFinder finder, FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
+            ElementInformation elementInformation;
+            elementInformation = new ElementInformation();
+            elementInformation.setFirstElement(finder.byAncestor((FlutterElement) identifyElementType(finder, of).get(1),
+                    (FlutterElement) identifyElementType(finder, matching).get(1), matchRoot, firstMatchOnly));
+            return elementInformation.toList();
+        }
+
+        private List<Object> identifyElementType(FlutterFinder finder, FlutterBy flutterBy) {
+            if (flutterBy instanceof ByText byText) {
+                return ((ByText) flutterBy).identifyElement(finder, ((ByText) flutterBy).text);
+            } else if (flutterBy instanceof ByType byType) {
+                return ((ByType) flutterBy).identifyElement(finder, ((ByType) flutterBy).type);
+            } else if (flutterBy instanceof ByValueKeyString byValueKeyString) {
+                return ((ByValueKeyString) flutterBy).identifyElement(finder, ((ByValueKeyString) flutterBy).valueKey);
+            } else if (flutterBy instanceof ByValueKeyInt byValueKeyInt) {
+                return ((ByValueKeyInt) flutterBy).identifyElement(finder, ((ByValueKeyInt) flutterBy).valueKey);
+            }
+            return Collections.emptyList();
+        }
+
+        @Override
+        public List<WebElement> findElements(SearchContext context) {
+            return context.findElements(this);
+        }
+
+        @Override
+        public String toString() {
+            return "By.Ancestor: \n" + "ancestor of: " + this.of + "\nmatching: " +
+                    this.matching + "\nmatchRoot: " + this.matchRoot + "\nfirstMatchOnly: " + this.firstMatchOnly;
         }
 
     }
