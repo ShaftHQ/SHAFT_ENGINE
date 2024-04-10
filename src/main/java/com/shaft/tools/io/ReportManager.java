@@ -25,6 +25,16 @@ public class ReportManager {
         }
     }
 
+    public static void log(String logText, Level logLevel) {
+        if (logText != null && !logText.isBlank()) {
+            if (getDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
+                createLogEntry(logText, logLevel);
+            } else {
+                writeStepToReport(logText);
+            }
+        }
+    }
+
     /**
      * Creates a custom log entry that will not be added as a step in the execution report, but you can see it in the attached execution log txt file
      *
