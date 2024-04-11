@@ -13,6 +13,7 @@ import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums.*;
 import io.restassured.response.Response;
+import org.apache.logging.log4j.Level;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.Browser;
@@ -361,9 +362,12 @@ public class ValidationsHelper {
         List<List<Object>> attachments = new ArrayList<>();
         byte[] referenceImage = ImageProcessingActions.getReferenceImage(elementLocator);
         if (!Arrays.equals(new byte[0], referenceImage)) {
+            ReportManagerHelper.logDiscrete("Reference image found.", Level.INFO);
             List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Reference Screenshot",
                     referenceImage);
             attachments.add(expectedValueAttachment);
+        } else {
+            ReportManagerHelper.logDiscrete("Reference image not found, attempting to capture new reference.", Level.INFO);
         }
         if (elementActionsHelper.getElementsCount(driver, elementLocator) == 1) {
             byte[] elementScreenshot;

@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.properties.internal.Properties;
+import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.commons.io.output.ByteArrayOutputStream;
@@ -33,6 +34,8 @@ public class ScreenshotHelper {
     public static String getAiAidedElementIdentificationFolderPath() {
         if (AI_AIDED_ELEMENT_IDENTIFICATION_FOLDER_PATH.isEmpty()) {
             // fixes https://github.com/ShaftHQ/SHAFT_ENGINE/issues/808 by respecting OS/Platform information for mobile native
+            if (Properties.paths == null)
+                PropertiesHelper.initialize();
             AI_AIDED_ELEMENT_IDENTIFICATION_FOLDER_PATH = Properties.paths.dynamicObjectRepository()
                     + Properties.platform.targetPlatform() + "/";
             if (DriverFactoryHelper.isMobileNativeExecution()) {

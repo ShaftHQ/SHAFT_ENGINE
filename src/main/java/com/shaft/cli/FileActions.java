@@ -11,6 +11,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.logging.log4j.Level;
 import org.openqa.selenium.Platform;
 
 import java.io.*;
@@ -283,8 +284,16 @@ public class FileActions {
      *                       be deleted
      */
     public void deleteFile(String targetFilePath) {
-        boolean wasFileDeleted = FileUtils.deleteQuietly(new File(targetFilePath));
+        File targetFile;
+        targetFile = new File(targetFilePath);
+        boolean wasFileDeleted = FileUtils.deleteQuietly(targetFile);
+        if (!wasFileDeleted) {
+            targetFile = new File((new File(targetFilePath)).getAbsolutePath());
+            wasFileDeleted = FileUtils.deleteQuietly(targetFile);
+        }
         String negation = wasFileDeleted ? "" : "not ";
+        //if (!wasFileDeleted)
+            //ReportManager.log("File was not deleted: `"+targetFilePath+"`", Level.WARN);
         passAction("Target File Path: \"" + targetFilePath + "\", file was " + negation + "deleted.");
     }
 
@@ -293,20 +302,28 @@ public class FileActions {
         writeToFile(fileFolderName, fileName, textToBytes);
     }
 
-    public void writeToFile(String fileFolderName, String fileName, byte[] content) {
-        String absoluteFilePath = getAbsolutePath(fileFolderName, fileName);
+    public void writeToFile(String filePath, byte[] content) {
+        String absoluteFilePath = (new File(filePath)).getAbsolutePath();
         try {
-            Path filePath = Paths.get(absoluteFilePath);
-            Path parentDir = filePath.getParent();
+            Path targetFilePath = Paths.get(absoluteFilePath);
+            Path parentDir = targetFilePath.getParent();
             if (!parentDir.toFile().exists()) {
                 Files.createDirectories(parentDir);
             }
-            Files.write(filePath, content);
-            passAction("Target File Path: \"" + filePath + "\"", Arrays.toString(content));
+            Files.write(targetFilePath, content);
+            passAction("Target File Path: \"" + targetFilePath + "\"", Arrays.toString(content));
         } catch (InvalidPathException | IOException rootCauseException) {
-
-            failAction("Folder Name: \"" + fileFolderName + "\", File Name \"" + fileName + "\".", rootCauseException);
+            failAction("Folder Name: \"" + filePath + "\".", rootCauseException);
         }
+    }
+
+    public void writeToFile(String filePath, String text) {
+        byte[] textToBytes = text.getBytes();
+        writeToFile(filePath, textToBytes);
+    }
+
+    public void writeToFile(String fileFolderName, String fileName, byte[] content) {
+        writeToFile(fileFolderName + fileName, content);
     }
 
     public void writeToFile(String fileFolderName, String fileName, String text) {
