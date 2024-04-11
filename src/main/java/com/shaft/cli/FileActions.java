@@ -292,8 +292,8 @@ public class FileActions {
             wasFileDeleted = FileUtils.deleteQuietly(targetFile);
         }
         String negation = wasFileDeleted ? "" : "not ";
-        if (!wasFileDeleted)
-            ReportManager.log("File was not deleted: `"+targetFilePath+"`", Level.WARN);
+        //if (!wasFileDeleted)
+            //ReportManager.log("File was not deleted: `"+targetFilePath+"`", Level.WARN);
         passAction("Target File Path: \"" + targetFilePath + "\", file was " + negation + "deleted.");
     }
 
