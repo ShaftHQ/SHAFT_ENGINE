@@ -36,7 +36,7 @@ public class WaitActionsTests extends Tests {
     @Test(expectedExceptions = AssertionError.class)
     public void waitUntilNumberOfElementsToBeMoreThan() {
         driver.get().browser().navigateToURL("https://shafthq.github.io/")
-                .and().element().waitUntilNumberOfElementsToBeMoreThan(By.className("buttons_AeoN"), 1);
+                .and().element().waitUntilNumberOfElementsToBeMoreThan(By.className("buttons_AeoN"), 5);
     }
 
     @Test(expectedExceptions = AssertionError.class)
@@ -66,13 +66,13 @@ public class WaitActionsTests extends Tests {
     @Test
     public void waitUntilNumberOfElementsToBe1() {
         driver.get().browser().navigateToURL("https://shafthq.github.io/")
-                .and().element().waitUntilNumberOfElementsToBe(By.className("buttons_AeoN"), 1);
+                .and().element().waitUntilNumberOfElementsToBe(By.className("buttons_AeoN"), 4);
     }
 
     @Test
     public void waitUntilNumberOfElementsToBeLessThan1() {
         driver.get().browser().navigateToURL("https://shafthq.github.io/")
-                .and().element().waitUntilNumberOfElementsToBeLessThan(By.className("buttons_AeoN"), 2);
+                .and().element().waitUntilNumberOfElementsToBeLessThan(By.className("buttons_AeoN"), 5);
     }
 
     @Test

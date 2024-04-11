@@ -42,7 +42,7 @@ public class FrameTests {
     public void switchToIframeAndAssertContent() {
         driver.get().browser().navigateToURL(testPage)
                 .and().element().switchToIframe(iframe_1)
-                .and().assertThat(nestedElement).text().isEqualTo("SHAFT User Guide").perform();
+                .and().assertThat(nestedElement).text().isEqualTo("SHAFT: Unified Test Automation Engine").perform();
     }
 
     @Test()

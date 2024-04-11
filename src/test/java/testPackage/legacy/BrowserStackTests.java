@@ -17,7 +17,7 @@ public class BrowserStackTests {
         var handle2 = handles.getLast();
         driver.get().browser().switchToWindow(handle2)
                 .and().element().click(SHAFT.GUI.Locator.hasTagName("a").containsText("Upgrade Now").isLast().build())
-                .and().assertThat(By.tagName("h1")).text().isEqualTo("First Steps").perform();
+                .and().assertThat(By.tagName("h1")).text().isEqualTo("About SHAFT").perform();
     }
 
     @BeforeMethod
