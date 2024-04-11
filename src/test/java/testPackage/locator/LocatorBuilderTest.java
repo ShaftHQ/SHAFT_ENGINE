@@ -31,7 +31,7 @@ public class LocatorBuilderTest {
 
     @Test
     public void containsText() {
-        By locator = Locator.hasTagName("h1").containsText("User Guide").build();
+        By locator = Locator.hasTagName("h1").containsText("Unified Test Automation Engine").build();
         driver.get().assertThat().element(locator).text().contains("SHAFT").perform();
     }
 
@@ -76,12 +76,12 @@ public class LocatorBuilderTest {
     @Test
     public void hasClass() {
         By locator = Locator.hasTagName("h1").hasClass("hero__title").build();
-        driver.get().assertThat().element(locator).text().isEqualTo("SHAFT User Guide").perform();
+        driver.get().assertThat().element(locator).text().contains("SHAFT").perform();
     }
 
     @Test
     public void hasText() {
-        By locator = Locator.hasTagName("h1").hasText("SHAFT User Guide").build();
+        By locator = Locator.hasTagName("h1").hasText("SHAFT: Unified Test Automation Engine").build();
         driver.get().assertThat().element(locator).attribute("class").contains("hero__title").perform();
     }
 
@@ -100,24 +100,24 @@ public class LocatorBuilderTest {
     @Test
     public void isLast() {
         By locator = Locator.hasTagName("p").isLast().build();
-        driver.get().assertThat().element(locator).text().contains("Test Automation").perform();
+        driver.get().assertThat().element(locator).text().contains("What are you waiting for?").perform();
     }
 
     @Test
     public void relativeBy() {
-        By locator = Locator.hasTagName("a").relativeBy().below(Locator.hasTagName("h1").hasText("SHAFT User Guide").build());
+        By locator = Locator.hasTagName("a").relativeBy().below(Locator.hasTagName("h1").containsText("SHAFT").build());
         driver.get().assertThat().element(locator).text().contains("Upgrade Now").perform();
     }
 
     @Test
     public void axisBy_followingSibling() {
-        By locator = Locator.hasTagName("h1").hasText("SHAFT User Guide").axisBy().followingSibling("p").build();
-        driver.get().assertThat().element(locator).text().contains("Stop reinventing the wheel.").perform();
+        By locator = Locator.hasTagName("h1").containsText("SHAFT").axisBy().followingSibling("p").build();
+        driver.get().assertThat().element(locator).text().contains("Stop reinventing the wheel").perform();
     }
 
     @Test
     public void axisBy_chain_precedingSibling() {
-        By locator = Locator.hasTagName("h1").hasText("SHAFT User Guide").axisBy().followingSibling("p").axisBy().precedingSibling("h1").build();
-        driver.get().assertThat().element(locator).text().isEqualTo("SHAFT User Guide").perform();
+        By locator = Locator.hasTagName("h1").containsText("SHAFT").axisBy().followingSibling("p").axisBy().precedingSibling("h1").hasIndex(1).build();
+        driver.get().assertThat().element(locator).text().isEqualTo("SHAFT: Unified Test Automation Engine").perform();
     }
 }
