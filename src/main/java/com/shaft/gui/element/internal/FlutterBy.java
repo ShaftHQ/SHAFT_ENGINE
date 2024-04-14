@@ -11,6 +11,8 @@ import org.openqa.selenium.WebElement;
 import java.util.Collections;
 import java.util.List;
 
+//ToDo -> make sure elementInformation object is fully utilized for flutter elements fast identification
+//ToDo -> findElements placeholder methods needs to be looked at
 @SuppressWarnings("unused")
 public abstract class FlutterBy extends By {
     private final FlutterFindingStrategy flutterFindingStrategy;
@@ -89,10 +91,10 @@ public abstract class FlutterBy extends By {
         return this.toString().hashCode();
     }
 
-    public static class ByText extends FlutterBy {
+    private static class ByText extends FlutterBy {
         private final String text;
 
-        public ByText(String text) {
+        private ByText(String text) {
             super(FlutterFindingStrategy.TEXT);
             this.text = text;
 
@@ -117,10 +119,10 @@ public abstract class FlutterBy extends By {
 
     }
 
-    public static class ByValueKeyString extends FlutterBy {
+    private static class ByValueKeyString extends FlutterBy {
         private final String valueKey;
 
-        public ByValueKeyString(String valueKey) {
+        private ByValueKeyString(String valueKey) {
             super(FlutterFindingStrategy.VALUE_KEY_STRING);
             this.valueKey = valueKey;
         }
@@ -144,10 +146,10 @@ public abstract class FlutterBy extends By {
 
     }
 
-    public static class ByValueKeyInt extends FlutterBy {
+    private static class ByValueKeyInt extends FlutterBy {
         private final int valueKey;
 
-        public ByValueKeyInt(int valueKey) {
+        private ByValueKeyInt(int valueKey) {
             super(FlutterFindingStrategy.VALUE_KEY_INT);
             this.valueKey = valueKey;
         }
@@ -171,10 +173,10 @@ public abstract class FlutterBy extends By {
 
     }
 
-    public static class ByType extends FlutterBy {
+    private static class ByType extends FlutterBy {
         private final String type;
 
-        public ByType(String type) {
+        private ByType(String type) {
             super(FlutterFindingStrategy.TYPE);
             this.type = type;
         }
@@ -198,13 +200,13 @@ public abstract class FlutterBy extends By {
 
     }
 
-    public static class ByDescendant extends FlutterBy {
+    private static class ByDescendant extends FlutterBy {
         private final FlutterBy of;
         private final FlutterBy matching;
         private final boolean matchRoot;
         private final boolean firstMatchOnly;
 
-        public ByDescendant(FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
+        private ByDescendant(FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
             super(FlutterFindingStrategy.DESCENDANT);
             this.of = of;
             this.matching = matching;
@@ -220,6 +222,7 @@ public abstract class FlutterBy extends By {
             return elementInformation.toList();
         }
 
+        //Todo -> enhance this logic to not use if else and use switch
         private List<Object> identifyElementType(FlutterFinder finder, FlutterBy flutterBy) {
             if (flutterBy instanceof ByText byText) {
                 return ((ByText) flutterBy).identifyElement(finder, ((ByText) flutterBy).text);
@@ -246,13 +249,13 @@ public abstract class FlutterBy extends By {
 
     }
 
-    public static class ByAncestor extends FlutterBy {
+    private static class ByAncestor extends FlutterBy {
         private final FlutterBy of;
         private final FlutterBy matching;
         private final boolean matchRoot;
         private final boolean firstMatchOnly;
 
-        public ByAncestor(FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
+        private ByAncestor(FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
             super(FlutterFindingStrategy.ANCESTOR);
             this.of = of;
             this.matching = matching;
@@ -268,6 +271,7 @@ public abstract class FlutterBy extends By {
             return elementInformation.toList();
         }
 
+        //Todo -> enhance this logic to not use if else and use switch
         private List<Object> identifyElementType(FlutterFinder finder, FlutterBy flutterBy) {
             if (flutterBy instanceof ByText byText) {
                 return ((ByText) flutterBy).identifyElement(finder, ((ByText) flutterBy).text);
