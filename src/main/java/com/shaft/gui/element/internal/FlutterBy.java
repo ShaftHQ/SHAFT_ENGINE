@@ -91,10 +91,10 @@ public abstract class FlutterBy extends By {
         return this.toString().hashCode();
     }
 
-    private static class ByText extends FlutterBy {
+    public static class ByText extends FlutterBy {
         private final String text;
 
-        private ByText(String text) {
+        public ByText(String text) {
             super(FlutterFindingStrategy.TEXT);
             this.text = text;
 
@@ -120,10 +120,10 @@ public abstract class FlutterBy extends By {
 
     }
 
-    private static class ByValueKeyString extends FlutterBy {
+    public static class ByValueKeyString extends FlutterBy {
         private final String valueKey;
 
-        private ByValueKeyString(String valueKey) {
+        public ByValueKeyString(String valueKey) {
             super(FlutterFindingStrategy.VALUE_KEY_STRING);
             this.valueKey = valueKey;
         }
@@ -148,10 +148,10 @@ public abstract class FlutterBy extends By {
 
     }
 
-    private static class ByValueKeyInt extends FlutterBy {
+    public static class ByValueKeyInt extends FlutterBy {
         private final int valueKey;
 
-        private ByValueKeyInt(int valueKey) {
+        public ByValueKeyInt(int valueKey) {
             super(FlutterFindingStrategy.VALUE_KEY_INT);
             this.valueKey = valueKey;
         }
@@ -176,10 +176,10 @@ public abstract class FlutterBy extends By {
 
     }
 
-    private static class ByType extends FlutterBy {
+    public static class ByType extends FlutterBy {
         private final String type;
 
-        private ByType(String type) {
+        public ByType(String type) {
             super(FlutterFindingStrategy.TYPE);
             this.type = type;
         }
@@ -204,13 +204,13 @@ public abstract class FlutterBy extends By {
 
     }
 
-    private static class ByDescendant extends FlutterBy {
+    public static class ByDescendant extends FlutterBy {
         private final FlutterBy of;
         private final FlutterBy matching;
         private final boolean matchRoot;
         private final boolean firstMatchOnly;
 
-        private ByDescendant(FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
+        public ByDescendant(FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
             super(FlutterFindingStrategy.DESCENDANT);
             this.of = of;
             this.matching = matching;
@@ -254,13 +254,13 @@ public abstract class FlutterBy extends By {
 
     }
 
-    private static class ByAncestor extends FlutterBy {
+    public static class ByAncestor extends FlutterBy {
         private final FlutterBy of;
         private final FlutterBy matching;
         private final boolean matchRoot;
         private final boolean firstMatchOnly;
 
-        private ByAncestor(FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
+        public ByAncestor(FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
             super(FlutterFindingStrategy.ANCESTOR);
             this.of = of;
             this.matching = matching;
