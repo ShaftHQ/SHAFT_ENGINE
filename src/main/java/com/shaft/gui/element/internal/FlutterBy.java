@@ -1,5 +1,7 @@
 package com.shaft.gui.element.internal;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.shaft.enums.internal.FlutterFindingStrategy;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.github.ashwith.flutter.FlutterElement;
@@ -8,16 +10,21 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.WebElement;
 
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 //ToDo -> make sure elementInformation object is fully utilized for flutter elements fast identification
 //ToDo -> findElements placeholder methods needs to be looked at
 @SuppressWarnings("unused")
-public abstract class FlutterBy extends By {
+public abstract class FlutterBy extends By implements By.Remotable {
     private final FlutterFindingStrategy flutterFindingStrategy;
+    private final By.Remotable.Parameters remoteParameters;
 
-    protected FlutterBy(FlutterFindingStrategy findingStrategy) {
+    protected FlutterBy(FlutterFindingStrategy findingStrategy, String locatorString) {
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(locatorString), "Must supply a not empty locator value.");
+        this.remoteParameters = new By.Remotable.Parameters(findingStrategy.name(), locatorString);
         this.flutterFindingStrategy = findingStrategy;
     }
 
@@ -77,25 +84,50 @@ public abstract class FlutterBy extends By {
     }
 
     @Override
+    public List<WebElement> findElements(SearchContext context) {
+        return context.findElements(this);
+    }
+
+    @Override
+    public WebElement findElement(SearchContext context) {
+        return context.findElement(this);
+    }
+
+    @Override
     public boolean equals(Object o) {
-        if (!(o instanceof FlutterBy)) {
-            return false;
+        if (this == o) {
+            return true;
+        } else if (o != null && this.getClass() == o.getClass()) {
+            if (!super.equals(o)) {
+                return false;
+            } else {
+                FlutterBy flutterBy = (FlutterBy) o;
+                return Objects.equals(this.remoteParameters, flutterBy.remoteParameters) && Objects.equals(this.flutterFindingStrategy.name(), flutterBy.flutterFindingStrategy.name());
+            }
         } else {
-            By that = (By) o;
-            return this.toString().equals(that.toString());
+            return false;
         }
     }
 
     @Override
+    public String toString() {
+        return String.format("%s.%s: %s", FlutterBy.class.getSimpleName(), this.flutterFindingStrategy.name(), this.remoteParameters.value());
+    }
+
+    @Override
     public int hashCode() {
-        return this.toString().hashCode();
+        return Objects.hash(super.hashCode(), this.remoteParameters.value(), this.flutterFindingStrategy.name());
+    }
+
+    public By.Remotable.Parameters getRemoteParameters() {
+        return this.remoteParameters;
     }
 
     public static class ByText extends FlutterBy {
         private final String text;
 
         public ByText(String text) {
-            super(FlutterFindingStrategy.TEXT);
+            super(FlutterFindingStrategy.TEXT, text);
             this.text = text;
 
         }
@@ -107,24 +139,13 @@ public abstract class FlutterBy extends By {
             elementInformation.setLocator(this);
             return elementInformation.toList();
         }
-
-        @Override
-        public List<WebElement> findElements(SearchContext context) {
-            return context.findElements(this);
-        }
-
-        @Override
-        public String toString() {
-            return "By.text: " + this.text;
-        }
-
     }
 
-    public static class ByValueKeyString extends FlutterBy {
+    public static class ByValueKeyString extends FlutterBy implements Serializable {
         private final String valueKey;
 
         public ByValueKeyString(String valueKey) {
-            super(FlutterFindingStrategy.VALUE_KEY_STRING);
+            super(FlutterFindingStrategy.VALUE_KEY_STRING, valueKey);
             this.valueKey = valueKey;
         }
 
@@ -135,24 +156,13 @@ public abstract class FlutterBy extends By {
             elementInformation.setLocator(this);
             return elementInformation.toList();
         }
-
-        @Override
-        public List<WebElement> findElements(SearchContext context) {
-            return context.findElements(this);
-        }
-
-        @Override
-        public String toString() {
-            return "By.valueKey: " + this.valueKey;
-        }
-
     }
 
-    public static class ByValueKeyInt extends FlutterBy {
+    public static class ByValueKeyInt extends FlutterBy implements Serializable {
         private final int valueKey;
 
         public ByValueKeyInt(int valueKey) {
-            super(FlutterFindingStrategy.VALUE_KEY_INT);
+            super(FlutterFindingStrategy.VALUE_KEY_INT, String.valueOf(valueKey));
             this.valueKey = valueKey;
         }
 
@@ -163,24 +173,13 @@ public abstract class FlutterBy extends By {
             elementInformation.setLocator(this);
             return elementInformation.toList();
         }
-
-        @Override
-        public List<WebElement> findElements(SearchContext context) {
-            return context.findElements(this);
-        }
-
-        @Override
-        public String toString() {
-            return "By.valueKey: " + this.valueKey;
-        }
-
     }
 
-    public static class ByType extends FlutterBy {
+    public static class ByType extends FlutterBy implements Serializable {
         private final String type;
 
         public ByType(String type) {
-            super(FlutterFindingStrategy.TYPE);
+            super(FlutterFindingStrategy.TYPE, type);
             this.type = type;
         }
 
@@ -191,27 +190,16 @@ public abstract class FlutterBy extends By {
             elementInformation.setLocator(this);
             return elementInformation.toList();
         }
-
-        @Override
-        public List<WebElement> findElements(SearchContext context) {
-            return context.findElements(this);
-        }
-
-        @Override
-        public String toString() {
-            return "By.type: " + this.type;
-        }
-
     }
 
-    public static class ByDescendant extends FlutterBy {
+    public static class ByDescendant extends FlutterBy implements Serializable {
         private final FlutterBy of;
         private final FlutterBy matching;
         private final boolean matchRoot;
         private final boolean firstMatchOnly;
 
         public ByDescendant(FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
-            super(FlutterFindingStrategy.DESCENDANT);
+            super(FlutterFindingStrategy.DESCENDANT, "\nof: " + of.remoteParameters + "\n" + "matching: " + matching.remoteParameters + "\nmatchRoot: " + matchRoot + "\nfirstMatchOnly: " + firstMatchOnly);
             this.of = of;
             this.matching = matching;
             this.matchRoot = matchRoot;
@@ -240,28 +228,16 @@ public abstract class FlutterBy extends By {
             }
             return Collections.emptyList();
         }
-
-        @Override
-        public List<WebElement> findElements(SearchContext context) {
-            return context.findElements(this);
-        }
-
-        @Override
-        public String toString() {
-            return "By.Descendant: \n" + "descendant of: " + this.of + "\nmatching: " +
-                    this.matching + "\nmatchRoot: " + this.matchRoot + "\nfirstMatchOnly: " + this.firstMatchOnly;
-        }
-
     }
 
-    public static class ByAncestor extends FlutterBy {
+    public static class ByAncestor extends FlutterBy implements Serializable {
         private final FlutterBy of;
         private final FlutterBy matching;
         private final boolean matchRoot;
         private final boolean firstMatchOnly;
 
         public ByAncestor(FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
-            super(FlutterFindingStrategy.ANCESTOR);
+            super(FlutterFindingStrategy.ANCESTOR, "\nof: " + of.remoteParameters + "\n" + "matching: " + matching.remoteParameters + "\nmatchRoot: " + matchRoot + "\nfirstMatchOnly: " + firstMatchOnly);
             this.of = of;
             this.matching = matching;
             this.matchRoot = matchRoot;
@@ -290,18 +266,6 @@ public abstract class FlutterBy extends By {
             }
             return Collections.emptyList();
         }
-
-        @Override
-        public List<WebElement> findElements(SearchContext context) {
-            return context.findElements(this);
-        }
-
-        @Override
-        public String toString() {
-            return "By.Ancestor: \n" + "ancestor of: " + this.of + "\nmatching: " +
-                    this.matching + "\nmatchRoot: " + this.matchRoot + "\nfirstMatchOnly: " + this.firstMatchOnly;
-        }
-
     }
 
 }
