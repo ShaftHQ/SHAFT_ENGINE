@@ -104,6 +104,7 @@ public abstract class FlutterBy extends By {
             ElementInformation elementInformation;
             elementInformation = new ElementInformation();
             elementInformation.setFirstElement(finder.byText(text));
+            elementInformation.setLocator(this);
             return elementInformation.toList();
         }
 
@@ -131,6 +132,7 @@ public abstract class FlutterBy extends By {
             ElementInformation elementInformation;
             elementInformation = new ElementInformation();
             elementInformation.setFirstElement(finder.byValueKey(valueKey));
+            elementInformation.setLocator(this);
             return elementInformation.toList();
         }
 
@@ -158,6 +160,7 @@ public abstract class FlutterBy extends By {
             ElementInformation elementInformation;
             elementInformation = new ElementInformation();
             elementInformation.setFirstElement(finder.byValueKey(valueKey));
+            elementInformation.setLocator(this);
             return elementInformation.toList();
         }
 
@@ -185,6 +188,7 @@ public abstract class FlutterBy extends By {
             ElementInformation elementInformation;
             elementInformation = new ElementInformation();
             elementInformation.setFirstElement(finder.byType(type));
+            elementInformation.setLocator(this);
             return elementInformation.toList();
         }
 
@@ -219,6 +223,7 @@ public abstract class FlutterBy extends By {
             elementInformation = new ElementInformation();
             elementInformation.setFirstElement(finder.byDescendant((FlutterElement) identifyElementType(finder, of).get(1),
                     (FlutterElement) identifyElementType(finder, matching).get(1), matchRoot, firstMatchOnly));
+            elementInformation.setLocator(this);
             return elementInformation.toList();
         }
 
@@ -268,6 +273,7 @@ public abstract class FlutterBy extends By {
             elementInformation = new ElementInformation();
             elementInformation.setFirstElement(finder.byAncestor((FlutterElement) identifyElementType(finder, of).get(1),
                     (FlutterElement) identifyElementType(finder, matching).get(1), matchRoot, firstMatchOnly));
+            elementInformation.setLocator(this);
             return elementInformation.toList();
         }
 
