@@ -2,6 +2,8 @@ package com.shaft.gui.element.internal;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.github.ashwith.flutter.FlutterElement;
 import io.github.ashwith.flutter.FlutterFinder;
@@ -138,6 +140,7 @@ public abstract class FlutterBy extends By implements By.Remotable {
             ElementInformation elementInformation = new ElementInformation();
             elementInformation.setFirstElement(finder.byText(text));
             elementInformation.setLocator(this);
+            elementInformation.setElementName(JavaHelper.formatLocatorToString(this));
             return elementInformation.toList();
         }
     }
@@ -154,6 +157,7 @@ public abstract class FlutterBy extends By implements By.Remotable {
             ElementInformation elementInformation = new ElementInformation();
             elementInformation.setFirstElement(finder.byValueKey(valueKey));
             elementInformation.setLocator(this);
+            elementInformation.setElementName(JavaHelper.formatLocatorToString(this));
             return elementInformation.toList();
         }
     }
@@ -170,6 +174,7 @@ public abstract class FlutterBy extends By implements By.Remotable {
             ElementInformation elementInformation = new ElementInformation();
             elementInformation.setFirstElement(finder.byValueKey(valueKey));
             elementInformation.setLocator(this);
+            elementInformation.setElementName(JavaHelper.formatLocatorToString(this));
             return elementInformation.toList();
         }
     }
@@ -186,6 +191,7 @@ public abstract class FlutterBy extends By implements By.Remotable {
             ElementInformation elementInformation = new ElementInformation();
             elementInformation.setFirstElement(finder.byType(type));
             elementInformation.setLocator(this);
+            elementInformation.setElementName(JavaHelper.formatLocatorToString(this));
             return elementInformation.toList();
         }
     }
@@ -209,6 +215,7 @@ public abstract class FlutterBy extends By implements By.Remotable {
             elementInformation.setFirstElement(finder.byDescendant((FlutterElement) identifyNestedElement(finder, of).get(1),
                     (FlutterElement) identifyNestedElement(finder, matching).get(1), matchRoot, firstMatchOnly));
             elementInformation.setLocator(this);
+            elementInformation.setElementName(JavaHelper.formatLocatorToString(this));
             return elementInformation.toList();
         }
 
@@ -256,6 +263,7 @@ public abstract class FlutterBy extends By implements By.Remotable {
             elementInformation.setFirstElement(finder.byAncestor((FlutterElement) identifyNestedElement(finder, of).get(1),
                     (FlutterElement) identifyNestedElement(finder, matching).get(1), matchRoot, firstMatchOnly));
             elementInformation.setLocator(this);
+            elementInformation.setElementName(JavaHelper.formatLocatorToString(this));
             return elementInformation.toList();
         }
 
