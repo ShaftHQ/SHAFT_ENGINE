@@ -2,7 +2,6 @@ package com.shaft.gui.element.internal;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.shaft.enums.internal.FlutterFindingStrategy;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.github.ashwith.flutter.FlutterElement;
 import io.github.ashwith.flutter.FlutterFinder;
@@ -266,6 +265,10 @@ public abstract class FlutterBy extends By implements By.Remotable {
             }
             return Collections.emptyList();
         }
+    }
+
+    public enum FlutterFindingStrategy {
+        VALUE_KEY_STRING, VALUE_KEY_INT, TYPE, TEXT, DESCENDANT, ANCESTOR
     }
 
 }
