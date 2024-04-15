@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Objects;
 
 //ToDo -> make sure elementInformation object is fully utilized for flutter elements fast identification
-//ToDo -> findElements placeholder methods needs to be looked at
 @SuppressWarnings("unused")
 public abstract class FlutterBy extends By implements By.Remotable {
     private final FlutterFindingStrategy flutterFindingStrategy;
@@ -118,8 +117,12 @@ public abstract class FlutterBy extends By implements By.Remotable {
         return Objects.hash(super.hashCode(), this.remoteParameters.value(), this.flutterFindingStrategy.name());
     }
 
-    public By.Remotable.Parameters getRemoteParameters() {
+    public Parameters getRemoteParameters() {
         return this.remoteParameters;
+    }
+
+    public enum FlutterFindingStrategy {
+        VALUE_KEY_STRING, VALUE_KEY_INT, TYPE, TEXT, DESCENDANT, ANCESTOR
     }
 
     public static class ByText extends FlutterBy {
@@ -198,7 +201,7 @@ public abstract class FlutterBy extends By implements By.Remotable {
         private final boolean firstMatchOnly;
 
         public ByDescendant(FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
-            super(FlutterFindingStrategy.DESCENDANT, "\nof: " + of.remoteParameters + "\n" + "matching: " + matching.remoteParameters + "\nmatchRoot: " + matchRoot + "\nfirstMatchOnly: " + firstMatchOnly);
+            super(FlutterFindingStrategy.DESCENDANT, "\nof: " + of.remoteParameters + "\nmatching: " + matching.remoteParameters + "\nmatchRoot: " + matchRoot + "\nfirstMatchOnly: " + firstMatchOnly);
             this.of = of;
             this.matching = matching;
             this.matchRoot = matchRoot;
@@ -208,24 +211,29 @@ public abstract class FlutterBy extends By implements By.Remotable {
         private List<Object> identifyElement(FlutterFinder finder, FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
             ElementInformation elementInformation;
             elementInformation = new ElementInformation();
-            elementInformation.setFirstElement(finder.byDescendant((FlutterElement) identifyElementType(finder, of).get(1),
-                    (FlutterElement) identifyElementType(finder, matching).get(1), matchRoot, firstMatchOnly));
+            elementInformation.setFirstElement(finder.byDescendant((FlutterElement) identifyNestedElement(finder, of).get(1),
+                    (FlutterElement) identifyNestedElement(finder, matching).get(1), matchRoot, firstMatchOnly));
             elementInformation.setLocator(this);
             return elementInformation.toList();
         }
 
-        //Todo -> enhance this logic to not use if else and use switch
-        private List<Object> identifyElementType(FlutterFinder finder, FlutterBy flutterBy) {
-            if (flutterBy instanceof ByText byText) {
-                return ((ByText) flutterBy).identifyElement(finder, ((ByText) flutterBy).text);
-            } else if (flutterBy instanceof ByType byType) {
-                return ((ByType) flutterBy).identifyElement(finder, ((ByType) flutterBy).type);
-            } else if (flutterBy instanceof ByValueKeyString byValueKeyString) {
-                return ((ByValueKeyString) flutterBy).identifyElement(finder, ((ByValueKeyString) flutterBy).valueKey);
-            } else if (flutterBy instanceof ByValueKeyInt byValueKeyInt) {
-                return ((ByValueKeyInt) flutterBy).identifyElement(finder, ((ByValueKeyInt) flutterBy).valueKey);
+        private List<Object> identifyNestedElement(FlutterFinder finder, FlutterBy flutterBy) {
+            switch (flutterBy.flutterFindingStrategy) {
+                case TYPE -> {
+                    return ((ByType) flutterBy).identifyElement(finder, ((ByType) flutterBy).type);
+                }
+                case TEXT -> {
+                    return ((ByText) flutterBy).identifyElement(finder, ((ByText) flutterBy).text);
+                }
+                case VALUE_KEY_INT -> {
+                    return ((ByValueKeyInt) flutterBy).identifyElement(finder, ((ByValueKeyInt) flutterBy).valueKey);
+                }
+                case VALUE_KEY_STRING -> {
+                    return ((ByValueKeyString) flutterBy).identifyElement(finder, ((ByValueKeyString) flutterBy).valueKey);
+                }
+                default ->
+                        throw new IllegalStateException("Unsupported Nested FindingStrategy: " + flutterBy.flutterFindingStrategy);
             }
-            return Collections.emptyList();
         }
     }
 
@@ -236,7 +244,7 @@ public abstract class FlutterBy extends By implements By.Remotable {
         private final boolean firstMatchOnly;
 
         public ByAncestor(FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
-            super(FlutterFindingStrategy.ANCESTOR, "\nof: " + of.remoteParameters + "\n" + "matching: " + matching.remoteParameters + "\nmatchRoot: " + matchRoot + "\nfirstMatchOnly: " + firstMatchOnly);
+            super(FlutterFindingStrategy.ANCESTOR, "\nof: " + of.remoteParameters + "\nmatching: " + matching.remoteParameters + "\nmatchRoot: " + matchRoot + "\nfirstMatchOnly: " + firstMatchOnly);
             this.of = of;
             this.matching = matching;
             this.matchRoot = matchRoot;
@@ -246,29 +254,30 @@ public abstract class FlutterBy extends By implements By.Remotable {
         private List<Object> identifyElement(FlutterFinder finder, FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
             ElementInformation elementInformation;
             elementInformation = new ElementInformation();
-            elementInformation.setFirstElement(finder.byAncestor((FlutterElement) identifyElementType(finder, of).get(1),
-                    (FlutterElement) identifyElementType(finder, matching).get(1), matchRoot, firstMatchOnly));
+            elementInformation.setFirstElement(finder.byAncestor((FlutterElement) identifyNestedElement(finder, of).get(1),
+                    (FlutterElement) identifyNestedElement(finder, matching).get(1), matchRoot, firstMatchOnly));
             elementInformation.setLocator(this);
             return elementInformation.toList();
         }
 
-        //Todo -> enhance this logic to not use if else and use switch
-        private List<Object> identifyElementType(FlutterFinder finder, FlutterBy flutterBy) {
-            if (flutterBy instanceof ByText byText) {
-                return ((ByText) flutterBy).identifyElement(finder, ((ByText) flutterBy).text);
-            } else if (flutterBy instanceof ByType byType) {
-                return ((ByType) flutterBy).identifyElement(finder, ((ByType) flutterBy).type);
-            } else if (flutterBy instanceof ByValueKeyString byValueKeyString) {
-                return ((ByValueKeyString) flutterBy).identifyElement(finder, ((ByValueKeyString) flutterBy).valueKey);
-            } else if (flutterBy instanceof ByValueKeyInt byValueKeyInt) {
-                return ((ByValueKeyInt) flutterBy).identifyElement(finder, ((ByValueKeyInt) flutterBy).valueKey);
+        private List<Object> identifyNestedElement(FlutterFinder finder, FlutterBy flutterBy) {
+            switch (flutterBy.flutterFindingStrategy) {
+                case TYPE -> {
+                    return ((ByType) flutterBy).identifyElement(finder, ((ByType) flutterBy).type);
+                }
+                case TEXT -> {
+                    return ((ByText) flutterBy).identifyElement(finder, ((ByText) flutterBy).text);
+                }
+                case VALUE_KEY_INT -> {
+                    return ((ByValueKeyInt) flutterBy).identifyElement(finder, ((ByValueKeyInt) flutterBy).valueKey);
+                }
+                case VALUE_KEY_STRING -> {
+                    return ((ByValueKeyString) flutterBy).identifyElement(finder, ((ByValueKeyString) flutterBy).valueKey);
+                }
+                default ->
+                        throw new IllegalStateException("Unsupported Nested FindingStrategy: " + flutterBy.flutterFindingStrategy);
             }
-            return Collections.emptyList();
         }
-    }
-
-    public enum FlutterFindingStrategy {
-        VALUE_KEY_STRING, VALUE_KEY_INT, TYPE, TEXT, DESCENDANT, ANCESTOR
     }
 
 }
