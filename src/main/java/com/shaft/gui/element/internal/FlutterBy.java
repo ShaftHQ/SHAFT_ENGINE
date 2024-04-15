@@ -213,22 +213,27 @@ public abstract class FlutterBy extends By implements By.Remotable {
         }
 
         private List<Object> identifyNestedElement(FlutterFinder finder, FlutterBy flutterBy) {
-            switch (flutterBy.flutterFindingStrategy) {
-                case TYPE -> {
-                    return ((ByType) flutterBy).identifyElement(finder, ((ByType) flutterBy).type);
+            try {
+                switch (flutterBy.flutterFindingStrategy) {
+                    case TYPE -> {
+                        return ((ByType) flutterBy).identifyElement(finder, ((ByType) flutterBy).type);
+                    }
+                    case TEXT -> {
+                        return ((ByText) flutterBy).identifyElement(finder, ((ByText) flutterBy).text);
+                    }
+                    case VALUE_KEY_INT -> {
+                        return ((ByValueKeyInt) flutterBy).identifyElement(finder, ((ByValueKeyInt) flutterBy).valueKey);
+                    }
+                    case VALUE_KEY_STRING -> {
+                        return ((ByValueKeyString) flutterBy).identifyElement(finder, ((ByValueKeyString) flutterBy).valueKey);
+                    }
+                    default ->
+                            throw new IllegalStateException("Unsupported Nested FindingStrategy: " + flutterBy.flutterFindingStrategy);
                 }
-                case TEXT -> {
-                    return ((ByText) flutterBy).identifyElement(finder, ((ByText) flutterBy).text);
-                }
-                case VALUE_KEY_INT -> {
-                    return ((ByValueKeyInt) flutterBy).identifyElement(finder, ((ByValueKeyInt) flutterBy).valueKey);
-                }
-                case VALUE_KEY_STRING -> {
-                    return ((ByValueKeyString) flutterBy).identifyElement(finder, ((ByValueKeyString) flutterBy).valueKey);
-                }
-                default ->
-                        throw new IllegalStateException("Unsupported Nested FindingStrategy: " + flutterBy.flutterFindingStrategy);
+            } catch (Exception e) {
+                ReportManagerHelper.logDiscrete(e);
             }
+            return Collections.emptyList();
         }
     }
 
@@ -255,22 +260,27 @@ public abstract class FlutterBy extends By implements By.Remotable {
         }
 
         private List<Object> identifyNestedElement(FlutterFinder finder, FlutterBy flutterBy) {
-            switch (flutterBy.flutterFindingStrategy) {
-                case TYPE -> {
-                    return ((ByType) flutterBy).identifyElement(finder, ((ByType) flutterBy).type);
+            try {
+                switch (flutterBy.flutterFindingStrategy) {
+                    case TYPE -> {
+                        return ((ByType) flutterBy).identifyElement(finder, ((ByType) flutterBy).type);
+                    }
+                    case TEXT -> {
+                        return ((ByText) flutterBy).identifyElement(finder, ((ByText) flutterBy).text);
+                    }
+                    case VALUE_KEY_INT -> {
+                        return ((ByValueKeyInt) flutterBy).identifyElement(finder, ((ByValueKeyInt) flutterBy).valueKey);
+                    }
+                    case VALUE_KEY_STRING -> {
+                        return ((ByValueKeyString) flutterBy).identifyElement(finder, ((ByValueKeyString) flutterBy).valueKey);
+                    }
+                    default ->
+                            throw new IllegalStateException("Unsupported Nested FindingStrategy: " + flutterBy.flutterFindingStrategy);
                 }
-                case TEXT -> {
-                    return ((ByText) flutterBy).identifyElement(finder, ((ByText) flutterBy).text);
-                }
-                case VALUE_KEY_INT -> {
-                    return ((ByValueKeyInt) flutterBy).identifyElement(finder, ((ByValueKeyInt) flutterBy).valueKey);
-                }
-                case VALUE_KEY_STRING -> {
-                    return ((ByValueKeyString) flutterBy).identifyElement(finder, ((ByValueKeyString) flutterBy).valueKey);
-                }
-                default ->
-                        throw new IllegalStateException("Unsupported Nested FindingStrategy: " + flutterBy.flutterFindingStrategy);
+            } catch (Exception e) {
+                ReportManagerHelper.logDiscrete(e);
             }
+            return Collections.emptyList();
         }
     }
 
