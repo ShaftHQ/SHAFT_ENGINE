@@ -357,7 +357,7 @@ public class ImageProcessingActions {
     }
 
     public static String formatElementLocatorToImagePath(By elementLocator) {
-        String elementFileName = ReportManagerHelper.getCallingMethodFullName() + "_" + JavaHelper.formatLocatorToString(elementLocator);
+        String elementFileName = ReportManagerHelper.getCallingClassFullName() + "_" + JavaHelper.formatLocatorToString(elementLocator);
         return elementFileName.replaceAll("[\\[\\]\\'\\/:]", "").replaceAll("[\\W\\s]", "_").replaceAll("_{2}", "_")
                 .replaceAll("_{2}", "_").replaceAll("contains", "_contains").replaceAll("_$", "");
     }
@@ -422,7 +422,7 @@ public class ImageProcessingActions {
                 //pass: element found and matched || first time element
                 if (!doesReferenceFileExist) {
                     ReportManager.logDiscrete("Passing the test and saving a reference image");
-                    FileActions.getInstance(true).writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
+                    FileActions.getInstance(true).writeToFile(referenceImagePath, elementScreenshot);
                 }
                 return true;
             } else {

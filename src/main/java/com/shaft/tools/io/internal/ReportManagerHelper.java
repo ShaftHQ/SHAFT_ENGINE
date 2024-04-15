@@ -339,6 +339,18 @@ public class ReportManagerHelper {
         return callingMethodFullName.toString();
     }
 
+    public static String getCallingClassFullName() {
+        StackTraceElement[] callingStack = Thread.currentThread().getStackTrace();
+        var getCallingClassFullName = new StringBuilder();
+        for (var i = 1; i < callingStack.length; i++) {
+            if (!callingStack[i].getClassName().contains("shaft")) {
+                getCallingClassFullName.append(callingStack[i].getClassName());
+                break;
+            }
+        }
+        return getCallingClassFullName.toString();
+    }
+
     public static String getTestClassName() {
         var result = Reporter.getCurrentTestResult();
         return result != null ? result.getMethod().getTestClass().getName() : "";
