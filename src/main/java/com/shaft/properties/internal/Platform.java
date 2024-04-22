@@ -44,7 +44,7 @@ public interface Platform extends EngineProperties {
     boolean jvmProxySettings();
 
     @Key("enableBiDi")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean enableBiDi();
 
     default SetProperty set() {
