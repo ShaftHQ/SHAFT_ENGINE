@@ -1,8 +1,8 @@
 package com.shaft.gui.element.internal;
 
+import com.google.common.annotations.Beta;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.github.ashwith.flutter.FlutterElement;
@@ -18,6 +18,7 @@ import java.util.Objects;
 
 //ToDo -> make sure elementInformation object is fully utilized for flutter elements fast identification
 @SuppressWarnings("unused")
+@Beta
 public abstract class FlutterBy extends By implements By.Remotable {
     private final FlutterFindingStrategy flutterFindingStrategy;
     private final By.Remotable.Parameters remoteParameters;
@@ -212,35 +213,11 @@ public abstract class FlutterBy extends By implements By.Remotable {
 
         private List<Object> identifyElement(FlutterFinder finder, FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
             ElementInformation elementInformation = new ElementInformation();
-            elementInformation.setFirstElement(finder.byDescendant((FlutterElement) identifyNestedElement(finder, of).get(1),
-                    (FlutterElement) identifyNestedElement(finder, matching).get(1), matchRoot, firstMatchOnly));
+            elementInformation.setFirstElement(finder.byDescendant((FlutterElement) of.identifyFlutterElement(finder).get(1),
+                    (FlutterElement) matching.identifyFlutterElement(finder).get(1), matchRoot, firstMatchOnly));
             elementInformation.setLocator(this);
             elementInformation.setElementName(JavaHelper.formatLocatorToString(this));
             return elementInformation.toList();
-        }
-
-        private List<Object> identifyNestedElement(FlutterFinder finder, FlutterBy flutterBy) {
-            try {
-                switch (flutterBy.flutterFindingStrategy) {
-                    case TYPE -> {
-                        return ((ByType) flutterBy).identifyElement(finder, ((ByType) flutterBy).type);
-                    }
-                    case TEXT -> {
-                        return ((ByText) flutterBy).identifyElement(finder, ((ByText) flutterBy).text);
-                    }
-                    case VALUE_KEY_INT -> {
-                        return ((ByValueKeyInt) flutterBy).identifyElement(finder, ((ByValueKeyInt) flutterBy).valueKey);
-                    }
-                    case VALUE_KEY_STRING -> {
-                        return ((ByValueKeyString) flutterBy).identifyElement(finder, ((ByValueKeyString) flutterBy).valueKey);
-                    }
-                    default ->
-                            throw new IllegalStateException("Unsupported Nested FindingStrategy: " + flutterBy.flutterFindingStrategy);
-                }
-            } catch (Exception e) {
-                ReportManagerHelper.logDiscrete(e);
-            }
-            return Collections.emptyList();
         }
     }
 
@@ -260,35 +237,11 @@ public abstract class FlutterBy extends By implements By.Remotable {
 
         private List<Object> identifyElement(FlutterFinder finder, FlutterBy of, FlutterBy matching, boolean matchRoot, boolean firstMatchOnly) {
             ElementInformation elementInformation = new ElementInformation();
-            elementInformation.setFirstElement(finder.byAncestor((FlutterElement) identifyNestedElement(finder, of).get(1),
-                    (FlutterElement) identifyNestedElement(finder, matching).get(1), matchRoot, firstMatchOnly));
+            elementInformation.setFirstElement(finder.byAncestor((FlutterElement) of.identifyFlutterElement(finder).get(1),
+                    (FlutterElement) matching.identifyFlutterElement(finder).get(1), matchRoot, firstMatchOnly));
             elementInformation.setLocator(this);
             elementInformation.setElementName(JavaHelper.formatLocatorToString(this));
             return elementInformation.toList();
-        }
-
-        private List<Object> identifyNestedElement(FlutterFinder finder, FlutterBy flutterBy) {
-            try {
-                switch (flutterBy.flutterFindingStrategy) {
-                    case TYPE -> {
-                        return ((ByType) flutterBy).identifyElement(finder, ((ByType) flutterBy).type);
-                    }
-                    case TEXT -> {
-                        return ((ByText) flutterBy).identifyElement(finder, ((ByText) flutterBy).text);
-                    }
-                    case VALUE_KEY_INT -> {
-                        return ((ByValueKeyInt) flutterBy).identifyElement(finder, ((ByValueKeyInt) flutterBy).valueKey);
-                    }
-                    case VALUE_KEY_STRING -> {
-                        return ((ByValueKeyString) flutterBy).identifyElement(finder, ((ByValueKeyString) flutterBy).valueKey);
-                    }
-                    default ->
-                            throw new IllegalStateException("Unsupported Nested FindingStrategy: " + flutterBy.flutterFindingStrategy);
-                }
-            } catch (Exception e) {
-                ReportManagerHelper.logDiscrete(e);
-            }
-            return Collections.emptyList();
         }
     }
 
