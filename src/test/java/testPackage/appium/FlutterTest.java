@@ -1,4 +1,4 @@
-package testPackage.appium.flutter;
+package testPackage.appium;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.internal.FlutterBy;
@@ -10,15 +10,17 @@ import org.testng.annotations.Test;
 
 public class FlutterTest {
     private SHAFT.GUI.WebDriver driver;
-    private String appPath = System.getProperty("user.dir") + "\\src\\test\\resources\\testDataFiles\\apps\\shopping_provider.apk";
+    private final FlutterBy enter_btn = new FlutterBy.ByText("ENTER");
+    private final FlutterBy button = FlutterBy.descendant(FlutterBy.valueKey("silverList"),FlutterBy.text("ADD"), true, true);
 
-    private final FlutterBy enter_btn = FlutterBy.text("ENTER");
 
 
     @Test
     public void testFlutter() {
         driver.element().getText(enter_btn);
         driver.element().click(enter_btn);
+        driver.element().click(button);
+
     }
 
     @BeforeMethod
@@ -32,7 +34,7 @@ public class FlutterTest {
         SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
         SHAFT.Properties.mobile.set().platformVersion("14.0");
         SHAFT.Properties.mobile.set().automationName("Flutter");
-        SHAFT.Properties.mobile.set().app(appPath);
+        SHAFT.Properties.mobile.set().app("src/test/resources/testDataFiles/apps/shopping_provider1.apk");
         SHAFT.Properties.mobile.set().deviceName("nightwatch-android-11");
         SHAFT.Properties.platform.set().executionAddress("http://127.0.0.1:4327/");
     }
