@@ -76,6 +76,10 @@ public class OptionsManager {
                 if (SHAFT.Properties.web.headlessExecution()) {
                     ffOptions.addArguments("-headless");
                 }
+                //Incognito mode for Firefox
+                if(SHAFT.Properties.web.incognitoMode()) {
+                    ffOptions.addArguments("-private");
+                }
                 ffOptions.setLogLevel(FirefoxDriverLogLevel.WARN);
                 ffOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
@@ -293,7 +297,14 @@ public class OptionsManager {
             options.addArguments("--window-position=0,0", "--window-size=" + DriverFactoryHelper.getTARGET_WINDOW_SIZE().getWidth() + "," + DriverFactoryHelper.getTARGET_WINDOW_SIZE().getHeight());
         }
         if (!SHAFT.Properties.flags.autoCloseDriverInstance()) options.setExperimentalOption("detach", true);
-
+        //Incognito mode for Chrome and Edge
+        if(SHAFT.Properties.web.incognitoMode()) {
+            if(options.getBrowserName().equalsIgnoreCase("chrome")) {
+                options.addArguments("--incognito");
+            } else if (options.getBrowserName().equalsIgnoreCase("MicrosoftEdge")) {
+                options.addArguments("inPrivate");
+            }
+        }
         Map<String, Object> chromePreferences = new HashMap<>();
         chromePreferences.put("profile.default_content_settings.popups", 0);
         chromePreferences.put("download.prompt_for_download", "false");
