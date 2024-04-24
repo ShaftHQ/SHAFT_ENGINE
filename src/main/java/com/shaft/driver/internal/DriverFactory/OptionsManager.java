@@ -299,9 +299,9 @@ public class OptionsManager {
         if (!SHAFT.Properties.flags.autoCloseDriverInstance()) options.setExperimentalOption("detach", true);
         //Incognito mode for Chrome and Edge
         if(SHAFT.Properties.web.incognitoMode()) {
-            if(options.getBrowserName().equalsIgnoreCase("chrome")) {
+            if(options.getBrowserName().equals(DriverFactory.DriverType.CHROME.getValue())) {
                 options.addArguments("--incognito");
-            } else if (options.getBrowserName().equalsIgnoreCase("MicrosoftEdge")) {
+            } else if (options.getBrowserName().equals(DriverFactory.DriverType.EDGE.getValue())) {
                 options.addArguments("inPrivate");
             }
         }
