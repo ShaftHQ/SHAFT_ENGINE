@@ -1,5 +1,6 @@
 package com.shaft.validation.internal;
 
+import com.google.common.util.concurrent.AtomicDouble;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.gui.browser.BrowserActions;
@@ -18,7 +19,6 @@ import io.qameta.allure.model.Parameter;
 import org.openqa.selenium.By;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -26,9 +26,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.shaft.tools.io.internal.ReportManagerHelper.printNewlineAfterProgressBar;
+import static com.shaft.tools.io.internal.ReportManagerHelper.printProgressBarAfterUnitsElapsed;
+
 public class ValidationsHelper2 {
     private final ValidationEnums.ValidationCategory validationCategory;
     private final String validationCategoryString;
+    /**
+     * The following variables are used
+     * for printing the progress bar
+     * **/
+    AtomicDouble timeoutVal = new AtomicDouble(SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
+    AtomicInteger seconds = new AtomicInteger(1);
+    AtomicInteger millisCount = new AtomicInteger(0);
+    /******************************************************************/
     ValidationsHelper2(ValidationEnums.ValidationCategory validationCategory) {
         this.validationCategory = validationCategory;
         this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
@@ -75,6 +86,11 @@ public class ValidationsHelper2 {
 
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
+                // Increase the bar after 6 (100) millisecond runs to take into account code execution time
+                if(millisCount.incrementAndGet() == 6){
+                    millisCount.set(0);
+                    printProgressBarAfterUnitsElapsed((int) timeoutVal.get(), seconds.incrementAndGet());
+                }
                 actual.set(switch (attribute.toLowerCase()) {
                     case "currenturl", "pageurl", "windowurl", "url" ->
                             new BrowserActions(driver, true).getCurrentURL();
@@ -93,6 +109,10 @@ public class ValidationsHelper2 {
         } catch (TimeoutException timeoutException) {
             //timeout was exhausted and the validation failed
         }
+        // this is used to make a new line so that the next log doesn't append to the progress bar
+        printNewlineAfterProgressBar();
+        // this should be here to prevent the constant logging and to get the final actual and expected values
+        ReportManager.logDiscrete("Expected \"" + expected + "\", and actual \"" + actual.get() + "\"");
         //reporting block
         List<Parameter> parameters = new ArrayList<>();
         parameters.add(new Parameter().setName("Attribute").setValue(attribute).setMode(Parameter.Mode.DEFAULT));
@@ -114,6 +134,11 @@ public class ValidationsHelper2 {
         AtomicReference<Boolean> validationState = new AtomicReference<>();
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
+                // Increase the bar after 6 (100) millisecond runs to take into account code execution time
+                if(millisCount.incrementAndGet() == 6){
+                    millisCount.set(0);
+                    printProgressBarAfterUnitsElapsed((int) timeoutVal.get(), seconds.incrementAndGet());
+                }
                 actual.set(switch (attribute.toLowerCase()) {
                     case "text" -> new ElementActions(driver, true).getText(locator);
                     case "texttrimmed", "trimmedtext" -> new ElementActions(driver, true).getText(locator).trim();
@@ -128,6 +153,10 @@ public class ValidationsHelper2 {
         } catch (TimeoutException timeoutException) {
             //timeout was exhausted and the validation failed
         }
+        // this is used to make a new line so that the next log doesn't append to the progress bar
+        printNewlineAfterProgressBar();
+        // this should be here to prevent the constant logging and to get the final actual and expected values
+        ReportManager.logDiscrete("Expected \"" + expected + "\", and actual \"" + actual.get() + "\"");
         //reporting block
         List<Parameter> parameters = new ArrayList<>();
         parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
@@ -146,8 +175,14 @@ public class ValidationsHelper2 {
         // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
         AtomicReference<String> actual = new AtomicReference<>();
         AtomicReference<Boolean> validationState = new AtomicReference<>();
+
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
+                // Increase the bar after 6 (100) millisecond runs to take into account code execution time
+                if(millisCount.incrementAndGet() == 6){
+                    millisCount.set(0);
+                    printProgressBarAfterUnitsElapsed((int) timeoutVal.get(), seconds.incrementAndGet());
+                }
                 actual.set(new ElementActions(driver, true).getCSSProperty(locator, property));
                 validationState.set(performValidation(expected, actual.get(), type, validation));
                 return validationState.get();
@@ -155,6 +190,10 @@ public class ValidationsHelper2 {
         } catch (TimeoutException timeoutException) {
             //timeout was exhausted and the validation failed
         }
+        // this is used to make a new line so that the next log doesn't append to the progress bar
+        printNewlineAfterProgressBar();
+        // this should be here to prevent the constant logging and to get the final actual and expected values
+        ReportManager.logDiscrete("Expected \"" + expected + "\", and actual \"" + actual.get() + "\"");
         //reporting block
         List<Parameter> parameters = new ArrayList<>();
         parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
@@ -177,6 +216,11 @@ public class ValidationsHelper2 {
         AtomicInteger elementCount = new AtomicInteger();
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
+                // Increase the bar after 6 (100) millisecond runs to take into account code execution time
+                if(millisCount.incrementAndGet() == 6){
+                    millisCount.set(0);
+                    printProgressBarAfterUnitsElapsed((int) timeoutVal.get(), seconds.incrementAndGet());
+                }
                 elementCount.set(new ElementActions(driver, true).getElementsCount(locator));
                 expected.set(validation.getValue());
                 actual.set(elementCount.get() > 0);
@@ -187,6 +231,10 @@ public class ValidationsHelper2 {
         } catch (TimeoutException timeoutException) {
             //timeout was exhausted and the validation failed
         }
+        // this is used to make a new line so that the next log doesn't append to the progress bar
+        printNewlineAfterProgressBar();
+        // this should be here to prevent the constant logging and to get the final actual and expected values
+        ReportManager.logDiscrete("Expected \"" + expected.get() + "\", and actual \"" + actual.get() + "\"");
         //reporting block
         List<Parameter> parameters = new ArrayList<>();
         parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));

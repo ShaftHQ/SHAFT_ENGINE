@@ -18,7 +18,7 @@ public class GoogleSearchResults {
             Validations.assertThat()
                     .element(driver, resultsStats_label)
                     .text()
-                    .doesNotEqual("")
+                    .isEqualTo("")
                     .perform();
     }
 

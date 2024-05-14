@@ -51,6 +51,7 @@ public class ReportManagerHelper {
     private static List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
     private static String featureName = "";
     private static Logger logger;
+    private static Logger progressLogger;
 
     private ReportManagerHelper() {
         throw new IllegalStateException("Utility class");
@@ -168,6 +169,7 @@ public class ReportManagerHelper {
         // initialize
         Configurator.initialize(null, PropertyFileManager.getCUSTOM_PROPERTIES_FOLDER_PATH() + "/log4j2.properties");
         logger = LogManager.getLogger(ReportManager.class.getName());
+        progressLogger = LogManager.getLogger("progressConsole");
     }
 
     public static void logEngineVersion() {
@@ -788,5 +790,14 @@ public class ReportManagerHelper {
         }
         return duration;
     }
-
+    public static void printProgressBarAfterUnitsElapsed(int maximumValue, int units){
+        // to keep the bar short in case of long waiting times
+        if(maximumValue > 60){
+            maximumValue %= 60;
+        }
+        progressLogger.info("\rWaiting.. |"+"\u001B[107m \u001B[0m".repeat(units)+" ".repeat(maximumValue-units)+"| "+units+" seconds");
+    }
+    public static void printNewlineAfterProgressBar(){
+        logger.info("\r\n");
+    }
 }

@@ -97,7 +97,7 @@ public class JavaHelper {
      */
     public static int compareTwoObjects(Object expectedValue, Object actualValue, Object comparisonType,
                                         Boolean validationType) {
-        ReportManager.logDiscrete("Expected \"" + expectedValue + "\", and actual \"" + actualValue + "\"");
+        //ReportManager.logDiscrete("Expected \"" + expectedValue + "\", and actual \"" + actualValue + "\"");
         if ("null".equals(expectedValue)) {
             expectedValue = null;
         }
