@@ -350,7 +350,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jdk8</artifactId>
-            <version>2.17.0</version>
+            <version>2.17.1</version>
         </dependency>
 
         <!-- VISUAL VALIDATIONS & ELEMENT IDENTIFICATION -->
@@ -475,7 +475,7 @@
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
-            <version>8.3.0</version>
+            <version>8.4.0</version>
         </dependency>
         <dependency>
              <groupId>com.microsoft.sqlserver</groupId>
@@ -561,7 +561,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>33.1.0-jre</version>
+            <version>33.2.0-jre</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
