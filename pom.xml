@@ -271,7 +271,7 @@
         <dependency>
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjweaver</artifactId>
-            <version>1.9.22</version>
+            <version>1.9.22.1</version>
         </dependency>
         <dependency>
             <groupId>io.qameta.allure</groupId>
@@ -919,7 +919,7 @@
                             <dependency>
                                 <groupId>org.aspectj</groupId>
                                 <artifactId>aspectjweaver</artifactId>
-                                <version>1.9.22</version>
+                                <version>1.9.22.1</version>
                             </dependency>
                             <dependency>
                                 <groupId>org.apache.maven.surefire</groupId>
@@ -939,7 +939,7 @@
                             <useFile>false</useFile>
                             <argLine>
                                 @{argLine} ${surefireArgLine}
-                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.22/aspectjweaver-1.9.22.jar"
+                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.22.1/aspectjweaver-1.9.22.1.jar"
                             </argLine>
                             <properties>
                                 <property>
@@ -978,7 +978,7 @@
                             <dependency>
                                 <groupId>org.aspectj</groupId>
                                 <artifactId>aspectjweaver</artifactId>
-                                <version>1.9.22</version>
+                                <version>1.9.22.1</version>
                             </dependency>
                         </dependencies>
                         <configuration>
@@ -993,7 +993,7 @@
                             <useFile>false</useFile>
                             <argLine>
                                 @{argLine} ${surefireArgLine}
-                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.22/aspectjweaver-1.9.22.jar"
+                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.22.1/aspectjweaver-1.9.22.1.jar"
                             </argLine>
                             <properties>
                                 <property>
