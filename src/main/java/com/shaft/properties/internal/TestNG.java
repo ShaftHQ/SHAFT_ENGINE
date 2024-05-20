@@ -10,20 +10,24 @@ public interface TestNG extends EngineProperties {
     @DefaultValue("NONE")
     String parallel();
 
+    @Key("setParallelMode")
+    @DefaultValue("STATIC")
+    String parallelMode();
+
     @Key("setThreadCount")
-    @DefaultValue("1")
-    int threadCount();
+    @DefaultValue("1.0d")
+    double threadCount();
 
     @Key("setVerbose")
     @DefaultValue("1")
     Integer verbose();
 
     @Key("setPreserveOrder")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean preserveOrder();
 
     @Key("setGroupByInstances")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean groupByInstances();
 
     @Key("setDataProviderThreadCount")

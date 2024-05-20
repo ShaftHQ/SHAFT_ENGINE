@@ -40,47 +40,65 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
     //Before each step Stop inside the methods
     @Override
     public void beforeStepStop(StepResult result) {
-                StepLifecycleListener.super.beforeStepStop(result);
+        StepLifecycleListener.super.beforeStepStop(result);
     }
 
     //After each step Stop inside the methods
     @Override
     public void afterStepStop(StepResult result) {
         var iTestResult = TestNGListener.getITestResult();
-        TestNGListenerHelper.updateConfigurationMethods(iTestResult);
+        if (iTestResult != null) {
+            TestNGListenerHelper.updateConfigurationMethods(iTestResult);
+        }
     }
 
     //Before The Class starts
     @Override
-    public void beforeContainerStart(TestResultContainer container) {ContainerLifecycleListener.super.beforeContainerStart(container);}
+    public void beforeContainerStart(TestResultContainer container) {
+        ContainerLifecycleListener.super.beforeContainerStart(container);
+    }
 
     //After The Class starts
     @Override
-    public void afterContainerStart(TestResultContainer container) {ContainerLifecycleListener.super.afterContainerStart(container);}
+    public void afterContainerStart(TestResultContainer container) {
+        ContainerLifecycleListener.super.afterContainerStart(container);
+    }
 
     //Before The Class updates
     @Override
-    public void beforeContainerUpdate(TestResultContainer container) {ContainerLifecycleListener.super.beforeContainerUpdate(container);}
+    public void beforeContainerUpdate(TestResultContainer container) {
+        ContainerLifecycleListener.super.beforeContainerUpdate(container);
+    }
 
     //After The Class updates
     @Override
-    public void afterContainerUpdate(TestResultContainer container) {ContainerLifecycleListener.super.afterContainerUpdate(container);}
+    public void afterContainerUpdate(TestResultContainer container) {
+        ContainerLifecycleListener.super.afterContainerUpdate(container);
+    }
 
     //Before The Class stops
     @Override
-    public void beforeContainerStop(TestResultContainer container) {ContainerLifecycleListener.super.beforeContainerStop(container);}
+    public void beforeContainerStop(TestResultContainer container) {
+        ContainerLifecycleListener.super.beforeContainerStop(container);
+    }
 
     //After The Class stops
     @Override
-    public void afterContainerStop(TestResultContainer container) {ContainerLifecycleListener.super.afterContainerStop(container);}
+    public void afterContainerStop(TestResultContainer container) {
+        ContainerLifecycleListener.super.afterContainerStop(container);
+    }
 
     //Before The Class writes
     @Override
-    public void beforeContainerWrite(TestResultContainer container) {ContainerLifecycleListener.super.beforeContainerWrite(container);}
+    public void beforeContainerWrite(TestResultContainer container) {
+        ContainerLifecycleListener.super.beforeContainerWrite(container);
+    }
 
     //After The Class writes
     @Override
-    public void afterContainerWrite(TestResultContainer container) {ContainerLifecycleListener.super.afterContainerWrite(container);}
+    public void afterContainerWrite(TestResultContainer container) {
+        ContainerLifecycleListener.super.afterContainerWrite(container);
+    }
 
     //Before The Configuration 'SetUp' "and probably 'TearDown' too" starts
     @Override
@@ -96,7 +114,9 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
 
     //Before The Configuration 'SetUp' "and probably 'TearDown' too" updates
     @Override
-    public void beforeFixtureUpdate(FixtureResult result) {FixtureLifecycleListener.super.beforeFixtureUpdate(result);}
+    public void beforeFixtureUpdate(FixtureResult result) {
+        FixtureLifecycleListener.super.beforeFixtureUpdate(result);
+    }
 
     //After The Configuration 'SetUp' "and probably 'TearDown' too" updates
     @Override
@@ -124,7 +144,9 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
 
     //After The Configuration 'SetUp' starts
     @Override
-    public void afterTestSchedule(TestResult result) {TestLifecycleListener.super.afterTestSchedule(result);}
+    public void afterTestSchedule(TestResult result) {
+        TestLifecycleListener.super.afterTestSchedule(result);
+    }
 
     //Before The @test updates
     @Override
@@ -140,15 +162,21 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
 
     //Before The @test starts
     @Override
-    public void beforeTestStart(TestResult result) {TestLifecycleListener.super.beforeTestStart(result);}
+    public void beforeTestStart(TestResult result) {
+        TestLifecycleListener.super.beforeTestStart(result);
+    }
 
     //After The @test starts
     @Override
-    public void afterTestStart(TestResult result) {TestLifecycleListener.super.afterTestStart(result);}
+    public void afterTestStart(TestResult result) {
+        TestLifecycleListener.super.afterTestStart(result);
+    }
 
     //Before The @test stops
     @Override
-    public void beforeTestStop(TestResult result) {TestLifecycleListener.super.beforeTestStop(result);}
+    public void beforeTestStop(TestResult result) {
+        TestLifecycleListener.super.beforeTestStop(result);
+    }
 
     //After The @test stops
     @Override

@@ -6,10 +6,7 @@ import com.shaft.listeners.internal.*;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.internal.ExecutionSummaryReport;
-import com.shaft.tools.io.internal.IssueReporter;
-import com.shaft.tools.io.internal.ProjectStructureManager;
-import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.tools.io.internal.*;
 import io.qameta.allure.Allure;
 import lombok.Getter;
 import org.testng.*;
@@ -56,26 +53,31 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     }
 
     public static void engineSetup(ProjectStructureManager.RunType runType) {
-        ReportManagerHelper.setDiscreteLogging(true);
-        PropertiesHelper.initialize();
-        SHAFT.Properties.reporting.set().disableLogging(true);
         Allure.getLifecycle();
         Reporter.setEscapeHtml(false);
+        ReportManagerHelper.setDiscreteLogging(true);
+        PropertiesHelper.initialize();
+        ReportManager.logDiscrete("Initializing Engine Setup...");
+        SHAFT.Properties.reporting.set().disableLogging(true);
         switch (runType) {
-            case TESTNG -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.TESTNG);
-            case CUCUMBER -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.CUCUMBER);
-            case JUNIT -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.JUNIT);
+            case TESTNG ->
+                    Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.TESTNG));
+            case CUCUMBER ->
+                    Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.CUCUMBER));
+            case JUNIT ->
+                    Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.JUNIT));
         }
         TestNGListenerHelper.configureJVMProxy();
-        GoogleTink.initialize();
-        GoogleTink.decrypt();
+        Thread.ofVirtual().start(() -> {
+            GoogleTink.initialize();
+            GoogleTink.decrypt();
+        });
         SHAFT.Properties.reporting.set().disableLogging(false);
         ReportManagerHelper.logEngineVersion();
-        UpdateChecker.check();
-        ImageProcessingActions.loadOpenCV();
-        ReportManagerHelper.initializeAllureReportingEnvironment();
-        ReportManagerHelper.initializeExtentReportingEnvironment();
-        ReportManagerHelper.cleanExecutionSummaryReportDirectory();
+        Thread.ofVirtual().start(UpdateChecker::check);
+        Thread.ofVirtual().start(ImageProcessingActions::loadOpenCV);
+        Thread.ofVirtual().start(AllureManager::initializeAllureReportingEnvironment);
+        Thread.ofVirtual().start(ReportManagerHelper::cleanExecutionSummaryReportDirectory);
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
         ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
     }
@@ -196,14 +198,12 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onExecutionFinish() {
         ReportManagerHelper.setDiscreteLogging(true);
-        JiraHelper.reportExecutionStatusToJira();
-        GoogleTink.encrypt();
-        ReportManagerHelper.generateAllureReportArchive();
-        ReportManagerHelper.openAllureReportAfterExecution();
-        ReportManagerHelper.openExtentReportAfterExecution();
-        long executionEndTime = System.currentTimeMillis();
-        ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
+        Thread.ofVirtual().start(() -> ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, System.currentTimeMillis()));
+        Thread.ofVirtual().start(JiraHelper::reportExecutionStatusToJira);
+        Thread.ofVirtual().start(GoogleTink::encrypt);
         ReportManagerHelper.logEngineClosure();
+        AllureManager.openAllureReportAfterExecution();
+        AllureManager.generateAllureReportArchive();
     }
 
     @Override

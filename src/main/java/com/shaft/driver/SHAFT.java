@@ -8,7 +8,10 @@ import com.shaft.db.DatabaseActions;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.element.*;
+import com.shaft.gui.element.AlertActions;
+import com.shaft.gui.element.AsyncElementActions;
+import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.waits.WaitActions;
 import com.shaft.listeners.internal.WebDriverListener;
 import com.shaft.tools.io.ExcelFileManager;
@@ -22,7 +25,6 @@ import io.appium.java_client.ios.IOSDriver;
 import io.restassured.response.Response;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.support.events.EventFiringDecorator;
-import org.sikuli.script.App;
 
 import java.io.InputStream;
 import java.sql.ResultSet;
@@ -79,7 +81,7 @@ public class SHAFT {
              * @return wait actions reference to be used to chain actions
              */
             public WaitActions waitUntil(Function<? super org.openqa.selenium.WebDriver, ?> conditions) {
-                return new WaitActions().waitUntil(helper, conditions);
+                return new WaitActions(helper).waitUntil(conditions);
             }
 
             public WizardHelpers.WebDriverAssertions assertThat() {
@@ -126,13 +128,12 @@ public class SHAFT {
 //                } else if (driverThreadLocal.get() instanceof RemoteWebDriver remoteWebDriver) {
 //                    driverThreadLocal.set(new EventFiringDecorator<>(RemoteWebDriver.class, new WebDriverListener()).decorate(remoteWebDriver));
                 } else {
-                    if(!SHAFT.Properties.flags.enableTrueNativeMode()){
+                    if (!SHAFT.Properties.flags.enableTrueNativeMode()) {
                         return new EventFiringDecorator<>(org.openqa.selenium.WebDriver.class, new WebDriverListener()).decorate(helper.getDriver());
-                    }
-                    else{
+                    } else {
                         return helper.getDriver();
                     }
-                    }
+                }
             }
 
             public Async async() {
@@ -149,42 +150,18 @@ public class SHAFT {
 
         public static class Locator extends com.shaft.gui.internal.locator.Locator {
         }
-
-        public static class SikuliDriver {
-            public static SikuliDriver getInstance(String applicationName) {
-                return new SikuliDriver(applicationName);
-            }
-
-            private final App sikuliApp;
-
-            public SikuliDriver(String applicationName) {
-                sikuliApp = DriverFactory.getSikuliApp(applicationName);
-            }
-
-            public void quit() {
-                DriverFactory.closeSikuliApp(sikuliApp);
-            }
-
-            public SikuliActions element() {
-                return new SikuliActions(sikuliApp);
-            }
-
-            public App getDriver(String applicationName) {
-                return sikuliApp;
-            }
-        }
     }
 
     public static class API {
         private final RestActions session;
         private String serviceURI;
 
-        public static API getInstance(String serviceURI) {
-            return new API(serviceURI);
-        }
-
         public API(String serviceURI) {
             session = new RestActions(serviceURI);
+        }
+
+        public static API getInstance(String serviceURI) {
+            return new API(serviceURI);
         }
 
         public RequestBuilder get(String serviceName) {
@@ -216,43 +193,43 @@ public class SHAFT {
         }
 
         public RestValidationsBuilder assertThatResponse() {
-            return com.shaft.validation.Validations.assertThat().response(RestActions.getLastResponse());
+            return com.shaft.validation.Validations.assertThat().response(session.getLastResponse());
         }
 
         public RestValidationsBuilder verifyThatResponse() {
-            return com.shaft.validation.Validations.verifyThat().response(RestActions.getLastResponse());
+            return com.shaft.validation.Validations.verifyThat().response(session.getLastResponse());
         }
 
         public Response getResponse() {
-            return RestActions.getLastResponse();
+            return session.getLastResponse();
         }
 
         public String getResponseBody() {
-            return RestActions.getResponseBody(RestActions.getLastResponse());
+            return RestActions.getResponseBody(session.getLastResponse());
         }
 
         public int getResponseStatusCode() {
-            return RestActions.getResponseStatusCode(RestActions.getLastResponse());
+            return RestActions.getResponseStatusCode(session.getLastResponse());
         }
 
         public long getResponseTime() {
-            return RestActions.getResponseTime(RestActions.getLastResponse());
+            return RestActions.getResponseTime(session.getLastResponse());
         }
 
         public String getResponseJSONValue(String jsonPath) {
-            return RestActions.getResponseJSONValue(RestActions.getLastResponse(), jsonPath);
+            return RestActions.getResponseJSONValue(session.getLastResponse(), jsonPath);
         }
 
         public List<Object> getResponseJSONValueAsList(String jsonPath) {
-            return RestActions.getResponseJSONValueAsList(RestActions.getLastResponse(), jsonPath);
+            return RestActions.getResponseJSONValueAsList(session.getLastResponse(), jsonPath);
         }
 
         public String getResponseXMLValue(String xmlPath) {
-            return RestActions.getResponseXMLValue(RestActions.getLastResponse(), xmlPath);
+            return RestActions.getResponseXMLValue(session.getLastResponse(), xmlPath);
         }
 
         public List<Object> getResponseXMLValueAsList(String xmlPath) {
-            return RestActions.getResponseXMLValueAsList(RestActions.getLastResponse(), xmlPath);
+            return RestActions.getResponseXMLValueAsList(session.getLastResponse(), xmlPath);
         }
     }
 
@@ -275,13 +252,11 @@ public class SHAFT {
             super(customConnectionString);
         }
 
-        public DB(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
-                  String password) {
+        public DB(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username, String password) {
             super(databaseType, ip, port, name, username, password);
         }
 
-        public static DB getInstance(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
-                                     String password) {
+        public static DB getInstance(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username, String password) {
             return new DB(databaseType, ip, port, name, username, password);
         }
 
@@ -390,6 +365,7 @@ public class SHAFT {
         public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
             ReportManagerHelper.attach(attachmentType, attachmentName, attachmentContent);
         }
+
         public static void attach(String attachmentType, String attachmentName, InputStream attachmentContent) {
             ReportManagerHelper.attach(attachmentType, attachmentName, attachmentContent);
         }

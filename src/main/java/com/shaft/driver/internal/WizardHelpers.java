@@ -3,10 +3,10 @@ package com.shaft.driver.internal;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.validation.internal.*;
 import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
 
 public class WizardHelpers {
     static DriverFactoryHelper helper;
+
     public static class WebDriverAssertions {
         public WebDriverAssertions(DriverFactoryHelper helper) {
             WizardHelpers.helper = helper;

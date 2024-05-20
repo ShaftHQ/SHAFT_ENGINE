@@ -5,7 +5,7 @@ import org.testng.annotations.Test;
 
 public class TestNGTests {
     String parallel;
-    int threadCount;
+    double threadCount;
     int verbose;
     boolean preserveOrder;
     boolean groupByInstances;

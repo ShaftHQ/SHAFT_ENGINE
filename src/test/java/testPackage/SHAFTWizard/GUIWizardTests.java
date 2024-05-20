@@ -12,7 +12,7 @@ import org.testng.asserts.SoftAssert;
 import poms.GoogleSearch;
 
 public class GUIWizardTests {
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     SHAFT.TestData.JSON testData;
 
     By searchBox = GoogleSearch.getSearchBox_textField();
@@ -28,16 +28,16 @@ public class GUIWizardTests {
 
     @Test
     public void test() {
-        driver.browser().navigateToURL("https://www.google.com/");
-        driver.verifyThat().browser().title().isEqualTo("Google").perform();
-        driver.element().type(searchBox, testData.getTestData("searchQuery"))
+        driver.get().browser().navigateToURL("https://www.google.com/");
+        driver.get().verifyThat().browser().title().isEqualTo("Google").perform();
+        driver.get().element().type(searchBox, testData.getTestData("searchQuery"))
                 .keyPress(searchBox, Keys.ENTER);
-        driver.assertThat().element(resultStats).text().doesNotEqual("").withCustomReportMessage("Check that result stats is not empty").perform();
+        driver.get().assertThat().element(resultStats).text().doesNotEqual("").withCustomReportMessage("Check that result stats is not empty").perform();
     }
 
     //@Test
     public void test_nativeDriver() {
-        WebDriver nativeWebDriver = driver.getDriver();
+        WebDriver nativeWebDriver = driver.get().getDriver();
         nativeWebDriver.navigate().to("https://www.google.com/");
         new SoftAssert().assertEquals(nativeWebDriver.getTitle(), "Google");
         nativeWebDriver.findElement(searchBox).sendKeys(testData.getTestData("searchQuery") + Keys.ENTER);
@@ -46,7 +46,7 @@ public class GUIWizardTests {
     
     @Test
     public void test_ClickUsingJavaScript() {
-        driver.browser().navigateToURL("https://www.saucedemo.com")
+        driver.get().browser().navigateToURL("https://www.saucedemo.com")
                 .element().type(emailField, "standard_user")
                 .typeSecure(passwordField, "secret_sauce")
                 .clickUsingJavascript(loginButton)
@@ -57,37 +57,37 @@ public class GUIWizardTests {
 
     @Test
     public void test_selectFromDropdownList(){
-        driver.browser().navigateToURL("http://the-internet.herokuapp.com/dropdown");
+        driver.get().browser().navigateToURL("http://the-internet.herokuapp.com/dropdown");
        //"1" is attribute value string value
-        driver.element().select(By.id("dropdown"), "1");
-        driver.element().captureScreenshot(By.id("dropdown"));
+        driver.get().element().select(By.id("dropdown"), "1");
+        driver.get().element().captureScreenshot(By.id("dropdown"));
         //"Option 2" is the displayed text of "option 2"
-        driver.element().select(By.id("dropdown"), "Option 2");
-        driver.element().captureScreenshot(By.id("dropdown"));
+        driver.get().element().select(By.id("dropdown"), "Option 2");
+        driver.get().element().captureScreenshot(By.id("dropdown"));
 
     }
 
     @Test (expectedExceptions =  {AssertionError.class})
     public void test_selectOptionNotExistFromDropdownList(){
-        driver.browser().navigateToURL("http://the-internet.herokuapp.com/dropdown");
+        driver.get().browser().navigateToURL("http://the-internet.herokuapp.com/dropdown");
         //"1" is attribute value string value
-        driver.element().select(By.id("dropdown"), "1");
-        driver.element().captureScreenshot(By.id("dropdown"));
+        driver.get().element().select(By.id("dropdown"), "1");
+        driver.get().element().captureScreenshot(By.id("dropdown"));
         //"Option 2" is the displayed text of "option 2"
-        driver.element().select(By.id("dropdown"), "Option 4");
-        driver.element().captureScreenshot(By.id("dropdown"));
+        driver.get().element().select(By.id("dropdown"), "Option 4");
+        driver.get().element().captureScreenshot(By.id("dropdown"));
 
     }
 
 
     @BeforeMethod
     public void beforeMethod() {
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
         testData = new SHAFT.TestData.JSON("simpleJSON.json");
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.quit();
+        driver.get().quit();
     }
 }

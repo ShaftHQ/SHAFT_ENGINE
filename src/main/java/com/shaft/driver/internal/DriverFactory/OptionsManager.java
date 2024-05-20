@@ -1,6 +1,7 @@
 package com.shaft.driver.internal.DriverFactory;
 
 import com.mysql.cj.util.StringUtils;
+import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
@@ -9,6 +10,7 @@ import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.remote.options.UnhandledPromptBehavior;
 import lombok.Getter;
+import lombok.Setter;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.chromium.ChromiumOptions;
@@ -32,6 +34,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Getter
+@Setter
 public class OptionsManager {
 
     private ChromeOptions chOptions;
@@ -84,14 +87,16 @@ public class OptionsManager {
                     proxy.setSslProxy(proxyServerSettings);
                     ffOptions.setProxy(proxy);
                 }
+                ffOptions.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
                 // Enable BiDi
-                ffOptions.setCapability("webSocketUrl", true);
+                ffOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
                 //merge customWebDriverCapabilities.properties
                 ffOptions = ffOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
                 //merge hardcoded custom options
                 if (customDriverOptions != null) {
                     ffOptions = ffOptions.merge(customDriverOptions);
                 }
+                setSeleniumManagerOptions(ffOptions);
                 ReportManager.logDiscrete(ffOptions.toString());
             }
             case IE -> {
@@ -123,8 +128,11 @@ public class OptionsManager {
             case CHROME, EDGE, CHROMIUM -> {
                 if (driverType.equals(DriverFactory.DriverType.EDGE)) {
                     edOptions = (EdgeOptions) setupChromiumOptions(new EdgeOptions(), customDriverOptions);
+                    ReportManager.logDiscrete(edOptions.toString());
                 } else {
                     chOptions = (ChromeOptions) setupChromiumOptions(new ChromeOptions(), customDriverOptions);
+                    setSeleniumManagerOptions(chOptions);
+                    ReportManager.logDiscrete(chOptions.toString());
                 }
             }
             case SAFARI, WEBKIT -> {
@@ -157,6 +165,29 @@ public class OptionsManager {
                     appiumCapabilities = new DesiredCapabilities(PropertyFileManager.getCustomWebDriverDesiredCapabilities().merge(customDriverOptions));
             default ->
                     DriverFactoryHelper.failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
+        }
+    }
+
+    private synchronized void setSeleniumManagerOptions(MutableCapabilities options) {
+        if (SHAFT.Properties.web.forceBrowserDownload()) {
+            if (options instanceof ChromeOptions chromeOptions) {
+                chromeOptions.setBrowserVersion("stable");
+            } else if (options instanceof FirefoxOptions firefoxOptions) {
+                firefoxOptions.setBrowserVersion("stable");
+            }
+            // configure selenium manager to force download chrome binaries
+            String folderPath = System.getProperty("user.home") + File.separatorChar + ".cache" + File.separatorChar + "selenium" + File.separatorChar;
+            String fileName = "se-config.toml";
+            var fileActions = FileActions.getInstance(true);
+            if (fileActions.doesFileExist(folderPath, fileName, 1)) {
+                String configFileContent = fileActions.readFile(folderPath, fileName);
+                if (!configFileContent.contains("force-browser-download = true"))
+                    fileActions.writeToFile(folderPath, fileName
+                            , configFileContent + System.lineSeparator() + "force-browser-download = true");
+            } else {
+                fileActions.createFile(folderPath, fileName);
+                fileActions.writeToFile(folderPath, fileName, "force-browser-download = true");
+            }
         }
     }
 
@@ -237,12 +268,12 @@ public class OptionsManager {
 
     @SuppressWarnings("SpellCheckingInspection")
     private ChromiumOptions<?> setupChromiumOptions(ChromiumOptions<?> options, MutableCapabilities customDriverOptions) {
-        if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local"))
+        String executionAddress = SHAFT.Properties.platform.executionAddress().toLowerCase();
+        if (!executionAddress.equalsIgnoreCase("local"))
             options.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
         if (SHAFT.Properties.web.headlessExecution()) {
             options.addArguments("--headless=new");
             // https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md#headless
-//            options.addArguments("--disable-gpu");
         }
         // Fix "org.openqa.selenium.TimeoutException: timeout: Timed out receiving message from renderer: 10.000" on chrome/mac
         // https://github.com/ultrafunkamsterdam/undetected-chromedriver/issues/1280
@@ -253,7 +284,6 @@ public class OptionsManager {
         }
         // Add if condtion to start the new session if flag=true on specific port
         if (SHAFT.Properties.performance.isEnabled()) {
-            // TODO: implement lighthouse in the configuration manager and properties manager
             options.addArguments("--remote-debugging-port=" + SHAFT.Properties.performance.port());
             options.addArguments("--no-sandbox");
         }
@@ -274,6 +304,7 @@ public class OptionsManager {
         options.setPageLoadStrategy(PageLoadStrategy.NORMAL); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
         options.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
         options.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
+        options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
         //Add Proxy Setting if found
         String proxy = Properties.platform.proxy();
         if (SHAFT.Properties.platform.driverProxySettings() && !"".equals(proxy)) {
@@ -305,7 +336,7 @@ public class OptionsManager {
             options.setExperimentalOption("mobileEmulation", mobileEmulation);
         }
         // Enable BiDi
-        options.setCapability("webSocketUrl", true);
+        options.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
         //merge customWebdriverCapabilities.properties
         options = (ChromiumOptions<?>) options.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
         //merge hardcoded custom options
@@ -314,11 +345,10 @@ public class OptionsManager {
         }
 
         if (!SHAFT.Properties.flags.autoCloseDriverInstance()) {
-            Map<Object, Object> chromeOptions = new HashMap<>((Map<Object, Object>) options.getCapability("goog:chromeOptions"));
+            Map<Object, Object> chromeOptions = new HashMap<>((Map<Object, Object>) options.getCapability(ChromeOptions.CAPABILITY));
             chromeOptions.put("detach", true);
-            options.setCapability("goog:chromeOptions", chromeOptions);
+            options.setCapability(ChromeOptions.CAPABILITY, chromeOptions);
         }
-        ReportManager.logDiscrete(options.toString());
         return options;
     }
 

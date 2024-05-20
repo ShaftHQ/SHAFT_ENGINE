@@ -10,14 +10,13 @@ import org.testng.annotations.Test;
 
 public class Test_LTMobIPAAppURL {
     SHAFT.TestData.JSON testData;
-    private SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @Test
     public void test() {
-        new ElementActions(driver.getDriver()).performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
-        new ElementActions(driver.getDriver()).type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
-        SHAFT.Validations.assertThat().object(driver.element().getText(AppiumBy.accessibilityId("Text Output"))).
-                isEqualTo("hello@browserstack.com").perform();
+        new ElementActions(driver.get().getDriver()).performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
+        new ElementActions(driver.get().getDriver()).type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
+        driver.get().assertThat().element(AppiumBy.accessibilityId("Text Output")).text().isEqualTo("hello@browserstack.com").perform();
     }
 
     @BeforeMethod
@@ -34,12 +33,12 @@ public class Test_LTMobIPAAppURL {
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
         SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
 
     }
 
     @AfterMethod(alwaysRun = true)
     public void teardown() {
-        driver.quit();
+        driver.get().quit();
     }
 }

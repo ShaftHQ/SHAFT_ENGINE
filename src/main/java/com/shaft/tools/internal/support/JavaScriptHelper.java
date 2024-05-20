@@ -290,7 +290,9 @@ public enum JavaScriptHelper {
             "(function(){'use strict';var api;api=function(x,y){var elm,scrollX,scrollY,newX,newY;scrollX=window.pageXOffset;scrollY=window.pageYOffset;window.scrollTo(x,y);newX=x-window.pageXOffset;newY=y-window.pageYOffset;elm=this.elementFromPoint(newX,newY);window.scrollTo(scrollX,scrollY);return elm;};this.document.elementFromAbsolutePoint=api;}).call(this);return document.elementFromAbsolutePoint(arguments[0], arguments[1]);"),
     WINDOW_FOCUS("window.focus();"), WINDOW_RESET_LOCATION("window.moveTo(0,0);"),
     WINDOW_RESIZE("window.resizeTo($WIDTH,$HEIGHT);"),
-    DOCUMENT_READYSTATE("return document.readyState");
+    DOCUMENT_READY_STATE("return document.readyState;"),
+    JQUERY_ACTIVE_STATE("return jQuery.active;"),
+    ANGULAR_READY_STATE("return angular.element(document).injector().get('$http').pendingRequests.length;");
 
     private final String value;
 

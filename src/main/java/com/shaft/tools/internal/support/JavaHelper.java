@@ -4,6 +4,9 @@ import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.validation.ValidationEnums;
+import org.openqa.selenium.By;
+import org.openqa.selenium.support.locators.RelativeLocator;
 import org.testng.Assert;
 
 import java.util.ArrayList;
@@ -92,7 +95,7 @@ public class JavaHelper {
      * of invalid comparison operator, -2 in case of another unhandled
      * exception
      */
-    public static int compareTwoObjects(Object expectedValue, Object actualValue, int comparisonType,
+    public static int compareTwoObjects(Object expectedValue, Object actualValue, Object comparisonType,
                                         Boolean validationType) {
         ReportManager.logDiscrete("Expected \"" + expectedValue + "\", and actual \"" + actualValue + "\"");
         if ("null".equals(expectedValue)) {
@@ -103,40 +106,59 @@ public class JavaHelper {
             actualValue = null;
         }
 
-        if (Boolean.TRUE.equals(validationType)) {
-            try {
-                return compareTwoObjectsPositively(expectedValue, actualValue, comparisonType);
-            } catch (AssertionError e) {
-                return 0;
-            } catch (Exception e) {
-                ReportManagerHelper.logDiscrete(e);
-                return -2;
+        if (comparisonType instanceof Integer comparisonInteger) {
+            // comparison integer is used for all string-based, null, boolean, and Object comparisons
+            if (Boolean.TRUE.equals(validationType)) {
+                try {
+                    return compareTwoObjectsPositively(expectedValue, actualValue, comparisonInteger);
+                } catch (AssertionError e) {
+                    return 0;
+                } catch (Exception e) {
+                    ReportManagerHelper.logDiscrete(e);
+                    return -2;
+                }
+            } else {
+                try {
+                    return compareTwoObjectsNegatively(expectedValue, actualValue, comparisonInteger);
+                } catch (AssertionError e) {
+                    return 0;
+                } catch (Exception e) {
+                    ReportManagerHelper.logDiscrete(e);
+                    return -2;
+                }
             }
-        } else {
-            try {
-                return compareTwoObjectsNegatively(expectedValue, actualValue, comparisonType);
-            } catch (AssertionError e) {
-                return 0;
-            } catch (Exception e) {
-                ReportManagerHelper.logDiscrete(e);
-                return -2;
-            }
+        } else if (comparisonType instanceof ValidationEnums.NumbersComparativeRelation numbersComparativeRelation) {
+            // this means that it is a number-based comparison
+            Boolean comparisonState = getNumberComparisonState(expectedValue, actualValue, numbersComparativeRelation);
+            return (comparisonState && validationType) || (!comparisonState && !validationType) ? 1 : 0;
         }
+        return -2;
+    }
 
+    private static Boolean getNumberComparisonState(Object expectedValue, Object actualValue, ValidationEnums.NumbersComparativeRelation numbersComparativeRelation) {
+        Float expected = Float.parseFloat(String.valueOf(expectedValue));
+        Float actual = Float.parseFloat(String.valueOf(actualValue));
+        return switch (numbersComparativeRelation.getValue()) {
+            case ">" -> actual > expected;
+            case ">=" -> actual >= expected;
+            case "<" -> actual < expected;
+            case "<=" -> actual <= expected;
+            case "==" -> actual.equals(expected);
+            default -> false;
+        };
     }
 
     private static int compareTwoObjectsPositively(Object expectedValue, Object actualValue, int comparisonType) {
         switch (comparisonType) {
             case 1 -> {
                 // case sensitive literal equivalence
-                if (expectedValue == null) {
-                    Assert.assertNull(actualValue);
-                } else if (expectedValue instanceof String expectedString && actualValue instanceof String actualString) {
-                    Assert.assertEquals(actualString, expectedString);
-                } else if (expectedValue instanceof Number expectedNumber && actualValue instanceof Number actualNumber) {
-                    Assert.assertEquals(actualNumber, expectedNumber);
-                } else {
-                    Assert.assertEquals(actualValue, expectedValue);
+                switch (expectedValue) {
+                    case null -> Assert.assertNull(actualValue);
+                    case String expectedString when actualValue instanceof String actualString ->
+                            Assert.assertEquals(actualString, expectedString);
+                    case Number expectedNumber when actualValue instanceof Number actualNumber ->
+                            Assert.assertEquals(actualNumber, expectedNumber);
+                    default -> Assert.assertEquals(actualValue, expectedValue);
                 }
             }
             case 2 ->
@@ -160,14 +182,13 @@ public class JavaHelper {
         switch (comparisonType) {
             case 1 -> {
                 // case sensitive literal equivalence
-                if (expectedValue == null) {
-                    Assert.assertNotNull(actualValue);
-                } else if (expectedValue instanceof String expectedString && actualValue instanceof String actualString) {
-                    Assert.assertNotEquals(actualString, expectedString);
-                } else if (expectedValue instanceof Number expectedNumber && actualValue instanceof Number actualNumber) {
-                    Assert.assertNotEquals(actualNumber, expectedNumber);
-                } else {
-                    Assert.assertNotEquals(actualValue, expectedValue);
+                switch (expectedValue) {
+                    case null -> Assert.assertNotNull(actualValue);
+                    case String expectedString when actualValue instanceof String actualString ->
+                            Assert.assertNotEquals(actualString, expectedString);
+                    case Number expectedNumber when actualValue instanceof Number actualNumber ->
+                            Assert.assertNotEquals(actualNumber, expectedNumber);
+                    default -> Assert.assertNotEquals(actualValue, expectedValue);
                 }
             }
             case 2 ->
@@ -185,6 +206,14 @@ public class JavaHelper {
             }
         }
         return 1;
+    }
+
+    public static String formatLocatorToString(By locator) {
+        if (locator instanceof RelativeLocator.RelativeBy relativeLocator) {
+            return "Relative Locator: " + relativeLocator.getRemoteParameters().value().toString();
+        } else {
+            return locator.toString();
+        }
     }
 
     public static String convertToSentenceCase(String text) {
@@ -211,11 +240,11 @@ public class JavaHelper {
                 + word.substring(1).toLowerCase();
     }
 
-    public static String appendTestDataToRelativePath(String relativePath){
-        if (FileActions.getInstance().doesFileExist(relativePath)){
+    public static String appendTestDataToRelativePath(String relativePath) {
+        if (FileActions.getInstance(true).doesFileExist(relativePath)) {
             //file path is valid
             return relativePath;
-        } else{
+        } else {
             if (relativePath.startsWith("/")) {
                 //remove extra slash at the beginning if applicable
                 relativePath = relativePath.substring(1);

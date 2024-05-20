@@ -5,38 +5,38 @@ import org.openqa.selenium.By;
 import org.testng.annotations.*;
 
 public class NoSuchElementFailureTest {
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     double defaultElementIdentificationTimeout;
     String mockedHTML = "data:text/html,<input/><input/><input/><script>var result;</script><button ${HIDDEN} alt='Google' onclick='result=\"Clicked\"'>Go</button>";
 
 
     @Test(expectedExceptions = {AssertionError.class})
     public void type() {
-        driver.browser().navigateToURL(mockedHTML);
-        driver.element().type(By.xpath("//input[@id='noSuchElement']"), "standard_user");
+        driver.get().browser().navigateToURL(mockedHTML);
+        driver.get().element().type(By.xpath("//input[@id='noSuchElement']"), "standard_user");
     }
 
     @Test(expectedExceptions = {AssertionError.class})
     public void click() {
-        driver.browser().navigateToURL(mockedHTML);
-        driver.element().click(By.xpath("//input[@id='noSuchElement']"));
+        driver.get().browser().navigateToURL(mockedHTML);
+        driver.get().element().click(By.xpath("//input[@id='noSuchElement']"));
     }
 
     @Test(expectedExceptions = {AssertionError.class})
     public void clickUsingJS() {
-        driver.browser().navigateToURL(mockedHTML);
-        driver.element().clickUsingJavascript(By.xpath("//input[@id='noSuchElement']"));
+        driver.get().browser().navigateToURL(mockedHTML);
+        driver.get().element().clickUsingJavascript(By.xpath("//input[@id='noSuchElement']"));
     }
 
 
     @BeforeMethod
     void beforeMethod() {
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     void afterMethod() {
-        driver.quit();
+        driver.get().quit();
     }
 
     @BeforeClass

@@ -71,7 +71,7 @@ public class RecordManager {
         }
     }
 
-    public static void attachVideoRecording(Path pathToRecording){
+    public static void attachVideoRecording(Path pathToRecording) {
         if (pathToRecording != null) {
             String testMethodName = ReportManagerHelper.getTestMethodName();
             try {

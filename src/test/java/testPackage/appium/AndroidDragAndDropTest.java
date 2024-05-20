@@ -10,7 +10,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class AndroidDragAndDropTest {
-    private SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @Test
     public void wizard_scrollInExpandableLists_verticalScrolling_insideScreen() {
@@ -21,12 +21,12 @@ public class AndroidDragAndDropTest {
         By dragAndDropScreen = AppiumBy.accessibilityId("Drag-drop-screen");
 
         // WebDriver code -> really fails to drag
-//        driver.element().click(dragButton)
+//        driver.get().element().click(dragButton)
 //                .dragAndDrop(draggableRobotEyes, dropRobotEyes)
 //                .and().assertThat(dragAndDropScreen).matchesReferenceImage().perform();
 
         // Appium code -> drag and drop happens but shows up as failed
-        driver.touch().tap(dragButton)
+        driver.get().touch().tap(dragButton)
                 .swipeToElement(draggableRobotEyes, dropRobotEyes)
                 .and().assertThat(dragAndDropScreen).matchesReferenceImage().perform();
     }
@@ -66,11 +66,11 @@ public class AndroidDragAndDropTest {
 //        SHAFT.Properties.browserStack.set().appName("Android-NativeDemoApp-0.4.0.apk");
 //        SHAFT.Properties.browserStack.set().appRelativeFilePath("");
 //        SHAFT.Properties.browserStack.set().appUrl("bs://832ef13a11caa84ad714e0d4f8d9553cd3c5a3ca");
-        driver = new SHAFT.GUI.WebDriver();
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void teardown() {
-        driver.quit();
+        driver.get().quit();
     }
 }

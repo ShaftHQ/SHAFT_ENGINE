@@ -4,12 +4,11 @@ import com.shaft.validation.ValidationEnums;
 
 public class FileValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
-    protected String validationMethod;
-    protected ValidationEnums.ValidationType validationType;
     protected final String folderRelativePath;
     protected final String fileName;
-
     protected final StringBuilder reportMessageBuilder;
+    protected String validationMethod;
+    protected ValidationEnums.ValidationType validationType;
 
     public FileValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, String folderRelativePath, String fileName, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;
@@ -28,7 +27,9 @@ public class FileValidationsBuilder {
         this.validationMethod = "fileExists";
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("exists.");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -40,7 +41,9 @@ public class FileValidationsBuilder {
         this.validationMethod = "fileExists";
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("does not exist.");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**

@@ -8,6 +8,7 @@ import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.listeners.internal.UpdateChecker;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.security.GoogleTink;
+import com.shaft.tools.io.internal.AllureManager;
 import com.shaft.tools.io.internal.ExecutionSummaryReport;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -39,7 +40,7 @@ public class JunitListener implements LauncherSessionListener {
 
                 @Override
                 public void testPlanExecutionFinished(TestPlan testPlan) {
-                    engineTeardown();
+                    engineTearDown();
                 }
 
                 @Override
@@ -70,6 +71,7 @@ public class JunitListener implements LauncherSessionListener {
             });
         }
     }
+
     private void engineSetup() {
         ReportManagerHelper.setDiscreteLogging(true);
         PropertiesHelper.initialize();
@@ -86,30 +88,25 @@ public class JunitListener implements LauncherSessionListener {
         UpdateChecker.check();
         ImageProcessingActions.loadOpenCV();
 
-        ReportManagerHelper.initializeAllureReportingEnvironment();
-        ReportManagerHelper.initializeExtentReportingEnvironment();
+        AllureManager.initializeAllureReportingEnvironment();
         ReportManagerHelper.cleanExecutionSummaryReportDirectory();
 
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
         ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
     }
 
-    private void engineTeardown() {
+    private void engineTearDown() {
         ReportManagerHelper.setDiscreteLogging(true);
         JiraHelper.reportExecutionStatusToJira();
         GoogleTink.encrypt();
-        ReportManagerHelper.generateAllureReportArchive();
-        ReportManagerHelper.openAllureReportAfterExecution();
-        ReportManagerHelper.openExtentReportAfterExecution();
+        AllureManager.generateAllureReportArchive();
+        AllureManager.openAllureReportAfterExecution();
         long executionEndTime = System.currentTimeMillis();
         ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
         ReportManagerHelper.logEngineClosure();
     }
 
     private void afterInvocation() {
-//        IssueReporter.updateTestStatusInCaseOfVerificationFailure(iTestResult);
-//        IssueReporter.updateIssuesLog(iTestResult);
-//        TestNGListenerHelper.updateConfigurationMethodLogs(iTestResult);
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
     }
 

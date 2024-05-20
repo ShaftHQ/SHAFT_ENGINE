@@ -11,8 +11,8 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.logging.log4j.Level;
 import org.openqa.selenium.Platform;
-import org.sikuli.basics.FileManager;
 
 import java.io.*;
 import java.net.JarURLConnection;
@@ -27,11 +27,17 @@ import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 public class FileActions {
-
     private static final String ERROR_CANNOT_CREATE_DIRECTORY = "Could not create directory: ";
+    private boolean internalInstance = false;
 
     public static FileActions getInstance() {
-        return new FileActions();
+        return getInstance(false);
+    }
+
+    public static FileActions getInstance(boolean internalInstance) {
+        var instance = new FileActions();
+        instance.internalInstance = internalInstance;
+        return instance;
     }
 
     /**
@@ -47,6 +53,18 @@ public class FileActions {
         File destinationFile = new File(destinationFilePath);
         copyFile(sourceFile, destinationFile);
         passAction("Source File: \"" + sourceFilePath + "\" | Destination File: \"" + destinationFilePath + "\"");
+    }
+
+    public void renameFile(String filePath, String newFileName) {
+        try {
+            var targetFile = new File(filePath);
+            String targetDirectory = targetFile.getParentFile().getAbsolutePath();
+            FileUtils.copyFile(targetFile, new File(targetDirectory + File.separator + newFileName));
+            FileUtils.deleteQuietly(targetFile);
+            passAction("Target File Path: \"" + filePath + "\", file was renamed to \"" + newFileName + "\".");
+        } catch (IOException e) {
+            failAction(e);
+        }
     }
 
     /**
@@ -76,7 +94,6 @@ public class FileActions {
         } else {
             command = "robocopy  /e /v /fp " + sourceDirectory + " " + destinationDirectory + " " + fileName;
         }
-
         String terminalLog = terminalSession.performTerminalCommand(command);
         passAction("Source Directory: \"" + sourceDirectory + "\" | Destination Directory: \"" + destinationDirectory
                 + "\" | File Name: \"" + fileName + "\"", terminalLog);
@@ -90,10 +107,8 @@ public class FileActions {
                     TrueFileFilter.TRUE);
             filesList.forEach(file -> files.append(file.getName()).append(System.lineSeparator()));
         } catch (IllegalArgumentException rootCauseException) {
-
             failAction("Failed to list files in this directory: \"" + targetDirectory + "\"", rootCauseException);
         }
-
         passAction("Target Directory: \"" + targetDirectory + "\"", files.toString().trim());
         return files.toString().trim();
     }
@@ -105,10 +120,8 @@ public class FileActions {
                     recursively);
             filesList.forEach(file -> files.append(file.getName()).append(System.lineSeparator()));
         } catch (IllegalArgumentException rootCauseException) {
-
             failAction("Failed to list files in this directory: \"" + targetDirectory + "\"", rootCauseException);
         }
-
         passAction("Target Directory: \"" + targetDirectory + "\"", files.toString().trim());
         return files.toString().trim();
     }
@@ -121,7 +134,6 @@ public class FileActions {
                     TrueFileFilter.TRUE);
             filesList.forEach(file -> files.append(file.getAbsolutePath()).append(System.lineSeparator()));
         } catch (IllegalArgumentException rootCauseException) {
-
             failAction("Failed to list absolute file paths in this directory: \"" + targetDirectory + "\"", rootCauseException);
         }
         passAction("Target Directory: \"" + targetDirectory + "\"", files.toString().trim());
@@ -172,10 +184,8 @@ public class FileActions {
      */
     public String getFileChecksum(TerminalActions terminalSession, String targetFileFolderPath,
                                   String targetFileName, String... pathToTempDirectoryOnRemoteMachine) {
-
         String targetFilePath = copyFileToLocalMachine(terminalSession, targetFileFolderPath, targetFileName,
                 pathToTempDirectoryOnRemoteMachine);
-
         // read file
         byte[] fileBytes;
         String sha256 = "";
@@ -183,7 +193,6 @@ public class FileActions {
             fileBytes = Files.readAllBytes(Paths.get(targetFilePath));
             sha256 = Hashing.sha256().hashBytes(fileBytes).toString();
         } catch (IOException rootCauseException) {
-
             failAction("Failed to read file \"" + targetFilePath + "\"", rootCauseException);
         }
         passAction("Target File: \"" + targetFilePath + "\" | SHA-256: \"" + sha256 + "\"");
@@ -216,13 +225,11 @@ public class FileActions {
                                          String targetFileName, String... pathToTempDirectoryOnRemoteMachine) {
         String targetFilePath = targetFileFolderPath + targetFileName;
         TerminalActions terminalSessionForRemoteMachine = new TerminalActions();
-
         // fetch file from inside docker to the machine itself
         if (terminalSession.isDockerizedTerminal()) {
             terminalSessionForRemoteMachine = new TerminalActions(terminalSession.getSshHostName(),
                     terminalSession.getSshPortNumber(), terminalSession.getSshUsername(),
                     terminalSession.getSshKeyFileFolderName(), terminalSession.getSshKeyFileName());
-
             // copy from docker to machine
             terminalSessionForRemoteMachine.performTerminalCommand("rm -r " + pathToTempDirectoryOnRemoteMachine[0]);
             terminalSessionForRemoteMachine
@@ -231,11 +238,10 @@ public class FileActions {
                     + targetFilePath + " " + pathToTempDirectoryOnRemoteMachine[0] + targetFilePath);
             targetFilePath = pathToTempDirectoryOnRemoteMachine[0] + targetFilePath;
         }
-
         // fetch file from terminal session to local machine
         if (terminalSession.isRemoteTerminal()) {
             // remote regular
-            String sshParameters = "-i " + FileActions.getInstance().getAbsolutePath(terminalSession.getSshKeyFileFolderName(),
+            String sshParameters = "-i " + FileActions.getInstance(true).getAbsolutePath(terminalSession.getSshKeyFileFolderName(),
                     terminalSession.getSshKeyFileName()) + " -P " + terminalSession.getSshPortNumber();
 
             String pathToRemoteFileThatWillBeCopied = targetFilePath;
@@ -243,9 +249,9 @@ public class FileActions {
                     + pathToRemoteFileThatWillBeCopied;
 
             // creating local temp directory
-            String pathToLocalParentFolder = FileActions.getInstance().getAbsolutePath("target/temp");
-            FileActions.getInstance().deleteFolder(pathToLocalParentFolder);
-            FileActions.getInstance().createFolder(pathToLocalParentFolder);
+            String pathToLocalParentFolder = FileActions.getInstance(true).getAbsolutePath("target/temp");
+            FileActions.getInstance(true).deleteFolder(pathToLocalParentFolder);
+            FileActions.getInstance(true).createFolder(pathToLocalParentFolder);
 
             String destination = pathToLocalParentFolder + "/" + targetFileName;
             targetFilePath = destination;
@@ -255,13 +261,12 @@ public class FileActions {
 
             // restricting file access to bypass jenkins issue
             (new TerminalActions()).performTerminalCommand("chmod 400 " + FileActions
-                    .getInstance().getAbsolutePath(terminalSession.getSshKeyFileFolderName(), terminalSession.getSshKeyFileName()));
+                    .getInstance(true).getAbsolutePath(terminalSession.getSshKeyFileFolderName(), terminalSession.getSshKeyFileName()));
 
             (new TerminalActions()).performTerminalCommand(command);
         }
         // else local regular
         // it's already on the local machine so no need to do anything here
-
 
         // clean temp directory on remote machine
         if (terminalSession.isDockerizedTerminal() && terminalSession.isRemoteTerminal()) {
@@ -279,9 +284,17 @@ public class FileActions {
      *                       be deleted
      */
     public void deleteFile(String targetFilePath) {
-        boolean wasFileDeleted = FileUtils.deleteQuietly(new File(targetFilePath));
-        String negation = wasFileDeleted ? "" : "not";
-        passAction("Target File Path: \"" + targetFilePath + "\", file was " + negation + " deleted.");
+        File targetFile;
+        targetFile = new File(targetFilePath);
+        boolean wasFileDeleted = FileUtils.deleteQuietly(targetFile);
+        if (!wasFileDeleted) {
+            targetFile = new File((new File(targetFilePath)).getAbsolutePath());
+            wasFileDeleted = FileUtils.deleteQuietly(targetFile);
+        }
+        String negation = wasFileDeleted ? "" : "not ";
+        //if (!wasFileDeleted)
+            //ReportManager.log("File was not deleted: `"+targetFilePath+"`", Level.WARN);
+        passAction("Target File Path: \"" + targetFilePath + "\", file was " + negation + "deleted.");
     }
 
     public void writeToFile(String fileFolderName, String fileName, List<String> text) {
@@ -289,20 +302,28 @@ public class FileActions {
         writeToFile(fileFolderName, fileName, textToBytes);
     }
 
-    public void writeToFile(String fileFolderName, String fileName, byte[] content) {
-        String absoluteFilePath = getAbsolutePath(fileFolderName, fileName);
+    public void writeToFile(String filePath, byte[] content) {
+        String absoluteFilePath = (new File(filePath)).getAbsolutePath();
         try {
-            Path filePath = Paths.get(absoluteFilePath);
-            Path parentDir = filePath.getParent();
+            Path targetFilePath = Paths.get(absoluteFilePath);
+            Path parentDir = targetFilePath.getParent();
             if (!parentDir.toFile().exists()) {
                 Files.createDirectories(parentDir);
             }
-            Files.write(filePath, content);
-            passAction("Target File Path: \"" + filePath + "\"", Arrays.toString(content));
+            Files.write(targetFilePath, content);
+            passAction("Target File Path: \"" + targetFilePath + "\"", Arrays.toString(content));
         } catch (InvalidPathException | IOException rootCauseException) {
-
-            failAction("Folder Name: \"" + fileFolderName + "\", File Name \"" + fileName + "\".", rootCauseException);
+            failAction("Folder Name: \"" + filePath + "\".", rootCauseException);
         }
+    }
+
+    public void writeToFile(String filePath, String text) {
+        byte[] textToBytes = text.getBytes();
+        writeToFile(filePath, textToBytes);
+    }
+
+    public void writeToFile(String fileFolderName, String fileName, byte[] content) {
+        writeToFile(fileFolderName + fileName, content);
     }
 
     public void writeToFile(String fileFolderName, String fileName, String text) {
@@ -339,8 +360,13 @@ public class FileActions {
 
     public String readFile(String pathToTargetFile) {
         String absoluteFilePath = getAbsolutePath(pathToTargetFile);
-        String text = FileManager.readFileToString(new File(absoluteFilePath));
-        passAction("File Path: \"" + absoluteFilePath + "\"", text);
+        String text = "";
+        try {
+            text = Files.readString(new File(absoluteFilePath).toPath());
+            passAction("File Path: \"" + absoluteFilePath + "\"", text);
+        } catch (IOException rootCauseException) {
+            failAction(rootCauseException);
+        }
         return text;
     }
 
@@ -365,7 +391,6 @@ public class FileActions {
             } catch (Exception rootCauseException) {
                 ReportManagerHelper.logDiscrete(rootCauseException);
             }
-
             if (Boolean.FALSE.equals(doesFileExit)) {
                 try {
                     Thread.sleep(500);
@@ -637,13 +662,17 @@ public class FileActions {
     }
 
     private void passAction(String testData) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        reportActionResult(actionName, testData, null, true);
+        if (!internalInstance) {
+            String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+            reportActionResult(actionName, testData, null, true);
+        }
     }
 
     private void passAction(String testData, String log) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        reportActionResult(actionName, testData, log, true);
+        if (!internalInstance) {
+            String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+            reportActionResult(actionName, testData, log, true);
+        }
     }
 
     private void failAction(String testData, Exception... rootCauseException) {

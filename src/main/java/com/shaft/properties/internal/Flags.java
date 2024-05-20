@@ -181,18 +181,22 @@ public interface Flags extends EngineProperties {
             setProperty("skipTestsWithLinkedIssues", String.valueOf(value));
             return this;
         }
+
         public SetProperty disableCache(boolean value) {
             setProperty("disableCache", String.valueOf(value));
             return this;
         }
+
         public SetProperty enableTrueNativeMode(boolean value) {
             setProperty("enableTrueNativeMode", String.valueOf(value));
             return this;
         }
+
         public SetProperty handleNonSelectDropDown(boolean value) {
             setProperty("handleNonSelectDropDown", String.valueOf(value));
             return this;
         }
+
         public SetProperty validateSwipeToElement(boolean value) {
             setProperty("validateSwipeToElement", String.valueOf(value));
             return this;

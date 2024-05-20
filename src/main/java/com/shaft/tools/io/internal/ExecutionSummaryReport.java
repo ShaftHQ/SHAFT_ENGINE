@@ -1,5 +1,6 @@
 package com.shaft.tools.io.internal;
 
+import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.support.HTMLHelper;
 import lombok.Getter;
@@ -12,11 +13,11 @@ import java.util.HashMap;
 public class ExecutionSummaryReport {
     private static final HashMap<Integer, ArrayList<?>> casesDetails = new HashMap<>();
     private static final HashMap<Integer, ArrayList<?>> validations = new HashMap<>();
+    private static final String SHAFT_LOGO_URL = "https://github.com/ShaftHQ/SHAFT_ENGINE/raw/main/src/main/resources/images/shaft.png";
     private static int passedValidations = 0;
     private static int failedValidations = 0;
-    private static final String SHAFT_LOGO_URL = "https://github.com/ShaftHQ/SHAFT_ENGINE/raw/main/src/main/resources/images/shaft.png";
 
-    public static void casesDetailsIncrement(String tmsLink, String caseSuite, String caseName, String caseDescription,String errorMessage, String status, String issue) {
+    public static void casesDetailsIncrement(String tmsLink, String caseSuite, String caseName, String caseDescription, String errorMessage, String status, String issue) {
         ArrayList<String> entry = new ArrayList<>();
         entry.add(tmsLink);
         entry.add(caseSuite);
@@ -46,9 +47,9 @@ public class ExecutionSummaryReport {
         int total = passed + failed + skipped;
 
         StringBuilder detailsBuilder = new StringBuilder();
-        casesDetails.forEach((key, value) -> detailsBuilder.append(String.format(HTMLHelper.EXECUTION_SUMMARY_DETAILS_FORMAT.getValue(), key, value.get(0), value.get(1), value.get(2), value.get(3), value.get(4), value.get(5))));
+        casesDetails.forEach((key, value) -> detailsBuilder.append(String.format(HTMLHelper.EXECUTION_SUMMARY_DETAILS_FORMAT.getValue(), key, value.getFirst(), value.get(1), value.get(2), value.get(3), value.get(4), value.get(5))));
 
-        SHAFT.CLI.file().writeToFile(SHAFT.Properties.paths.executionSummaryReport(),
+        FileActions.getInstance(true).writeToFile(SHAFT.Properties.paths.executionSummaryReport(),
                 "ExecutionSummaryReport_" + new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa").format(System.currentTimeMillis()) + ".html",
                 createReportMessage(passed, failed, skipped, startTime, endTime, detailsBuilder));
 
@@ -64,7 +65,7 @@ public class ExecutionSummaryReport {
                 .replace("${START_TIME}", new SimpleDateFormat("HH:mm:ss").format(startTime))
                 .replace("${END_TIME}", new SimpleDateFormat("HH:mm:ss").format(endTime))
                 .replace("${TOTAL_TIME}", ReportManagerHelper.getExecutionDuration(startTime, endTime))
-                .replace("${CASES_TOTAL}", String.valueOf((int)total))
+                .replace("${CASES_TOTAL}", String.valueOf((int) total))
                 .replace("${CASES_PASSED}", String.valueOf(passed))
                 .replace("${CASES_FAILED}", String.valueOf(failed))
                 .replace("${CASES_SKIPPED}", String.valueOf(skipped))

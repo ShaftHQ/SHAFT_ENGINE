@@ -10,6 +10,15 @@ import org.aeonbits.owner.ConfigFactory;
         "classpath:ExecutionPlatform.properties",
 })
 public interface Platform extends EngineProperties {
+    private static void setProperty(String key, String value) {
+        var updatedProps = new java.util.Properties();
+        updatedProps.setProperty(key, value);
+        Properties.platform = ConfigFactory.create(Platform.class, updatedProps);
+        // temporarily set the system property to support hybrid read/write mode
+        System.setProperty(key, value);
+        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
+    }
+
     @Key("SHAFT.CrossBrowserMode")
     @DefaultValue("off")
     String crossBrowserMode();
@@ -34,14 +43,9 @@ public interface Platform extends EngineProperties {
     @DefaultValue("true")
     boolean jvmProxySettings();
 
-    private static void setProperty(String key, String value) {
-        var updatedProps = new java.util.Properties();
-        updatedProps.setProperty(key, value);
-        Properties.platform = ConfigFactory.create(Platform.class, updatedProps);
-        // temporarily set the system property to support hybrid read/write mode
-        System.setProperty(key, value);
-        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
-    }
+    @Key("enableBiDi")
+    @DefaultValue("true")
+    boolean enableBiDi();
 
     default SetProperty set() {
         return new SetProperty();
@@ -79,6 +83,11 @@ public interface Platform extends EngineProperties {
 
         public SetProperty jvmProxySettings(boolean value) {
             setProperty("jvmProxySettings", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty enableBiDi(boolean value) {
+            setProperty("enableBiDi", String.valueOf(value));
             return this;
         }
     }

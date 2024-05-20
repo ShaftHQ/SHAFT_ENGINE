@@ -9,14 +9,12 @@ public class WebDriverElementValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
     protected final WebDriver driver;
     protected final By locator;
-
+    protected final StringBuilder reportMessageBuilder;
     protected ValidationEnums.ValidationType validationType;
     protected String validationMethod;
     protected ValidationEnums.VisualValidationEngine visualValidationEngine;
     protected String elementAttribute;
     protected String elementCssProperty;
-
-    protected final StringBuilder reportMessageBuilder;
 
     public WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, WebDriver driver, By locator, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;
@@ -35,7 +33,9 @@ public class WebDriverElementValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.validationMethod = "elementExists";
         reportMessageBuilder.append("exists.");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -47,7 +47,9 @@ public class WebDriverElementValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         this.validationMethod = "elementExists";
         reportMessageBuilder.append("does not exist.");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -62,7 +64,9 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG;
         reportMessageBuilder.append("matches the reference image \"").append(ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG).append("\".");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -76,7 +80,9 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = visualValidationEngine;
         reportMessageBuilder.append("matches the reference image \"").append(visualValidationEngine).append("\".");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -91,7 +97,9 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_OPENCV;
         reportMessageBuilder.append("does not match the reference image \"").append(ValidationEnums.VisualValidationEngine.EXACT_OPENCV).append("\".");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -105,7 +113,9 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = visualValidationEngine;
         reportMessageBuilder.append("does not match the reference image \"").append(visualValidationEngine).append("\".");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -129,7 +139,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isSelected() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "selected";
-        reportMessageBuilder.append("is selected, selected attribute ");
+        reportMessageBuilder.append("is selected; selected attribute ");
         return new NativeValidationsBuilder(this).isTrue();
     }
 
@@ -141,7 +151,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isChecked() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "checked";
-        reportMessageBuilder.append("is checked, checked attribute ");
+        reportMessageBuilder.append("is checked; checked attribute ");
         return new NativeValidationsBuilder(this).isTrue();
     }
 
@@ -153,7 +163,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isVisible() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "hidden";
-        reportMessageBuilder.append("is visible, hidden attribute ");
+        reportMessageBuilder.append("is visible; hidden attribute ");
         return new NativeValidationsBuilder(this).isEqualTo("null");
     }
 
@@ -165,7 +175,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isEnabled() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "disabled";
-        reportMessageBuilder.append("is enabled, disabled attribute ");
+        reportMessageBuilder.append("is enabled; disabled attribute ");
         return new NativeValidationsBuilder(this).isEqualTo("null");
     }
 
@@ -177,7 +187,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isNotSelected() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "selected";
-        reportMessageBuilder.append("is not selected, selected attribute ");
+        reportMessageBuilder.append("is not selected; selected attribute ");
         return new NativeValidationsBuilder(this).isEqualTo("null");
     }
 
@@ -189,7 +199,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isNotChecked() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "checked";
-        reportMessageBuilder.append("is not checked, checked attribute ");
+        reportMessageBuilder.append("is not checked; checked attribute ");
         return new NativeValidationsBuilder(this).isEqualTo("null");
     }
 
@@ -201,7 +211,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isHidden() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "hidden";
-        reportMessageBuilder.append("is hidden, hidden attribute ");
+        reportMessageBuilder.append("is hidden; hidden attribute ");
         return new NativeValidationsBuilder(this).isTrue();
     }
 
@@ -213,7 +223,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isDisabled() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "disabled";
-        reportMessageBuilder.append("is disabled, disabled attribute ");
+        reportMessageBuilder.append("is disabled; disabled attribute ");
         return new NativeValidationsBuilder(this).isTrue();
     }
 

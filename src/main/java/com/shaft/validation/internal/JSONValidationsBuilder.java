@@ -20,7 +20,9 @@ public class JSONValidationsBuilder extends NativeValidationsBuilder {
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.MATCHES;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("equals \"").append(expectedValue).append("\", ignoring ordering.");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 
     /**
@@ -34,6 +36,8 @@ public class JSONValidationsBuilder extends NativeValidationsBuilder {
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.MATCHES;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("does not equal \"").append(expectedValue).append("\", ignoring ordering.");
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 }

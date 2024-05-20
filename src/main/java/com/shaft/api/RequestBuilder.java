@@ -99,7 +99,7 @@ public class RequestBuilder {
      */
     @SuppressWarnings("UnusedReturnValue")
     public RequestBuilder useRelaxedHTTPSValidation(String protocol) {
-    	this.sessionConfig=config().and().sslConfig(SSLConfig.sslConfig().relaxedHTTPSValidation(protocol));
+        this.sessionConfig = config().and().sslConfig(SSLConfig.sslConfig().relaxedHTTPSValidation(protocol));
         return this;
     }
 
@@ -220,7 +220,6 @@ public class RequestBuilder {
         return this;
     }
 
-   
 
     /**
      * Append a cookie to the current session to be used in the current and all the following requests. This feature is commonly used for authentication cookies.
@@ -304,7 +303,7 @@ public class RequestBuilder {
                 RestActions.failAction(request, rootCauseException);
             }
         }
-        RestActions.lastResponse = response;
+        session.setLastResponse(response);
         return response;
     }
 

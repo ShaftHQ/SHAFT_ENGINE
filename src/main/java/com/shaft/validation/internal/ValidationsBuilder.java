@@ -1,20 +1,18 @@
 package com.shaft.validation.internal;
 
+import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
-import static com.shaft.gui.element.internal.ElementActionsHelper.formatLocatorToString;
-
 @SuppressWarnings("unused")
 public class ValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
+    protected final StringBuilder reportMessageBuilder = new StringBuilder();
     protected String validationMethod;
     protected ValidationEnums.ValidationType validationType;
     protected boolean condition;
     protected Object actualValue;
-
-    protected final StringBuilder reportMessageBuilder = new StringBuilder();
 
     public ValidationsBuilder(ValidationEnums.ValidationCategory validationCategory) {
         this.validationCategory = validationCategory;
@@ -47,7 +45,7 @@ public class ValidationsBuilder {
     }
 
     public WebDriverElementValidationsBuilder element(WebDriver driver, By locator) {
-        reportMessageBuilder.append("The Element located by \"").append(formatLocatorToString(locator)).append("\" ");
+        reportMessageBuilder.append("the element located by \"").append(JavaHelper.formatLocatorToString(locator)).append("\" ");
         return new WebDriverElementValidationsBuilder(validationCategory, driver, locator, reportMessageBuilder);
     }
 
@@ -57,7 +55,7 @@ public class ValidationsBuilder {
      * @return a WebDriverBrowserValidationsBuilder object to continue building your validation
      */
     public WebDriverBrowserValidationsBuilder browser(WebDriver driver) {
-        reportMessageBuilder.append("The Browser ");
+        reportMessageBuilder.append("the browser ");
         return new WebDriverBrowserValidationsBuilder(validationCategory, driver, reportMessageBuilder);
     }
 
@@ -68,7 +66,7 @@ public class ValidationsBuilder {
      * @return a RestValidationsBuilder object to continue building your validation
      */
     public RestValidationsBuilder response(Object response) {
-        reportMessageBuilder.append("The API response ");
+        reportMessageBuilder.append("the API response ");
         return new RestValidationsBuilder(validationCategory, response, reportMessageBuilder);
     }
 
@@ -80,7 +78,7 @@ public class ValidationsBuilder {
      * @return a FileValidationsBuilder object to continue building your validation
      */
     public FileValidationsBuilder file(String folderRelativePath, String fileName) {
-        reportMessageBuilder.append("The File \"").append(folderRelativePath).append(fileName).append("\" ");
+        reportMessageBuilder.append("the file \"").append(folderRelativePath).append(fileName).append("\" ");
         return new FileValidationsBuilder(validationCategory, folderRelativePath, fileName, reportMessageBuilder);
     }
 
@@ -92,6 +90,8 @@ public class ValidationsBuilder {
     public ValidationsExecutor forceFail() {
         reportMessageBuilder.append("Force fail.");
         this.validationMethod = "forceFail";
-        return new ValidationsExecutor(this);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
     }
 }

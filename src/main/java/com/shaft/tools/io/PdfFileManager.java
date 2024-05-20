@@ -24,9 +24,9 @@ public class PdfFileManager {
 
     public PdfFileManager(String folderName, String fileName, int numberOfRetries) {
 
-        boolean doesFileExist = FileActions.getInstance().doesFileExist(folderName, fileName, numberOfRetries);
+        boolean doesFileExist = FileActions.getInstance(true).doesFileExist(folderName, fileName, numberOfRetries);
 
-        file = new File(FileActions.getInstance().getAbsolutePath(folderName, fileName));
+        file = new File(FileActions.getInstance(true).getAbsolutePath(folderName, fileName));
 
         if (!doesFileExist) {
             FailureReporter.fail("Couldn't find the provided file [" + file
@@ -36,16 +36,12 @@ public class PdfFileManager {
 
     public PdfFileManager(String pdfFilePath) {
         pdfFilePath = JavaHelper.appendTestDataToRelativePath(pdfFilePath);
-        boolean doesFileExist = FileActions.getInstance().doesFileExist(pdfFilePath);
-        file = new File(FileActions.getInstance().getAbsolutePath(pdfFilePath));
+        boolean doesFileExist = FileActions.getInstance(true).doesFileExist(pdfFilePath);
+        file = new File(FileActions.getInstance(true).getAbsolutePath(pdfFilePath));
         if (!doesFileExist) {
             FailureReporter.fail("Couldn't find the provided file [" + file
                     + "]. It might need to wait more to download or the path isn't correct");
         }
-    }
-
-    public String readFileContent() {
-        return PdfFileManager.readFileContent(file.getPath());
     }
 
     /**
@@ -56,15 +52,15 @@ public class PdfFileManager {
      * @return a string value representing the entire content of the pdf file
      */
     public static String readFileContent(String relativeFilePath, boolean... deleteFileAfterReading) {
-        if (FileActions.getInstance().doesFileExist(relativeFilePath)) {
-            try (var pdfParser = new PDFParser(new RandomAccessReadBufferedFile(new File(FileActions.getInstance().getAbsolutePath(relativeFilePath)))).parse()) {
+        if (FileActions.getInstance(true).doesFileExist(relativeFilePath)) {
+            try (var pdfParser = new PDFParser(new RandomAccessReadBufferedFile(new File(FileActions.getInstance(true).getAbsolutePath(relativeFilePath)))).parse()) {
                 var pdfTextStripper = new PDFTextStripper();
                 pdfTextStripper.setSortByPosition(true);
                 var fileContent = pdfTextStripper.getText(new PDDocument(pdfParser.getDocument()));
                 if (deleteFileAfterReading != null
                         && deleteFileAfterReading.length > 0
                         && deleteFileAfterReading[0]) {
-                    FileActions.getInstance().deleteFile(relativeFilePath);
+                    FileActions.getInstance(true).deleteFile(relativeFilePath);
                 }
                 return fileContent;
             } catch (IOException rootCauseException) {
@@ -75,6 +71,10 @@ public class PdfFileManager {
             FailureReporter.fail("This PDF file [" + relativeFilePath + "] doesn't exist.");
         }
         return "";
+    }
+
+    public String readFileContent() {
+        return PdfFileManager.readFileContent(file.getPath());
     }
 
     /**
@@ -127,7 +127,7 @@ public class PdfFileManager {
     }
 
     private COSDocument getParsedDocument(PDFParser parser) {
-        try (var parsedDocument = parser.parse()){
+        try (var parsedDocument = parser.parse()) {
             cosDoc = parsedDocument.getDocument();
         } catch (IOException rootCauseException) {
             FailureReporter.fail(PdfFileManager.class, "Couldn't get the document that was parsed. Check that the document parsed before get the document.", rootCauseException);

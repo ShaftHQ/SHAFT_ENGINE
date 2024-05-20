@@ -259,7 +259,7 @@ public class YAMLFileManager {
     /**
      * Used internally to fetch a value form a map using a list of keys
      *
-     * @param map the map wanted to fetch data form
+     * @param map  the map wanted to fetch data form
      * @param keys the list of keys that point on the value
      * @return the wanted value as {@link Object}
      */
@@ -287,6 +287,7 @@ public class YAMLFileManager {
 
     /**
      * Used internally to fetch data from keys that have an index for a list in it
+     *
      * @param map the map wanted to fetch data form
      * @param key the key that has the index on it
      * @return the wanted value as {@link Object}
@@ -307,6 +308,7 @@ public class YAMLFileManager {
 
     /**
      * Used internally to fetch all data existed in the YAML file
+     *
      * @return all data in the YAML file as {@link Map} of {@link String} and {@link Object}
      */
     private Map<String, Object> getData() {
@@ -320,6 +322,7 @@ public class YAMLFileManager {
 
     /**
      * Used internally to load the wanted YAML file
+     *
      * @return {@link FileInputStream} instance of the desired file
      */
     private FileInputStream getFile() {
@@ -337,6 +340,7 @@ public class YAMLFileManager {
 
     /**
      * Used internally to close the opened file
+     *
      * @param file the file wanted to be closed
      */
     private void closeFile(FileInputStream file) {
@@ -350,6 +354,7 @@ public class YAMLFileManager {
 
     /**
      * Used internally to fetch the index or indexes from the key that support list
+     *
      * @param key the key that contains one or more index
      * @return a {@link List<Integer>} that contains one or more index
      */
@@ -373,10 +378,10 @@ public class YAMLFileManager {
     /**
      * Used internally to parse {@link Object} to be any type
      *
-     * @param obj the value wanted to be parsed
+     * @param obj   the value wanted to be parsed
      * @param clazz the class that data wanted to be parsed for
+     * @param <T>   the wanted type
      * @return the value as {@link T}
-     * @param <T> the wanted type
      */
     private <T> T parseObjectTo(Object obj, Class<T> clazz) {
         T v;
@@ -394,10 +399,10 @@ public class YAMLFileManager {
     /**
      * Used internally to parse {@link Object} to be a {@link List<T>}
      *
-     * @param obj the value wanted to be parsed
+     * @param obj   the value wanted to be parsed
      * @param clazz the class that data wanted to be parsed for
+     * @param <T>   the wanted type
      * @return the value as {@link List<T>}
-     * @param <T> the wanted type
      */
     private <T> List<T> parseObjectToList(Object obj, Class<T> clazz) {
         if (obj instanceof List<?> list) {
@@ -413,10 +418,10 @@ public class YAMLFileManager {
     /**
      * Used internally to parse {@link Object} to be a {@link Map} of {@link String} and {@link T}
      *
-     * @param obj the value wanted to be parsed
+     * @param obj   the value wanted to be parsed
      * @param clazz the class that data wanted to be parsed for
+     * @param <T>   the wanted type
      * @return the value as {@link Map} of {@link String} and {@link T}
-     * @param <T> the wanted type
      */
     private <T> Map<String, T> parseObjectToMap(Object obj, Class<T> clazz) {
         if (obj instanceof Map<?, ?> map) {

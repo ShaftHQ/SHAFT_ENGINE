@@ -87,14 +87,14 @@ Feature: Basic SHAFT_Engine BDD POC
   Scenario: Element visual assertions
     Given I Open the target browser
     When I Navigate to "https://shafthq.github.io/"
-    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", exactly matches with the expected reference image using Artificial Intelligence OpenCV
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", does not exactly match with the expected reference image using Artificial Intelligence OpenCV
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", exactly matches with the expected reference image using Artificial Intelligence Applitools Eyes
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", does not exactly match with the expected reference image using Artificial Intelligence Applitools Eyes
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", strictly matches with the expected reference image using Artificial Intelligence Applitools Eyes
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", does not strictly match with the expected reference image using Artificial Intelligence Applitools Eyes
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", matches the content of the expected reference image using Artificial Intelligence Applitools Eyes
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", does not match the content of the expected reference image using Artificial Intelligence Applitools Eyes
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", matches the layout of the expected reference image using Artificial Intelligence Applitools Eyes
-#    Then I Assert that the element found by "xpath": "//img[contains(@src,'shaft.svg')]", does not match the layout of the expected reference image using Artificial Intelligence Applitools Eyes
+    Then I Assert that the element found by "xpath": "(//img[contains(@src,'shaft.svg')])[1]", exactly matches with the expected reference image using Artificial Intelligence OpenCV
+#    Then I Assert that the element found by "xpath": "(//img[contains(@src,'shaft.svg')])[1]", does not exactly match with the expected reference image using Artificial Intelligence OpenCV
+#    Then I Assert that the element found by "xpath": "(//img[contains(@src,'shaft.svg')])[1]", exactly matches with the expected reference image using Artificial Intelligence Applitools Eyes
+#    Then I Assert that the element found by "xpath": "(//img[contains(@src,'shaft.svg')])[1]", does not exactly match with the expected reference image using Artificial Intelligence Applitools Eyes
+#    Then I Assert that the element found by "xpath": "(//img[contains(@src,'shaft.svg')])[1]", strictly matches with the expected reference image using Artificial Intelligence Applitools Eyes
+#    Then I Assert that the element found by "xpath": "(//img[contains(@src,'shaft.svg')])[1]", does not strictly match with the expected reference image using Artificial Intelligence Applitools Eyes
+#    Then I Assert that the element found by "xpath": "(//img[contains(@src,'shaft.svg')])[1]", matches the content of the expected reference image using Artificial Intelligence Applitools Eyes
+#    Then I Assert that the element found by "xpath": "(//img[contains(@src,'shaft.svg')])[1]", does not match the content of the expected reference image using Artificial Intelligence Applitools Eyes
+#    Then I Assert that the element found by "xpath": "(//img[contains(@src,'shaft.svg')])[1]", matches the layout of the expected reference image using Artificial Intelligence Applitools Eyes
+#    Then I Assert that the element found by "xpath": "(//img[contains(@src,'shaft.svg')])[1]", does not match the layout of the expected reference image using Artificial Intelligence Applitools Eyes
     And I Close the current window

@@ -17,9 +17,6 @@ public class JunitListenerHelper {
 
         if (testIdentifier.isTest()) {
             ReportManagerHelper.logTestInformation(className, methodName, methodDescription);
-            ReportManagerHelper.extentReportsCreateTest(className + "." + methodName, methodDescription);
-        } else {
-            ReportManagerHelper.extentReportsReset();
         }
     }
 }

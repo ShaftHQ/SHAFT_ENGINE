@@ -15,15 +15,14 @@ public class ConfigurationHelper {
         ReportHelper.attachPropertyFiles();
     }
 
-    @AfterTest(description = "Engine Teardown", alwaysRun = true)
-    public void engineTeardown() {
+    @AfterTest(description = "Engine Tear down", alwaysRun = true)
+    public void engineTearDown() {
         attachLogsAndReports();
     }
 
     @Step("Attaching Reports")
     private void attachLogsAndReports() {
         ReportHelper.attachEngineLog();
-        ReportHelper.attachExtentReport();
         ReportHelper.attachCucumberReport();
         CheckpointCounter.attach();
         ReportHelper.attachIssuesLog();

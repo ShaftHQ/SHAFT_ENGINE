@@ -8,11 +8,11 @@ import org.openqa.selenium.By;
 
 public class JunitTest {
 
-    SHAFT.GUI.WebDriver driver;
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @Test
     void testMethod() {
-        driver.element().type(By.id("et_pb_contact_name_0"), "TEST_NAME")
+        driver.get().element().type(By.id("et_pb_contact_name_0"), "TEST_NAME")
                 .type(By.id("et_pb_contact_email_0"), "email@email.email")
                 .type(By.id("et_pb_contact_message_0"), """
                         This is a long message
@@ -37,7 +37,7 @@ public class JunitTest {
 
     @Test
     void testMethod2() {
-        driver.element().type(By.id("et_pb_contact_name_0"), "TEST_NAME")
+        driver.get().element().type(By.id("et_pb_contact_name_0"), "TEST_NAME")
                 .type(By.id("et_pb_contact_email_0"), "email@email.email")
                 .type(By.id("et_pb_contact_message_0"), """
                         This is a long message
@@ -62,12 +62,12 @@ public class JunitTest {
 
     @BeforeEach
     void beforeEach() {
-        driver = new SHAFT.GUI.WebDriver();
-        driver.browser().navigateToURL("https://ultimateqa.com/complicated-page");
+        driver.set(new SHAFT.GUI.WebDriver());
+        driver.get().browser().navigateToURL("https://ultimateqa.com/complicated-page");
     }
 
     @AfterEach
     void afterEach() {
-        driver.quit();
+        driver.get().quit();
     }
 }

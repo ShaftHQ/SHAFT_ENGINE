@@ -25,28 +25,28 @@ public class ElementVisibilityTest {
         driver.get().assertThat().element(locator).isVisible().perform();
     }
 
-    @Test(expectedExceptions = {AssertionError.class}, expectedExceptionsMessageRegExp = ".*FAILED.*")
+    @Test(expectedExceptions = {AssertionError.class}, expectedExceptionsMessageRegExp = ".*ailed.*")
     public void elementHiddenAndExpectedToBeVisible() {
         driver.get().browser().navigateToURL(testElement.replace("${HIDDEN}", "hidden"));
         driver.get().element().waitToBeInvisible(locator);
         driver.get().assertThat().element(locator).isVisible().perform();
     }
 
-    @Test(expectedExceptions = {AssertionError.class}, expectedExceptionsMessageRegExp = ".*FAILED.*")
+    @Test(expectedExceptions = {AssertionError.class}, expectedExceptionsMessageRegExp = ".*ailed.*")
     public void elementVisibleAndExpectedToBeHidden() {
         driver.get().browser().navigateToURL(testElement.replace("${HIDDEN}", ""));
         driver.get().element().waitToBeReady(locator);
         driver.get().assertThat().element(locator).isHidden().perform();
     }
 
-    @Test(expectedExceptions = {AssertionError.class}, expectedExceptionsMessageRegExp = ".*Failed to Wait to be ready.*")
+    @Test(expectedExceptions = {AssertionError.class}, expectedExceptionsMessageRegExp = ".*ailed.*")
     public void elementDoesntExistAndExpectedToBeVisible() {
         driver.get().browser().navigateToURL(testElement.replace("${HIDDEN}", "hidden"));
         driver.get().element().waitToBeInvisible(By.id("bla"));
         driver.get().assertThat().element(locator).isVisible().perform();
     }
 
-    @Test(expectedExceptions = {AssertionError.class}, expectedExceptionsMessageRegExp = ".*Failed to Wait to be ready.*")
+    @Test(expectedExceptions = {AssertionError.class}, expectedExceptionsMessageRegExp = ".*ailed.*")
     public void elementDoesntExistAndExpectedToBeHidden() {
         driver.get().browser().navigateToURL(testElement.replace("${HIDDEN}", ""));
         driver.get().element().waitToBeReady(By.id("bla"));

@@ -4,8 +4,8 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
-import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.PdfFileManager;
+import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.ValidationEnums;
 import io.qameta.allure.Step;
 import io.restassured.response.Response;
@@ -20,8 +20,8 @@ public class ValidationsExecutor {
     private final ValidationEnums.ValidationCategory validationCategory;
     private final ValidationEnums.ValidationType validationType;
     private final String validationMethod;
+    @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private String validationCategoryString;
-    private String validationMethodString;
     private WebDriver driver;
     private By locator;
     private String customReportMessage = "";
@@ -137,66 +137,71 @@ public class ValidationsExecutor {
      * Execute this validation
      */
     public void perform() {
-        JavaScriptWaitManager.waitForLazyLoading(driver);
-        if (customReportMessage.isBlank()) {
-            customReportMessage = reportMessageBuilder.toString();
-        }
-        validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert that" : "Verify that";
-        validationMethodString = JavaHelper.convertToSentenceCase(validationMethod).toLowerCase();
-        performValidation();
+        ReportManager.log(customReportMessage);
     }
 
-    @Step(" {this.validationCategoryString} {this.validationMethodString}")
+    protected void internalPerform() {
+        JavaScriptWaitManager.waitForLazyLoading(driver);
+        boolean clearCustomReportMessage = false;
+        if (customReportMessage.isBlank()) {
+            customReportMessage = reportMessageBuilder.toString();
+            clearCustomReportMessage = true;
+        }
+        this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
+        performValidation();
+        if (Boolean.TRUE.equals(clearCustomReportMessage))
+            customReportMessage = "";
+    }
+
+    @Step(" {this.validationCategoryString} that {this.customReportMessage}")
     private void performValidation() {
         switch (validationMethod) {
-            case "forceFail" -> ValidationsHelper.validateFail(validationCategory, customReportMessage);
+            case "forceFail" -> new ValidationsHelper().validateFail(validationCategory, customReportMessage);
             case "objectsAreEqual" ->
-                    ValidationsHelper.validateEquals(validationCategory, expectedValue, actualValue, validationComparisonType, validationType, customReportMessage);
-            case "objectIsNull" ->
-                    ValidationsHelper.validateNull(validationCategory, actualValue, validationType, customReportMessage);
+                    new ValidationsHelper2(validationCategory).validateEquals(expectedValue, actualValue, validationComparisonType, validationType);
             case "conditionIsTrue" ->
-                    ValidationsHelper.validateTrue(validationCategory, condition, validationType, customReportMessage);
+                    new ValidationsHelper().validateTrue(validationCategory, condition, validationType, customReportMessage);
             case "elementExists" ->
-                    ValidationsHelper.validateElementExists(validationCategory, driver, locator, validationType, customReportMessage);
+                    new ValidationsHelper2(validationCategory).validateElementExists(driver, locator, validationType);
             case "elementMatches" ->
-                    ValidationsHelper.validateElementMatches(validationCategory, driver, locator, visualValidationEngine, validationType, customReportMessage);
+                    new ValidationsHelper().validateElementMatches(validationCategory, driver, locator, visualValidationEngine, validationType, customReportMessage);
             case "elementAttributeEquals" ->
-                    ValidationsHelper.validateElementAttribute(validationCategory, driver, locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType, customReportMessage);
+                    new ValidationsHelper2(validationCategory).validateElementAttribute(driver, locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "elementCssPropertyEquals" ->
-                    ValidationsHelper.validateElementCSSProperty(driver, validationCategory, locator, elementCssProperty, String.valueOf(expectedValue), validationComparisonType, validationType, customReportMessage);
+                    new ValidationsHelper2(validationCategory).validateElementCSSProperty(driver, locator, elementCssProperty, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "browserAttributeEquals" ->
-                    ValidationsHelper.validateBrowserAttribute(validationCategory, driver, browserAttribute, String.valueOf(expectedValue), validationComparisonType, validationType, customReportMessage);
+                    new ValidationsHelper2(validationCategory).validateBrowserAttribute(driver, browserAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "comparativeRelationBetweenNumbers" ->
-                    ValidationsHelper.validateComparativeRelation(validationCategory, (Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType, customReportMessage);
+                    new ValidationsHelper2(validationCategory).validateNumber((Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType);
             case "fileExists" ->
-                    ValidationsHelper.validateFileExists(validationCategory, folderRelativePath, fileName, 5, validationType, customReportMessage);
+                    new ValidationsHelper().validateFileExists(validationCategory, folderRelativePath, fileName, 5, validationType, customReportMessage);
             case "responseEqualsFileContent" ->
-                    ValidationsHelper.validateJSONFileContent(validationCategory, (Response) response, fileAbsolutePath, restComparisonType, "", validationType, customReportMessage);
+                    new ValidationsHelper().validateJSONFileContent(validationCategory, (Response) response, fileAbsolutePath, restComparisonType, "", validationType, customReportMessage);
             case "jsonPathValueEquals" ->
-                    ValidationsHelper.validateEquals(validationCategory, expectedValue, RestActions.getResponseJSONValue(response, jsonPath), validationComparisonType, validationType, customReportMessage);
+                    new ValidationsHelper2(validationCategory).validateEquals(expectedValue, RestActions.getResponseJSONValue(response, jsonPath), validationComparisonType, validationType);
             case "jsonPathValueAsListEquals" -> {
                 for (Object value : Objects.requireNonNull(RestActions.getResponseJSONValueAsList((Response) response, jsonPath))) {
-                    ValidationsHelper.validateEquals(validationCategory, expectedValue, value.toString(), validationComparisonType, validationType, customReportMessage);
+                    new ValidationsHelper2(validationCategory).validateEquals(expectedValue, value.toString(), validationComparisonType, validationType);
                 }
             }
             case "responseBody" ->
-                    ValidationsHelper.validateEquals(validationCategory, expectedValue, RestActions.getResponseBody((Response) response), validationComparisonType, validationType, customReportMessage);
+                    new ValidationsHelper2(validationCategory).validateEquals(expectedValue, RestActions.getResponseBody((Response) response), validationComparisonType, validationType);
             case "responseTime" ->
-                    ValidationsHelper.validateComparativeRelation(validationCategory, (Number) expectedValue, RestActions.getResponseTime((Response) response), numbersComparativeRelation, validationType, customReportMessage);
+                    new ValidationsHelper2(validationCategory).validateNumber((Number) expectedValue, RestActions.getResponseTime((Response) response), numbersComparativeRelation, validationType);
             case "checkResponseSchema" ->
-                    ValidationsHelper.validateResponseFileSchema(validationCategory, (Response) response, fileAbsolutePath, restComparisonType, "", validationType, customReportMessage);
+                    new ValidationsHelper().validateResponseFileSchema(validationCategory, (Response) response, fileAbsolutePath, restComparisonType, "", validationType, customReportMessage);
             case "fileContent" -> {
                 String fileContent;
                 if (fileName.contains(".pdf")) {
                     fileContent = PdfFileManager.readFileContent(folderRelativePath + fileName);
                 } else {
-                    fileContent = FileActions.getInstance().readFile(folderRelativePath, fileName);
+                    fileContent = FileActions.getInstance(true).readFile(folderRelativePath, fileName);
                 }
-                ValidationsHelper.validateEquals(validationCategory, expectedValue, fileContent, validationComparisonType, validationType, customReportMessage);
+                new ValidationsHelper2(validationCategory).validateEquals(expectedValue, fileContent, validationComparisonType, validationType);
             }
             case "fileChecksum" -> {
-                var fileChecksum = FileActions.getInstance().getFileChecksum(new TerminalActions(), folderRelativePath, fileName);
-                ValidationsHelper.validateEquals(validationCategory, expectedValue, fileChecksum, validationComparisonType, validationType, customReportMessage);
+                var fileChecksum = FileActions.getInstance(true).getFileChecksum(new TerminalActions(), folderRelativePath, fileName);
+                new ValidationsHelper2(validationCategory).validateEquals(expectedValue, fileChecksum, validationComparisonType, validationType);
             }
             default -> {
             }

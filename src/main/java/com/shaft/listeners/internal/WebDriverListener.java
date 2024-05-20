@@ -1,7 +1,7 @@
 package com.shaft.listeners.internal;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -10,16 +10,11 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.FluentWait;
-import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
-import java.time.Duration;
 import java.util.Arrays;
-
-import static com.shaft.gui.element.internal.ElementActionsHelper.getExpectedExceptions;
 
 public class WebDriverListener implements org.openqa.selenium.support.events.WebDriverListener, io.appium.java_client.proxy.MethodCallListener {
     private static final double DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
@@ -34,7 +29,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
 
     public void onError(Object target, Method method, Object[] args, InvocationTargetException e) {
         ReportManager.log(JavaHelper.convertToSentenceCase(method.getName()) + " action failed.");
-        ReportManagerHelper.attach(ScreenshotManager.captureScreenShot(currentWebDriver, method.getName(), false));
+//        ReportManagerHelper.attach(ScreenshotManager.takeScreenshot(currentWebDriver, null, method.getName(), false));
         ReportManagerHelper.logDiscrete(e);
     }
 
@@ -59,11 +54,8 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
         currentWebDriver = driver;
         if (SHAFT.Properties.flags.respectBuiltInWaitsInNativeMode()) {
             try {
-                new FluentWait<>(driver)
-                        .withTimeout(Duration.ofMillis((long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT))
-                        .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
-                        .ignoreAll(getExpectedExceptions(false))
-                        .until(nestedDriver -> nestedDriver.findElement(locator));
+                new SynchronizationManager(driver).fluentWait(false)
+                        .until(f -> driver.findElement(locator));
             } catch (org.openqa.selenium.TimeoutException timeoutException) {
                 // In case the element was not found / not visible and the timeout expired
                 ReportManager.logDiscrete(timeoutException.getMessage() + " || " + timeoutException.getCause().getMessage().substring(0, timeoutException.getCause().getMessage().indexOf("\n")));
@@ -74,12 +66,12 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
 
     public void afterClose(WebDriver driver) {
         currentWebDriver = driver;
-            ReportManager.log("Successfully Closed Driver.");
+        ReportManager.log("Successfully Closed Driver.");
     }
 
     public void afterQuit(WebDriver driver) {
         currentWebDriver = driver;
-            ReportManager.log("Successfully Quit Driver.");
+        ReportManager.log("Successfully Quit Driver.");
     }
 
     // WebElement
@@ -87,8 +79,8 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     public void beforeClick(WebElement element) {
         if (SHAFT.Properties.flags.respectBuiltInWaitsInNativeMode()) {
             try {
-                (new WebDriverWait(currentWebDriver, Duration.ofMillis((long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
-                        .until(ExpectedConditions.elementToBeClickable(element));
+                new SynchronizationManager(currentWebDriver).fluentWait(false)
+                        .until(f -> ExpectedConditions.elementToBeClickable(element));
             } catch (org.openqa.selenium.TimeoutException timeoutException) {
                 ReportManagerHelper.logDiscrete(timeoutException);
                 throw timeoutException;
@@ -168,7 +160,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     // Alert
 
     public void beforeSendKeys(Alert alert, String text) {
-            ReportManager.log("Type \"" + text + "\" into Alert.");
+        ReportManager.log("Type \"" + text + "\" into Alert.");
     }
 
     // Options

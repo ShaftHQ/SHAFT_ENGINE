@@ -1719,3 +1719,4 @@ OpenLHReport.js
 /src/main/resources/docker-compose/data/storage/prj-users/superadmin
 /src/main/resources/docker-compose/data/storage/prj-users/thumbnail-default
 /src/main/resources/docker-compose/data/storage/prj-users/thumbnail-superadmin
+/src/test/resources/testDataFiles/allure-results/environment.xml

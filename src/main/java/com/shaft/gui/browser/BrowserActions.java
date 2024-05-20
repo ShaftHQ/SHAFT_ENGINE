@@ -18,6 +18,8 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
 import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
@@ -32,34 +34,39 @@ import org.openqa.selenium.remote.http.Route;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.net.URI;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
-@SuppressWarnings("unused")
+@SuppressWarnings({"unused", "UnusedReturnValue"})
 public class BrowserActions extends FluentWebDriverAction {
     public BrowserActions() {
         initialize();
     }
+
     public BrowserActions(WebDriver driver) {
         initialize(driver);
     }
+
+    public BrowserActions(WebDriver driver, boolean isSilent) {
+        initialize(driver, isSilent);
+    }
+
     public BrowserActions(DriverFactoryHelper helper) {
         initialize(helper);
     }
+
     public BrowserActions and() {
         return this;
     }
+
     public WebDriverBrowserValidationsBuilder assertThat() {
-        return new WizardHelpers.WebDriverAssertions(helper).browser();
+        return new WizardHelpers.WebDriverAssertions(driverFactoryHelper).browser();
     }
+
     public WebDriverBrowserValidationsBuilder verifyThat() {
-        return new WizardHelpers.WebDriverVerifications(helper).browser();
+        return new WizardHelpers.WebDriverVerifications(driverFactoryHelper).browser();
     }
 
     /**
@@ -72,8 +79,8 @@ public class BrowserActions extends FluentWebDriverAction {
      */
     @SuppressWarnings("UnusedReturnValue")
     public BrowserActions capturePageSnapshot() {
-        var serializedPageData = BrowserActionsHelper.capturePageSnapshot(driver);
-        BrowserActionsHelper.passAction(driver, serializedPageData);
+        var serializedPageData = browserActionsHelper.capturePageSnapshot(driver);
+        browserActionsHelper.passAction(driver, serializedPageData);
         return this;
     }
 
@@ -86,9 +93,9 @@ public class BrowserActions extends FluentWebDriverAction {
         var currentURL = "";
         try {
             currentURL = driver.getCurrentUrl();
-            BrowserActionsHelper.passAction(driver, currentURL);
+            browserActionsHelper.passAction(driver, currentURL);
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(driver, currentURL, rootCauseException);
+            browserActionsHelper.failAction(driver, currentURL, rootCauseException);
         }
         return currentURL;
     }
@@ -102,9 +109,9 @@ public class BrowserActions extends FluentWebDriverAction {
         var currentWindowTitle = "";
         try {
             currentWindowTitle = driver.getTitle();
-            BrowserActionsHelper.passAction(driver, currentWindowTitle);
+            browserActionsHelper.passAction(driver, currentWindowTitle);
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(driver, currentWindowTitle, rootCauseException);
+            browserActionsHelper.failAction(driver, currentWindowTitle, rootCauseException);
         }
         return currentWindowTitle;
     }
@@ -118,13 +125,13 @@ public class BrowserActions extends FluentWebDriverAction {
         var pageSource = "";
         try {
             pageSource = driver.getPageSource();
-            BrowserActionsHelper.passAction(driver, pageSource);
+            browserActionsHelper.passAction(driver, pageSource);
         } catch (org.openqa.selenium.JavascriptException javascriptException) {
             //try again
             JavaScriptWaitManager.waitForLazyLoading(driver);
             return getPageSource();
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(driver, pageSource, rootCauseException);
+            browserActionsHelper.failAction(driver, pageSource, rootCauseException);
         }
         return pageSource;
     }
@@ -138,9 +145,9 @@ public class BrowserActions extends FluentWebDriverAction {
         var windowHandle = "";
         try {
             windowHandle = driver.getWindowHandle();
-            BrowserActionsHelper.passAction(driver, windowHandle);
+            browserActionsHelper.passAction(driver, windowHandle);
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(driver, windowHandle, rootCauseException);
+            browserActionsHelper.failAction(driver, windowHandle, rootCauseException);
         }
         return windowHandle;
     }
@@ -154,9 +161,9 @@ public class BrowserActions extends FluentWebDriverAction {
         var windowPosition = "";
         try {
             windowPosition = driver.manage().window().getPosition().toString();
-            BrowserActionsHelper.passAction(driver, windowPosition);
+            browserActionsHelper.passAction(driver, windowPosition);
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(driver, windowPosition, rootCauseException);
+            browserActionsHelper.failAction(driver, windowPosition, rootCauseException);
         }
         return windowPosition;
     }
@@ -170,9 +177,9 @@ public class BrowserActions extends FluentWebDriverAction {
         var windowSize = "";
         try {
             windowSize = driver.manage().window().getSize().toString();
-            BrowserActionsHelper.passAction(driver, windowSize);
+            browserActionsHelper.passAction(driver, windowSize);
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(driver, windowSize, rootCauseException);
+            browserActionsHelper.failAction(driver, windowSize, rootCauseException);
         }
         return windowSize;
     }
@@ -187,7 +194,7 @@ public class BrowserActions extends FluentWebDriverAction {
         try {
             windowHeight = String.valueOf(driver.manage().window().getSize().getHeight());
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(driver, windowHeight, rootCauseException);
+            browserActionsHelper.failAction(driver, windowHeight, rootCauseException);
         }
         return windowHeight;
     }
@@ -202,7 +209,7 @@ public class BrowserActions extends FluentWebDriverAction {
         try {
             windowWidth = String.valueOf(driver.manage().window().getSize().getWidth());
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(driver, windowWidth, rootCauseException);
+            browserActionsHelper.failAction(driver, windowWidth, rootCauseException);
         }
         return windowWidth;
     }
@@ -223,21 +230,19 @@ public class BrowserActions extends FluentWebDriverAction {
         var handleBeforeNavigation = driver.getWindowHandle();
         try {
             switch (windowType) {
-                case TAB ->
-                        driver.switchTo().newWindow(WindowType.TAB).navigate().to(targetUrl);
-                case WINDOW ->
-                        driver.switchTo().newWindow(WindowType.WINDOW).navigate().to(targetUrl);
+                case TAB -> driver.switchTo().newWindow(WindowType.TAB).navigate().to(targetUrl);
+                case WINDOW -> driver.switchTo().newWindow(WindowType.WINDOW).navigate().to(targetUrl);
             }
             JavaScriptWaitManager.waitForLazyLoading(driver);
             var handleAfterNavigation = driver.getWindowHandle();
             if (!handleBeforeNavigation.equals(handleAfterNavigation)) {
                 ReportManager.logDiscrete("Old Tab Handle: \"" + handleBeforeNavigation + "\", New Tab handle : \"" + handleAfterNavigation + "\"");
-                BrowserActionsHelper.passAction(driver, targetUrl);
+                browserActionsHelper.passAction(driver, targetUrl);
             } else {
-                BrowserActionsHelper.failAction(driver, targetUrl);
+                browserActionsHelper.failAction(driver, targetUrl);
             }
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(driver, targetUrl, rootCauseException);
+            browserActionsHelper.failAction(driver, targetUrl, rootCauseException);
         }
         return this;
     }
@@ -257,8 +262,8 @@ public class BrowserActions extends FluentWebDriverAction {
      */
     public BrowserActions navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
         //reset scope in case user was stuck inside an iFrame
-        LocatorBuilder.setIFrameLocator(null);
-        ShadowLocatorBuilder.shadowDomLocator = null;
+        LocatorBuilder.getIFrameLocator().remove();
+        ShadowLocatorBuilder.shadowDomLocator.remove();
 
         String modifiedTargetUrl = targetUrl;
         var baseUrl = SHAFT.Properties.web.baseURL();
@@ -293,7 +298,7 @@ public class BrowserActions extends FluentWebDriverAction {
             ReportManager.logDiscrete("Initial URL: \"" + initialURL + "\"");
             if (!initialURL.equals(modifiedTargetUrl)) {
                 // navigate to new url
-                BrowserActionsHelper.navigateToNewUrl(driver, initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
+                browserActionsHelper.navigateToNewUrl(driver, initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
             } else {
                 // already on the same page
                 driver.navigate().refresh();
@@ -301,11 +306,11 @@ public class BrowserActions extends FluentWebDriverAction {
             JavaScriptWaitManager.waitForLazyLoading(driver);
             if (!targetUrl.contains("\n")) {
                 // it can contain line breaks for mocked HTML pages that are used for internal testing only
-                BrowserActionsHelper.confirmThatWebsiteIsNotDown(driver, modifiedTargetUrl);
+                browserActionsHelper.confirmThatWebsiteIsNotDown(driver, modifiedTargetUrl);
             }
-            BrowserActionsHelper.passAction(driver, modifiedTargetUrl);
+            browserActionsHelper.passAction(driver, modifiedTargetUrl);
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(driver, modifiedTargetUrl, rootCauseException);
+            browserActionsHelper.failAction(driver, modifiedTargetUrl, rootCauseException);
         }
         return this;
     }
@@ -330,13 +335,13 @@ public class BrowserActions extends FluentWebDriverAction {
     @SuppressWarnings("UnusedReturnValue")
     public BrowserActions navigateToURLWithBasicAuthentication(String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
         try {
-            String domainName = BrowserActionsHelper.getDomainNameFromUrl(targetUrl);
+            String domainName = browserActionsHelper.getDomainNameFromUrl(targetUrl);
             if (SHAFT.Properties.platform.executionAddress().equals("local")) {
                 Predicate<URI> uriPredicate = uri -> uri.getHost().contains(domainName);
                 ((HasAuthentication) driver).register(uriPredicate, UsernameAndPassword.of(username, password));
             } else {
                 AtomicReference<DevTools> devToolsAtomicReference = new AtomicReference<>();
-                helper.setDriver(new Augmenter().addDriverAugmentation("chrome",
+                driverFactoryHelper.setDriver(new Augmenter().addDriverAugmentation("chrome",
                         HasAuthentication.class,
                         (caps, exec) -> (whenThisMatches, useTheseCredentials) -> {
                             devToolsAtomicReference.get()
@@ -353,7 +358,7 @@ public class BrowserActions extends FluentWebDriverAction {
             }
         } catch (Exception e) {
             ReportManagerHelper.logDiscrete(e);
-            targetUrl = BrowserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
+            targetUrl = browserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
         }
         return navigateToURL(targetUrl, targetUrlAfterAuthentication);
     }
@@ -398,18 +403,18 @@ public class BrowserActions extends FluentWebDriverAction {
             }
             JavaScriptWaitManager.waitForLazyLoading(driver);
             if (!navigationAction.equals(NavigationAction.REFRESH)) {
-                BrowserActionsHelper.waitUntilUrlIsNot(driver, initialURL);
+                browserActionsHelper.waitUntilUrlIsNot(driver, initialURL);
                 newURL = driver.getCurrentUrl();
                 if (!newURL.equals(initialURL)) {
-                    BrowserActionsHelper.passAction(driver, "Navigate " + navigationAction + " to " + newURL);
+                    browserActionsHelper.passAction(driver, "Navigate " + navigationAction + " to " + newURL);
                 } else {
-                    BrowserActionsHelper.failAction(driver, newURL);
+                    browserActionsHelper.failAction(driver, newURL);
                 }
             } else {
-                BrowserActionsHelper.passAction(driver, "Navigate " + navigationAction + " to " + newURL);
+                browserActionsHelper.passAction(driver, "Navigate " + navigationAction + " to " + newURL);
             }
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(driver, newURL, rootCauseException);
+            browserActionsHelper.failAction(driver, newURL, rootCauseException);
         }
         return this;
     }
@@ -425,21 +430,21 @@ public class BrowserActions extends FluentWebDriverAction {
             try {
                 // TODO: handle session timeout while attempting to close empty window
                 String lastPageSource = driver.getPageSource();
-                helper.closeDriver(driver);
-                BrowserActionsHelper.passAction(lastPageSource);
+                driverFactoryHelper.closeDriver(driver);
+                browserActionsHelper.passAction(lastPageSource);
             } catch (WebDriverException rootCauseException) {
                 if (rootCauseException.getMessage() != null
                         && (rootCauseException.getMessage().contains("was terminated due to TIMEOUT") || rootCauseException.getMessage().contains("Session ID is null"))) {
-                    BrowserActionsHelper.passAction(null);
+                    browserActionsHelper.passAction(null);
                 } else {
-                    BrowserActionsHelper.failAction(rootCauseException);
+                    browserActionsHelper.failAction(rootCauseException);
                 }
             } catch (Exception rootCauseException) {
-                BrowserActionsHelper.failAction(rootCauseException);
+                browserActionsHelper.failAction(rootCauseException);
             }
         } else {
             ReportManager.logDiscrete("Window is already closed and driver object is null.");
-            BrowserActionsHelper.passAction(null);
+            browserActionsHelper.passAction(null);
         }
         return this;
     }
@@ -463,12 +468,12 @@ public class BrowserActions extends FluentWebDriverAction {
         String executionAddress = SHAFT.Properties.platform.executionAddress();
 
         // try selenium WebDriver maximize
-        currentWindowSize = BrowserActionsHelper.attemptMaximizeUsingSeleniumWebDriver(driver, executionAddress, targetBrowserName,
+        currentWindowSize = browserActionsHelper.attemptMaximizeUsingSeleniumWebDriver(driver, executionAddress, targetBrowserName,
                 targetOperatingSystem);
         if ((initialWindowSize.height == currentWindowSize.height)
                 && (initialWindowSize.width == currentWindowSize.width)) {
             // attempt resize using toolkit
-            currentWindowSize = BrowserActionsHelper.attemptMaximizeUsingToolkitAndJavascript(driver, targetWidth, targetHeight);
+            currentWindowSize = browserActionsHelper.attemptMaximizeUsingToolkitAndJavascript(driver, targetWidth, targetHeight);
 
             if ((currentWindowSize.height != targetHeight)
                     || (currentWindowSize.width != targetWidth)) {
@@ -476,7 +481,7 @@ public class BrowserActions extends FluentWebDriverAction {
                 // also happens with chrome/windows
 
                 // attempt resize using WebDriver manage window
-                currentWindowSize = BrowserActionsHelper.attemptMaximizeUsingSeleniumWebDriverManageWindow(driver, targetWidth, targetHeight);
+                currentWindowSize = browserActionsHelper.attemptMaximizeUsingSeleniumWebDriverManageWindow(driver, targetWidth, targetHeight);
             }
 
             if ((currentWindowSize.height != targetHeight)
@@ -493,7 +498,7 @@ public class BrowserActions extends FluentWebDriverAction {
                 ReportManager.logDiscrete("skipping window maximization due to unknown error, marking step as passed.");
             }
         }
-        BrowserActionsHelper.passAction(driver, "New screen size is now: " + currentWindowSize);
+        browserActionsHelper.passAction(driver, "New screen size is now: " + currentWindowSize);
         return this;
     }
 
@@ -535,7 +540,7 @@ public class BrowserActions extends FluentWebDriverAction {
             ReportManager.logDiscrete("skipping window resizing due to unknown error, marking step as passed.");
         }
 
-        BrowserActionsHelper.passAction(driver, "New screen size is now: " + currentWindowSize);
+        browserActionsHelper.passAction(driver, "New screen size is now: " + currentWindowSize);
         return this;
     }
 
@@ -566,9 +571,9 @@ public class BrowserActions extends FluentWebDriverAction {
                     driver,
                     Route.matching(requestPredicate)
                             .to(() -> req -> mockedResponse));
-            BrowserActionsHelper.passAction(driver, "Successfully configured network interceptor.");
+            browserActionsHelper.passAction(driver, "Successfully configured network interceptor.");
         } catch (Exception rootCauseException) {
-            BrowserActionsHelper.failAction(rootCauseException);
+            browserActionsHelper.failAction(rootCauseException);
         }
         return this;
     }
@@ -590,27 +595,9 @@ public class BrowserActions extends FluentWebDriverAction {
         }
 
         ReportManager.logDiscrete("Current Windows Size after fullScreen: " + driver.manage().window().getSize().width + "x" + driver.manage().window().getSize().height);
-        BrowserActionsHelper.passAction(driver, driver.getPageSource());
+        browserActionsHelper.passAction(driver, driver.getPageSource());
         return this;
     }
-
-
-    /**
-     * Switches focus to another Tab
-     *
-     * @param targetUrl The name of the URL you want to navigate to
-     * @return a self-reference to be used to chain actions
-     */
-    @Deprecated
-    public BrowserActions switchToNewTab(String targetUrl) {
-        return navigateToURL(targetUrl, WindowType.TAB);
-    }
-
-    @Deprecated
-    public BrowserActions switchToNewWindow(String targetUrl) {
-        return navigateToURL(targetUrl, WindowType.WINDOW);
-    }
-
 
     /**
      * Switches focus to another window
@@ -619,13 +606,12 @@ public class BrowserActions extends FluentWebDriverAction {
      *                     ElementActions.getWindowHandle(WebDriver driver)
      * @return a self-reference to be used to chain actions
      */
-    @SuppressWarnings("UnusedReturnValue")
     public BrowserActions switchToWindow(String nameOrHandle) {
         if (driver.getWindowHandles().contains(nameOrHandle)) {
             driver.switchTo().window(nameOrHandle);
-            BrowserActionsHelper.passAction(driver, nameOrHandle);
+            browserActionsHelper.passAction(driver, nameOrHandle);
         } else {
-            BrowserActionsHelper.failAction(driver, nameOrHandle);
+            browserActionsHelper.failAction(driver, nameOrHandle);
         }
         return this;
     }
@@ -639,7 +625,7 @@ public class BrowserActions extends FluentWebDriverAction {
      */
     public BrowserActions addCookie(String key, String value) {
         driver.manage().addCookie(new Cookie(key, value));
-        BrowserActionsHelper.passAction(driver, "Add Cookie", "Key: " + key + " | Value: " + value);
+        browserActionsHelper.passAction(driver, "Add Cookie", "Key: " + key + " | Value: " + value);
         return this;
     }
 
@@ -652,7 +638,7 @@ public class BrowserActions extends FluentWebDriverAction {
     public Cookie getCookie(String cookieName) {
         Cookie cookie = driver.manage().getCookieNamed(cookieName);
         if (cookie == null) {
-            BrowserActionsHelper.failAction(driver, "Get Cookie: " + cookieName);
+            browserActionsHelper.failAction(driver, "Get Cookie: " + cookieName);
         }
         return cookie;
     }
@@ -664,7 +650,7 @@ public class BrowserActions extends FluentWebDriverAction {
      */
     public Set<Cookie> getAllCookies() {
         Set<Cookie> cookies = driver.manage().getCookies();
-        BrowserActionsHelper.passAction("");
+        browserActionsHelper.passAction("");
         return cookies;
     }
 
@@ -676,7 +662,7 @@ public class BrowserActions extends FluentWebDriverAction {
      */
     public String getCookieDomain(String cookieName) {
         String cookieDomain = getCookie(cookieName).getDomain();
-        BrowserActionsHelper.passAction(driver, "Get Cookie Domain with name: " + cookieName, cookieDomain);
+        browserActionsHelper.passAction(driver, "Get Cookie Domain with name: " + cookieName, cookieDomain);
         return cookieDomain;
     }
 
@@ -688,7 +674,7 @@ public class BrowserActions extends FluentWebDriverAction {
      */
     public String getCookieValue(String cookieName) {
         String cookieValue = getCookie(cookieName).getValue();
-        BrowserActionsHelper.passAction(driver, "Get Cookie Value with name: " + cookieName, cookieValue);
+        browserActionsHelper.passAction(driver, "Get Cookie Value with name: " + cookieName, cookieValue);
         return cookieValue;
     }
 
@@ -700,7 +686,7 @@ public class BrowserActions extends FluentWebDriverAction {
      */
     public String getCookiePath(String cookieName) {
         String cookiePath = getCookie(cookieName).getPath();
-        BrowserActionsHelper.passAction(driver, "Get Cookie Path with name: " + cookieName, cookiePath);
+        browserActionsHelper.passAction(driver, "Get Cookie Path with name: " + cookieName, cookiePath);
         return cookiePath;
     }
 
@@ -713,7 +699,7 @@ public class BrowserActions extends FluentWebDriverAction {
     @SuppressWarnings("UnusedReturnValue")
     public BrowserActions deleteCookie(String cookieName) {
         driver.manage().deleteCookieNamed(cookieName);
-        BrowserActionsHelper.passAction(driver, "Delete Cookie", cookieName);
+        browserActionsHelper.passAction(driver, "Delete Cookie", cookieName);
         return this;
     }
 
@@ -725,7 +711,7 @@ public class BrowserActions extends FluentWebDriverAction {
     @SuppressWarnings("UnusedReturnValue")
     public BrowserActions deleteAllCookies() {
         driver.manage().deleteAllCookies();
-        BrowserActionsHelper.passAction("");
+        browserActionsHelper.passAction("");
         return this;
     }
 
@@ -746,20 +732,9 @@ public class BrowserActions extends FluentWebDriverAction {
      * @return a self-reference for chainable actions
      */
     public BrowserActions captureScreenshot(Screenshots type) {
-        var logText = "Capture " + type.getValue().toLowerCase() + " screenshot";
-        switch (type) {
-            case FULL -> {
-                try {
-                    ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeFullPageScreenshot(driver), "captureScreenshot")));
-                } catch (IOException ioException){
-                    captureScreenshot(Screenshots.VIEWPORT);
-                }
-            }
-            case VIEWPORT ->
-                ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeViewportScreenshot(driver), "captureScreenshot")));
-            case ELEMENT ->
-                    BrowserActionsHelper.failAction(driver, "Were you trying to use driver.element().captureScreenshot() instead?");
-        }
+        var logText = "Capture " + type.name().toLowerCase() + " screenshot";
+        var screenshotManager = new ScreenshotManager();
+        ReportManagerHelper.log(logText, Collections.singletonList(screenshotManager.prepareImageForReport(screenshotManager.takeScreenshot(driver, null), "captureScreenshot")));
         return this;
     }
 
@@ -772,13 +747,13 @@ public class BrowserActions extends FluentWebDriverAction {
     @SuppressWarnings("UnusedReturnValue")
     public BrowserActions captureSnapshot() {
         var logMessage = "";
-        var pageSnapshot = BrowserActionsHelper.capturePageSnapshot(driver);
+        var pageSnapshot = browserActionsHelper.capturePageSnapshot(driver);
         if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
             logMessage = "Capture page snapshot";
         } else if (pageSnapshot.startsWith("<html")) {
             logMessage = "Capture page HTML";
         }
-        ReportManagerHelper.log(logMessage, List.of(Arrays.asList(logMessage, ScreenshotManager.generateAttachmentFileName("captureSnapshot"), new ByteArrayInputStream(pageSnapshot.getBytes()))));
+        ReportManagerHelper.log(logMessage, List.of(Arrays.asList(logMessage, new ScreenshotManager().generateAttachmentFileName("captureSnapshot"), new ByteArrayInputStream(pageSnapshot.getBytes()))));
         return this;
     }
 
@@ -792,48 +767,117 @@ public class BrowserActions extends FluentWebDriverAction {
     }
 
     public BrowserActions waitUntilTitleIs(String title) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.titleIs(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.titleIs(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
-    
+
     public BrowserActions waitUntilTitleContains(String title) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.titleContains(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.titleContains(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
-    
+
     public BrowserActions waitUntilTitleNotContains(String title) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.not(ExpectedConditions.titleContains(title)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.not(ExpectedConditions.titleContains(title)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlContains(String url) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.urlContains(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.urlContains(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlNotContains(String url) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.not(ExpectedConditions.urlContains(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.not(ExpectedConditions.urlContains(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlToBe(String url) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.urlToBe(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.urlToBe(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlNotToBe(String url) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.not(ExpectedConditions.urlToBe(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.not(ExpectedConditions.urlToBe(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilUrlMatches(String urlRegex) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.urlMatches(urlRegex), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.urlMatches(urlRegex), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
     }
 
     public BrowserActions waitUntilNumberOfWindowsToBe(int numberOfWindows) {
-        new WaitActions(helper).explicitWaits(ExpectedConditions.numberOfWindowsToBe(numberOfWindows), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.numberOfWindowsToBe(numberOfWindows), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
         return this;
+    }
+
+    /**
+     * Returns the handle for currently active context. This can be used to switch
+     * to this context at a later time.
+     *
+     * @return The current context handle
+     */
+    public String getContext() {
+        String context = "";
+        if (driver instanceof AndroidDriver androidDriver) {
+            context = androidDriver.getContext();
+        } else if (driver instanceof IOSDriver iosDriver) {
+            context = iosDriver.getContext();
+        } else {
+            elementActionsHelper.failAction(driver, null);
+        }
+        elementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
+        return context;
+    }
+
+    /**
+     * Switches focus to another context
+     *
+     * @param context The name of the context or the handle as returned by
+     *                ElementActions.getContext(WebDriver driver)
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions setContext(String context) {
+        if (driver instanceof AndroidDriver androidDriver) {
+            androidDriver.context(context);
+        } else if (driver instanceof IOSDriver iosDriver) {
+            iosDriver.context(context);
+        } else {
+            elementActionsHelper.failAction(driver, context, null);
+        }
+        elementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
+        return this;
+    }
+
+    /**
+     * Returns a list of unique handles for all the currently open windows. This can
+     * be used to switch to any of these windows at a later time.
+     *
+     * @return list of window handles
+     */
+    public List<String> getWindowHandles() {
+        List<String> windowHandles = new ArrayList<>(driver.getWindowHandles());
+        elementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
+        return windowHandles;
+    }
+
+    /**
+     * Returns a list of unique handles for all the currently open contexts. This
+     * can be used to switch to any of these contexts at a later time.
+     *
+     * @return list of context handles
+     */
+    public List<String> getContextHandles() {
+        List<String> windowHandles = new ArrayList<>();
+        if (driver instanceof AndroidDriver androidDriver) {
+            windowHandles.addAll(androidDriver.getContextHandles());
+        } else if (driver instanceof IOSDriver iosDriver) {
+            windowHandles.addAll(iosDriver.getContextHandles());
+        } else {
+            elementActionsHelper.failAction(driver, null);
+        }
+        elementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
+        return windowHandles;
     }
 
 }

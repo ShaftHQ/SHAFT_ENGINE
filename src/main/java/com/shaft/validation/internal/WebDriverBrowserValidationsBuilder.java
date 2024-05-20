@@ -6,11 +6,9 @@ import org.openqa.selenium.WebDriver;
 public class WebDriverBrowserValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
     protected final WebDriver driver;
-
+    protected final StringBuilder reportMessageBuilder;
     protected String validationMethod;
     protected String browserAttribute;
-
-    protected final StringBuilder reportMessageBuilder;
 
     public WebDriverBrowserValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, WebDriver driver, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;

@@ -9,6 +9,12 @@ on:
 
 jobs:
   build_release_and_deliver:
+    env:
+      gpg.keyname: ${{ secrets.GPG_KEYNAME }}
+      gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+      MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Code
@@ -19,13 +25,13 @@ jobs:
           java-version: '21'
           distribution: 'zulu'
           check-latest: true
-          server-id: ossrh
+          server-id: central
           server-username: MAVEN_USERNAME
           server-password: MAVEN_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       # Captures the engine version from the pom.xml
@@ -35,7 +41,7 @@ jobs:
       # Attempt to create a GitHub release using the version in the pom.xml, if this release already exists, this job will fail fast
       - name: Create GitHub Release
         id: create_release
-        uses: ncipollo/release-action@v1.13.0
+        uses: ncipollo/release-action@v1.14.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -45,15 +51,19 @@ jobs:
           tag: ${{ env.RELEASE_VERSION }}
       - name: Setup Prerequisites
         run: |
-          git config --global user.signingKey ${{ secrets.GPG_KEYNAME }}
+          git config --global user.signingKey "${{ secrets.GPG_KEYNAME }}"
           git config --global commit.gpgsign true
           gpg --version
           gpgconf --kill gpg-agent
           gpg -K --keyid-format SHORT
           export GPG_TTY=$(tty)
-      - name: Deploy SHAFT to maven central
-        continue-on-error: true
+      - name: Deploy to maven central
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
         run: mvn --batch-mode deploy "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
+      - name: Publish updated JavaDocs
+        env:
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+        run: mvn resources:resources javadoc:javadoc scm-publish:publish-scm "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"

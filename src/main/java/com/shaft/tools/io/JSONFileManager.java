@@ -20,8 +20,8 @@ import java.util.Map;
 
 @SuppressWarnings("unused")
 public class JSONFileManager {
-    private final String jsonFilePath;
     private static final ThreadLocal<FileReader> reader = new ThreadLocal<>();
+    private final String jsonFilePath;
 
     /**
      * Creates a new instance of the test data json reader using the target json
@@ -147,7 +147,7 @@ public class JSONFileManager {
      */
     private void initializeReader() {
         try {
-            reader.set(new FileReader(FileActions.getInstance().getAbsolutePath(jsonFilePath), StandardCharsets.UTF_8));
+            reader.set(new FileReader(FileActions.getInstance(true).getAbsolutePath(jsonFilePath), StandardCharsets.UTF_8));
         } catch (FileNotFoundException rootCauseException) {
             FailureReporter.fail(this.getClass(), "Couldn't read the desired file. [" + this.jsonFilePath + "].", rootCauseException);
         } catch (IOException formatException) {

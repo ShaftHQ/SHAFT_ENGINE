@@ -16,10 +16,22 @@ public class ReportManager {
      * @param logText the text that will be logged by action
      */
     public static void log(String logText) {
-        if (getDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
-            createLogEntry(logText, Level.INFO);
-        } else {
-            writeStepToReport(logText);
+        if (logText != null && !logText.isBlank()) {
+            if (getDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
+                createLogEntry(logText, Level.INFO);
+            } else {
+                writeStepToReport(logText);
+            }
+        }
+    }
+
+    public static void log(String logText, Level logLevel) {
+        if (logText != null && !logText.isBlank()) {
+            if (getDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
+                createLogEntry(logText, logLevel);
+            } else {
+                writeStepToReport(logText);
+            }
         }
     }
 

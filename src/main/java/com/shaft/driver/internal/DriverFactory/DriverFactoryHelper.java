@@ -1,7 +1,6 @@
 package com.shaft.driver.internal.DriverFactory;
 
 import com.epam.healenium.SelfHealingDriver;
-import com.google.common.base.Throwables;
 import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
@@ -17,14 +16,15 @@ import io.appium.java_client.Setting;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.github.bonigarcia.wdm.WebDriverManager;
+import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.qameta.allure.Step;
 import lombok.*;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.devtools.Command;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
-import org.openqa.selenium.devtools.v120.network.Network;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.ie.InternetExplorerDriver;
@@ -36,7 +36,8 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
-import java.util.Optional;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class DriverFactoryHelper {
@@ -54,18 +55,17 @@ public class DriverFactoryHelper {
     @Getter(AccessLevel.PUBLIC)
     private static String targetBrowserName = "";
     @Getter(AccessLevel.PUBLIC)
-    @Setter(AccessLevel.PUBLIC)
+    private static boolean killSwitch = false;
+    private final OptionsManager optionsManager = new OptionsManager();
+    @Setter
+    @Getter
     private WebDriver driver;
 
-    @Getter(AccessLevel.PUBLIC)
-    private static boolean killSwitch = false;
-
-    private final OptionsManager optionsManager = new OptionsManager();
-
-    public DriverFactoryHelper (){
+    public DriverFactoryHelper() {
     }
-    public DriverFactoryHelper(WebDriver driver){
-        this.driver = driver;
+
+    public DriverFactoryHelper(WebDriver driver) {
+        setDriver(driver);
     }
 
     /**
@@ -100,9 +100,142 @@ public class DriverFactoryHelper {
         return !isMobileExecution;
     }
 
+    protected static void failAction(String testData, Throwable... rootCauseException) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        String message = "Driver Factory Action \"" + actionName + "\" failed.";
+        if (testData != null) {
+            message = message + " With the following test data \"" + testData + "\".";
+        }
+        if (rootCauseException != null && rootCauseException.length >= 1) {
+            FailureReporter.fail(DriverFactoryHelper.class, message, rootCauseException[0]);
+        } else {
+            FailureReporter.fail(message);
+        }
+    }
+
+    private static DriverType getDriverTypeFromName(String driverName) {
+        int values = DriverType.values().length;
+        for (var i = 0; i < values; i++) {
+            if (driverName.trim().toLowerCase().contains(Arrays.asList(DriverType.values()).get(i).getValue().toLowerCase())) {
+                return Arrays.asList(DriverType.values()).get(i);
+            }
+        }
+        failAction("Unsupported Driver Type \"" + driverName + "\".");
+        return DriverType.CHROME;
+    }
+
+    @SneakyThrows(InterruptedException.class)
+    private static int attemptRemoteServerPing() {
+        boolean serverReady = false;
+        var session = new SHAFT.API(TARGET_HUB_URL);
+        var statusCode = 500;
+        var startTime = System.currentTimeMillis();
+        do {
+            try {
+                statusCode = session.get("status/").perform().andReturn().statusCode();
+                if (statusCode >= 200 && statusCode < 300) {
+                    serverReady = true;
+                }
+            } catch (Throwable throwable1) {
+                try {
+                    statusCode = session.get("wd/hub/status/").perform().andReturn().statusCode();
+                    if (statusCode >= 200 && statusCode < 300) {
+                        serverReady = true;
+                    }
+                } catch (Throwable throwable2) {
+                    // do nothing
+                    ReportManagerHelper.logDiscrete(throwable1, Level.DEBUG);
+                    ReportManagerHelper.logDiscrete(throwable2, Level.DEBUG);
+                }
+            }
+            if (!serverReady) {
+                //noinspection BusyWait
+                Thread.sleep(TimeUnit.SECONDS.toMillis(appiumServerInitializationPollingInterval));
+            }
+        } while (!serverReady && (System.currentTimeMillis() - startTime < TimeUnit.SECONDS.toMillis(appiumServerInitializationTimeout)));
+        if (!serverReady) {
+            failAction("Failed to connect to remote server. It was still not ready after " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + " minutes.");
+        }
+        return statusCode;
+    }
+
+    @SneakyThrows({MalformedURLException.class, InterruptedException.class})
+    private static WebDriver attemptRemoteServerConnection(Capabilities capabilities) {
+        WebDriver driver = null;
+        boolean isRemoteConnectionEstablished = false;
+        var startTime = System.currentTimeMillis();
+        var exception = "";
+        do {
+            try {
+                driver = connectToRemoteServer(capabilities, false);
+                isRemoteConnectionEstablished = true;
+            } catch (SessionNotCreatedException | URISyntaxException sessionNotCreatedException1) {
+                exception = sessionNotCreatedException1.getMessage();
+                try {
+                    driver = connectToRemoteServer(capabilities, true);
+                    isRemoteConnectionEstablished = true;
+                } catch (SessionNotCreatedException |
+                         URISyntaxException sessionNotCreatedException2) {
+                    // do nothing
+                    ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
+                    ReportManagerHelper.logDiscrete(sessionNotCreatedException2, Level.DEBUG);
+                }
+            }
+            if (!isRemoteConnectionEstablished) {
+                //terminate in case of any other exception
+                //noinspection BusyWait
+                Thread.sleep(TimeUnit.SECONDS.toMillis(appiumServerPreparationPollingInterval));
+            }
+        } while (!isRemoteConnectionEstablished && (System.currentTimeMillis() - startTime < TimeUnit.SECONDS.toMillis(remoteServerInstanceCreationTimeout)));
+        if (!isRemoteConnectionEstablished) {
+            failAction("Failed to connect to remote server. Session was still not created after " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + " minutes." + "\nOriginal Error is : " + exception);
+        }
+        return driver;
+    }
+
+    private static WebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws MalformedURLException, URISyntaxException {
+        var targetHubUrl = isLegacy ? TARGET_HUB_URL + "wd/hub" : TARGET_HUB_URL;
+        var targetLambdaTestHubURL = targetHubUrl.replace("http", "https");
+        var targetPlatform = Properties.platform.targetPlatform();
+        var targetMobileHubUrl = targetHubUrl.replace("@", "@mobile-").replace("http", "https");
+
+        if (targetPlatform.equalsIgnoreCase(Platform.ANDROID.toString())) {
+            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
+                return new AndroidDriver(new URI(targetMobileHubUrl).toURL(), capabilities);
+            } else {
+                if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
+                    return new AndroidDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities);
+                } else {
+                    return new AndroidDriver(new URI(targetHubUrl).toURL(), capabilities);
+                }
+            }
+        } else if (targetPlatform.equalsIgnoreCase(Platform.IOS.toString())) {
+            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
+                return new IOSDriver(new URI(targetMobileHubUrl).toURL(), capabilities);
+            } else {
+                if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
+                    return new IOSDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities);
+                } else {
+                    return new IOSDriver(new URI(targetHubUrl).toURL(), capabilities);
+                }
+            }
+        } else {
+            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
+                return new RemoteWebDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities, false);
+            } else {
+                return new RemoteWebDriver(new URI(targetHubUrl).toURL(), capabilities, false);
+            }
+        }
+    }
+
+    public static void initializeSystemProperties() {
+        PropertiesHelper.postProcessing();
+        TARGET_HUB_URL = (SHAFT.Properties.platform.executionAddress().trim().toLowerCase().startsWith("http")) ? SHAFT.Properties.platform.executionAddress() : "http://" + SHAFT.Properties.platform.executionAddress() + "/";
+    }
+
     public void closeDriver() {
         closeDriver(driver);
-        driver = null;
+        setDriver(null);
     }
 
     public void closeDriver(WebDriver driver) {
@@ -133,89 +266,102 @@ public class DriverFactoryHelper {
         }
     }
 
-    protected static void failAction(String testData, Throwable... rootCauseException) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        String message = "Driver Factory Action \"" + actionName + "\" failed.";
-        if (testData != null) {
-            message = message + " With the following test data \"" + testData + "\".";
-        }
-        if (rootCauseException != null && rootCauseException.length >= 1) {
-            FailureReporter.fail(DriverFactoryHelper.class, message, rootCauseException[0]);
-        } else {
-            FailureReporter.fail(message);
-        }
-    }
-
-    private static DriverType getDriverTypeFromName(String driverName) {
-        int values = DriverType.values().length;
-        for (var i = 0; i < values; i++) {
-            if (driverName.trim().toLowerCase().contains(Arrays.asList(DriverType.values()).get(i).getValue().toLowerCase())) {
-                return Arrays.asList(DriverType.values()).get(i);
-            }
-        }
-        failAction("Unsupported Driver Type \"" + driverName + "\".");
-        return DriverType.CHROME;
-    }
-
     private void disableCacheEdgeAndChrome() {
         if (SHAFT.Properties.flags.disableCache() && driver instanceof HasDevTools hasDevToolsDriver) {
             DevTools devTools = hasDevToolsDriver.getDevTools();
             devTools.createSessionIfThereIsNotOne();
-            devTools.send(Network.enable(Optional.empty(), Optional.empty(), Optional.of(100000000)));
-            devTools.send(Network.setCacheDisabled(true));
-            devTools.send(Network.clearBrowserCookies());
-            devTools.addListener(Network.responseReceived(), responseReceived -> {
-                if (responseReceived.getResponse().getFromDiskCache().isPresent() && responseReceived.getResponse().getFromDiskCache().get().equals(true)) {
-                    failAction("Cache wasn't cleared");
-                }
-            });
+            LinkedHashMap<String, Object> params = new LinkedHashMap<>();
+            params.put("maxPostDataSize", 100000000);
+            devTools.send(new Command<>("Network.enable", Map.copyOf(params)));
+            params = new LinkedHashMap<>();
+            params.put("cacheDisabled", true);
+            devTools.send(new Command<>("Network.setCacheDisabled", params));
+            devTools.send(new Command<>("Network.clearBrowserCookies", Map.copyOf(new LinkedHashMap<>())));
         }
     }
 
     private void createNewLocalDriverInstance(DriverType driverType, int retryAttempts) {
-        String initialLog = "Attempting to run locally on: \"" + Properties.platform.targetPlatform() + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
+        String targetPlatform = Properties.platform.targetPlatform().toLowerCase();
+        String initialLog = "Attempting to run locally on: \"" + targetPlatform + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
         if (SHAFT.Properties.web.headlessExecution()) {
             initialLog = initialLog + ", Headless Execution";
         }
+        initialLog = initialLog.replace(targetPlatform, JavaHelper.convertToSentenceCase(targetPlatform));
         ReportManager.logDiscrete(initialLog + ".");
         try {
             ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
             switch (driverType) {
-                case FIREFOX -> driver = new FirefoxDriver(optionsManager.getFfOptions());
-                case IE -> driver = new InternetExplorerDriver(optionsManager.getIeOptions());
+                case FIREFOX -> setDriver(new FirefoxDriver(optionsManager.getFfOptions()));
+                case IE -> setDriver(new InternetExplorerDriver(optionsManager.getIeOptions()));
                 case CHROME -> {
-                    driver = new ChromeDriver(optionsManager.getChOptions());
+                    setDriver(new ChromeDriver(optionsManager.getChOptions()));
                     disableCacheEdgeAndChrome();
                 }
                 case EDGE -> {
-                    driver = new EdgeDriver(optionsManager.getEdOptions());
+                    setDriver(new EdgeDriver(optionsManager.getEdOptions()));
                     disableCacheEdgeAndChrome();
                 }
-                case SAFARI -> driver = new SafariDriver(optionsManager.getSfOptions());
+                case SAFARI -> setDriver(new SafariDriver(optionsManager.getSfOptions()));
                 default ->
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
             }
             ReportManager.log(initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".");
         } catch (Exception exception) {
-            if (driverType.equals(DriverType.SAFARI) && Throwables.getRootCause(exception).getMessage().toLowerCase().contains("safari instance is already paired with another webdriver session")) {
+            String message = exception.getMessage();
+            if (message.contains("cannot create default profile directory")) {
+                // this exception happens when the profile directory is not correct, very specific case
+                // should fail immediately
+                failAction("Failed to create new Browser Session", exception);
+            } else if (message.contains("DevToolsActivePort file doesn't exist")) {
+                // this exception was observed with `Windows_Edge_Local` pipeline to happen randomly
+                // suggested fix as per titus fortner: https://bugs.chromium.org/p/chromedriver/issues/detail?id=4403#c35
+                switch (driverType) {
+                    case DriverType.CHROME -> {
+                        var chOptions = optionsManager.getChOptions();
+                        chOptions.addArguments("--remote-debugging-pipe");
+                        optionsManager.setChOptions(chOptions);
+                    }
+                    case DriverType.EDGE -> {
+                        var edOptions = optionsManager.getEdOptions();
+                        edOptions.addArguments("--remote-debugging-pipe");
+                        optionsManager.setEdOptions(edOptions);
+                    }
+                }
+            } else if (message.contains("Failed to initialize BiDi Mapper")) {
+                // this exception happens in some corner cases where the capabilities are not compatible with BiDi mode
+                // should force disable BiDi and try again
+                SHAFT.Properties.platform.set().enableBiDi(false);
+                switch (driverType) {
+                    case DriverType.FIREFOX -> {
+                        var ffOptions = optionsManager.getFfOptions();
+                        ffOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+                        optionsManager.setFfOptions(ffOptions);
+                    }
+                    case DriverType.CHROME -> {
+                        var chOptions = optionsManager.getChOptions();
+                        chOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+                        optionsManager.setChOptions(chOptions);
+                    }
+                    case DriverType.EDGE -> {
+                        var edOptions = optionsManager.getEdOptions();
+                        edOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+                        optionsManager.setEdOptions(edOptions);
+                    }
+                }
+            } else if (message.contains("The Safari instance is already paired with another WebDriver session.")) {
                 //this issue happens when running locally via safari/mac platform
-                // sample failure can be found here: https://github.com/ShaftHQ/SHAFT_ENGINE/actions/runs/4527911969/jobs/7974202314#step:4:46621
                 // attempting blind fix by trying to quit existing safari instances if any
                 try {
-                    SHAFT.CLI.terminal().performTerminalCommand("osascript -e \"tell application \\\"Safari\\\" to quit\"\n");
+                    SHAFT.CLI.terminal().performTerminalCommands(Arrays.asList(
+                            "osascript -e 'quit app \"Safari\"'", "osascript -e 'quit app \"SafariDriver\"'",
+                            "pkill -x Safari", "pkill -x SafariDriver",
+                            "killall Safari", "killall SafariDriver"));
+                    //minimizing retry attempts to save execution time
+                    retryAttempts = 0;
                 } catch (Throwable throwable) {
                     // ignore
                 }
-            }
-            // attempting blind fix by trying to quit existing driver if any
-            try {
-                driver.quit();
-            } catch (Throwable throwable) {
-                // ignore
-            } finally {
-                driver = null;
-            }
-            if (exception.getMessage().contains("java.util.concurrent.TimeoutException")) {
+            } else if (exception.getMessage().contains("java.util.concurrent.TimeoutException")) {
                 // this happens in case an auto closable BiDi session was left hanging
                 // the default timeout is 30 seconds, so this wait will waste 26 and the following will waste 5 more
                 // the desired effect will be to wait for the bidi session to timeout
@@ -225,6 +371,15 @@ public class DriverFactoryHelper {
                     //do nothing
                 }
             }
+            // attempting blind fix by trying to quit existing driver if any
+            try {
+                driver.quit();
+            } catch (Throwable throwable) {
+                // ignore
+            } finally {
+                setDriver(null);
+            }
+            // evaluating retry attempts
             if (retryAttempts > 0) {
                 try {
                     Thread.sleep(5000);
@@ -247,10 +402,14 @@ public class DriverFactoryHelper {
         try {
             ReportManager.logDiscrete(WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE);
             switch (driverType) {
-                case FIREFOX -> webDriverManager.set(WebDriverManager.firefoxdriver().capabilities(optionsManager.getFfOptions()));
-                case CHROME -> webDriverManager.set(WebDriverManager.chromedriver().capabilities(optionsManager.getChOptions()));
-                case EDGE -> webDriverManager.set(WebDriverManager.edgedriver().capabilities(optionsManager.getEdOptions()));
-                case SAFARI -> webDriverManager.set(WebDriverManager.safaridriver().capabilities(optionsManager.getSfOptions()));
+                case FIREFOX ->
+                        webDriverManager.set(WebDriverManager.firefoxdriver().capabilities(optionsManager.getFfOptions()));
+                case CHROME ->
+                        webDriverManager.set(WebDriverManager.chromedriver().capabilities(optionsManager.getChOptions()));
+                case EDGE ->
+                        webDriverManager.set(WebDriverManager.edgedriver().capabilities(optionsManager.getEdOptions()));
+                case SAFARI ->
+                        webDriverManager.set(WebDriverManager.safaridriver().capabilities(optionsManager.getSfOptions()));
                 default ->
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\". We only support Chrome, Edge, Firefox, and Safari in this dockerized mode.");
             }
@@ -259,9 +418,9 @@ public class DriverFactoryHelper {
                     .enableRecording().dockerRecordingOutput(SHAFT.Properties.paths.video()).create();
             remoteWebDriver.setFileDetector(new LocalFileDetector());
 //            driver =ThreadGuard.protect(remoteWebDriver));
-            driver = remoteWebDriver;
+            setDriver(remoteWebDriver);
             ReportManager.log("Successfully Opened " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".");
-        } catch (io.github.bonigarcia.wdm.config.WebDriverManagerException exception) {
+        } catch (WebDriverManagerException exception) {
             failAction("Failed to create new Dockerized Browser Session, are you sure Docker is available on your machine?", exception);
         }
     }
@@ -323,7 +482,7 @@ public class DriverFactoryHelper {
         // stage 2: create remote driver instance (requires some time with dockerized appium)
         ReportManager.logDiscrete("Attempting to instantiate remote driver instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
         try {
-            driver = attemptRemoteServerConnection(capabilities);
+            setDriver(attemptRemoteServerConnection(capabilities));
             ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
             if (!isWebExecution() && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase("Android")) {
                 // https://github.com/appium/appium-uiautomator2-driver#settings-api
@@ -344,110 +503,6 @@ public class DriverFactoryHelper {
             ReportManager.logDiscrete("Successfully instantiated remote driver instance.");
         } catch (Throwable throwable) {
             failAction("Failed to instantiate remote driver instance.", throwable);
-        }
-    }
-
-    @SneakyThrows(java.lang.InterruptedException.class)
-    private static int attemptRemoteServerPing() {
-        boolean serverReady = false;
-        var session = new SHAFT.API(TARGET_HUB_URL);
-        var statusCode = 500;
-        var startTime = System.currentTimeMillis();
-        do {
-            try {
-                statusCode = session.get("status/").perform().andReturn().statusCode();
-                if (statusCode >= 200 && statusCode < 300) {
-                    serverReady = true;
-                }
-            } catch (Throwable throwable1) {
-                try {
-                    statusCode = session.get("wd/hub/status/").perform().andReturn().statusCode();
-                    if (statusCode >= 200 && statusCode < 300) {
-                        serverReady = true;
-                    }
-                } catch (Throwable throwable2) {
-                    // do nothing
-                    ReportManagerHelper.logDiscrete(throwable1, Level.DEBUG);
-                    ReportManagerHelper.logDiscrete(throwable2, Level.DEBUG);
-                }
-            }
-            if (!serverReady) {
-                //noinspection BusyWait
-                Thread.sleep(TimeUnit.SECONDS.toMillis(appiumServerInitializationPollingInterval));
-            }
-        } while (!serverReady && (System.currentTimeMillis() - startTime < TimeUnit.SECONDS.toMillis(appiumServerInitializationTimeout)));
-        if (!serverReady) {
-            failAction("Failed to connect to remote server. It was still not ready after " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + " minutes.");
-        }
-        return statusCode;
-    }
-
-    @SneakyThrows({java.net.MalformedURLException.class, InterruptedException.class})
-    private static RemoteWebDriver attemptRemoteServerConnection(Capabilities capabilities) {
-        RemoteWebDriver driver = null;
-        boolean isRemoteConnectionEstablished = false;
-        var startTime = System.currentTimeMillis();
-        var exception = "";
-        do {
-            try {
-                driver = connectToRemoteServer(capabilities, false);
-                isRemoteConnectionEstablished = true;
-            } catch (org.openqa.selenium.SessionNotCreatedException | URISyntaxException sessionNotCreatedException1) {
-                exception = sessionNotCreatedException1.getMessage();
-                try {
-                    driver = connectToRemoteServer(capabilities, true);
-                    isRemoteConnectionEstablished = true;
-                } catch (org.openqa.selenium.SessionNotCreatedException |
-                         URISyntaxException sessionNotCreatedException2) {
-                    // do nothing
-                    ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
-                    ReportManagerHelper.logDiscrete(sessionNotCreatedException2, Level.DEBUG);
-                }
-            }
-            if (!isRemoteConnectionEstablished) {
-                //terminate in case of any other exception
-                //noinspection BusyWait
-                Thread.sleep(TimeUnit.SECONDS.toMillis(appiumServerPreparationPollingInterval));
-            }
-        } while (!isRemoteConnectionEstablished && (System.currentTimeMillis() - startTime < TimeUnit.SECONDS.toMillis(remoteServerInstanceCreationTimeout)));
-        if (!isRemoteConnectionEstablished) {
-            failAction("Failed to connect to remote server. Session was still not created after " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + " minutes." + "\nOriginal Error is : " + exception);
-        }
-        return driver;
-    }
-
-    private static RemoteWebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws MalformedURLException, URISyntaxException {
-        var targetHubUrl = isLegacy ? TARGET_HUB_URL + "wd/hub" : TARGET_HUB_URL;
-        var targetLambdaTestHubURL = targetHubUrl.replace("http", "https");
-        var targetPlatform = Properties.platform.targetPlatform();
-        var targetMobileHubUrl = targetHubUrl.replace("@", "@mobile-").replace("http", "https");
-
-        if (targetPlatform.equalsIgnoreCase(Platform.ANDROID.toString())) {
-            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
-                return new AndroidDriver(new URI(targetMobileHubUrl).toURL(), capabilities);
-            } else {
-                if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                    return new AndroidDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities);
-                } else {
-                    return new AndroidDriver(new URI(targetHubUrl).toURL(), capabilities);
-                }
-            }
-        } else if (targetPlatform.equalsIgnoreCase(Platform.IOS.toString())) {
-            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
-                return new IOSDriver(new URI(targetMobileHubUrl).toURL(), capabilities);
-            } else {
-                if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                    return new IOSDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities);
-                } else {
-                    return new IOSDriver(new URI(targetHubUrl).toURL(), capabilities);
-                }
-            }
-        } else {
-            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                return new RemoteWebDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities);
-            } else {
-                return new RemoteWebDriver(new URI(targetHubUrl).toURL(), capabilities);
-            }
         }
     }
 
@@ -533,7 +588,6 @@ public class DriverFactoryHelper {
         initializeSystemProperties();
         try {
             var isMobileExecution = Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform());
-
             if (isMobileExecution) {
                 //mobile execution
                 if (isMobileWebExecution()) {
@@ -583,12 +637,7 @@ public class DriverFactoryHelper {
         if (SHAFT.Properties.healenium.healEnabled()) {
             ReportManager.logDiscrete("Initializing Healenium's Self Healing Driver...");
 //            driver =ThreadGuard.protect(SelfHealingDriver.create(driver)));
-            driver = SelfHealingDriver.create(driver);
+            setDriver(SelfHealingDriver.create(driver));
         }
-    }
-
-    public static void initializeSystemProperties() {
-        PropertiesHelper.postProcessing();
-        TARGET_HUB_URL = (SHAFT.Properties.platform.executionAddress().trim().toLowerCase().startsWith("http")) ? SHAFT.Properties.platform.executionAddress() : "http://" + SHAFT.Properties.platform.executionAddress() + "/";
     }
 }

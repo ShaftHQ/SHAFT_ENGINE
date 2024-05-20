@@ -27,12 +27,9 @@ public class ReportHelper {
         disableLogging();
         String importantLinks = """
                 <ul>
+                    <li>👤 <a href="https://shafthq.github.io/" target=”_blank”>User Guide</a></li>
                     <li>👨‍💻️ <a href="https://github.com/ShaftHQ/SHAFT_ENGINE" target=”_blank”>GitHub - Home</a></li>
-                    <li>👤 <a href="https://shafthq.github.io/SHAFT_Engine_Docusaurus/" target=”_blank”>User Guide</a></li>
-                    <li>⚙️ <a href="https://shafthq.github.io/SHAFT_ENGINE/" target=”_blank”>Configuration Manager</a></li>
-                    <li>📚 <a href="https://shafthq.github.io/SHAFT_ENGINE/apidocs/index.html" target=”_blank”>Javadocs</a></li>
                 </ul>""";
-
         ReportManagerHelper.attach("HTML", "Important Links", importantLinks);
         enableLogging();
     }
@@ -48,32 +45,18 @@ public class ReportHelper {
     public static void attachPropertyFiles() {
         ReportManager.logDiscrete("Initializing Properties...");
         disableLogging();
-        if (FileActions.getInstance().doesFileExist(SHAFT.Properties.paths.properties())) {
+        if (FileActions.getInstance(true).doesFileExist(SHAFT.Properties.paths.properties())) {
             List<List<Object>> attachments = new ArrayList<>();
-
-            var propertyFiles = Arrays.asList(FileActions.getInstance().listFilesInDirectory(SHAFT.Properties.paths.properties(), null).replaceAll("default" + System.lineSeparator(), "").replaceAll(".*json", "").trim().split(System.lineSeparator()));
-            propertyFiles.forEach(file -> attachments.add(Arrays.asList("Properties", file.replace(".properties", ""), FileActions.getInstance().readFile(SHAFT.Properties.paths.properties() + File.separator + file))));
-
-            var jsonFiles = Arrays.asList(FileActions.getInstance().listFilesInDirectory(SHAFT.Properties.paths.properties(), null).replaceAll("default" + System.lineSeparator(), "").replaceAll(".*properties", "").trim().split(System.lineSeparator()));
-            jsonFiles.forEach(file -> attachments.add(Arrays.asList("JSON", file.replace(".json", ""), FileActions.getInstance().readFile(SHAFT.Properties.paths.properties() + File.separator + file))));
-
+            var propertyFiles = Arrays.asList(FileActions.getInstance(true).listFilesInDirectory(SHAFT.Properties.paths.properties(), null).replaceAll("default" + System.lineSeparator(), "").trim().split(System.lineSeparator()));
+            propertyFiles.forEach(file -> attachments.add(Arrays.asList("Properties", file.replace(".properties", ""), FileActions.getInstance(true).readFile(SHAFT.Properties.paths.properties() + File.separator + file))));
             ReportManagerHelper.logNestedSteps("Property Files", attachments);
         }
         enableLogging();
     }
 
     public static void attachCucumberReport() {
-        if (FileActions.getInstance().doesFileExist("allure-results/cucumberReport.html")) {
-            ReportManagerHelper.attach("HTML", "Cucumber Execution Report", FileActions.getInstance().readFile("allure-results/cucumberReport.html"));
-        }
-    }
-
-    public static void attachExtentReport() {
-        ReportManagerHelper.extentReportsFlush();
-        if (SHAFT.Properties.reporting.attachExtentReportsToAllureReport()) {
-            if (SHAFT.Properties.reporting.generateExtentReports() && FileActions.getInstance().doesFileExist(ReportManagerHelper.getExtentReportFileName())) {
-                ReportManagerHelper.attach("HTML", "Extent Emailable Execution Report", FileActions.getInstance().readFile(ReportManagerHelper.getExtentReportFileName()));
-            }
+        if (FileActions.getInstance(true).doesFileExist("allure-results/cucumberReport.html")) {
+            ReportManagerHelper.attach("HTML", "Cucumber Execution Report", FileActions.getInstance(true).readFile("allure-results/cucumberReport.html"));
         }
     }
 }
