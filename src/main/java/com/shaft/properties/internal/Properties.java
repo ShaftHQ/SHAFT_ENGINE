@@ -1,6 +1,9 @@
 package com.shaft.properties.internal;
 
+import com.shaft.driver.DriverFactory;
+
 public class Properties {
+//    private static final boolean reloadProperties = DriverFactory.reloadProperties();
     public static BrowserStack browserStack;
     public static Cucumber cucumber;
     public static Platform platform;

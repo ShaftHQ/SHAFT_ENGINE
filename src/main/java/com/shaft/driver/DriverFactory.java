@@ -42,7 +42,7 @@ public class DriverFactory {
         }
     }
 
-    public static void reloadProperties() {
+    public static boolean reloadProperties() {
         if (SHAFT.Properties.platform == null) {
             System.out.println("Execution Listeners are not loaded properly... Self-Healing... Initializing minimalistic test run...");
             var runType = TestNGListener.identifyRunType();
@@ -53,6 +53,7 @@ public class DriverFactory {
             }
             TestNGListener.engineSetup(runType);
         }
+        return true;
     }
 
     /**
