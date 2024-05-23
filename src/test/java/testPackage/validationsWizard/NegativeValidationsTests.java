@@ -8,6 +8,7 @@ import org.openqa.selenium.WebDriver;
 import org.testng.annotations.*;
 
 public class NegativeValidationsTests {
+    private static double defaultTimeout = 60;
     private final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
     private final By button = By.cssSelector("button");
     private final By button2 = By.cssSelector("button2");
@@ -44,9 +45,6 @@ public class NegativeValidationsTests {
     public void title_passing() {
         Validations.assertThat().browser(driver.get()).title().isEqualTo("").perform();
     }
-
-
-    double defaultTimeout = 60;
 
     @Test(expectedExceptions = AssertionError.class)
     public void exists_failing() {
@@ -139,7 +137,7 @@ public class NegativeValidationsTests {
         SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void afterClass() {
         SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultTimeout);
     }
