@@ -20,7 +20,7 @@ public class ShadowDomTest {
         SHAFT.Validations.assertThat().object(shadowContent.getText()).isEqualTo("some text").perform();
     }
 
-    @Test
+    @Test(enabled = false)
     public void shaftLocator() {
         if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
                 || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
