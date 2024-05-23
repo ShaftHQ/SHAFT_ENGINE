@@ -9,7 +9,7 @@ import org.aeonbits.owner.ConfigFactory;
         "file:src/main/resources/properties/default/ExecutionPlatform.properties",
         "classpath:ExecutionPlatform.properties",
 })
-public interface Platform extends EngineProperties {
+public interface Platform extends EngineProperties<Platform> {
     private static void setProperty(String key, String value) {
         var updatedProps = new java.util.Properties();
         updatedProps.setProperty(key, value);

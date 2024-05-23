@@ -10,7 +10,7 @@ import org.aeonbits.owner.ConfigFactory;
         "file:src/main/resources/properties/default/performance.properties",
         "classpath:performance.properties",
 })
-public interface Performance extends EngineProperties {
+public interface Performance extends EngineProperties<Performance> {
     private static void setProperty(String key, String value) {
         var updatedProps = new java.util.Properties();
         updatedProps.setProperty(key, value);

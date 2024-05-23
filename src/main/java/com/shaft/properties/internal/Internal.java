@@ -8,7 +8,7 @@ import org.aeonbits.owner.Config.Sources;
         "file:src/main/resources/properties/default/internal.properties",
         "classpath:internal.properties",
 })
-public interface Internal extends EngineProperties {
+public interface Internal extends EngineProperties<Internal> {
     @Key("shaftEngineVersion")
     @DefaultValue("8.2.20240411")
     String shaftEngineVersion();

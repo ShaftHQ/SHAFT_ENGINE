@@ -4,7 +4,7 @@ import org.aeonbits.owner.Config.Sources;
 
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/log4j2.properties", "file:src/main/resources/properties/default/log4j2.properties", "classpath:log4j2.properties"})
-public interface Log4j extends EngineProperties {
+public interface Log4j extends EngineProperties<Log4j> {
 
     @Key("name")
     @DefaultValue("PropertiesConfig")

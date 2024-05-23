@@ -4,7 +4,7 @@ import org.aeonbits.owner.Config.Sources;
 
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/TestNG.properties", "file:src/main/resources/properties/default/TestNG.properties", "classpath:TestNG.properties",})
-public interface TestNG extends EngineProperties {
+public interface TestNG extends EngineProperties<TestNG> {
 
     @Key("setParallel")
     @DefaultValue("NONE")
