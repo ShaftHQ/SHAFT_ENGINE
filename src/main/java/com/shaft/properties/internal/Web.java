@@ -28,6 +28,10 @@ public interface Web extends EngineProperties {
     @DefaultValue("false")
     boolean headlessExecution();
 
+    @Key("incognitoMode")
+    @DefaultValue("false")
+    boolean incognitoMode();
+
     @Key("isMobileEmulation")
     @DefaultValue("false")
     boolean isMobileEmulation();
@@ -93,6 +97,11 @@ public interface Web extends EngineProperties {
 
         public SetProperty headlessExecution(boolean value) {
             setProperty("headlessExecution", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty incognitoMode(boolean value) {
+            setProperty("incognitoMode", String.valueOf(value));
             return this;
         }
 
