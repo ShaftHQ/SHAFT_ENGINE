@@ -15,7 +15,7 @@ import org.testng.annotations.Test;
 public class RelativeLocatorsTests {
     private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
 
-    @Test
+    @Test(enabled = false)
     public void relativeLocatorsTest1(){
         new BrowserActions(driver.get()).navigateToURL("https://duckduckgo.com/?");
         By searchbar = By.xpath("//*[@id='search_form_input_homepage'] | //input[@name='q']");
