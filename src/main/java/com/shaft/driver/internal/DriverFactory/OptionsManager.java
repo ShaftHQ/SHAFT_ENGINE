@@ -289,8 +289,11 @@ public class OptionsManager {
         // Add if condtion to start the new session if flag=true on specific port
         if (SHAFT.Properties.performance.isEnabled()) {
             options.addArguments("--remote-debugging-port=" + SHAFT.Properties.performance.port());
-            options.addArguments("--no-sandbox");
+        } else {
+            options.addArguments("--remote-debugging-pipe");
         }
+        options.addArguments("--no-sandbox");
+
         if (SHAFT.Properties.flags.autoMaximizeBrowserWindow() && !Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.MAC.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             options.addArguments("--start-maximized");
         } else {
