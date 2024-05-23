@@ -3,6 +3,7 @@ package com.shaft.gui.element;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.enums.internal.ClipboardAction;
@@ -960,19 +961,19 @@ public class ElementActions extends FluentWebDriverAction {
      *
      * @param elementLocator   the locator of the webElement under test (By xpath, id,
      *                         selector, name ...etc.)
-     * @param att              the attribute name of the target webElement
-     * @param expectedAttValue the expected value of the attribute
+     * @param attribute              the attribute name of the target webElement
+     * @param expectedValue the expected value of the attribute
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions waitToAttribute(By elementLocator, String att, String expectedAttValue) {
+    public ElementActions waitToAttribute(By elementLocator, String attribute, String expectedValue) {
         try {
-            var elementName = elementActionsHelper.getElementName(driver, elementLocator);
-            if (Boolean.FALSE.equals(elementActionsHelper.waitForElementAttributeToBe(driver, elementLocator, att, expectedAttValue))) {
-                elementActionsHelper.failAction(driver, elementLocator);
-            }
-            elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "wait for element attribute \"" + att + "\" to be \"" + expectedAttValue + "\"", null, elementName);
-        } catch (Exception throwable) {
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
+            new SynchronizationManager(driver).fluentWait(false).until(f -> {
+                var actualValue = new ElementActions(driver, true).getAttribute(elementLocator, attribute);
+                return Objects.equals(expectedValue,actualValue);
+            });
+            elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "wait for element attribute \"" + attribute + "\" to be \"" + expectedValue + "\"", null, elementActionsHelper.getElementName(driver,elementLocator));
+        } catch (TimeoutException timeoutException) {
+            elementActionsHelper.failAction(driver, elementLocator, timeoutException);
         }
         return this;
     }

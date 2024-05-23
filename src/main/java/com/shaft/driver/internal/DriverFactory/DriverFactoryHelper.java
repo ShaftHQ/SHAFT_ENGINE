@@ -116,7 +116,10 @@ public class DriverFactoryHelper {
     private static DriverType getDriverTypeFromName(String driverName) {
         int values = DriverType.values().length;
         for (var i = 0; i < values; i++) {
-            if (driverName.trim().toLowerCase().contains(Arrays.asList(DriverType.values()).get(i).getValue().toLowerCase())) {
+            var expectedName = driverName.trim().toLowerCase();
+            var supportedName = Arrays.asList(DriverType.values()).get(i).getValue().toLowerCase();
+
+            if (expectedName.contains(supportedName) || supportedName.contains(expectedName)) {
                 return Arrays.asList(DriverType.values()).get(i);
             }
         }
