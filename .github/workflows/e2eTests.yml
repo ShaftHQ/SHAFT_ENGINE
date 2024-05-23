@@ -13,6 +13,9 @@ env:
 jobs:
   Windows_Edge_Local:
     runs-on: windows-latest
+    concurrency:
+      group: WindowsTests
+      cancel-in-progress: false
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -53,6 +56,9 @@ jobs:
         if: always()
   MacOSX_Safari_Local:
     runs-on: macos-latest
+    concurrency:
+      group: MacTests
+      cancel-in-progress: false
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -271,6 +277,9 @@ jobs:
         if: always()
   Windows_Chrome_Local:
     runs-on: windows-latest
+    concurrency:
+      group: WindowsTests
+      cancel-in-progress: false
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -306,6 +315,9 @@ jobs:
         if: always()
   MacOSX_Chrome_Local:
     runs-on: macos-latest
+    concurrency:
+      group: MacTests
+      cancel-in-progress: false
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -562,6 +574,9 @@ jobs:
         if: always()
   Windows_Edge_Cucumber:
     runs-on: windows-latest
+    concurrency:
+      group: WindowsTests
+      cancel-in-progress: false
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
