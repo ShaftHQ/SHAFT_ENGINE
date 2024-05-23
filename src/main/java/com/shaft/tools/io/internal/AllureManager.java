@@ -35,7 +35,6 @@ public class AllureManager {
         overrideAllurePluginConfiguration();
         writeGenerateReportShellFilesToProjectDirectory();
         writeEnvironmentVariablesToAllureResultsDirectory();
-        createAllureListenersMetaFiles();
     }
 
     public static void openAllureReportAfterExecution() {
@@ -152,12 +151,6 @@ public class AllureManager {
         // deleting custom-logo.svg to avoid generating extra folder with report in single mode
         FileActions.getInstance(true).deleteFile(allureExtractionLocation + "allure-" + allureVersion + File.separator + "plugins" + File.separator + "custom-logo-plugin" + File.separator + "static" + File.separator + "custom-logo.svg");
 
-    }
-
-    private static void createAllureListenersMetaFiles() {
-        FileActions.getInstance(true).createFolder(com.shaft.properties.internal.Properties.paths.services());
-        Arrays.asList("io.qameta.allure.listener.ContainerLifecycleListener", "io.qameta.allure.listener.FixtureLifecycleListener",
-                "io.qameta.allure.listener.StepLifecycleListener", "io.qameta.allure.listener.TestLifecycleListener").forEach(fileName -> FileActions.getInstance(true).writeToFile(Properties.paths.services(), fileName, "com.shaft.listeners.AllureListener"));
     }
 
     private static void writeAllureReport() {

@@ -11,7 +11,7 @@ import org.aeonbits.owner.ConfigFactory;
         "file:src/main/resources/properties/default/MobileCapabilities.properties",
         "classpath:MobileCapabilities.properties",
 })
-public interface Mobile extends EngineProperties {
+public interface Mobile extends EngineProperties<Mobile> {
 
     private static void setProperty(String key, String value) {
         var updatedProps = new java.util.Properties();

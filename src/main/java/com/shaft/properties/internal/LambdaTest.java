@@ -6,7 +6,7 @@ import org.aeonbits.owner.ConfigFactory;
 
 @SuppressWarnings({"unused"})
 @Config.Sources({"system:properties", "file:src/main/resources/properties/LambdaTest.properties", "file:src/main/resources/properties/default/LambdaTest.properties", "classpath:LambdaTest.properties",})
-public interface LambdaTest extends EngineProperties {
+public interface LambdaTest extends EngineProperties<LambdaTest> {
     //Based on LambdaTest capability builder
     // For Web and Mobile Native https://www.lambdatest.com/capabilities-generator/
 

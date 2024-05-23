@@ -139,9 +139,13 @@ public class ImageProcessingActions {
 
     public static byte[] highlightElementInScreenshot(byte[] targetScreenshot,
                                                       org.openqa.selenium.Rectangle elementLocation, Color highlightColor) {
-
-//        loadOpenCV();
-        Mat img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
+        Mat img;
+        try {
+            img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
+        } catch (java.lang.UnsatisfiedLinkError unsatisfiedLinkError){
+            loadOpenCV();
+            img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
+        }
 
         int outlineThickness = 5;
         double elementHeight = elementLocation.getHeight(),

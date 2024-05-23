@@ -8,7 +8,7 @@ import org.aeonbits.owner.Config.LoadPolicy;
 // https://matteobaccan.github.io/owner/
 @HotReload(type = HotReloadType.ASYNC)
 @LoadPolicy(Config.LoadType.MERGE)
-public interface EngineProperties extends Config {
+public interface EngineProperties<T> extends Config {
     SetProperty set();
 
     interface SetProperty {

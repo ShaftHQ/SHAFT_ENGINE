@@ -4,7 +4,7 @@ import org.aeonbits.owner.Config;
 
 @SuppressWarnings("unused")
 @Config.Sources({"system:properties", "file:src/main/resources/properties/cucumber.properties", "file:src/main/resources/properties/default/cucumber.properties", "classpath:cucumber.properties"})
-public interface Cucumber extends EngineProperties {
+public interface Cucumber extends EngineProperties<Cucumber> {
 
     @Key("cucumber.ansi-colors.disabled")
     @DefaultValue("false")
