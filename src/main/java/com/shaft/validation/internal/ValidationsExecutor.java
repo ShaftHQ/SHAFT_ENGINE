@@ -1,9 +1,12 @@
 package com.shaft.validation.internal;
 
+import com.google.common.util.concurrent.AtomicDouble;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
+import com.shaft.tools.internal.support.CreateVirtualThread;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.ValidationEnums;
@@ -13,6 +16,9 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static com.shaft.tools.internal.support.JavaHelper.printProgressBar;
 
 
 public class ValidationsExecutor {

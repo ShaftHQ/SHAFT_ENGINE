@@ -5,6 +5,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
+import org.apache.logging.log4j.Level;
 import org.openqa.selenium.By;
 import org.openqa.selenium.support.locators.RelativeLocator;
 import org.testng.Assert;
@@ -12,8 +13,11 @@ import org.testng.Assert;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static com.shaft.tools.io.internal.ReportManagerHelper.printProgressBarAfterUnitsElapsed;
 
 @SuppressWarnings("unused")
 public class JavaHelper {
@@ -97,7 +101,7 @@ public class JavaHelper {
      */
     public static int compareTwoObjects(Object expectedValue, Object actualValue, Object comparisonType,
                                         Boolean validationType) {
-        //ReportManager.logDiscrete("Expected \"" + expectedValue + "\", and actual \"" + actualValue + "\"");
+        //ReportManager.log("Expected \"" + expectedValue + "\", and actual \"" + actualValue + "\"", Level.DEBUG);
         if ("null".equals(expectedValue)) {
             expectedValue = null;
         }
@@ -256,5 +260,14 @@ public class JavaHelper {
             return testDataFolderPath + relativePath;
         }
 
+    }
+
+    public static void printProgressBar(int totalTime) throws InterruptedException {
+        int seconds = 1;
+        while(seconds < totalTime){
+            TimeUnit.SECONDS.sleep(1);
+            seconds++;
+            printProgressBarAfterUnitsElapsed(totalTime, seconds);
+        }
     }
 }

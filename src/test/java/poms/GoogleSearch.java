@@ -60,7 +60,7 @@ public class GoogleSearch {
     public void assertPageIsOpen() {
             Validations.assertThat()
                     .element(driver, googleLogo_image)
-                    .doesNotExist()
+                    .exists()
                     .perform();
     }
 }
