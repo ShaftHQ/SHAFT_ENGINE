@@ -46,7 +46,20 @@ public class ValidationsExecutor {
     private String jsonPath;
     private String folderRelativePath;
     private String fileName;
-
+    /**
+     * The following variables are used
+     * for printing the progress bar
+     * **/
+    int timeoutVal = (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
+    CreateVirtualThread progressBarThread;
+    Runnable task = () -> {
+        try {
+            printProgressBar(timeoutVal);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    };
+    /******************************************************************/
     public ValidationsExecutor(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
         this.driver = webDriverElementValidationsBuilder.driver;
@@ -161,6 +174,10 @@ public class ValidationsExecutor {
 
     @Step(" {this.validationCategoryString} that {this.customReportMessage}")
     private void performValidation() {
+        /**start the progress bar thread**/
+            progressBarThread = new CreateVirtualThread();
+            progressBarThread.runThreadWithTask(task);
+        /************************************/
         switch (validationMethod) {
             case "forceFail" -> new ValidationsHelper().validateFail(validationCategory, customReportMessage);
             case "objectsAreEqual" ->
@@ -212,5 +229,7 @@ public class ValidationsExecutor {
             default -> {
             }
         }
+        // this is used to stop the progress bar thread in case the assertion succeeded
+        progressBarThread.stopThreadNow();
     }
 }

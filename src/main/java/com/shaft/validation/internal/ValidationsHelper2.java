@@ -26,26 +26,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.shaft.tools.internal.support.JavaHelper.printProgressBar;
 import static com.shaft.tools.io.internal.ReportManagerHelper.printNewlineAfterProgressBar;
 
 public class ValidationsHelper2 {
     private final ValidationEnums.ValidationCategory validationCategory;
     private final String validationCategoryString;
-    /**
-     * The following variables are used
-     * for printing the progress bar
-     * **/
-    int timeoutVal = (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
-    CreateVirtualThread progressBarThread;
-    Runnable task = () -> {
-        try {
-            printProgressBar(timeoutVal);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-    };
-    /******************************************************************/
+
     ValidationsHelper2(ValidationEnums.ValidationCategory validationCategory) {
         this.validationCategory = validationCategory;
         this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
@@ -89,10 +75,7 @@ public class ValidationsHelper2 {
         // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
         AtomicReference<String> actual = new AtomicReference<>();
         AtomicReference<Boolean> validationState = new AtomicReference<>();
-        /**start the progress bar thread**/
-        progressBarThread = new CreateVirtualThread();
-        progressBarThread.runThreadWithTask(task);
-        /************************************/
+
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
                 actual.set(switch (attribute.toLowerCase()) {
@@ -113,8 +96,7 @@ public class ValidationsHelper2 {
         } catch (TimeoutException timeoutException) {
             //timeout was exhausted and the validation failed
         }
-        // this is used to stop the progress bar thread
-        progressBarThread.stopThreadNow();
+
         // this is used to make a new line so that the next log doesn't append to the progress bar
         printNewlineAfterProgressBar();
         // this should be here to prevent the constant logging and to get the final actual and expected values
@@ -138,10 +120,7 @@ public class ValidationsHelper2 {
 
         AtomicReference<String> actual = new AtomicReference<>();
         AtomicReference<Boolean> validationState = new AtomicReference<>();
-        /**start the progress bar thread**/
-        progressBarThread = new CreateVirtualThread();
-        progressBarThread.runThreadWithTask(task);
-        /************************************/
+
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
                 actual.set(switch (attribute.toLowerCase()) {
@@ -158,8 +137,6 @@ public class ValidationsHelper2 {
         } catch (TimeoutException timeoutException) {
             //timeout was exhausted and the validation failed
         }
-        // this is used to stop the progress bar thread in case the assertion succeeded
-        progressBarThread.stopThreadNow();
         // this is used to make a new line so that the next log doesn't append to the progress bar
         printNewlineAfterProgressBar();
         // this should be here to prevent the constant logging and to get the final actual and expected values
@@ -182,10 +159,7 @@ public class ValidationsHelper2 {
         // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
         AtomicReference<String> actual = new AtomicReference<>();
         AtomicReference<Boolean> validationState = new AtomicReference<>();
-        /**start the progress bar thread**/
-        progressBarThread = new CreateVirtualThread();
-        progressBarThread.runThreadWithTask(task);
-        /************************************/
+
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
                 actual.set(new ElementActions(driver, true).getCSSProperty(locator, property));
@@ -195,8 +169,6 @@ public class ValidationsHelper2 {
         } catch (TimeoutException timeoutException) {
             //timeout was exhausted and the validation failed
         }
-        // this is used to stop the progress bar thread in case the assertion succeeded
-        progressBarThread.stopThreadNow();
         // this is used to make a new line so that the next log doesn't append to the progress bar
         printNewlineAfterProgressBar();
         // this should be here to prevent the constant logging and to get the final actual and expected values
@@ -222,8 +194,8 @@ public class ValidationsHelper2 {
         AtomicBoolean validationState = new AtomicBoolean(false);
         AtomicInteger elementCount = new AtomicInteger();
         /**start the progress bar thread**/
-        progressBarThread = new CreateVirtualThread();
-        progressBarThread.runThreadWithTask(task);
+//        progressBarThread = new CreateVirtualThread();
+//        progressBarThread.runThreadWithTask(task);
         /************************************/
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
@@ -238,7 +210,7 @@ public class ValidationsHelper2 {
             //timeout was exhausted and the validation failed
         }
         // this is used to stop the progress bar thread in case the assertion succeeded
-        progressBarThread.stopThreadNow();
+//        progressBarThread.stopThreadNow();
         // this is used to make a new line so that the next log doesn't append to the progress bar
         printNewlineAfterProgressBar();
         // this should be here to prevent the constant logging and to get the final actual and expected values
