@@ -19,6 +19,7 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.shaft.tools.internal.support.JavaHelper.printProgressBar;
+import static com.shaft.tools.io.internal.ReportManagerHelper.*;
 
 
 public class ValidationsExecutor {
@@ -50,15 +51,20 @@ public class ValidationsExecutor {
      * The following variables are used
      * for printing the progress bar
      * **/
-    int timeoutVal = (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
+/*    int timeoutVal = (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
     CreateVirtualThread progressBarThread;
     Runnable task = () -> {
         try {
+            initializeProgressBarConfig();
             printProgressBar(timeoutVal);
+            returnToDefaultConfig();
+            printNewlineAfterProgressBar();
         } catch (InterruptedException e) {
+            returnToDefaultConfig();
+            printNewlineAfterProgressBar();
             throw new RuntimeException(e);
         }
-    };
+    };*/
     /******************************************************************/
     public ValidationsExecutor(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
@@ -175,8 +181,8 @@ public class ValidationsExecutor {
     @Step(" {this.validationCategoryString} that {this.customReportMessage}")
     private void performValidation() {
         /**start the progress bar thread**/
-            progressBarThread = new CreateVirtualThread();
-            progressBarThread.runThreadWithTask(task);
+//            progressBarThread = new CreateVirtualThread();
+//            progressBarThread.runThreadWithTask(task);
         /************************************/
         switch (validationMethod) {
             case "forceFail" -> new ValidationsHelper().validateFail(validationCategory, customReportMessage);
@@ -230,6 +236,6 @@ public class ValidationsExecutor {
             }
         }
         // this is used to stop the progress bar thread in case the assertion succeeded
-        progressBarThread.stopThreadNow();
+//        progressBarThread.stopThreadNow();
     }
 }

@@ -16,14 +16,11 @@ import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.Appender;
-import org.apache.logging.log4j.core.Layout;
-import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.Filter;
 import org.apache.logging.log4j.core.appender.ConsoleAppender;
-import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.Configurator;
-import org.apache.logging.log4j.core.config.builder.api.LayoutComponentBuilder;
-import org.apache.logging.log4j.core.layout.PatternLayout;
+import org.apache.logging.log4j.core.config.builder.api.*;
+import org.apache.logging.log4j.core.config.builder.impl.BuiltConfiguration;
 import org.testng.ITestResult;
 import org.testng.Reporter;
 
@@ -33,6 +30,8 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import static org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilderFactory.newConfigurationBuilder;
 
 //@Getter
 @SuppressWarnings("unused")
@@ -58,8 +57,6 @@ public class ReportManagerHelper {
     private static List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
     private static String featureName = "";
     private static Logger logger;
-    private static Logger progressLogger;
-
     private ReportManagerHelper() {
         throw new IllegalStateException("Utility class");
     }
@@ -173,12 +170,9 @@ public class ReportManagerHelper {
     private static void initializeLogger() {
         // delete previous run execution log
         FileActions.getInstance(true).deleteFile(System.getProperty("appender.file.fileName"));
-        /*This is required to run both Approaches 1 and 2*/
-        //System.setProperty("log4j.configurationFactory", PropertiesCustomConfigurationFactory.class.getName());
         // initialize
         Configurator.initialize(null, PropertyFileManager.getCUSTOM_PROPERTIES_FOLDER_PATH() + "/log4j2.properties");
         logger = LogManager.getLogger(ReportManager.class.getName());
-        progressLogger = LogManager.getLogger("progressConsole");
     }
 
     public static void logEngineVersion() {
@@ -804,25 +798,31 @@ public class ReportManagerHelper {
         if(maximumValue > 60){
             maximumValue %= 60;
         }
-        /*Approach 3: This approach is not feasible and doesn't work anyway.*/
-/*        final String appenderPattern = "%highlight{[%p]}{FATAL=red blink, ERROR=red bold, WARN=yellow bold, INFO=fg_#0060a8 bold, DEBUG=fg_#43b02a bold, TRACE=black} %style{%m }%style{| %-logger}{bright_black} %style{- %-thread}{bright_black} %style{- %d{hh:mm:ss a}}{bright_black}";
-        final LoggerContext ctx = (LoggerContext) LogManager.getContext(true);
-        final Configuration config = ctx.getConfiguration();
-        PatternLayout progressBarLayout = PatternLayout.newBuilder().withPattern(appenderPattern).build();
-        PatternLayout currentLayout = (PatternLayout) config.getAppender("STDOUT").getLayout();
-        Appender appender = ConsoleAppender.newBuilder().setName("STDOUT").setLayout(progressBarLayout).build();
-        appender.start();
-        config.addAppender(appender);
-        ctx.updateLoggers();*/
-        progressLogger.info("\\033[1A\rWaiting.. |"+"\u001B[107m \u001B[0m".repeat(units)+" ".repeat(maximumValue-units)+"| "+units+" seconds");
-        /*This belongs to Approach 3*/
-/*        logger.info("\\033[1A\rWaiting.. |"+"\u001B[107m \u001B[0m".repeat(units)+" ".repeat(maximumValue-units)+"| "+units+" seconds");
-        appender = ConsoleAppender.newBuilder().setName("STDOUT").setLayout(currentLayout).build();
-        appender.start();
-        config.addAppender(appender);
-        ctx.updateLoggers();*/
+        logger.info("\rWaiting.. |"+"\u001B[107m \u001B[0m".repeat(units)+" ".repeat(maximumValue-units)+"| "+units+" seconds");
     }
     public static void printNewlineAfterProgressBar(){
         logger.info("\r\n");
+    }
+    public static void initializeProgressBarConfig(){
+        ConfigurationBuilder<BuiltConfiguration> builder = newConfigurationBuilder();
+        final String appenderPattern = "%style{%m }%style{| %-logger}{bright_black} %style{- %-thread}{bright_black} %style{- %d{hh:mm:ss a}}{bright_black}";
+        builder.setConfigurationName("logger2config");
+        //Appender construction
+        AppenderComponentBuilder console2 = builder.newAppender("STDOUT", "Console").
+                addAttribute("target", ConsoleAppender.Target.SYSTEM_OUT);
+        LayoutComponentBuilder patternLayout = builder.newLayout("PatternLayout").
+                addAttribute("pattern", appenderPattern).addAttribute("disableAnsi","false");
+        FilterComponentBuilder thresholdFilter = builder.newFilter("ThresholdFilter", Filter.Result.ACCEPT, Filter.Result.NEUTRAL).
+                addAttribute("level", "info");
+        console2.add(patternLayout).add(thresholdFilter);
+        builder.add(console2);
+        RootLoggerComponentBuilder rootLogger = builder.newRootLogger(Level.DEBUG);
+        rootLogger.add(builder.newAppenderRef("STDOUT"));
+        rootLogger.addAttribute("additivity", false);
+        builder.add(rootLogger);
+        Configurator.reconfigure(builder.build());
+    }
+    public static void returnToDefaultConfig(){
+        Configurator.reconfigure();
     }
 }
