@@ -76,6 +76,10 @@ public class OptionsManager {
                 if (SHAFT.Properties.web.headlessExecution()) {
                     ffOptions.addArguments("-headless");
                 }
+                //Incognito mode for Firefox
+                if(SHAFT.Properties.web.incognitoMode()) {
+                    ffOptions.addArguments("-private");
+                }
                 ffOptions.setLogLevel(FirefoxDriverLogLevel.WARN);
                 ffOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
@@ -285,15 +289,25 @@ public class OptionsManager {
         // Add if condtion to start the new session if flag=true on specific port
         if (SHAFT.Properties.performance.isEnabled()) {
             options.addArguments("--remote-debugging-port=" + SHAFT.Properties.performance.port());
-            options.addArguments("--no-sandbox");
+        } else {
+            options.addArguments("--remote-debugging-pipe");
         }
+        options.addArguments("--no-sandbox");
+
         if (SHAFT.Properties.flags.autoMaximizeBrowserWindow() && !Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.MAC.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             options.addArguments("--start-maximized");
         } else {
             options.addArguments("--window-position=0,0", "--window-size=" + DriverFactoryHelper.getTARGET_WINDOW_SIZE().getWidth() + "," + DriverFactoryHelper.getTARGET_WINDOW_SIZE().getHeight());
         }
         if (!SHAFT.Properties.flags.autoCloseDriverInstance()) options.setExperimentalOption("detach", true);
-
+        //Incognito mode for Chrome and Edge
+        if(SHAFT.Properties.web.incognitoMode()) {
+            if(options.getBrowserName().equals(DriverFactory.DriverType.CHROME.getValue())) {
+                options.addArguments("--incognito");
+            } else if (options.getBrowserName().equals(DriverFactory.DriverType.EDGE.getValue())) {
+                options.addArguments("inPrivate");
+            }
+        }
         Map<String, Object> chromePreferences = new HashMap<>();
         chromePreferences.put("profile.default_content_settings.popups", 0);
         chromePreferences.put("download.prompt_for_download", "false");

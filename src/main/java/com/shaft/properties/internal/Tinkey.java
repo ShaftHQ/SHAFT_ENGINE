@@ -6,7 +6,7 @@ import org.aeonbits.owner.ConfigFactory;
 
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/tinkey.properties", "file:src/main/resources/properties/default/tinkey.properties", "classpath:tinkey.properties"})
-public interface Tinkey extends EngineProperties {
+public interface Tinkey extends EngineProperties<Tinkey> {
     private static void setProperty(String key, String value) {
         var updatedProps = new java.util.Properties();
         updatedProps.setProperty(key, value);

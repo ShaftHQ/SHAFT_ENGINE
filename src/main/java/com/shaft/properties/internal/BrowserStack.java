@@ -10,7 +10,7 @@ import org.aeonbits.owner.ConfigFactory;
         "file:src/main/resources/properties/default/browserStack.properties",
         "classpath:browserStack.properties",
 })
-public interface BrowserStack extends EngineProperties {
+public interface BrowserStack extends EngineProperties<BrowserStack> {
     //Based on BrowserStack capability builder
     // For Mobile Native https://www.browserstack.com/app-automate/capabilities?tag=w3c
     // For Web https://www.browserstack.com/automate/capabilities?tag=selenium-4

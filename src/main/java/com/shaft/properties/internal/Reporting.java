@@ -6,7 +6,7 @@ import org.aeonbits.owner.ConfigFactory;
 
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/Reporting.properties", "file:src/main/resources/properties/default/Reporting.properties", "classpath:Reporting.properties"})
-public interface Reporting extends EngineProperties {
+public interface Reporting extends EngineProperties<Reporting> {
     private static void setProperty(String key, String value) {
         var updatedProps = new java.util.Properties();
         updatedProps.setProperty(key, value);

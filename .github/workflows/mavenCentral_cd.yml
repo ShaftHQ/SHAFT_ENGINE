@@ -66,4 +66,7 @@ jobs:
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-        run: mvn resources:resources javadoc:javadoc scm-publish:publish-scm "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
+        run: |
+          git config --global user.email "mohab.mohieeldeen@outlook.com"
+          git config --global user.name "Mohab Mohie"
+          mvn resources:resources javadoc:javadoc scm-publish:publish-scm "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"

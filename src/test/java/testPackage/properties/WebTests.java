@@ -17,7 +17,7 @@ public class WebTests {
     String baseURL;
     int browserWindowWidth;
     int browserWindowHeight;
-
+    boolean incognitoMode;
 
     @BeforeClass
     public void beforeClass() {
@@ -33,6 +33,7 @@ public class WebTests {
         baseURL = SHAFT.Properties.web.baseURL();
         browserWindowWidth = 1920;
         browserWindowHeight = 1080;
+        incognitoMode = SHAFT.Properties.web.incognitoMode();
     }
 
     @Test
@@ -48,6 +49,7 @@ public class WebTests {
                 .mobileEmulationUserAgent(mobileEmulationUserAgent)
                 .baseURL(baseURL)
                 .browserWindowWidth(browserWindowWidth)
-                .browserWindowHeight(browserWindowHeight);
+                .browserWindowHeight(browserWindowHeight)
+                .incognitoMode(incognitoMode);
     }
 }
