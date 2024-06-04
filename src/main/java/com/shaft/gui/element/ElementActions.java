@@ -388,7 +388,7 @@ public class ElementActions extends FluentWebDriverAction {
      */
     @SuppressWarnings("SpellCheckingInspection")
     public String getAttribute(By elementLocator, String attributeName) {
-        ReportManager.logDiscrete("Attempting to getAttribute \"" + attributeName + "\" from elementLocator \"" + elementLocator + "\".");
+//        ReportManager.logDiscrete("Attempting to getAttribute \"" + attributeName + "\" from elementLocator \"" + elementLocator + "\".");
         try {
             var elementInformation = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementLocator, ElementAction.GET_ATTRIBUTE, attributeName));
             try {
