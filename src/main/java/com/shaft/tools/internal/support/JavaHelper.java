@@ -12,11 +12,9 @@ import org.testng.Assert;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.shaft.tools.io.internal.ReportManagerHelper.printProgressBarAfterUnitsElapsed;
 
 @SuppressWarnings("unused")
 public class JavaHelper {
@@ -259,14 +257,5 @@ public class JavaHelper {
             return testDataFolderPath + relativePath;
         }
 
-    }
-
-    public static void printProgressBar(int totalTime) throws InterruptedException {
-        int seconds = 1;
-        while(seconds < totalTime){
-            TimeUnit.SECONDS.sleep(1);
-            seconds++;
-            printProgressBarAfterUnitsElapsed(totalTime, seconds);
-        }
     }
 }

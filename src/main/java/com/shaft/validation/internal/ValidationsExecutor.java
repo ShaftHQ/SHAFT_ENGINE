@@ -1,14 +1,12 @@
 package com.shaft.validation.internal;
 
-import com.google.common.util.concurrent.AtomicDouble;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
-import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
-import com.shaft.tools.internal.support.CreateVirtualThread;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.ProgressBarLogger;
 import com.shaft.validation.ValidationEnums;
 import io.qameta.allure.Step;
 import io.restassured.response.Response;
@@ -16,11 +14,6 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static com.shaft.tools.internal.support.JavaHelper.printProgressBar;
-import static com.shaft.tools.io.internal.ReportManagerHelper.*;
-
 
 public class ValidationsExecutor {
     protected final StringBuilder reportMessageBuilder;
@@ -47,25 +40,7 @@ public class ValidationsExecutor {
     private String jsonPath;
     private String folderRelativePath;
     private String fileName;
-    /**
-     * The following variables are used
-     * for printing the progress bar
-     * **/
-/*    int timeoutVal = (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
-    CreateVirtualThread progressBarThread;
-    Runnable task = () -> {
-        try {
-            initializeProgressBarConfig();
-            printProgressBar(timeoutVal);
-            returnToDefaultConfig();
-            printNewlineAfterProgressBar();
-        } catch (InterruptedException e) {
-            returnToDefaultConfig();
-            printNewlineAfterProgressBar();
-            throw new RuntimeException(e);
-        }
-    };*/
-    /******************************************************************/
+
     public ValidationsExecutor(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
         this.driver = webDriverElementValidationsBuilder.driver;
@@ -173,17 +148,17 @@ public class ValidationsExecutor {
             clearCustomReportMessage = true;
         }
         this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
-        performValidation();
+        ReportManager.logDiscrete(this.validationCategoryString + " that " + this.customReportMessage);
+        try (ProgressBarLogger pblogger = new ProgressBarLogger(this.validationCategoryString.equals("Assert") ? "Asserting..." : "Verifying...")) {
+            // perform validation
+            performValidation();
+        }
         if (Boolean.TRUE.equals(clearCustomReportMessage))
             customReportMessage = "";
     }
 
     @Step(" {this.validationCategoryString} that {this.customReportMessage}")
     private void performValidation() {
-        /**start the progress bar thread**/
-//            progressBarThread = new CreateVirtualThread();
-//            progressBarThread.runThreadWithTask(task);
-        /************************************/
         switch (validationMethod) {
             case "forceFail" -> new ValidationsHelper().validateFail(validationCategory, customReportMessage);
             case "objectsAreEqual" ->
@@ -235,7 +210,5 @@ public class ValidationsExecutor {
             default -> {
             }
         }
-        // this is used to stop the progress bar thread in case the assertion succeeded
-//        progressBarThread.stopThreadNow();
     }
 }

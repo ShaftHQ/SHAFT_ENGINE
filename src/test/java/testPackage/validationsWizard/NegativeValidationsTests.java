@@ -1,15 +1,13 @@
 package testPackage.validationsWizard;
 
-import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
 import org.testng.annotations.*;
 
 public class NegativeValidationsTests {
     private static double defaultTimeout = 60;
-    private final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
+    private final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     private final By button = By.cssSelector("button");
     private final By button2 = By.cssSelector("button2");
     private final By checkedBox = By.xpath("//input[@type='checkbox'][2]");
@@ -27,43 +25,43 @@ public class NegativeValidationsTests {
 
     @Test(expectedExceptions = AssertionError.class)
     public void url_failing() {
-        Validations.assertThat().browser(driver.get()).url().contains("google.comm").perform();
+        driver.get().browser().assertThat().url().contains("google.comm").perform();
     }
 
     @Test
     public void url_passing() {
-        driver.get().navigate().to("https://shafthq.github.io/");
-        Validations.assertThat().browser(driver.get()).url().isEqualTo("https://shafthq.github.io/").perform();
+        driver.get().browser().navigateToURL("https://shafthq.github.io/");
+        driver.get().browser().assertThat().url().isEqualTo("https://shafthq.github.io/").perform();
     }
 
     @Test(expectedExceptions = AssertionError.class)
     public void title_failing() {
-        Validations.assertThat().browser(driver.get()).title().contains("ooglem").perform();
+        driver.get().browser().assertThat().title().contains("ooglem").perform();
     }
 
     @Test
     public void title_passing() {
-        Validations.assertThat().browser(driver.get()).title().isEqualTo("").perform();
+        driver.get().browser().assertThat().title().isEqualTo("").perform();
     }
 
     @Test(expectedExceptions = AssertionError.class)
     public void exists_failing() {
-        Validations.assertThat().element(driver.get(), button2).exists().perform();
+        driver.get().element().assertThat(button2).exists().perform();
     }
 
     @Test
     public void exists_passing() {
-        Validations.assertThat().element(driver.get(), button).exists().perform();
+        driver.get().element().assertThat(button).exists().perform();
     }
 
     @Test(expectedExceptions = AssertionError.class)
     public void notExists_failing() {
-        Validations.assertThat().element(driver.get(), button).doesNotExist().perform();
+        driver.get().element().assertThat(button).doesNotExist().perform();
     }
 
     @Test(expectedExceptions = AssertionError.class)
     public void matchesReferenceImage() {
-        Validations.assertThat().element(driver.get(), button2).matchesReferenceImage().perform();
+        driver.get().element().assertThat(button2).matchesReferenceImage().perform();
     }
 
     @Test(expectedExceptions = AssertionError.class)
@@ -78,63 +76,63 @@ public class NegativeValidationsTests {
 
     @Test(expectedExceptions = AssertionError.class)
     public void isVisible() {
-        Validations.assertThat().element(driver.get(), button2).isVisible().perform();
+        driver.get().element().assertThat(button2).isVisible().perform();
     }
 
     @Test(expectedExceptions = AssertionError.class)
     public void isEnabled() {
-        Validations.assertThat().element(driver.get(), button).isDisabled().perform();
+        driver.get().element().assertThat(button).isDisabled().perform();
     }
 
     @Test(expectedExceptions = AssertionError.class)
     public void isChecked() {
-        Validations.assertThat().element(driver.get(), button).isChecked().perform();
+        driver.get().element().assertThat(button).isChecked().perform();
     }
 
     @Test(expectedExceptions = AssertionError.class)
     public void isNotSelected() {
-        Validations.assertThat().element(driver.get(), button).isSelected().perform();
+        driver.get().element().assertThat(button).isSelected().perform();
     }
 
     @Test(expectedExceptions = AssertionError.class)
     public void attribute() {
-        Validations.assertThat().element(driver.get(), button).attribute("alt").isEqualTo("Googlee").perform();
+        driver.get().element().assertThat(button).attribute("alt").isEqualTo("Googlee").perform();
     }
 
     @Test(expectedExceptions = AssertionError.class)
     public void text() {
-        Validations.assertThat().element(driver.get(), button).text().isEqualTo("Goo").perform();
+        driver.get().element().assertThat(button).text().isEqualTo("Goo").perform();
     }
 
     @Test
     public void notExists_passing() {
-        Validations.assertThat().element(driver.get(), button2).doesNotExist().perform();
+        driver.get().element().assertThat(button2).doesNotExist().perform();
     }
 
     @Test(expectedExceptions = AssertionError.class)
     public void cssProperty_failing() {
-        Validations.assertThat().element(driver.get(), button).cssProperty("appearance").matchesRegex("(autoo|buttonn)").perform();
+        driver.get().element().assertThat(button).cssProperty("appearance").matchesRegex("(autoo|buttonn)").perform();
     }
 
     @Test(expectedExceptions = AssertionError.class)
     public void isNotChecked() {
-        Validations.assertThat().element(driver.get(), checkedBox).isNotChecked().perform();
+        driver.get().element().assertThat(checkedBox).isNotChecked().perform();
     }
 
     @Test(expectedExceptions = AssertionError.class)
     public void isSelected() {
-        Validations.assertThat().element(driver.get(), NotCheckedBox).isSelected().perform();
+        driver.get().element().assertThat(NotCheckedBox).isSelected().perform();
     }
 
     @Test
     public void cssProperty_passing() {
-        Validations.assertThat().element(driver.get(), button).cssProperty("appearance").matchesRegex("(auto|button)").perform();
+        driver.get().element().assertThat(button).cssProperty("appearance").matchesRegex("(auto|button)").perform();
     }
 
     @BeforeClass
     public void beforeClass() {
         defaultTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(5);
     }
 
     @AfterClass(alwaysRun = true)
@@ -145,8 +143,8 @@ public class NegativeValidationsTests {
 
     @BeforeMethod
     public void beforeMethod() {
-        driver.set(new DriverFactory().getDriver());
-        driver.get().navigate().to(url);
+        driver.set(new SHAFT.GUI.WebDriver());
+        driver.get().browser().navigateToURL(url);
     }
 
     @AfterMethod(alwaysRun = true)

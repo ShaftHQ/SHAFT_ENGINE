@@ -16,11 +16,7 @@ import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.Filter;
-import org.apache.logging.log4j.core.appender.ConsoleAppender;
 import org.apache.logging.log4j.core.config.Configurator;
-import org.apache.logging.log4j.core.config.builder.api.*;
-import org.apache.logging.log4j.core.config.builder.impl.BuiltConfiguration;
 import org.testng.ITestResult;
 import org.testng.Reporter;
 
@@ -31,7 +27,6 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilderFactory.newConfigurationBuilder;
 
 //@Getter
 @SuppressWarnings("unused")
@@ -792,37 +787,5 @@ public class ReportManagerHelper {
             );
         }
         return duration;
-    }
-    public static void printProgressBarAfterUnitsElapsed(int maximumValue, int units){
-        // to keep the bar short in case of long waiting times
-        if(maximumValue > 60){
-            maximumValue %= 60;
-        }
-        logger.info("\rWaiting.. |"+"\u001B[107m \u001B[0m".repeat(units)+" ".repeat(maximumValue-units)+"| "+units+" seconds");
-    }
-    public static void printNewlineAfterProgressBar(){
-        logger.info("\r\n");
-    }
-    public static void initializeProgressBarConfig(){
-        ConfigurationBuilder<BuiltConfiguration> builder = newConfigurationBuilder();
-        final String appenderPattern = "%style{%m }%style{| %-logger}{bright_black} %style{- %-thread}{bright_black} %style{- %d{hh:mm:ss a}}{bright_black}";
-        builder.setConfigurationName("logger2config");
-        //Appender construction
-        AppenderComponentBuilder console2 = builder.newAppender("STDOUT", "Console").
-                addAttribute("target", ConsoleAppender.Target.SYSTEM_OUT);
-        LayoutComponentBuilder patternLayout = builder.newLayout("PatternLayout").
-                addAttribute("pattern", appenderPattern).addAttribute("disableAnsi","false");
-        FilterComponentBuilder thresholdFilter = builder.newFilter("ThresholdFilter", Filter.Result.ACCEPT, Filter.Result.NEUTRAL).
-                addAttribute("level", "info");
-        console2.add(patternLayout).add(thresholdFilter);
-        builder.add(console2);
-        RootLoggerComponentBuilder rootLogger = builder.newRootLogger(Level.DEBUG);
-        rootLogger.add(builder.newAppenderRef("STDOUT"));
-        rootLogger.addAttribute("additivity", false);
-        builder.add(rootLogger);
-        Configurator.reconfigure(builder.build());
-    }
-    public static void returnToDefaultConfig(){
-        Configurator.reconfigure();
     }
 }
