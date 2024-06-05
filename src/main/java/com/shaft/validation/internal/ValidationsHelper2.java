@@ -94,8 +94,6 @@ public class ValidationsHelper2 {
         } catch (TimeoutException timeoutException) {
             //timeout was exhausted and the validation failed
         }
-        // this should be here to prevent the constant logging and to get the final actual and expected values
-        ReportManager.logDiscrete("Expected \"" + expected + "\", and actual \"" + actual.get() + "\"");
         //reporting block
         List<Parameter> parameters = new ArrayList<>();
         parameters.add(new Parameter().setName("Attribute").setValue(attribute).setMode(Parameter.Mode.DEFAULT));
@@ -132,8 +130,6 @@ public class ValidationsHelper2 {
         } catch (TimeoutException timeoutException) {
             //timeout was exhausted and the validation failed
         }
-        // this should be here to prevent the constant logging and to get the final actual and expected values
-        ReportManager.logDiscrete("Expected \"" + expected + "\", and actual \"" + actual.get() + "\"");
         //reporting block
         List<Parameter> parameters = new ArrayList<>();
         parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
@@ -162,8 +158,6 @@ public class ValidationsHelper2 {
         } catch (TimeoutException timeoutException) {
             //timeout was exhausted and the validation failed
         }
-        // this should be here to prevent the constant logging and to get the final actual and expected values
-        ReportManager.logDiscrete("Expected \"" + expected + "\", and actual \"" + actual.get() + "\"");
         //reporting block
         List<Parameter> parameters = new ArrayList<>();
         parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
