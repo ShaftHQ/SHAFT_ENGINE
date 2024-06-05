@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ValidationsHelper2 {
     private final ValidationEnums.ValidationCategory validationCategory;
     private final String validationCategoryString;
+
     ValidationsHelper2(ValidationEnums.ValidationCategory validationCategory) {
         this.validationCategory = validationCategory;
         this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
@@ -112,6 +113,7 @@ public class ValidationsHelper2 {
 
         AtomicReference<String> actual = new AtomicReference<>();
         AtomicReference<Boolean> validationState = new AtomicReference<>();
+
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
                 actual.set(switch (attribute.toLowerCase()) {
@@ -146,6 +148,7 @@ public class ValidationsHelper2 {
         // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
         AtomicReference<String> actual = new AtomicReference<>();
         AtomicReference<Boolean> validationState = new AtomicReference<>();
+
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
                 actual.set(new ElementActions(driver, true).getCSSProperty(locator, property));
@@ -175,6 +178,7 @@ public class ValidationsHelper2 {
         AtomicBoolean actual = new AtomicBoolean(false);
         AtomicBoolean validationState = new AtomicBoolean(false);
         AtomicInteger elementCount = new AtomicInteger();
+
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
                 elementCount.set(new ElementActions(driver, true).getElementsCount(locator));
@@ -255,24 +259,19 @@ public class ValidationsHelper2 {
         // add attachments
         ReportManagerHelper.attach(attachments);
         // handle reporting & failure based on validation category
+        ReportManager.logDiscrete("Expected \"" + expected + "\", and actual \"" + actual + "\"");
         if (!validationState) {
             String failureMessage = this.validationCategoryString.replace("erify", "erificat") + "ion failed; expected " + expected + ", but found " + actual;
             if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
-                Allure.getLifecycle().updateStep(stepResult -> {
-                    FailureReporter.fail(failureMessage);
-                });
+                Allure.getLifecycle().updateStep(stepResult -> FailureReporter.fail(failureMessage));
             } else {
                 // soft assert
                 ValidationsHelper.verificationFailuresList.add(failureMessage);
                 ValidationsHelper.verificationError = new AssertionError(String.join("\nAND ", ValidationsHelper.verificationFailuresList));
-                Allure.getLifecycle().updateStep(stepResult -> {
-                    ReportManager.log(failureMessage);
-                });
+                Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(failureMessage));
             }
         } else {
-            Allure.getLifecycle().updateStep(stepResult -> {
-                ReportManager.log(this.validationCategoryString.replace("erify", "erificat") + "ion passed");
-            });
+            Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(this.validationCategoryString.replace("erify", "erificat") + "ion passed"));
         }
     }
 }

@@ -6,6 +6,7 @@ import com.shaft.cli.TerminalActions;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.ProgressBarLogger;
 import com.shaft.validation.ValidationEnums;
 import io.qameta.allure.Step;
 import io.restassured.response.Response;
@@ -13,7 +14,6 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 import java.util.Objects;
-
 
 public class ValidationsExecutor {
     protected final StringBuilder reportMessageBuilder;
@@ -148,7 +148,11 @@ public class ValidationsExecutor {
             clearCustomReportMessage = true;
         }
         this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
-        performValidation();
+        ReportManager.logDiscrete(this.validationCategoryString + " that " + this.customReportMessage);
+        try (ProgressBarLogger pblogger = new ProgressBarLogger(this.validationCategoryString.equals("Assert") ? "Asserting..." : "Verifying...")) {
+            // perform validation
+            performValidation();
+        }
         if (Boolean.TRUE.equals(clearCustomReportMessage))
             customReportMessage = "";
     }

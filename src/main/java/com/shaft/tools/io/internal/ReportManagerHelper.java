@@ -27,6 +27,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+
 //@Getter
 @SuppressWarnings("unused")
 public class ReportManagerHelper {
@@ -51,7 +52,6 @@ public class ReportManagerHelper {
     private static List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
     private static String featureName = "";
     private static Logger logger;
-
     private ReportManagerHelper() {
         throw new IllegalStateException("Utility class");
     }
@@ -788,5 +788,4 @@ public class ReportManagerHelper {
         }
         return duration;
     }
-
 }
