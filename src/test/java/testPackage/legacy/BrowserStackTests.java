@@ -25,7 +25,7 @@ public class BrowserStackTests {
         driver.set(new SHAFT.GUI.WebDriver());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void afterMethod() {
         driver.get().quit();
     }

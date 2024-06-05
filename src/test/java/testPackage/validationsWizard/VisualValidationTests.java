@@ -45,7 +45,7 @@ import org.testng.annotations.Test;
         driver.set(new SHAFT.GUI.WebDriver());
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void tear() {
         driver.get().quit();
     }

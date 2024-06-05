@@ -47,7 +47,7 @@ public class SelectMethodTests {
         driver.set(new SHAFT.GUI.WebDriver());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void tearDown() {
         if (driver != null) {
             driver.get().quit();

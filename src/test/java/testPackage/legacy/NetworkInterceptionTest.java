@@ -21,7 +21,7 @@ public class NetworkInterceptionTest {
         driver.set(new SHAFT.GUI.WebDriver());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() {
         driver.get().quit();
     }

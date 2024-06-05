@@ -40,7 +40,7 @@ public class SearchOptimizationTest {
         driver.set(new SHAFT.GUI.WebDriver());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void afterMethod() {
         driver.get().quit();
     }

@@ -12,7 +12,7 @@ public abstract class Tests {
         driver.set(new SHAFT.GUI.WebDriver());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tear() {
         driver.get().quit();
     }
