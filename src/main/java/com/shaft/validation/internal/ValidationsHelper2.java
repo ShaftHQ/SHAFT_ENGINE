@@ -191,8 +191,6 @@ public class ValidationsHelper2 {
         } catch (TimeoutException timeoutException) {
             //timeout was exhausted and the validation failed
         }
-        // this should be here to prevent the constant logging and to get the final actual and expected values
-        ReportManager.logDiscrete("Expected \"" + expected.get() + "\", and actual \"" + actual.get() + "\"");
         //reporting block
         List<Parameter> parameters = new ArrayList<>();
         parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
@@ -261,6 +259,7 @@ public class ValidationsHelper2 {
         // add attachments
         ReportManagerHelper.attach(attachments);
         // handle reporting & failure based on validation category
+        ReportManager.logDiscrete("Expected \"" + expected + "\", and actual \"" + actual + "\"");
         if (!validationState) {
             String failureMessage = this.validationCategoryString.replace("erify", "erificat") + "ion failed; expected " + expected + ", but found " + actual;
             if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
