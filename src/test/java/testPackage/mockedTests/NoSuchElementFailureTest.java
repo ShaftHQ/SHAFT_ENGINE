@@ -2,11 +2,12 @@ package testPackage.mockedTests;
 
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
-import org.testng.annotations.*;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class NoSuchElementFailureTest {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
-    double defaultElementIdentificationTimeout;
     String mockedHTML = "data:text/html,<input/><input/><input/><script>var result;</script><button ${HIDDEN} alt='Google' onclick='result=\"Clicked\"'>Go</button>";
 
 
@@ -37,16 +38,5 @@ public class NoSuchElementFailureTest {
     @AfterMethod(alwaysRun = true)
     void afterMethod() {
         driver.get().quit();
-    }
-
-    @BeforeClass
-    void beforeClass() {
-        defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
-    }
-
-    @AfterClass(alwaysRun = true)
-    void afterClass() {
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultElementIdentificationTimeout);
     }
 }

@@ -3,13 +3,14 @@ package testPackage.unitTests;
 import com.shaft.driver.SHAFT;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
-import org.testng.annotations.*;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 import poms.GoogleSearch;
 
 public class ElementActionsTests {
     //TODO: use as paralellization sample
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
-    private static final double defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
 
     @Test
     public void waitForElementToBePresent_true_expectedToPass() {
@@ -86,15 +87,5 @@ public class ElementActionsTests {
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
         driver.get().quit();
-    }
-
-    @BeforeClass
-    public void beforeClass() {
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
-    }
-
-    @AfterClass(alwaysRun = true)
-    public void afterClass() {
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultElementIdentificationTimeout);
     }
 }

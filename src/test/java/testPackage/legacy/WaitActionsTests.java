@@ -1,25 +1,10 @@
 package testPackage.legacy;
 
-import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import testPackage.Tests;
 
 public class WaitActionsTests extends Tests {
-    double defaultTimeout;
-
-    @BeforeMethod
-    public void reduceTimeout() {
-        defaultTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
-    }
-
-    @AfterMethod
-    public void returnTimeout() {
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultTimeout);
-    }
 
     @Test(expectedExceptions = AssertionError.class)
     public void waitUntilNumberOfElementsToBe() {

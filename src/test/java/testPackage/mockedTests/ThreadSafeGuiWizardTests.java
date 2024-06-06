@@ -94,15 +94,12 @@ public class ThreadSafeGuiWizardTests {
 //        SHAFT.Properties.platform.set().targetPlatform(Platform.LINUX.name());
 //        SHAFT.Properties.web.set().targetBrowserName(Browser.CHROME.browserName());
 
-        defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
         driver.set(new SHAFT.GUI.WebDriver());
         testData.set(new SHAFT.TestData.JSON("simpleJSON.json"));
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultElementIdentificationTimeout);
         driver.get().quit();
         driver.remove();
     }

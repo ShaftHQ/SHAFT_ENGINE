@@ -10,7 +10,6 @@ import testPackage.legacy.SearchOptimizationTest;
 public class CoverageTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     boolean initialValue = SHAFT.Properties.visuals.createAnimatedGif();
-    double defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
 
     @Test
     public void getElementsCount() {
@@ -125,14 +124,12 @@ public class CoverageTests {
 
     @BeforeClass
     public void beforeClass() {
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
         SHAFT.Properties.visuals.set().createAnimatedGif(true);
     }
 
     @AfterClass(alwaysRun = true)
     public void afterClass() {
         SHAFT.Properties.visuals.set().createAnimatedGif(initialValue);
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultElementIdentificationTimeout);
     }
 
     @BeforeMethod

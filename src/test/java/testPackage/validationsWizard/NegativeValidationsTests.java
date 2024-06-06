@@ -3,10 +3,11 @@ package testPackage.validationsWizard;
 import com.shaft.driver.SHAFT;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
-import org.testng.annotations.*;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class NegativeValidationsTests {
-    private static double defaultTimeout = 60;
     private final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     private final By button = By.cssSelector("button");
     private final By button2 = By.cssSelector("button2");
@@ -128,18 +129,6 @@ public class NegativeValidationsTests {
     public void cssProperty_passing() {
         driver.get().element().assertThat(button).cssProperty("appearance").matchesRegex("(auto|button)").perform();
     }
-
-    @BeforeClass
-    public void beforeClass() {
-        defaultTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(5);
-    }
-
-    @AfterClass(alwaysRun = true)
-    public void afterClass() {
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultTimeout);
-    }
-
 
     @BeforeMethod
     public void beforeMethod() {

@@ -9,7 +9,6 @@ import org.testng.annotations.Test;
 
 public class NewValidationHelperTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
-    double elementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
 
     @Test
     public void forceFail() {
@@ -308,13 +307,11 @@ public class NewValidationHelperTests {
     public void openBrowser() {
         driver.set(new SHAFT.GUI.WebDriver());
         driver.get().browser().navigateToURL("https://the-internet.herokuapp.com/");
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(5);
     }
 
     @AfterMethod(onlyForGroups = {"browserBasedTests"}, alwaysRun = true)
     public void closeBrowser() {
         driver.get().quit();
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(elementIdentificationTimeout);
     }
 }
 

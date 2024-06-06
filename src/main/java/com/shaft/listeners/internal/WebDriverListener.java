@@ -17,8 +17,6 @@ import java.net.URL;
 import java.util.Arrays;
 
 public class WebDriverListener implements org.openqa.selenium.support.events.WebDriverListener, io.appium.java_client.proxy.MethodCallListener {
-    private static final double DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
-    private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 100; // milliseconds
 
     private static WebDriver currentWebDriver;
     // Global
