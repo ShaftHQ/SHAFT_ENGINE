@@ -1,19 +1,18 @@
 package testPackage.legacy;
 
 import com.epam.healenium.SelfHealingDriver;
-import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class HealeniumTests {
-    private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     /*
     TODO:
@@ -33,21 +32,21 @@ public class HealeniumTests {
     @Test(enabled = false)
     public void test(){
         //confirm that the self healing driver has been initialized successfully
-        if (driver instanceof SelfHealingDriver){
+        if (driver.get().getDriver() instanceof SelfHealingDriver) {
             ReportManager.log("Healenium's Self Healing Driver initialized successfully.");
         } else{
             ReportManager.log("This is a normal WebDriver instance.");
         }
 
         //navigate to target url
-        new BrowserActions(driver.get()).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
+        new BrowserActions(driver.get().getDriver()).navigateToURL("https://www.google.com/ncr", "https://www.google.com");
 
         //define element locator
         By googleLogo_image = By.xpath("//*[@alt='Google']");
 
         //confirm that the locator is working
         try {
-            Validations.assertThat().element(driver.get(), googleLogo_image).exists().perform();
+            Validations.assertThat().element(driver.get().getDriver(), googleLogo_image).exists().perform();
             ReportManager.log("Successfully Found Element on initial check");
         }catch (AssertionError e){
             Validations.assertThat().forceFail()
@@ -55,11 +54,11 @@ public class HealeniumTests {
         }
 
         //break the locator
-        ((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('alt', 'NotGoogle')", driver.get().findElement(googleLogo_image));
+        ((JavascriptExecutor) driver.get().getDriver()).executeScript("arguments[0].setAttribute('alt', 'NotGoogle')", driver.get().getDriver().findElement(googleLogo_image));
 
         //confirm that self healing is working
         try {
-            Validations.assertThat().element(driver.get(), googleLogo_image).exists().perform();
+            Validations.assertThat().element(driver.get().getDriver(), googleLogo_image).exists().perform();
             ReportManager.log("Successfully Healed the locator and Found Element.");
         }catch (AssertionError e){
             Validations.assertThat().forceFail()
@@ -70,11 +69,11 @@ public class HealeniumTests {
     @BeforeMethod
     public void beforeMethod(){
 //        SHAFT.Properties.healenium.set().healEnabled(true);
-        driver.set(new DriverFactory().getDriver());
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod(){
-        new BrowserActions(driver.get()).closeCurrentWindow();
+        driver.get().quit();
     }
 }
