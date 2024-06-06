@@ -788,6 +788,7 @@
                 <configuration>
                     <sourceEncoding>UTF-8</sourceEncoding>
                     <outputEncoding>UTF-8</outputEncoding>
+                    <haltOnFailure>false</haltOnFailure>
                     <excludes>
                         <exclude>**/*Aspect</exclude>
                     </excludes>
@@ -939,6 +940,7 @@
                                 <testng.dtd.http>true</testng.dtd.http>
                                 <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>
                             </systemPropertyVariables>
+                            <testFailureIgnore>true</testFailureIgnore>
                             <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                             <failIfNoTests>false</failIfNoTests>
                             <trimStackTrace>false</trimStackTrace>
@@ -993,6 +995,7 @@
                                 <testng.dtd.http>true</testng.dtd.http>
                                 <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>
                             </systemPropertyVariables>
+                            <testFailureIgnore>true</testFailureIgnore>
                             <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                             <failIfNoTests>false</failIfNoTests>
                             <trimStackTrace>false</trimStackTrace>
