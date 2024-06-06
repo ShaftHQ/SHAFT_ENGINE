@@ -22,6 +22,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -63,6 +64,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -89,6 +91,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   Ubuntu_Database:
+    needs: [ Ubuntu_APIs ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -98,6 +101,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
@@ -129,6 +133,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -155,6 +160,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   Ubuntu_Firefox_Grid:
+    needs: [ Ubuntu_APIs ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -166,6 +172,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -194,6 +201,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   Ubuntu_Chrome_Grid:
+    needs: [ Ubuntu_APIs ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -205,6 +213,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -233,6 +242,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   Ubuntu_Edge_Grid:
+    needs: [ Ubuntu_APIs ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -244,6 +254,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -272,6 +283,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   Windows_Chrome_Local:
+    needs: [ Ubuntu_APIs ]
     runs-on: windows-latest
     steps:
       - name: Checkout Code
@@ -281,6 +293,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -317,6 +330,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -343,6 +357,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   Android_Native_BrowserStack:
+    needs: [ Ubuntu_APIs ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -352,6 +367,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -378,6 +394,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   iOS_Web_SAFARI_BrowserStack:
+    needs: [ Ubuntu_APIs ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -387,6 +404,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -413,6 +431,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   Android_Web_Chrome_BrowserStack:
+    needs: [ Ubuntu_APIs ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -422,6 +441,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -448,6 +468,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   Android_Web_Samsung_BrowserStack:
+    needs: [ Ubuntu_APIs ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -457,6 +478,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -483,6 +505,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   MacOSX_Safari_BrowserStack:
+    needs: [ Ubuntu_APIs ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -492,6 +515,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -518,6 +542,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   Ubuntu_Chrome_Cucumber_Grid:
+    needs: [ Ubuntu_APIs ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -534,6 +559,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -564,6 +590,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   Windows_Edge_Cucumber:
+    needs: [ Ubuntu_APIs ]
     runs-on: windows-latest
     steps:
       - name: Checkout Code
@@ -577,6 +604,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -609,6 +637,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   MacOSX_Safari_Cucumber_BrowserStack:
+    needs: [ Ubuntu_APIs ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -622,6 +651,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -648,6 +678,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   LambdaTest_NativeAndroid:
+    needs: [ Ubuntu_APIs ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -661,6 +692,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -701,6 +733,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -741,6 +774,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -781,6 +815,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
