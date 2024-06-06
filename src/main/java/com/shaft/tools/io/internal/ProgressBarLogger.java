@@ -34,7 +34,7 @@ public class ProgressBarLogger implements AutoCloseable {
                 );
         task = () -> {
             pb = pbb.build();
-            pb.setExtraMessage("tried for " + timeoutVal + " seconds.");
+            pb.setExtraMessage("seconds.");
             while (Duration.ofSeconds(timeoutVal - 1).minus(pb.getElapsedAfterStart()).isPositive()) {
                 try {
                     Thread.sleep(Duration.ofSeconds(1));
