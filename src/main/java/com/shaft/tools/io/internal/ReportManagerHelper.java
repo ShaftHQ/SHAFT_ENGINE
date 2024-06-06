@@ -52,6 +52,7 @@ public class ReportManagerHelper {
     private static List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
     private static String featureName = "";
     private static Logger logger;
+
     private ReportManagerHelper() {
         throw new IllegalStateException("Utility class");
     }

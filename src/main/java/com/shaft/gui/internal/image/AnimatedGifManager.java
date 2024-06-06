@@ -23,15 +23,27 @@ import java.util.Iterator;
 
 @SuppressWarnings("ConstantValue")
 public class AnimatedGifManager {
+    protected static final Boolean DETAILED_GIF = true;
+    protected static final String LIGHTWEIGHT_GIF_REGEX = "(.*validation.*)|(.*verify.*)|(.*assert.*)|(.*click.*)|(.*tap.*)|(.*key.*)|(.*navigate.*)|(.*type.*)";
     private static final ThreadLocal<ImageWriter> gifWriter = new ThreadLocal<>();
     private static final ThreadLocal<ImageWriteParam> imageWriteParam = new ThreadLocal<>();
     private static final ThreadLocal<IIOMetadata> imageMetaData = new ThreadLocal<>();
-    protected static final Boolean DETAILED_GIF = true;
-    protected static final String LIGHTWEIGHT_GIF_REGEX = "(.*validation.*)|(.*verify.*)|(.*assert.*)|(.*click.*)|(.*tap.*)|(.*key.*)|(.*navigate.*)|(.*type.*)";
     private static final int GIF_SIZE = 1280;
     private static String gifRelativePathWithFileName = "";
     private static ThreadLocal<ImageOutputStream> gifOutputStream = new ThreadLocal<>();
     private static ThreadLocal<AnimatedGifManager> gifManager = new ThreadLocal<>();
+
+    /**
+     * Creates a new GifSequenceWriter
+     *
+     * @param outputStream        the ImageOutputStream to be written to
+     * @param imageType           one of the imageTypes specified in BufferedImage
+     * @param timeBetweenFramesMS the time between frames in milliseconds
+     * @throws IOException if no gif ImageWriters are found
+     */
+    protected AnimatedGifManager(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS) throws IOException {
+        initialize(outputStream, imageType, timeBetweenFramesMS);
+    }
 
     public static String attachAnimatedGif() {
         // stop and attach
@@ -133,18 +145,6 @@ public class AnimatedGifManager {
                 ReportManagerHelper.logDiscrete(e);
             }
         }
-    }
-
-    /**
-     * Creates a new GifSequenceWriter
-     *
-     * @param outputStream        the ImageOutputStream to be written to
-     * @param imageType           one of the imageTypes specified in BufferedImage
-     * @param timeBetweenFramesMS the time between frames in milliseconds
-     * @throws IOException if no gif ImageWriters are found
-     */
-    protected AnimatedGifManager(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS) throws IOException {
-        initialize(outputStream, imageType, timeBetweenFramesMS);
     }
 
     /**

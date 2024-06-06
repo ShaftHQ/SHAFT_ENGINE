@@ -8,11 +8,11 @@ import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class LocatorBuilder {
+    private static final ThreadLocal<Locators> mode = new ThreadLocal<>();
     @Getter
     static ThreadLocal<By> iFrameLocator = new ThreadLocal<>();
     @Getter
     static ThreadLocal<By> shadowDomLocator = new ThreadLocal<>();
-    private static final ThreadLocal<Locators> mode = new ThreadLocal<>();
     String partialXpath;
     private String tagName = "*";
     private ArrayList<String> parameters = new ArrayList<>();

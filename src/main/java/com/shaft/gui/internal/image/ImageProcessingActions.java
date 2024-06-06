@@ -132,7 +132,7 @@ public class ImageProcessingActions {
             }
 
         } catch (NullPointerException | IOException e) {
-            FailureReporter.fail(ImageProcessingActions.class, "Failed to compare image files ...",e);
+            FailureReporter.fail(ImageProcessingActions.class, "Failed to compare image files ...", e);
         }
     }
 
@@ -141,7 +141,7 @@ public class ImageProcessingActions {
         Mat img;
         try {
             img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
-        } catch (java.lang.UnsatisfiedLinkError unsatisfiedLinkError){
+        } catch (java.lang.UnsatisfiedLinkError unsatisfiedLinkError) {
             loadOpenCV();
             img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
         }

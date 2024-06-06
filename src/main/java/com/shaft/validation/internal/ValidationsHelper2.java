@@ -202,7 +202,7 @@ public class ValidationsHelper2 {
     }
 
     private boolean performValidation(Object expected, Object actual,
-                                   Object type, ValidationEnums.ValidationType validation) {
+                                      Object type, ValidationEnums.ValidationType validation) {
         // compare actual and expected results
         int comparisonResult = 0;
         if (type instanceof ValidationEnums.ValidationComparisonType validationComparisonType) {

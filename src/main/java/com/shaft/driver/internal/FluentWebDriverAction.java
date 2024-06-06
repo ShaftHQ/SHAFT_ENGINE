@@ -19,6 +19,7 @@ public class FluentWebDriverAction {
     protected WebDriver driver;
     protected ElementActionsHelper elementActionsHelper;
     protected BrowserActionsHelper browserActionsHelper;
+
     public void initialize() {
         this.driverFactoryHelper = new DriverFactory().getHelper();
         this.driver = driverFactoryHelper.getDriver();
