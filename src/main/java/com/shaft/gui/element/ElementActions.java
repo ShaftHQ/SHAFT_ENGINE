@@ -959,19 +959,19 @@ public class ElementActions extends FluentWebDriverAction {
      * Waits dynamically for a specific element's attribute to be a certain value.
      * Waits until the default element identification timeout
      *
-     * @param elementLocator   the locator of the webElement under test (By xpath, id,
-     *                         selector, name ...etc.)
-     * @param attribute              the attribute name of the target webElement
-     * @param expectedValue the expected value of the attribute
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc.)
+     * @param attribute      the attribute name of the target webElement
+     * @param expectedValue  the expected value of the attribute
      * @return a self-reference to be used to chain actions
      */
     public ElementActions waitToAttribute(By elementLocator, String attribute, String expectedValue) {
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
                 var actualValue = new ElementActions(driver, true).getAttribute(elementLocator, attribute);
-                return Objects.equals(expectedValue,actualValue);
+                return Objects.equals(expectedValue, actualValue);
             });
-            elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "wait for element attribute \"" + attribute + "\" to be \"" + expectedValue + "\"", null, elementActionsHelper.getElementName(driver,elementLocator));
+            elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "wait for element attribute \"" + attribute + "\" to be \"" + expectedValue + "\"", null, elementActionsHelper.getElementName(driver, elementLocator));
         } catch (TimeoutException timeoutException) {
             elementActionsHelper.failAction(driver, elementLocator, timeoutException);
         }

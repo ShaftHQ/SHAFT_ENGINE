@@ -24,12 +24,12 @@ import java.util.Map;
 
 public class ScreenshotHelper {
     private static final String JS_RETRIEVE_DEVICE_PIXEL_RATIO = "var pr = window.devicePixelRatio; if (pr != undefined && pr != null)return pr; else return 1.0;";
+    private static String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDER_PATH = "";
+    private static BufferedImage shaftLogo = null;
+
     private ScreenshotHelper() {
         throw new IllegalStateException("Utility class");
     }
-
-    private static String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDER_PATH = "";
-    private static BufferedImage shaftLogo = null;
 
     public static String getAiAidedElementIdentificationFolderPath() {
         if (AI_AIDED_ELEMENT_IDENTIFICATION_FOLDER_PATH.isEmpty()) {
@@ -97,6 +97,7 @@ public class ScreenshotHelper {
         // Return the buffered image
         return bufferedImage;
     }
+
     protected static byte[] makeFullScreenshot(WebDriver driver, WebElement... skipElements) throws IOException {
         if (driver instanceof FirefoxDriver firefoxDriver) {
             return firefoxDriver.getFullPageScreenshotAs(OutputType.BYTES);
@@ -134,6 +135,7 @@ public class ScreenshotHelper {
                 }
         }
     }
+
     @SuppressWarnings("unchecked")
     private static byte[] takeFullPageScreenshotUsingCDP(WebDriver driver, HasCdp cdpDriver) throws IOException {
         try {
@@ -166,6 +168,7 @@ public class ScreenshotHelper {
             return takeFullPageScreenshotManually(driver);
         }
     }
+
     private static byte[] takeFullPageScreenshotManually(WebDriver driver, WebElement... skipElements) throws IOException {
         // scroll up first to start taking screenshots
         scrollVerticallyTo(driver, 0);
@@ -231,12 +234,15 @@ public class ScreenshotHelper {
         ImageIO.write(resultingImage, "png", byteArrayOutputStream);
         return byteArrayOutputStream.toByteArray();
     }
+
     private static void hideScroll(WebDriver driver) {
         ((JavascriptExecutor) driver).executeScript("document.documentElement.style.overflow = 'hidden';");
     }
+
     private static void showScroll(WebDriver driver) {
         ((JavascriptExecutor) driver).executeScript("document.documentElement.style.overflow = 'visible';");
     }
+
     private static void showHideElements(WebDriver driver, Boolean hide, WebElement... skipElements) {
         String display;
         if (Boolean.TRUE.equals(hide)) {
@@ -250,6 +256,7 @@ public class ScreenshotHelper {
             }
         }
     }
+
     private static void scrollVerticallyTo(WebDriver driver, int scroll) {
         ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, \"arguments[0]\");", scroll);
         try {
@@ -259,6 +266,7 @@ public class ScreenshotHelper {
             // exception to resolve the sonar lint comment
         }
     }
+
     private static void waitUntilItIsScrolledToPosition(WebDriver driver, int scrollPosition)
             throws InterruptedException {
         int time = 250;// SCREENSHOT_FULL_PAGE_SCROLL_TIMEOUT
@@ -269,6 +277,7 @@ public class ScreenshotHelper {
             isScrolledToPosition = Math.abs(obtainVerticalScrollPosition(driver) - scrollPosition) < 3;
         }
     }
+
     private static int obtainVerticalScrollPosition(WebDriver driver) {
         Long scrollLong = (Long) ((JavascriptExecutor) driver).executeScript(
                 "return (window.pageYOffset !== undefined) ? window.pageYOffset : (document.documentElement || document.body.parentNode || document.body).scrollTop;");

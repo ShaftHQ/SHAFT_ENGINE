@@ -11,7 +11,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.commons.lang3.SystemUtils;
-import org.apache.logging.log4j.Level;
 import org.openqa.selenium.Platform;
 
 import java.io.*;
@@ -293,7 +292,7 @@ public class FileActions {
         }
         String negation = wasFileDeleted ? "" : "not ";
         //if (!wasFileDeleted)
-            //ReportManager.log("File was not deleted: `"+targetFilePath+"`", Level.WARN);
+        //ReportManager.log("File was not deleted: `"+targetFilePath+"`", Level.WARN);
         passAction("Target File Path: \"" + targetFilePath + "\", file was " + negation + "deleted.");
     }
 
