@@ -1081,37 +1081,37 @@ public class ElementActions extends FluentWebDriverAction {
     }
 
     public ElementActions waitUntilNumberOfElementsToBe(By elementLocator, int numberOfElements) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.numberOfElementsToBe(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.numberOfElementsToBe(elementLocator, numberOfElements), (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
         return this;
     }
 
     public ElementActions waitUntilNumberOfElementsToBeLessThan(By elementLocator, int numberOfElements) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.numberOfElementsToBeLessThan(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.numberOfElementsToBeLessThan(elementLocator, numberOfElements), (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
         return this;
     }
 
     public ElementActions waitUntilNumberOfElementsToBeMoreThan(By elementLocator, int numberOfElements) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.numberOfElementsToBeMoreThan(elementLocator, numberOfElements), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.numberOfElementsToBeMoreThan(elementLocator, numberOfElements), (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
         return this;
     }
 
     public ElementActions waitUntilAttributeContains(By elementLocator, String attribute, String attributeContainsValue) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.attributeContains(elementLocator, attribute, attributeContainsValue), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.attributeContains(elementLocator, attribute, attributeContainsValue), (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
         return this;
     }
 
     public ElementActions waitUntilElementTextToBe(By elementLocator, String text) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.textToBe(elementLocator, text), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.textToBe(elementLocator, text), (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
         return this;
     }
 
     public ElementActions waitUntilElementToBeSelected(By elementLocator) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.elementToBeSelected(elementLocator), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.elementToBeSelected(elementLocator), (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
         return this;
     }
 
     public ElementActions waitUntilPresenceOfAllElementsLocatedBy(By elementLocator) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.presenceOfAllElementsLocatedBy(elementLocator), ElementActionsHelper.ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.presenceOfAllElementsLocatedBy(elementLocator), (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
         return this;
     }
 
