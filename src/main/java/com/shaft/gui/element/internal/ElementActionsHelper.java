@@ -42,11 +42,8 @@ import java.util.concurrent.Executors;
 @SuppressWarnings({"UnusedReturnValue"})
 public class ElementActionsHelper {
     public static final String OBFUSCATED_STRING = "•";
-    public static final int ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER = (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
     private static final boolean GET_ELEMENT_HTML = true; //TODO: expose parameter
-    private static final boolean FORCE_CHECK_FOR_ELEMENT_VISIBILITY = SHAFT.Properties.flags.forceCheckForElementVisibility();
     private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 100; // milliseconds
-    private static final String WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot();
     private final boolean isSilent;
 
     public ElementActionsHelper(boolean isSilent) {
@@ -69,7 +66,7 @@ public class ElementActionsHelper {
     }
 
     public List<Object> waitForElementPresence(WebDriver driver, By elementLocator) {
-        return waitForElementPresence(driver, elementLocator, FORCE_CHECK_FOR_ELEMENT_VISIBILITY);
+        return waitForElementPresence(driver, elementLocator, SHAFT.Properties.flags.forceCheckForElementVisibility());
     }
 
     public List<Object> waitForElementPresence(WebDriver driver, String elementReferenceScreenshot) {
@@ -1002,7 +999,7 @@ public class ElementActionsHelper {
         }
 
         if (driver != null && (Boolean.FALSE.equals(passFailStatus)
-                || WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("always"))) {
+                || SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().equalsIgnoreCase("always"))) {
                 var logMessage = "";
                 var pageSnapshot = new BrowserActionsHelper(false).capturePageSnapshot(driver);
                 if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
