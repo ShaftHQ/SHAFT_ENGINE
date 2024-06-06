@@ -30,9 +30,9 @@ public class ValidationsHelper {
     static final ThreadLocal<ArrayList<String>> optionalCustomLogMessage = new ThreadLocal<>();
     private static final Boolean discreetLoggingState = SHAFT.Properties.reporting.alwaysLogDiscreetly();
     private static final String WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim();
-    private static By lastUsedElementLocator = null;
     protected static List<String> verificationFailuresList = new ArrayList<>();
     protected static AssertionError verificationError = null;
+    private static By lastUsedElementLocator = null;
     private final ElementActionsHelper elementActionsHelper;
 
     ValidationsHelper() {
@@ -46,47 +46,6 @@ public class ValidationsHelper {
     public static void resetVerificationStateAfterFailing() {
         verificationFailuresList = new ArrayList<>();
         verificationError = null;
-    }
-
-    protected void validateFail(ValidationCategory validationCategory, String customReportMessage) {
-        processCustomLogMessage(customReportMessage);
-        fail(null, validationCategory, null, null, null, null, null);
-    }
-
-    protected void validateTrue(ValidationCategory validationCategory, Boolean conditionalStatement, ValidationType validationType, String customReportMessage) {
-        processCustomLogMessage(customReportMessage);
-        Boolean expectedValue = false;
-        if (ValidationType.POSITIVE.equals(validationType)) {
-            expectedValue = true;
-        }
-        if ((expectedValue && conditionalStatement) || (!expectedValue && !conditionalStatement)) {
-            pass(null, validationCategory, String.valueOf(expectedValue).toUpperCase(), String.valueOf(conditionalStatement).toUpperCase(), null, validationType);
-        } else {
-            fail(null, validationCategory, String.valueOf(expectedValue).toUpperCase(), String.valueOf(conditionalStatement).toUpperCase(), null, validationType, null);
-        }
-    }
-
-    protected void validateFileExists(ValidationCategory validationCategory, String fileFolderName, String fileName, @SuppressWarnings("SameParameterValue") int numberOfRetries,
-                                      ValidationType validationType, String customReportMessage) {
-        processCustomLogMessage(customReportMessage);
-        boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
-        boolean actualValue = FileActions.getInstance(true).doesFileExist(fileFolderName, fileName, numberOfRetries);
-        String filePrefix = "File '";
-        String[] expectedAttributeStates = {"' should exist, after up to '", "' should not exist, after up to '"};
-        String numberOfRetriesPostfix = "' retries";
-        String reportedExpectedValue = filePrefix + fileFolderName + fileName + expectedAttributeStates[0] + numberOfRetries + numberOfRetriesPostfix;
-        if (!expectedValue) {
-            reportedExpectedValue = filePrefix + fileFolderName + fileName + expectedAttributeStates[1] + numberOfRetries + numberOfRetriesPostfix;
-        }
-        String reportedActualValue = "File exists";
-        if (!actualValue) {
-            reportedActualValue = "File does not exist";
-        }
-        if ((expectedValue && actualValue) || (!expectedValue && !actualValue)) {
-            pass(null, validationCategory, reportedExpectedValue, reportedActualValue, null, validationType);
-        } else {
-            fail(null, validationCategory, reportedExpectedValue, reportedActualValue, null, validationType, null);
-        }
     }
 
     private static void reportValidationState(WebDriver driver, ValidationCategory validationCategory, String expectedValue, String actualValue,
@@ -239,6 +198,109 @@ public class ValidationsHelper {
                 ValidationState.FAILED, null, null);
     }
 
+    private static void reportValidationResultOfBrowserAttribute(WebDriver driver, Object[] args) {
+        String[] expectedAttributeStates = (String[]) args[0];
+        String propertySeparator = (String) args[1];
+        String attributeClosure = (String) args[2];
+        int comparisonResult = (int) args[3];
+        String propertyName = (String) args[5];
+        String expectedValue = (String) args[6];
+        String actualValue = (String) args[7];
+        ValidationComparisonType validationComparisonType = (ValidationComparisonType) args[8];
+        ValidationType validationType = (ValidationType) args[9];
+        ValidationCategory validationCategory = (ValidationCategory) args[10];
+        if (validationType.getValue()) {
+            // expecting element attribute to have the correct value
+            if (comparisonResult == 1) {
+                // match
+                pass(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
+                                + attributeClosure, actualValue, validationComparisonType,
+                        validationType);
+            } else {
+                // no match, or unhandled issue
+                fail(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
+                                + attributeClosure, actualValue, validationComparisonType,
+                        validationType, null);
+            }
+        } else {
+            // expecting element attribute to not have the correct value
+            if (comparisonResult == 1) {
+                // match
+                pass(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
+                                + attributeClosure, actualValue, validationComparisonType,
+                        validationType);
+            } else {
+                // no match, or unhandled issue
+                fail(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
+                                + attributeClosure, actualValue, validationComparisonType,
+                        validationType, null);
+            }
+        }
+    }
+
+    static boolean isExpectedOrActualValueLong(String expectedValue, String actualValue) {
+        boolean isExpectedOrActualValueLong = false;
+        if (actualValue == null && expectedValue != null) {
+            isExpectedOrActualValueLong = expectedValue.length() >= 500;
+        } else if (actualValue != null && expectedValue == null) {
+            isExpectedOrActualValueLong = actualValue.length() >= 500;
+        } else if (actualValue != null) {
+            isExpectedOrActualValueLong = expectedValue.length() >= 500 || actualValue.length() >= 500;
+        }
+        return isExpectedOrActualValueLong;
+    }
+
+    private static void processCustomLogMessage(String... optionalCustomLogMessage) {
+        ValidationsHelper.optionalCustomLogMessage.set(new ArrayList<>());
+        for (String customMessage : optionalCustomLogMessage) {
+            if (customMessage != null && !customMessage.isBlank()) {
+                ValidationsHelper.optionalCustomLogMessage.get().add(customMessage);
+                //ReportManager.log(customMessage + "...");
+            }
+        }
+    }
+
+    protected void validateFail(ValidationCategory validationCategory, String customReportMessage) {
+        processCustomLogMessage(customReportMessage);
+        fail(null, validationCategory, null, null, null, null, null);
+    }
+
+    protected void validateTrue(ValidationCategory validationCategory, Boolean conditionalStatement, ValidationType validationType, String customReportMessage) {
+        processCustomLogMessage(customReportMessage);
+        Boolean expectedValue = false;
+        if (ValidationType.POSITIVE.equals(validationType)) {
+            expectedValue = true;
+        }
+        if ((expectedValue && conditionalStatement) || (!expectedValue && !conditionalStatement)) {
+            pass(null, validationCategory, String.valueOf(expectedValue).toUpperCase(), String.valueOf(conditionalStatement).toUpperCase(), null, validationType);
+        } else {
+            fail(null, validationCategory, String.valueOf(expectedValue).toUpperCase(), String.valueOf(conditionalStatement).toUpperCase(), null, validationType, null);
+        }
+    }
+
+    protected void validateFileExists(ValidationCategory validationCategory, String fileFolderName, String fileName, @SuppressWarnings("SameParameterValue") int numberOfRetries,
+                                      ValidationType validationType, String customReportMessage) {
+        processCustomLogMessage(customReportMessage);
+        boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
+        boolean actualValue = FileActions.getInstance(true).doesFileExist(fileFolderName, fileName, numberOfRetries);
+        String filePrefix = "File '";
+        String[] expectedAttributeStates = {"' should exist, after up to '", "' should not exist, after up to '"};
+        String numberOfRetriesPostfix = "' retries";
+        String reportedExpectedValue = filePrefix + fileFolderName + fileName + expectedAttributeStates[0] + numberOfRetries + numberOfRetriesPostfix;
+        if (!expectedValue) {
+            reportedExpectedValue = filePrefix + fileFolderName + fileName + expectedAttributeStates[1] + numberOfRetries + numberOfRetriesPostfix;
+        }
+        String reportedActualValue = "File exists";
+        if (!actualValue) {
+            reportedActualValue = "File does not exist";
+        }
+        if ((expectedValue && actualValue) || (!expectedValue && !actualValue)) {
+            pass(null, validationCategory, reportedExpectedValue, reportedActualValue, null, validationType);
+        } else {
+            fail(null, validationCategory, reportedExpectedValue, reportedActualValue, null, validationType, null);
+        }
+    }
+
     protected void validateJSONFileContent(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
                                            RestActions.ComparisonType comparisonType, @SuppressWarnings("SameParameterValue") String jsonPathToTargetArray, ValidationType validationType, String customReportMessage) {
         processCustomLogMessage(customReportMessage);
@@ -303,46 +365,6 @@ public class ValidationsHelper {
         }
     }
 
-    private static void reportValidationResultOfBrowserAttribute(WebDriver driver, Object[] args) {
-        String[] expectedAttributeStates = (String[]) args[0];
-        String propertySeparator = (String) args[1];
-        String attributeClosure = (String) args[2];
-        int comparisonResult = (int) args[3];
-        String propertyName = (String) args[5];
-        String expectedValue = (String) args[6];
-        String actualValue = (String) args[7];
-        ValidationComparisonType validationComparisonType = (ValidationComparisonType) args[8];
-        ValidationType validationType = (ValidationType) args[9];
-        ValidationCategory validationCategory = (ValidationCategory) args[10];
-        if (validationType.getValue()) {
-            // expecting element attribute to have the correct value
-            if (comparisonResult == 1) {
-                // match
-                pass(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
-                                + attributeClosure, actualValue, validationComparisonType,
-                        validationType);
-            } else {
-                // no match, or unhandled issue
-                fail(driver, validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
-                                + attributeClosure, actualValue, validationComparisonType,
-                        validationType, null);
-            }
-        } else {
-            // expecting element attribute to not have the correct value
-            if (comparisonResult == 1) {
-                // match
-                pass(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
-                                + attributeClosure, actualValue, validationComparisonType,
-                        validationType);
-            } else {
-                // no match, or unhandled issue
-                fail(driver, validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
-                                + attributeClosure, actualValue, validationComparisonType,
-                        validationType, null);
-            }
-        }
-    }
-
     protected void validateElementMatches(ValidationCategory validationCategory, WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine, ValidationType validationType,
                                           String customReportMessage) {
         lastUsedElementLocator = elementLocator;
@@ -400,28 +422,6 @@ public class ValidationsHelper {
                     pageScreenshot);
             attachments.add(actualValueAttachment);
             fail(driver, validationCategory, reportedExpectedResult.toString(), "Element not found".toUpperCase(), visualValidationEngine, validationType, null, attachments);
-        }
-    }
-
-    static boolean isExpectedOrActualValueLong(String expectedValue, String actualValue) {
-        boolean isExpectedOrActualValueLong = false;
-        if (actualValue == null && expectedValue != null) {
-            isExpectedOrActualValueLong = expectedValue.length() >= 500;
-        } else if (actualValue != null && expectedValue == null) {
-            isExpectedOrActualValueLong = actualValue.length() >= 500;
-        } else if (actualValue != null) {
-            isExpectedOrActualValueLong = expectedValue.length() >= 500 || actualValue.length() >= 500;
-        }
-        return isExpectedOrActualValueLong;
-    }
-
-    private static void processCustomLogMessage(String... optionalCustomLogMessage) {
-        ValidationsHelper.optionalCustomLogMessage.set(new ArrayList<>());
-        for (String customMessage : optionalCustomLogMessage) {
-            if (customMessage != null && !customMessage.isBlank()) {
-                ValidationsHelper.optionalCustomLogMessage.get().add(customMessage);
-                //ReportManager.log(customMessage + "...");
-            }
         }
     }
 }

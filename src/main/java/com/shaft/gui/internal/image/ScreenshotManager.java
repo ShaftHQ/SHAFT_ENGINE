@@ -34,7 +34,7 @@ public class ScreenshotManager {
     }
 
     public List<Object> takeScreenshot(WebDriver driver, By elementLocator, String actionName,
-                                              boolean passFailStatus) {
+                                       boolean passFailStatus) {
         return internalCaptureScreenShot(driver, elementLocator, actionName, shouldTakeScreenshot(actionName, passFailStatus), passFailStatus);
     }
 
@@ -248,7 +248,7 @@ public class ScreenshotManager {
     }
 
     private String highlightElementAndReturnDefaultStyle(WebDriver driver, WebElement element, JavascriptExecutor js,
-                                                                String highlightedElementStyle) {
+                                                         String highlightedElementStyle) {
         String regularElementStyle = element.getAttribute("style");
         if (regularElementStyle != null && !regularElementStyle.isEmpty()) {
             js.executeScript("arguments[0].style.cssText = arguments[1];", element,

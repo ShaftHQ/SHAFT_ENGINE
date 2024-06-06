@@ -32,10 +32,10 @@ import java.util.List;
 import java.util.*;
 
 public class BrowserActionsHelper {
+    public static final int NAVIGATION_TIMEOUT_INTEGER = SHAFT.Properties.timeouts.browserNavigationTimeout();
     private final boolean isSilent;
     private final Boolean HEADLESS_EXECUTION = SHAFT.Properties.web.headlessExecution();
 
-    public static final int NAVIGATION_TIMEOUT_INTEGER = SHAFT.Properties.timeouts.browserNavigationTimeout();
     public BrowserActionsHelper(boolean isSilent) {
         this.isSilent = isSilent;
     }
@@ -65,7 +65,7 @@ public class BrowserActionsHelper {
     }
 
     public void failAction(WebDriver driver, String actionName, String testData,
-                                  Exception... rootCauseException) {
+                           Exception... rootCauseException) {
         String message = reportActionResult(driver, actionName, testData, false, rootCauseException);
         if (rootCauseException != null && rootCauseException.length > 0) {
             FailureReporter.fail(DatabaseActions.class, message, rootCauseException[0]);
@@ -75,8 +75,8 @@ public class BrowserActionsHelper {
     }
 
     private String reportActionResult(WebDriver driver, String actionName, String testData,
-                                             Boolean passFailStatus,
-                                             Exception... rootCauseException) {
+                                      Boolean passFailStatus,
+                                      Exception... rootCauseException) {
         actionName = JavaHelper.convertToSentenceCase(actionName);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
@@ -203,7 +203,7 @@ public class BrowserActionsHelper {
     }
 
     public Dimension attemptMaximizeUsingSeleniumWebDriver(WebDriver driver, String executionAddress,
-                                                                  String targetBrowserName, String targetOperatingSystem) {
+                                                           String targetBrowserName, String targetOperatingSystem) {
         if ((!"local".equals(executionAddress) && !"GoogleChrome".equals(targetBrowserName))
                 || ("local".equals(executionAddress)
                 && !("GoogleChrome".equals(targetBrowserName) && "Mac".equals(targetOperatingSystem)))) {
@@ -249,7 +249,7 @@ public class BrowserActionsHelper {
     }
 
     public Dimension attemptMaximizeUsingSeleniumWebDriverManageWindow(WebDriver driver, int width,
-                                                                              int height) {
+                                                                       int height) {
         driver.manage().window().setPosition(new Point(0, 0));
         driver.manage().window().setSize(new Dimension(width, height));
 

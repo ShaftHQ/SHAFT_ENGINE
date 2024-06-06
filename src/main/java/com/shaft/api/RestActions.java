@@ -67,9 +67,9 @@ public class RestActions {
     private static final String ERROR_INCORRECT_XML_PATH = "Incorrect xmlPath ";
     private static final String ERROR_FAILED_TO_PARSE_JSON = "Failed to parse the JSON document";
     private static final String GRAPHQL_END_POINT = "graphql";
-    @Getter
-    @Setter
-    private Response lastResponse;
+    static AllureRestAssured allureFilter = new AllureRestAssured()
+            .setRequestAttachmentName("Request")
+            .setResponseAttachmentName("Response");
     private static boolean AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = true;
     private static int HTTP_SOCKET_TIMEOUT;
     private static int HTTP_CONNECTION_TIMEOUT;
@@ -78,11 +78,10 @@ public class RestActions {
     private final Map<String, String> sessionHeaders;
     private final Map<String, Object> sessionCookies;
     private final RestAssuredConfig sessionConfig;
+    @Getter
+    @Setter
+    private Response lastResponse;
     private String headerAuthorization;
-
-    static AllureRestAssured allureFilter = new AllureRestAssured()
-            .setRequestAttachmentName("Request")
-            .setResponseAttachmentName("Response");
 
     public RestActions(String serviceURI) {
         initializeSystemProperties();
@@ -188,7 +187,7 @@ public class RestActions {
                 var jsonValue = JsonPath.read(jsonResponse, jsonPath);
                 searchPool = String.valueOf(jsonValue);
             }
-        // This implementation is to handle the *PathNotFoundException* that happens when we have json object but inside html or xml tags, so it's not represented as json object
+            // This implementation is to handle the *PathNotFoundException* that happens when we have json object but inside html or xml tags, so it's not represented as json object
         } catch (PathNotFoundException e) {
             String jsonObject = jsonResponse.substring(jsonResponse.indexOf("{"), jsonResponse.lastIndexOf("}") + 1);
             Configuration confOrgJsonProvider = Configuration.builder().jsonProvider(new JsonOrgJsonProvider()).build();
@@ -282,8 +281,9 @@ public class RestActions {
             List<Object> jsonList = null;
             try {
                 JSONArray jsonArray = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
-                jsonList = new ObjectMapper().readValue(Objects.requireNonNull(jsonArray).toString(), new TypeReference<>() {});
-            } catch (JSONException | JsonProcessingException rootCauseException ) {
+                jsonList = new ObjectMapper().readValue(Objects.requireNonNull(jsonArray).toString(), new TypeReference<>() {
+                });
+            } catch (JSONException | JsonProcessingException rootCauseException) {
                 ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
                 failAction(jsonPath, rootCauseException);
             }

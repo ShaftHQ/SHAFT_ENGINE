@@ -42,11 +42,8 @@ import java.util.concurrent.Executors;
 @SuppressWarnings({"UnusedReturnValue"})
 public class ElementActionsHelper {
     public static final String OBFUSCATED_STRING = "•";
-    public static final int ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER = (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
     private static final boolean GET_ELEMENT_HTML = true; //TODO: expose parameter
-    private static final boolean FORCE_CHECK_FOR_ELEMENT_VISIBILITY = SHAFT.Properties.flags.forceCheckForElementVisibility();
     private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 100; // milliseconds
-    private static final String WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot();
     private final boolean isSilent;
 
     public ElementActionsHelper(boolean isSilent) {
@@ -69,7 +66,7 @@ public class ElementActionsHelper {
     }
 
     public List<Object> waitForElementPresence(WebDriver driver, By elementLocator) {
-        return waitForElementPresence(driver, elementLocator, FORCE_CHECK_FOR_ELEMENT_VISIBILITY);
+        return waitForElementPresence(driver, elementLocator, SHAFT.Properties.flags.forceCheckForElementVisibility());
     }
 
     public List<Object> waitForElementPresence(WebDriver driver, String elementReferenceScreenshot) {
@@ -128,136 +125,136 @@ public class ElementActionsHelper {
         try {
             return new SynchronizationManager(driver).fluentWait(isValidToCheckForVisibility)
                     .until(f -> {
-                try (ExecutorService myExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
-                    final WebElement[] targetElement = new WebElement[1];
-                    ElementInformation elementInformation = new ElementInformation();
-                    // BLOCK #1 :: GETTING THE ELEMENT
-                    By shadowDomLocator = ShadowLocatorBuilder.shadowDomLocator.get();
-                    By cssSelector = ShadowLocatorBuilder.cssSelector.get();
-                    if (shadowDomLocator != null && cssSelector == elementLocator) {
-                        targetElement[0] = driver.findElement(shadowDomLocator)
-                                .getShadowRoot()
-                                .findElement(cssSelector);
-                    } else if (LocatorBuilder.getIFrameLocator().get() != null) {
-                        try {
-                            targetElement[0] = driver.switchTo().frame(driver.findElement(LocatorBuilder.getIFrameLocator().get())).findElement(elementLocator);
-                        } catch (NoSuchElementException exception) {
-                            targetElement[0] = driver.findElement(elementLocator);
-                        }
-                    } else {
-                        try {
-                            targetElement[0] = driver.findElement(elementLocator);
-                        } catch (InvalidSelectorException invalidSelectorException) {
-                            //break and fail immediately if invalid selector
-                            reportActionResult(driver, null, null, null, null, null, false);
-                            FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", invalidSelectorException);
-                        }
-                    }
-                    var threadRect = myExecutor.submit(() -> {
-                        // BLOCK #2 :: GETTING THE ELEMENT LOCATION (RECT)
-                        try {
-                            elementInformation.setElementRect(targetElement[0].getRect());
-                        } catch (ElementNotInteractableException elementNotInteractableException) {
-                            // this exception happens sometimes with certain browsers and causes a timeout
-                            // this empty block should handle that issue
-                        }
-                    });
-                    var threadLocate = myExecutor.submit(() -> {
-                        // BLOCK #3 :: SCROLLING TO ELEMENT | CONFIRMING IT IS DISPLAYED
-                        if (isValidToCheckForVisibility) {
-                            if (!isMobileExecution) {
+                        try (ExecutorService myExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
+                            final WebElement[] targetElement = new WebElement[1];
+                            ElementInformation elementInformation = new ElementInformation();
+                            // BLOCK #1 :: GETTING THE ELEMENT
+                            By shadowDomLocator = ShadowLocatorBuilder.shadowDomLocator.get();
+                            By cssSelector = ShadowLocatorBuilder.cssSelector.get();
+                            if (shadowDomLocator != null && cssSelector == elementLocator) {
+                                targetElement[0] = driver.findElement(shadowDomLocator)
+                                        .getShadowRoot()
+                                        .findElement(cssSelector);
+                            } else if (LocatorBuilder.getIFrameLocator().get() != null) {
                                 try {
-                                    // native Javascript scroll to center (smooth / auto)
-                                    var scriptOutput = ((JavascriptExecutor) driver).executeScript("""
-                                            arguments[0].scrollIntoView({behavior: "smooth", block: "center", inline: "center"});""", targetElement[0]);
-                                } catch (Throwable throwable) {
-                                    try {
-                                        // w3c compliant scroll
-                                        new Actions(driver).scrollToElement(targetElement[0]).perform();
-                                    } catch (Throwable throwable1) {
-                                        // old school selenium scroll
-                                        ((Locatable) driver).getCoordinates().inViewPort();
-                                    }
+                                    targetElement[0] = driver.switchTo().frame(driver.findElement(LocatorBuilder.getIFrameLocator().get())).findElement(elementLocator);
+                                } catch (NoSuchElementException exception) {
+                                    targetElement[0] = driver.findElement(elementLocator);
                                 }
                             } else {
-                                targetElement[0].isDisplayed();
-                            }
-                        }
-                    });
-                    var threadCount = myExecutor.submit(() -> {
-                        // BLOCK #4 :: GETTING THE NUMBER OF FOUND ELEMENTS
-                        if (shadowDomLocator != null && cssSelector == elementLocator) {
-                            elementInformation.setNumberOfFoundElements(driver.findElement(shadowDomLocator)
-                                    .getShadowRoot()
-                                    .findElements(cssSelector)
-                                    .size());
-                        } else {
-                            elementInformation.setNumberOfFoundElements(driver.findElements(elementLocator).size());
-                        }
-                    });
-                    var threadHTML = myExecutor.submit(() -> {
-                        // BLOCK #5 :: GETTING THE INNER AND OUTER HTML
-                        if (!isMobileExecution && GET_ELEMENT_HTML) {
-                            elementInformation.setOuterHTML(targetElement[0].getAttribute("outerHTML"));
-                            elementInformation.setInnerHTML(targetElement[0].getAttribute("innerHTML"));
-                        }
-                    });
-                    var threadName = myExecutor.submit(() -> {
-                        // BLOCK #6 :: GETTING ELEMENT NAME
-                        if (SHAFT.Properties.reporting.captureElementName()) {
-                            var elementName = JavaHelper.formatLocatorToString(elementLocator);
-                            try {
-                                var accessibleName = targetElement[0].getAccessibleName();
-                                if (accessibleName != null && !accessibleName.isBlank()) {
-                                    elementName = accessibleName;
+                                try {
+                                    targetElement[0] = driver.findElement(elementLocator);
+                                } catch (InvalidSelectorException invalidSelectorException) {
+                                    //break and fail immediately if invalid selector
+                                    reportActionResult(driver, null, null, null, null, null, false);
+                                    FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", invalidSelectorException);
                                 }
-                            } catch (Throwable throwable) {
-                                //happens on some elements that show unhandled inspector error
-                                //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
-                                //ignore
                             }
-                            elementInformation.setElementName(elementName);
+                            var threadRect = myExecutor.submit(() -> {
+                                // BLOCK #2 :: GETTING THE ELEMENT LOCATION (RECT)
+                                try {
+                                    elementInformation.setElementRect(targetElement[0].getRect());
+                                } catch (ElementNotInteractableException elementNotInteractableException) {
+                                    // this exception happens sometimes with certain browsers and causes a timeout
+                                    // this empty block should handle that issue
+                                }
+                            });
+                            var threadLocate = myExecutor.submit(() -> {
+                                // BLOCK #3 :: SCROLLING TO ELEMENT | CONFIRMING IT IS DISPLAYED
+                                if (isValidToCheckForVisibility) {
+                                    if (!isMobileExecution) {
+                                        try {
+                                            // native Javascript scroll to center (smooth / auto)
+                                            var scriptOutput = ((JavascriptExecutor) driver).executeScript("""
+                                                    arguments[0].scrollIntoView({behavior: "smooth", block: "center", inline: "center"});""", targetElement[0]);
+                                        } catch (Throwable throwable) {
+                                            try {
+                                                // w3c compliant scroll
+                                                new Actions(driver).scrollToElement(targetElement[0]).perform();
+                                            } catch (Throwable throwable1) {
+                                                // old school selenium scroll
+                                                ((Locatable) driver).getCoordinates().inViewPort();
+                                            }
+                                        }
+                                    } else {
+                                        targetElement[0].isDisplayed();
+                                    }
+                                }
+                            });
+                            var threadCount = myExecutor.submit(() -> {
+                                // BLOCK #4 :: GETTING THE NUMBER OF FOUND ELEMENTS
+                                if (shadowDomLocator != null && cssSelector == elementLocator) {
+                                    elementInformation.setNumberOfFoundElements(driver.findElement(shadowDomLocator)
+                                            .getShadowRoot()
+                                            .findElements(cssSelector)
+                                            .size());
+                                } else {
+                                    elementInformation.setNumberOfFoundElements(driver.findElements(elementLocator).size());
+                                }
+                            });
+                            var threadHTML = myExecutor.submit(() -> {
+                                // BLOCK #5 :: GETTING THE INNER AND OUTER HTML
+                                if (!isMobileExecution && GET_ELEMENT_HTML) {
+                                    elementInformation.setOuterHTML(targetElement[0].getAttribute("outerHTML"));
+                                    elementInformation.setInnerHTML(targetElement[0].getAttribute("innerHTML"));
+                                }
+                            });
+                            var threadName = myExecutor.submit(() -> {
+                                // BLOCK #6 :: GETTING ELEMENT NAME
+                                if (SHAFT.Properties.reporting.captureElementName()) {
+                                    var elementName = JavaHelper.formatLocatorToString(elementLocator);
+                                    try {
+                                        var accessibleName = targetElement[0].getAccessibleName();
+                                        if (accessibleName != null && !accessibleName.isBlank()) {
+                                            elementName = accessibleName;
+                                        }
+                                    } catch (Throwable throwable) {
+                                        //happens on some elements that show unhandled inspector error
+                                        //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
+                                        //ignore
+                                    }
+                                    elementInformation.setElementName(elementName);
+                                }
+                            });
+
+                            // SYNCHRONIZATION POINT
+                            threadRect.get();
+                            threadLocate.get();
+                            threadCount.get();
+                            threadHTML.get();
+                            threadName.get();
+
+                            elementInformation.setFirstElement(targetElement[0]);
+                            elementInformation.setLocator(elementLocator);
+
+                            if (action != null && action.length > 0) {
+                                // fail if multiple elements are found and flag is enabled
+                                if (elementInformation.getNumberOfFoundElements() > 1
+                                        && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique() &&
+                                        !(elementLocator instanceof RelativeLocator.RelativeBy)) {
+                                    reportActionResult(driver, null, null, null, null, null, false);
+                                    FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", new MultipleElementsFoundException("Multiple elements found matching this locator \"" + JavaHelper.formatLocatorToString(elementLocator) + "\""));
+                                }
+                                // BLOCK #6 :: PERFORMING ACTION  (WITH OPTIONAL ARGS)
+                                // attempt to perform action inside the loop to guarantee higher odds of success and reduced WebDriver calls
+                                switch (action.length) {
+                                    case 1 ->
+                                            elementInformation.setActionResult(performAction(driver, elementInformation, (ElementAction) action[0], ""));
+                                    case 2 ->
+                                            elementInformation.setActionResult(performAction(driver, elementInformation, (ElementAction) action[0], action[1]));
+                                }
+                            }
+                            return elementInformation.toList();
+                            // int numberOfFoundElements
+                            // WebElement firstElement
+                            // By locator
+                            // String outerHTML (or empty string)
+                            // String innerHTML (or empty string)
+                            // String elementName (or empty string)
+                        } catch (ExecutionException | InterruptedException e) {
+                            throw new RuntimeException(e);
                         }
                     });
-
-                    // SYNCHRONIZATION POINT
-                    threadRect.get();
-                    threadLocate.get();
-                    threadCount.get();
-                    threadHTML.get();
-                    threadName.get();
-
-                    elementInformation.setFirstElement(targetElement[0]);
-                    elementInformation.setLocator(elementLocator);
-
-                    if (action != null && action.length > 0) {
-                        // fail if multiple elements are found and flag is enabled
-                        if (elementInformation.getNumberOfFoundElements() > 1
-                                && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique() &&
-                                !(elementLocator instanceof RelativeLocator.RelativeBy)) {
-                            reportActionResult(driver, null, null, null, null, null, false);
-                            FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", new MultipleElementsFoundException("Multiple elements found matching this locator \"" + JavaHelper.formatLocatorToString(elementLocator) + "\""));
-                        }
-                        // BLOCK #6 :: PERFORMING ACTION  (WITH OPTIONAL ARGS)
-                        // attempt to perform action inside the loop to guarantee higher odds of success and reduced WebDriver calls
-                        switch (action.length) {
-                            case 1 ->
-                                    elementInformation.setActionResult(performAction(driver, elementInformation, (ElementAction) action[0], ""));
-                            case 2 ->
-                                    elementInformation.setActionResult(performAction(driver, elementInformation, (ElementAction) action[0], action[1]));
-                        }
-                    }
-                    return elementInformation.toList();
-                    // int numberOfFoundElements
-                    // WebElement firstElement
-                    // By locator
-                    // String outerHTML (or empty string)
-                    // String innerHTML (or empty string)
-                    // String elementName (or empty string)
-                } catch (ExecutionException | InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            });
         } catch (org.openqa.selenium.TimeoutException timeoutException) {
             // In case the element was not found / not visible and the timeout expired
             var causeMessage = timeoutException.getCause().getMessage();
@@ -368,13 +365,13 @@ public class ElementActionsHelper {
 
                 return new SynchronizationManager(driver).fluentWait(true)
                         .until(f -> {
-                    if (!actionToExecute.isEmpty()) {
-                        if (actionToExecute.equalsIgnoreCase("ClickAndHold")) {
-                            (new Actions(driver)).clickAndHold(((WebElement) this.identifyUniqueElement(driver, elementLocator).get(1))).build().perform();
-                        }
-                    }
-                    return true;
-                });
+                            if (!actionToExecute.isEmpty()) {
+                                if (actionToExecute.equalsIgnoreCase("ClickAndHold")) {
+                                    (new Actions(driver)).clickAndHold(((WebElement) this.identifyUniqueElement(driver, elementLocator).get(1))).build().perform();
+                                }
+                            }
+                            return true;
+                        });
             } catch (org.openqa.selenium.TimeoutException e) {
                 ReportManagerHelper.logDiscrete(e);
                 return false;
@@ -1002,16 +999,16 @@ public class ElementActionsHelper {
         }
 
         if (driver != null && (Boolean.FALSE.equals(passFailStatus)
-                || WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("always"))) {
-                var logMessage = "";
-                var pageSnapshot = new BrowserActionsHelper(false).capturePageSnapshot(driver);
-                if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
-                    logMessage = "page snapshot";
-                } else if (pageSnapshot.startsWith("<html")) {
-                    logMessage = "page HTML";
-                }
-                List<Object> sourceAttachment = Arrays.asList(actionName, logMessage, pageSnapshot);
-                attachments.add(sourceAttachment);
+                || SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().equalsIgnoreCase("always"))) {
+            var logMessage = "";
+            var pageSnapshot = new BrowserActionsHelper(false).capturePageSnapshot(driver);
+            if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
+                logMessage = "page snapshot";
+            } else if (pageSnapshot.startsWith("<html")) {
+                logMessage = "page HTML";
+            }
+            List<Object> sourceAttachment = Arrays.asList(actionName, logMessage, pageSnapshot);
+            attachments.add(sourceAttachment);
         }
 
         if (rootCauseException != null && rootCauseException.length >= 1) {

@@ -64,7 +64,7 @@ public class TouchActions extends FluentWebDriverAction {
      */
     public TouchActions nativeKeyboardKeyPress(KeyboardKeys key) {
         try {
-            ((RemoteWebDriver) driverFactoryHelper.getDriver()).executeScript("mobile: performEditorAction", key.getValue());
+            ((RemoteWebDriver) driverFactoryHelper.getDriver()).executeScript("performEditorAction", key.getValue());
             elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), key.name(), null, null);
         } catch (Exception rootCauseException) {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null, rootCauseException);
@@ -735,13 +735,13 @@ public class TouchActions extends FluentWebDriverAction {
             scrollParameters.putAll(ImmutableMap.of(
                     "direction", swipeDirection.toString()
             ));
-            canScrollMore = (Boolean) ((JavascriptExecutor) androidDriver).executeScript("mobile: scrollGesture", scrollParameters);
+            canScrollMore = (Boolean) ((JavascriptExecutor) androidDriver).executeScript("scrollGesture", scrollParameters);
         } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
             scrollParameters.putAll(ImmutableMap.of(
                     "direction", swipeDirection.toString()
             ));
             //http://appium.github.io/appium-xcuitest-driver/4.16/execute-methods/#mobile-scroll
-            var ret = ((JavascriptExecutor) iosDriver).executeScript("mobile: scroll", scrollParameters);
+            var ret = ((JavascriptExecutor) iosDriver).executeScript("scroll", scrollParameters);
             canScrollMore = ret == null || (Boolean) ret;
         }
         var logMessageAfter = "Attempted to scroll using these parameters: \"" + scrollParameters + "\"";

@@ -1,25 +1,24 @@
 package testPackage.legacy;
 
-import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
-import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.locators.RelativeLocator;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class RelativeLocatorsTests {
-    private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @Test(enabled = false)
     public void relativeLocatorsTest1(){
-        new BrowserActions(driver.get()).navigateToURL("https://duckduckgo.com/?");
+        new BrowserActions(driver.get().getDriver()).navigateToURL("https://duckduckgo.com/?");
         By searchbar = By.xpath("//*[@id='search_form_input_homepage'] | //input[@name='q']");
-        new ElementActions(driver.get()).type(searchbar, "SHAFT_Engine")
+        new ElementActions(driver.get().getDriver()).type(searchbar, "SHAFT_Engine")
                 .keyPress(searchbar, Keys.ENTER);
 
         //the below locator matches all 10 search results
@@ -36,7 +35,7 @@ public class RelativeLocatorsTests {
 
         //this method makes writing locators much easier! And now we can perform our validation
         Validations.assertThat()
-                .element(driver.get(), firstSearchResultRelatively)
+                .element(driver.get().getDriver(), firstSearchResultRelatively)
                 .text()
                 .doesNotEqual("")
                 .perform();
@@ -45,7 +44,7 @@ public class RelativeLocatorsTests {
 
     @BeforeMethod
     public void beforeMethod(){
-        driver.set(new DriverFactory().getDriver());
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod(alwaysRun = true)

@@ -4,7 +4,6 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
-import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
 import org.apache.commons.lang3.SystemUtils;
 
@@ -18,10 +17,10 @@ import java.util.List;
 public class AllureManager {
     private static final String allureExtractionLocation = System.getProperty("user.home") + File.separator + ".m2"
             + File.separator + "repository" + File.separator + "allure" + File.separator;
+    private static final String allureReportPath = "allure-report";
     private static String allureResultsFolderPath = "";
     private static String allureBinaryPath = "";
     private static String allureOutPutDirectory = "";
-    private static final String allureReportPath = "allure-report";
 
     public static void initializeAllureReportingEnvironment() {
         ReportManager.logDiscrete("Initializing Allure Reporting Environment...");
@@ -42,7 +41,7 @@ public class AllureManager {
         copyAndOpenAllure();
     }
 
-    private static void copyAndOpenAllure(){
+    private static void copyAndOpenAllure() {
         FileActions.getInstance(true).copyFolder(allureOutPutDirectory, allureReportPath);
         FileActions.getInstance(true).deleteFile(allureOutPutDirectory);
         String newFileName = renameAllureReport();
