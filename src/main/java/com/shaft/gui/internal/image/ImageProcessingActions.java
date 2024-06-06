@@ -132,8 +132,7 @@ public class ImageProcessingActions {
             }
 
         } catch (NullPointerException | IOException e) {
-            ReportManagerHelper.logDiscrete(e);
-            ReportManager.log("Failed to compare image files ...");
+            FailureReporter.fail(ImageProcessingActions.class, "Failed to compare image files ...",e);
         }
     }
 
