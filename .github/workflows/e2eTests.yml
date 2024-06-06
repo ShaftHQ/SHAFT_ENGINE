@@ -12,6 +12,7 @@ env:
 
 jobs:
   Windows_Edge_Local:
+    needs: [ Windows_Chrome_Local ]
     runs-on: windows-latest
     steps:
       - name: Checkout Code
@@ -52,6 +53,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   MacOSX_Safari_Local:
+    needs: [ MacOSX_Chrome_Local ]
     runs-on: macos-latest
     steps:
       - name: Checkout Code
@@ -305,6 +307,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   MacOSX_Chrome_Local:
+    needs: [ Windows_Edge_Local ]
     runs-on: macos-latest
     steps:
       - name: Checkout Code
