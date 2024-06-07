@@ -264,48 +264,84 @@ public class RequestBuilder {
      */
     @Step("Perform {this.requestType} request to {this.serviceURI}{this.serviceName}")
     public Response performRequest() {
+        // Prepare request URL with parameters
         String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
+        if (parameters != null && parametersType == RestActions.ParametersType.QUERY) {
+            request = addParametersToUrl(request, parameters);
+        }
+
         RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, sessionConfig, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);
 
-        switch (this.authenticationType) {
-            case BASIC -> specs.auth().preemptive().basic(this.authenticationUsername, this.authenticationPassword);
-            case FORM -> specs.auth().form(this.authenticationUsername, this.authenticationPassword);
+        // Authentication setup (if any)
+        switch (authenticationType) {
+            case BASIC -> specs.auth().preemptive().basic(authenticationUsername, authenticationPassword);
+            case FORM -> specs.auth().form(authenticationUsername, authenticationPassword);
             case NONE -> {
-            } //do nothing
+                // do nothing
+            }
         }
 
         Response response = null;
+
         try {
-            if (requestType.equals(RestActions.RequestType.POST) || requestType.equals(RestActions.RequestType.PATCH)
-                    || requestType.equals(RestActions.RequestType.PUT) || requestType.equals(RestActions.RequestType.GET)
-                    || requestType.equals(RestActions.RequestType.DELETE)) {
-                response = session.sendRequest(requestType, request, specs);
+            if (!isSupportedRequestType()) {
+                RestActions.failAction(request, new Throwable[0]);
             } else {
-                RestActions.failAction(request);
+                response = session.sendRequest(requestType, request, specs);
             }
 
             boolean responseStatus = session.evaluateResponseStatusCode(Objects.requireNonNull(response), targetStatusCode);
-            String reportMessage = session.prepareReportMessage(response, targetStatusCode, requestType, serviceName,
-                    contentType, urlArguments);
+            String reportMessage = session.prepareReportMessage(response, targetStatusCode, requestType, serviceName, contentType, urlArguments);
             if (!Boolean.TRUE.equals(responseStatus)) {
-                RestActions.failAction(reportMessage, requestBody, specs, response, new AssertionError("Invalid response status code; Expected " + targetStatusCode + " but found " + response.getStatusCode() + "."));
+                throw new AssertionError("Invalid response status code; Expected " + targetStatusCode + " but found " + response.getStatusCode() + ".");
             }
-            if (!"".equals(reportMessage)) {
+
+            if (!reportMessage.isEmpty()) {
                 RestActions.passAction(reportMessage, requestBody, specs, response);
             } else {
-                RestActions.failAction(reportMessage, requestBody, specs, response);
+                RestActions.failAction(reportMessage, requestBody, specs, response, new Throwable[0]);
             }
-        } catch (Exception rootCauseException) {
-            if (response != null) {
-                RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody, specs,
-                        response, rootCauseException);
-            } else {
-                RestActions.failAction(request, rootCauseException);
-            }
+        } catch (Exception e) {
+            handleException(request, specs, response, e);
         }
+
         session.setLastResponse(response);
         return response;
     }
+
+    private void handleException(String request, RequestSpecification specs, Response response, Exception e) {
+        if (response != null) {
+            RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody, specs, response, new Throwable[]{e});
+        } else {
+            RestActions.failAction(request, new Throwable[]{e});
+        }
+    }
+
+    private boolean isSupportedRequestType() {
+        return requestType == RestActions.RequestType.POST ||
+                requestType == RestActions.RequestType.PATCH ||
+                requestType == RestActions.RequestType.PUT ||
+                requestType == RestActions.RequestType.GET ||
+                requestType == RestActions.RequestType.DELETE
+                ;
+    }
+
+    private String addParametersToUrl(String url, List<List<Object>> parameters) {
+        StringBuilder urlWithParams = new StringBuilder(url);
+        if (!url.contains("?")) {
+            urlWithParams.append("?");
+        } else {
+            urlWithParams.append("&");
+        }
+        for (List<Object> param : parameters) {
+            urlWithParams.append(param.get(0)).append("=").append(param.get(1)).append("&");
+        }
+        // Remove the last '&'
+        urlWithParams.setLength(urlWithParams.length() - 1);
+        return urlWithParams.toString();
+    }
+
+
 
     /**
      * The type of your authentication method {BASIC, FORM, NONE}
