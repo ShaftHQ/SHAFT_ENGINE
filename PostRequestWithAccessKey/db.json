@@ -1,0 +1,65 @@
+{
+  "courses": [
+    {
+      "id": 1,
+      "title": "Postman",
+      "description": "Full Postman course from zero in Arabic"
+    },
+    {
+      "id": 2,
+      "title": "Selenium",
+      "description": "Full Selenium course from zero in Arabic"
+    },
+    {
+      "id": 3,
+      "title": "Cypress",
+      "description": "Full Cypress course from zero in Arabic"
+    },
+    {
+      "id": 4,
+      "title": "Manual Testing",
+      "description": "Full Manual Testing course from zero in Arabic"
+    },
+    {
+      "title": "Appium2",
+      "description": "Full Appium course from zero in Arabic",
+      "id": 5
+    },
+    {
+      "title": "New Course Title4",
+      "description": "Full description of the new course in Arabic"
+    },
+    {
+      "title": "New Course",
+      "description": "Full description of the new course in Arabic"
+    },
+    {
+      "title": "New Course 2",
+      "description": "Full description of the new course in Arabic"
+    },
+    {
+      "title": "New Course 2",
+      "description": "Full description of the new course in Arabic"
+    },
+    {
+      "title": "New Course 2",
+      "description": "Full description of the new course in Arabic"
+    },
+    {
+      "title": "New Course 2",
+      "description": "Full description of the new course in Arabic"
+    },
+    {
+      "title": "New Course 2",
+      "description": "Full description of the new course in Arabic"
+    },
+    {
+      "title": "New Course 2",
+      "description": "Full description of the new course in Arabic"
+    },
+    {
+      "title": "New Course 2",
+      "description": "Full description of the new course in Arabic"
+    }
+  ]
+}
