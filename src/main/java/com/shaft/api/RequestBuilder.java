@@ -264,47 +264,95 @@ public class RequestBuilder {
      */
     @Step("Perform {this.requestType} request to {this.serviceURI}{this.serviceName}")
     public Response performRequest() {
-        String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
-        RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, sessionConfig, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);
+        String request = prepareRequestURLWithParameters();
+        RequestSpecification specs = prepareRequestSpecifications();
 
-        switch (this.authenticationType) {
-            case BASIC -> specs.auth().preemptive().basic(this.authenticationUsername, this.authenticationPassword);
-            case FORM -> specs.auth().form(this.authenticationUsername, this.authenticationPassword);
-            case NONE -> {
-            } //do nothing
-        }
+        setupAuthentication(specs);
 
         Response response = null;
         try {
-            if (requestType.equals(RestActions.RequestType.POST) || requestType.equals(RestActions.RequestType.PATCH)
-                    || requestType.equals(RestActions.RequestType.PUT) || requestType.equals(RestActions.RequestType.GET)
-                    || requestType.equals(RestActions.RequestType.DELETE)) {
-                response = session.sendRequest(requestType, request, specs);
-            } else {
-                RestActions.failAction(request);
-            }
-
-            boolean responseStatus = session.evaluateResponseStatusCode(Objects.requireNonNull(response), targetStatusCode);
-            String reportMessage = session.prepareReportMessage(response, targetStatusCode, requestType, serviceName,
-                    contentType, urlArguments);
-            if (!Boolean.TRUE.equals(responseStatus)) {
-                RestActions.failAction(reportMessage, requestBody, specs, response, new AssertionError("Invalid response status code; Expected " + targetStatusCode + " but found " + response.getStatusCode() + "."));
-            }
-            if (!"".equals(reportMessage)) {
-                RestActions.passAction(reportMessage, requestBody, specs, response);
-            } else {
-                RestActions.failAction(reportMessage, requestBody, specs, response);
-            }
-        } catch (Exception rootCauseException) {
-            if (response != null) {
-                RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody, specs,
-                        response, rootCauseException);
-            } else {
-                RestActions.failAction(request, rootCauseException);
-            }
+            response = sendRequest(request, specs);
+            handleResponse(response, specs);
+        } catch (Exception e) {
+            handleException(request, specs, response, e);
         }
+
         session.setLastResponse(response);
         return response;
+    }
+
+    private String prepareRequestURLWithParameters() {
+        String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
+        if (parameters != null && parametersType == RestActions.ParametersType.QUERY) {
+            request = addParametersToUrl(request, parameters);
+        }
+        return request;
+    }
+
+    private RequestSpecification prepareRequestSpecifications() {
+        return session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, sessionConfig, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);
+    }
+
+    private void setupAuthentication(RequestSpecification specs) {
+        switch (authenticationType) {
+            case BASIC -> specs.auth().preemptive().basic(authenticationUsername, authenticationPassword);
+            case FORM -> specs.auth().form(authenticationUsername, authenticationPassword);
+            case NONE -> {
+            }  // Do nothing
+        }
+    }
+
+    private Response sendRequest(String request, RequestSpecification specs) {
+        if (!isSupportedRequestType()) {
+            RestActions.failAction(request, new Throwable[0]);
+            return null;
+        }
+        return session.sendRequest(requestType, request, specs);
+    }
+
+    private void handleResponse(Response response, RequestSpecification specs) {
+        boolean responseStatus = session.evaluateResponseStatusCode(Objects.requireNonNull(response), targetStatusCode);
+        String reportMessage = session.prepareReportMessage(response, targetStatusCode, requestType, serviceName, contentType, urlArguments);
+        if (!Boolean.TRUE.equals(responseStatus)) {
+            throw new AssertionError("Invalid response status code; Expected " + targetStatusCode + " but found " + response.getStatusCode() + ".");
+        }
+
+        if (!reportMessage.isEmpty()) {
+            RestActions.passAction(reportMessage, requestBody, specs, response);
+        } else {
+            RestActions.failAction(reportMessage, requestBody, specs, response, new Throwable[0]);
+        }
+    }
+
+    private void handleException(String request, RequestSpecification specs, Response response, Exception e) {
+        if (response != null) {
+            RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody, specs, response, new Throwable[]{e});
+        } else {
+            RestActions.failAction(request, new Throwable[]{e});
+        }
+    }
+
+    private boolean isSupportedRequestType() {
+        return requestType == RestActions.RequestType.POST ||
+                requestType == RestActions.RequestType.PATCH ||
+                requestType == RestActions.RequestType.PUT ||
+                requestType == RestActions.RequestType.GET ||
+                requestType == RestActions.RequestType.DELETE;
+    }
+
+    private String addParametersToUrl(String url, List<List<Object>> parameters) {
+        StringBuilder urlWithParams = new StringBuilder(url);
+        if (!url.contains("?")) {
+            urlWithParams.append("?");
+        } else {
+            urlWithParams.append("&");
+        }
+        for (List<Object> param : parameters) {
+            urlWithParams.append(param.get(0)).append("=").append(param.get(1)).append("&");
+        }
+        // Remove the last '&'
+        urlWithParams.setLength(urlWithParams.length() - 1);
+        return urlWithParams.toString();
     }
 
     /**
