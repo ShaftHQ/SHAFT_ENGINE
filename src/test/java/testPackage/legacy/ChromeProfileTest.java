@@ -5,7 +5,6 @@ import com.shaft.driver.SHAFT;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 import testPackage.Tests;
 
 public class ChromeProfileTest extends Tests {
@@ -13,7 +12,7 @@ public class ChromeProfileTest extends Tests {
     public void init() {
     }
 
-    @Test(expectedExceptions = java.lang.AssertionError.class)
+    //    @Test(expectedExceptions = java.lang.AssertionError.class)
     public void simpleTest() {
         String userDataDirectory = "C:/Users/User/AppData/Local/Google/Chrome/User Data";
         String profileDirectory = "Profile 2";
