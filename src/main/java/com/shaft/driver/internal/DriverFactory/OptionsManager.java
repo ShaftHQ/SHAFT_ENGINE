@@ -173,16 +173,18 @@ public class OptionsManager {
     }
 
     private synchronized void setSeleniumManagerOptions(MutableCapabilities options) {
+        var fileActions = FileActions.getInstance(true);
+        // configure selenium manager to force download chrome binaries
+        String folderPath = System.getProperty("user.home") + File.separatorChar + ".cache" + File.separatorChar + "selenium" + File.separatorChar;
+        String fileName = "se-config.toml";
+
         if (SHAFT.Properties.web.forceBrowserDownload()) {
             if (options instanceof ChromeOptions chromeOptions) {
                 chromeOptions.setBrowserVersion("stable");
             } else if (options instanceof FirefoxOptions firefoxOptions) {
                 firefoxOptions.setBrowserVersion("stable");
             }
-            // configure selenium manager to force download chrome binaries
-            String folderPath = System.getProperty("user.home") + File.separatorChar + ".cache" + File.separatorChar + "selenium" + File.separatorChar;
-            String fileName = "se-config.toml";
-            var fileActions = FileActions.getInstance(true);
+
             if (fileActions.doesFileExist(folderPath, fileName, 1)) {
                 String configFileContent = fileActions.readFile(folderPath, fileName);
                 if (!configFileContent.contains("force-browser-download = true"))
@@ -191,6 +193,10 @@ public class OptionsManager {
             } else {
                 fileActions.createFile(folderPath, fileName);
                 fileActions.writeToFile(folderPath, fileName, "force-browser-download = true");
+            }
+        } else {
+            if (fileActions.doesFileExist(folderPath, fileName, 1)) {
+                fileActions.deleteFile(folderPath + fileName);
             }
         }
     }
