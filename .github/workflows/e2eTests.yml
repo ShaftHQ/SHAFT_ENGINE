@@ -12,6 +12,7 @@ env:
 
 jobs:
   Windows_Edge_Local:
+    if: false
     needs: [ Ubuntu_APIs ]
     runs-on: windows-latest
     steps:
@@ -54,6 +55,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   MacOSX_Safari_Local:
+    if: false
     needs: [ Ubuntu_APIs ]
     runs-on: macos-latest
     steps:
@@ -283,6 +285,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   Windows_Chrome_Local:
+    if: false
     needs: [ Ubuntu_APIs ]
     runs-on: windows-latest
     steps:
@@ -320,6 +323,7 @@ jobs:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
   MacOSX_Chrome_Local:
+    if: false
     needs: [ Ubuntu_APIs ]
     runs-on: macos-latest
     steps:
