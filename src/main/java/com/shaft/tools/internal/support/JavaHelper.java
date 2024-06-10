@@ -76,8 +76,8 @@ public class JavaHelper {
         return replaceRegex(specialCharactersArray, text);
     }
 
-    public static String convertBase64(String text) {
-        return Base64.getEncoder().encodeToString(text.getBytes());
+    public static String encodeToBase64String(String text) {
+        return Base64.getUrlEncoder().encodeToString(text.getBytes());
     }
 
     /**
