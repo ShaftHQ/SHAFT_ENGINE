@@ -1,21 +1,15 @@
 package com.shaft.listeners;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.listeners.internal.JiraHelper;
 import com.shaft.listeners.internal.JunitListenerHelper;
-import com.shaft.listeners.internal.TestNGListenerHelper;
-import com.shaft.listeners.internal.UpdateChecker;
-import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.internal.AllureManager;
 import com.shaft.tools.io.internal.ExecutionSummaryReport;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
-import io.qameta.allure.Allure;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.launcher.*;
-import org.testng.Reporter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,7 +28,7 @@ public class JunitListener implements LauncherSessionListener {
                 @Override
                 public void testPlanExecutionStarted(TestPlan testPlan) {
                     executionStartTime = System.currentTimeMillis();
-                    engineSetup();
+                    TestNGListener.engineSetup(ProjectStructureManager.RunType.JUNIT);
                     isEngineReady = true;
                 }
 
@@ -70,29 +64,6 @@ public class JunitListener implements LauncherSessionListener {
                 }
             });
         }
-    }
-
-    private void engineSetup() {
-        ReportManagerHelper.setDiscreteLogging(true);
-        PropertiesHelper.initialize();
-        SHAFT.Properties.reporting.set().disableLogging(true);
-        Allure.getLifecycle();
-        Reporter.setEscapeHtml(false);
-        ProjectStructureManager.initialize(ProjectStructureManager.RunType.JUNIT);
-        TestNGListenerHelper.configureJVMProxy();
-        GoogleTink.initialize();
-        GoogleTink.decrypt();
-        SHAFT.Properties.reporting.set().disableLogging(false);
-
-        ReportManagerHelper.logEngineVersion();
-        UpdateChecker.check();
-        ImageProcessingActions.loadOpenCV();
-
-        AllureManager.initializeAllureReportingEnvironment();
-        ReportManagerHelper.cleanExecutionSummaryReportDirectory();
-
-        ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
-        ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
     }
 
     private void engineTearDown() {

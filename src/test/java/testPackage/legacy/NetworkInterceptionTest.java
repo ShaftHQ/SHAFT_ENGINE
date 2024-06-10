@@ -37,7 +37,7 @@ public class NetworkInterceptionTest {
         var mockedResponse = new HttpResponse()
                 .setStatus(200)
                 .addHeader("Content-Type", MediaType.ANY_IMAGE_TYPE.toString())
-                .setContent(Contents.bytes(SHAFT.CLI.file().readFileAsByteArray("sikulixElements/youtube.png")));
+                .setContent(Contents.bytes(SHAFT.CLI.file().readFileAsByteArray("youtube.png")));
         Predicate<HttpRequest> requestPredicate = httpRequest -> httpRequest.getMethod() == HttpMethod.GET && httpRequest.getUri().endsWith("/img/shaft.svg");
 
         // mock and compare actual to expected => should always fail
