@@ -166,6 +166,7 @@ public class AllureManager {
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
                     + " -o " + allureOutPutDirectory;
         }
+        FileActions.getInstance(true).createFolder(allureOutPutDirectory);
         TerminalActions.getInstance(false, false, true).performTerminalCommand(commandToCreateAllureReport);
     }
 

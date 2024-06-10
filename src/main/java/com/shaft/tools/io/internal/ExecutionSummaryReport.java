@@ -49,7 +49,10 @@ public class ExecutionSummaryReport {
         StringBuilder detailsBuilder = new StringBuilder();
         casesDetails.forEach((key, value) -> detailsBuilder.append(String.format(HTMLHelper.EXECUTION_SUMMARY_DETAILS_FORMAT.getValue(), key, value.getFirst(), value.get(1), value.get(2), value.get(3), value.get(4), value.get(5))));
 
-        FileActions.getInstance(true).writeToFile(SHAFT.Properties.paths.executionSummaryReport(),
+        var fileActionsSession = FileActions.getInstance(true);
+
+        fileActionsSession.createFolder(SHAFT.Properties.paths.executionSummaryReport());
+        fileActionsSession.writeToFile(SHAFT.Properties.paths.executionSummaryReport(),
                 "ExecutionSummaryReport_" + new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa").format(System.currentTimeMillis()) + ".html",
                 createReportMessage(passed, failed, skipped, startTime, endTime, detailsBuilder));
 
