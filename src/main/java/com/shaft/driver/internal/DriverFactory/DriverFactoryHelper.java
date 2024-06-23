@@ -254,7 +254,11 @@ public class DriverFactoryHelper {
                     webDriverManager.get().quit(driver);
                     RecordManager.attachVideoRecording(pathToRecording);
                 } else {
-                    driver.close();
+                    try {
+                        driver.close();
+                    } catch (Exception e) {
+                        //ignore
+                    }
                     driver.quit();
                 }
             } catch (WebDriverException | NullPointerException e) {
