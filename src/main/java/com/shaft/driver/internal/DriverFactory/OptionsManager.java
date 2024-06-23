@@ -223,7 +223,7 @@ public class OptionsManager {
             appiumCapabilities.setCapability("browserName", SHAFT.Properties.mobile.browserName());
             appiumCapabilities.setCapability("pageLoadStrategy", PageLoadStrategy.NONE);
         }
-
+/*
         if (!DriverFactoryHelper.isMobileWebExecution() && Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             // experimental android capabilities
             // https://github.com/appium/appium-uiautomator2-driver
@@ -273,6 +273,7 @@ public class OptionsManager {
             if (appiumCapabilities.getCapability("appium:showChromedriverLog") == null)
                 appiumCapabilities.setCapability("appium:showChromedriverLog", true);
         }
+        */
         ReportManager.log(appiumCapabilities.toString());
     }
 
