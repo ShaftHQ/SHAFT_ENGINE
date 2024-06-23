@@ -703,7 +703,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobAPK*.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobAPK*.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v4
         with:
@@ -744,7 +744,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobIPA*.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobIPA*.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v4
         with:
@@ -785,7 +785,7 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTWebApp*.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTWebApp*.*]"
       - name: Upload coverage to Codecov
         uses:  codecov/codecov-action@v4
         with:
