@@ -126,7 +126,7 @@ public class PropertiesHelper {
 
     public static void setMobilePlatform() {
         String targetOperatingSystem = Properties.platform.targetPlatform();
-        if (Arrays.asList("Android", "iOS").contains(targetOperatingSystem)) {
+        if (Arrays.asList("android", "ios").contains(targetOperatingSystem.toLowerCase())) {
             Properties.mobile.set().platformName(Properties.platform.targetPlatform().toLowerCase());
         }
     }
