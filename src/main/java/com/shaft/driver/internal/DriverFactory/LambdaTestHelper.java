@@ -95,19 +95,20 @@ public class LambdaTestHelper {
         // set properties
         testData = testData + ", App URL: " + appUrl;
         passAction(testData);
+        MutableCapabilities lambdaTestCapabilities = new MutableCapabilities();
         HashMap<String, Object> lambdaTestOptions = setLambdaTestProperties(username, password, deviceName, osVersion, appUrl);
         lambdaTestOptions.put("w3c", SHAFT.Properties.lambdaTest.w3c());
         if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
-            lambdaTestOptions.put("platformName", "android");
+            lambdaTestCapabilities.setCapability("platformName", "android");
         } else {
-            lambdaTestOptions.put("platformName", "ios");
+            lambdaTestCapabilities.setCapability("platformName", "ios");
         }
         lambdaTestOptions.put("deviceName", deviceName);
         lambdaTestOptions.put("platformVersion", osVersion);
         lambdaTestOptions.put("isRealMobile", SHAFT.Properties.lambdaTest.isRealMobile());
         lambdaTestOptions.put("appProfiling", SHAFT.Properties.lambdaTest.appProfiling());
         lambdaTestOptions.put("app", appUrl);
-        MutableCapabilities lambdaTestCapabilities = new MutableCapabilities();
+        
         lambdaTestCapabilities.setCapability("lt:options", lambdaTestOptions);
         return lambdaTestCapabilities;
     }
@@ -128,19 +129,21 @@ public class LambdaTestHelper {
         String testData = "Username: " + username + ", Password: " + password + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", App URL: " + appUrl;
         // set properties
         passAction(testData);
+        
+        MutableCapabilities lambdaTestCapabilities = new MutableCapabilities();
         HashMap<String, Object> lambdaTestOptions = setLambdaTestProperties(username, password, deviceName, osVersion, appUrl);
         lambdaTestOptions.put("w3c", SHAFT.Properties.lambdaTest.w3c());
         if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
-            lambdaTestOptions.put("platformName", "android");
+            lambdaTestCapabilities.setCapability("platformName", "android");
         } else {
-            lambdaTestOptions.put("platformName", "ios");
+            lambdaTestCapabilities.setCapability("platformName", "ios");
         }
         lambdaTestOptions.put("deviceName", deviceName);
         lambdaTestOptions.put("platformVersion", osVersion);
         lambdaTestOptions.put("isRealMobile", SHAFT.Properties.lambdaTest.isRealMobile());
         lambdaTestOptions.put("appProfiling", SHAFT.Properties.lambdaTest.appProfiling());
         lambdaTestOptions.put("app", appUrl);
-        MutableCapabilities lambdaTestCapabilities = new MutableCapabilities();
+
         lambdaTestCapabilities.setCapability("lt:options", lambdaTestOptions);
         return lambdaTestCapabilities;
     }
@@ -165,9 +168,9 @@ public class LambdaTestHelper {
         lambdaTestCapabilities.setCapability("browserName", SHAFT.Properties.web.targetBrowserName());
         HashMap<String, Object> lambdaTestOptions = new HashMap<>();
         if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
-            lambdaTestOptions.put("platformName", "android");
+            lambdaTestCapabilities.setCapability("platformName", "android");
         } else {
-            lambdaTestOptions.put("platformName", "ios");
+            lambdaTestCapabilities.setCapability("platformName", "ios");
         }
         lambdaTestOptions.put("project", SHAFT.Properties.lambdaTest.project());
         lambdaTestOptions.put("build", SHAFT.Properties.lambdaTest.build());
