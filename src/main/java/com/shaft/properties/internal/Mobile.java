@@ -22,7 +22,7 @@ public interface Mobile extends EngineProperties<Mobile> {
         ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
 
-    @Key("mobile_platformName")
+    @Key("platformName")
     @DefaultValue("")
     String platformName();
 
@@ -42,7 +42,7 @@ public interface Mobile extends EngineProperties<Mobile> {
     @DefaultValue("")
     String udid();
 
-    @Key("mobile_browserName")
+    @Key("browserName")
     @DefaultValue("")
     String browserName();
 
