@@ -495,7 +495,7 @@ public class DriverFactoryHelper {
 
         // stage 2: create remote driver instance (requires some time with dockerized appium)
         ReportManager.logDiscrete("Attempting to instantiate remote driver instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
-        try (ProgressBarLogger pblogger = new ProgressBarLogger("Instantiating...")) {
+        try (ProgressBarLogger pblogger = new ProgressBarLogger("Instantiating...", (int) remoteServerInstanceCreationTimeout)) {
             setDriver(attemptRemoteServerConnection(capabilities));
             ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
             if (!isWebExecution() && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase("Android")) {

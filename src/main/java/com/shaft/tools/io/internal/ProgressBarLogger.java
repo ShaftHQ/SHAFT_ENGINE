@@ -12,11 +12,14 @@ import java.util.concurrent.Executors;
 
 public class ProgressBarLogger implements AutoCloseable {
     private final ExecutorService service;
-    int timeoutVal = (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
     ProgressBar pb;
     Runnable task;
 
     public ProgressBarLogger(String taskName) {
+        this(taskName, (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
+    }
+
+    public ProgressBarLogger(String taskName, int timeoutVal) {
         ProgressBarBuilder pbb = ProgressBar.builder()
                 .setTaskName(taskName)
                 .setInitialMax(timeoutVal)
