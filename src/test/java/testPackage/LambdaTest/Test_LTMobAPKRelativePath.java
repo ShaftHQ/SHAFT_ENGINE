@@ -19,10 +19,10 @@ public class Test_LTMobAPKRelativePath {
 
     @Test
     public void wizard_scrollInExpandableLists_verticalScrolling_insideScreen() {
-        driver.get().element().click(app);
-        driver.get().element().click(actionBar);
-        driver.get().element().click(displayOptions);
-        driver.get().assertThat().element(displayShowCustom).text().isEqualTo("DISPLAY_SHOW_CUSTOM").perform();
+        driver.get().element().click(app)
+                .click(actionBar)
+                .click(displayOptions)
+                .assertThat(displayShowCustom).text().isEqualTo("DISPLAY_SHOW_CUSTOM").perform();
     }
 
 

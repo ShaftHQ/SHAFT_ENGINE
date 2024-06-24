@@ -73,11 +73,11 @@ public interface Timeouts extends EngineProperties<Timeouts> {
     Boolean waitForRemoteServerToBeUp();
 
     @Key("timeoutForRemoteServerToBeUp")
-    @DefaultValue("10")
+    @DefaultValue("1")
     int timeoutForRemoteServerToBeUp();
 
     @Key("remoteServerInstanceCreationTimeout")
-    @DefaultValue("10")
+    @DefaultValue("1")
     int remoteServerInstanceCreationTimeout();
 
     @Key("waitUntilTimeout")
