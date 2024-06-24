@@ -10,6 +10,7 @@ import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ProgressBarLogger;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.Setting;
@@ -167,21 +168,26 @@ public class DriverFactoryHelper {
         WebDriver driver = null;
         boolean isRemoteConnectionEstablished = false;
         var startTime = System.currentTimeMillis();
-        var exception = "";
+        Exception exception = null;
         do {
             try {
                 driver = connectToRemoteServer(capabilities, false);
                 isRemoteConnectionEstablished = true;
             } catch (SessionNotCreatedException | URISyntaxException sessionNotCreatedException1) {
-                exception = sessionNotCreatedException1.getMessage();
-                try {
-                    driver = connectToRemoteServer(capabilities, true);
-                    isRemoteConnectionEstablished = true;
-                } catch (SessionNotCreatedException |
-                         URISyntaxException sessionNotCreatedException2) {
-                    // do nothing
-                    ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
-                    ReportManagerHelper.logDiscrete(sessionNotCreatedException2, Level.DEBUG);
+                exception = sessionNotCreatedException1;
+                if (sessionNotCreatedException1.getMessage().contains("missing in the capabilities")) {
+                    break;
+                } else {
+                    try {
+                        driver = connectToRemoteServer(capabilities, true);
+                        isRemoteConnectionEstablished = true;
+                    } catch (SessionNotCreatedException |
+                             URISyntaxException sessionNotCreatedException2) {
+                        // do nothing
+                        exception = sessionNotCreatedException2;
+                        ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
+                        ReportManagerHelper.logDiscrete(sessionNotCreatedException2, Level.DEBUG);
+                    }
                 }
             }
             if (!isRemoteConnectionEstablished) {
@@ -191,7 +197,7 @@ public class DriverFactoryHelper {
             }
         } while (!isRemoteConnectionEstablished && (System.currentTimeMillis() - startTime < TimeUnit.SECONDS.toMillis(remoteServerInstanceCreationTimeout)));
         if (!isRemoteConnectionEstablished) {
-            failAction("Failed to connect to remote server. Session was still not created after " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + " minutes." + "\nOriginal Error is : " + exception);
+            failAction("Failed to connect to remote server. Session was still not created after " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + " minutes.", exception);
         }
         return driver;
     }
@@ -489,7 +495,7 @@ public class DriverFactoryHelper {
 
         // stage 2: create remote driver instance (requires some time with dockerized appium)
         ReportManager.logDiscrete("Attempting to instantiate remote driver instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
-        try {
+        try (ProgressBarLogger pblogger = new ProgressBarLogger("Instantiating...")) {
             setDriver(attemptRemoteServerConnection(capabilities));
             ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
             if (!isWebExecution() && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase("Android")) {

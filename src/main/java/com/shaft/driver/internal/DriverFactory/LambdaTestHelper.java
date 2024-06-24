@@ -99,9 +99,9 @@ public class LambdaTestHelper {
         HashMap<String, Object> lambdaTestOptions = setLambdaTestProperties(username, password, deviceName, osVersion, appUrl);
         lambdaTestOptions.put("w3c", SHAFT.Properties.lambdaTest.w3c());
         if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
-            lambdaTestCapabilities.setCapability("platformName", "android");
+            lambdaTestOptions.put("platformName", Platform.ANDROID);
         } else {
-            lambdaTestCapabilities.setCapability("platformName", "ios");
+            lambdaTestOptions.put("platformName", Platform.IOS);
         }
         lambdaTestOptions.put("deviceName", deviceName);
         lambdaTestOptions.put("platformVersion", osVersion);
@@ -134,9 +134,9 @@ public class LambdaTestHelper {
         HashMap<String, Object> lambdaTestOptions = setLambdaTestProperties(username, password, deviceName, osVersion, appUrl);
         lambdaTestOptions.put("w3c", SHAFT.Properties.lambdaTest.w3c());
         if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
-            lambdaTestCapabilities.setCapability("platformName", "android");
+            lambdaTestOptions.put("platformName", Platform.ANDROID);
         } else {
-            lambdaTestCapabilities.setCapability("platformName", "ios");
+            lambdaTestOptions.put("platformName", Platform.IOS);
         }
         lambdaTestOptions.put("deviceName", deviceName);
         lambdaTestOptions.put("platformVersion", osVersion);
@@ -167,14 +167,14 @@ public class LambdaTestHelper {
         }
         lambdaTestCapabilities.setCapability("browserName", SHAFT.Properties.web.targetBrowserName());
         HashMap<String, Object> lambdaTestOptions = new HashMap<>();
-        if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
-            lambdaTestCapabilities.setCapability("platformName", "android");
-        } else {
-            lambdaTestCapabilities.setCapability("platformName", "ios");
-        }
         lambdaTestOptions.put("project", SHAFT.Properties.lambdaTest.project());
         lambdaTestOptions.put("build", SHAFT.Properties.lambdaTest.build());
         lambdaTestOptions.put("w3c", SHAFT.Properties.lambdaTest.w3c());
+        if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
+            lambdaTestOptions.put("platformName", Platform.ANDROID);
+        } else {
+            lambdaTestOptions.put("platformName", Platform.IOS);
+        }
         lambdaTestOptions.put("deviceName", SHAFT.Properties.lambdaTest.deviceName());
         lambdaTestOptions.put("platformVersion", SHAFT.Properties.lambdaTest.platformVersion());
         lambdaTestOptions.put("selenium_version", SHAFT.Properties.lambdaTest.selenium_version());

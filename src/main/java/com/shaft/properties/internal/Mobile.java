@@ -79,7 +79,7 @@ public interface Mobile extends EngineProperties<Mobile> {
         }
 
         public SetProperty platformName(String value) {
-            setProperty("mobile_platformName", value);
+            setProperty("platformName", value);
             return this;
         }
 
@@ -107,7 +107,7 @@ public interface Mobile extends EngineProperties<Mobile> {
         }
 
         public SetProperty browserName(String value) {
-            setProperty("mobile_browserName", value);
+            setProperty("browserName", value);
             return this;
         }
 

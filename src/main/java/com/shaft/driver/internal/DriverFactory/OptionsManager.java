@@ -203,8 +203,11 @@ public class OptionsManager {
 
     @SuppressWarnings("SpellCheckingInspection")
     protected void initializeMobileDesiredCapabilities() {
-        appiumCapabilities.setCapability("platformName", Properties.platform.targetPlatform());
-        
+        switch (Properties.platform.targetPlatform().toLowerCase()) {
+            case "android" -> appiumCapabilities.setPlatform(Platform.ANDROID);
+            case "ios" -> appiumCapabilities.setPlatform(Platform.IOS);
+            default -> appiumCapabilities.setPlatform(Platform.ANY);
+        }
         if (!DriverFactoryHelper.isMobileWebExecution()) {
             Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
             caps.forEach((capabilityName, value) -> {
@@ -222,10 +225,10 @@ public class OptionsManager {
 
         if (DriverFactoryHelper.isMobileWebExecution()) {
             //https://chromedriver.chromium.org/capabilities
-            appiumCapabilities.setCapability("browserName", SHAFT.Properties.mobile.browserName());
+            appiumCapabilities.setBrowserName(SHAFT.Properties.mobile.browserName());
             appiumCapabilities.setCapability("pageLoadStrategy", PageLoadStrategy.NONE);
         }
-
+        /*
         if (!DriverFactoryHelper.isMobileWebExecution() && Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             // experimental android capabilities
             // https://github.com/appium/appium-uiautomator2-driver
@@ -275,6 +278,7 @@ public class OptionsManager {
             if (appiumCapabilities.getCapability("appium:showChromedriverLog") == null)
                 appiumCapabilities.setCapability("appium:showChromedriverLog", true);
         }
+         */
         
         ReportManager.log(appiumCapabilities.toString());
     }
