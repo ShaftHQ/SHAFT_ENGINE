@@ -344,7 +344,7 @@
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>json-schema-validator</artifactId>
-            <version>5.4.0</version>
+            <version>5.5.0</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.datatype/jackson-datatype-jdk8 -->
         <dependency>
