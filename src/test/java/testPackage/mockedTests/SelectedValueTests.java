@@ -7,48 +7,40 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class SelectMethodTests {
+public class SelectedValueTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
-    private final By dropDownList = By.className("dropdown");
+    String baseURL = SHAFT.Properties.paths.testData() + "selectedValueTests/";
+    By select = By.tagName("select");
 
     @Test
-    public void testValidSelect() {
+    public void simpleSelect() {
         if (SHAFT.Properties.platform.executionAddress().equals("local")
                 && !SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
-            driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "selectDemo.html");
-            clickDropDownList("Div 1");
-            clickDropDownList("Div 2");
-            clickDropDownList("Div 3");
+            String textToSelect = "Third Value";
+            driver.get().browser().navigateToURL(baseURL + "Basic_select.html")
+                    .performElementAction().select(select, textToSelect);
+            driver.get().assertThat().element(select).attribute("selectedText").isEqualTo(textToSelect).perform();
         }
     }
 
     @Test
-    public void testInvalidSelect() {
+    public void multipleSelect() {
         if (SHAFT.Properties.platform.executionAddress().equals("local")
                 && !SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
-            driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "selectDemo.html");
-            try {
-
-                clickDropDownList("Div 1000");
-
-            } catch (AssertionError error){
-                
-            }
+            driver.get().browser().navigateToURL(baseURL + "Advanced_select_with_multiple_features.html")
+                    .performElementAction().select(select, "Dog")
+                    .select(select, "Cat");
+            driver.get().assertThat().element(select).attribute("selectedText").isEqualTo("DogCat").perform();
         }
-    }
-
-    private void clickDropDownList(String text) {
-        driver.get().element().select(dropDownList, text);
-
     }
 
     @BeforeMethod
-    protected void setUp() {
+    public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod(alwaysRun = true)
-    protected void tearDown() {
+    public void afterMethod() {
         if (driver.get() != null) {
             driver.get().quit();
         }
