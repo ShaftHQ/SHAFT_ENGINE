@@ -4,7 +4,6 @@ import com.shaft.driver.SHAFT;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.Browser;
 import org.openqa.selenium.support.ui.FluentWait;
-import org.openqa.selenium.support.ui.Wait;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -18,11 +17,11 @@ public class SynchronizationManager {
         this.driver = driver;
     }
 
-    public Wait<?> fluentWait() {
+    public FluentWait<?> fluentWait() {
         return fluentWait(false);
     }
 
-    public Wait<?> fluentWait(boolean isValidToCheckForVisibility) {
+    public FluentWait<?> fluentWait(boolean isValidToCheckForVisibility) {
         return new FluentWait<>(driver)
                 .withTimeout(Duration.ofSeconds((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout())))
                 .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))

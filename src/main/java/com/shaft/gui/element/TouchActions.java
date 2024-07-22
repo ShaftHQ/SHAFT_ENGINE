@@ -546,6 +546,8 @@ public class TouchActions extends FluentWebDriverAction {
                     }
                 }
                 elementActionsHelper.passAction(driverFactoryHelper.getDriver(), targetElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+            } catch (UnsupportedCommandException unsupportedCommandException) {
+                throw unsupportedCommandException;
             } catch (Exception e) {
                 elementActionsHelper.failAction(driverFactoryHelper.getDriver(), targetElementLocator, e);
             }
@@ -735,13 +737,13 @@ public class TouchActions extends FluentWebDriverAction {
             scrollParameters.putAll(ImmutableMap.of(
                     "direction", swipeDirection.toString()
             ));
-            canScrollMore = (Boolean) ((JavascriptExecutor) androidDriver).executeScript("scrollGesture", scrollParameters);
+            canScrollMore = (Boolean) androidDriver.executeScript("scrollGesture", scrollParameters);
         } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
             scrollParameters.putAll(ImmutableMap.of(
                     "direction", swipeDirection.toString()
             ));
             //http://appium.github.io/appium-xcuitest-driver/4.16/execute-methods/#mobile-scroll
-            var ret = ((JavascriptExecutor) iosDriver).executeScript("scroll", scrollParameters);
+            var ret = iosDriver.executeScript("scroll", scrollParameters);
             canScrollMore = ret == null || (Boolean) ret;
         }
         var logMessageAfter = "Attempted to scroll using these parameters: \"" + scrollParameters + "\"";

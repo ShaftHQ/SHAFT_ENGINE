@@ -38,6 +38,7 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @SuppressWarnings({"UnusedReturnValue"})
 public class ElementActionsHelper {
@@ -51,18 +52,18 @@ public class ElementActionsHelper {
     }
 
     public int waitForElementPresenceWithReducedTimeout(WebDriver driver, By elementLocator) {
-        var defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(0.3); //this is used for faster mobile native scrolling. default for ios is 200 and for android is 250, this covers both
-        List<Object> numberOfFoundElements;
+        AtomicInteger numberOfFoundElements = new AtomicInteger();
         try {
-            numberOfFoundElements = waitForElementPresence(driver, elementLocator);
-        } catch (Throwable throwable) {
-            // in case the element was not found, reset the timeouts
-            SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultElementIdentificationTimeout);
-            throw throwable;
+            new SynchronizationManager(driver).fluentWait(true)
+                    .withTimeout(Duration.ofMillis(300)) //this is used for faster mobile native scrolling. default for ios is 200 and for android is 250, this covers both
+                    .until(f -> {
+                        numberOfFoundElements.set(driver.findElements(elementLocator).size());
+                        return numberOfFoundElements.get() > 0;
+                    });
+        } catch (TimeoutException timeoutException) {
+            return 0;
         }
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultElementIdentificationTimeout);
-        return Integer.parseInt(numberOfFoundElements.getFirst().toString());
+        return numberOfFoundElements.get();
     }
 
     public List<Object> waitForElementPresence(WebDriver driver, By elementLocator) {
