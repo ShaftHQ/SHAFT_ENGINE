@@ -1,7 +1,10 @@
 package testPackage.appium;
 
 import com.shaft.driver.SHAFT;
+import io.appium.java_client.remote.AutomationName;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Platform;
+import org.openqa.selenium.remote.Browser;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -51,11 +54,11 @@ public class MobileWebTest {
     @BeforeClass
     public void beforeClass() {
         // common attributes android
-//        SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
-//        SHAFT.Properties.mobile.set().automationName(AutomationName.ANDROID_UIAUTOMATOR2);
+        SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
+        SHAFT.Properties.mobile.set().automationName(AutomationName.ANDROID_UIAUTOMATOR2);
 
         // common attributes ios
-//        SHAFT.Properties.platform.set().targetPlatform(Platform.IOS.name());
+        SHAFT.Properties.platform.set().targetPlatform(Platform.IOS.name());
 //        SHAFT.Properties.mobile.set().automationName(AutomationName.IOS_XCUI_TEST);
 
         // self-managed execution (android only) [WARNING: WORK IN PROGRESS]
@@ -71,15 +74,15 @@ public class MobileWebTest {
 //        SHAFT.Properties.mobile.set().app("");
 
 //         remote browserstack server (common for web execution)
-//        SHAFT.Properties.platform.set().executionAddress("browserstack");
-//        SHAFT.Properties.browserStack.set().appName("");
-//        SHAFT.Properties.browserStack.set().appRelativeFilePath("");
-//        SHAFT.Properties.browserStack.set().appUrl("");
+        SHAFT.Properties.platform.set().executionAddress("browserstack");
+        SHAFT.Properties.browserStack.set().appName("");
+        SHAFT.Properties.browserStack.set().appRelativeFilePath("");
+        SHAFT.Properties.browserStack.set().appUrl("");
 
 //         remote browserstack server (android) [NATIVE SAMSUNG BROWSER] || [CHROME]
-//        SHAFT.Properties.browserStack.set().osVersion("13.0");
-//        SHAFT.Properties.browserStack.set().deviceName("Samsung Galaxy S23");
-//        SHAFT.Properties.mobile.set().browserName(Browser.CHROME.browserName());
+        SHAFT.Properties.browserStack.set().osVersion("13.0");
+        SHAFT.Properties.browserStack.set().deviceName("Samsung Galaxy S23");
+        SHAFT.Properties.mobile.set().browserName(Browser.CHROME.browserName());
 //        SHAFT.Properties.mobile.set().browserName("samsung");
 
         // remote browserstack server (ios) [SAFARI BROWSER]
