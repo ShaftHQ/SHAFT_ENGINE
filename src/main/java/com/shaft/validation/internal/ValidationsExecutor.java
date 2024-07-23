@@ -155,6 +155,8 @@ public class ValidationsExecutor {
         }
         if (Boolean.TRUE.equals(clearCustomReportMessage))
             customReportMessage = "";
+        driver.remove();
+        response.remove();
     }
 
     @Step(" {this.validationCategoryString} that {this.customReportMessage}")
@@ -182,7 +184,7 @@ public class ValidationsExecutor {
             case "responseEqualsFileContent" ->
                     new ValidationsHelper().validateJSONFileContent(validationCategory, (Response) response.get(), fileAbsolutePath, restComparisonType, "", validationType, customReportMessage);
             case "jsonPathValueEquals" ->
-                    new ValidationsHelper2(validationCategory).validateEquals(expectedValue, RestActions.getResponseJSONValue(response, jsonPath), validationComparisonType, validationType);
+                    new ValidationsHelper2(validationCategory).validateEquals(expectedValue, RestActions.getResponseJSONValue(response.get(), jsonPath), validationComparisonType, validationType);
             case "jsonPathValueAsListEquals" -> {
                 for (Object value : Objects.requireNonNull(RestActions.getResponseJSONValueAsList((Response) response.get(), jsonPath))) {
                     new ValidationsHelper2(validationCategory).validateEquals(expectedValue, value.toString(), validationComparisonType, validationType);
