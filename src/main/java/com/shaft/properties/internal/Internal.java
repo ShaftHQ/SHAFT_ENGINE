@@ -18,6 +18,6 @@ public interface Internal extends EngineProperties<Internal> {
     String watermarkImagePath();
 
     @Key("allureVersion")
-    @DefaultValue("2.27.0")
+    @DefaultValue("2.28.1")
     String allureVersion();
 }
