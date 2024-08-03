@@ -10,6 +10,7 @@ import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.PathNotFoundException;
 import com.jayway.jsonpath.spi.json.JsonOrgJsonProvider;
+import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
@@ -693,6 +694,8 @@ public class RestActions {
     }
 
     private static void initializeSystemProperties() {
+        if (SHAFT.Properties.timeouts == null)
+            DriverFactory.reloadProperties();
         HTTP_SOCKET_TIMEOUT = SHAFT.Properties.timeouts.apiSocketTimeout();
         // timeout between two consecutive data packets in seconds
         HTTP_CONNECTION_TIMEOUT = SHAFT.Properties.timeouts.apiConnectionTimeout();

@@ -35,6 +35,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Getter
     private static XmlTest xmlTest;
 
+    private static Thread allureEnvironmentSetup;
+
     public static ProjectStructureManager.RunType identifyRunType() {
         Supplier<Stream<?>> stacktraceSupplier = () -> Arrays.stream((new Throwable()).getStackTrace()).map(StackTraceElement::getClassName);
         var isUsingJunitDiscovery = stacktraceSupplier.get().anyMatch(org.junit.platform.launcher.core.EngineDiscoveryOrchestrator.class.getCanonicalName()::equals);
@@ -76,7 +78,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ReportManagerHelper.logEngineVersion();
         Thread.ofVirtual().start(UpdateChecker::check);
         Thread.ofVirtual().start(ImageProcessingActions::loadOpenCV);
-        Thread.ofVirtual().start(AllureManager::initializeAllureReportingEnvironment);
+        allureEnvironmentSetup = Thread.ofVirtual().start(AllureManager::initializeAllureReportingEnvironment);
         Thread.ofVirtual().start(ReportManagerHelper::cleanExecutionSummaryReportDirectory);
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
         ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
@@ -202,6 +204,11 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         Thread.ofVirtual().start(JiraHelper::reportExecutionStatusToJira);
         Thread.ofVirtual().start(GoogleTink::encrypt);
         ReportManagerHelper.logEngineClosure();
+        try {
+            allureEnvironmentSetup.join();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         AllureManager.openAllureReportAfterExecution();
         AllureManager.generateAllureReportArchive();
     }
