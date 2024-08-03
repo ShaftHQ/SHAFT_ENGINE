@@ -18,6 +18,6 @@ public interface Internal extends EngineProperties<Internal> {
     String watermarkImagePath();
 
     @Key("allureVersion")
-    @DefaultValue("2.28.1")
+    @DefaultValue("2.30.0") //https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/
     String allureVersion();
 }

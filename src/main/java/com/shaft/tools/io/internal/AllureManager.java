@@ -22,6 +22,9 @@ public class AllureManager {
     private static String allureBinaryPath = "";
     private static String allureOutPutDirectory = "";
 
+    private static final TerminalActions internalTerminalSession = TerminalActions.getInstance(false,false,true);
+    private static final FileActions internalFileSession = FileActions.getInstance(true);
+
     public static void initializeAllureReportingEnvironment() {
         ReportManager.logDiscrete("Initializing Allure Reporting Environment...");
         /*
@@ -42,24 +45,24 @@ public class AllureManager {
     }
 
     private static void copyAndOpenAllure() {
-        FileActions.getInstance(true).copyFolder(allureOutPutDirectory, allureReportPath);
-        FileActions.getInstance(true).deleteFile(allureOutPutDirectory);
+        internalFileSession.copyFolder(allureOutPutDirectory, allureReportPath);
+        internalFileSession.deleteFile(allureOutPutDirectory);
         String newFileName = renameAllureReport();
         openAllureReport(newFileName);
     }
 
     private static String renameAllureReport() {
         String newFileName = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + "_AllureReport.html";
-        FileActions.getInstance(true).renameFile(System.getProperty("user.dir") + File.separator + allureReportPath + File.separator + "index.html", newFileName);
+        internalFileSession.renameFile(System.getProperty("user.dir") + File.separator + allureReportPath + File.separator + "index.html", newFileName);
         return newFileName;
     }
 
     private static void openAllureReport(String newFileName) {
         if (SHAFT.Properties.reporting.openAllureReportAfterExecution()) {
             if (SystemUtils.IS_OS_WINDOWS) {
-                SHAFT.CLI.terminal().performTerminalCommand(".\\" + allureReportPath + File.separator + newFileName);
+                internalTerminalSession.performTerminalCommand(".\\" + allureReportPath + File.separator + newFileName);
             } else {
-                SHAFT.CLI.terminal().performTerminalCommand("open ./" + allureReportPath + File.separator + newFileName);
+                internalTerminalSession.performTerminalCommand("open ./" + allureReportPath + File.separator + newFileName);
             }
         }
     }
@@ -79,23 +82,23 @@ public class AllureManager {
         // already exist
         String allureVersion = SHAFT.Properties.internal.allureVersion();
         allureBinaryPath = allureExtractionLocation + "allure-" + allureVersion + File.separator + "bin" + File.separator + "allure";
-        if (!FileActions.getInstance(true).doesFileExist(allureBinaryPath)) {
+        if (!internalFileSession.doesFileExist(allureBinaryPath)) {
             try {
-                FileActions.getInstance(true).deleteFolder(allureExtractionLocation);
+                internalFileSession.deleteFolder(allureExtractionLocation);
             } catch (AssertionError e) {
                 ReportManager.logDiscrete("Couldn't clear the allure extraction directory. Kindly terminate any running java process or restart your machine to fix this issue.");
                 ReportManagerHelper.logDiscrete(e);
             }
             // download allure binary
-            URL allureArchive = FileActions.getInstance(true).downloadFile(
+            URL allureArchive = internalFileSession.downloadFile(
                     "https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/" + allureVersion
                             + "/allure-commandline-" + allureVersion + ".zip",
                     "target" + File.separator + "allureBinary.zip");
-            FileActions.getInstance(true).unpackArchive(allureArchive, allureExtractionLocation);
+            internalFileSession.unpackArchive(allureArchive, allureExtractionLocation);
 
             if (!SystemUtils.IS_OS_WINDOWS) {
                 // make allure executable on Unix-based shells
-                TerminalActions.getInstance(false, false, true).performTerminalCommand("chmod u+x " + allureBinaryPath);
+                internalTerminalSession.performTerminalCommand("chmod u+x " + allureBinaryPath);
             }
         }
     }
@@ -113,7 +116,7 @@ public class AllureManager {
                     "set path=" + allureExtractionLocation + "allure-" + allureVersion + "\\bin;%path%",
                     "allure serve " + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1) + " -h localhost",
                     "pause", "exit");
-            FileActions.getInstance(true).writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
+            internalFileSession.writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
         } else {
             // create Unix-based sh file
             commandsToServeAllureReport = Arrays
@@ -124,9 +127,9 @@ public class AllureManager {
                             "exit"
 
                     );
-            FileActions.getInstance(true).writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
+            internalFileSession.writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
             // make allure executable on Unix-based shells
-            TerminalActions.getInstance(false, false, true).performTerminalCommand("chmod u+x generate_allure_report.sh");
+            internalTerminalSession.performTerminalCommand("chmod u+x generate_allure_report.sh");
         }
     }
 
@@ -134,7 +137,7 @@ public class AllureManager {
         // clean allure-results directory before execution
         if (SHAFT.Properties.reporting.cleanAllureResultsDirectoryBeforeExecution()) {
             try {
-                FileActions.getInstance(true).deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
+                internalFileSession.deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
             } catch (Exception t) {
                 ReportManager.log("Failed to delete allure-results as it is currently open. Kindly restart your device to unlock the directory.");
             }
@@ -145,10 +148,10 @@ public class AllureManager {
         String allureVersion = SHAFT.Properties.internal.allureVersion();
         // extract allure from SHAFT_Engine jar
         URL allureSHAFTConfigArchive = ReportManagerHelper.class.getResource("/resources/allure/allureBinary_SHAFTEngineConfigFiles.zip");
-        FileActions.getInstance(true).unpackArchive(allureSHAFTConfigArchive,
+        internalFileSession.unpackArchive(allureSHAFTConfigArchive,
                 allureExtractionLocation + "allure-" + allureVersion + File.separator);
         // deleting custom-logo.svg to avoid generating extra folder with report in single mode
-        FileActions.getInstance(true).deleteFile(allureExtractionLocation + "allure-" + allureVersion + File.separator + "plugins" + File.separator + "custom-logo-plugin" + File.separator + "static" + File.separator + "custom-logo.svg");
+        internalFileSession.deleteFile(allureExtractionLocation + "allure-" + allureVersion + File.separator + "plugins" + File.separator + "custom-logo-plugin" + File.separator + "static" + File.separator + "custom-logo.svg");
 
     }
 
@@ -166,12 +169,12 @@ public class AllureManager {
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
                     + " -o " + allureOutPutDirectory;
         }
-        FileActions.getInstance(true).createFolder(allureOutPutDirectory);
-        TerminalActions.getInstance(false, false, true).performTerminalCommand(commandToCreateAllureReport);
+        internalFileSession.createFolder(allureOutPutDirectory);
+        internalTerminalSession.performTerminalCommand(commandToCreateAllureReport);
     }
 
     private static void createAllureReportArchive() {
-        FileActions.getInstance(true).zipFiles(allureReportPath + "/", "generatedReport_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + ".zip");
+        internalFileSession.zipFiles(allureReportPath + "/", "generatedReport_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + ".zip");
     }
 
     private static void writeEnvironmentVariablesToAllureResultsDirectory() {
@@ -205,7 +208,7 @@ public class AllureManager {
             }
         }
         propertiesFileBuilder.append("</environment>");
-        FileActions.getInstance(true).writeToFile(SHAFT.Properties.paths.allureResults(), "environment.xml",
+        internalFileSession.writeToFile(SHAFT.Properties.paths.allureResults(), "environment.xml",
                 RestActions.formatXML(propertiesFileBuilder.toString()));
     }
 }
