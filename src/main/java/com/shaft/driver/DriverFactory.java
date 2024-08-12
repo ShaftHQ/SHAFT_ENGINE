@@ -149,6 +149,19 @@ public class DriverFactory {
     }
 
     /**
+     * Attaches the Engine to an already up and running selenium webdriver instance
+     *
+     * @param driver an already initialized native selenium webdriver instance
+     * @return a helper instance to be used for driver manipulation
+     */
+    public DriverFactoryHelper getHelper(WebDriver driver) {
+        readLastMinuteUpdatedProperties();
+        var helper = new DriverFactoryHelper();
+        helper.initializeDriver(driver);
+        return helper;
+    }
+
+    /**
      * List of the supported driver types for execution
      */
     @Getter
