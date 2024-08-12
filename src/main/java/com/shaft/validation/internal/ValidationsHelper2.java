@@ -263,15 +263,18 @@ public class ValidationsHelper2 {
         if (!validationState) {
             String failureMessage = this.validationCategoryString.replace("erify", "erificat") + "ion failed; expected " + expected + ", but found " + actual;
             if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
+                ReportManagerHelper.logNestedSteps(failureMessage, null ,null);
                 Allure.getLifecycle().updateStep(stepResult -> FailureReporter.fail(failureMessage));
             } else {
                 // soft assert
                 ValidationsHelper.verificationFailuresList.add(failureMessage);
                 ValidationsHelper.verificationError = new AssertionError(String.join("\nAND ", ValidationsHelper.verificationFailuresList));
                 Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(failureMessage));
+                ReportManagerHelper.logNestedSteps(failureMessage, null ,null);
             }
         } else {
             Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(this.validationCategoryString.replace("erify", "erificat") + "ion passed"));
+            ReportManagerHelper.logNestedSteps(validationCategoryString.replace("erify", "erificat") + "ion passed" , null ,null);
         }
     }
 }
