@@ -654,4 +654,10 @@ public class DriverFactoryHelper {
             setDriver(SelfHealingDriver.create(driver));
         }
     }
+
+    public void initializeDriver(@NonNull WebDriver driver) {
+        initializeSystemProperties();
+        ReportManager.log("Attaching to existing driver session '" + driver + "'.");
+        setDriver(driver);
+    }
 }
