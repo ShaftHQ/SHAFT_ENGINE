@@ -53,9 +53,8 @@ public class AllureManager {
     }
 
     private static String renameAllureReport() {
-        String newFileName = "index.html";
-        if (SHAFT.Properties.allure.accumulateReports())
-            newFileName = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + "_AllureReport.html";
+        String newFileName;
+        newFileName = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + "_AllureReport.html";
         internalFileSession.renameFile(System.getProperty("user.dir") + File.separator + allureReportPath + File.separator + "index.html", newFileName);
         return newFileName;
     }
@@ -143,18 +142,18 @@ public class AllureManager {
             try {
                 internalFileSession.deleteFolder(allureResultsPath);
             } catch (Exception t) {
-                ReportManager.log("Failed to delete '"+allureResultsPath+"' as it is currently open. Kindly restart your device to unlock the directory.");
+                ReportManager.log("Failed to delete '" + allureResultsPath + "' as it is currently open. Kindly restart your device to unlock the directory.");
             }
         }
     }
 
     private static void cleanAllureReportDirectory() {
         // clean allure-report directory before execution
-        if (SHAFT.Properties.allure.accumulateReports()) {
+        if (!SHAFT.Properties.allure.accumulateReports()) {
             try {
                 internalFileSession.deleteFolder(allureReportPath);
             } catch (Exception t) {
-                ReportManager.log("Failed to delete '"+allureReportPath+"' as it is currently open. Kindly restart your device to unlock the directory.");
+                ReportManager.log("Failed to delete '" + allureReportPath + "' as it is currently open. Kindly restart your device to unlock the directory.");
             }
         }
     }
