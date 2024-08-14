@@ -53,8 +53,9 @@ public class AllureManager {
     }
 
     private static String renameAllureReport() {
-        String newFileName;
-        newFileName = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + "_AllureReport.html";
+        String newFileName = "AllureReport.html";
+        if (SHAFT.Properties.allure.accumulateReports())
+            newFileName = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + "_AllureReport.html";
         internalFileSession.renameFile(System.getProperty("user.dir") + File.separator + allureReportPath + File.separator + "index.html", newFileName);
         return newFileName;
     }
