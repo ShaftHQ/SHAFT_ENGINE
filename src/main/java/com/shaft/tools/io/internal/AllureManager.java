@@ -32,6 +32,7 @@ public class AllureManager {
          */
         System.setProperty("org.uncommons.reportng.escape-output", "false");
         allureResultsFolderPath = SHAFT.Properties.paths.allureResults();
+        cleanAllureReportDirectory();
         cleanAllureResultsDirectory();
         downloadAndExtractAllureBinaries();
         overrideAllurePluginConfiguration();
@@ -52,13 +53,15 @@ public class AllureManager {
     }
 
     private static String renameAllureReport() {
-        String newFileName = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + "_AllureReport.html";
+        String newFileName = "AllureReport.html";
+        if (SHAFT.Properties.allure.accumulateReports())
+            newFileName = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + "_AllureReport.html";
         internalFileSession.renameFile(System.getProperty("user.dir") + File.separator + allureReportPath + File.separator + "index.html", newFileName);
         return newFileName;
     }
 
     private static void openAllureReport(String newFileName) {
-        if (SHAFT.Properties.reporting.openAllureReportAfterExecution()) {
+        if (SHAFT.Properties.allure.automaticallyOpen()) {
             if (SystemUtils.IS_OS_WINDOWS) {
                 internalTerminalSession.performTerminalCommand(".\\" + allureReportPath + File.separator + newFileName);
             } else {
@@ -68,7 +71,7 @@ public class AllureManager {
     }
 
     public static void generateAllureReportArchive() {
-        if (Boolean.TRUE.equals(SHAFT.Properties.reporting.generateAllureReportArchive())) {
+        if (Boolean.TRUE.equals(SHAFT.Properties.allure.generateArchive())) {
             ReportManager.logDiscrete("Generating Allure Report Archive...");
             ReportHelper.disableLogging();
             writeAllureReport();
@@ -135,11 +138,23 @@ public class AllureManager {
 
     private static void cleanAllureResultsDirectory() {
         // clean allure-results directory before execution
-        if (SHAFT.Properties.reporting.cleanAllureResultsDirectoryBeforeExecution()) {
+        if (!SHAFT.Properties.allure.accumulateHistory()) {
+            var allureResultsPath = allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1);
             try {
-                internalFileSession.deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
+                internalFileSession.deleteFolder(allureResultsPath);
             } catch (Exception t) {
-                ReportManager.log("Failed to delete allure-results as it is currently open. Kindly restart your device to unlock the directory.");
+                ReportManager.log("Failed to delete '" + allureResultsPath + "' as it is currently open. Kindly restart your device to unlock the directory.");
+            }
+        }
+    }
+
+    private static void cleanAllureReportDirectory() {
+        // clean allure-report directory before execution
+        if (!SHAFT.Properties.allure.accumulateReports()) {
+            try {
+                internalFileSession.deleteFolder(allureReportPath);
+            } catch (Exception t) {
+                ReportManager.log("Failed to delete '" + allureReportPath + "' as it is currently open. Kindly restart your device to unlock the directory.");
             }
         }
     }
@@ -153,6 +168,12 @@ public class AllureManager {
         // deleting custom-logo.svg to avoid generating extra folder with report in single mode
         internalFileSession.deleteFile(allureExtractionLocation + "allure-" + allureVersion + File.separator + "plugins" + File.separator + "custom-logo-plugin" + File.separator + "static" + File.separator + "custom-logo.svg");
 
+        // edit defaults and input custom logo path
+        var styleCssFilePath = allureExtractionLocation + "allure-" + allureVersion + File.separator + "plugins" + File.separator + "custom-logo-plugin" + File.separator + "static" + File.separator + "styles.css";
+        var desiredStyle = internalFileSession.readFile(styleCssFilePath)
+                .replace("https://github.com/ShaftHQ/SHAFT_ENGINE/blob/main/src/main/resources/images/shaft_white.png?raw=true"
+                        , SHAFT.Properties.allure.customLogo());
+        internalFileSession.writeToFile(styleCssFilePath, desiredStyle);
     }
 
     private static void writeAllureReport() {
@@ -160,14 +181,15 @@ public class AllureManager {
         allureBinaryPath = allureExtractionLocation + "allure-" + SHAFT.Properties.internal.allureVersion()
                 + "/bin/allure";
         allureOutPutDirectory = System.getProperty("user.dir") + File.separator + "target" + File.separator + allureReportPath;
+        var customReportName = SHAFT.Properties.allure.customTitle();
         if (SystemUtils.IS_OS_WINDOWS) {
             commandToCreateAllureReport = allureBinaryPath + ".bat" + " generate --single-file --clean '"
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
-                    + "' -o '" + allureOutPutDirectory + "'";
+                    + "' -o '" + allureOutPutDirectory + "' --report-name '"+customReportName+"'";
         } else {
             commandToCreateAllureReport = allureBinaryPath + " generate --single-file --clean "
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
-                    + " -o " + allureOutPutDirectory;
+                    + " -o " + allureOutPutDirectory + " --report-name "+customReportName;
         }
         internalFileSession.createFolder(allureOutPutDirectory);
         internalTerminalSession.performTerminalCommand(commandToCreateAllureReport);

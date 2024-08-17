@@ -178,7 +178,7 @@ public class ReportManagerHelper {
         System.setOut(new PrintStream(new LogRedirector(logger, Level.INFO)));
         System.setErr(new PrintStream(new LogRedirector(logger, Level.WARN)));
         String engineVersion = "Powered by \033[1mSHAFT v." + SHAFT.Properties.internal.shaftEngineVersion() + "\033[22m";
-        createImportantReportEntry(engineVersion);
+        createImportantReportEntry(engineVersion + "\n" + "Visit SHAFT's user guide \033[4mhttps://shafthq.github.io/\033[24m to learn more");
     }
 
     public static void logEngineClosure() {
@@ -188,7 +188,6 @@ public class ReportManagerHelper {
                 + "SHAFT \033[1;4mis and will always be 100% FREE\033[22;24m for commercial and private use\n"
                 + "in compliance with the \033[1mMIT license\033[22m\n"
                 + "Visit SHAFT's user guide \033[4mhttps://shafthq.github.io/\033[24m to learn more";
-//                + "https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE";
         createImportantReportEntry(copyrights);
     }
 

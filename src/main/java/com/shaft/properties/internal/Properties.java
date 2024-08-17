@@ -14,6 +14,7 @@ public class Properties {
     public static Pattern pattern;
     public static Flags flags;
     public static Reporting reporting;
+    public static Allure allure;
     public static TestNG testNG;
     public static Timeouts timeouts;
     public static Tinkey tinkey;

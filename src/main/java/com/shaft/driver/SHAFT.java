@@ -50,6 +50,10 @@ public class SHAFT {
                 helper = factory.getHelper(driverType, mutableCapabilities);
             }
 
+            public WebDriver(org.openqa.selenium.WebDriver driver) {
+                helper = factory.getHelper(driver);
+            }
+
             public void quit() {
                 helper.closeDriver();
                 factory.setHelper(null);

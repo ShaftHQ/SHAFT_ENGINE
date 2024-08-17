@@ -11,7 +11,6 @@ public class ConfigurationHelper {
 
     @BeforeTest(description = "Engine Setup", alwaysRun = true)
     public void suiteSetup(ITestContext testContext) {
-        ReportHelper.attachImportantLinks();
         ReportHelper.attachPropertyFiles();
     }
 

@@ -22,18 +22,6 @@ public class ReportHelper {
         ReportManagerHelper.attachIssuesLog(executionEndTimestamp);
     }
 
-    public static void attachImportantLinks() {
-        ReportManager.logDiscrete("Initializing Important Links...");
-        disableLogging();
-        String importantLinks = """
-                <ul>
-                    <li>👤 <a href="https://shafthq.github.io/" target=”_blank”>User Guide</a></li>
-                    <li>👨‍💻️ <a href="https://github.com/ShaftHQ/SHAFT_ENGINE" target=”_blank”>GitHub - Home</a></li>
-                </ul>""";
-        ReportManagerHelper.attach("HTML", "Important Links", importantLinks);
-        enableLogging();
-    }
-
     public static void enableLogging() {
         SHAFT.Properties.reporting.set().disableLogging(false);
     }

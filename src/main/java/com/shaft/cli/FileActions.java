@@ -58,10 +58,15 @@ public class FileActions {
         try {
             var targetFile = new File(filePath);
             String targetDirectory = targetFile.getParentFile().getAbsolutePath();
-            FileUtils.copyFile(targetFile, new File(targetDirectory + File.separator + newFileName));
-            FileUtils.deleteQuietly(targetFile);
-            passAction("Target File Path: \"" + filePath + "\", file was renamed to \"" + newFileName + "\".");
-        } catch (IOException e) {
+            File newFile =  new File(targetDirectory + File.separator + newFileName);
+            if (!targetFile.getPath().equals(newFile.getPath())) {
+                FileUtils.copyFile(targetFile, newFile);
+                FileUtils.deleteQuietly(targetFile);
+                passAction("Target File Path: \"" + filePath + "\", file was renamed to \"" + newFileName + "\".");
+            } else {
+                passAction("Target File Path: \"" + filePath + "\", already has the desired name \"" + newFileName + "\".");
+            }
+            } catch (IOException e) {
             failAction(e);
         }
     }
