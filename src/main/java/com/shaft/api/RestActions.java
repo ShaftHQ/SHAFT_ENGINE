@@ -933,8 +933,18 @@ public class RestActions {
                                                        Object body, ContentType contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, RestAssuredConfig sessionConfig, boolean appendDefaultContentCharsetToContentTypeIfUndefined, boolean urlEncodingEnabled) {
         RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders, sessionConfig, appendDefaultContentCharsetToContentTypeIfUndefined);
 
-        // set the default content type as part of the specs
-        builder.setContentType(contentType);
+        // Check if contentType is still ANY and use the Content-Type header value directly
+        if (contentType == ContentType.ANY) {
+            String contentTypeHeader = sessionHeaders.get("Content-Type");
+            if (contentTypeHeader != null) {
+                // Set the content type to the exact header value
+                builder.setContentType(contentTypeHeader);
+            }
+        } else {
+            // If contentType is explicitly set, use it
+            builder.setContentType(contentType);
+        }
+
         builder.setUrlEncodingEnabled(urlEncodingEnabled);
 
         if (body != null && contentType != null && !body.toString().isEmpty()) {
