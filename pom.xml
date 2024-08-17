@@ -42,6 +42,7 @@
 
     <dependencyManagement>
         <dependencies>
+
             <!-- JUNIT5 BOM -->
             <!-- https://mvnrepository.com/artifact/org.junit/junit-bom -->
             <dependency>
