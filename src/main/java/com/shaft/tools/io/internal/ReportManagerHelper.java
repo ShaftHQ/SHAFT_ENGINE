@@ -171,6 +171,10 @@ public class ReportManagerHelper {
         logger = LogManager.getLogger(ReportManager.class.getName());
     }
 
+    public static void logImportantEntry(String logText, Level logLevel) {
+        createImportantReportEntry(logText, logLevel);
+    }
+
     public static void logEngineVersion() {
         if (logger == null) {
             initializeLogger();
@@ -468,11 +472,21 @@ public class ReportManagerHelper {
     }
 
     private static void createImportantReportEntry(String logText) {
+        createImportantReportEntry(logText, Level.INFO);
+    }
+
+    private static void createImportantReportEntry(String logText, Level loglevel) {
         boolean initialLoggingStatus = discreteLogging;
         setDiscreteLogging(false); // force log even if discrete logging was turned on
 
+        var color = switch (loglevel.name()) {
+            case "WARN" -> "\033[1;33m"; //yellow
+            case "ERROR" -> "\033[1;31m"; //red
+            default -> "\033[0;7m"; //white
+        };
+
         String log = System.lineSeparator() +
-                "\033[0;7m" +
+                color +
                 createSeparator('-') +
                 addSpacing(logText.trim()) +
                 createSeparator('-') +
@@ -483,7 +497,7 @@ public class ReportManagerHelper {
         if (logger == null) {
             initializeLogger();
         }
-        logger.log(Level.INFO, log);
+        logger.log(loglevel, log);
         setDiscreteLogging(initialLoggingStatus);
     }
 
