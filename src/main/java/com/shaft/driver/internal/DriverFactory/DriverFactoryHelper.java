@@ -25,6 +25,7 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.devtools.Command;
 import org.openqa.selenium.devtools.DevTools;
+import org.openqa.selenium.devtools.DevToolsException;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
@@ -281,16 +282,21 @@ public class DriverFactoryHelper {
     }
 
     private void disableCacheEdgeAndChrome() {
-        if (SHAFT.Properties.flags.disableCache() && driver instanceof HasDevTools hasDevToolsDriver) {
-            DevTools devTools = hasDevToolsDriver.getDevTools();
-            devTools.createSessionIfThereIsNotOne();
-            LinkedHashMap<String, Object> params = new LinkedHashMap<>();
-            params.put("maxPostDataSize", 100000000);
-            devTools.send(new Command<>("Network.enable", Map.copyOf(params)));
-            params = new LinkedHashMap<>();
-            params.put("cacheDisabled", true);
-            devTools.send(new Command<>("Network.setCacheDisabled", params));
-            devTools.send(new Command<>("Network.clearBrowserCookies", Map.copyOf(new LinkedHashMap<>())));
+        try {
+            if (SHAFT.Properties.flags.disableCache() && driver instanceof HasDevTools hasDevToolsDriver) {
+                DevTools devTools = hasDevToolsDriver.getDevTools();
+                devTools.createSessionIfThereIsNotOne();
+                LinkedHashMap<String, Object> params = new LinkedHashMap<>();
+                params.put("maxPostDataSize", 100000000);
+                devTools.send(new Command<>("Network.enable", Map.copyOf(params)));
+                params = new LinkedHashMap<>();
+                params.put("cacheDisabled", true);
+                devTools.send(new Command<>("Network.setCacheDisabled", params));
+                devTools.send(new Command<>("Network.clearBrowserCookies", Map.copyOf(new LinkedHashMap<>())));
+            }
+        } catch (DevToolsException e) {
+            ReportManagerHelper.logDiscrete(e);
+            ReportManager.logDiscrete("We recommend disabling this property 'SHAFT.Properties.flags.disableCache()' or downgrading your browser.");
         }
     }
 
