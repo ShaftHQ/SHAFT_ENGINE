@@ -294,10 +294,44 @@ public class OptionsManager {
         }
         // Fix "org.openqa.selenium.TimeoutException: timeout: Timed out receiving message from renderer: 10.000" on chrome/mac
         // https://github.com/ultrafunkamsterdam/undetected-chromedriver/issues/1280
-        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName()) && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.MAC.name())) {
+        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())) {
             //         https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
             //         https://docs.google.com/spreadsheets/d/1n-vw_PCPS45jX3Jt9jQaAhFqBY6Ge1vWF_Pa0k7dCk4/edit#gid=1265672696
-            options.addArguments("--remote-allow-origins=*", "--enable-automation", "--disable-background-timer-throttling", "--disable-backgrounding-occluded-windows", "--disable-features=CalculateNativeWinOcclusion", "--disable-hang-monitor", "--disable-domain-reliability", "--disable-renderer-backgrounding", "--disable-features=AutofillServerCommunication", "--metrics-recording-only", "--no-first-run", "--no-default-browser-check", "--silent-debugger-extension-api", "--disable-extensions", "--disable-component-extensions-with-background-pages", "--disable-dev-shm-usage", "--disable-features=MediaRouter", "--disable-features=Translate", "--disable-ipc-flooding-protection", "--disable-background-networking", "--mute-audio", "--disable-breakpad", "--ignore-certificate-errors", "--disable-device-discovery-notifications", "--force-color-profile=srgb", "--hide-scrollbars", "--host-resolver-rules", "--no-pings", "--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync", "--disable-features=CertificateTransparencyComponentUpdater", "--disable-sync", "--disable-features=OptimizationHints", "--disable-features=DialMediaRouteProvider", "--disable-features=GlobalMediaControls", "--disable-features=ImprovedCookieControls", "--disable-features=LazyFrameLoading", "--disable-field-trial-config", "--enable-features=NetworkService", "--enable-features=NetworkServiceInProcess", "--enable-use-zoom-for-dsf", "--log-net-log", "--net-log-capture-mode", "--disable-client-side-phishing-detection", "--disable-default-apps", "--disable-features=InterestFeedContentSuggestions");
+            options.addArguments("--disable-search-engine-choice-screen"
+                    , "--remote-allow-origins=*"
+                    , "--enable-automation"
+                    , "--disable-background-timer-throttling"
+                    , "--disable-backgrounding-occluded-windows"
+                    , "--disable-features=OptimizationGuideModelDownloading,OptimizationHintsFetching,OptimizationTargetPrediction,OptimizationHints,CalculateNativeWinOcclusion,AutofillServerCommunication,MediaRouter,Translate,AvoidUnnecessaryBeforeUnloadCheckSync,CertificateTransparencyComponentUpdater,OptimizationHints,DialMediaRouteProvider,GlobalMediaControls,ImprovedCookieControls,LazyFrameLoading,InterestFeedContentSuggestions"
+                    , "--disable-hang-monitor"
+                    , "--disable-domain-reliability"
+                    , "--disable-renderer-backgrounding"
+                    , "--metrics-recording-only"
+                    , "--no-first-run"
+                    , "--no-default-browser-check"
+                    , "--silent-debugger-extension-api"
+                    , "--disable-extensions"
+                    , "--disable-component-extensions-with-background-pages"
+                    , "--disable-dev-shm-usage"
+                    , "--disable-ipc-flooding-protection"
+                    , "--disable-background-networking"
+                    , "--mute-audio"
+                    , "--disable-breakpad"
+                    , "--ignore-certificate-errors"
+                    , "--disable-device-discovery-notifications"
+                    , "--force-color-profile=srgb"
+                    , "--hide-scrollbars"
+                    , "--host-resolver-rules"
+                    , "--no-pings"
+                    , "--disable-sync"
+                    , "--disable-field-trial-config"
+                    , "--enable-features=NetworkService"
+                    , "--enable-features=NetworkServiceInProcess"
+                    , "--enable-use-zoom-for-dsf"
+                    , "--log-net-log"
+                    , "--net-log-capture-mode"
+                    , "--disable-client-side-phishing-detection"
+                    , "--disable-default-apps");
         }
         // Add if condtion to start the new session if flag=true on specific port
         if (SHAFT.Properties.performance.isEnabled()) {
