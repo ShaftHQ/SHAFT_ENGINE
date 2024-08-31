@@ -42,8 +42,45 @@
 <br/><br/>
 <a id="user-guide"></a>
  
-## 📚 Getting Started:
+## 📚 [User Guide](https://shafthq.github.io/):
 - Check out our comprehensive and friendly [user guide](https://shafthq.github.io/) to learn why <b>SHAFT</b> should be your solution of choice if you're aiming for successful test automation.
+- SHAFT is a unified test automation engine for web, mobile, API, CLI, database, and desktop e2e testing. Powered by best-in-class frameworks, SHAFT provides a wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve with no limitations! Stop reinventing the wheel! Upgrade now!
+- SHAFT empowers you to test against the following platforms:
+
+|          | Linux | macOS | Windows | Android | iOS |
+|   :---   | :---: | :---: | :---:   | :---: | :---:   |
+| Google Chrome  | :white_check_mark: | :white_check_mark: | :white_check_mark: |:white_check_mark: | :white_check_mark: |
+| Microsoft Edge  | :white_check_mark: | :white_check_mark: | :white_check_mark: |_ | _ |
+| Mozilla Firefox  | :white_check_mark: | :white_check_mark: | :white_check_mark: |_ | _ |
+| Apple Safari  | _ | :white_check_mark: | _ | _ | :white_check_mark: |
+| Native/Hybrid Apps  | _ | _ | :white_check_mark: |:white_check_mark: | :white_check_mark: |
+
+- SHAFT also provides a lot of out-of-the-box convenience features to facilitate your testing process:
+
+|          | Supported |
+|   :---   | :---: |
+| Fluent design  | :white_check_mark: |
+| Locator builder  | :white_check_mark: |
+| Native `WebDriver` access  | :white_check_mark: | 
+| Auto synchronization  | :white_check_mark: |
+| Element/Browser validations builder | :white_check_mark: |
+| AI-powered visual validations | :white_check_mark: |
+| AI-powered self-healing tests | :white_check_mark: |
+| Logging  | :white_check_mark: |
+| Reporting  | :white_check_mark: |
+| Screenshots  | :white_check_mark: |
+| Video recording  | :white_check_mark: |
+| CI/CD integration  | :white_check_mark: |
+| Headless testing  | :white_check_mark: |
+| Parallel execution  | :white_check_mark: |
+| Containerized execution  | :white_check_mark: |
+| API testing | :white_check_mark: |
+| File/Terminal actions  | :white_check_mark: |
+| Pdf file actions  | :white_check_mark: |
+| JSON/YAML/Excel-based test data management  | :white_check_mark: |
+| Properties files  | :white_check_mark: |
+
+
 <br/><br/>
 
 ## 👨‍💻 Tech Stack:
