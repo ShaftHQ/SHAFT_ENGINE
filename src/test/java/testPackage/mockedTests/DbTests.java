@@ -12,7 +12,7 @@ public class DbTests {
         databaseInstance.set(new SHAFT.DB(DatabaseType.POSTGRES_SQL, "localhost","5432","postgres","postgres","postgres"));
     }
 
-    @AfterClass
+    @BeforeMethod
     public void afterMethod(){
         databaseInstance.remove();
     }
