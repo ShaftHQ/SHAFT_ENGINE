@@ -36,7 +36,7 @@ public class DbTests {
     public void delete() {
         databaseInstance.executeDeleteQuery("DELETE FROM student WHERE email = 'octocat@github.com';");
         databaseInstance.executeSelectQuery("SELECT * FROM student");
-        SHAFT.Validations.assertThat().object(databaseInstance.getResult()).doesNotContain("8");
+        SHAFT.Validations.assertThat().object(databaseInstance.getResult()).doesNotContain("Mona");
     }
 
 }
