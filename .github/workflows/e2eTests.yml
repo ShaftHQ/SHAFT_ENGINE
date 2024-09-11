@@ -46,7 +46,7 @@ jobs:
           cache: 'maven'
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
+        run: mvn -e test "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
