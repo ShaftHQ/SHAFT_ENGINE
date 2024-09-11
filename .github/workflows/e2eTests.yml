@@ -14,7 +14,26 @@ jobs:
   Ubuntu_Database:
     needs: [ Ubuntu_APIs ]
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
+      - name: Connect to PostgreSQL
+        run: node src/main/resources/docker-compose/postgres/client.js
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up JDK 21
