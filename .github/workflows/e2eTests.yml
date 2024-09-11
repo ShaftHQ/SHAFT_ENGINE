@@ -31,7 +31,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Connect to PostgreSQL
-        run: node src/main/resources/docker-compose/postgres/client.js
+        run: |
+            cd src/main/resources/docker-compose/postgres/
+            npm install pg
+            node client.js
         env:
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
