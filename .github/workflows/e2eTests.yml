@@ -14,9 +14,30 @@ jobs:
   Ubuntu_Database:
     needs: [ Ubuntu_APIs ]
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+      - name: Connect to PostgreSQL
+        run: |
+            cd src/main/resources/docker-compose/postgres/
+            npm install pg
+            node client.js
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -25,7 +46,7 @@ jobs:
           cache: 'maven'
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
+        run: mvn -e test "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
