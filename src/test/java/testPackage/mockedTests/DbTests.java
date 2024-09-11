@@ -27,14 +27,14 @@ public class DbTests {
 
     @Test(dependsOnMethods = {"select","insert"})
     public void update() {
-        databaseInstance.executeUpdateQuery("UPDATE student SET age = 8 WHERE email = octocat@github.com';");
+        databaseInstance.executeUpdateQuery("UPDATE student SET age = 8 WHERE email = 'octocat@github.com';");
         databaseInstance.executeSelectQuery("SELECT * FROM student");
         SHAFT.Validations.assertThat().object(databaseInstance.getResult()).contains("8");
     }
 
     @Test(dependsOnMethods = {"select","insert","update"})
     public void delete() {
-        databaseInstance.executeDeleteQuery("DELETE FROM student WHERE email = octocat@github.com';");
+        databaseInstance.executeDeleteQuery("DELETE FROM student WHERE email = 'octocat@github.com';");
         databaseInstance.executeSelectQuery("SELECT * FROM student");
         SHAFT.Validations.assertThat().object(databaseInstance.getResult()).doesNotContain("8");
     }
