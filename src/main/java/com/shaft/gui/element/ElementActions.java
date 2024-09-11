@@ -745,24 +745,27 @@ public class ElementActions extends FluentWebDriverAction {
             // try clearing text
             var elementInformation = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElement(driver, elementLocator, ElementAction.CLEAR));
             var elementName = elementInformation.getElementName();
-            elementInformation.getFirstElement().clear();
-            var currentText = getText(elementLocator);
-            if (currentText.isBlank()) {
+            if (!SHAFT.Properties.flags.forceCheckTextWasTypedCorrectly()){
                 elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "", null, elementName);
-            } else {
-                // try deleting letter by letter using backspaces
-                for (var ignored : currentText.toCharArray()) {
-                    try {
-                        (elementInformation.getFirstElement()).sendKeys(Keys.BACK_SPACE);
-                    } catch (WebDriverException webDriverException) {
-                        elementActionsHelper.performActionAgainstUniqueElement(driver, elementInformation.getLocator(), ElementAction.BACKSPACE);
-                    }
-                }
-                var currentTextAfterClearingUsingBackSpace = getText(elementLocator);
+            }else {
+                var currentText = getText(elementLocator);
                 if (currentText.isBlank()) {
                     elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "", null, elementName);
                 } else {
-                    elementActionsHelper.failAction(driver, "Expected to clear existing text, but ended up with: \"" + currentText + "\"", elementLocator);
+                    // try deleting letter by letter using backspaces
+                    for (var ignored : currentText.toCharArray()) {
+                        try {
+                            (elementInformation.getFirstElement()).sendKeys(Keys.BACK_SPACE);
+                        } catch (WebDriverException webDriverException) {
+                            elementActionsHelper.performActionAgainstUniqueElement(driver, elementInformation.getLocator(), ElementAction.BACKSPACE);
+                        }
+                    }
+                    var currentTextAfterClearingUsingBackSpace = getText(elementLocator);
+                    if (currentText.isBlank()) {
+                        elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "", null, elementName);
+                    } else {
+                        elementActionsHelper.failAction(driver, "Expected to clear existing text, but ended up with: \"" + currentText + "\"", elementLocator);
+                    }
                 }
             }
         } catch (Throwable throwable) {
