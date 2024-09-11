@@ -28,14 +28,13 @@ jobs:
           - 5432:5432
 
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
       - name: Connect to PostgreSQL
         run: node src/main/resources/docker-compose/postgres/client.js
         env:
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
-
-      - name: Checkout Code
-        uses: actions/checkout@v4
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
