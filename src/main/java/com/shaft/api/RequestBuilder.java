@@ -10,9 +10,7 @@ import io.restassured.specification.RequestSpecification;
 import lombok.AccessLevel;
 import lombok.Getter;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static io.restassured.RestAssured.config;
@@ -42,6 +40,15 @@ public class RequestBuilder {
     private boolean appendDefaultContentCharsetToContentTypeIfUndefined;
     private boolean urlEncodingEnabled;
 
+    private static Map<String, List<Double>> performanceData = new HashMap<>();  // To store performance data
+    private String normalizeEndpoint(String endpoint) {
+        // Simplified normalization logic to remove digits and trailing slashes
+        return endpoint.replaceAll("/\\d+", "").replaceAll("/$", "");
+    }
+
+    private void logResponseTime(String endpoint, double responseTime) {
+        performanceData.computeIfAbsent(endpoint, k -> new ArrayList<>()).add(responseTime);
+    }
     /**
      * Start building a new API request.
      *
@@ -264,21 +271,40 @@ public class RequestBuilder {
      */
     @Step("Perform {this.requestType} request to {this.serviceURI}{this.serviceName}")
     public Response performRequest() {
-        String request = prepareRequestURLWithParameters();
+        String requestUrl = prepareRequestURLWithParameters();
         RequestSpecification specs = prepareRequestSpecifications();
 
         setupAuthentication(specs);
-
         Response response = null;
+        long startTime = System.currentTimeMillis();
         try {
-            response = sendRequest(request, specs);
-            handleResponse(response, specs);
+            response = sendRequest(requestUrl, specs);
         } catch (Exception e) {
-            handleException(request, specs, response, e);
+            handleException(requestUrl, specs, response, e);
+        } finally {
+            long responseTime = System.currentTimeMillis() - startTime;
+            String normalizedEndpoint = normalizeEndpoint(serviceName);  // Normalize endpoint
+            logResponseTime(normalizedEndpoint, responseTime);  // Log the response time
         }
 
-        session.setLastResponse(response);
+        if (response != null) {
+            handleResponse(response, specs);
+        }
         return response;
+    }
+
+    public static void generatePerformanceReport() {
+        System.out.println("Endpoint Performance Report:");
+        performanceData.forEach((endpoint, times) -> {
+            double max = times.stream().mapToDouble(Double::doubleValue).max().orElse(0.0);
+            double min = times.stream().mapToDouble(Double::doubleValue).min().orElse(0.0);
+            double average = times.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+            System.out.println("Endpoint: " + endpoint);
+            System.out.println("Requests: " + times.size());
+            System.out.println("Max Response Time: " + max + " ms");
+            System.out.println("Min Response Time: " + min + " ms");
+            System.out.println("Average Response Time: " + average + " ms");
+        });
     }
 
     private String prepareRequestURLWithParameters() {
