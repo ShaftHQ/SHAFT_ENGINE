@@ -395,7 +395,7 @@ public class ValidationsHelper {
             byte[] elementScreenshot;
             Boolean actualResult;
 
-            elementScreenshot = new ScreenshotManager().takeScreenshot(driver, elementLocator, Screenshots.ELEMENT);
+            elementScreenshot = new ScreenshotManager().takeElementScreenshot(driver, elementLocator);
             actualResult = ImageProcessingActions.compareAgainstBaseline(driver, elementLocator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
 
             List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
