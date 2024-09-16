@@ -26,19 +26,19 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class Actions extends ElementActions {
     public Actions() {
-        initialize();
+        super();
     }
 
     public Actions(WebDriver driver) {
-        initialize(driver);
+        super(driver);
     }
 
     public Actions(WebDriver driver, boolean isSilent) {
-        initialize(driver, isSilent);
+        super(driver, isSilent);
     }
 
     public Actions(DriverFactoryHelper helper) {
-        initialize(helper);
+        super(helper);
     }
 
     @Step("Click")
