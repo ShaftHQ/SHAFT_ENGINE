@@ -3,15 +3,13 @@ package com.shaft.gui.element.internal;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
-import com.shaft.driver.internal.FluentWebDriverAction;
-import com.shaft.driver.internal.WizardHelpers;
+import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
 import io.qameta.allure.model.Status;
@@ -26,7 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class Actions extends FluentWebDriverAction {
+public class Actions extends ElementActions {
     public Actions() {
         initialize();
     }
@@ -43,20 +41,8 @@ public class Actions extends FluentWebDriverAction {
         initialize(helper);
     }
 
-    public Actions and() {
-        return this;
-    }
-
-    public WebDriverElementValidationsBuilder assertThat(By locator) {
-        return new WizardHelpers.WebDriverAssertions(driverFactoryHelper).element(locator);
-    }
-
-    public WebDriverElementValidationsBuilder verifyThat(By locator) {
-        return new WizardHelpers.WebDriverVerifications(driverFactoryHelper).element(locator);
-    }
-
     @Step("Click")
-    public Actions click(@NonNull By locator) {
+    @Override public Actions click(@NonNull By locator) {
         //take screenshot (to be added to gif and/or used while reporting failure)
         byte[] screenshotBeforeAction = takeScreenshotBeforeAction(locator);
         //performClick
@@ -65,6 +51,7 @@ public class Actions extends FluentWebDriverAction {
     }
 
     @Step("Type")
+    @Override
     public Actions type(@NonNull By locator, @NonNull CharSequence text) {
         performAction(ActionType.TYPE, locator, text, null);
         return this;

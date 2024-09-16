@@ -10,8 +10,8 @@ import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.AsyncElementActions;
-import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.TouchActions;
+import com.shaft.gui.element.internal.Actions;
 import com.shaft.gui.waits.WaitActions;
 import com.shaft.listeners.internal.WebDriverListener;
 import com.shaft.tools.io.ExcelFileManager;
@@ -23,7 +23,6 @@ import com.shaft.validation.internal.RestValidationsBuilder;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.restassured.response.Response;
-import org.openqa.selenium.Beta;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.support.events.EventFiringDecorator;
 
@@ -62,13 +61,13 @@ public class SHAFT {
                 factory = null;
             }
 
-            public ElementActions element() {
-                return new ElementActions(helper);
+            public Actions element() {
+                return new Actions(helper);
             }
 
-            @Beta public com.shaft.gui.element.internal.Actions newActions(){
-                return new com.shaft.gui.element.internal.Actions(helper);
-            }
+//            @Beta public com.shaft.gui.element.internal.Actions newActions(){
+//                return new com.shaft.gui.element.internal.Actions(helper);
+//            }
 
             public TouchActions touch() {
                 return new TouchActions(helper);
