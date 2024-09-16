@@ -17,8 +17,6 @@ import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
-import io.qameta.allure.Step;
-import lombok.NonNull;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
@@ -725,21 +723,25 @@ public class ElementActions extends FluentWebDriverAction {
         return currentFrame;
     }
 
-//    public ElementActions type(By elementLocator, String text) {
-//        try {
-//            ElementInformation elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
-//            String actualTextAfterTyping = elementActionsHelper.typeWrapper(driver, elementInformation, text);
-//            var elementName = elementInformation.getElementName();
-//            if (actualTextAfterTyping.equals(text)) {
-//                elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
-//            } else {
-//                elementActionsHelper.failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \"" + actualTextAfterTyping + "\"", elementLocator);
-//            }
-//        } catch (Throwable throwable) {
-//            elementActionsHelper.failAction(driver, elementLocator, throwable);
-//        }
-//        return this;
-//    }
+    public ElementActions type(By elementLocator, CharSequence text) {
+        if (text instanceof String stringText) {
+            try {
+                ElementInformation elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
+                String actualTextAfterTyping = elementActionsHelper.typeWrapper(driver, elementInformation, stringText);
+                var elementName = elementInformation.getElementName();
+                if (actualTextAfterTyping.equals(stringText)) {
+                    elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), stringText, null, elementName);
+                } else {
+                    elementActionsHelper.failAction(driver, "Expected to type: \"" + stringText + "\", but ended up with: \"" + actualTextAfterTyping + "\"", elementLocator);
+                }
+            } catch (Throwable throwable) {
+                elementActionsHelper.failAction(driver, elementLocator, throwable);
+            }
+            return this;
+        } else {
+            return new com.shaft.gui.element.internal.Actions(driverFactoryHelper).type(elementLocator, text);
+        }
+    }
 
     public ElementActions clear(By elementLocator) {
         try {
