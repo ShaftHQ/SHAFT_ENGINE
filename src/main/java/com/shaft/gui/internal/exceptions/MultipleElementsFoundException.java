@@ -1,6 +1,6 @@
 package com.shaft.gui.internal.exceptions;
 
-public class MultipleElementsFoundException extends Exception {
+public class MultipleElementsFoundException extends RuntimeException {
     public MultipleElementsFoundException() {
         super();
     }

@@ -23,6 +23,7 @@ import com.shaft.validation.internal.RestValidationsBuilder;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.restassured.response.Response;
+import org.openqa.selenium.Beta;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.support.events.EventFiringDecorator;
 
@@ -63,6 +64,10 @@ public class SHAFT {
 
             public ElementActions element() {
                 return new ElementActions(helper);
+            }
+
+            @Beta public com.shaft.gui.element.internal.Actions newActions(){
+                return new com.shaft.gui.element.internal.Actions(helper);
             }
 
             public TouchActions touch() {

@@ -1079,7 +1079,7 @@ public class ElementActions extends FluentWebDriverAction {
 
     public ElementActions captureScreenshot(By elementLocator) {
         var screenshotManager = new ScreenshotManager();
-        ReportManagerHelper.log("Capture element screenshot", Collections.singletonList(screenshotManager.prepareImageForReport(screenshotManager.takeScreenshot(driver, elementLocator, Screenshots.ELEMENT), "captureScreenshot")));
+        ReportManagerHelper.log("Capture element screenshot", Collections.singletonList(screenshotManager.prepareImageForReport(screenshotManager.takeElementScreenshot(driver, elementLocator), "captureScreenshot")));
         return this;
     }
 
