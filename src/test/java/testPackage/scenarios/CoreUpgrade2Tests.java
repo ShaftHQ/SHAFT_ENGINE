@@ -23,21 +23,21 @@ public class CoreUpgrade2Tests {
     By confirmPasswordInput = By.id("secondpassword");
     By submitButton = By.id("submitbtn");
 
-    @Test
-    public void newCore(){
-        driver.newActions().type(firstNameInput, "John")
-                        .type(lastNameInput, "Doe")
-                        .type(addressInput, "Address")
-                        .type(emailInput, "john.doe@gmail.com")
-                        .type(phoneInput, "12345")
-                        .click(maleRadioButton)
-                        .click(moviesCheckbox)
-                        .click(countryDropdown)
-                        .type(countrySearchInput, "Japan" + Keys.ENTER)
-                        .type(passwordInput, "12345")
-                        .type(confirmPasswordInput, "12345")
-                        .click(submitButton);
-    }
+//    @Test
+//    public void newCore(){
+//        driver.newActions().type(firstNameInput, "John")
+//                        .type(lastNameInput, "Doe")
+//                        .type(addressInput, "Address")
+//                        .type(emailInput, "john.doe@gmail.com")
+//                        .type(phoneInput, "12345")
+//                        .click(maleRadioButton)
+//                        .click(moviesCheckbox)
+//                        .click(countryDropdown)
+//                        .type(countrySearchInput, "Japan" + Keys.ENTER)
+//                        .type(passwordInput, "12345")
+//                        .type(confirmPasswordInput, "12345")
+//                        .click(submitButton);
+//    }
 
     @Test
     public void oldCore(){

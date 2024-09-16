@@ -8,7 +8,6 @@ import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.enums.internal.ClipboardAction;
 import com.shaft.enums.internal.ElementAction;
-import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.ElementInformation;
 import com.shaft.gui.internal.image.ScreenshotManager;
@@ -18,6 +17,8 @@ import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
+import io.qameta.allure.Step;
+import lombok.NonNull;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
@@ -546,7 +547,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @param elementLocator     the locator of the webElement under test (By xpath, id,
      *                           selector, name ...etc.)
      * @param valueOrVisibleText the text of the choice that you need to select from the
-     *                           target dropDown menu or the string value of attribute"value"
+     *                           target dropDown menu or the string value of attribute "value"
      * @return a self-reference to be used to chain actions
      */
     public ElementActions select(By elementLocator, String valueOrVisibleText) {
@@ -590,7 +591,7 @@ public class ElementActions extends FluentWebDriverAction {
                 for (int i = 0; i < availableOptionsList.size(); ++i) {
                     String visibleText = availableOptionsList.get(i).getText();
                     String value = availableOptionsList.get(i).getAttribute("value");
-                    if (visibleText.trim().equals(valueOrVisibleText) || value.trim().equals(valueOrVisibleText)) {
+                    if (visibleText.trim().equals(valueOrVisibleText) || Objects.requireNonNull(value).trim().equals(valueOrVisibleText)) {
                         (new Select((WebElement) elementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).selectByIndex(i);
                         elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), valueOrVisibleText, null, elementName);
                         isOptionFound = true;
@@ -724,21 +725,21 @@ public class ElementActions extends FluentWebDriverAction {
         return currentFrame;
     }
 
-    public ElementActions type(By elementLocator, String text) {
-        try {
-            ElementInformation elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
-            String actualTextAfterTyping = elementActionsHelper.typeWrapper(driver, elementInformation, text);
-            var elementName = elementInformation.getElementName();
-            if (actualTextAfterTyping.equals(text)) {
-                elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
-            } else {
-                elementActionsHelper.failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \"" + actualTextAfterTyping + "\"", elementLocator);
-            }
-        } catch (Throwable throwable) {
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
-        }
-        return this;
-    }
+//    public ElementActions type(By elementLocator, String text) {
+//        try {
+//            ElementInformation elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
+//            String actualTextAfterTyping = elementActionsHelper.typeWrapper(driver, elementInformation, text);
+//            var elementName = elementInformation.getElementName();
+//            if (actualTextAfterTyping.equals(text)) {
+//                elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
+//            } else {
+//                elementActionsHelper.failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \"" + actualTextAfterTyping + "\"", elementLocator);
+//            }
+//        } catch (Throwable throwable) {
+//            elementActionsHelper.failAction(driver, elementLocator, throwable);
+//        }
+//        return this;
+//    }
 
     public ElementActions clear(By elementLocator) {
         try {
@@ -866,7 +867,7 @@ public class ElementActions extends FluentWebDriverAction {
         try {
             var elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
             String actualResult = elementActionsHelper.typeWrapper(driver, elementInformation, text);
-            var elementName = (String) elementInformation.getElementName();
+            var elementName = elementInformation.getElementName();
             if (actualResult.equals(text)) {
                 elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), ElementActionsHelper.OBFUSCATED_STRING.repeat(text.length()), null, elementName);
             } else {

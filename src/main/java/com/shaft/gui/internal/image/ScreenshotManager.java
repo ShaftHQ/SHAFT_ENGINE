@@ -178,7 +178,7 @@ public class ScreenshotManager {
         return new ArrayList<>();
     }
 
-    private byte[] internalCaptureScreenshot(WebDriver driver, By elementLocator, boolean isPass){
+    public byte[] internalCaptureScreenshot(WebDriver driver, By elementLocator, boolean isPass){
         if ("JavaScript".equals(SHAFT.Properties.visuals.screenshotParamsHighlightMethod())) {
             return takeJavaScriptHighlightedScreenshot(driver, elementLocator, isPass);
         } else {
