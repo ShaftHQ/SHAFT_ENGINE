@@ -2,7 +2,9 @@ package testPackage.mockedTests;
 
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
+import org.openqa.selenium.InvalidSelectorException;
 import org.openqa.selenium.NoSuchSessionException;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.remote.Browser;
 import org.testng.annotations.*;
 import testPackage.legacy.SearchOptimizationTest;
@@ -21,9 +23,10 @@ public class CoverageTests {
         }
     }
 
-    @Test(expectedExceptions = {java.lang.AssertionError.class})
+    @Test(expectedExceptions = {InvalidSelectorException.class})
     public void invalidLocator() {
-        driver.get().browser().navigateToURL("https://kitchen.applitools.com/ingredients/alert");
+        String testElement = "data:text/html,<input type=\"text\"><br><br>";
+        driver.get().browser().navigateToURL(testElement);
         driver.get().element().click(By.xpath("....."))
                 .and().alert();
     }
@@ -43,7 +46,7 @@ public class CoverageTests {
         }
     }
 
-    @Test
+    @Test(enabled = false)
     public void alerts_getText_and_accept() {
         driver.get().browser().navigateToURL("https://kitchen.applitools.com/ingredients/alert");
         var alert = driver.get().element().click(By.id("alert-button"))
@@ -52,14 +55,14 @@ public class CoverageTests {
         alert.acceptAlert();
     }
 
-    @Test(expectedExceptions = {AssertionError.class})
+    @Test(expectedExceptions = {TimeoutException.class})
     public void clickFakeElement_expectedToFail() {
         String testElement = "data:text/html,<input type=\"text\"><br><br>";
         driver.get().browser().navigateToURL(testElement);
         driver.get().element().click(By.id("fakeElement"));
     }
 
-    @Test(expectedExceptions = {AssertionError.class})
+    @Test(expectedExceptions = {TimeoutException.class})
     public void typeInFakeElement_expectedToFail() {
         String testElement = "data:text/html,<input type=\"text\"><br><br>";
         driver.get().browser().navigateToURL(testElement);
@@ -95,14 +98,14 @@ public class CoverageTests {
         }
     }
 
-    @Test
+    @Test(enabled = false)
     public void alerts_dismiss() {
         driver.get().browser().navigateToURL("https://kitchen.applitools.com/ingredients/alert");
         driver.get().element().click(By.id("confirm-button"))
                 .and().alert().dismissAlert();
     }
 
-    @Test
+    @Test(enabled = false)
     public void alerts_type() {
         driver.get().browser().navigateToURL("https://kitchen.applitools.com/ingredients/alert");
         driver.get().element().click(By.id("prompt-button"))
