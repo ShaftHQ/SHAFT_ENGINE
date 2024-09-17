@@ -112,7 +112,10 @@ public class Actions extends ElementActions {
                             }
                         }
                     }
-                    case TYPE -> foundElements.getFirst().sendKeys((CharSequence) data);
+                    case TYPE -> {
+                        foundElements.getFirst().clear();
+                        foundElements.getFirst().sendKeys((CharSequence) data);
+                    }
                     case GET_NAME -> output.set(foundElements.getFirst().getAccessibleName());
                 }
                 return true;
@@ -178,11 +181,11 @@ public class Actions extends ElementActions {
         report(action, locator, elementName, Status.PASSED, screenshot, null);
     }
 
-    private void reportBroken(String action, By locator, String elementName, byte[] screenshot, Exception exception){
+    private void reportBroken(String action, By locator, String elementName, byte[] screenshot, RuntimeException exception){
         report(action, locator, elementName, Status.BROKEN, screenshot, exception);
     }
 
-    private void report(String action, By locator, String elementName, Status status, byte[] screenshot, Exception exception){
+    private void report(String action, By locator, String elementName, Status status, byte[] screenshot, RuntimeException exception){
         // update allure step name
         StringBuilder stepName = new StringBuilder();
         stepName.append(JavaHelper.convertToSentenceCase(action)).append(" \"").append(elementName).append("\"");
@@ -206,10 +209,13 @@ public class Actions extends ElementActions {
                 Allure.addAttachment(action, "image/png", new ByteArrayInputStream(successScreenshot), ".png");
         }else{
             // if the step failed
-            ReportManager.log(stepName.toString(), Level.ERROR);
+            ReportManager.logDiscrete(stepName.toString(), Level.ERROR);
 
-            // update allure step status
+            // update allure step status to broken
             Allure.getLifecycle().updateStep(update -> update.setStatus(status));
+
+            // update test status to failed
+            Allure.getLifecycle().updateTestCase(update -> update.setStatus(Status.FAILED));
 
             if (exception!=null){
                 // update exception stacktrace
@@ -233,6 +239,7 @@ public class Actions extends ElementActions {
                     details.setTrace(trace.toString().trim());
                     update.setStatusDetails(details);
                 });
+                throw exception;
             } else {
                 //take screenshot highlighting element
                 byte[] failureScreenshot = takeScreenshotUponFailure(locator);
