@@ -70,7 +70,7 @@ public class Actions extends ElementActions {
 
                 // fail fast if no elements were found
                 if (foundElements.isEmpty())
-                    return false;
+                    throw new NoSuchElementException("Cannot locate an element using "+JavaHelper.formatLocatorToString(locator));
 
                 // ensure element locator is unique if applicable
                 if (foundElements.size() > 1 && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique())
@@ -113,7 +113,15 @@ public class Actions extends ElementActions {
                         }
                     }
                     case TYPE -> {
-                        foundElements.getFirst().clear();
+                        if (SHAFT.Properties.flags.attemptClearBeforeTyping())
+                            foundElements.getFirst().clear();
+
+                        if (SHAFT.Properties.flags.attemptClearBeforeTypingUsingBackspace()){
+                            String text = parseElementText(foundElements.getFirst());
+                            if (!text.isEmpty())
+                                foundElements.getFirst().sendKeys(String.valueOf(Keys.BACK_SPACE).repeat(text.length()));
+                        }
+
                         foundElements.getFirst().sendKeys((CharSequence) data);
                     }
                     case GET_NAME -> output.set(foundElements.getFirst().getAccessibleName());
@@ -127,6 +135,22 @@ public class Actions extends ElementActions {
         //report pass
         reportPass(action.name(),locator,accessibleName.get(),screenshotBeforeAction);
         return output.get();
+    }
+
+    private String parseElementText(WebElement element) {
+        String text = element.getText();
+        if (!text.isEmpty())
+            return text;
+        text = element.getAttribute("value");
+        if (text != null && !text.isEmpty())
+            return text;
+        text = element.getAttribute("textContent");
+        if (text != null && !text.isEmpty())
+            return text;
+        text = element.getAttribute("innerHTML");
+        if (text != null && !text.isEmpty() && !text.contains("<"))
+            return text;
+        return "";
     }
 
     private List<WebElement> findAllElements(By locator) {
@@ -221,14 +245,15 @@ public class Actions extends ElementActions {
                 // update exception stacktrace
                 ArrayList<Class<? extends Throwable>> elementNotVisibleExceptions = new ArrayList<>();
                 elementNotVisibleExceptions.add(NoSuchElementException.class);
+                elementNotVisibleExceptions.add(MultipleElementsFoundException.class);
                 elementNotVisibleExceptions.add(InvalidSelectorException.class);
 
                 //take screenshot highlighting element if possible
                 byte[] failureScreenshot;
                 if (exception.getCause() !=null && elementNotVisibleExceptions.contains(exception.getCause().getClass())){
-                    failureScreenshot = takeScreenshotUponFailure(locator);
-                } else {
                     failureScreenshot = takeScreenshotUponFailure(null);
+                } else {
+                    failureScreenshot = takeScreenshotUponFailure(locator);
                 }
                 Allure.addAttachment(action, "image/png", new ByteArrayInputStream(failureScreenshot), ".png");
 
