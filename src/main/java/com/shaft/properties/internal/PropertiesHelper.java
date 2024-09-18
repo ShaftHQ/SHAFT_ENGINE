@@ -66,7 +66,13 @@ public class PropertiesHelper {
         setMobilePlatform();
         overrideScreenShotTypeForAnimatedGIF();
         overrideScreenshotTypeForSafariBrowser();
+        overrideScreenshotTypeForParallelExecution();
         setExtraAllureProperties();
+    }
+
+    private static void overrideScreenshotTypeForParallelExecution() {
+        if (!Properties.testNG.parallel().equals("NONE"))
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
     }
 
     private static void overrideScreenScalingFactorForWindows() {

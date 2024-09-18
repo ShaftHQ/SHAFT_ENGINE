@@ -72,7 +72,7 @@ public class AnimatedGifManager {
         return "";
     }
 
-    static void startOrAppendToAnimatedGif(byte[] screenshot) {
+    public static void startOrAppendToAnimatedGif(byte[] screenshot) {
         // ensure that animatedGif is started, else force start it
         if (Boolean.TRUE.equals(SHAFT.Properties.visuals.createAnimatedGif())) {
             if (gifRelativePathWithFileName.isEmpty()) {

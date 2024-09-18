@@ -1,4 +1,4 @@
-package testPackage.scenarios;
+package testPackage.coreUpgradeScenarios;
 
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
