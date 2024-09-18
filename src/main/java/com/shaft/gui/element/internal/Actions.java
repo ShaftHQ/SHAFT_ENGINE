@@ -107,7 +107,15 @@ public class Actions extends ElementActions {
 
                 // get accessible name if needed
                 if (SHAFT.Properties.reporting.captureElementName()) {
-                    String fetchedName = foundElements.get().getFirst().getAccessibleName();
+                    String fetchedName = "";
+                    try {
+                        fetchedName = foundElements.get().getFirst().getAccessibleName();
+                    } catch (UnsupportedCommandException throwable) {
+                        //happens on some elements that show unhandled inspector error
+                        //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
+                        //ignore
+                        //saw it again with mobile web tests
+                    }
                     if (fetchedName != null && !fetchedName.isEmpty())
                         accessibleName.set(fetchedName.trim());
                 }
