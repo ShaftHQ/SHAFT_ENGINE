@@ -50,7 +50,7 @@ public class SynchronizationManager {
         // to handle failure inside a virtual thread
         expectedExceptions.add(ExecutionException.class);
         expectedExceptions.add(InterruptedException.class);
-        expectedExceptions.add(RuntimeException.class);
+//        expectedExceptions.add(RuntimeException.class);
 
         return expectedExceptions;
     }
