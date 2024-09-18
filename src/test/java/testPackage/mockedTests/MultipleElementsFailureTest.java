@@ -1,8 +1,8 @@
 package testPackage.mockedTests;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
 import org.openqa.selenium.By;
-import org.openqa.selenium.TimeoutException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -12,13 +12,13 @@ public class MultipleElementsFailureTest {
     String mockedHTML = "data:text/html,<input/><input/><input/><script>var result;</script><button ${HIDDEN} alt='Google' onclick='result=\"Clicked\"'>Go</button>";
 
 
-    @Test(expectedExceptions = {TimeoutException.class})
+    @Test(expectedExceptions = {MultipleElementsFoundException.class})
     public void type() {
         driver.get().browser().navigateToURL(mockedHTML);
         driver.get().element().type(By.xpath("//input"), "standard_user");
     }
 
-    @Test(expectedExceptions = {TimeoutException.class})
+    @Test(expectedExceptions = {MultipleElementsFoundException.class})
     public void click() {
         driver.get().browser().navigateToURL(mockedHTML);
         driver.get().element().click(By.xpath("//input"));
