@@ -176,7 +176,10 @@ public class DriverFactoryHelper {
                 isRemoteConnectionEstablished = true;
             } catch (SessionNotCreatedException | URISyntaxException sessionNotCreatedException1) {
                 exception = sessionNotCreatedException1;
-                if (sessionNotCreatedException1.getMessage().contains("missing in the capabilities")) {
+                String message = sessionNotCreatedException1.getMessage();
+                if (message.contains("missing in the capabilities")
+                        || message.contains("not allowed on your current plan")
+                        || message.contains("has been exhausted")) {
                     break;
                 } else {
                     try {
