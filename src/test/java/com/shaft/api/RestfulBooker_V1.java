@@ -1,12 +1,14 @@
 package com.shaft.api;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.tools.internal.support.HTMLPerformanceReport;
 import io.restassured.RestAssured;
 import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -19,45 +21,45 @@ public class RestfulBooker_V1 {
         String token;
         SHAFT.API api = new SHAFT.API("https://restful-booker.herokuapp.com/");
 
-        @Test
-        public void testALogin() {
+    @Test
+    public void testALogin() {
 
-            Response response = api.post("auth").
-                    setContentType("application/json").
-                    setRequestBody("{\n" +
-                            "    \"username\" : \"admin\",\n" +
-                            "    \"password\" : \"password123\"\n" +
-                            "}").
-                    perform();
-
-
-            JsonPath jsonPath = response.jsonPath();
-            System.out.println(jsonPath.get("token").toString());
+        Response response = api.post("auth").
+                setContentType("application/json").
+                setRequestBody("{\n" +
+                        "    \"username\" : \"admin\",\n" +
+                        "    \"password\" : \"password123\"\n" +
+                        "}").
+                perform();
 
 
-            token = response.path("token").toString();
-            token = response.jsonPath().get("token").toString();
-            System.out.println("The Tonken is: " + token);
+        JsonPath jsonPath = response.jsonPath();
+        System.out.println(jsonPath.get("token").toString());
 
-        }
 
-        @Test
-        public void testGetALLBookingIds() {
+        token = response.path("token").toString();
+        token = response.jsonPath().get("token").toString();
+        System.out.println("The Tonken is: " + token);
 
-           api.get("booking").
-                    perform();
+    }
 
-        }
+    @Test
+    public void testGetALLBookingIds() {
 
-        @Test
-        public void testGetBookingByName() {
-            List<List<Object>> parameters = Arrays.asList(Arrays.asList("firstname", "Jim"), Arrays.asList("lastname", "Brown"));
+        api.get("booking").
+                perform();
 
-            api.get("booking").
-                    setParameters(parameters, RestActions.ParametersType.QUERY).
-                    perform();
+    }
 
-        }
+    @Test
+    public void testGetBookingByName() {
+        List<List<Object>> parameters = Arrays.asList(Arrays.asList("firstname", "Jim"), Arrays.asList("lastname", "Brown"));
+
+        api.get("booking").
+                setParameters(parameters, RestActions.ParametersType.QUERY).
+                perform();
+
+    }
 /*
         @Test
         public void testGetBookingByCheckInDateAndCheckOutDate() {
@@ -76,7 +78,7 @@ public class RestfulBooker_V1 {
                     perform();
 
         }
-
+/*
         @Test
         public void testCreateBookingJSON() {
            api.post("booking").
@@ -86,6 +88,7 @@ public class RestfulBooker_V1 {
                             " \"additionalneeds\":\"Breakfast\"}").
                     perform();
         }
+        */
 
         @Test
         public void testGetUsers() {
@@ -114,9 +117,84 @@ public class RestfulBooker_V1 {
                     .perform();
         }
 
+        @Test
+        public void testRegisterUser() {
+            SHAFT.API api = new SHAFT.API("https://reqres.in/");
+            api.post("api/register")
+                    .setContentType("application/json")
+                    .setRequestBody("{\n" +
+                            "    \"email\": \"eve.holt@reqres.in\",\n" +
+                            "    \"password\": \"pistol\"\n" +
+                            "}")
+                    .perform();
+        }
+
+        @Test
+        public void testLoginUser() {
+            SHAFT.API api = new SHAFT.API("https://reqres.in/");
+
+            api.post("api/login")
+                    .setContentType("application/json")
+                    .setRequestBody("{\n" +
+                            "    \"email\": \"eve.holt@reqres.in\",\n" +
+                            "    \"password\": \"cityslicka\"\n" +
+                            "}")
+                    .perform();
+        }
+
+        @Test
+        public void testDelayedResponse() {
+            SHAFT.API api = new SHAFT.API("https://reqres.in/");
+            List<List<Object>> parameters = Arrays.asList(Arrays.asList("delay", "3"));
+
+            api.get("api/users")
+                    .setParameters(parameters, RestActions.ParametersType.QUERY)
+                    .perform();
+        }
+
+        @Test
+        public void testGetActivities() {
+            SHAFT.API api = new SHAFT.API("https://fakerestapi.azurewebsites.net/api/v1/");
+            api.get("Activities/1").perform();
+        }
+
+        @Test
+        public void testGetActivity() {
+            SHAFT.API api = new SHAFT.API("https://fakerestapi.azurewebsites.net/api/v1/");
+            api.get("Activities/1").perform();
+        }
+
+        @Test
+        public void testGetAuthors() {
+            SHAFT.API api = new SHAFT.API("https://fakerestapi.azurewebsites.net/api/v1/");
+            api.get("Authors").perform();
+        }
+
+        @Test
+        public void testGetAuthor() {
+            SHAFT.API api = new SHAFT.API("https://fakerestapi.azurewebsites.net/api/v1/");
+            api.get("Authors/1").perform();
+        }
+
+        /*
+        @Test
+        public void testGetAuthorBook() {
+            SHAFT.API api = new SHAFT.API("https://fakerestapi.azurewebsites.net/api/v1/");
+            api.get("Authors/1/Books").perform();
+        }
+*/
+        @Test
+        public void testGetBooks() {
+            SHAFT.API api = new SHAFT.API("https://fakerestapi.azurewebsites.net/api/v1/");
+            api.get("Books").perform();
+        }
+
     @AfterSuite
-    public void afterSuite() {
-        RequestBuilder.generatePerformanceReport();
+    public void afterSuite() throws IOException {
+        //RequestBuilder.generatePerformanceReport("src/test/resources/report.html");
+        //RequestBuilder.printPerformanceReport();
+       // HTMLPerformanceReport.generatePerformanceReport();
+
     }
 
     }

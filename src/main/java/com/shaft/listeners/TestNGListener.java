@@ -5,6 +5,7 @@ import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.listeners.internal.*;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.security.GoogleTink;
+import com.shaft.tools.internal.support.HTMLPerformanceReport;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.*;
 import io.qameta.allure.Allure;
@@ -119,6 +120,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     public void onStart(ISuite suite) {
         TestNGListenerHelper.setTotalNumberOfTests(suite);
         executionStartTime = System.currentTimeMillis();
+
     }
 
     /**
@@ -209,6 +211,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+        HTMLPerformanceReport.generatePerformanceReport();
         AllureManager.openAllureReportAfterExecution();
         AllureManager.generateAllureReportArchive();
     }

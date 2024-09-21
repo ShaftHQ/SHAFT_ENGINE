@@ -40,15 +40,8 @@ public class RequestBuilder {
     private boolean appendDefaultContentCharsetToContentTypeIfUndefined;
     private boolean urlEncodingEnabled;
 
-    private static Map<String, List<Double>> performanceData = new HashMap<>();  // To store performance data
-    private String normalizeEndpoint(String endpoint) {
-        // Simplified normalization logic to remove digits and trailing slashes
-        return endpoint.replaceAll("/\\d+", "").replaceAll("/$", "");
-    }
+    private static Map<String, List<Double>> performanceData = new HashMap<>();
 
-    private void logResponseTime(String endpoint, double responseTime) {
-        performanceData.computeIfAbsent(endpoint, k -> new ArrayList<>()).add(responseTime);
-    }
     /**
      * Start building a new API request.
      *
@@ -271,41 +264,64 @@ public class RequestBuilder {
      */
     @Step("Perform {this.requestType} request to {this.serviceURI}{this.serviceName}")
     public Response performRequest() {
-        String requestUrl = prepareRequestURLWithParameters();
+        String request = prepareRequestURLWithParameters();
         RequestSpecification specs = prepareRequestSpecifications();
 
         setupAuthentication(specs);
-        Response response = null;
+        boolean isPerformanceTrackingEnabled = Boolean.parseBoolean("true");
+
         long startTime = System.currentTimeMillis();
+        Response response = null;
         try {
-            response = sendRequest(requestUrl, specs);
+            response = sendRequest(request, specs);
+            long endTime = System.currentTimeMillis();
+            if (isPerformanceTrackingEnabled) {
+                double responseTime = endTime - startTime;
+                String normalizedEndpoint = normalizeEndpoint(serviceName);
+                logResponseTime(normalizedEndpoint, responseTime);
+            }
+
+            handleResponse(response, specs);
         } catch (Exception e) {
-            handleException(requestUrl, specs, response, e);
-        } finally {
-            long responseTime = System.currentTimeMillis() - startTime;
-            String normalizedEndpoint = normalizeEndpoint(serviceName);  // Normalize endpoint
-            logResponseTime(normalizedEndpoint, responseTime);  // Log the response time
+            handleException(request, specs, response, e);
         }
 
-        if (response != null) {
-            handleResponse(response, specs);
-        }
+        session.setLastResponse(response);
         return response;
     }
+    private String normalizeEndpoint(String endpoint) {
+        // Simplified normalization logic to remove digits and trailing slashes
+        return endpoint.replaceAll("/\\d+", "").replaceAll("/$", "");
+    }
 
-    public static void generatePerformanceReport() {
-        System.out.println("Endpoint Performance Report:");
+    public static void logResponseTime(String endpoint, double responseTime) {
+        performanceData.computeIfAbsent(endpoint, k -> new ArrayList<>()).add(responseTime);
+    }
+
+    public static Map<String, List<Double>> getPerformanceData() {
+        return performanceData;
+    }
+
+    public static void printPerformanceReport() {
+        System.out.println("Performance Report:");
         performanceData.forEach((endpoint, times) -> {
-            double max = times.stream().mapToDouble(Double::doubleValue).max().orElse(0.0);
-            double min = times.stream().mapToDouble(Double::doubleValue).min().orElse(0.0);
-            double average = times.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+            if (times == null || times.isEmpty()) {
+                System.out.println("No data available for endpoint: " + endpoint);
+                return;
+            }
+            double maxTime = Collections.max(times);
+            double minTime = Collections.min(times);
+            double avgTime = times.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+
             System.out.println("Endpoint: " + endpoint);
-            System.out.println("Requests: " + times.size());
-            System.out.println("Max Response Time: " + max + " ms");
-            System.out.println("Min Response Time: " + min + " ms");
-            System.out.println("Average Response Time: " + average + " ms");
+            System.out.println("Requests sent: " + times.size());
+            System.out.println("Max response time: " + maxTime + " ms");
+            System.out.println("Min response time: " + minTime + " ms");
+            System.out.println("Average response time: " + avgTime + " ms");
+            System.out.println("----------------------------------");
         });
     }
+
 
     private String prepareRequestURLWithParameters() {
         String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
