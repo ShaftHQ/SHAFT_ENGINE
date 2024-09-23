@@ -121,23 +121,24 @@ public class ElementActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions click(By elementLocator) {
-        if (DriverFactoryHelper.isMobileNativeExecution()) {
-            new TouchActions(driverFactoryHelper).tap(elementLocator);
-        } else {
-            //rewriting click logic to optimize performance and fully support shadowDom elements
-            // get screenshot before doing anything to be attached in animated GIF (if any) or if screenshots are set to always
-            List<Object> screenshot = elementActionsHelper.takeScreenshot(driver, elementLocator, "click", null, true);
-            ElementInformation elementInformation = new ElementInformation();
-            try {
-                // try performing move to element followed by click
-                elementInformation = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementLocator, ElementAction.CLICK));
-            } catch (Throwable throwable) {
-                elementActionsHelper.failAction(driver, elementLocator, throwable);
-            }
-            // get element name
-            var elementName = elementInformation.getElementName();
-            elementActionsHelper.passAction(driver, elementLocator, "", screenshot, elementName);
-        }
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).click(elementLocator);
+//        if (DriverFactoryHelper.isMobileNativeExecution()) {
+//            new TouchActions(driverFactoryHelper).tap(elementLocator);
+//        } else {
+//            //rewriting click logic to optimize performance and fully support shadowDom elements
+//            // get screenshot before doing anything to be attached in animated GIF (if any) or if screenshots are set to always
+//            List<Object> screenshot = elementActionsHelper.takeScreenshot(driver, elementLocator, "click", null, true);
+//            ElementInformation elementInformation = new ElementInformation();
+//            try {
+//                // try performing move to element followed by click
+//                elementInformation = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementLocator, ElementAction.CLICK));
+//            } catch (Throwable throwable) {
+//                elementActionsHelper.failAction(driver, elementLocator, throwable);
+//            }
+//            // get element name
+//            var elementName = elementInformation.getElementName();
+//            elementActionsHelper.passAction(driver, elementLocator, "", screenshot, elementName);
+//        }
         return this;
     }
 
@@ -724,23 +725,25 @@ public class ElementActions extends FluentWebDriverAction {
     }
 
     public ElementActions type(By elementLocator, CharSequence text) {
-        if (text instanceof String stringText) {
-            try {
-                ElementInformation elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
-                String actualTextAfterTyping = elementActionsHelper.typeWrapper(driver, elementInformation, stringText);
-                var elementName = elementInformation.getElementName();
-                if (actualTextAfterTyping.equals(stringText)) {
-                    elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), stringText, null, elementName);
-                } else {
-                    elementActionsHelper.failAction(driver, "Expected to type: \"" + stringText + "\", but ended up with: \"" + actualTextAfterTyping + "\"", elementLocator);
-                }
-            } catch (Throwable throwable) {
-                elementActionsHelper.failAction(driver, elementLocator, throwable);
-            }
-            return this;
-        } else {
-            return new com.shaft.gui.element.internal.Actions(driverFactoryHelper).type(elementLocator, text);
-        }
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).type(elementLocator, text);
+//        if (text instanceof String stringText) {
+//            try {
+//                ElementInformation elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
+//                String actualTextAfterTyping = elementActionsHelper.typeWrapper(driver, elementInformation, stringText);
+//                var elementName = elementInformation.getElementName();
+//                if (actualTextAfterTyping.equals(stringText)) {
+//                    elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), stringText, null, elementName);
+//                } else {
+//                    elementActionsHelper.failAction(driver, "Expected to type: \"" + stringText + "\", but ended up with: \"" + actualTextAfterTyping + "\"", elementLocator);
+//                }
+//            } catch (Throwable throwable) {
+//                elementActionsHelper.failAction(driver, elementLocator, throwable);
+//            }
+//            return this;
+//        } else {
+//            return new com.shaft.gui.element.internal.Actions(driverFactoryHelper).type(elementLocator, text);
+//        }
+        return this;
     }
 
     public ElementActions clear(By elementLocator) {
