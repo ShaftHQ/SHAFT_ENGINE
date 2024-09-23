@@ -55,6 +55,10 @@ public class Actions extends ElementActions {
         super(helper);
     }
 
+    @Override public Actions and() {
+        return this;
+    }
+
     @Step("Click")
     @Override public Actions click(@NonNull By locator) {
         //performClick

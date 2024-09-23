@@ -44,7 +44,7 @@ public class TouchActions extends FluentWebDriverAction {
         initialize(helper);
     }
 
-    public TouchActions and() {
+    @Override public TouchActions and() {
         return this;
     }
 

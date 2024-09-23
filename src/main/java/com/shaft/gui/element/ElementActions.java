@@ -48,7 +48,7 @@ public class ElementActions extends FluentWebDriverAction {
         initialize(helper);
     }
 
-    public ElementActions and() {
+    @Override public ElementActions and() {
         return this;
     }
 

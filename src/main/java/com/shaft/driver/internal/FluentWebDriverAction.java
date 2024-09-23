@@ -6,8 +6,8 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.AlertActions;
-import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.TouchActions;
+import com.shaft.gui.element.internal.Actions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.waits.WaitActions;
 import org.openqa.selenium.WebDriver;
@@ -59,8 +59,8 @@ public class FluentWebDriverAction {
         return new AlertActions(driverFactoryHelper);
     }
 
-    public ElementActions performElementAction() {
-        return new ElementActions(driverFactoryHelper);
+    public Actions performElementAction() {
+        return new Actions(driverFactoryHelper);
     }
 
     public BrowserActions performBrowserAction() {
@@ -75,8 +75,8 @@ public class FluentWebDriverAction {
         return new AlertActions(driverFactoryHelper);
     }
 
-    public ElementActions element() {
-        return new ElementActions(driverFactoryHelper);
+    public Actions element() {
+        return new Actions(driverFactoryHelper);
     }
 
     public BrowserActions browser() {

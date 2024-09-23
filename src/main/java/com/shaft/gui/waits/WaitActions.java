@@ -16,7 +16,7 @@ public class WaitActions extends FluentWebDriverAction {
         initialize(helper);
     }
 
-    public WaitActions waitUntil(Function<? super WebDriver, ?> conditions) {
+    @Override public WaitActions waitUntil(Function<? super WebDriver, ?> conditions) {
         explicitWaits(conditions, SHAFT.Properties.timeouts.waitUntilTimeout());
         return this;
     }
