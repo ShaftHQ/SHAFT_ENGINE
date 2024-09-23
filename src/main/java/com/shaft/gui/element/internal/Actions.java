@@ -14,6 +14,7 @@ import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
@@ -425,7 +426,7 @@ public class Actions extends ElementActions {
                     details.setTrace(trace.toString().trim());
                     update.setStatusDetails(details);
                 });
-                throw exception;
+                throw new RuntimeException(FailureReporter.getRootCause(exception).trim(),exception);
             }
         }
     }

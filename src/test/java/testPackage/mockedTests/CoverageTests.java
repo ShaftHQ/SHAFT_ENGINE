@@ -23,7 +23,7 @@ public class CoverageTests {
         }
     }
 
-    @Test(expectedExceptions = {InvalidSelectorException.class})
+    @Test(expectedExceptions = {RuntimeException.class})
     public void invalidLocator() {
         String testElement = "data:text/html,<input type=\"text\"><br><br>";
         driver.get().browser().navigateToURL(testElement);
@@ -55,14 +55,14 @@ public class CoverageTests {
         alert.acceptAlert();
     }
 
-    @Test(expectedExceptions = {TimeoutException.class})
+    @Test(expectedExceptions = {RuntimeException.class})
     public void clickFakeElement_expectedToFail() {
         String testElement = "data:text/html,<input type=\"text\"><br><br>";
         driver.get().browser().navigateToURL(testElement);
         driver.get().element().click(By.id("fakeElement"));
     }
 
-    @Test(expectedExceptions = {TimeoutException.class})
+    @Test(expectedExceptions = {RuntimeException.class})
     public void typeInFakeElement_expectedToFail() {
         String testElement = "data:text/html,<input type=\"text\"><br><br>";
         driver.get().browser().navigateToURL(testElement);

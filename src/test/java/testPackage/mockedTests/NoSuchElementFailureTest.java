@@ -12,13 +12,13 @@ public class NoSuchElementFailureTest {
     String mockedHTML = "data:text/html,<input/><input/><input/><script>var result;</script><button ${HIDDEN} alt='Google' onclick='result=\"Clicked\"'>Go</button>";
 
 
-    @Test(expectedExceptions = {TimeoutException.class})
+    @Test(expectedExceptions = {RuntimeException.class})
     public void type() {
         driver.get().browser().navigateToURL(mockedHTML);
         driver.get().element().type(By.xpath("//input[@id='noSuchElement']"), "standard_user");
     }
 
-    @Test(expectedExceptions = {TimeoutException.class})
+    @Test(expectedExceptions = {RuntimeException.class})
     public void click() {
         driver.get().browser().navigateToURL(mockedHTML);
         driver.get().element().click(By.xpath("//input[@id='noSuchElement']"));

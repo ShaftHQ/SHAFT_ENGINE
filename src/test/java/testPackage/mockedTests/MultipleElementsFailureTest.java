@@ -12,13 +12,13 @@ public class MultipleElementsFailureTest {
     String mockedHTML = "data:text/html,<input/><input/><input/><script>var result;</script><button ${HIDDEN} alt='Google' onclick='result=\"Clicked\"'>Go</button>";
 
 
-    @Test(expectedExceptions = {MultipleElementsFoundException.class})
+    @Test(expectedExceptions = {RuntimeException.class})
     public void type() {
         driver.get().browser().navigateToURL(mockedHTML);
         driver.get().element().type(By.xpath("//input"), "standard_user");
     }
 
-    @Test(expectedExceptions = {MultipleElementsFoundException.class})
+    @Test(expectedExceptions = {RuntimeException.class})
     public void click() {
         driver.get().browser().navigateToURL(mockedHTML);
         driver.get().element().click(By.xpath("//input"));

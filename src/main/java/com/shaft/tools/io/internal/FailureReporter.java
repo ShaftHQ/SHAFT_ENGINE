@@ -39,11 +39,9 @@ public class FailureReporter {
     }
 
     public static String getRootCause(Throwable throwable){
-        try {
-            return " Root cause: \"" + Throwables.getRootCause(throwable).getClass().getName() + ": " + Throwables.getRootCause(throwable).getLocalizedMessage().split("\n")[0] + "\"";
-        } catch (NullPointerException e) {
-            return" Root cause: \"" + Throwables.getRootCause(throwable).getClass().getName() + ": ".split("\n")[0] + "\"";
-        }
-
+        var rootCauseMessage = Throwables.getRootCause(throwable).getLocalizedMessage();
+        if (rootCauseMessage!=null)
+            return " Root cause: \"" + Throwables.getRootCause(throwable).getClass().getName() + ": " + rootCauseMessage.split("\n")[0] + "\"";
+        return" Root cause: \"" + Throwables.getRootCause(throwable).getClass().getName() + ": " + "\"";
     }
 }
