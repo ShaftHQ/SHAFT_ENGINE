@@ -7,7 +7,6 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.internal.image.ScreenshotManager;
-import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
@@ -145,37 +144,38 @@ public class TouchActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions tap(By elementLocator) {
-        try {
-            String elementText = "";
-            if (CAPTURE_CLICKED_ELEMENT_TEXT) {
-                try {
-                    if (DriverFactoryHelper.isMobileNativeExecution()) {
-                        elementText = ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1)).getAttribute("text");
-                    } else {
-                        elementText = ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1)).getText();
-                    }
-                } catch (Exception e) {
-                    // do nothing
-                }
-            }
-            List<Object> screenshot = elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), elementLocator, "tap", null, true);
-            // takes screenshot before clicking the element out of view
-
-            try {
-//                fixing https://github.com/ShaftHQ/SHAFT_ENGINE/issues/501
-                ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1)).click();
-            } catch (Exception e) {
-                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), elementLocator, e);
-            }
-
-            if (elementText == null || elementText.isEmpty()) {
-                elementText = JavaHelper.formatLocatorToString(elementLocator);
-            }
-            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), elementLocator, throwable);
-        }
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).click(elementLocator);
+//        try {
+//            String elementText = "";
+//            if (CAPTURE_CLICKED_ELEMENT_TEXT) {
+//                try {
+//                    if (DriverFactoryHelper.isMobileNativeExecution()) {
+//                        elementText = ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1)).getAttribute("text");
+//                    } else {
+//                        elementText = ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1)).getText();
+//                    }
+//                } catch (Exception e) {
+//                    // do nothing
+//                }
+//            }
+//            List<Object> screenshot = elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), elementLocator, "tap", null, true);
+//            // takes screenshot before clicking the element out of view
+//
+//            try {
+////                fixing https://github.com/ShaftHQ/SHAFT_ENGINE/issues/501
+//                ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1)).click();
+//            } catch (Exception e) {
+//                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), elementLocator, e);
+//            }
+//
+//            if (elementText == null || elementText.isEmpty()) {
+//                elementText = JavaHelper.formatLocatorToString(elementLocator);
+//            }
+//            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
+//        } catch (Throwable throwable) {
+//            // has to be throwable to catch assertion errors in case element was not found
+//            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), elementLocator, throwable);
+//        }
         return this;
     }
 

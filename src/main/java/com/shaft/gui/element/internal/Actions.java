@@ -22,8 +22,8 @@ import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
 import lombok.NonNull;
 import org.apache.logging.log4j.Level;
-import org.openqa.selenium.*;
 import org.openqa.selenium.Rectangle;
+import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.support.locators.RelativeLocator;
 
@@ -95,34 +95,44 @@ public class Actions extends ElementActions {
                 if (foundElements.get().size() > 1 && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique() && !(locator instanceof RelativeLocator.RelativeBy))
                     throw new MultipleElementsFoundException();
 
+                // identify run type
+                boolean isNotMobileExecution = DriverFactoryHelper.isNotMobileExecution();
+
                 // get accessible name if needed
                 if (SHAFT.Properties.reporting.captureElementName()) {
                     String fetchedName = "";
-                    try {
-                        fetchedName = foundElements.get().getFirst().getAccessibleName();
-                    } catch (UnsupportedCommandException | StaleElementReferenceException throwable) {
-                        //happens on some elements that show unhandled inspector error
-                        //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
-                        //ignore
-                        //saw it again with mobile web tests
-                        // the stale was thrown in an iframe
+                    if (isNotMobileExecution) {
+                        try {
+                            fetchedName = foundElements.get().getFirst().getAccessibleName();
+                        } catch (UnsupportedCommandException | StaleElementReferenceException throwable) {
+                            //happens on some elements that show unhandled inspector error
+                            //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
+                            //ignore
+                            //saw it again with mobile web tests
+                            // the stale was thrown in an iframe
+                        }
+                    } else {
+                        fetchedName = foundElements.get().getFirst().getAttribute("text");
                     }
                     if (fetchedName != null && !fetchedName.isEmpty())
                         accessibleName.set(fetchedName.trim());
                 }
 
                 // scroll to element (avoid relocating the element if already found)
-                try {
-                    // native Javascript scroll to center (smooth / auto)
-                    ((JavascriptExecutor) driver).executeScript("""
-                                                        arguments[0].scrollIntoView({behavior: "auto", block: "center", inline: "center"});""", foundElements.get().getFirst());
-                } catch (Throwable throwable) {
+                // if not mobile else just do the w3c compliant scroll
+                if (isNotMobileExecution) {
                     try {
-                        // w3c compliant scroll
-                        new org.openqa.selenium.interactions.Actions(driver).scrollToElement(foundElements.get().getFirst()).perform();
-                    } catch (Throwable throwable1) {
-                        // old school selenium scroll
-                        ((Locatable) driver).getCoordinates().inViewPort();
+                        // native Javascript scroll to center (smooth / auto)
+                        ((JavascriptExecutor) driver).executeScript("""
+                                arguments[0].scrollIntoView({behavior: "auto", block: "center", inline: "center"});""", foundElements.get().getFirst());
+                    } catch (Throwable throwable) {
+                        try {
+                            // w3c compliant scroll
+                            new org.openqa.selenium.interactions.Actions(driver).scrollToElement(foundElements.get().getFirst()).perform();
+                        } catch (Throwable throwable1) {
+                            // old school selenium scroll
+                            ((Locatable) driver).getCoordinates().inViewPort();
+                        }
                     }
                 }
 

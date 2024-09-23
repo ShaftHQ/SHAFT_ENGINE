@@ -52,7 +52,7 @@ public class ScreenshotManager {
         }
 
         byte[] screenshot;
-        if (DriverFactoryHelper.isWebExecution()) {
+        if (DriverFactoryHelper.isNotMobileExecution()) {
             screenshot = switch (Screenshots.getType()) {
                 case FULL -> {
                     try {

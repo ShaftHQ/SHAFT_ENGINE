@@ -376,7 +376,7 @@ public class OptionsManager {
             options.setCapability("goog:loggingPrefs", configureLoggingPreferences());
         }
         // Mobile Emulation
-        if (SHAFT.Properties.web.isMobileEmulation() && DriverFactoryHelper.isWebExecution()) {
+        if (SHAFT.Properties.web.isMobileEmulation() && DriverFactoryHelper.isNotMobileExecution()) {
             Map<String, Object> mobileEmulation = new HashMap<>();
             if (!SHAFT.Properties.web.mobileEmulationIsCustomDevice() && (!SHAFT.Properties.web.mobileEmulationDeviceName().isBlank())) {
                 mobileEmulation.put("deviceName", SHAFT.Properties.web.mobileEmulationDeviceName());
