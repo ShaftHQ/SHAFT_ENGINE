@@ -95,6 +95,22 @@ public class Actions extends ElementActions {
                 if (foundElements.get().size() > 1 && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique() && !(locator instanceof RelativeLocator.RelativeBy))
                     throw new MultipleElementsFoundException();
 
+                // get accessible name if needed
+                if (SHAFT.Properties.reporting.captureElementName()) {
+                    String fetchedName = "";
+                    try {
+                        fetchedName = foundElements.get().getFirst().getAccessibleName();
+                    } catch (UnsupportedCommandException | StaleElementReferenceException throwable) {
+                        //happens on some elements that show unhandled inspector error
+                        //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
+                        //ignore
+                        //saw it again with mobile web tests
+                        // the stale was thrown in an iframe
+                    }
+                    if (fetchedName != null && !fetchedName.isEmpty())
+                        accessibleName.set(fetchedName.trim());
+                }
+
                 // scroll to element (avoid relocating the element if already found)
                 try {
                     // native Javascript scroll to center (smooth / auto)
@@ -108,21 +124,6 @@ public class Actions extends ElementActions {
                         // old school selenium scroll
                         ((Locatable) driver).getCoordinates().inViewPort();
                     }
-                }
-
-                // get accessible name if needed
-                if (SHAFT.Properties.reporting.captureElementName()) {
-                    String fetchedName = "";
-                    try {
-                        fetchedName = foundElements.get().getFirst().getAccessibleName();
-                    } catch (UnsupportedCommandException throwable) {
-                        //happens on some elements that show unhandled inspector error
-                        //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
-                        //ignore
-                        //saw it again with mobile web tests
-                    }
-                    if (fetchedName != null && !fetchedName.isEmpty())
-                        accessibleName.set(fetchedName.trim());
                 }
 
                 // perform action
