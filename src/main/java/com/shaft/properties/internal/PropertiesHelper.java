@@ -60,12 +60,27 @@ public class PropertiesHelper {
 
     public static void postProcessing() {
         overrideTargetOperatingSystemForLocalExecution();
+        overrideScreenScalingFactorForWindows();
         overrideScreenMaximizationForRemoteExecution();
         overridePropertiesForMaximumPerformanceMode();
         setMobilePlatform();
         overrideScreenShotTypeForAnimatedGIF();
         overrideScreenshotTypeForSafariBrowser();
+        overrideScreenshotTypeForParallelExecution();
         setExtraAllureProperties();
+    }
+
+    private static void overrideScreenshotTypeForParallelExecution() {
+        if (!Properties.testNG.parallel().equals("NONE"))
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
+    }
+
+    private static void overrideScreenScalingFactorForWindows() {
+        if (Properties.platform.targetPlatform().equalsIgnoreCase(org.openqa.selenium.Platform.WINDOWS.toString())) {
+            int res = java.awt.Toolkit.getDefaultToolkit().getScreenResolution();
+            double scale = (double)res/96;
+            Properties.visuals.set().screenshotParamsScalingFactor(scale);
+        }
     }
 
     private static void overrideForcedFlagsForMobilePlatforms() {

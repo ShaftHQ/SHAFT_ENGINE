@@ -57,7 +57,7 @@ public class BrowserActions extends FluentWebDriverAction {
         initialize(helper);
     }
 
-    public BrowserActions and() {
+    @Override public BrowserActions and() {
         return this;
     }
 

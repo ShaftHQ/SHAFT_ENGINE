@@ -97,7 +97,7 @@ public class DriverFactoryHelper {
      *
      * @return true if it's a web-based execution
      */
-    public static boolean isWebExecution() {
+    public static boolean isNotMobileExecution() {
         var isMobileExecution = Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform());
         return !isMobileExecution;
     }
@@ -176,7 +176,10 @@ public class DriverFactoryHelper {
                 isRemoteConnectionEstablished = true;
             } catch (SessionNotCreatedException | URISyntaxException sessionNotCreatedException1) {
                 exception = sessionNotCreatedException1;
-                if (sessionNotCreatedException1.getMessage().contains("missing in the capabilities")) {
+                String message = sessionNotCreatedException1.getMessage();
+                if (message.contains("missing in the capabilities")
+                        || message.contains("not allowed on your current plan")
+                        || message.contains("has been exhausted")) {
                     break;
                 } else {
                     try {
@@ -504,7 +507,7 @@ public class DriverFactoryHelper {
         try (ProgressBarLogger pblogger = new ProgressBarLogger("Instantiating...", (int) remoteServerInstanceCreationTimeout)) {
             setDriver(attemptRemoteServerConnection(capabilities));
             ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
-            if (!isWebExecution() && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase("Android")) {
+            if (!isNotMobileExecution() && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase("Android")) {
                 // https://github.com/appium/appium-uiautomator2-driver#settings-api
                 ((AppiumDriver) driver).setSetting(Setting.WAIT_FOR_IDLE_TIMEOUT, 5000);
                 ((AppiumDriver) driver).setSetting(Setting.ALLOW_INVISIBLE_ELEMENTS, true);

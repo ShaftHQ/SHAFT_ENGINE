@@ -291,7 +291,7 @@ public class ElementActionsHelper {
                 try {
                     elementInformation.getFirstElement().click();
                 } catch (Throwable throwable) {
-                    if (DriverFactoryHelper.isWebExecution()) {
+                    if (DriverFactoryHelper.isNotMobileExecution()) {
                         if (SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails()) {
                             var scriptResult = ((JavascriptExecutor) driver).executeScript("arguments[0].click();", elementInformation.getFirstElement());
                             ReportManager.logDiscrete("Performed Click using JavaScript.");
@@ -413,7 +413,7 @@ public class ElementActionsHelper {
     }
 
     public WebElement getWebElementFromPointUsingJavascript(WebDriver driver, List<Integer> point, boolean scrollToElement) {
-        if (DriverFactoryHelper.isWebExecution()) {
+        if (DriverFactoryHelper.isNotMobileExecution()) {
             if (Boolean.TRUE.equals(scrollToElement)) {
                 return (WebElement) ((JavascriptExecutor) driver).executeScript(JavaScriptHelper.ELEMENT_SCROLL_TO_VIEWPORT.getValue(), point.get(0), point.get(1));
             } else {
@@ -425,13 +425,13 @@ public class ElementActionsHelper {
     }
 
     public void clickUsingJavascript(WebDriver driver, By elementLocator) {
-        if (DriverFactoryHelper.isWebExecution()) {
+        if (DriverFactoryHelper.isNotMobileExecution()) {
             ((JavascriptExecutor) driver).executeScript("arguments[arguments.length - 1].click();", this.identifyUniqueElement(driver, elementLocator).get(1));
         }
     }
 
     public void dragAndDropUsingJavascript(WebDriver driver, By sourceElementLocator, By destinationElementLocator) {
-        if (DriverFactoryHelper.isWebExecution()) {
+        if (DriverFactoryHelper.isNotMobileExecution()) {
             JavascriptExecutor js = (JavascriptExecutor) driver;
             String jQueryLoader = JavaScriptHelper.LOAD_JQUERY.getValue();
             js.executeAsyncScript(jQueryLoader /* , http://localhost:8080/jquery-1.7.2.js */);
@@ -450,13 +450,13 @@ public class ElementActionsHelper {
     }
 
     public void submitFormUsingJavascript(WebDriver driver, By elementLocator) {
-        if (DriverFactoryHelper.isWebExecution()) {
+        if (DriverFactoryHelper.isNotMobileExecution()) {
             ((JavascriptExecutor) driver).executeScript("arguments[0].submit();", this.identifyUniqueElement(driver, elementLocator).get(1));
         }
     }
 
     public void changeWebElementVisibilityUsingJavascript(WebDriver driver, By elementLocator, boolean desiredIsVisibleState) {
-        if (DriverFactoryHelper.isWebExecution()) {
+        if (DriverFactoryHelper.isNotMobileExecution()) {
 
             if (Boolean.TRUE.equals(desiredIsVisibleState)) {
                 ((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('style', 'display:block !important;');", this.identifyUniqueElement(driver, elementLocator).get(1));
@@ -468,7 +468,7 @@ public class ElementActionsHelper {
 
     public boolean setValueUsingJavascript(WebDriver driver, By elementLocator, String value) {
         try {
-            if (DriverFactoryHelper.isWebExecution()) {
+            if (DriverFactoryHelper.isNotMobileExecution()) {
                 performActionAgainstUniqueElementIgnoringVisibility(driver, elementLocator, ElementAction.SET_VALUE_USING_JAVASCRIPT, value);
             }
             return true;
@@ -480,7 +480,7 @@ public class ElementActionsHelper {
 
     public boolean setValueUsingJavascript(WebDriver driver, ElementInformation elementInformation, String value) {
         try {
-            if (DriverFactoryHelper.isWebExecution()) {
+            if (DriverFactoryHelper.isNotMobileExecution()) {
                 try {
                     ((JavascriptExecutor) driver).executeScript("arguments[0].value = arguments[1];", elementInformation.getFirstElement(), value);
                 } catch (WebDriverException webDriverException) {
@@ -502,7 +502,7 @@ public class ElementActionsHelper {
     }
 
     public String suggestNewXpathUsingJavascript(WebDriver driver, WebElement targetElement, By deprecatedElementLocator) {
-        if (DriverFactoryHelper.isWebExecution()) {
+        if (DriverFactoryHelper.isNotMobileExecution()) {
             // attempt to find an optimal xpath for the targetElement
             var maximumXpathNodes = 6;
             var newXpath = "";

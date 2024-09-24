@@ -8,7 +8,6 @@ import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.enums.internal.ClipboardAction;
 import com.shaft.enums.internal.ElementAction;
-import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.ElementInformation;
 import com.shaft.gui.internal.image.ScreenshotManager;
@@ -49,7 +48,7 @@ public class ElementActions extends FluentWebDriverAction {
         initialize(helper);
     }
 
-    public ElementActions and() {
+    @Override public ElementActions and() {
         return this;
     }
 
@@ -122,23 +121,24 @@ public class ElementActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions click(By elementLocator) {
-        if (DriverFactoryHelper.isMobileNativeExecution()) {
-            new TouchActions(driverFactoryHelper).tap(elementLocator);
-        } else {
-            //rewriting click logic to optimize performance and fully support shadowDom elements
-            // get screenshot before doing anything to be attached in animated GIF (if any) or if screenshots are set to always
-            List<Object> screenshot = elementActionsHelper.takeScreenshot(driver, elementLocator, "click", null, true);
-            ElementInformation elementInformation = new ElementInformation();
-            try {
-                // try performing move to element followed by click
-                elementInformation = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementLocator, ElementAction.CLICK));
-            } catch (Throwable throwable) {
-                elementActionsHelper.failAction(driver, elementLocator, throwable);
-            }
-            // get element name
-            var elementName = elementInformation.getElementName();
-            elementActionsHelper.passAction(driver, elementLocator, "", screenshot, elementName);
-        }
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).click(elementLocator);
+//        if (DriverFactoryHelper.isMobileNativeExecution()) {
+//            new TouchActions(driverFactoryHelper).tap(elementLocator);
+//        } else {
+//            //rewriting click logic to optimize performance and fully support shadowDom elements
+//            // get screenshot before doing anything to be attached in animated GIF (if any) or if screenshots are set to always
+//            List<Object> screenshot = elementActionsHelper.takeScreenshot(driver, elementLocator, "click", null, true);
+//            ElementInformation elementInformation = new ElementInformation();
+//            try {
+//                // try performing move to element followed by click
+//                elementInformation = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementLocator, ElementAction.CLICK));
+//            } catch (Throwable throwable) {
+//                elementActionsHelper.failAction(driver, elementLocator, throwable);
+//            }
+//            // get element name
+//            var elementName = elementInformation.getElementName();
+//            elementActionsHelper.passAction(driver, elementLocator, "", screenshot, elementName);
+//        }
         return this;
     }
 
@@ -546,7 +546,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @param elementLocator     the locator of the webElement under test (By xpath, id,
      *                           selector, name ...etc.)
      * @param valueOrVisibleText the text of the choice that you need to select from the
-     *                           target dropDown menu or the string value of attribute"value"
+     *                           target dropDown menu or the string value of attribute "value"
      * @return a self-reference to be used to chain actions
      */
     public ElementActions select(By elementLocator, String valueOrVisibleText) {
@@ -590,7 +590,7 @@ public class ElementActions extends FluentWebDriverAction {
                 for (int i = 0; i < availableOptionsList.size(); ++i) {
                     String visibleText = availableOptionsList.get(i).getText();
                     String value = availableOptionsList.get(i).getAttribute("value");
-                    if (visibleText.trim().equals(valueOrVisibleText) || value.trim().equals(valueOrVisibleText)) {
+                    if (visibleText.trim().equals(valueOrVisibleText) || Objects.requireNonNull(value).trim().equals(valueOrVisibleText)) {
                         (new Select((WebElement) elementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).selectByIndex(i);
                         elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), valueOrVisibleText, null, elementName);
                         isOptionFound = true;
@@ -724,19 +724,25 @@ public class ElementActions extends FluentWebDriverAction {
         return currentFrame;
     }
 
-    public ElementActions type(By elementLocator, String text) {
-        try {
-            ElementInformation elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
-            String actualTextAfterTyping = elementActionsHelper.typeWrapper(driver, elementInformation, text);
-            var elementName = elementInformation.getElementName();
-            if (actualTextAfterTyping.equals(text)) {
-                elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
-            } else {
-                elementActionsHelper.failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \"" + actualTextAfterTyping + "\"", elementLocator);
-            }
-        } catch (Throwable throwable) {
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
-        }
+    public ElementActions type(By elementLocator, CharSequence text) {
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).type(elementLocator, text);
+//        if (text instanceof String stringText) {
+//            try {
+//                ElementInformation elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
+//                String actualTextAfterTyping = elementActionsHelper.typeWrapper(driver, elementInformation, stringText);
+//                var elementName = elementInformation.getElementName();
+//                if (actualTextAfterTyping.equals(stringText)) {
+//                    elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), stringText, null, elementName);
+//                } else {
+//                    elementActionsHelper.failAction(driver, "Expected to type: \"" + stringText + "\", but ended up with: \"" + actualTextAfterTyping + "\"", elementLocator);
+//                }
+//            } catch (Throwable throwable) {
+//                elementActionsHelper.failAction(driver, elementLocator, throwable);
+//            }
+//            return this;
+//        } else {
+//            return new com.shaft.gui.element.internal.Actions(driverFactoryHelper).type(elementLocator, text);
+//        }
         return this;
     }
 
@@ -866,7 +872,7 @@ public class ElementActions extends FluentWebDriverAction {
         try {
             var elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
             String actualResult = elementActionsHelper.typeWrapper(driver, elementInformation, text);
-            var elementName = (String) elementInformation.getElementName();
+            var elementName = elementInformation.getElementName();
             if (actualResult.equals(text)) {
                 elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), ElementActionsHelper.OBFUSCATED_STRING.repeat(text.length()), null, elementName);
             } else {
@@ -1079,7 +1085,7 @@ public class ElementActions extends FluentWebDriverAction {
 
     public ElementActions captureScreenshot(By elementLocator) {
         var screenshotManager = new ScreenshotManager();
-        ReportManagerHelper.log("Capture element screenshot", Collections.singletonList(screenshotManager.prepareImageForReport(screenshotManager.takeScreenshot(driver, elementLocator, Screenshots.ELEMENT), "captureScreenshot")));
+        ReportManagerHelper.log("Capture element screenshot", Collections.singletonList(screenshotManager.prepareImageForReport(screenshotManager.takeElementScreenshot(driver, elementLocator), "captureScreenshot")));
         return this;
     }
 

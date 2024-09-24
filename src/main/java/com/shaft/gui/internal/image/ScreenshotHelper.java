@@ -52,7 +52,7 @@ public class ScreenshotHelper {
         }
     }
 
-    protected static BufferedImage overlayShaftEngineLogo(BufferedImage screenshot) {
+    public static BufferedImage overlayShaftEngineLogo(BufferedImage screenshot) {
         if (Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsWatermark())) {
             try {
                 // create graphics object
@@ -98,7 +98,7 @@ public class ScreenshotHelper {
         return bufferedImage;
     }
 
-    protected static byte[] makeFullScreenshot(WebDriver driver, WebElement... skipElements) throws IOException {
+    public static byte[] makeFullScreenshot(WebDriver driver, WebElement... skipElements) throws IOException {
         if (driver instanceof FirefoxDriver firefoxDriver) {
             return firefoxDriver.getFullPageScreenshotAs(OutputType.BYTES);
         } else if (driver instanceof HasCdp cdpDriver) {

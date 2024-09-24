@@ -41,7 +41,11 @@ public class ReportManager {
      * @param logText the text that will be logged by action
      */
     public static void logDiscrete(String logText) {
-        createLogEntry(logText, Level.INFO);
+        logDiscrete(logText, Level.INFO);
+    }
+
+    public static void logDiscrete(String logText, Level logLevel) {
+        createLogEntry(logText, logLevel);
     }
 
 }
