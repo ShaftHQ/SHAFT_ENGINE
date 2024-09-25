@@ -45,6 +45,11 @@ public interface Flags extends EngineProperties<Flags> {
     @DefaultValue("true")
     boolean attemptClearBeforeTyping();
 
+    @Key("clearMode")
+    @DefaultValue("native")
+    String clearMode();
+
+
     @Key("forceCheckNavigationWasSuccessful")
     @DefaultValue("false")
     boolean forceCheckNavigationWasSuccessful();
@@ -132,6 +137,11 @@ public interface Flags extends EngineProperties<Flags> {
             return this;
         }
 
+
+        public SetProperty clearMode (String value) {
+            setProperty("clearMode", value);
+            return this;
+        }
         public SetProperty attemptClearBeforeTypingUsingBackspace(boolean value) {
             setProperty("attemptClearBeforeTypingUsingBackspace", String.valueOf(value));
             return this;
