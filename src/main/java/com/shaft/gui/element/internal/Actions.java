@@ -152,7 +152,7 @@ public class Actions extends ElementActions {
                         }
                     }
                     case TYPE -> {
-                        String clearMode = SHAFT.Properties.flags.clearMode();
+                        String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
                         switch(clearMode){
                             case "native":
                                 foundElements.get().getFirst().clear();

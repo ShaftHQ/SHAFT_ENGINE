@@ -69,21 +69,20 @@ public class PropertiesHelper {
         overrideScreenshotTypeForSafariBrowser();
         overrideScreenshotTypeForParallelExecution();
         setExtraAllureProperties();
-        setClearMode();
+        setClearBeforeTypingMode();
     }
 
-    private static void setClearMode(){
-       if (Properties.flags.attemptClearBeforeTyping()){
-           SHAFT.Properties.flags.set().clearMode("native");
-       }
-       if (Properties.flags.attemptClearBeforeTypingUsingBackspace()) {
-           SHAFT.Properties.flags.set().clearMode("backspace");
-       }
-       else {
-           SHAFT.Properties.flags.set().clearMode("off");
+    private static void setClearBeforeTypingMode(){
+        if (!Properties.flags.attemptClearBeforeTyping() || SHAFT.Properties.flags.clearBeforeTypingMode().equals("off")) {
+            SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
+            return ;
         }
-    }
 
+        if (Properties.flags.attemptClearBeforeTypingUsingBackspace() || SHAFT.Properties.flags.clearBeforeTypingMode().equals("backspace")) {
+            SHAFT.Properties.flags.set().clearBeforeTypingMode("backspace");
+          }
+    }
+    
     private static void overrideScreenshotTypeForParallelExecution() {
         if (!Properties.testNG.parallel().equals("NONE"))
             SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
