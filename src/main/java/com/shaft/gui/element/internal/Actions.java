@@ -34,6 +34,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
@@ -74,7 +75,14 @@ public class Actions extends ElementActions {
         return this;
     }
 
-    private enum ActionType{GET_NAME,CLICK,TYPE}
+    @Step("Drag and drop")
+    @Override
+    public Actions dragAndDrop(@NonNull By sourceElementLocator, @NonNull By destinationElementLocator) {
+        performAction(ActionType.DRAG_AND_DROP, sourceElementLocator, destinationElementLocator);
+        return this;
+    }
+
+    private enum ActionType {GET_NAME, CLICK, TYPE, DRAG_AND_DROP}
 
     private String performAction(ActionType action, By locator, Object data) {
         AtomicReference<String> output = new AtomicReference<>("");
@@ -164,6 +172,10 @@ public class Actions extends ElementActions {
                         foundElements.get().getFirst().sendKeys((CharSequence) data);
                     }
                     case GET_NAME -> output.set(foundElements.get().getFirst().getAccessibleName());
+                    case DRAG_AND_DROP -> new org.openqa.selenium.interactions.Actions(driver)
+                            .dragAndDrop(foundElements.get().getFirst(),
+                                    driver.findElement((By) data))
+                            .pause(Duration.ofMillis(300)).build().perform();
                 }
 
                 // take screenshot if not already taken before action

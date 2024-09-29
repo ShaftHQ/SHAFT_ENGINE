@@ -11,14 +11,13 @@ import org.testng.annotations.Test;
 
 public class AndroidDragAndDropTest {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
+    private static final By dragAndDropScreen = AppiumBy.accessibilityId("Drag-drop-screen");
 
     @Test
     public void wizard_scrollInExpandableLists_verticalScrolling_insideScreen() {
         By dragButton = By.xpath("//android.widget.Button[@content-desc='Drag']");
         By draggableRobotEyes = By.xpath("//android.view.ViewGroup[@content-desc='drag-c1']/android.widget.ImageView");
         By dropRobotEyes = By.xpath("//android.view.ViewGroup[@content-desc='drop-c1']/android.view.ViewGroup");
-
-        By dragAndDropScreen = AppiumBy.accessibilityId("Drag-drop-screen");
 
         // WebDriver code -> really fails to drag
 //        driver.get().element().click(dragButton)
@@ -28,6 +27,17 @@ public class AndroidDragAndDropTest {
         // Appium code -> drag and drop happens but shows up as failed
         driver.get().touch().tap(dragButton)
                 .swipeToElement(draggableRobotEyes, dropRobotEyes)
+                .and().assertThat(dragAndDropScreen).matchesReferenceImage().perform();
+    }
+
+    @Test
+    public void multipleDragAndDrop() {
+        driver.get().touch().tap(AppiumBy.accessibilityId("Drag"));
+        driver.get().element()
+                .dragAndDrop(AppiumBy.accessibilityId("drag-l2"), AppiumBy.accessibilityId("drop-l2"))
+                .dragAndDrop(AppiumBy.accessibilityId("drag-r3"), AppiumBy.accessibilityId("drop-r3"))
+                .dragAndDrop(AppiumBy.accessibilityId("drag-c3"), AppiumBy.accessibilityId("drop-c3"))
+                .dragAndDrop(AppiumBy.accessibilityId("drag-r1"), AppiumBy.accessibilityId("drop-r1"))
                 .and().assertThat(dragAndDropScreen).matchesReferenceImage().perform();
     }
 
@@ -65,7 +75,7 @@ public class AndroidDragAndDropTest {
 //        SHAFT.Properties.browserStack.set().deviceName("Google Pixel 7");
 //        SHAFT.Properties.browserStack.set().appName("Android-NativeDemoApp-0.4.0.apk");
 //        SHAFT.Properties.browserStack.set().appRelativeFilePath("");
-//        SHAFT.Properties.browserStack.set().appUrl("bs://832ef13a11caa84ad714e0d4f8d9553cd3c5a3ca");
+//        SHAFT.Properties.browserStack.set().appUrl("bs://ea453f6afaac69563817f4ae41311e2de98b260d");
         driver.set(new SHAFT.GUI.WebDriver());
     }
 
