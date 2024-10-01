@@ -1,6 +1,7 @@
 package com.shaft.api;
 
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import io.qameta.allure.Step;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.config.SSLConfig;
@@ -268,14 +269,13 @@ public class RequestBuilder {
         RequestSpecification specs = prepareRequestSpecifications();
 
         setupAuthentication(specs);
-        boolean isPerformanceTrackingEnabled = Boolean.parseBoolean("true");
 
         long startTime = System.currentTimeMillis();
         Response response = null;
         try {
             response = sendRequest(request, specs);
             long endTime = System.currentTimeMillis();
-            if (isPerformanceTrackingEnabled) {
+            if (SHAFT.Properties.performance.isEnablePerformanceReport()) {
                 double responseTime = endTime - startTime;
                 String normalizedEndpoint = normalizeEndpoint(serviceName);
                 logResponseTime(normalizedEndpoint, responseTime);
@@ -301,27 +301,6 @@ public class RequestBuilder {
     public static Map<String, List<Double>> getPerformanceData() {
         return performanceData;
     }
-
-    public static void printPerformanceReport() {
-        System.out.println("Performance Report:");
-        performanceData.forEach((endpoint, times) -> {
-            if (times == null || times.isEmpty()) {
-                System.out.println("No data available for endpoint: " + endpoint);
-                return;
-            }
-            double maxTime = Collections.max(times);
-            double minTime = Collections.min(times);
-            double avgTime = times.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-
-            System.out.println("Endpoint: " + endpoint);
-            System.out.println("Requests sent: " + times.size());
-            System.out.println("Max response time: " + maxTime + " ms");
-            System.out.println("Min response time: " + minTime + " ms");
-            System.out.println("Average response time: " + avgTime + " ms");
-            System.out.println("----------------------------------");
-        });
-    }
-
 
     private String prepareRequestURLWithParameters() {
         String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);

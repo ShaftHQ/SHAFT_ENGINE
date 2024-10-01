@@ -1,11 +1,11 @@
 package com.shaft.listeners;
 
+import com.shaft.api.RequestBuilder;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.listeners.internal.*;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.security.GoogleTink;
-import com.shaft.tools.internal.support.HTMLPerformanceReport;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.*;
 import io.qameta.allure.Allure;
@@ -20,6 +20,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -211,7 +212,13 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-        HTMLPerformanceReport.generatePerformanceReport();
+        Thread.ofVirtual().start(() -> {
+            // Fetch performance data from RequestBuilder
+            Map<String, List<Double>> performanceData = RequestBuilder.getPerformanceData();
+
+            // Generate the performance report using the fetched data
+            ApiPerformanceExecutionReport.generatePerformanceReport(performanceData, executionStartTime, System.currentTimeMillis());
+        });
         AllureManager.openAllureReportAfterExecution();
         AllureManager.generateAllureReportArchive();
     }
