@@ -45,6 +45,11 @@ public interface Flags extends EngineProperties<Flags> {
     @DefaultValue("true")
     boolean attemptClearBeforeTyping();
 
+    @Key("clearBeforeTypingMode")
+    @DefaultValue("native")
+    String clearBeforeTypingMode();
+
+
     @Key("forceCheckNavigationWasSuccessful")
     @DefaultValue("false")
     boolean forceCheckNavigationWasSuccessful();
@@ -126,14 +131,35 @@ public interface Flags extends EngineProperties<Flags> {
             setProperty("forceCheckTextWasTypedCorrectly", String.valueOf(value));
             return this;
         }
-
+        /**
+         Please use {@link #clearBeforeTypingMode(String value)} instead.
+              */
+       @Deprecated()
         public SetProperty attemptClearBeforeTyping(boolean value) {
             setProperty("attemptClearBeforeTyping", String.valueOf(value));
             return this;
         }
 
+        /**
+         Please use {@link #clearBeforeTypingMode(String value)} instead.
+         */
+        @Deprecated
         public SetProperty attemptClearBeforeTypingUsingBackspace(boolean value) {
             setProperty("attemptClearBeforeTypingUsingBackspace", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         *
+         * @param value
+         *   <ul>
+         *          <li><b>native</b> = clear using native Selenium method</li>
+         *          <li><b>backspace</b> = clear by deleting letter by letter</li>
+         *           <li><b>off</b> = no clearing</li>
+         *          </ul>
+         */
+        public SetProperty clearBeforeTypingMode(String value) {
+            setProperty("clearBeforeTypingMode", value);
             return this;
         }
 

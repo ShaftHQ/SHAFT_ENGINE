@@ -10,6 +10,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.openqa.selenium.remote.Browser;
 
+import java.awt.*;
 import java.io.File;
 import java.net.URL;
 import java.util.Arrays;
@@ -68,8 +69,20 @@ public class PropertiesHelper {
         overrideScreenshotTypeForSafariBrowser();
         overrideScreenshotTypeForParallelExecution();
         setExtraAllureProperties();
+        setClearBeforeTypingMode();
     }
 
+    private static void setClearBeforeTypingMode(){
+        if (!Properties.flags.attemptClearBeforeTyping() || SHAFT.Properties.flags.clearBeforeTypingMode().equals("off")) {
+            SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
+            return ;
+        }
+
+        if (Properties.flags.attemptClearBeforeTypingUsingBackspace() || SHAFT.Properties.flags.clearBeforeTypingMode().equals("backspace")) {
+            SHAFT.Properties.flags.set().clearBeforeTypingMode("backspace");
+          }
+    }
+    
     private static void overrideScreenshotTypeForParallelExecution() {
         if (!Properties.testNG.parallel().equals("NONE"))
             SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
@@ -77,7 +90,7 @@ public class PropertiesHelper {
 
     private static void overrideScreenScalingFactorForWindows() {
         if (Properties.platform.targetPlatform().equalsIgnoreCase(org.openqa.selenium.Platform.WINDOWS.toString())) {
-            int res = java.awt.Toolkit.getDefaultToolkit().getScreenResolution();
+            int res = Toolkit.getDefaultToolkit().getScreenResolution();
             double scale = (double)res/96;
             Properties.visuals.set().screenshotParamsScalingFactor(scale);
         }

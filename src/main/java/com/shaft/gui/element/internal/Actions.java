@@ -160,15 +160,20 @@ public class Actions extends ElementActions {
                         }
                     }
                     case TYPE -> {
-                        if (SHAFT.Properties.flags.attemptClearBeforeTyping())
-                            foundElements.get().getFirst().clear();
+                        String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
+                        switch(clearMode){
+                            case "native":
+                                foundElements.get().getFirst().clear();
+                                break ;
+                            case "backspace":
+                                String text = parseElementText(foundElements.get().getFirst());
+                                if (!text.isEmpty())
+                                    foundElements.get().getFirst().sendKeys(String.valueOf(Keys.BACK_SPACE).repeat(text.length()));
+                                break ;
+                            case"off":
+                                break;
 
-                        if (SHAFT.Properties.flags.attemptClearBeforeTypingUsingBackspace()){
-                            String text = parseElementText(foundElements.get().getFirst());
-                            if (!text.isEmpty())
-                                foundElements.get().getFirst().sendKeys(String.valueOf(Keys.BACK_SPACE).repeat(text.length()));
                         }
-
                         foundElements.get().getFirst().sendKeys((CharSequence) data);
                     }
                     case GET_NAME -> output.set(foundElements.get().getFirst().getAccessibleName());
