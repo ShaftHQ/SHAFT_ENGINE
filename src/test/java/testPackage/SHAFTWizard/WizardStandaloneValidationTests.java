@@ -19,12 +19,13 @@ public class WizardStandaloneValidationTests {
         SHAFT.Validations.assertThat().file("src/test/resources/testDataFiles/", "simpleJSON.json").exists().perform();
     }
 
-    @Test
+    @Test(expectedExceptions = {AssertionError.class})
     public void forceFail() {
-        try {
-            SHAFT.Validations.assertThat().forceFail().perform();
-        } catch (AssertionError assertionError) {
+        SHAFT.Validations.assertThat().forceFail().perform();
+    }
 
-        }
+    @Test(expectedExceptions = {AssertionError.class})
+    public void forceFailWithMessage() {
+        SHAFT.Validations.assertThat().forceFail("The test did not reach the desired state.").perform();
     }
 }
