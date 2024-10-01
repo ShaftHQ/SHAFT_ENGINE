@@ -525,7 +525,15 @@ public class DriverFactoryHelper {
             }
             ReportManager.logDiscrete("Successfully instantiated remote driver instance.");
         } catch (Throwable throwable) {
-            failAction("Failed to instantiate remote driver instance.", throwable);
+            //Root cause: "java.lang.NumberFormatException: Error at index 4 in: "4723wd""
+            //this happens when the user types an incorrect remote server address like so http://127.0.0.1:4723
+            Throwable throwable1 = throwable;
+            if (FailureReporter.getRootCause(throwable1).contains("NumberFormatException")) {
+                var newException = new MalformedURLException("Invalid remote server URL. Kindly insure using one of the supported patterns: `local`, `dockerized`, `browserstack`, `host:port`, `http://host:port/wd/hub`.");
+                newException.addSuppressed(throwable1);
+                throwable1 = newException;
+            }
+            failAction("Failed to create Remote WebDriver instance.", throwable1);
         }
     }
 
