@@ -675,6 +675,10 @@
                 <directory>${project.basedir}/src/main/javadoc</directory>
                 <targetPath>${project.reporting.outputDirectory}</targetPath>
             </resource>
+            <resource>
+                <directory>${project.basedir}/target/reports/apidocs</directory>
+                <targetPath>${project.reporting.outputDirectory}/apidocs</targetPath>
+            </resource>
         </resources>
 
         <!--Plugins -->
@@ -721,7 +725,6 @@
                     <show>public</show>
                     <nohelp>true</nohelp>
                     <header>SHAFT_Engine, ${project.version}</header>
-                    <footer>SHAFT_Engine, ${project.version}</footer>
                     <doctitle>SHAFT_Engine, ${project.version}</doctitle>
                 </configuration>
                 <executions>
