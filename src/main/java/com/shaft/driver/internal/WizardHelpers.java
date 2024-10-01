@@ -56,6 +56,10 @@ public class WizardHelpers {
         public ValidationsExecutor forceFail() {
             return com.shaft.validation.Validations.assertThat().forceFail();
         }
+
+        public ValidationsExecutor forceFail(String message) {
+            return com.shaft.validation.Validations.assertThat().forceFail(message);
+        }
     }
 
     @SuppressWarnings("unused")

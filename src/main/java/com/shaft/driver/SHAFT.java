@@ -83,7 +83,7 @@ public class SHAFT {
 
             /**
              * Use this method to do any selenium explicit wait if needed. <br>
-             * Please note that most of the used wait methods are implemented in the related classes (browser & element)
+             * Please note that most of the used wait methods are implemented in the related classes (browser and element)
              *
              * @param conditions Any Selenium explicit wait, also supports <a href="http://appium.io/docs/en/commands/mobile-command/">expected conditions</a>
              * @return wait actions reference to be used to chain actions

@@ -3,7 +3,6 @@ package com.shaft.validation.internal;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
-import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.internal.image.ImageProcessingActions;
@@ -262,7 +261,7 @@ public class ValidationsHelper {
 
     protected void validateFail(ValidationCategory validationCategory, String customReportMessage) {
         processCustomLogMessage(customReportMessage);
-        fail(null, validationCategory, null, null, null, null, null);
+        fail(null, validationCategory, null, null, null, null, new AssertionError(customReportMessage));
     }
 
     protected void validateTrue(ValidationCategory validationCategory, Boolean conditionalStatement, ValidationType validationType, String customReportMessage) {

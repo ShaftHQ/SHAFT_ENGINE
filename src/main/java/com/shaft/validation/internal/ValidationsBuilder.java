@@ -88,7 +88,11 @@ public class ValidationsBuilder {
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor forceFail() {
-        reportMessageBuilder.append("Force fail.");
+        return forceFail("Force fail.");
+    }
+
+    public ValidationsExecutor forceFail(String message) {
+        reportMessageBuilder.append(message);
         this.validationMethod = "forceFail";
         var executor = new ValidationsExecutor(this);
         executor.internalPerform();
