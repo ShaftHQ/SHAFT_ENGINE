@@ -72,7 +72,7 @@ public class PropertiesHelper {
         setClearBeforeTypingMode();
     }
 
-    private static void setClearBeforeTypingMode(){
+    public static void setClearBeforeTypingMode(){
         if (!Properties.flags.attemptClearBeforeTyping() || SHAFT.Properties.flags.clearBeforeTypingMode().equals("off")) {
             SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
             return ;

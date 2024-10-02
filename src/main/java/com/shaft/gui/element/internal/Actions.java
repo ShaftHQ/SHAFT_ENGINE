@@ -12,6 +12,7 @@ import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotHelper;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
+import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -160,19 +161,20 @@ public class Actions extends ElementActions {
                         }
                     }
                     case TYPE -> {
+                        PropertiesHelper.setClearBeforeTypingMode();
                         String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
-                        switch(clearMode){
+
+                        switch (clearMode) {
                             case "native":
                                 foundElements.get().getFirst().clear();
-                                break ;
+                                break;
                             case "backspace":
                                 String text = parseElementText(foundElements.get().getFirst());
                                 if (!text.isEmpty())
                                     foundElements.get().getFirst().sendKeys(String.valueOf(Keys.BACK_SPACE).repeat(text.length()));
-                                break ;
-                            case"off":
                                 break;
-
+                            case "off":
+                                break;
                         }
                         foundElements.get().getFirst().sendKeys((CharSequence) data);
                     }
