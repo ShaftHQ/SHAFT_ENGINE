@@ -1,18 +1,17 @@
 package com.shaft.listeners;
 
+import com.shaft.api.RequestBuilder;
 import com.shaft.driver.SHAFT;
 import com.shaft.listeners.internal.JiraHelper;
 import com.shaft.listeners.internal.JunitListenerHelper;
 import com.shaft.tools.internal.security.GoogleTink;
-import com.shaft.tools.io.internal.AllureManager;
-import com.shaft.tools.io.internal.ExecutionSummaryReport;
-import com.shaft.tools.io.internal.ProjectStructureManager;
-import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.tools.io.internal.*;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.launcher.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class JunitListener implements LauncherSessionListener {
     private static final List<TestIdentifier> passedTests = new ArrayList<>();
@@ -74,6 +73,13 @@ public class JunitListener implements LauncherSessionListener {
         AllureManager.openAllureReportAfterExecution();
         long executionEndTime = System.currentTimeMillis();
         ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
+        Thread.ofVirtual().start(() -> {
+            // Fetch performance data from RequestBuilder
+            Map<String, List<Double>> performanceData = RequestBuilder.getPerformanceData();
+
+            // Generate the performance report using the fetched data
+            ApiPerformanceExecutionReport.generatePerformanceReport(performanceData, executionStartTime, System.currentTimeMillis());
+        });
         ReportManagerHelper.logEngineClosure();
     }
 

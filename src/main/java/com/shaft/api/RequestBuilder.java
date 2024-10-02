@@ -1,6 +1,7 @@
 package com.shaft.api;
 
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import io.qameta.allure.Step;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.config.SSLConfig;
@@ -10,9 +11,7 @@ import io.restassured.specification.RequestSpecification;
 import lombok.AccessLevel;
 import lombok.Getter;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static io.restassured.RestAssured.config;
@@ -41,6 +40,8 @@ public class RequestBuilder {
 
     private boolean appendDefaultContentCharsetToContentTypeIfUndefined;
     private boolean urlEncodingEnabled;
+
+    private static Map<String, List<Double>> performanceData = new HashMap<>();
 
     /**
      * Start building a new API request.
@@ -269,9 +270,17 @@ public class RequestBuilder {
 
         setupAuthentication(specs);
 
+        long startTime = System.currentTimeMillis();
         Response response = null;
         try {
             response = sendRequest(request, specs);
+            long endTime = System.currentTimeMillis();
+            if (SHAFT.Properties.performance.isEnablePerformanceReport()) {
+                double responseTime = endTime - startTime;
+                String normalizedEndpoint = normalizeEndpoint(serviceName);
+                logResponseTime(normalizedEndpoint, responseTime);
+            }
+
             handleResponse(response, specs);
         } catch (Exception e) {
             handleException(request, specs, response, e);
@@ -279,6 +288,18 @@ public class RequestBuilder {
 
         session.setLastResponse(response);
         return response;
+    }
+    private String normalizeEndpoint(String endpoint) {
+        // Simplified normalization logic to remove digits and trailing slashes
+        return endpoint.replaceAll("/\\d+", "").replaceAll("/$", "");
+    }
+
+    public static void logResponseTime(String endpoint, double responseTime) {
+        performanceData.computeIfAbsent(endpoint, k -> new ArrayList<>()).add(responseTime);
+    }
+
+    public static Map<String, List<Double>> getPerformanceData() {
+        return performanceData;
     }
 
     private String prepareRequestURLWithParameters() {
