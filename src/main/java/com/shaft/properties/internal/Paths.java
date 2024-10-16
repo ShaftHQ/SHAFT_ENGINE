@@ -52,6 +52,11 @@ public interface Paths extends EngineProperties<Paths> {
     @DefaultValue("execution-summary/")
     String executionSummaryReport();
 
+    @Key("PerformanceReportFolderPath")
+    @DefaultValue("performanceReport/")
+    String performanceReportPath();
+
+
     @Key("video.folder")
     @DefaultValue("allure-results/videos")
     String video();
