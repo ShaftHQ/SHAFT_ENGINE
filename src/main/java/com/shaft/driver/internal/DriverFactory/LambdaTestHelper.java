@@ -108,7 +108,10 @@ public class LambdaTestHelper {
         lambdaTestOptions.put("isRealMobile", SHAFT.Properties.lambdaTest.isRealMobile());
         lambdaTestOptions.put("appProfiling", SHAFT.Properties.lambdaTest.appProfiling());
         lambdaTestOptions.put("app", appUrl);
-        
+        String geoLocation = SHAFT.Properties.lambdaTest.geoLocation();
+        if (geoLocation != null && !Objects.equals(geoLocation, "")) {
+            lambdaTestOptions.put("geoLocation", SHAFT.Properties.lambdaTest.geoLocation());
+        }
         lambdaTestCapabilities.setCapability("lt:options", lambdaTestOptions);
         return lambdaTestCapabilities;
     }
