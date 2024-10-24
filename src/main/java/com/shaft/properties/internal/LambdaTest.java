@@ -123,7 +123,7 @@ public interface LambdaTest extends EngineProperties<LambdaTest> {
 
     //Optional extra settings
     @Key("LambdaTest.geoLocation")
-    @DefaultValue("EG")
+    @DefaultValue("")
     String geoLocation();
 
     @Key("LambdaTest.debug")
