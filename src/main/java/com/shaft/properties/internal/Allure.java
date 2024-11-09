@@ -22,12 +22,16 @@ public interface Allure extends EngineProperties<Allure> {
     boolean automaticallyOpen(); //automaticallyOpen (used to be: openAllureReportAfterExecution)
 
     @Key("allure.accumulateHistory")
-    @DefaultValue("false")
+    @DefaultValue("true")
     boolean accumulateHistory(); //accumulateHistory (used to be: cleanAllureResultsDirectoryBeforeExecution)
 
     @Key("allure.accumulateReports")
     @DefaultValue("true")
     boolean accumulateReports(); //allows html files to accumulate in the allure report directory
+
+    @Key("allure.cleanResultsDirectory")
+    @DefaultValue("true")
+    boolean cleanResultsDirectory();
 
     @Key("allure.generateArchive")
     @DefaultValue("false")
@@ -59,6 +63,11 @@ public interface Allure extends EngineProperties<Allure> {
 
         public SetProperty accumulateReports(boolean value) {
             setProperty("allure.accumulateReports", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty cleanResultsDirectory(boolean value) {
+            setProperty("allure.cleanResultsDirectory", String.valueOf(value));
             return this;
         }
 

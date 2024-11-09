@@ -138,12 +138,14 @@ public class AllureManager {
     }
 
     private static void cleanAllureResultsDirectory() {
-        // clean allure-results directory before execution
-        var allureResultsPath = allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1);
-        try {
-            internalFileSession.deleteFolder(allureResultsPath);
-        } catch (Exception t) {
-            ReportManager.log("Failed to delete '" + allureResultsPath + "' as it is currently open. Kindly restart your device to unlock the directory.");
+        if (SHAFT.Properties.allure.cleanResultsDirectory()) {
+            // clean allure-results directory before execution
+            var allureResultsPath = allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1);
+            try {
+                internalFileSession.deleteFolder(allureResultsPath);
+            } catch (Exception t) {
+                ReportManager.log("Failed to delete '" + allureResultsPath + "' as it is currently open. Kindly restart your device to unlock the directory.");
+            }
         }
     }
 
