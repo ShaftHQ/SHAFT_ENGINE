@@ -48,6 +48,7 @@ public class AllureManager {
     private static void copyAndOpenAllure() {
         internalFileSession.copyFolder(allureOutPutDirectory, allureReportPath);
         internalFileSession.deleteFile(allureOutPutDirectory);
+        internalFileSession.deleteFile(System.getProperty("user.dir") + File.separator + "target" + File.separator + "allure-report-history");
         String newFileName = renameAllureReport();
         openAllureReport(newFileName);
     }
@@ -137,8 +138,8 @@ public class AllureManager {
     }
 
     private static void cleanAllureResultsDirectory() {
-        // clean allure-results directory before execution
-        if (!SHAFT.Properties.allure.accumulateHistory()) {
+        if (SHAFT.Properties.allure.cleanResultsDirectory()) {
+            // clean allure-results directory before execution
             var allureResultsPath = allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1);
             try {
                 internalFileSession.deleteFolder(allureResultsPath);
@@ -177,22 +178,55 @@ public class AllureManager {
     }
 
     private static void writeAllureReport() {
-        String commandToCreateAllureReport;
         allureBinaryPath = allureExtractionLocation + "allure-" + SHAFT.Properties.internal.allureVersion()
                 + "/bin/allure";
         allureOutPutDirectory = System.getProperty("user.dir") + File.separator + "target" + File.separator + allureReportPath;
         var customReportName = SHAFT.Properties.allure.customTitle();
-        if (SystemUtils.IS_OS_WINDOWS) {
-            commandToCreateAllureReport = allureBinaryPath + ".bat" + " generate --single-file --clean '"
-                    + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
-                    + "' -o '" + allureOutPutDirectory + "' --report-name '"+customReportName+"'";
-        } else {
-            commandToCreateAllureReport = allureBinaryPath + " generate --single-file --clean "
-                    + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
-                    + " -o " + allureOutPutDirectory + " --report-name "+customReportName;
-        }
         internalFileSession.createFolder(allureOutPutDirectory);
-        internalTerminalSession.performTerminalCommand(commandToCreateAllureReport);
+
+        String pathToLastHistoryDirectory = System.getProperty("user.dir") + File.separator + "target" + File.separator + "last-history";
+        if (SHAFT.Properties.allure.accumulateHistory()) {
+            // move existing history to the correct folder
+            if (internalFileSession.doesFileExist(pathToLastHistoryDirectory)) {//if not the first test run and history already exists
+                internalFileSession.copyFolder(pathToLastHistoryDirectory, allureResultsFolderPath + File.separator + "history");
+            } else {
+                internalFileSession.createFolder(pathToLastHistoryDirectory);
+            }
+
+            internalTerminalSession.performTerminalCommand(getCommandToCreateAllureReport(customReportName, true));
+            internalTerminalSession.performTerminalCommand(getCommandToCreateAllureReport(customReportName, false));
+            internalFileSession.copyFolder(System.getProperty("user.dir") + File.separator + "target" + File.separator + "allure-report-history" + File.separator + "history"
+                    , pathToLastHistoryDirectory);
+        } else {
+            internalFileSession.deleteFolder(pathToLastHistoryDirectory);
+            internalTerminalSession.performTerminalCommand(getCommandToCreateAllureReport(customReportName, false));
+        }
+    }
+
+    private static String getCommandToCreateAllureReport(String customReportName, boolean isHistory) {
+        String commandToCreateAllureReport;
+        if (isHistory) {
+            if (SystemUtils.IS_OS_WINDOWS) {
+                commandToCreateAllureReport = allureBinaryPath + ".bat" + " generate '"
+                        + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
+                        + "' -o '" + allureOutPutDirectory + "-history' --report-name '" + customReportName + "'";
+            } else {
+                commandToCreateAllureReport = allureBinaryPath + " generate "
+                        + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
+                        + " -o " + allureOutPutDirectory + "-history --report-name " + customReportName;
+            }
+        } else {
+            if (SystemUtils.IS_OS_WINDOWS) {
+                commandToCreateAllureReport = allureBinaryPath + ".bat" + " generate --single-file --clean '"
+                        + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
+                        + "' -o '" + allureOutPutDirectory + "' --report-name '" + customReportName + "'";
+            } else {
+                commandToCreateAllureReport = allureBinaryPath + " generate --single-file --clean "
+                        + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
+                        + " -o " + allureOutPutDirectory + " --report-name " + customReportName;
+            }
+        }
+        return commandToCreateAllureReport;
     }
 
     private static void createAllureReportArchive() {
