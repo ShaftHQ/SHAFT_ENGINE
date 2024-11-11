@@ -38,6 +38,8 @@ import java.net.URI;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class BrowserActions extends FluentWebDriverAction {
@@ -273,13 +275,22 @@ public class BrowserActions extends FluentWebDriverAction {
             modifiedTargetUrl = (baseUrl.endsWith("/")) ? baseUrl + targetUrl.replace("./", "") : baseUrl + targetUrl.replace("./", "/");
         }
 
-        if (targetUrl.equals(targetUrlAfterRedirection)) {
-            ReportManager.logDiscrete(
-                    "Target URL: \"" + modifiedTargetUrl + "\"");
-        } else {
-            ReportManager.logDiscrete(
-                    "Target URL: \"" + modifiedTargetUrl + "\", and after redirection: \"" + targetUrlAfterRedirection + "\"");
+        String modifiedTargetUrlForLogging = modifiedTargetUrl;
+        //obfuscate embedded passwords
+        Pattern pattern = Pattern.compile(":\\/\\/.*:(.*)@");
+        Matcher matcher = pattern.matcher(modifiedTargetUrl);
+        if (matcher.find()) {
+            modifiedTargetUrlForLogging = modifiedTargetUrl.replaceAll(matcher.group(1), "•".repeat(matcher.group(1).length()));
         }
+
+        String targetUrlMessage = "•";
+        if (targetUrl.equals(targetUrlAfterRedirection)) {
+            targetUrlMessage = "Target URL: \"" + modifiedTargetUrlForLogging + "\"";
+        } else {
+            targetUrlMessage = "Target URL: \"" + modifiedTargetUrlForLogging + "\", and after redirection: \"" + targetUrlAfterRedirection + "\"";
+        }
+        ReportManager.logDiscrete(targetUrlMessage);
+
         forceStopCurrentNavigation();
         try {
             String initialURL;
@@ -308,9 +319,9 @@ public class BrowserActions extends FluentWebDriverAction {
                 // it can contain line breaks for mocked HTML pages that are used for internal testing only
                 browserActionsHelper.confirmThatWebsiteIsNotDown(driver, modifiedTargetUrl);
             }
-            browserActionsHelper.passAction(driver, modifiedTargetUrl);
+            browserActionsHelper.passAction(driver, modifiedTargetUrlForLogging);
         } catch (Exception rootCauseException) {
-            browserActionsHelper.failAction(driver, modifiedTargetUrl, rootCauseException);
+            browserActionsHelper.failAction(driver, modifiedTargetUrlForLogging, rootCauseException);
         }
         return this;
     }
