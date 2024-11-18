@@ -144,7 +144,13 @@ public class RequestBuilder {
         return this;
     }
 
-    // Overloaded method for single key-value pair
+    /**
+     * Dynamically sets a single path parameter by replacing its placeholder in the serviceName.
+     *
+     * @param key   the placeholder name in the path template.
+     * @param value the value to replace the placeholder.
+     * @return a self-reference to be used to continue building your API request.
+     */
     public RequestBuilder setPathParam(String key, Object value) {
         if (serviceName.contains("{" + key + "}")) {
             serviceName = serviceName.replace("{" + key + "}", String.valueOf(value));
