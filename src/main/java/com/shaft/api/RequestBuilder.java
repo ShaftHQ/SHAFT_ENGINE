@@ -126,6 +126,35 @@ public class RequestBuilder {
     }
 
     /**
+     * Sets the path parameters dynamically by replacing placeholders in the serviceName.
+     *
+     * @param pathParams a list of key-value pairs to substitute in the path, Example: Arrays.asList(Arrays.asList("key", "value"))
+     * @return a self-reference to be used to continue building your API request
+     */
+    public RequestBuilder setPathParameters(List<List<Object>> pathParams) {
+        for (List<Object> param : pathParams) {
+            String key = String.valueOf(param.get(0));
+            String value = String.valueOf(param.get(1));
+            if (serviceName.contains("{" + key + "}")) {
+                serviceName = serviceName.replace("{" + key + "}", value);
+            } else {
+                throw new IllegalArgumentException("Path parameter {" + key + "} not found in the serviceName: " + serviceName);
+            }
+        }
+        return this;
+    }
+
+    // Overloaded method for single key-value pair
+    public RequestBuilder setPathParam(String key, Object value) {
+        if (serviceName.contains("{" + key + "}")) {
+            serviceName = serviceName.replace("{" + key + "}", String.valueOf(value));
+        } else {
+            throw new IllegalArgumentException("Path parameter {" + key + "} not found in the serviceName: " + serviceName);
+        }
+        return this;
+    }
+
+    /**
      * Sets the parameters (if any) for the API request that you're currently building. A request usually has only one of the following: urlArguments, parameters+type, or body
      *
      * @param parameters     a list of key/value pairs that will be sent as parameters with this API call, is nullable, Example: Arrays.asList(Arrays.asList("itemId", "123"), Arrays.asList("contents", XMLContents));
