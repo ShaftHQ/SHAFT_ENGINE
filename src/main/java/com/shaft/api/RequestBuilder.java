@@ -161,6 +161,28 @@ public class RequestBuilder {
     }
 
     /**
+     * Sets path parameters using only values, assuming the values match the placeholders in the URL by order.
+     *
+     * @param values the values to replace the placeholders in the path, in the exact order of their appearance in the serviceName.
+     * @return a self-reference to be used to continue building your API request.
+     */
+    public RequestBuilder setPathParamValues(Object... values) {
+        String[] placeholders = serviceName.split("\\{");
+        if (placeholders.length - 1 != values.length) {
+            throw new IllegalArgumentException(
+                    "Number of provided values (" + values.length + ") does not match the number of placeholders (" + (placeholders.length - 1) + ") in the serviceName: " + serviceName
+            );
+        }
+
+        for (int i = 1; i < placeholders.length; i++) {
+            String placeholder = placeholders[i].split("}")[0]; // Extract placeholder name
+            serviceName = serviceName.replace("{" + placeholder + "}", String.valueOf(values[i - 1]));
+        }
+        return this;
+    }
+
+
+    /**
      * Sets the parameters (if any) for the API request that you're currently building. A request usually has only one of the following: urlArguments, parameters+type, or body
      *
      * @param parameters     a list of key/value pairs that will be sent as parameters with this API call, is nullable, Example: Arrays.asList(Arrays.asList("itemId", "123"), Arrays.asList("contents", XMLContents));

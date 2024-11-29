@@ -29,12 +29,34 @@ public class PathParamTest {
     @Test
     public void GetUserByUsernameTest2() {
         // Perform the GET request
-        api.get(GET_USER_BY_USERNAME) // Endpoint with a placeholder
+        api.get("/user/{username}") // Endpoint with a placeholder
                 .setPathParam("username", "string") // Substitute the placeholder dynamically
                 .setContentType("application/json")
                 .setTargetStatusCode(200) // Expected status code
                 .perform(); // Execute the request
 
         SHAFT.Report.log(">>>>>> Response Body:" + api.getResponseBody());
+    }
+
+    @Test
+    public void GetUserByUsernameTest3() {
+        api.get("/user/{username}") // Endpoint with a placeholder
+                .setPathParamValues("string") // Pass the value for the placeholder
+                .setContentType("application/json") // Set content type
+                .setTargetStatusCode(200) // Expected status code
+                .perform(); // Execute the request
+
+        SHAFT.Report.log("Response Body: " + api.getResponseBody());
+    }
+
+    @Test
+    public void N_GetUserByUsernameTest3() {
+        api.get("/user/{username}") // Endpoint with a placeholder
+                .setPathParamValues("string", "string2") // Pass the value for the placeholder
+                .setContentType("application/json") // Set content type
+                .setTargetStatusCode(200) // Expected status code
+                .perform(); // Execute the request
+
+        SHAFT.Report.log("Response Body: " + api.getResponseBody());
     }
 }
