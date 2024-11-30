@@ -19,7 +19,7 @@ public class PathParamTest {
 
         // Perform the GET request
         api.get(GET_USER_BY_USERNAME) // Endpoint with a placeholder
-                .setPathParameters(parameters) // Substitute the placeholder dynamically
+                .setParameters(parameters, RestActions.ParametersType.PATH) // Substitute the placeholder dynamically
                 .setTargetStatusCode(200) // Expected status code
                 .perform(); // Execute the request
 
@@ -52,7 +52,7 @@ public class PathParamTest {
     @Test
     public void N_GetUserByUsernameTest3() {
         api.get("/user/{username}") // Endpoint with a placeholder
-                .setPathParamValues("string", "string2") // Pass the value for the placeholder
+                .setPathParamValues("string", "string2") // Pass more than one value for this placeholder
                 .setContentType("application/json") // Set content type
                 .setTargetStatusCode(200) // Expected status code
                 .perform(); // Execute the request
