@@ -129,9 +129,8 @@ public class RequestBuilder {
      * Sets the path parameters dynamically by replacing placeholders in the serviceName.
      *
      * @param pathParams a list of key-value pairs to substitute in the path, Example: Arrays.asList(Arrays.asList("key", "value"))
-     * @return a self-reference to be used to continue building your API request
      */
-    private RequestBuilder setPathParameters(List<List<Object>> pathParams) {
+    private void setPathParameters(List<List<Object>> pathParams) {
         for (List<Object> param : pathParams) {
             String key = String.valueOf(param.get(0));
             String value = String.valueOf(param.get(1));
@@ -141,7 +140,6 @@ public class RequestBuilder {
                 throw new IllegalArgumentException("Path parameter {" + key + "} not found in the serviceName: " + serviceName);
             }
         }
-        return this;
     }
 
     /**
@@ -151,7 +149,7 @@ public class RequestBuilder {
      * @param value the value to replace the placeholder.
      * @return a self-reference to be used to continue building your API request.
      */
-    public RequestBuilder setPathParam(String key, Object value) {
+    public RequestBuilder setPathParameters(String key, Object value) {
         if (serviceName.contains("{" + key + "}")) {
             serviceName = serviceName.replace("{" + key + "}", String.valueOf(value));
         } else {
@@ -166,7 +164,7 @@ public class RequestBuilder {
      * @param values the values to replace the placeholders in the path, in the exact order of their appearance in the serviceName.
      * @return a self-reference to be used to continue building your API request.
      */
-    public RequestBuilder setPathParamValues(Object... values) {
+    public RequestBuilder setPathParameters(Object... values) {
         String[] placeholders = serviceName.split("\\{");
         if (placeholders.length - 1 != values.length) {
             throw new IllegalArgumentException(
