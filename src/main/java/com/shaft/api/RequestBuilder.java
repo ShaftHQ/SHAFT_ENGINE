@@ -126,23 +126,6 @@ public class RequestBuilder {
     }
 
     /**
-     * Sets the path parameters dynamically by replacing placeholders in the serviceName.
-     *
-     * @param pathParams a list of key-value pairs to substitute in the path, Example: Arrays.asList(Arrays.asList("key", "value"))
-     */
-    private void setPathParameters(List<List<Object>> pathParams) {
-        for (List<Object> param : pathParams) {
-            String key = String.valueOf(param.get(0));
-            String value = String.valueOf(param.get(1));
-            if (serviceName.contains("{" + key + "}")) {
-                serviceName = serviceName.replace("{" + key + "}", value);
-            } else {
-                throw new IllegalArgumentException("Path parameter {" + key + "} not found in the serviceName: " + serviceName);
-            }
-        }
-    }
-
-    /**
      * Dynamically sets a single path parameter by replacing its placeholder in the serviceName.
      *
      * @param key   the placeholder name in the path template.
@@ -179,7 +162,6 @@ public class RequestBuilder {
         return this;
     }
 
-
     /**
      * Sets the parameters (if any) for the API request that you're currently building. A request usually has only one of the following: urlArguments, parameters+type, or body
      *
@@ -198,7 +180,6 @@ public class RequestBuilder {
         }
         return this;
     }
-
 
     /**
      * Sets the body (if any) for the API request that you're currently building. A request usually has only one of the following: urlArguments, parameters+type, or body
@@ -341,6 +322,23 @@ public class RequestBuilder {
 
         session.setLastResponse(response);
         return response;
+    }
+
+    /**
+     * Sets the path parameters dynamically by replacing placeholders in the serviceName.
+     *
+     * @param pathParams a list of key-value pairs to substitute in the path, Example: Arrays.asList(Arrays.asList("key", "value"))
+     */
+    private void setPathParameters(List<List<Object>> pathParams) {
+        for (List<Object> param : pathParams) {
+            String key = String.valueOf(param.get(0));
+            String value = String.valueOf(param.get(1));
+            if (serviceName.contains("{" + key + "}")) {
+                serviceName = serviceName.replace("{" + key + "}", value);
+            } else {
+                throw new IllegalArgumentException("Path parameter {" + key + "} not found in the serviceName: " + serviceName);
+            }
+        }
     }
 
     private String prepareRequestURLWithParameters() {
