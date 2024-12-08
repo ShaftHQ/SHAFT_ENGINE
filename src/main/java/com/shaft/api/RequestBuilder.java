@@ -126,13 +126,14 @@ public class RequestBuilder {
     }
 
     /**
-     * Sets path parameters dynamically by either replacing placeholders with values in the order they appear
+     * Sets path parameters dynamically by either replacing placeholders with values in order
      * or using a Map of key-value pairs.
      *
      * @param values The values to replace placeholders. If a single Map is passed, it performs key-value replacement.
-     *               If multiple values are passed, it replaces placeholders in the order they appear in the serviceName.
+     *               If multiple values are passed, they replace placeholders in the order they appear in the serviceName.
      * @return The current instance of RequestBuilder for method chaining.
-     * @throws IllegalArgumentException If placeholders and values do not match or if any placeholder is not found in the serviceName.
+     * @throws IllegalArgumentException If placeholders and values do not match, if any placeholder is not found in the serviceName,
+     *                                  or if invalid types are passed for ordered values.
      */
     public RequestBuilder setPathParameters(Object... values) {
         if (values.length == 1 && values[0] instanceof Map) {
@@ -140,14 +141,12 @@ public class RequestBuilder {
             @SuppressWarnings("unchecked")
             Map<String, Object> paramMap = (Map<String, Object>) values[0];
             for (Map.Entry<String, Object> entry : paramMap.entrySet()) {
-                String key = entry.getKey();
-                String value = String.valueOf(entry.getValue());
+                String key = entry.getKey(); // Placeholder name
+                String value = String.valueOf(entry.getValue()); // Replacement value
                 if (serviceName.contains("{" + key + "}")) {
                     serviceName = serviceName.replace("{" + key + "}", value);
                 } else {
-                    throw new IllegalArgumentException(
-                            "Path parameter {" + key + "} not found in the serviceName: " + serviceName
-                    );
+                    throw new IllegalArgumentException("Path parameter {" + key + "} not found in the serviceName: " + serviceName);
                 }
             }
         } else {
@@ -161,14 +160,25 @@ public class RequestBuilder {
                 );
             }
 
+            // Validate that all values are Strings or can be converted to Strings
+            for (Object value : values) {
+                if (!(value instanceof String || value instanceof Number || value instanceof Boolean)) {
+                    throw new IllegalArgumentException(
+                            "Invalid value type provided for path parameter replacement. " +
+                                    "Only String, Number, or Boolean types are allowed. Invalid value: " + value
+                    );
+                }
+            }
+
             // Replace placeholders in order
             for (int i = 1; i < placeholders.length; i++) {
                 String placeholder = placeholders[i].split("}")[0]; // Extract placeholder name
                 serviceName = serviceName.replace("{" + placeholder + "}", String.valueOf(values[i - 1]));
             }
         }
-        return this;
+        return this; // Enable method chaining
     }
+
 
     /**
      * Sets the parameters (if any) for the API request that you're currently building. A request usually has only one of the following: urlArguments, parameters+type, or body
