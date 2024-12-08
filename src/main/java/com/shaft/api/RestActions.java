@@ -1114,7 +1114,7 @@ public class RestActions {
     }
 
     public enum ParametersType {
-        FORM, QUERY, PATH
+        FORM, QUERY
     }
 
     public enum RequestType {

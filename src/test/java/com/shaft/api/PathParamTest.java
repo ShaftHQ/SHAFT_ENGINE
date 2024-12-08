@@ -11,15 +11,13 @@ public class PathParamTest {
     public static final String GET_USER_BY_USERNAME = "/user/{username}";     // Get user by username
 
     @Test
-    public void GetUserByUsernameTest() {
-        // Define the path parameter as a key-value pair
-        List<List<Object>> parameters = Arrays.asList(
-                Arrays.asList("username", "string") // Replace "user1" with the desired test username
-        );
+    public void GetUserByUsernameMap() {
 
+        Map<String, Object> parameters = Map.of(
+                "username", "string");
         // Perform the GET request
         api.get(GET_USER_BY_USERNAME) // Endpoint with a placeholder
-                .setParameters(parameters, RestActions.ParametersType.PATH) // Substitute the placeholder dynamically
+                .setPathParameters(parameters) // Substitute the placeholder dynamically
                 .setTargetStatusCode(200) // Expected status code
                 .perform(); // Execute the request
 
@@ -27,35 +25,24 @@ public class PathParamTest {
     }
 
     @Test
-    public void GetUserByUsernameTest2() {
+    public void GetUserByUsernameValue() {
         // Perform the GET request
         api.get("/user/{username}") // Endpoint with a placeholder
-                .setPathParameters("username", "string") // Substitute the placeholder dynamically
+                .setPathParameters( "string") // Pass the value for the placeholder
                 .setContentType("application/json")
-                .setTargetStatusCode(200) // Expected status code
-                .perform(); // Execute the request
+                .setTargetStatusCode(200)
+                .perform();
 
         SHAFT.Report.log(">>>>>> Response Body:" + api.getResponseBody());
-    }
-
-    @Test
-    public void GetUserByUsernameTest3() {
-        api.get("/user/{username}") // Endpoint with a placeholder
-                .setPathParameters("string") // Pass the value for the placeholder
-                .setContentType("application/json") // Set content type
-                .setTargetStatusCode(200) // Expected status code
-                .perform(); // Execute the request
-
-        SHAFT.Report.log("Response Body: " + api.getResponseBody());
     }
 
     @Test
     public void N_GetUserByUsernameTest3() {
-        api.get("/user/{username}") // Endpoint with a placeholder
-                .setPathParameters("string", "string2") // Pass more than one value for this placeholder
-                .setContentType("application/json") // Set content type
-                .setTargetStatusCode(200) // Expected status code
-                .perform(); // Execute the request
+        api.get("/{resource}/{username}")
+                .setContentType("application/json")
+                .setPathParameters("user", "string")
+                .setTargetStatusCode(200)
+                .perform();
 
         SHAFT.Report.log("Response Body: " + api.getResponseBody());
     }
