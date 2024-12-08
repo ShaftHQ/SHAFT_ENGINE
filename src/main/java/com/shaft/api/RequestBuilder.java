@@ -126,36 +126,17 @@ public class RequestBuilder {
     }
 
     /**
-     * Sets the path parameters dynamically by replacing placeholders in the serviceName.
+     * Sets path parameters dynamically by either replacing placeholders with values in the order they appear
+     * or using a Map of key-value pairs.
      *
-     * @param pathParams a map of key-value pairs to substitute in the path.
-     * @return the current instance of the RequestBuilder for method chaining.
-     * @throws IllegalArgumentException if any placeholder in the pathParams map is not found in the serviceName.
-     */
-    public RequestBuilder setPathParameters(Map<String, Object> pathParams) {
-        for (Map.Entry<String, Object> entry : pathParams.entrySet()) {
-            String key = entry.getKey(); // Placeholder name
-            String value = String.valueOf(entry.getValue()); // Replacement value
-            if (serviceName.contains("{" + key + "}")) {
-                serviceName = serviceName.replace("{" + key + "}", value);
-            } else {
-                throw new IllegalArgumentException(
-                        "Path parameter {" + key + "} not found in the serviceName: " + serviceName
-                );
-            }
-        }
-        return this;
-    }
-
-    /**
-     * Sets path parameters using only values, assuming the values match the placeholders in the URL by order.
-     *
-     * @param values the values to replace the placeholders in the path, in the exact order of their appearance in the serviceName.
-     * @return a self-reference to be used to continue building your API request.
+     * @param values The values to replace placeholders. If a single Map is passed, it performs key-value replacement.
+     *               If multiple values are passed, it replaces placeholders in the order they appear in the serviceName.
+     * @return The current instance of RequestBuilder for method chaining.
+     * @throws IllegalArgumentException If placeholders and values do not match or if any placeholder is not found in the serviceName.
      */
     public RequestBuilder setPathParameters(Object... values) {
         if (values.length == 1 && values[0] instanceof Map) {
-            // Handle key-value pairs
+            // Handle key-value pairs (Map)
             @SuppressWarnings("unchecked")
             Map<String, Object> paramMap = (Map<String, Object>) values[0];
             for (Map.Entry<String, Object> entry : paramMap.entrySet()) {
@@ -164,20 +145,25 @@ public class RequestBuilder {
                 if (serviceName.contains("{" + key + "}")) {
                     serviceName = serviceName.replace("{" + key + "}", value);
                 } else {
-                    throw new IllegalArgumentException("Path parameter {" + key + "} not found in the serviceName: " + serviceName);
+                    throw new IllegalArgumentException(
+                            "Path parameter {" + key + "} not found in the serviceName: " + serviceName
+                    );
                 }
             }
         } else {
             // Handle ordered values
             String[] placeholders = serviceName.split("\\{");
-            if (placeholders.length - 1 != values.length) {
+            int placeholderCount = placeholders.length - 1; // Count of placeholders
+            if (placeholderCount != values.length) {
                 throw new IllegalArgumentException(
-                        "Number of provided values (" + values.length + ") does not match the number of placeholders (" + (placeholders.length - 1) + ") in the serviceName."
+                        "Number of provided values (" + values.length + ") does not match the number of placeholders (" +
+                                placeholderCount + ") in the serviceName: " + serviceName
                 );
             }
 
+            // Replace placeholders in order
             for (int i = 1; i < placeholders.length; i++) {
-                String placeholder = placeholders[i].split("}")[0];
+                String placeholder = placeholders[i].split("}")[0]; // Extract placeholder name
                 serviceName = serviceName.replace("{" + placeholder + "}", String.valueOf(values[i - 1]));
             }
         }
