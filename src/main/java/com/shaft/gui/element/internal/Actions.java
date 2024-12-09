@@ -12,7 +12,6 @@ import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotHelper;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
-import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -161,20 +160,19 @@ public class Actions extends ElementActions {
                         }
                     }
                     case TYPE -> {
-                        PropertiesHelper.setClearBeforeTypingMode();
                         String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
-
-                        switch (clearMode) {
+                        switch(clearMode){
                             case "native":
                                 foundElements.get().getFirst().clear();
-                                break;
+                                break ;
                             case "backspace":
                                 String text = parseElementText(foundElements.get().getFirst());
                                 if (!text.isEmpty())
                                     foundElements.get().getFirst().sendKeys(String.valueOf(Keys.BACK_SPACE).repeat(text.length()));
+                                break ;
+                            case"off":
                                 break;
-                            case "off":
-                                break;
+
                         }
                         foundElements.get().getFirst().sendKeys((CharSequence) data);
                     }
@@ -201,11 +199,11 @@ public class Actions extends ElementActions {
             }
 
             // report broken
-            reportBroken(action.name(), accessibleName.get(), screenshot[0], exception);
+            reportBroken(action.name(), accessibleName.get(), data, screenshot[0], exception);
         }
 
         //report pass
-        reportPass(action.name(),accessibleName.get(), screenshot[0]);
+        reportPass(action.name(), accessibleName.get(), data, screenshot[0]);
         return output.get();
     }
 
@@ -412,18 +410,26 @@ public class Actions extends ElementActions {
 
     }
 
-    private void reportPass(String action, String elementName, byte[] screenshot){
-        report(action, elementName, Status.PASSED, screenshot, null);
+    private void reportPass(String action, String elementName, Object data, byte[] screenshot) {
+        report(action, elementName, data, Status.PASSED, screenshot, null);
     }
 
-    private void reportBroken(String action, String elementName, byte[] screenshot, RuntimeException exception){
-        report(action, elementName, Status.BROKEN, screenshot, exception);
+    private void reportBroken(String action, String elementName, Object data, byte[] screenshot, RuntimeException exception) {
+        report(action, elementName, data, Status.BROKEN, screenshot, exception);
     }
 
-    private void report(String action, String elementName, Status status, byte[] screenshot, RuntimeException exception){
-        // update allure step name
+    private void report(String action, String elementName, Object data, Status status, byte[] screenshot, RuntimeException exception) {
         StringBuilder stepName = new StringBuilder();
-        stepName.append(JavaHelper.convertToSentenceCase(action)).append(" \"").append(elementName).append("\"");
+        String preposition = getPreposition(action);
+        // Handle actions with or without data
+        if (data != null && !data.toString().trim().isEmpty()) {
+            stepName.append(JavaHelper.convertToSentenceCase(action))
+                    .append(" \"").append(data.toString().trim()).append("\" ")
+                    .append(preposition).append(" [").append(elementName.trim()).append("] element");
+        } else {
+            stepName.append(JavaHelper.convertToSentenceCase(action))
+                    .append(" ").append(preposition).append(" [").append(elementName.trim()).append("] element");
+        }
 
         if (!status.equals(Status.PASSED))
             stepName.append(" ").append(JavaHelper.convertToSentenceCase(status.name()));
@@ -458,6 +464,17 @@ public class Actions extends ElementActions {
                 });
                 throw new RuntimeException(FailureReporter.getRootCause(exception).trim(),exception);
             }
+        }
+    }
+
+    private String getPreposition(String action) {
+        switch (action.toLowerCase()) {
+            case "type":
+                return "into";
+            case "click":
+                return "on";
+            default:
+                return "on"; // Default fallback
         }
     }
 }
