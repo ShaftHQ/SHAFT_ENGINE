@@ -199,11 +199,11 @@ public class Actions extends ElementActions {
             }
 
             // report broken
-            reportBroken(action.name(), accessibleName.get(), screenshot[0], exception);
+            reportBroken(action.name(), accessibleName.get(), data, screenshot[0], exception);
         }
 
         //report pass
-        reportPass(action.name(),accessibleName.get(), screenshot[0]);
+        reportPass(action.name(), accessibleName.get(), data, screenshot[0]);
         return output.get();
     }
 
@@ -410,51 +410,51 @@ public class Actions extends ElementActions {
 
     }
 
-    private void reportPass(String action, String elementName, byte[] screenshot){
-        report(action, elementName, Status.PASSED, screenshot, null);
+    private void reportPass(String action, String elementName, Object data, byte[] screenshot) {
+        report(action, elementName, data, Status.PASSED, screenshot, null);
     }
 
-    private void reportBroken(String action, String elementName, byte[] screenshot, RuntimeException exception){
-        report(action, elementName, Status.BROKEN, screenshot, exception);
+    private void reportBroken(String action, String elementName, Object data, byte[] screenshot, RuntimeException exception) {
+        report(action, elementName, data, Status.BROKEN, screenshot, exception);
     }
 
-    private void report(String action, String elementName, Status status, byte[] screenshot, RuntimeException exception){
-        // update allure step name
+    private void report(String action, String elementName, Object data, Status status, byte[] screenshot, RuntimeException exception) {
+        // Construct the step name
         StringBuilder stepName = new StringBuilder();
-        stepName.append(JavaHelper.convertToSentenceCase(action)).append(" \"").append(elementName).append("\"");
+        stepName.append(JavaHelper.convertToSentenceCase(action))
+                .append(" \"").append(data).append("\" into [").append(elementName).append("] element");
 
         if (!status.equals(Status.PASSED))
             stepName.append(" ").append(JavaHelper.convertToSentenceCase(status.name()));
 
         Allure.getLifecycle().updateStep(update -> update.setName(stepName.toString()));
 
-        // attach screenshot
-        if (screenshot!=null)
-            Allure.addAttachment(new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime())+"_"+JavaHelper.convertToSentenceCase(action) + "_"+JavaHelper.removeSpecialCharacters(elementName), "image/png", new ByteArrayInputStream(screenshot), ".png");
+        // Attach screenshot if available
+        if (screenshot != null) {
+            Allure.addAttachment(
+                    new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime()) + "_" +
+                            JavaHelper.convertToSentenceCase(action) + "_" + JavaHelper.removeSpecialCharacters(elementName),
+                    "image/png", new ByteArrayInputStream(screenshot), ".png");
+        }
 
-        // handle reporting based on status
-        if (Status.PASSED.equals(status)){
-            // if the step passed
+        // Log message to console
+        if (Status.PASSED.equals(status)) {
             ReportManager.logDiscrete(stepName.toString());
-        }else{
-            // if the step failed
+        } else {
             ReportManager.logDiscrete(stepName.toString(), Level.ERROR);
-
-            // update allure step status to broken
             Allure.getLifecycle().updateStep(update -> update.setStatus(status));
-
-            // update test status to failed
             Allure.getLifecycle().updateTestCase(update -> update.setStatus(Status.FAILED));
-
-            if (exception!=null){
-                // update allure stacktrace
+            if (exception != null) {
+                // Add exception details
                 Allure.getLifecycle().updateStep(update -> {
-                    var trace = update.getStatusDetails() == null ? exception : update.getStatusDetails().getTrace() + System.lineSeparator() + exception;
+                    var trace = update.getStatusDetails() == null
+                            ? exception
+                            : update.getStatusDetails().getTrace() + System.lineSeparator() + exception;
                     StatusDetails details = update.getStatusDetails() == null ? new StatusDetails() : update.getStatusDetails();
                     details.setTrace(trace.toString().trim());
                     update.setStatusDetails(details);
                 });
-                throw new RuntimeException(FailureReporter.getRootCause(exception).trim(),exception);
+                throw new RuntimeException(FailureReporter.getRootCause(exception).trim(), exception);
             }
         }
     }
