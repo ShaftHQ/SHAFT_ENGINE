@@ -25,8 +25,6 @@ public class PathParamTest {
                 .setTargetStatusCode(200)
                 .perform();
 
-        // Assert that the response body contains the username
-        String responseBody = api.getResponseBody();
         api.assertThatResponse().body().contains("\"username\":\"string\"");
     }
 
@@ -41,8 +39,6 @@ public class PathParamTest {
                 .setTargetStatusCode(200)
                 .perform();
 
-        // Assert that the response body contains the username
-        String responseBody = api.getResponseBody();
         api.assertThatResponse().body().contains("\"username\":\"string\"");
     }
 
@@ -57,8 +53,6 @@ public class PathParamTest {
                 .setTargetStatusCode(200)
                 .perform();
 
-        // Assert that the response body contains the resource and username
-        String responseBody = api.getResponseBody();
         api.assertThatResponse().body().contains("\"username\":\"string\"");
     }
 }
