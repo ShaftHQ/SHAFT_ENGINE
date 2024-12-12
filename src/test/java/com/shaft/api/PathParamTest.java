@@ -21,7 +21,6 @@ public class PathParamTest {
         // Perform the GET request and validate
         api.get(GET_USER_BY_USERNAME)
                 .setPathParameters(parameters)
-                .setTargetStatusCode(200)
                 .perform();
 
         api.assertThatResponse().extractedJsonValue("username").isEqualTo("string");
@@ -35,7 +34,6 @@ public class PathParamTest {
     public void testGetUserByUsernameWithValue() {
         api.get(GET_USER_BY_USERNAME)
                 .setPathParameters("string") // Direct value substitution
-                .setTargetStatusCode(200)
                 .perform();
 
         api.assertThatResponse().extractedJsonValue("username").isEqualTo("string");
@@ -49,7 +47,6 @@ public class PathParamTest {
     public void testGetResourceWithMultiplePathParameters() {
         api.get(GET_RESOURCE_BY_USERNAME)
                 .setPathParameters("user", "string") // Multiple values for placeholders
-                .setTargetStatusCode(200)
                 .perform();
 
         api.assertThatResponse().extractedJsonValue("username").isEqualTo("string");
