@@ -4,46 +4,61 @@ import com.shaft.driver.SHAFT;
 import org.testng.annotations.*;
 import java.util.*;
 
-
 public class PathParamTest {
-    // Initialize SHAFT.API with the base URI
-    SHAFT.API api = new SHAFT.API("https://petstore.swagger.io/v2");
-    public static final String GET_USER_BY_USERNAME = "/user/{username}";     // Get user by username
+    // Initialize SHAFT.API with the base URI for the PetStore API
+    private final SHAFT.API api = new SHAFT.API("https://petstore.swagger.io/v2");
+    private static final String GET_USER_BY_USERNAME = "/user/{username}";
+    private static final String GET_RESOURCE_BY_USERNAME = "/{resource}/{username}";
 
-    @Test
-    public void GetUserByUsernameMap() {
+    /**
+     * Test fetching user details by username using a Map for path parameters.
+     * This test verifies that the API correctly substitutes a path parameter provided as a Map.
+     */
+    @Test(description = "Validate fetching user details using a Map for path parameters")
+    public void testGetUserByUsernameWithMap() {
+        // Path parameter
+        Map<String, Object> parameters = Map.of("username", "string");
 
-        Map<String, Object> parameters = Map.of(
-                "username", "string");
-        // Perform the GET request
-        api.get(GET_USER_BY_USERNAME) // Endpoint with a placeholder
-                .setPathParameters(parameters) // Substitute the placeholder dynamically
-                .setTargetStatusCode(200) // Expected status code
-                .perform(); // Execute the request
-
-        SHAFT.Report.log(">>>>>> Response Body:" + api.getResponseBody());
-    }
-
-    @Test
-    public void GetUserByUsernameValue() {
-        // Perform the GET request
-        api.get("/user/{username}") // Endpoint with a placeholder
-                .setPathParameters( "string") // Pass the value for the placeholder
-                .setContentType("application/json")
+        // Perform the GET request and validate
+        api.get(GET_USER_BY_USERNAME)
+                .setPathParameters(parameters)
                 .setTargetStatusCode(200)
                 .perform();
 
-        SHAFT.Report.log(">>>>>> Response Body:" + api.getResponseBody());
+        // Assert that the response body contains the username
+        String responseBody = api.getResponseBody();
+        api.assertThatResponse().body().contains("\"username\":\"string\"");
     }
 
-    @Test
-    public void N_GetUserByUsernameTest3() {
-        api.get("/{resource}/{username}")
-                .setContentType("application/json")
-                .setPathParameters("user", "string")
+    /**
+     * Test fetching user details by username using a single value for the placeholder.
+     * This test ensures the API handles a single value substitution correctly.
+     */
+    @Test(description = "Validate fetching user details using a single value for the path parameter")
+    public void testGetUserByUsernameWithValue() {
+        api.get(GET_USER_BY_USERNAME)
+                .setPathParameters("string") // Direct value substitution
                 .setTargetStatusCode(200)
                 .perform();
 
-        SHAFT.Report.log("Response Body: " + api.getResponseBody());
+        // Assert that the response body contains the username
+        String responseBody = api.getResponseBody();
+        api.assertThatResponse().body().contains("\"username\":\"string\"");
+    }
+
+    /**
+     * Test fetching a resource using multiple path parameters.
+     * This test ensures the API supports multiple dynamic placeholders.
+     */
+    @Test(description = "Validate fetching a resource using multiple dynamic path parameters")
+    public void testGetResourceWithMultiplePathParameters() {
+        api.get(GET_RESOURCE_BY_USERNAME)
+                .setPathParameters("user", "string") // Multiple values for placeholders
+                .setTargetStatusCode(200)
+                .perform();
+
+        // Assert that the response body contains the resource and username
+        String responseBody = api.getResponseBody();
+        api.assertThatResponse().body().contains("\"username\":\"string\"");
     }
 }
