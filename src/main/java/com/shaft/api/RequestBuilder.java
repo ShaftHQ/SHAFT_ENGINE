@@ -127,6 +127,60 @@ public class RequestBuilder {
     }
 
     /**
+     * Dynamically sets path parameters by replacing placeholders in the `serviceName` using key-value pairs.
+     *
+     * @param paramMap a Map where the keys are the placeholder names (without curly braces) and the values are the replacement values.
+     * @return the current instance of RequestBuilder for method chaining.
+     * @throws IllegalArgumentException if any placeholder in the Map is not found in the `serviceName`.
+     */
+    public RequestBuilder setPathParameters(Map<String, Object> paramMap) {
+        for (Map.Entry<String, Object> entry : paramMap.entrySet()) {
+            String key = entry.getKey();
+            String value = String.valueOf(entry.getValue());
+            if (serviceName.contains("{" + key + "}")) {
+                serviceName = serviceName.replace("{" + key + "}", value);
+            } else {
+                throw new IllegalArgumentException(
+                        "Path parameter {" + key + "} not found in the serviceName: " + serviceName
+                );
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Dynamically sets path parameters by replacing placeholders in the `serviceName` using ordered string values.
+     *
+     * @param values the string values to replace placeholders in the `serviceName`, provided in the exact order of their appearance.
+     * @return the current instance of RequestBuilder for method chaining.
+     * @throws IllegalArgumentException if the number of placeholders does not match the number of provided values,
+     *                                  or if no placeholders are found in the `serviceName`.
+     */
+    public RequestBuilder setPathParameters(String... values) {
+        // Check if serviceName contains any placeholders
+        if (!serviceName.contains("{") || !serviceName.contains("}")) {
+            throw new IllegalArgumentException(
+                    "No placeholders found in the serviceName: " + serviceName + ". Cannot set path parameters."
+            );
+        }
+
+        String[] placeholders = serviceName.split("\\{");
+        int placeholderCount = placeholders.length - 1; // Count of placeholders
+        if (placeholderCount != values.length) {
+            throw new IllegalArgumentException(
+                    "Number of provided values (" + values.length + ") does not match the number of placeholders (" +
+                            placeholderCount + ") in the serviceName: " + serviceName
+            );
+        }
+
+        for (int i = 1; i < placeholders.length; i++) {
+            String placeholder = placeholders[i].split("}")[0]; // Extract placeholder name
+            serviceName = serviceName.replace("{" + placeholder + "}", values[i - 1]);
+        }
+        return this;
+    }
+
+    /**
      * Sets the parameters (if any) for the API request that you're currently building. A request usually has only one of the following: urlArguments, parameters+type, or body
      *
      * @param parameters     a list of key/value pairs that will be sent as parameters with this API call, is nullable, Example: Arrays.asList(Arrays.asList("itemId", "123"), Arrays.asList("contents", XMLContents));
