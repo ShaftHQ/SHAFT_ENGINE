@@ -5,7 +5,6 @@ import org.testng.annotations.*;
 import java.util.*;
 
 public class PathParamTest {
-    // Initialize SHAFT.API with the base URI for the PetStore API
     private final SHAFT.API api = new SHAFT.API("https://petstore.swagger.io/v2");
     private static final String GET_USER_BY_USERNAME = "/user/{username}";
     private static final String GET_RESOURCE_BY_USERNAME = "/{resource}/{username}";
@@ -25,7 +24,7 @@ public class PathParamTest {
                 .setTargetStatusCode(200)
                 .perform();
 
-        api.assertThatResponse().body().contains("\"username\":\"string\"");
+        api.assertThatResponse().extractedJsonValue("username").isEqualTo("string");
     }
 
     /**
@@ -39,7 +38,7 @@ public class PathParamTest {
                 .setTargetStatusCode(200)
                 .perform();
 
-        api.assertThatResponse().body().contains("\"username\":\"string\"");
+        api.assertThatResponse().extractedJsonValue("username").isEqualTo("string");
     }
 
     /**
@@ -53,6 +52,6 @@ public class PathParamTest {
                 .setTargetStatusCode(200)
                 .perform();
 
-        api.assertThatResponse().body().contains("\"username\":\"string\"");
+        api.assertThatResponse().extractedJsonValue("username").isEqualTo("string");
     }
 }
