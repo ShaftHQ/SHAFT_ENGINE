@@ -148,13 +148,21 @@ public class RequestBuilder {
     }
 
     /**
-     * Dynamically sets path parameters by replacing placeholders in the `serviceName` using ordered values.
+     * Dynamically sets path parameters by replacing placeholders in the `serviceName` using ordered string values.
      *
-     * @param values the values to replace placeholders in the `serviceName`, provided in the exact order of their appearance.
+     * @param values the string values to replace placeholders in the `serviceName`, provided in the exact order of their appearance.
      * @return the current instance of RequestBuilder for method chaining.
-     * @throws IllegalArgumentException if the number of placeholders does not match the number of provided values.
+     * @throws IllegalArgumentException if the number of placeholders does not match the number of provided values,
+     *                                  or if no placeholders are found in the `serviceName`.
      */
-    public RequestBuilder setPathParameters(Object... values) {
+    public RequestBuilder setPathParameters(String... values) {
+        // Check if serviceName contains any placeholders
+        if (!serviceName.contains("{") || !serviceName.contains("}")) {
+            throw new IllegalArgumentException(
+                    "No placeholders found in the serviceName: " + serviceName + ". Cannot set path parameters."
+            );
+        }
+
         String[] placeholders = serviceName.split("\\{");
         int placeholderCount = placeholders.length - 1; // Count of placeholders
         if (placeholderCount != values.length) {
@@ -166,11 +174,10 @@ public class RequestBuilder {
 
         for (int i = 1; i < placeholders.length; i++) {
             String placeholder = placeholders[i].split("}")[0]; // Extract placeholder name
-            serviceName = serviceName.replace("{" + placeholder + "}", String.valueOf(values[i - 1]));
+            serviceName = serviceName.replace("{" + placeholder + "}", values[i - 1]);
         }
         return this;
     }
-
 
     /**
      * Sets the parameters (if any) for the API request that you're currently building. A request usually has only one of the following: urlArguments, parameters+type, or body
