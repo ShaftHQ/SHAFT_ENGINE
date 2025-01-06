@@ -80,6 +80,7 @@ public class OptionsManager {
                 }
                 //Incognito mode for Firefox
                 if (SHAFT.Properties.web.incognitoMode()) {
+                    SHAFT.Properties.platform.set().enableBiDi(false);
                     ffOptions.addArguments("-private");
                 }
                 ffOptions.setLogLevel(FirefoxDriverLogLevel.WARN);
@@ -359,6 +360,7 @@ public class OptionsManager {
         if (!SHAFT.Properties.flags.autoCloseDriverInstance()) options.setExperimentalOption("detach", true);
         //Incognito mode for Chrome and Edge
         if (SHAFT.Properties.web.incognitoMode()) {
+            SHAFT.Properties.platform.set().enableBiDi(false);
             if (options.getBrowserName().equals(DriverFactory.DriverType.CHROME.getValue())) {
                 options.addArguments("--incognito");
             } else if (options.getBrowserName().equals(DriverFactory.DriverType.EDGE.getValue())) {
