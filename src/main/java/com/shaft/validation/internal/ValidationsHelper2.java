@@ -10,8 +10,7 @@ import com.shaft.gui.element.internal.ElementInformation;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.internal.FailureReporter;
-import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.tools.io.internal.*;
 import com.shaft.validation.ValidationEnums;
 import io.qameta.allure.Allure;
 import io.qameta.allure.model.Parameter;
@@ -263,14 +262,17 @@ public class ValidationsHelper2 {
         if (!validationState) {
             String failureMessage = this.validationCategoryString.replace("erify", "erificat") + "ion failed; expected " + expected + ", but found " + actual;
             if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
+                ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
                 Allure.getLifecycle().updateStep(stepResult -> FailureReporter.fail(failureMessage));
             } else {
                 // soft assert
                 ValidationsHelper.verificationFailuresList.add(failureMessage);
                 ValidationsHelper.verificationError = new AssertionError(String.join("\nAND ", ValidationsHelper.verificationFailuresList));
+                ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
                 Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(failureMessage));
             }
         } else {
+            ExecutionSummaryReport.validationsIncrement(CheckpointStatus.PASS);
             Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(this.validationCategoryString.replace("erify", "erificat") + "ion passed"));
         }
     }
