@@ -38,10 +38,10 @@ public class CSVFileManager {
             records = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader);
             RowReader = new FileReader(csvFilePath);
             RowRecords = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(RowReader);
-//            ReportManager.log("Reading test data from the following file. ["+this.csvFilePath +"]",Level.INFO);
+            ReportManager.log("Reading test data from the following file. ["+this.csvFilePath +"]",Level.INFO);
         } catch (IOException | OutOfMemoryError e) {
             FailureReporter.fail(this.getClass(),"Couldn't find the desired file. [" + this.csvFilePath + "] ",e);
-//            ReportManager.log("Couldn't find the desired file. [" + this.csvFilePath + "] ", Level.ERROR);
+            ReportManager.log("Couldn't find the desired file. [" + this.csvFilePath + "] ", Level.ERROR);
             e.printStackTrace();
         }
         List<List<Object>> attachments = new ArrayList<>();
@@ -49,13 +49,13 @@ public class CSVFileManager {
         try {
             testDataFileAttachment = Arrays.asList("Test Data", "CSV",
                     new FileInputStream(this.csvFilePath));
-//            ReportManagerHelper.log("Loaded Test Data: [" + this.csvFilePath + "].", attachments);
+            ReportManagerHelper.log("Loaded Test Data: [" + this.csvFilePath + "].", attachments);
         } catch (FileNotFoundException e) {
             //unreachable code because if the file was not found then the reader would have failed at a previous step
-//            ReportManager.log("Test data file not found for attachment: [" + this.csvFilePath + "]",Level.ERROR);
+            ReportManager.log("Test data file not found for attachment: [" + this.csvFilePath + "]",Level.ERROR);
         }
         attachments.add(testDataFileAttachment);
-//        ReportManagerHelper.log("Loaded Test Data: [" + this.csvFilePath + "].", attachments);
+        ReportManagerHelper.log("Loaded Test Data: [" + this.csvFilePath + "].", attachments);
     }
     public List<String[]> GetRows(){
         rows = new ArrayList<>();
@@ -67,9 +67,9 @@ public class CSVFileManager {
                 }
                 rows.add(row);
             }
-//            ReportManager.log("Successfully retrieved all rows from ["+csvFilePath+"].",Level.INFO);
+            ReportManager.log("Successfully retrieved all rows from ["+csvFilePath+"].",Level.INFO);
         } catch (Exception e) {
-//            ReportManager.log("Error while retrieving rows: " + e.getMessage(),Level.ERROR);
+            ReportManager.log("Error while retrieving rows: " + e.getMessage(),Level.ERROR);
         }
         return rows;
     }
@@ -77,10 +77,10 @@ public class CSVFileManager {
     public List<String> GetColumns(){
         try {
             List<String> columns = new ArrayList<>(records.getHeaderNames());
-//            ReportManager.log("Successfully retrieved column names from ["+csvFilePath+"].",Level.INFO);
+            ReportManager.log("Successfully retrieved column names from ["+csvFilePath+"].",Level.INFO);
             return columns;
         } catch (Exception e) {
-//            ReportManager.log("Error while retrieving columns: " + e.getMessage(),Level.ERROR);
+            ReportManager.log("Error while retrieving columns: " + e.getMessage(),Level.ERROR);
             return Collections.emptyList();
         }
     }
@@ -100,7 +100,7 @@ public class CSVFileManager {
                 ColumnWithRows.put(columns.get(i), columnData);
             }
         } catch (Exception e) {
-//            ReportManager.log("Error while mapping columns with data: " + e.getMessage(),Level.ERROR);
+            ReportManager.log("Error while mapping columns with data: " + e.getMessage(),Level.ERROR);
         }
         return ColumnWithRows;
     }
@@ -109,7 +109,7 @@ public class CSVFileManager {
             List<String> columns = GetColumns();
             return columns.getLast();
         } catch (Exception e) {
-//            ReportManager.log("Error while retrieving the last column: " + e.getMessage(),Level.ERROR);
+            ReportManager.log("Error while retrieving the last column: " + e.getMessage(),Level.ERROR);
             return null;
         }
     }
@@ -117,7 +117,7 @@ public class CSVFileManager {
         try {
             return GetColumns().get(ColumnNum - 1);
         } catch (Exception e) {
-//            ReportManager.log("Error while retrieving column name at index " + ColumnNum + ": " + e.getMessage(),Level.ERROR);
+            ReportManager.log("Error while retrieving column name at index " + ColumnNum + ": " + e.getMessage(),Level.ERROR);
             return null;
         }
     }
@@ -125,7 +125,7 @@ public class CSVFileManager {
         try {
             return GetColumnsWithData().get(ColumnName);
         } catch (Exception e) {
-//            ReportManager.log("Error while retrieving data for column: " + ColumnName + ". " + e.getMessage(),Level.ERROR);
+            ReportManager.log("Error while retrieving data for column: " + ColumnName + ". " + e.getMessage(),Level.ERROR);
             return Collections.emptyList();
         }
     }
@@ -135,7 +135,7 @@ public class CSVFileManager {
             List<String> columns = GetColumns();
             return row[columns.indexOf(ColumnName)];
         } catch (Exception e) {
-//            ReportManager.log("Error while retrieving cell data for Row: " + RowNum + ", Column: " + ColumnName + ". " + e.getMessage(),Level.ERROR);
+            ReportManager.log("Error while retrieving cell data for Row: " + RowNum + ", Column: " + ColumnName + ". " + e.getMessage(),Level.ERROR);
             return null;
         }
     }
