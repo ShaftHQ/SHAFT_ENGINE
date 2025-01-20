@@ -11,7 +11,7 @@ import java.util.Map;
 
 public class CSVFileManagerTest {
     private CSVFileManager csvFileManager;
-    private final String testCsvFilePath = "src/test/resources/NegativeTestDataforinvoices.csv"; // Replace with the path to your test CSV file
+    private final String testCsvFilePath = "./src/test/resources/testDataFiles/NegativeTestDataforinvoices.csv";
 
     @BeforeClass
     public void setUp() {
@@ -52,21 +52,24 @@ public class CSVFileManagerTest {
     public void testGetSpecificColumnName() {
         String columnName = csvFileManager.GetSpecificColumnName(1); // Adjust the index if necessary
         Assert.assertNotNull(columnName, "Column name should not be null.");
-        Assert.assertEquals(columnName, "ExpectedColumnName", "Column name should match the expected value.");
+        System.out.println(columnName);
+        Assert.assertEquals(columnName, "barCode", "Column name should match the expected value.");
     }
 
     @Test
     public void testGetSpecificColumnData() {
-        List<String> columnData = csvFileManager.GetSpecificColumnData("Column1");
+        List<String> columnData = csvFileManager.GetSpecificColumnData("barCode");
         Assert.assertNotNull(columnData, "Column data should not be null.");
         Assert.assertTrue(!columnData.isEmpty(), "Column data should not be empty.");
-        Assert.assertTrue(columnData.contains("ExpectedData"), "Column data should contain the expected data.");
+        System.out.println(columnData);
+        Assert.assertTrue(columnData.contains("1061998"), "Column data should contain the expected data.");
     }
 
     @Test
     public void testGetCellData() {
-        String cellData = csvFileManager.getCellData(1, "Column1");
+        String cellData = csvFileManager.getCellData(1, "barCode");
+        System.out.println(cellData);
         Assert.assertNotNull(cellData, "Cell data should not be null.");
-        Assert.assertEquals(cellData, "ExpectedCellValue", "Cell data should match the expected value.");
+        Assert.assertEquals(cellData, "1061998", "Cell data should match the expected value.");
     }
 }
