@@ -5,6 +5,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -21,21 +22,23 @@ public class CSVFileManagerTest {
     @Test
     public void testGetRows() {
         List<String[]> rows = csvFileManager.GetRows();
-        System.out.println("Rows: "+rows);
+        for (String[] row : rows) {
+            System.out.println(Arrays.toString(row));
+        }
         Assert.assertTrue(!rows.isEmpty(), "Rows should not be empty.");
     }
 
     @Test
     public void testGetColumns() {
         List<String> columns = csvFileManager.GetColumns();
-        System.out.println("Columns : "+columns);
+        System.out.println("Columns : " + columns);
         Assert.assertTrue(!columns.isEmpty(), "Columns should not be empty.");
     }
 
     @Test
     public void testGetColumnsWithData() {
         Map<String, List<String>> columnsWithData = csvFileManager.GetColumnsWithData();
-        System.out.println("columnsWithData : "+columnsWithData);
+        System.out.println("columnsWithData : " + columnsWithData);
         Assert.assertTrue(!columnsWithData.isEmpty(), "Columns with data should not be empty.");
     }
 
@@ -47,7 +50,9 @@ public class CSVFileManagerTest {
 
     @Test
     public void testGetSpecificColumnName() {
-        String columnName = csvFileManager.GetSpecificColumnName(1);
+        String columnName = csvFileManager.GetSpecificColumnName(1); // Adjust the index if necessary
+        Assert.assertNotNull(columnName, "Column name should not be null.");
+        Assert.assertEquals(columnName, "ExpectedColumnName", "Column name should match the expected value.");
     }
 
     @Test
@@ -55,11 +60,13 @@ public class CSVFileManagerTest {
         List<String> columnData = csvFileManager.GetSpecificColumnData("Column1");
         Assert.assertNotNull(columnData, "Column data should not be null.");
         Assert.assertTrue(!columnData.isEmpty(), "Column data should not be empty.");
+        Assert.assertTrue(columnData.contains("ExpectedData"), "Column data should contain the expected data.");
     }
 
     @Test
     public void testGetCellData() {
         String cellData = csvFileManager.getCellData(1, "Column1");
         Assert.assertNotNull(cellData, "Cell data should not be null.");
+        Assert.assertEquals(cellData, "ExpectedCellValue", "Cell data should match the expected value.");
     }
 }
