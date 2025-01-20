@@ -13,6 +13,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
 
+@SuppressWarnings("unused")
 public class CSVFileManager {
     private FileReader reader;
     private List<String[]> rows;
