@@ -1,5 +1,6 @@
 package testPackage.legacy;
 
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.CSVFileManager;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -10,18 +11,16 @@ import java.util.List;
 import java.util.Map;
 
 public class CSVFileManagerTest {
-    private CSVFileManager csvFileManager;
-    private final String testCsvFilePath = "./src/test/resources/testDataFiles/NegativeTestDataforinvoices.csv";
-
+    CSVFileManager csvFileManager;
     @BeforeClass
     public void setUp() {
         // Initialize the CSVFileManager with a test file
-        csvFileManager = new CSVFileManager(testCsvFilePath);
+        csvFileManager = new CSVFileManager("src/test/resources/testDataFiles/TestData.csv");
     }
 
     @Test
     public void testGetRows() {
-        List<String[]> rows = csvFileManager.GetRows();
+        List<String[]> rows = csvFileManager.getRows();
         for (String[] row : rows) {
             System.out.println(Arrays.toString(row));
         }
@@ -30,27 +29,27 @@ public class CSVFileManagerTest {
 
     @Test
     public void testGetColumns() {
-        List<String> columns = csvFileManager.GetColumns();
+        List<String> columns = csvFileManager.getColumns();
         System.out.println("Columns : " + columns);
         Assert.assertTrue(!columns.isEmpty(), "Columns should not be empty.");
     }
 
     @Test
     public void testGetColumnsWithData() {
-        Map<String, List<String>> columnsWithData = csvFileManager.GetColumnsWithData();
+        Map<String, List<String>> columnsWithData = csvFileManager.getColumnsWithData();
         System.out.println("columnsWithData : " + columnsWithData);
         Assert.assertTrue(!columnsWithData.isEmpty(), "Columns with data should not be empty.");
     }
 
     @Test
     public void testGetLastColumn() {
-        String lastColumn = csvFileManager.GetLastColumn();
+        String lastColumn = csvFileManager.getLastColumn();
         Assert.assertNotNull(lastColumn, "Last column should not be null.");
     }
 
     @Test
     public void testGetSpecificColumnName() {
-        String columnName = csvFileManager.GetSpecificColumnName(1); // Adjust the index if necessary
+        String columnName = csvFileManager.getSpecificColumnName(1); // Adjust the index if necessary
         Assert.assertNotNull(columnName, "Column name should not be null.");
         System.out.println(columnName);
         Assert.assertEquals(columnName, "barCode", "Column name should match the expected value.");
@@ -58,7 +57,7 @@ public class CSVFileManagerTest {
 
     @Test
     public void testGetSpecificColumnData() {
-        List<String> columnData = csvFileManager.GetSpecificColumnData("barCode");
+        List<String> columnData = csvFileManager.getSpecificColumnData("barCode");
         Assert.assertNotNull(columnData, "Column data should not be null.");
         Assert.assertTrue(!columnData.isEmpty(), "Column data should not be empty.");
         System.out.println(columnData);

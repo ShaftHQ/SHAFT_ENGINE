@@ -57,7 +57,7 @@ public class CSVFileManager {
         attachments.add(testDataFileAttachment);
         ReportManagerHelper.log("Loaded Test Data: [" + this.csvFilePath + "].", attachments);
     }
-    public List<String[]> GetRows(){
+    public List<String[]> getRows(){
         rows = new ArrayList<>();
         try {
             for (CSVRecord record : RowRecords) {
@@ -74,7 +74,7 @@ public class CSVFileManager {
         return rows;
     }
 
-    public List<String> GetColumns(){
+    public List<String> getColumns(){
         try {
             List<String> columns = new ArrayList<>(records.getHeaderNames());
             ReportManager.log("Successfully retrieved column names from ["+csvFilePath+"].",Level.INFO);
@@ -84,11 +84,11 @@ public class CSVFileManager {
             return Collections.emptyList();
         }
     }
-    public Map<String, List<String>> GetColumnsWithData() {
+    public Map<String, List<String>> getColumnsWithData() {
         ColumnWithRows = new HashMap<>();
         try {
-            List<String[]> rows = GetRows();
-            List<String> columns = GetColumns();
+            List<String[]> rows = getRows();
+            List<String> columns = getColumns();
 
             for (int i = 0; i < columns.size(); i++) {
                 List<String> columnData = new ArrayList<>();
@@ -104,26 +104,26 @@ public class CSVFileManager {
         }
         return ColumnWithRows;
     }
-    public String GetLastColumn(){
+    public String getLastColumn(){
         try {
-            List<String> columns = GetColumns();
+            List<String> columns = getColumns();
             return columns.getLast();
         } catch (Exception e) {
             ReportManager.log("Error while retrieving the last column: " + e.getMessage(),Level.ERROR);
             return null;
         }
     }
-    public String GetSpecificColumnName(int ColumnNum){
+    public String getSpecificColumnName(int ColumnNum){
         try {
-            return GetColumns().get(ColumnNum - 1);
+            return getColumns().get(ColumnNum - 1);
         } catch (Exception e) {
             ReportManager.log("Error while retrieving column name at index " + ColumnNum + ": " + e.getMessage(),Level.ERROR);
             return null;
         }
     }
-    public List<String> GetSpecificColumnData(String ColumnName){
+    public List<String> getSpecificColumnData(String ColumnName){
         try {
-            return GetColumnsWithData().get(ColumnName);
+            return getColumnsWithData().get(ColumnName);
         } catch (Exception e) {
             ReportManager.log("Error while retrieving data for column: " + ColumnName + ". " + e.getMessage(),Level.ERROR);
             return Collections.emptyList();
@@ -131,8 +131,8 @@ public class CSVFileManager {
     }
     public String getCellData(int RowNum, String ColumnName) {
         try {
-            String[] row = GetRows().get(RowNum);
-            List<String> columns = GetColumns();
+            String[] row = getRows().get(RowNum);
+            List<String> columns = getColumns();
             return row[columns.indexOf(ColumnName)];
         } catch (Exception e) {
             ReportManager.log("Error while retrieving cell data for Row: " + RowNum + ", Column: " + ColumnName + ". " + e.getMessage(),Level.ERROR);

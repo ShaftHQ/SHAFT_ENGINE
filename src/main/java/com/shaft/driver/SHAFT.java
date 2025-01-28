@@ -14,10 +14,7 @@ import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.element.internal.Actions;
 import com.shaft.gui.waits.WaitActions;
 import com.shaft.listeners.internal.WebDriverListener;
-import com.shaft.tools.io.ExcelFileManager;
-import com.shaft.tools.io.JSONFileManager;
-import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.YAMLFileManager;
+import com.shaft.tools.io.*;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.RestValidationsBuilder;
 import io.appium.java_client.android.AndroidDriver;
@@ -334,6 +331,21 @@ public class SHAFT {
 
             public static ExcelFileManager getInstance(String excelFilePath) {
                 return new ExcelFileManager(excelFilePath);
+            }
+        }
+        public static class CSV extends CSVFileManager {
+            /**
+             * Creates a new instance of the test data CSV reader using the target CSV
+             * file path
+             *
+             * @param excelFilePath target test data Excel file path
+             */
+            public CSV(String excelFilePath) {
+                super(excelFilePath);
+            }
+
+            public static CSVFileManager getInstance(String excelFilePath) {
+                return new CSVFileManager(excelFilePath);
             }
         }
 
