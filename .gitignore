@@ -22,7 +22,7 @@ debug.log
 /generateJdk.bat
 /generateJdk.sh
 /src/main/resources/docker-compose/android-emulator/*
-#/src/main/resources/properties/*
+/src/main/resources/properties/*
 /lighthouse-reports/*
 /lighthouse-reports
 GenerateLHScript.js
