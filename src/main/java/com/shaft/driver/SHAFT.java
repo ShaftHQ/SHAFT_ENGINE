@@ -338,14 +338,14 @@ public class SHAFT {
              * Creates a new instance of the test data CSV reader using the target CSV
              * file path
              *
-             * @param excelFilePath target test data Excel file path
+             * @param csvFilePath target test data Excel file path
              */
-            public CSV(String excelFilePath) {
-                super(excelFilePath);
+            public CSV(String csvFilePath) {
+                super(csvFilePath);
             }
 
-            public static CSVFileManager getInstance(String excelFilePath) {
-                return new CSVFileManager(excelFilePath);
+            public static CSVFileManager getInstance(String csvFilePath) {
+                return new CSVFileManager(csvFilePath);
             }
         }
 
