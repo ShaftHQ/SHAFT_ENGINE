@@ -176,6 +176,7 @@ public class Actions extends ElementActions {
                             case "off":
                                 break;
                         }
+                        screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
                         foundElements.get().getFirst().sendKeys((CharSequence) data);
                     }
                     case GET_NAME -> output.set(foundElements.get().getFirst().getAccessibleName());
@@ -253,7 +254,7 @@ public class Actions extends ElementActions {
     }
 
     private byte[] takeActionScreenshot(WebElement element){
-        if (SHAFT.Properties.visuals.createAnimatedGif())
+        if (SHAFT.Properties.visuals.createAnimatedGif() || "Always".equals(SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot()))
             return captureScreenshot(element, true);
         return null;
     }
