@@ -31,7 +31,7 @@ public class AllureManager {
          * Force screenshot link to be shown in the results as a link not text
          */
         System.setProperty("org.uncommons.reportng.escape-output", "false");
-        allureResultsFolderPath = SHAFT.Properties.paths.allureResults();
+        allureResultsFolderPath = SHAFT.Properties.allureResults.allureResultsDirectory() + "/";
         cleanAllureReportDirectory();
         cleanAllureResultsDirectory();
         downloadAndExtractAllureBinaries();
@@ -264,7 +264,7 @@ public class AllureManager {
             }
         }
         propertiesFileBuilder.append("</environment>");
-        internalFileSession.writeToFile(SHAFT.Properties.paths.allureResults(), "environment.xml",
+        internalFileSession.writeToFile(SHAFT.Properties.allureResults.allureResultsDirectory(), "environment.xml",
                 RestActions.formatXML(propertiesFileBuilder.toString()));
     }
 }

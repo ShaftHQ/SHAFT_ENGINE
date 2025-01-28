@@ -2,6 +2,7 @@ package com.shaft.properties.internal;
 
 public class Properties {
     //    private static final boolean reloadProperties = DriverFactory.reloadProperties();
+    public static AllureResults allureResults;
     public static BrowserStack browserStack;
     public static Cucumber cucumber;
     public static Platform platform;

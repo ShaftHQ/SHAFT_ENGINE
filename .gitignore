@@ -22,7 +22,7 @@ debug.log
 /generateJdk.bat
 /generateJdk.sh
 /src/main/resources/docker-compose/android-emulator/*
-/src/main/resources/properties/*
+#/src/main/resources/properties/*
 /lighthouse-reports/*
 /lighthouse-reports
 GenerateLHScript.js
@@ -1720,3 +1720,4 @@ OpenLHReport.js
 /src/main/resources/docker-compose/data/storage/prj-users/thumbnail-default
 /src/main/resources/docker-compose/data/storage/prj-users/thumbnail-superadmin
 /src/test/resources/testDataFiles/allure-results/environment.xml
+/src/test/resources/allure.properties
