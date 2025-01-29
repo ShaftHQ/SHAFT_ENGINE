@@ -4,7 +4,7 @@ import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
-@SuppressWarnings("unused")
+@SuppressWarnings({"SameParameterValue", "unused"})
 @Sources({"system:properties", "file:src/test/resources/allure.properties", "file:src/main/resources/properties/default/allure.properties", "classpath:allure.properties",})
 public interface AllureResults extends EngineProperties<AllureResults> {
     private static void setProperty(String key, String value) {
@@ -25,7 +25,7 @@ public interface AllureResults extends EngineProperties<AllureResults> {
     }
 
     class SetProperty implements EngineProperties.SetProperty {
-        public AllureResults.SetProperty allureResultsDirectory(String value) {
+        public SetProperty allureResultsDirectory(String value) {
             setProperty("allure.results.directory", value);
             return this;
         }

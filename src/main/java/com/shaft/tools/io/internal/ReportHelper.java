@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Stream;
 
 public class ReportHelper {
     public static void attachEngineLog() {
@@ -35,8 +36,12 @@ public class ReportHelper {
         disableLogging();
         if (FileActions.getInstance(true).doesFileExist(SHAFT.Properties.paths.properties())) {
             List<List<Object>> attachments = new ArrayList<>();
-            var propertyFiles = Arrays.asList(FileActions.getInstance(true).listFilesInDirectory(SHAFT.Properties.paths.properties(), null).replaceAll("default" + System.lineSeparator(), "").trim().split(System.lineSeparator()));
+            var propertyFiles = new ArrayList<>(Arrays.asList(FileActions.getInstance(true).listFilesInDirectory(SHAFT.Properties.paths.properties(), null).replaceAll("default" + System.lineSeparator(), "").trim().split(System.lineSeparator())));
+            String fileListString = FileActions.getInstance(true).listFilesInDirectory("src/test/resources/");
+            String allureProperties = Stream.of(fileListString.split("\\R")).filter("allure.properties"::equals).findFirst().orElse(null);
             propertyFiles.forEach(file -> attachments.add(Arrays.asList("Properties", file.replace(".properties", ""), FileActions.getInstance(true).readFile(SHAFT.Properties.paths.properties() + File.separator + file))));
+            propertyFiles.add(allureProperties);
+            attachments.add(Arrays.asList("Properties", propertyFiles.getLast().replace(".properties", ""), FileActions.getInstance(true).readFile("src/test/resources" + File.separator + allureProperties)));
             ReportManagerHelper.logNestedSteps("Property Files", attachments);
         }
         enableLogging();

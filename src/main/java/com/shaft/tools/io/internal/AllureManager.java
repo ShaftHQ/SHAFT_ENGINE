@@ -264,7 +264,7 @@ public class AllureManager {
             }
         }
         propertiesFileBuilder.append("</environment>");
-        internalFileSession.writeToFile(SHAFT.Properties.allureResults.allureResultsDirectory(), "environment.xml",
+        internalFileSession.writeToFile(SHAFT.Properties.allureResults.allureResultsDirectory() + "/", "environment.xml",
                 RestActions.formatXML(propertiesFileBuilder.toString()));
     }
 }
