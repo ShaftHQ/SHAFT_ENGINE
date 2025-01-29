@@ -5,6 +5,7 @@
 /execution-summary/
 /test-output/
 /reports/
+src/test/resources/META-INF/services
 /generatedReport_*.zip
 /generatedReport/
 /generate_allure_report.sh
