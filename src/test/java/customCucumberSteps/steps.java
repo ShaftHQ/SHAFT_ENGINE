@@ -31,19 +31,13 @@ public class steps {
             driver.browser().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
         }
     }
-    @When("I search for {string}")
-    public void i_search_for(String query) {
-        By searchBox = GoogleSearch.getSearchBox_textField();
-        driver.element().type(searchBox, "SHAFT_Engine")
-                .keyPress(searchBox, Keys.ENTER);
-    }
-    @Then("The first result text will contain {string}")
-    public void the_first_result_text_will_contain(String expectedText) {
-        By firstResult = By.xpath("(//h3[contains(@class,'LC20lb')])[1]");
-        driver.element().assertThat(firstResult)
-                .text()
-                .contains(expectedText)
-                .withCustomReportMessage("Check that first result text contains ["+expectedText+"]")
+
+    @Then("I assert that the {string} attribute of the browser, equals {string}")
+    public void iAssertThatTheAttributeOfTheBrowserEquals(String browserAttribute, String expectedValue) {
+        driver.assertThat().browser()
+                .attribute(browserAttribute)
+                .isEqualTo(expectedValue)
+                .withCustomReportMessage("I Assert that the [" + browserAttribute + "] attribute of the browser, equals [" + expectedValue + "]")
                 .perform();
     }
 }
