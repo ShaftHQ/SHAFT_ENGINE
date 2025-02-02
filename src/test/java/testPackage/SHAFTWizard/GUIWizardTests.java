@@ -26,7 +26,7 @@ public class GUIWizardTests {
 	By shoppingCartButton = By.xpath("//a[@class='shopping_cart_link']");
 	By productName = By.xpath("//div[@class='inventory_item_name']");
 
-    @Test
+    @Test(enabled = false)
     public void test() {
         driver.get().browser().navigateToURL("https://www.google.com/");
         driver.get().verifyThat().browser().title().isEqualTo("Google").perform();

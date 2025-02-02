@@ -59,7 +59,7 @@ public class ApiPerformanceReportTest {
     public void testGetBookingByCheckInDateAndCheckOutDate() {
         List<List<Object>> parameters = Arrays.asList(Arrays.asList("checkin", "2022-01-01"), Arrays.asList("checkout", "2022-01-02"));
 
-        api.get("/booking").
+        api.get("booking").
                 setParameters(parameters, RestActions.ParametersType.QUERY).
                 perform();
 
@@ -174,7 +174,7 @@ public class ApiPerformanceReportTest {
     @Test
     public void testGetAuthorBook() {
         SHAFT.API api = new SHAFT.API("https://fakerestapi.azurewebsites.net/api/v1/");
-        api.get("Authors/1/Books").perform();
+        api.get("Authors/authors/books/1").perform();
     }
 
     @Test
@@ -187,6 +187,7 @@ public class ApiPerformanceReportTest {
     public void addToCart() {
         SHAFT.API api = new SHAFT.API("https://api.demoblaze.com/");
         api.post("addtocart")
+                .setContentType("application/json")
                 .setRequestBody("{\n" +
                         "\"cookie\":\"dGVzdGNiYTEyMzE3MjI0MDI=\",\n" +
                         "\"flag\":true,\n" +
@@ -200,6 +201,7 @@ public class ApiPerformanceReportTest {
     public void deleteCart() {
         SHAFT.API api = new SHAFT.API("https://api.demoblaze.com/");
         api.post("deletecart")
+                .setContentType("application/json")
                 .setRequestBody("{\"id\": \"995bed43-ab62-2940-c093-b42b2cc4d887\"}")
                 .perform();
     }
@@ -208,6 +210,7 @@ public class ApiPerformanceReportTest {
     public  void viewCart() {
         SHAFT.API api = new SHAFT.API("https://api.demoblaze.com/");
         api.post("viewcart")
+                .setContentType("application/json")
                 .setRequestBody("{\n" +
                         "    \"cookie\": \"dGVzdGNiYTEyMzE3MjI0MDI=\", \n" +
                         "    \"flag\": true\n" +

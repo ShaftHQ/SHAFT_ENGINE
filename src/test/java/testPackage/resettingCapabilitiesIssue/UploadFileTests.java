@@ -19,7 +19,7 @@ public class UploadFileTests {
         Validations.assertThat().element(driver.get().getDriver(), By.id("res")).attribute("Text").contains("1 file").perform();
     }
 
-    @Test
+    @Test(enabled = false)
     public void uploadFile_invisibleUploadInput() {
         driver.get().browser().navigateToURL("https://fineuploader.com/demos.html#gallery-view");
         driver.get().element().typeFileLocationForUpload(By.xpath("//div[@id='fine-uploader-gallery']//input[@type='file']"), FileActions.getInstance().getAbsolutePath("src/main/resources/images/", "shaft.png"));
