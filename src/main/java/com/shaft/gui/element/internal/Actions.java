@@ -106,11 +106,12 @@ public class Actions extends ElementActions {
 
                 // identify run type
                 boolean isNotMobileExecution = DriverFactoryHelper.isNotMobileExecution();
+                boolean isMobileNativeExecution = DriverFactoryHelper.isMobileNativeExecution();
 
                 // get accessible name if needed
                 if (SHAFT.Properties.reporting.captureElementName()) {
                     String fetchedName = "";
-                    if (isNotMobileExecution) {
+                    if (!isMobileNativeExecution) {
                         try {
                             fetchedName = foundElements.get().getFirst().getAccessibleName();
                         } catch (UnsupportedCommandException | StaleElementReferenceException throwable) {
@@ -130,7 +131,7 @@ public class Actions extends ElementActions {
 
                 // scroll to element (avoid relocating the element if already found)
                 // if not mobile else just do the w3c compliant scroll
-                if (isNotMobileExecution) {
+                if (!isMobileNativeExecution) {
                     try {
                         // native Javascript scroll to center (smooth / auto)
                         ((JavascriptExecutor) driver).executeScript("""
