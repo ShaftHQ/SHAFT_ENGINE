@@ -105,7 +105,6 @@ public class Actions extends ElementActions {
                     throw new MultipleElementsFoundException();
 
                 // identify run type
-                boolean isNotMobileExecution = DriverFactoryHelper.isNotMobileExecution();
                 boolean isMobileNativeExecution = DriverFactoryHelper.isMobileNativeExecution();
 
                 // get accessible name if needed
