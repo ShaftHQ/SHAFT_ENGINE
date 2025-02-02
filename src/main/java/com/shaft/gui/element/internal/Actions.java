@@ -119,9 +119,10 @@ public class Actions extends ElementActions {
                             //ignore
                             //saw it again with mobile web tests
                             // the stale was thrown in an iframe
+                            fetchedName = foundElements.get().getFirst().getAttribute("text");
                         }
                     } else {
-                        fetchedName = foundElements.get().getFirst().getAttribute("text");
+                        fetchedName = foundElements.get().getFirst().getAttribute("name");
                     }
                     if (fetchedName != null && !fetchedName.isEmpty())
                         accessibleName.set(fetchedName.trim());
