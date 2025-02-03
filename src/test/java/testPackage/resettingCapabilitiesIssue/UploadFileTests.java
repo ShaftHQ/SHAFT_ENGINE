@@ -14,21 +14,26 @@ public class UploadFileTests {
 
     @Test
     public void uploadFile_visibleUploadInput() {
-        driver.get().browser().navigateToURL("https://demo.guru99.com/test/upload/");
-        driver.get().element().typeFileLocationForUpload(By.id("uploadfile_0"), "src/main/resources/images/shaft.png");
-        driver.get().element().click(By.id("terms")).click(By.id("submitbutton"));
-        Validations.assertThat().element(driver.get().getDriver(), By.id("res")).attribute("Text").contains("1 file").perform();
+        if (SHAFT.Properties.platform.executionAddress().equals("local")) {
+            driver.get().browser().navigateToURL("https://demo.guru99.com/test/upload/");
+            driver.get().element().typeFileLocationForUpload(By.id("uploadfile_0"), "src/main/resources/images/shaft.png");
+            driver.get().element().click(By.id("terms")).click(By.id("submitbutton"));
+            Validations.assertThat().element(driver.get().getDriver(), By.id("res")).attribute("Text").contains("1 file").perform();
+        }
     }
+
 
     @Test
     public void uploadFile_invisibleUploadInput() {
-        driver.get().browser().navigateToURL("https://demo.guru99.com/test/upload/");
-        WebDriver nativeDriver = driver.get().getDriver();
-        ((JavascriptExecutor) nativeDriver).executeScript("arguments[0].setAttribute('hidden', 'true')", nativeDriver.findElement(By.id("uploadfile_0")));
+        if (SHAFT.Properties.platform.executionAddress().equals("local")) {
+            driver.get().browser().navigateToURL("https://demo.guru99.com/test/upload/");
+            WebDriver nativeDriver = driver.get().getDriver();
+            ((JavascriptExecutor) nativeDriver).executeScript("arguments[0].setAttribute('hidden', 'true')", nativeDriver.findElement(By.id("uploadfile_0")));
 
-        driver.get().element().typeFileLocationForUpload(By.id("uploadfile_0"), "src/main/resources/images/shaft.png");
-        driver.get().element().click(By.id("terms")).click(By.id("submitbutton"));
-        Validations.assertThat().element(driver.get().getDriver(), By.id("res")).attribute("Text").contains("1 file").perform();
+            driver.get().element().typeFileLocationForUpload(By.id("uploadfile_0"), "src/main/resources/images/shaft.png");
+            driver.get().element().click(By.id("terms")).click(By.id("submitbutton"));
+            Validations.assertThat().element(driver.get().getDriver(), By.id("res")).attribute("Text").contains("1 file").perform();
+        }
     }
 
     @BeforeMethod

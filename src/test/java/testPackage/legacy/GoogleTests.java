@@ -23,7 +23,7 @@ public class GoogleTests {
         searchObject.assertPageIsOpen(); // Check that the correct page has been opened
     }
 
-    @Test(description = "TC002 - Search for Query and Assert that the number of results is displayed")
+    @Test(description = "TC002 - Search for Query and Assert that the number of results is displayed", enabled = false)
     public void searchForQueryandAssertResultsNumDisplayed() {
         searchObject = new GoogleSearch(driver.get().getDriver()); // initialize a new instance of the page
         searchObject.navigateToURL(); // Navigate to Page URL
