@@ -85,7 +85,7 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     boolean local();
 
     @Key("browserStack.seleniumVersion")
-    @DefaultValue("4.24.0")
+    @DefaultValue("4.27.0")
     String seleniumVersion();
 
     @Key("browserStack.acceptInsecureCerts")
@@ -111,7 +111,7 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     String geoLocation();
 
     @Key("browserStack.appiumVersion")
-    @DefaultValue("2.4.1")
+    @DefaultValue("2.12.1")
     String appiumVersion();
 
     default SetProperty set() {
