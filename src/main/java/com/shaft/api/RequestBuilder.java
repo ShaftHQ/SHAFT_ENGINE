@@ -11,6 +11,9 @@ import io.restassured.specification.RequestSpecification;
 import lombok.AccessLevel;
 import lombok.Getter;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -319,7 +322,8 @@ public class RequestBuilder {
      */
     @Step("Perform {this.requestType} request to {this.serviceURI}{this.serviceName}")
     public Response performRequest() {
-        String request = prepareRequestURLWithParameters();
+        String request = serviceURI + serviceName;
+//        String request = prepareRequestURLWithParameters();
         RequestSpecification specs = prepareRequestSpecifications();
 
         setupAuthentication(specs);
@@ -429,6 +433,7 @@ public class RequestBuilder {
         urlWithParams.setLength(urlWithParams.length() - 1);
         return urlWithParams.toString();
     }
+
 
     /**
      * The type of your authentication method {BASIC, FORM, NONE}
