@@ -105,12 +105,12 @@ public class Actions extends ElementActions {
                     throw new MultipleElementsFoundException();
 
                 // identify run type
-                boolean isNotMobileExecution = DriverFactoryHelper.isNotMobileExecution();
+                boolean isMobileNativeExecution = DriverFactoryHelper.isMobileNativeExecution();
 
                 // get accessible name if needed
                 if (SHAFT.Properties.reporting.captureElementName()) {
                     String fetchedName = "";
-                    if (isNotMobileExecution) {
+                    if (!isMobileNativeExecution) {
                         try {
                             fetchedName = foundElements.get().getFirst().getAccessibleName();
                         } catch (UnsupportedCommandException | StaleElementReferenceException throwable) {
@@ -119,9 +119,10 @@ public class Actions extends ElementActions {
                             //ignore
                             //saw it again with mobile web tests
                             // the stale was thrown in an iframe
+                            fetchedName = foundElements.get().getFirst().getAttribute("text");
                         }
                     } else {
-                        fetchedName = foundElements.get().getFirst().getAttribute("text");
+                        fetchedName = foundElements.get().getFirst().getAttribute("name");
                     }
                     if (fetchedName != null && !fetchedName.isEmpty())
                         accessibleName.set(fetchedName.trim());
@@ -129,7 +130,7 @@ public class Actions extends ElementActions {
 
                 // scroll to element (avoid relocating the element if already found)
                 // if not mobile else just do the w3c compliant scroll
-                if (isNotMobileExecution) {
+                if (!isMobileNativeExecution) {
                     try {
                         // native Javascript scroll to center (smooth / auto)
                         ((JavascriptExecutor) driver).executeScript("""
