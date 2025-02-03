@@ -198,12 +198,16 @@ public class OptionsManager {
             }
 
             if (!config.contains(forceBrowserDownloadProperty))
-                fileActions.writeToFile(folderPath, fileName
-                        , config + System.lineSeparator() + forceBrowserDownloadProperty);
+                if (config.isBlank()) {
+                    fileActions.writeToFile(folderPath, fileName, forceBrowserDownloadProperty);
+                } else {
+                    fileActions.writeToFile(folderPath, fileName
+                            , config + System.lineSeparator() + forceBrowserDownloadProperty);
+                }
         } else {
-            if (config.contains(forceBrowserDownloadProperty))
+            if (config.contains("force-browser-download"))
                 fileActions.writeToFile(folderPath, fileName
-                        , config.replace(forceBrowserDownloadProperty, "force-browser-download = false"));
+                        , config.replaceAll("force-browser-download.+\\Be", ""));
         }
 
         //reload config file
@@ -213,12 +217,16 @@ public class OptionsManager {
         String proxyProperty = "proxy = \"" + SHAFT.Properties.platform.proxy() + "\"";
         if (!SHAFT.Properties.platform.proxy().isEmpty()) {
             if (!config.contains(proxyProperty))
-                fileActions.writeToFile(folderPath, fileName
-                        , config + System.lineSeparator() + proxyProperty);
+                if (config.isBlank()) {
+                    fileActions.writeToFile(folderPath, fileName, proxyProperty);
+                } else {
+                    fileActions.writeToFile(folderPath, fileName
+                            , config + System.lineSeparator() + proxyProperty);
+                }
         } else {
-            if (config.contains(proxyProperty))
+            if (config.contains("proxy"))
                 fileActions.writeToFile(folderPath, fileName
-                        , config.replace(proxyProperty, ""));
+                        , config.replaceAll("proxy.+\\B", ""));
         }
     }
 
