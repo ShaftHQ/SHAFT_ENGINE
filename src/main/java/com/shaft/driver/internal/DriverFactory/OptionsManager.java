@@ -176,11 +176,20 @@ public class OptionsManager {
     }
 
     private synchronized void setSeleniumManagerOptions(MutableCapabilities options) {
-        var fileActions = FileActions.getInstance(true);
-        // configure selenium manager to force download chrome binaries
         String folderPath = System.getProperty("user.home") + File.separatorChar + ".cache" + File.separatorChar + "selenium" + File.separatorChar;
         String fileName = "se-config.toml";
+        var fileActions = FileActions.getInstance(true);
 
+        // create config file if it doesn't exist
+        if (!fileActions.doesFileExist(folderPath, fileName, 1)) {
+            fileActions.createFile(folderPath, fileName);
+        }
+
+        // read config file
+        String config = fileActions.readFile(folderPath, fileName);
+
+        // handle force browser download property
+        String forceBrowserDownloadProperty = "force-browser-download = true";
         if (SHAFT.Properties.web.forceBrowserDownload()) {
             if (options instanceof ChromeOptions chromeOptions) {
                 chromeOptions.setBrowserVersion("stable");
@@ -188,21 +197,31 @@ public class OptionsManager {
                 firefoxOptions.setBrowserVersion("stable");
             }
 
-            if (fileActions.doesFileExist(folderPath, fileName, 1)) {
-                String configFileContent = fileActions.readFile(folderPath, fileName);
-                if (!configFileContent.contains("force-browser-download = true"))
-                    fileActions.writeToFile(folderPath, fileName
-                            , configFileContent + System.lineSeparator() + "force-browser-download = true");
-            } else {
-                fileActions.createFile(folderPath, fileName);
-                fileActions.writeToFile(folderPath, fileName, "force-browser-download = true");
-            }
+            if (!config.contains(forceBrowserDownloadProperty))
+                fileActions.writeToFile(folderPath, fileName
+                        , config + System.lineSeparator() + forceBrowserDownloadProperty);
         } else {
-            if (fileActions.doesFileExist(folderPath, fileName, 1)) {
-                fileActions.deleteFile(folderPath + fileName);
-            }
+            if (config.contains(forceBrowserDownloadProperty))
+                fileActions.writeToFile(folderPath, fileName
+                        , config.replace(forceBrowserDownloadProperty, "force-browser-download = false"));
+        }
+
+        //reload config file
+        config = fileActions.readFile(folderPath, fileName);
+
+        // handle proxy property
+        String proxyProperty = "proxy = \"" + SHAFT.Properties.platform.proxy() + "\"";
+        if (!SHAFT.Properties.platform.proxy().isEmpty()) {
+            if (!config.contains(proxyProperty))
+                fileActions.writeToFile(folderPath, fileName
+                        , config + System.lineSeparator() + proxyProperty);
+        } else {
+            if (config.contains(proxyProperty))
+                fileActions.writeToFile(folderPath, fileName
+                        , config.replace(proxyProperty, ""));
         }
     }
+
 
     @SuppressWarnings("SpellCheckingInspection")
     protected void initializeMobileDesiredCapabilities() {
