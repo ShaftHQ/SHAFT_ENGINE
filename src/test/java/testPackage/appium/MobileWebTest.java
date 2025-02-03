@@ -1,9 +1,7 @@
 package testPackage.appium;
 
 import com.shaft.driver.SHAFT;
-import io.appium.java_client.remote.AutomationName;
 import org.openqa.selenium.By;
-import org.openqa.selenium.Platform;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -53,8 +51,8 @@ public class MobileWebTest {
     @BeforeClass
     public void beforeClass() {
         // common attributes android
-        SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
-        SHAFT.Properties.mobile.set().automationName(AutomationName.ANDROID_UIAUTOMATOR2);
+//        SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
+//        SHAFT.Properties.mobile.set().automationName(AutomationName.ANDROID_UIAUTOMATOR2);
 
         // common attributes ios
 //        SHAFT.Properties.platform.set().targetPlatform(Platform.IOS.name());
