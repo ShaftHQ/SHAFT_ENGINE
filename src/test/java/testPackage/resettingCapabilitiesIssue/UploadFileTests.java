@@ -20,7 +20,7 @@ public class UploadFileTests {
         Validations.assertThat().element(driver.get().getDriver(), By.id("res")).attribute("Text").contains("1 file").perform();
     }
 
-    @Test(enabled = false)
+    @Test
     public void uploadFile_invisibleUploadInput() {
         driver.get().browser().navigateToURL("https://demo.guru99.com/test/upload/");
         WebDriver nativeDriver = driver.get().getDriver();
