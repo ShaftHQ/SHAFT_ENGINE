@@ -344,6 +344,7 @@ public class RequestBuilder {
         session.setLastResponse(response);
         return response;
     }
+
     private String normalizeEndpoint(String endpoint) {
         // Simplified normalization logic to remove digits and trailing slashes
         return endpoint.replaceAll("/\\d+", "").replaceAll("/$", "");
@@ -430,7 +431,6 @@ public class RequestBuilder {
         urlWithParams.setLength(urlWithParams.length() - 1);
         return urlWithParams.toString();
     }
-
 
     /**
      * The type of your authentication method {BASIC, FORM, NONE}
