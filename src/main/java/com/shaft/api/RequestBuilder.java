@@ -11,9 +11,6 @@ import io.restassured.specification.RequestSpecification;
 import lombok.AccessLevel;
 import lombok.Getter;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
