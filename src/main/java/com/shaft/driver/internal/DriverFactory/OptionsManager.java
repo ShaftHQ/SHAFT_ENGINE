@@ -84,7 +84,7 @@ public class OptionsManager {
                     ffOptions.addArguments("-private");
                 }
                 ffOptions.setLogLevel(FirefoxDriverLogLevel.WARN);
-                ffOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
+                ffOptions.setPageLoadStrategy(PageLoadStrategy.NONE);
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
@@ -110,7 +110,7 @@ public class OptionsManager {
                 ieOptions = new InternetExplorerOptions();
                 if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local"))
                     ieOptions.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
-                ieOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
+                ieOptions.setPageLoadStrategy(PageLoadStrategy.NONE);
                 ieOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ieOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
@@ -147,7 +147,7 @@ public class OptionsManager {
                 if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local"))
                     sfOptions.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
                 sfOptions.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
-                sfOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
+                sfOptions.setPageLoadStrategy(PageLoadStrategy.NONE);
                 sfOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 sfOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
@@ -401,7 +401,7 @@ public class OptionsManager {
         options.setExperimentalOption("prefs", chromePreferences);
         options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
         options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
-        options.setPageLoadStrategy(PageLoadStrategy.NORMAL); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
+        options.setPageLoadStrategy(PageLoadStrategy.NONE); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
         options.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
         options.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
         options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
