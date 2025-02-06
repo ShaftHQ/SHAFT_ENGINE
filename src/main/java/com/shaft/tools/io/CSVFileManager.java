@@ -1,10 +1,16 @@
 package com.shaft.tools.io;
 import com.shaft.driver.DriverFactory;
+import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportManagerHelper;
+
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.logging.log4j.Level;
+
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
@@ -54,7 +60,7 @@ public class CSVFileManager {
             }
             ReportManager.logDiscrete("Successfully retrieved all rows from ["+csvFilePath+"].",Level.INFO);
         } catch (Exception e) {
-            FailureReporter.fail("Error while retrieving rows: " + e.getMessage());
+            ReportManager.logDiscrete("Error while retrieving rows: " + e.getMessage(),Level.ERROR);
         }
         return rows;
     }
@@ -65,7 +71,7 @@ public class CSVFileManager {
             ReportManager.logDiscrete("Successfully retrieved column names from ["+csvFilePath+"].",Level.INFO);
             return columns;
         } catch (Exception e) {
-            FailureReporter.fail("Error while retrieving columns: " + e.getMessage());
+            ReportManager.logDiscrete("Error while retrieving columns: " + e.getMessage(),Level.ERROR);
             return Collections.emptyList();
         }
     }
@@ -85,7 +91,7 @@ public class CSVFileManager {
                 ColumnWithRows.put(columns.get(i), columnData);
             }
         } catch (Exception e) {
-            FailureReporter.fail("Error while mapping columns with data: " + e.getMessage());
+            ReportManager.logDiscrete("Error while mapping columns with data: " + e.getMessage(),Level.ERROR);
         }
         return ColumnWithRows;
     }
@@ -94,7 +100,7 @@ public class CSVFileManager {
             List<String> columns = getColumns();
             return columns.getLast();
         } catch (Exception e) {
-            FailureReporter.fail("Error while retrieving the last column: " + e.getMessage());
+            ReportManager.logDiscrete("Error while retrieving the last column: " + e.getMessage(),Level.ERROR);
             return null;
         }
     }
@@ -102,7 +108,7 @@ public class CSVFileManager {
         try {
             return getColumns().get(ColumnNum - 1);
         } catch (Exception e) {
-            FailureReporter.fail("Error while retrieving column name at index " + ColumnNum + ": " + e.getMessage());
+            ReportManager.logDiscrete("Error while retrieving column name at index " + ColumnNum + ": " + e.getMessage(),Level.ERROR);
             return null;
         }
     }
@@ -110,7 +116,7 @@ public class CSVFileManager {
         try {
             return getColumnsWithData().get(ColumnName);
         } catch (Exception e) {
-            FailureReporter.fail("Error while retrieving data for column: " + ColumnName + ". " + e.getMessage());
+            ReportManager.logDiscrete("Error while retrieving data for column: " + ColumnName + ". " + e.getMessage(),Level.ERROR);
             return Collections.emptyList();
         }
     }
@@ -120,7 +126,7 @@ public class CSVFileManager {
             List<String> columns = getColumns();
             return row[columns.indexOf(ColumnName)];
         } catch (Exception e) {
-            FailureReporter.fail("Error while retrieving cell data for Row: " + RowNum + ", Column: " + ColumnName + ". " + e.getMessage());
+            ReportManager.logDiscrete("Error while retrieving cell data for Row: " + RowNum + ", Column: " + ColumnName + ". " + e.getMessage(),Level.ERROR);
             return null;
         }
     }
