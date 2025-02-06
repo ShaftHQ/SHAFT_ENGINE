@@ -15,7 +15,7 @@ public class CSVFileManagerTest {
     @BeforeClass
     public void setUp() {
         // Initialize the CSVFileManager with a test file
-        csvFileManager = new CSVFileManager(SHAFT.Properties.paths.testData() +"TestData.csv");
+        csvFileManager = new CSVFileManager("src/test/resources/testDataFiles/TestData.csv");
     }
 
     @Test
