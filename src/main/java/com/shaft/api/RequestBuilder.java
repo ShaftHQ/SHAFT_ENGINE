@@ -319,7 +319,8 @@ public class RequestBuilder {
      */
     @Step("Perform {this.requestType} request to {this.serviceURI}{this.serviceName}")
     public Response performRequest() {
-        String request = prepareRequestURLWithParameters();
+        String request = serviceURI + serviceName;
+//        String request = prepareRequestURLWithParameters();
         RequestSpecification specs = prepareRequestSpecifications();
 
         setupAuthentication(specs);
@@ -343,6 +344,7 @@ public class RequestBuilder {
         session.setLastResponse(response);
         return response;
     }
+
     private String normalizeEndpoint(String endpoint) {
         // Simplified normalization logic to remove digits and trailing slashes
         return endpoint.replaceAll("/\\d+", "").replaceAll("/$", "");
