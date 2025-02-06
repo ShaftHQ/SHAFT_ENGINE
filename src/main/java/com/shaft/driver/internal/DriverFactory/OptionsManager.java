@@ -84,7 +84,7 @@ public class OptionsManager {
                     ffOptions.addArguments("-private");
                 }
                 ffOptions.setLogLevel(FirefoxDriverLogLevel.WARN);
-                ffOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
+                ffOptions.setPageLoadStrategy(PageLoadStrategy.NONE);
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
@@ -110,7 +110,7 @@ public class OptionsManager {
                 ieOptions = new InternetExplorerOptions();
                 if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local"))
                     ieOptions.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
-                ieOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
+                ieOptions.setPageLoadStrategy(PageLoadStrategy.NONE);
                 ieOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ieOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
@@ -147,7 +147,7 @@ public class OptionsManager {
                 if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local"))
                     sfOptions.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
                 sfOptions.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
-                sfOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
+                sfOptions.setPageLoadStrategy(PageLoadStrategy.NONE);
                 sfOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 sfOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
@@ -176,11 +176,20 @@ public class OptionsManager {
     }
 
     private synchronized void setSeleniumManagerOptions(MutableCapabilities options) {
-        var fileActions = FileActions.getInstance(true);
-        // configure selenium manager to force download chrome binaries
         String folderPath = System.getProperty("user.home") + File.separatorChar + ".cache" + File.separatorChar + "selenium" + File.separatorChar;
         String fileName = "se-config.toml";
+        var fileActions = FileActions.getInstance(true);
 
+        // create config file if it doesn't exist
+        if (!fileActions.doesFileExist(folderPath, fileName, 1)) {
+            fileActions.createFile(folderPath, fileName);
+        }
+
+        // read config file
+        String config = fileActions.readFile(folderPath, fileName);
+
+        // handle force browser download property
+        String forceBrowserDownloadProperty = "force-browser-download = true";
         if (SHAFT.Properties.web.forceBrowserDownload()) {
             if (options instanceof ChromeOptions chromeOptions) {
                 chromeOptions.setBrowserVersion("stable");
@@ -188,21 +197,39 @@ public class OptionsManager {
                 firefoxOptions.setBrowserVersion("stable");
             }
 
-            if (fileActions.doesFileExist(folderPath, fileName, 1)) {
-                String configFileContent = fileActions.readFile(folderPath, fileName);
-                if (!configFileContent.contains("force-browser-download = true"))
+            if (!config.contains(forceBrowserDownloadProperty))
+                if (config.isBlank()) {
+                    fileActions.writeToFile(folderPath, fileName, forceBrowserDownloadProperty);
+                } else {
                     fileActions.writeToFile(folderPath, fileName
-                            , configFileContent + System.lineSeparator() + "force-browser-download = true");
-            } else {
-                fileActions.createFile(folderPath, fileName);
-                fileActions.writeToFile(folderPath, fileName, "force-browser-download = true");
-            }
+                            , config + System.lineSeparator() + forceBrowserDownloadProperty);
+                }
         } else {
-            if (fileActions.doesFileExist(folderPath, fileName, 1)) {
-                fileActions.deleteFile(folderPath + fileName);
-            }
+            if (config.contains("force-browser-download"))
+                fileActions.writeToFile(folderPath, fileName
+                        , config.replaceAll("force-browser-download.+\\Be", ""));
+        }
+
+        //reload config file
+        config = fileActions.readFile(folderPath, fileName);
+
+        // handle proxy property
+        String proxyProperty = "proxy = \"" + SHAFT.Properties.platform.proxy() + "\"";
+        if (!SHAFT.Properties.platform.proxy().isEmpty()) {
+            if (!config.contains(proxyProperty))
+                if (config.isBlank()) {
+                    fileActions.writeToFile(folderPath, fileName, proxyProperty);
+                } else {
+                    fileActions.writeToFile(folderPath, fileName
+                            , config + System.lineSeparator() + proxyProperty);
+                }
+        } else {
+            if (config.contains("proxy"))
+                fileActions.writeToFile(folderPath, fileName
+                        , config.replaceAll("proxy.+\\B", ""));
         }
     }
+
 
     @SuppressWarnings("SpellCheckingInspection")
     protected void initializeMobileDesiredCapabilities() {
@@ -374,7 +401,7 @@ public class OptionsManager {
         options.setExperimentalOption("prefs", chromePreferences);
         options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
         options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
-        options.setPageLoadStrategy(PageLoadStrategy.NORMAL); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
+        options.setPageLoadStrategy(PageLoadStrategy.NONE); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
         options.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
         options.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
         options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);

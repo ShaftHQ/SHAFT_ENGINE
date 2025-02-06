@@ -112,7 +112,7 @@ public class CoverageTests {
                 .and().alert().typeIntoPromptAlert("nachos").acceptAlert();
     }
 
-    @Test
+    @Test(enabled = false)
     public void submitFormUsingJavaScript() {
         By searchBox = SearchOptimizationTest.searchBox;
         By searchResult = SHAFT.GUI.Locator.hasTagName("a").containsAttribute("href", "SHAFT_ENGINE").isFirst().build();

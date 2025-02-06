@@ -83,7 +83,34 @@ public class Actions extends ElementActions {
         return this;
     }
 
-    private enum ActionType {GET_NAME, CLICK, TYPE, DRAG_AND_DROP}
+    @Step("Get DOM attribute")
+    @Override
+    public String getAttribute(@NonNull By locator, @NonNull String attributeName) {
+        return performAction(ActionType.GET_DOM_ATTRIBUTE, locator, attributeName);
+    }
+
+    @Step("Get DOM attribute")
+    public String getDomAttribute(@NonNull By locator, @NonNull String attributeName) {
+        return performAction(ActionType.GET_DOM_ATTRIBUTE, locator, attributeName);
+    }
+
+    @Step("Get DOM property")
+    public String getDomProperty(@NonNull By locator, @NonNull String attributeName) {
+        return performAction(ActionType.GET_DOM_PROPERTY, locator, attributeName);
+    }
+
+    @Step("Get name")
+    public String getName(@NonNull By locator) {
+        return performAction(ActionType.GET_NAME, locator, null);
+    }
+
+    @Step("Get text")
+    @Override
+    public String getText(@NonNull By locator) {
+        return performAction(ActionType.GET_TEXT, locator, null);
+    }
+
+    private enum ActionType {CLICK, TYPE, DRAG_AND_DROP, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT}
 
     private String performAction(ActionType action, By locator, Object data) {
         AtomicReference<String> output = new AtomicReference<>("");
@@ -105,12 +132,12 @@ public class Actions extends ElementActions {
                     throw new MultipleElementsFoundException();
 
                 // identify run type
-                boolean isNotMobileExecution = DriverFactoryHelper.isNotMobileExecution();
+                boolean isMobileNativeExecution = DriverFactoryHelper.isMobileNativeExecution();
 
                 // get accessible name if needed
                 if (SHAFT.Properties.reporting.captureElementName()) {
-                    String fetchedName = "";
-                    if (isNotMobileExecution) {
+                    String fetchedName;
+                    if (!isMobileNativeExecution) {
                         try {
                             fetchedName = foundElements.get().getFirst().getAccessibleName();
                         } catch (UnsupportedCommandException | StaleElementReferenceException throwable) {
@@ -119,9 +146,10 @@ public class Actions extends ElementActions {
                             //ignore
                             //saw it again with mobile web tests
                             // the stale was thrown in an iframe
+                            fetchedName = foundElements.get().getFirst().getDomProperty("text");
                         }
                     } else {
-                        fetchedName = foundElements.get().getFirst().getAttribute("text");
+                        fetchedName = foundElements.get().getFirst().getDomProperty("name");
                     }
                     if (fetchedName != null && !fetchedName.isEmpty())
                         accessibleName.set(fetchedName.trim());
@@ -129,7 +157,7 @@ public class Actions extends ElementActions {
 
                 // scroll to element (avoid relocating the element if already found)
                 // if not mobile else just do the w3c compliant scroll
-                if (isNotMobileExecution) {
+                if (!isMobileNativeExecution) {
                     try {
                         // native Javascript scroll to center (smooth / auto)
                         ((JavascriptExecutor) driver).executeScript("""
@@ -163,7 +191,6 @@ public class Actions extends ElementActions {
                     case TYPE -> {
                         PropertiesHelper.setClearBeforeTypingMode();
                         String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
-
                         switch (clearMode) {
                             case "native":
                                 foundElements.get().getFirst().clear();
@@ -176,13 +203,28 @@ public class Actions extends ElementActions {
                             case "off":
                                 break;
                         }
+                        screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
                         foundElements.get().getFirst().sendKeys((CharSequence) data);
                     }
-                    case GET_NAME -> output.set(foundElements.get().getFirst().getAccessibleName());
                     case DRAG_AND_DROP -> new org.openqa.selenium.interactions.Actions(driver)
                             .dragAndDrop(foundElements.get().getFirst(),
                                     driver.findElement((By) data))
                             .pause(Duration.ofMillis(300)).build().perform();
+                    case GET_DOM_ATTRIBUTE -> output.set(foundElements.get().getFirst().getDomAttribute((String) data));
+                    case GET_DOM_PROPERTY -> output.set(foundElements.get().getFirst().getDomProperty((String) data));
+                    case GET_NAME -> output.set(foundElements.get().getFirst().getAccessibleName());
+                    case GET_TEXT -> {
+                        output.set(foundElements.get().getFirst().getText());
+                        if ((output.get() == null || output.get().isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
+                            output.set(foundElements.get().getFirst().getDomProperty(ElementActionsHelper.TextDetectionStrategy.CONTENT.getValue()));
+                            if (output.get() == null || output.get().isBlank()) {
+                                output.set(foundElements.get().getFirst().getDomProperty(ElementActionsHelper.TextDetectionStrategy.VALUE.getValue()));
+                            }
+                        }
+                        if (output.get() == null) {
+                            output.set("");
+                        }
+                    }
                 }
 
                 // take screenshot if not already taken before action
@@ -213,13 +255,13 @@ public class Actions extends ElementActions {
         String text = element.getText();
         if (!text.isEmpty())
             return text;
-        text = element.getAttribute("value");
+        text = element.getDomProperty("value");
         if (text != null && !text.isEmpty())
             return text;
-        text = element.getAttribute("textContent");
+        text = element.getDomProperty("textContent");
         if (text != null && !text.isEmpty())
             return text;
-        text = element.getAttribute("innerHTML");
+        text = element.getDomProperty("innerHTML");
         if (text != null && !text.isEmpty() && !text.contains("<"))
             return text;
         return "";
@@ -253,7 +295,7 @@ public class Actions extends ElementActions {
     }
 
     private byte[] takeActionScreenshot(WebElement element){
-        if (SHAFT.Properties.visuals.createAnimatedGif())
+        if (SHAFT.Properties.visuals.createAnimatedGif() || "Always".equals(SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot()))
             return captureScreenshot(element, true);
         return null;
     }
@@ -379,7 +421,7 @@ public class Actions extends ElementActions {
 
     private String highlightElementAndReturnDefaultStyle(WebDriver driver, WebElement element, JavascriptExecutor js,
                                                          String highlightedElementStyle) {
-        String regularElementStyle = element.getAttribute("style");
+        String regularElementStyle = element.getDomProperty("style");
         if (regularElementStyle != null && !regularElementStyle.isEmpty()) {
             js.executeScript("arguments[0].style.cssText = arguments[1];", element,
                     regularElementStyle + highlightedElementStyle);

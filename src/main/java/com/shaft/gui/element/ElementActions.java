@@ -122,23 +122,6 @@ public class ElementActions extends FluentWebDriverAction {
      */
     public ElementActions click(By elementLocator) {
         new com.shaft.gui.element.internal.Actions(driverFactoryHelper).click(elementLocator);
-//        if (DriverFactoryHelper.isMobileNativeExecution()) {
-//            new TouchActions(driverFactoryHelper).tap(elementLocator);
-//        } else {
-//            //rewriting click logic to optimize performance and fully support shadowDom elements
-//            // get screenshot before doing anything to be attached in animated GIF (if any) or if screenshots are set to always
-//            List<Object> screenshot = elementActionsHelper.takeScreenshot(driver, elementLocator, "click", null, true);
-//            ElementInformation elementInformation = new ElementInformation();
-//            try {
-//                // try performing move to element followed by click
-//                elementInformation = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementLocator, ElementAction.CLICK));
-//            } catch (Throwable throwable) {
-//                elementActionsHelper.failAction(driver, elementLocator, throwable);
-//            }
-//            // get element name
-//            var elementName = elementInformation.getElementName();
-//            elementActionsHelper.passAction(driver, elementLocator, "", screenshot, elementName);
-//        }
         return this;
     }
 
@@ -273,46 +256,6 @@ public class ElementActions extends FluentWebDriverAction {
      */
     public ElementActions dragAndDrop(By sourceElementLocator, By destinationElementLocator) {
         new com.shaft.gui.element.internal.Actions(driverFactoryHelper).dragAndDrop(sourceElementLocator, destinationElementLocator);
-//        try {
-//            Exception exception = new Exception();
-//            var elementName = elementActionsHelper.getElementName(driver, sourceElementLocator);
-//            // replaced canFindUniqueElementForInternalUse, with countFoundElements for
-//            // destinationElement to bypass the check for element visibility
-//            // get source element start location
-//            String startLocation = ((WebElement) elementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
-//            // attempt to perform drag and drop
-//            try {
-//                elementActionsHelper.dragAndDropUsingJavascript(driver, sourceElementLocator, destinationElementLocator);
-//            } catch (Exception rootCauseException) {
-//                exception = rootCauseException;
-//                ReportManagerHelper.logDiscrete(rootCauseException);
-//            }
-//            // get source element end location
-//            String endLocation = ((WebElement) elementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
-//            String reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
-//            if (!endLocation.equals(startLocation)) {
-//                elementActionsHelper.passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementName);
-//            } else {
-//                try {
-//                    elementActionsHelper.dragAndDropUsingActions(driver, sourceElementLocator, destinationElementLocator);
-//                } catch (Exception rootCauseException) {
-//                    if (!exception.equals(new Exception())) {
-//                        rootCauseException.addSuppressed(exception);
-//                    }
-//                    elementActionsHelper.failAction(driver, sourceElementLocator, rootCauseException);
-//                }
-//                // get source element end location
-//                endLocation = ((WebElement) elementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
-//                if (!endLocation.equals(startLocation)) {
-//                    elementActionsHelper.passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementName);
-//                } else {
-//                    elementActionsHelper.failAction(driver, reportMessage, sourceElementLocator);
-//                }
-//            }
-//        } catch (Throwable throwable) {
-//            // has to be throwable to catch assertion errors in case element was not found
-//            elementActionsHelper.failAction(driver, sourceElementLocator, throwable);
-//        }
         return this;
     }
 
@@ -351,60 +294,8 @@ public class ElementActions extends FluentWebDriverAction {
         return this;
     }
 
-    /**
-     * Get the value of the given attribute of the element. Will return the current
-     * value, even if this has been modified after the page has been loaded.
-     * <p>
-     * More exactly, this method will return the value of the property with the
-     * given name, if it exists. If it does not, then the value of the attribute
-     * with the given name is returned. If neither exists, null is returned.
-     * <p>
-     * The "style" attribute is converted as best can be to a text representation
-     * with a trailing semicolon.
-     * <p>
-     * The following are deemed to be "boolean" attributes, and will return either
-     * "true" or null:
-     * <p>
-     * async, autofocus, autoplay, checked, compact, complete, controls, declare,
-     * defaultchecked, defaultselected, defer, disabled, draggable, ended,
-     * formnovalidate, hidden, indeterminate, iscontenteditable, ismap, itemscope,
-     * loop, multiple, muted, nohref, noresize, noshade, novalidate, nowrap, open,
-     * paused, pubdate, readonly, required, reversed, scoped, seamless, seeking,
-     * selected, truespeed, willvalidate
-     * <p>
-     * Finally, the following commonly mis-capitalized attribute/property names are
-     * evaluated as expected:
-     * <p>
-     * If the given name is "class", the "className" property is returned. If the
-     * given name is "readonly", the "readOnly" property is returned. Note: The
-     * reason for this behavior is that users frequently confuse attributes and
-     * properties. If you need to do something more precise, e.g., refer to an
-     * attribute even when a property of the same name exists, then you should
-     * evaluate Javascript to obtain the result you desire.
-     *
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc.)
-     * @param attributeName  the target attribute of the webElement under test
-     * @return the value of the target attribute of the webElement under test
-     */
-    @SuppressWarnings("SpellCheckingInspection")
     public String getAttribute(By elementLocator, String attributeName) {
-//        ReportManager.logDiscrete("Attempting to getAttribute \"" + attributeName + "\" from elementLocator \"" + elementLocator + "\".");
-        try {
-            var elementInformation = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementLocator, ElementAction.GET_ATTRIBUTE, attributeName));
-            try {
-                String elementAttribute = elementInformation.getActionResult();
-                elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementAttribute, null, elementInformation.getElementName());
-                return elementAttribute;
-            } catch (UnsupportedCommandException rootCauseException) {
-                elementActionsHelper.failAction(driver, elementLocator, rootCauseException);
-                return null;
-            }
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
-        }
-        return null;
+        return new com.shaft.gui.element.internal.Actions(driverFactoryHelper).getAttribute(elementLocator, attributeName);
     }
 
     /**
@@ -444,39 +335,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return the text value of the target webElement
      */
     public String getText(By elementLocator) {
-        try {
-            var elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
-            var elementName = elementInformation.getElementName();
-            String elementText;
-            try {
-                elementText = (elementInformation.getFirstElement()).getText();
-            } catch (WebDriverException webDriverException) {
-                elementText = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementInformation.getLocator(), ElementAction.GET_TEXT)).getActionResult();
-            }
-            if ((elementText == null || elementText.isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
-                try {
-                    elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.CONTENT.getValue());
-                } catch (WebDriverException webDriverException) {
-                    elementText = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementInformation.getLocator(), ElementAction.GET_CONTENT)).getActionResult();
-                }
-            }
-            if ((elementText == null || elementText.isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
-                try {
-                    elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.VALUE.getValue());
-                } catch (WebDriverException webDriverException) {
-                    elementText = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementInformation.getLocator(), ElementAction.GET_VALUE)).getActionResult();
-                }
-            }
-            if (elementText == null) {
-                elementText = "";
-            }
-            elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementText, null, elementName);
-            return elementText;
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
-        }
-        return null;
+        return new com.shaft.gui.element.internal.Actions(driverFactoryHelper).getText(elementLocator);
     }
 
     /**
@@ -590,7 +449,7 @@ public class ElementActions extends FluentWebDriverAction {
 
                 for (int i = 0; i < availableOptionsList.size(); ++i) {
                     String visibleText = availableOptionsList.get(i).getText();
-                    String value = availableOptionsList.get(i).getAttribute("value");
+                    String value = availableOptionsList.get(i).getDomProperty("value");
                     if (visibleText.trim().equals(valueOrVisibleText) || Objects.requireNonNull(value).trim().equals(valueOrVisibleText)) {
                         (new Select((WebElement) elementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).selectByIndex(i);
                         elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), valueOrVisibleText, null, elementName);
@@ -727,23 +586,6 @@ public class ElementActions extends FluentWebDriverAction {
 
     public ElementActions type(By elementLocator, CharSequence text) {
         new com.shaft.gui.element.internal.Actions(driverFactoryHelper).type(elementLocator, text);
-//        if (text instanceof String stringText) {
-//            try {
-//                ElementInformation elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
-//                String actualTextAfterTyping = elementActionsHelper.typeWrapper(driver, elementInformation, stringText);
-//                var elementName = elementInformation.getElementName();
-//                if (actualTextAfterTyping.equals(stringText)) {
-//                    elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), stringText, null, elementName);
-//                } else {
-//                    elementActionsHelper.failAction(driver, "Expected to type: \"" + stringText + "\", but ended up with: \"" + actualTextAfterTyping + "\"", elementLocator);
-//                }
-//            } catch (Throwable throwable) {
-//                elementActionsHelper.failAction(driver, elementLocator, throwable);
-//            }
-//            return this;
-//        } else {
-//            return new com.shaft.gui.element.internal.Actions(driverFactoryHelper).type(elementLocator, text);
-//        }
         return this;
     }
 
