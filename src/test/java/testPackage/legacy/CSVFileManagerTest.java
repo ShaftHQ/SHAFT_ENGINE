@@ -18,7 +18,7 @@ public class CSVFileManagerTest {
         csvFileManager = new CSVFileManager("src/test/resources/testDataFiles/TestData.csv");
     }
 
-    @Test
+    @Test(priority = 1)
     public void testGetRows() {
         List<String[]> rows = csvFileManager.getRows();
         for (String[] row : rows) {
@@ -34,7 +34,7 @@ public class CSVFileManagerTest {
         Assert.assertTrue(!columns.isEmpty(), "Columns should not be empty.");
     }
 
-    @Test
+    @Test(priority = 2)
     public void testGetColumnsWithData() {
         Map<String, List<String>> columnsWithData = csvFileManager.getColumnsWithData();
         System.out.println("columnsWithData : " + columnsWithData);
