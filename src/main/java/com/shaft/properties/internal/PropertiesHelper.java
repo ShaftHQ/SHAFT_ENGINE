@@ -14,6 +14,7 @@ import java.awt.*;
 import java.io.File;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.List;
 
 public class PropertiesHelper {
     private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "src/main/resources/properties/default";
@@ -22,6 +23,8 @@ public class PropertiesHelper {
     public static void initialize() {
         //initialize default properties
         initializeDefaultProperties();
+        //initialize allure.properties
+        initializeAllureProperties();
         //attach property files
         attachPropertyFiles();
         //load properties
@@ -57,6 +60,7 @@ public class PropertiesHelper {
         Properties.timeouts = ConfigFactory.create(Timeouts.class);
         Properties.performance = ConfigFactory.create(Performance.class);
         Properties.lambdaTest = ConfigFactory.create(LambdaTest.class);
+        Properties.allureResults = ConfigFactory.create(AllureResults.class);
     }
 
     public static void postProcessing() {
@@ -199,6 +203,29 @@ public class PropertiesHelper {
         ReportManager.logDiscrete("Reading properties directory: " + TARGET_PROPERTIES_FOLDER_PATH);
         FileUtils.listFiles(new File(TARGET_PROPERTIES_FOLDER_PATH), new String[]{"properties"},
                 false).forEach(propertyFile -> ReportManager.logDiscrete("Loading properties file: " + propertyFile));
+    }
+
+    private static void initializeAllureProperties() {
+        URL allurePropertiesFolder = PropertyFileManager.class.getResource(DEFAULT_PROPERTIES_FOLDER_PATH.replace("src/main", "") + "/");
+        var allurePropertiesFolderPath = "";
+        if (allurePropertiesFolder != null) {
+            allurePropertiesFolderPath = allurePropertiesFolder.getFile();
+        } else {
+            allurePropertiesFolderPath = DEFAULT_PROPERTIES_FOLDER_PATH;
+        }
+
+        boolean isExternalRun = allurePropertiesFolderPath.contains("file:");
+
+        var finalPropertiesFolderPath = allurePropertiesFolderPath;
+
+        String allureFilePath = "/allure.properties";
+        if (!FileActions.getInstance(true).doesFileExist("src/test/resources" + allureFilePath)) {
+            if (isExternalRun) {
+                FileActions.getInstance(true).copyFileFromJar(finalPropertiesFolderPath, "src/test/resources/", allureFilePath.replace("/", ""));
+            } else {
+                FileActions.getInstance(true).copyFile(finalPropertiesFolderPath + allureFilePath, "src/test/resources/" + allureFilePath);
+            }
+        }
     }
 
     private static void overridePropertiesForMaximumPerformanceMode() {
