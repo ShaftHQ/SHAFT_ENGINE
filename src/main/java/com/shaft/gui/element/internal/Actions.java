@@ -216,9 +216,9 @@ public class Actions extends ElementActions {
                     case GET_TEXT -> {
                         output.set(foundElements.get().getFirst().getText());
                         if ((output.get() == null || output.get().isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
-                            output.set(foundElements.get().getFirst().getDomAttribute(ElementActionsHelper.TextDetectionStrategy.CONTENT.getValue()));
+                            output.set(foundElements.get().getFirst().getDomProperty(ElementActionsHelper.TextDetectionStrategy.CONTENT.getValue()));
                             if (output.get() == null || output.get().isBlank()) {
-                                output.set(foundElements.get().getFirst().getDomAttribute(ElementActionsHelper.TextDetectionStrategy.VALUE.getValue()));
+                                output.set(foundElements.get().getFirst().getDomProperty(ElementActionsHelper.TextDetectionStrategy.VALUE.getValue()));
                             }
                         }
                         if (output.get() == null) {
