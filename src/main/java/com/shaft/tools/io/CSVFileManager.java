@@ -44,6 +44,12 @@ public class CSVFileManager {
         }
 
     }
+    /**
+     * Retrieves all rows from the CSV file as a list of string arrays.
+     * Each row is represented as an array of strings.
+     *
+     * @return a list of string arrays, where each array represents a row in the CSV file.
+     */
     public List<String[]> getRows(){
         rows = new ArrayList<>();
         try {
@@ -60,7 +66,11 @@ public class CSVFileManager {
         }
         return rows;
     }
-
+    /**
+     * Retrieves the column names from the CSV file.
+     *
+     * @return a list of column names as strings.
+     */
     public List<String> getColumns(){
         try {
             List<String> columns = new ArrayList<>(records.getHeaderNames());
@@ -71,6 +81,11 @@ public class CSVFileManager {
             return Collections.emptyList();
         }
     }
+    /**
+     * Maps each column name to its corresponding list of row data.
+     *
+     * @return a map where keys are column names and values are lists of column data.
+     */
     public Map<String, List<String>> getColumnsWithData() {
         ColumnWithRows = new HashMap<>();
         try {
@@ -91,6 +106,11 @@ public class CSVFileManager {
         }
         return ColumnWithRows;
     }
+    /**
+     * Retrieves the name of the last column in the CSV file.
+     *
+     * @return the name of the last column, or null if an error occurs.
+     */
     public String getLastColumn(){
         try {
             List<String> columns = getColumns();
@@ -100,6 +120,12 @@ public class CSVFileManager {
             return null;
         }
     }
+    /**
+     * Retrieves the name of a specific column based on its index.
+     *
+     * @param ColumnNum the 1-based index of the column.
+     * @return the column name at the specified index, or null if an error occurs.
+     */
     public String getSpecificColumnName(int ColumnNum){
         try {
             return getColumns().get(ColumnNum - 1);
@@ -108,6 +134,12 @@ public class CSVFileManager {
             return null;
         }
     }
+    /**
+     * Retrieves all data for a specific column.
+     *
+     * @param ColumnName the name of the column.
+     * @return a list of strings containing the column data, or an empty list if an error occurs.
+     */
     public List<String> getSpecificColumnData(String ColumnName){
         try {
             return getColumnsWithData().get(ColumnName);
@@ -116,6 +148,27 @@ public class CSVFileManager {
             return Collections.emptyList();
         }
     }
+    /**
+     * Retrieves all data for a specific column.
+     *
+     * @param ColumnIndex the 1-based index of the column.
+     * @return a list of strings containing the column data, or an empty list if an error occurs.
+     */
+    public List<String> getSpecificColumnData(int ColumnIndex){
+        try {
+            return getColumnsWithData().get(getSpecificColumnName(ColumnIndex-1));
+        } catch (Exception e) {
+            ReportManager.logDiscrete("Error while retrieving data for column: " + getSpecificColumnName(ColumnIndex-1) + ". " + e.getMessage(),Level.ERROR);
+            return Collections.emptyList();
+        }
+    }
+    /**
+     * Retrieves a specific cell's data based on row number and column name.
+     *
+     * @param RowNum the 0-based index of the row.
+     * @param ColumnName the name of the column.
+     * @return the data in the specified cell, or null if an error occurs.
+     */
     public String getCellData(int RowNum, String ColumnName) {
         try {
             String[] row = getRows().get(RowNum);
@@ -123,6 +176,23 @@ public class CSVFileManager {
             return row[columns.indexOf(ColumnName)];
         } catch (Exception e) {
             ReportManager.logDiscrete("Error while retrieving cell data for Row: " + RowNum + ", Column: " + ColumnName + ". " + e.getMessage(),Level.ERROR);
+            return null;
+        }
+    }
+    /**
+     * Retrieves a specific cell's data based on row number and column name.
+     *
+     * @param RowNum the 0-based index of the row.
+     * @param ColumnIndex the 1-based index of the column.
+     * @return the data in the specified cell, or null if an error occurs.
+     */
+    public String getCellData(int RowNum, int ColumnIndex) {
+        try {
+            String[] row = getRows().get(RowNum);
+            List<String> columns = getColumns();
+            return row[columns.indexOf(getSpecificColumnName(ColumnIndex-1))];
+        } catch (Exception e) {
+            ReportManager.logDiscrete("Error while retrieving cell data for Row: " + RowNum + ", Column: " + getSpecificColumnName(ColumnIndex-1) + ". " + e.getMessage(),Level.ERROR);
             return null;
         }
     }
