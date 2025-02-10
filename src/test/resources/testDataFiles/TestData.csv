@@ -1,4 +1,4 @@
-barCode,aName,clientName,amountCalculated,amountCalculatedPayed,discount,totalDiscount,amountPayed,subTotal,subTotalDiscount,subNetTotal,VATID,amountLeft,subQuantity,price,Tax
-1234567890,!InvalidName,123456,-100,-200,-50,-150,-250,-500,-600,-700,-800,-900,-5,-10,0.15
-1061998,NameWith255Characters....................................................................................,Client@123,INVALID,INVALID,150067,1500,INVALID,INVALID,INVALID,INVALID,INVALID,INVALID,INVALID,INVALID,2.5
-barcode-001,@Name!,Client!123,10000000000,10000000000,26500,9999999999,500000000000000000,7000,8000,10000,20000000000000000000,30000,-10,1000000,0.5
+barCode,aName,clientName,amountCalculated,amountCalculatedPayed,discount,totalDiscount
+1234567890,!InvalidName,123456,-100,-200,-50,-150
+1061998,NameWith255Characters....................................................................................,Client@123,INVALID,INVALID,150067,1500
+barcode-001,@Name!,Client!123,10000000000,10000000000,26500,9999999999

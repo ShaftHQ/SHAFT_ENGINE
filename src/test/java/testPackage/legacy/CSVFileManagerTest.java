@@ -1,6 +1,5 @@
 package testPackage.legacy;
 
-import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.CSVFileManager;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;

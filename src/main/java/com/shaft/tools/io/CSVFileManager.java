@@ -1,16 +1,12 @@
 package com.shaft.tools.io;
 import com.shaft.driver.DriverFactory;
-import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.internal.FailureReporter;
-import com.shaft.tools.io.internal.ReportManagerHelper;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.logging.log4j.Level;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
@@ -45,7 +41,6 @@ public class CSVFileManager {
         } catch (IOException | OutOfMemoryError e) {
             FailureReporter.fail(this.getClass(),"Couldn't find the desired file. [" + this.csvFilePath + "] ",e);
             ReportManager.logDiscrete("Couldn't find the desired file. [" + this.csvFilePath + "] ", Level.ERROR);
-            e.printStackTrace();
         }
 
     }
