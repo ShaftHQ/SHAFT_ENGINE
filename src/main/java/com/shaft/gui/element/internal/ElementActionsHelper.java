@@ -148,8 +148,6 @@ public class ElementActionsHelper {
                                 FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", invalidSelectorException);
                             }
                         }
-                        try (ExecutorService myExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
-                            myExecutor.submit(() -> {
                                 // BLOCK #2 :: GETTING THE ELEMENT LOCATION (RECT)
                                 try {
                                     elementInformation.setElementRect(targetElement[0].getRect());
@@ -225,11 +223,6 @@ public class ElementActionsHelper {
                                     }
                                     elementInformation.setElementName(elementName);
                                 }
-                            }).get();
-                        } catch (Exception e) {
-                            throw new RuntimeException(e);
-                        }
-
                         elementInformation.setFirstElement(targetElement[0]);
                         elementInformation.setLocator(elementLocator);
 
