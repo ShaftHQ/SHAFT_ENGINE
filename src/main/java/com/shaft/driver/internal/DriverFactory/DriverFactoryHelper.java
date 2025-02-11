@@ -41,6 +41,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 public class DriverFactoryHelper {
     private static final String WEB_DRIVER_MANAGER_MESSAGE = "Identifying OS/Driver combination. Please note that if a new browser/driver executable will be downloaded it may take some time depending on your connection...";
@@ -187,10 +188,13 @@ public class DriverFactoryHelper {
                         isRemoteConnectionEstablished = true;
                     } catch (SessionNotCreatedException |
                              URISyntaxException sessionNotCreatedException2) {
-                        // do nothing
-                        exception = sessionNotCreatedException2;
-                        ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
-                        ReportManagerHelper.logDiscrete(sessionNotCreatedException2, Level.DEBUG);
+                        if (!Pattern.compile(".*Could not find a connected \\w+ device.*").matcher(sessionNotCreatedException1.getMessage()).find()
+                            && !Pattern.compile(".*The application at .* does not exist or is not accessible.*").matcher(sessionNotCreatedException1.getMessage()).find()) {
+                            // do nothing
+                            exception = sessionNotCreatedException2;
+                        }
+                            ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
+                            ReportManagerHelper.logDiscrete(sessionNotCreatedException2, Level.DEBUG);
                     }
                 }
             }
