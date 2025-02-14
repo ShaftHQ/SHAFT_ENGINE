@@ -196,6 +196,143 @@ public class CSVFileManager {
             return null;
         }
     }
+    /**
+     * Retrieves the name of the first column in the CSV file.
+     *
+     * @return the name of the first column,or null if an error occurs.
+     */
+    public String getFirstColumn(){
+        try {
+            List<String> columns = getColumns();
+            ReportManager.logDiscrete("Successfully retrieved the first column name from ["+csvFilePath+"].",Level.INFO);
+            return columns.getFirst();
+        } catch (Exception e) {
+            ReportManager.logDiscrete("Error while retrieving the first column: " + e.getMessage(),Level.ERROR);
+            return null;
+        }
+    }
+    /**
+     * Retrieves the minimum value from a specific column.
+     *
+     * @param columnName the name of the column.
+     * @return the minimum value in the column, or Double.NaN if an error occurs.
+     */
+    public double getMinCellValue(String columnName) {
+        try {
+            List<String> columnData = getColumnsWithData().get(columnName);
+            double min = Double.MAX_VALUE;
+            for (String value : columnData) {
+                double num = Double.parseDouble(value);
+                if (num < min) {
+                    min = num;
+                }
+            }
+            ReportManager.logDiscrete("Successfully retrieved Min cell value= "+min+" of column : "+columnName+" from ["+csvFilePath+"].",Level.INFO);
+            return min;
+        } catch (Exception e) {
+            ReportManager.logDiscrete("Error calculating min value for column: " + columnName + ". " + e.getMessage(), Level.ERROR);
+            return Double.NaN;
+        }
+    }
+    /**
+     * Retrieves the minimum value from a specific column.
+     *
+     * @param columnIndex the index of the column.
+     * @return the minimum value in the column, or Double.NaN if an error occurs.
+     */
+    public double getMinCellValue(int columnIndex) {
+        try {
+            List<String> columnData = getColumnsWithData().get(getColumns().get(columnIndex));
+            double min = Double.MAX_VALUE;
+            for (String value : columnData) {
+                double num = Double.parseDouble(value);
+                if (num < min) {
+                    min = num;
+                }
+            }
+            ReportManager.logDiscrete("Successfully retrieved Min cell value= "+min+" of column : "+getColumns().get(columnIndex)+" from ["+csvFilePath+"].",Level.INFO);
+            return min;
+        } catch (Exception e) {
+            ReportManager.logDiscrete("Error calculating min value for column: " + getColumns().get(columnIndex) + ". " + e.getMessage(), Level.ERROR);
+            return Double.NaN;
+        }
+    }
+    /**
+     * Retrieves the maximum value from a specific column.
+     *
+     * @param columnName the name of the column.
+     * @return the maximum value in the column, or Double.NaN if an error occurs.
+     */
+    public double getMaxCellValue(String columnName) {
+        try {
+            List<String> columnData = getColumnsWithData().get(columnName);
+            double max = Double.MIN_VALUE;
+            for (String value : columnData) {
+                double num = Double.parseDouble(value);
+                if (num > max) {
+                    max = num;
+                }
+            }
+            ReportManager.logDiscrete("Successfully retrieved Max cell value= "+max+" of column : "+columnName+" from ["+csvFilePath+"].",Level.INFO);
+            return max;
+        } catch (Exception e) {
+            ReportManager.logDiscrete("Error calculating min value for column: " + columnName + ". " + e.getMessage(), Level.ERROR);
+            return Double.NaN;
+        }
+    }
+    /**
+     * Retrieves the maximum value from a specific column.
+     *
+     * @param columnIndex the name of the column.
+     * @return the maximum value in the column, or Double.NaN if an error occurs.
+     */
+    public double getMaxCellValue(int columnIndex) {
+        try {
+            List<String> columnData = getColumnsWithData().get(getColumns().get(columnIndex));
+            double max = Double.MIN_VALUE;
+            for (String value : columnData) {
+                double num = Double.parseDouble(value);
+                if (num > max) {
+                    max = num;
+                }
+            }
+            ReportManager.logDiscrete("Successfully retrieved Max cell value = "+max+" of column : "+getColumns().get(columnIndex)+" from ["+csvFilePath+"].",Level.INFO);
+            return max;
+        } catch (Exception e) {
+            ReportManager.logDiscrete("Error calculating min value for column: " + getColumns().get(columnIndex) + ". " + e.getMessage(), Level.ERROR);
+            return Double.NaN;
+        }
+    }
+    /**
+     * Retrieves the total count of cells in a specific column.
+     *
+     * @param columnName the name of the column.
+     * @return the number of cells in the column, or 0 if an error occurs.
+     */
+    public int getCellCount(String columnName) {
+        try {
+            ReportManager.logDiscrete("Successfully retrieved cell count of column : "+columnName+" from ["+csvFilePath+"].",Level.INFO);
+            return getColumnsWithData().get(columnName).size();
+        } catch (Exception e) {
+            ReportManager.logDiscrete("Error calculating count for column: " + columnName + ". " + e.getMessage(), Level.ERROR);
+            return 0;
+        }
+    }
+    /**
+     * Retrieves the total count of cells in a specific column.
+     *
+     * @param columnIndex the name of the column.
+     * @return the number of cells in the column, or 0 if an error occurs.
+     */
+    public int getCellCount(int columnIndex) {
+        try {
+            ReportManager.logDiscrete("Successfully retrieved cell count of column : "+getColumns().get(columnIndex)+" from ["+csvFilePath+"].",Level.INFO);
+            return getColumnsWithData().get(getColumns().get(columnIndex)).size();
+        } catch (Exception e) {
+            ReportManager.logDiscrete("Error calculating count for column: " + getColumns().get(columnIndex) + ". " + e.getMessage(), Level.ERROR);
+            return 0;
+        }
+    }
     private void initializeVariables() {
         reader = null;
         RowReader = null;
