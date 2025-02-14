@@ -70,4 +70,22 @@ public class CSVFileManagerTest {
         Assert.assertNotNull(cellData, "Cell data should not be null.");
         Assert.assertEquals(cellData, "1061998", "Cell data should match the expected value.");
     }
+    @Test
+    public void testCellCount() {
+        String cellData = String.valueOf(csvFileManager.getCellCount("totalDiscount"));
+        System.out.println(cellData);
+        Assert.assertNotNull(cellData, "Cell data should not be null.");
+    }
+    @Test
+    public void testCellMax() {
+        String cellData = String.valueOf(csvFileManager.getMaxCellValue("totalDiscount"));
+        System.out.println(cellData);
+        Assert.assertNotNull(cellData, "Cell data should not be null.");
+    }
+    @Test
+    public void testCellMin() {
+        String cellData = String.valueOf(csvFileManager.getMinCellValue("totalDiscount"));
+        System.out.println(cellData);
+        Assert.assertNotNull(cellData, "Cell data should not be null.");
+    }
 }
