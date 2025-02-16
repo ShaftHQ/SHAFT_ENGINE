@@ -769,7 +769,6 @@ public class FileActions {
         try {
             FileUtils.copyFile(sourceFile, destinationFile);
         } catch (IOException rootCauseException) {
-
             failAction(rootCauseException);
         }
     }
