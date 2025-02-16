@@ -165,7 +165,8 @@ public class ReportManagerHelper {
 
     private static void initializeLogger() {
         // delete previous run execution log
-        FileActions.getInstance(true).deleteFile(System.getProperty("appender.file.fileName"));
+        if (System.getProperty("appender.file.fileName") != null)
+            FileActions.getInstance(true).deleteFile(System.getProperty("appender.file.fileName"));
         // initialize
         Configurator.initialize(null, PropertyFileManager.getCUSTOM_PROPERTIES_FOLDER_PATH() + "/log4j2.properties");
         logger = LogManager.getLogger(ReportManager.class.getName());

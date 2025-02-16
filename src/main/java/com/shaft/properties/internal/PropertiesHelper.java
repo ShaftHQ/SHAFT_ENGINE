@@ -58,6 +58,8 @@ public class PropertiesHelper {
         Properties.performance = ConfigFactory.create(Performance.class);
         Properties.lambdaTest = ConfigFactory.create(LambdaTest.class);
         System.setProperty("rp.properties.path", SHAFT.Properties.paths.properties());
+        System.setProperty("webdriver.http.factory", "jdk-http-client");
+        System.setProperty("log4j.configurationFile", SHAFT.Properties.paths.properties() + "log4j2.properties");
     }
 
     public static void postProcessing() {
@@ -162,9 +164,6 @@ public class PropertiesHelper {
     }
 
     private static void initializeDefaultProperties() {
-        //  https://www.selenium.dev/blog/2022/using-java11-httpclient/
-        System.setProperty("webdriver.http.factory", "jdk-http-client");
-
         URL propertiesFolder = PropertyFileManager.class.getResource(DEFAULT_PROPERTIES_FOLDER_PATH.replace("src/main", "") + "/");
         var propertiesFolderPath = "";
         if (propertiesFolder != null) {
