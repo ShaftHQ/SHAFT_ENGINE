@@ -184,7 +184,7 @@ public class PropertiesHelper {
 
         // override target properties only if they do not exist
         var finalPropertiesFolderPath = propertiesFolderPath;
-        Arrays.asList("/cucumber.properties", "/customWebdriverCapabilities.properties", "/log4j2.properties", "/TestNG.properties", "/reportPortal.properties")
+        Arrays.asList("/cucumber.properties", "/customWebdriverCapabilities.properties", "/log4j2.properties", "/TestNG.properties", "/reportportal.properties")
                 .forEach(file -> {
                     if (!fileActions.doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + file)) {
                         if (isExternalRun) {

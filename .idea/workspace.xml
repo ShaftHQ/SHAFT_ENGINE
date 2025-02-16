@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="18518336-ca78-4e29-8d5d-89069ba10c30" name="Changes" comment="tracing pesky null">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+    <list default="true" id="18518336-ca78-4e29-8d5d-89069ba10c30" name="Changes" comment="exposing pesky null">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/shaft/properties/internal/PropertiesHelper.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/shaft/properties/internal/PropertiesHelper.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -425,15 +426,7 @@
       <workItem from="1739648091636" duration="914000" />
       <workItem from="1739686981872" duration="13793000" />
       <workItem from="1739703170310" duration="601000" />
-      <workItem from="1739703786576" duration="3169000" />
-    </task>
-    <task id="LOCAL-00089" summary="fixing delete assertion point">
-      <option name="closed" value="true" />
-      <created>1726084263059</created>
-      <option name="number" value="00089" />
-      <option name="presentableId" value="LOCAL-00089" />
-      <option name="project" value="LOCAL" />
-      <updated>1726084263059</updated>
+      <workItem from="1739703786576" duration="3530000" />
     </task>
     <task id="LOCAL-00090" summary="creating new tests">
       <option name="closed" value="true" />
@@ -819,7 +812,15 @@
       <option name="project" value="LOCAL" />
       <updated>1739706828436</updated>
     </task>
-    <option name="localTasksCounter" value="138" />
+    <task id="LOCAL-00138" summary="exposing pesky null">
+      <option name="closed" value="true" />
+      <created>1739707170353</created>
+      <option name="number" value="00138" />
+      <option name="presentableId" value="LOCAL-00138" />
+      <option name="project" value="LOCAL" />
+      <updated>1739707170353</updated>
+    </task>
+    <option name="localTasksCounter" value="139" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -851,7 +852,6 @@
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
     <option name="CHECK_NEW_TODO" value="false" />
-    <MESSAGE value="add custom message for invalid url" />
     <MESSAGE value="release prep 8.4.20241001-beta" />
     <MESSAGE value="fix javadoc generation" />
     <MESSAGE value="fix allure history and trends generation&#10;&#10;-allure.accumulateHistory=true&#10;will now behave as expected, saving execution history and showing relevant trends to help identify flaky tests.&#10;&#10;-allure.accumulateReports=true&#10;will now be more relevant, as the report will hold details of the current test run only; previous run details will no longer show in the retries tab." />
@@ -876,7 +876,8 @@
     <MESSAGE value="adding more null checks" />
     <MESSAGE value="removing construction method" />
     <MESSAGE value="tracing pesky null" />
-    <option name="LAST_COMMIT_MESSAGE" value="tracing pesky null" />
+    <MESSAGE value="exposing pesky null" />
+    <option name="LAST_COMMIT_MESSAGE" value="exposing pesky null" />
     <option name="OPTIMIZE_IMPORTS_BEFORE_PROJECT_COMMIT" value="true" />
     <option name="REFORMAT_BEFORE_PROJECT_COMMIT" value="true" />
   </component>
