@@ -99,6 +99,10 @@ public class ScreenshotHelper {
     }
 
     public static byte[] makeFullScreenshot(WebDriver driver, WebElement... skipElements) throws IOException {
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            ReportManagerHelper.logDiscrete("Full page screenshots are not supported for mobile native applications. Taking viewport screenshot.", Level.WARN);
+            return takeViewportScreenshot(driver, 6);
+        }
         if (driver instanceof FirefoxDriver firefoxDriver) {
             return firefoxDriver.getFullPageScreenshotAs(OutputType.BYTES);
         } else if (driver instanceof HasCdp cdpDriver) {
