@@ -17,6 +17,7 @@ import io.qameta.allure.Allure;
 import lombok.Getter;
 import org.testng.*;
 import org.testng.annotations.ITestAnnotation;
+import org.testng.internal.IResultListener2;
 import org.testng.xml.XmlSuite;
 import org.testng.xml.XmlTest;
 
@@ -31,7 +32,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 public class TestNGListener implements IAlterSuiteListener, IAnnotationTransformer,
-        IExecutionListener, ISuiteListener, IInvokedMethodListener, ITestListener {
+        IExecutionListener, ISuiteListener, IInvokedMethodListener, ITestListener, IResultListener2 {
 
     private static final List<ITestNGMethod> passedTests = new ArrayList<>();
     private static final List<ITestNGMethod> failedTests = new ArrayList<>();
@@ -43,12 +44,11 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Getter
     private static XmlTest xmlTest;
 
-    private static Thread allureEnvironmentSetup;
-
     // ReportPortal
     private static final AtomicInteger REPORT_PORTAL_INSTANCES = new AtomicInteger(0);
     public static final Supplier<ITestNGService> REPORT_PORTAL_SERVICE = new MemoizingSupplier<>(() -> new TestNGService(ReportPortal.builder().build()));
     private ITestNGService reportPortalTestNGService;
+    private boolean isReportPortalEnabled;
 
     public static ProjectStructureManager.RunType identifyRunType() {
         Supplier<Stream<?>> stacktraceSupplier = () -> Arrays.stream((new Throwable()).getStackTrace()).map(StackTraceElement::getClassName);
@@ -91,7 +91,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ReportManagerHelper.logEngineVersion();
         Thread.ofVirtual().start(UpdateChecker::check);
         Thread.ofVirtual().start(ImageProcessingActions::loadOpenCV);
-        allureEnvironmentSetup = Thread.ofVirtual().start(AllureManager::initializeAllureReportingEnvironment);
+        AllureManager.initializeAllureReportingEnvironment();
         Thread.ofVirtual().start(ReportManagerHelper::cleanExecutionSummaryReportDirectory);
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
         ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
@@ -111,8 +111,10 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         if (System.getProperty("rp.enable").trim().equalsIgnoreCase("true")) {
             String info = "ReportPortal integration is enabled.";
             System.out.println(info);
+        } else {
+            isReportPortalEnabled = false;
         }
-        this.reportPortalTestNGService.startLaunch();
+        if (isReportPortalEnabled) this.reportPortalTestNGService.startLaunch();
     }
 
     /**
@@ -142,41 +144,49 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     public void onStart(ISuite suite) {
         TestNGListenerHelper.setTotalNumberOfTests(suite);
         executionStartTime = System.currentTimeMillis();
-        this.reportPortalTestNGService.startTestSuite(suite);
+        if (isReportPortalEnabled) this.reportPortalTestNGService.startTestSuite(suite);
     }
 
+    @Override
     public void onFinish(ISuite suite) {
-        this.reportPortalTestNGService.finishTestSuite(suite);
+        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestSuite(suite);
     }
 
+    @Override
     public void onStart(ITestContext testContext) {
-        this.reportPortalTestNGService.startTest(testContext);
+        if (isReportPortalEnabled) this.reportPortalTestNGService.startTest(testContext);
     }
 
+    @Override
     public void onFinish(ITestContext testContext) {
-        this.reportPortalTestNGService.finishTest(testContext);
+        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTest(testContext);
     }
 
+    @Override
     public void beforeConfiguration(ITestResult testResult) {
-        this.reportPortalTestNGService.startConfiguration(testResult);
+        if (isReportPortalEnabled) this.reportPortalTestNGService.startConfiguration(testResult);
     }
 
+    @Override
     public void onConfigurationFailure(ITestResult testResult) {
-        this.reportPortalTestNGService.sendReportPortalMsg(testResult);
-        this.reportPortalTestNGService.finishTestMethod(ItemStatus.FAILED, testResult);
+        if (isReportPortalEnabled) this.reportPortalTestNGService.sendReportPortalMsg(testResult);
+        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestMethod(ItemStatus.FAILED, testResult);
     }
 
+    @Override
     public void onConfigurationSuccess(ITestResult testResult) {
-        this.reportPortalTestNGService.finishTestMethod(ItemStatus.PASSED, testResult);
+        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestMethod(ItemStatus.PASSED, testResult);
     }
 
+    @Override
     public void onConfigurationSkip(ITestResult testResult) {
-        this.reportPortalTestNGService.startConfiguration(testResult);
-        this.reportPortalTestNGService.finishTestMethod(ItemStatus.SKIPPED, testResult);
+        if (isReportPortalEnabled) this.reportPortalTestNGService.startConfiguration(testResult);
+        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestMethod(ItemStatus.SKIPPED, testResult);
     }
 
+    @Override
     public void onTestFailedButWithinSuccessPercentage(ITestResult result) {
-        this.reportPortalTestNGService.finishTestMethod(ItemStatus.FAILED, result);
+        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestMethod(ItemStatus.FAILED, result);
     }
 
     /**
@@ -262,11 +272,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         Thread.ofVirtual().start(JiraHelper::reportExecutionStatusToJira);
         Thread.ofVirtual().start(GoogleTink::encrypt);
         ReportManagerHelper.logEngineClosure();
-        try {
-            allureEnvironmentSetup.join();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
         Thread.ofVirtual().start(() -> {
             // Fetch performance data from RequestBuilder
             Map<String, List<Double>> performanceData = RequestBuilder.getPerformanceData();
@@ -276,11 +281,12 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         });
         AllureManager.openAllureReportAfterExecution();
         AllureManager.generateAllureReportArchive();
-        this.reportPortalTestNGService.finishLaunch();
+        if (isReportPortalEnabled) this.reportPortalTestNGService.finishLaunch();
     }
 
+    @Override
     public void onTestStart(ITestResult testResult) {
-        this.reportPortalTestNGService.startTestMethod(testResult);
+        if (isReportPortalEnabled) this.reportPortalTestNGService.startTestMethod(testResult);
     }
 
     @Override
@@ -289,7 +295,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
                 testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), "",
                 ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
-        this.reportPortalTestNGService.finishTestMethod(ItemStatus.PASSED, testResult);
+        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestMethod(ItemStatus.PASSED, testResult);
     }
 
     @Override
@@ -298,8 +304,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
                 testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), testResult.getThrowable().getMessage(),
                 ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
-        this.reportPortalTestNGService.sendReportPortalMsg(testResult);
-        this.reportPortalTestNGService.finishTestMethod(ItemStatus.FAILED, testResult);
+        if (isReportPortalEnabled) this.reportPortalTestNGService.sendReportPortalMsg(testResult);
+        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestMethod(ItemStatus.FAILED, testResult);
     }
 
     @Override
@@ -308,6 +314,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
                 testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), testResult.getThrowable().getMessage(),
                 ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
-        this.reportPortalTestNGService.finishTestMethod(ItemStatus.SKIPPED, testResult);
+        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestMethod(ItemStatus.SKIPPED, testResult);
     }
 }
