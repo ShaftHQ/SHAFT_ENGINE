@@ -48,20 +48,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     // ReportPortal
     private static final AtomicInteger REPORT_PORTAL_INSTANCES = new AtomicInteger(0);
     public static final Supplier<ITestNGService> REPORT_PORTAL_SERVICE = new MemoizingSupplier<>(() -> new TestNGService(ReportPortal.builder().build()));
-    private final ITestNGService reportPortalTestNGService;
+    private ITestNGService reportPortalTestNGService;
 
-    public TestNGListener() {
-        engineSetup(ProjectStructureManager.RunType.TESTNG);
-        this.reportPortalTestNGService = REPORT_PORTAL_SERVICE.get();
-        if (REPORT_PORTAL_INSTANCES.incrementAndGet() > 1) {
-            String warning = "WARNING! More than one ReportPortal listener is added";
-            System.out.println(warning);
-        }
-        if (System.getProperty("rp.enable").trim().equalsIgnoreCase("true")) {
-            String info = "ReportPortal integration is enabled.";
-            System.out.println(info);
-        }
-    }
     public static ProjectStructureManager.RunType identifyRunType() {
         Supplier<Stream<?>> stacktraceSupplier = () -> Arrays.stream((new Throwable()).getStackTrace()).map(StackTraceElement::getClassName);
         var isUsingJunitDiscovery = stacktraceSupplier.get().anyMatch(org.junit.platform.launcher.core.EngineDiscoveryOrchestrator.class.getCanonicalName()::equals);
@@ -114,6 +102,16 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void onExecutionStart() {
+        engineSetup(ProjectStructureManager.RunType.TESTNG);
+        this.reportPortalTestNGService = REPORT_PORTAL_SERVICE.get();
+        if (REPORT_PORTAL_INSTANCES.incrementAndGet() > 1) {
+            String warning = "WARNING! More than one ReportPortal listener is added";
+            System.out.println(warning);
+        }
+        if (System.getProperty("rp.enable").trim().equalsIgnoreCase("true")) {
+            String info = "ReportPortal integration is enabled.";
+            System.out.println(info);
+        }
         this.reportPortalTestNGService.startLaunch();
     }
 
