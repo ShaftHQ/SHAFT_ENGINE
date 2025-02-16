@@ -86,7 +86,7 @@ public class AttachmentReporter {
 
     private static void attachFileBased(String attachmentDescription, String contentType, ByteArrayOutputStream content, String fileExtension) {
         Allure.addAttachment(attachmentDescription, contentType, new ByteArrayInputStream(content.toByteArray()), fileExtension);
-        if (System.getProperty("rp.enable").trim().equalsIgnoreCase("true")) {
+        if (System.getProperty("rp.enable") != null && System.getProperty("rp.enable").trim().equalsIgnoreCase("true")) {
             try {
                 File file = File.createTempFile("rp-test", fileExtension);
                 Files.write(content.toByteArray(), file);
