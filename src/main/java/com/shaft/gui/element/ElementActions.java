@@ -386,6 +386,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @param key            the key that should be pressed
      * @return a self-reference to be used to chain actions
      */
+    @Deprecated
     public ElementActions keyPress(By elementLocator, Keys key) {
         try {
             var elementName = elementActionsHelper.getElementName(driver, elementLocator);
