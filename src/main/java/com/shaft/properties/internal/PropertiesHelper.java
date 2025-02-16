@@ -57,6 +57,7 @@ public class PropertiesHelper {
         Properties.timeouts = ConfigFactory.create(Timeouts.class);
         Properties.performance = ConfigFactory.create(Performance.class);
         Properties.lambdaTest = ConfigFactory.create(LambdaTest.class);
+        System.setProperty("rp.properties.path", SHAFT.Properties.paths.properties());
     }
 
     public static void postProcessing() {
@@ -183,7 +184,7 @@ public class PropertiesHelper {
 
         // override target properties only if they do not exist
         var finalPropertiesFolderPath = propertiesFolderPath;
-        Arrays.asList("/cucumber.properties", "/customWebdriverCapabilities.properties", "/log4j2.properties", "/TestNG.properties")
+        Arrays.asList("/cucumber.properties", "/customWebdriverCapabilities.properties", "/log4j2.properties", "/TestNG.properties", "/reportPortal.properties")
                 .forEach(file -> {
                     if (!FileActions.getInstance(true).doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + file)) {
                         if (isExternalRun) {

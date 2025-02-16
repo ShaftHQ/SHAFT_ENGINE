@@ -664,6 +664,20 @@
             <artifactId>progressbar</artifactId>
             <version>0.10.1</version>
         </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.epam.reportportal/agent-java-testng -->
+        <dependency>
+            <groupId>com.epam.reportportal</groupId>
+            <artifactId>agent-java-testng</artifactId>
+            <version>5.4.6</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/com.epam.reportportal/logger-java-log4j -->
+        <dependency>
+            <groupId>com.epam.reportportal</groupId>
+            <artifactId>logger-java-log4j</artifactId>
+            <version>5.2.3</version>
+        </dependency>
+
     </dependencies>
 
     <build>
