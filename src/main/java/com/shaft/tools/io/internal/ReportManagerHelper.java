@@ -643,7 +643,7 @@ public class ReportManagerHelper {
     }
 
     public static void log(String logText, List<List<Object>> attachments) {
-        if (!SHAFT.Properties.reporting.disableLogging()) {
+        if (SHAFT.Properties.reporting == null || !SHAFT.Properties.reporting.disableLogging()) {
             if (!logText.toLowerCase().contains("failed") && getDiscreteLogging() && isInternalStep()) {
                 createLogEntry(logText, Level.INFO);
                 if (attachments != null && !attachments.isEmpty() && (attachments.size() > 1 || (attachments.getFirst() != null && !attachments.getFirst().isEmpty()))) {

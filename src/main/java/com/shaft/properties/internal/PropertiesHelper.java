@@ -175,7 +175,7 @@ public class PropertiesHelper {
 
         boolean isExternalRun = propertiesFolderPath.contains("file:");
 
-        var fileActions = FileActions.getInstance();
+        var fileActions = FileActions.getInstance(true);
         // always override default properties
         if (isExternalRun) {
             fileActions.copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
