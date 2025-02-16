@@ -298,7 +298,7 @@ public class ReportManagerHelper {
     }
 
     public static void attachEngineLog(String executionEndTimestamp) {
-        if (!SHAFT.Properties.reporting.disableLogging()) {
+        if (SHAFT.Properties.reporting == null || !SHAFT.Properties.reporting.disableLogging()) {
             String engineLogCreated = "Successfully created attachment '" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
                     + "Execution log" + "'";
             var initialLoggingState = ReportManagerHelper.getDiscreteLogging();
@@ -430,7 +430,7 @@ public class ReportManagerHelper {
     }
 
     private static void createLogEntry(String logText, boolean addToConsoleLog) {
-        if (!SHAFT.Properties.reporting.disableLogging()) {
+        if (SHAFT.Properties.reporting == null || !SHAFT.Properties.reporting.disableLogging()) {
             String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
             if (logText == null) {
                 logText = "null";
@@ -508,7 +508,7 @@ public class ReportManagerHelper {
      * @param logText the text that needs to be logged in this action
      */
     public static void writeStepToReport(String logText) {
-        if (!SHAFT.Properties.reporting.disableLogging()) {
+        if (SHAFT.Properties.reporting == null || !SHAFT.Properties.reporting.disableLogging()) {
             createLogEntry(logText, true);
             Allure.step(logText, getStepStatus(logText));
         }
@@ -678,7 +678,7 @@ public class ReportManagerHelper {
         CheckpointType type = (logText.toLowerCase().contains("verification")) ? CheckpointType.VERIFICATION : CheckpointType.ASSERTION;
 
         if (type.equals(CheckpointType.VERIFICATION) && status.equals(CheckpointStatus.FAIL)
-                || !SHAFT.Properties.reporting.disableLogging()) {
+                || SHAFT.Properties.reporting == null || !SHAFT.Properties.reporting.disableLogging()) {
             if (customLogMessages != null && !customLogMessages.isEmpty() && !customLogMessages.getFirst().trim().isEmpty()) {
                 String customLogText = customLogMessages.getFirst();
                 if (status == CheckpointStatus.PASS) {
