@@ -149,7 +149,7 @@ public class Actions extends ElementActions {
                             fetchedName = foundElements.get().getFirst().getDomProperty("text");
                         }
                     } else {
-                        fetchedName = foundElements.get().getFirst().getDomProperty("name");
+                        fetchedName = foundElements.get().getFirst().getAttribute("name");
                     }
                     if (fetchedName != null && !fetchedName.isEmpty())
                         accessibleName.set(fetchedName.trim());
