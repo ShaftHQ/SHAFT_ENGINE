@@ -152,7 +152,7 @@
         <dependency>
             <groupId>io.github.bonigarcia</groupId>
             <artifactId>webdrivermanager</artifactId>
-            <version>5.9.2</version>
+            <version>5.9.3</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
