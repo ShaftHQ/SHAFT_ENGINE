@@ -252,7 +252,7 @@ public class DriverFactoryHelper {
             AppiumServiceBuilder builder = new AppiumServiceBuilder()
                     .withIPAddress(addressAndPort[0])
                     .usingPort(Integer.parseInt(addressAndPort[1]))
-                    .withTimeout(Duration.ofSeconds(remoteServerInstanceCreationTimeout));
+                    .withTimeout(Duration.ofSeconds(appiumServerInitializationTimeout));
             String driverName = "";
             switch (SHAFT.Properties.mobile.automationName()) {
                 case AutomationName.ANDROID_UIAUTOMATOR2 -> driverName = "uiautomator2";
