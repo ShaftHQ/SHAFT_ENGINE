@@ -530,7 +530,7 @@ public class DriverFactoryHelper {
         // stage 1: ensure that the server is up and running
         if (SHAFT.Properties.timeouts.waitForRemoteServerToBeUp()) {
             if (SHAFT.Properties.mobile.automaticallyInitializeAppiumServer()) {
-                ReportManager.logDiscrete("Attempting to instantiate Appium Server instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
+                ReportManager.logDiscrete("Attempting to instantiate Appium Server instance for up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + "min.");
                 initiateLocalAppiumServerInstance(SHAFT.Properties.platform.executionAddress());
             }
             ReportManager.logDiscrete("Attempting to connect to remote server for up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + "min.");
