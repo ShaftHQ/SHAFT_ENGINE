@@ -45,7 +45,6 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 public class DriverFactoryHelper {
     private static final String WEB_DRIVER_MANAGER_MESSAGE = "Identifying OS/Driver combination. Please note that if a new browser/driver executable will be downloaded it may take some time depending on your connection...";
@@ -193,13 +192,10 @@ public class DriverFactoryHelper {
                         isRemoteConnectionEstablished = true;
                     } catch (SessionNotCreatedException |
                              URISyntaxException sessionNotCreatedException2) {
-                        if (!Pattern.compile(".*Could not find a connected \\w+ device.*").matcher(sessionNotCreatedException1.getMessage()).find()
-                            && !Pattern.compile(".*The application at .* does not exist or is not accessible.*").matcher(sessionNotCreatedException1.getMessage()).find()) {
-                            // do nothing
-                            exception = sessionNotCreatedException2;
-                        }
-                            ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
-                            ReportManagerHelper.logDiscrete(sessionNotCreatedException2, Level.DEBUG);
+                        // do nothing
+                        exception = sessionNotCreatedException2;
+                        ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
+                        ReportManagerHelper.logDiscrete(sessionNotCreatedException2, Level.DEBUG);
                     }
                 }
             }
@@ -251,7 +247,7 @@ public class DriverFactoryHelper {
     }
 
     private void initiateLocalAppiumServerInstance(String executionAddress) {
-        try (ProgressBarLogger pblogger = new ProgressBarLogger("Instantiating...", (int) remoteServerInstanceCreationTimeout)) {
+        try (ProgressBarLogger pblogger = new ProgressBarLogger("Instantiating...", (int) appiumServerInitializationTimeout)) {
             String[] addressAndPort = executionAddress.split(":");
             AppiumServiceBuilder builder = new AppiumServiceBuilder()
                     .withIPAddress(addressAndPort[0])
@@ -533,6 +529,10 @@ public class DriverFactoryHelper {
     private void setRemoteDriverInstance(Capabilities capabilities) {
         // stage 1: ensure that the server is up and running
         if (SHAFT.Properties.timeouts.waitForRemoteServerToBeUp()) {
+            if (SHAFT.Properties.mobile.automaticallyInitializeAppiumServer()) {
+                ReportManager.logDiscrete("Attempting to instantiate Appium Server instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
+                initiateLocalAppiumServerInstance(SHAFT.Properties.platform.executionAddress());
+            }
             ReportManager.logDiscrete("Attempting to connect to remote server for up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + "min.");
             try {
                 TARGET_HUB_URL = TARGET_HUB_URL.contains("0.0.0.0") ? TARGET_HUB_URL.replace("0.0.0.0", "localhost") : TARGET_HUB_URL;
@@ -546,9 +546,6 @@ public class DriverFactoryHelper {
             }
         }
 
-        if (SHAFT.Properties.mobile.automaticallyInitializeAppiumServer()) {
-            initiateLocalAppiumServerInstance(SHAFT.Properties.platform.executionAddress());
-        }
 
         // stage 2: create remote driver instance (requires some time with dockerized appium)
         ReportManager.logDiscrete("Attempting to instantiate remote driver instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
