@@ -68,6 +68,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     }
 
     public static void engineSetup(ProjectStructureManager.RunType runType) {
+        PropertiesHelper.setKeySystemProperties();
         Allure.getLifecycle();
         Reporter.setEscapeHtml(false);
         ReportManagerHelper.setDiscreteLogging(true);

@@ -2,7 +2,7 @@ package testPackage.legacy;
 
 import com.shaft.tools.io.CSVFileManager;
 import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
@@ -11,7 +11,8 @@ import java.util.Map;
 
 public class CSVFileManagerTest {
     CSVFileManager csvFileManager;
-    @BeforeClass
+
+    @BeforeMethod
     public void setUp() {
         // Initialize the CSVFileManager with a test file
         csvFileManager = new CSVFileManager("src/test/resources/testDataFiles/TestData.csv");
@@ -102,7 +103,7 @@ public class CSVFileManagerTest {
     }
     @Test
     public void testCellMinIndex() {
-        String cellData = String.valueOf(csvFileManager.getMinCellValue(7));
+        String cellData = String.valueOf(csvFileManager.getMinCellValue(6));
         System.out.println(cellData);
         Assert.assertNotNull(cellData, "Cell data should not be null.");
     }
