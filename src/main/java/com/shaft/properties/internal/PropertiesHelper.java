@@ -26,14 +26,9 @@ public class PropertiesHelper {
         attachPropertyFiles();
         //load properties
         loadProperties();
-        //override key settings for special platforms
-        overrideScreenShotTypeForMobileAndMacPlatforms();
-        overrideForcedFlagsForMobilePlatforms();
     }
 
-    public static void loadProperties() {
-        //load paths as the default properties path is needed for the next step
-        Properties.paths = ConfigFactory.create(Paths.class);
+    private static void loadProperties() {
         //read custom property files (if any) into system properties
         PropertyFileManager.readCustomPropertyFiles();
         //load property objects
@@ -57,12 +52,23 @@ public class PropertiesHelper {
         Properties.timeouts = ConfigFactory.create(Timeouts.class);
         Properties.performance = ConfigFactory.create(Performance.class);
         Properties.lambdaTest = ConfigFactory.create(LambdaTest.class);
+    }
+
+    public static void setKeySystemProperties() {
+        //load paths as the default properties path is needed for the next step
+        Properties.paths = ConfigFactory.create(Paths.class);
+        //set key system properties that are needed for the framework to function
         System.setProperty("rp.properties.path", SHAFT.Properties.paths.properties());
         System.setProperty("webdriver.http.factory", "jdk-http-client");
         System.setProperty("log4j.configurationFile", SHAFT.Properties.paths.properties() + "log4j2.properties");
+        System.setProperty("allure.testng.hide.configuration.failures", "true");
+        System.setProperty("allure.testng.hide.disabled.tests", "true");
     }
 
     public static void postProcessing() {
+        ReportManager.logDiscrete("Post processing some properties to support platforms-specific restrictions.");
+        overrideScreenShotTypeForMacPlatform();
+        overrideForcedFlagsForMobilePlatforms();
         overrideTargetOperatingSystemForLocalExecution();
         overrideScreenScalingFactorForWindows();
         overrideScreenMaximizationForRemoteExecution();
@@ -71,12 +77,11 @@ public class PropertiesHelper {
         overrideScreenShotTypeForAnimatedGIF();
         overrideScreenshotTypeForSafariBrowser();
         overrideScreenshotTypeForParallelExecution();
-        setExtraAllureProperties();
         setClearBeforeTypingMode();
     }
 
     public static void setClearBeforeTypingMode(){
-        if (!Properties.flags.attemptClearBeforeTyping() || SHAFT.Properties.flags.clearBeforeTypingMode().equals("off")) {
+        if (!Properties.flags.attemptClearBeforeTyping()) {
             SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
             return ;
         }
@@ -102,8 +107,8 @@ public class PropertiesHelper {
     private static void overrideForcedFlagsForMobilePlatforms() {
         if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString().toLowerCase(),
                 org.openqa.selenium.Platform.IOS.toString().toLowerCase()).contains(Properties.platform.targetPlatform().toLowerCase())) {
-            SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(false);
-            SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
+            SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
             SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(false);
             SHAFT.Properties.flags.set().enableTrueNativeMode(true);
             SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(false);
@@ -113,14 +118,8 @@ public class PropertiesHelper {
         }
     }
 
-    private static void setExtraAllureProperties() {
-        System.setProperty("allure.testng.hide.configuration.failures", "true");
-        System.setProperty("allure.testng.hide.disabled.tests", "true");
-    }
-
-    private static void overrideScreenShotTypeForMobileAndMacPlatforms() {
-        if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString().toLowerCase(), org.openqa.selenium.Platform.MAC.toString().toLowerCase(),
-                org.openqa.selenium.Platform.IOS.toString().toLowerCase()).contains(Properties.platform.targetPlatform().toLowerCase())) {
+    private static void overrideScreenShotTypeForMacPlatform() {
+        if (Properties.platform.targetPlatform().equalsIgnoreCase(org.openqa.selenium.Platform.MAC.toString())) {
             SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
         }
     }
