@@ -29,9 +29,6 @@ public class FailureReporter {
                     "Exception Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(throwable));
             attachments.add(actualValueAttachment);
             ReportManagerHelper.log(message + rootCause, attachments);
-            if(message.contains("setRemoteDriverInstance") && rootCause.contains("ClosedChannelException")) {
-                ReportManagerHelper.log("Hint:\u001B[33m Are you Sure the Server is Up And Running!!!\u001B[0m", null);
-            }
         }
         Assert.fail(message + rootCause, throwable);
     }
