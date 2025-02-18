@@ -63,6 +63,7 @@ public class PropertiesHelper {
         System.setProperty("log4j.configurationFile", SHAFT.Properties.paths.properties() + "log4j2.properties");
         System.setProperty("allure.testng.hide.configuration.failures", "true");
         System.setProperty("allure.testng.hide.disabled.tests", "true");
+        System.setProperty("allure.properties.file", SHAFT.Properties.paths.properties() + "allure.properties");
     }
 
     public static void postProcessing() {
@@ -183,7 +184,7 @@ public class PropertiesHelper {
 
         // override target properties only if they do not exist
         var finalPropertiesFolderPath = propertiesFolderPath;
-        Arrays.asList("/cucumber.properties", "/customWebdriverCapabilities.properties", "/log4j2.properties", "/TestNG.properties", "/reportportal.properties")
+        Arrays.asList("/cucumber.properties", "/customWebdriverCapabilities.properties", "/log4j2.properties", "/TestNG.properties", "/reportportal.properties", "/junit-platform.properties")
                 .forEach(file -> {
                     if (!fileActions.doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + file)) {
                         if (isExternalRun) {
