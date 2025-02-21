@@ -16,6 +16,9 @@ import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.Setting;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.remote.AutomationName;
+import io.appium.java_client.service.local.AppiumDriverLocalService;
+import io.appium.java_client.service.local.AppiumServiceBuilder;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.qameta.allure.Step;
@@ -37,6 +40,7 @@ import org.testng.Reporter;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -62,6 +66,7 @@ public class DriverFactoryHelper {
     @Setter
     @Getter
     private WebDriver driver;
+    private AppiumDriverLocalService service;
 
     public DriverFactoryHelper() {
     }
@@ -241,6 +246,34 @@ public class DriverFactoryHelper {
         }
     }
 
+    private void initiateLocalAppiumServerInstance(String executionAddress) {
+        try (ProgressBarLogger pblogger = new ProgressBarLogger("Instantiating...", (int) appiumServerInitializationTimeout)) {
+            String[] addressAndPort = executionAddress.split(":");
+            AppiumServiceBuilder builder = new AppiumServiceBuilder()
+                    .withIPAddress(addressAndPort[0])
+                    .usingPort(Integer.parseInt(addressAndPort[1]))
+                    .withTimeout(Duration.ofSeconds(appiumServerInitializationTimeout));
+            String driverName = "";
+            switch (SHAFT.Properties.mobile.automationName()) {
+                case AutomationName.ANDROID_UIAUTOMATOR2 -> driverName = "uiautomator2";
+                case AutomationName.IOS_XCUI_TEST -> driverName = "xcuitest";
+                case AutomationName.CHROMIUM -> driverName = "chromium";
+                case AutomationName.GECKO -> driverName = "gecko";
+                case AutomationName.ESPRESSO -> driverName = "espresso";
+                case AutomationName.FLUTTER_INTEGRATION -> driverName = "flutter";
+                default ->
+                        failAction("Invalid Automation Name \"" + JavaHelper.convertToSentenceCase(driverName) + "\".");
+            }
+            builder.withArgument(() -> "--use-drivers", driverName);
+
+            service = builder.build();
+            service.start();
+            ReportManager.logDiscrete("✅ Appium Server started at: " + service.getUrl());
+        } catch (Throwable e) {
+            failAction("❌ Appium Server failed to run on : \"" + service.getUrl().toString() + "\"", e);
+        }
+    }
+
     public static void initializeSystemProperties() {
         PropertiesHelper.postProcessing();
         TARGET_HUB_URL = (SHAFT.Properties.platform.executionAddress().trim().toLowerCase().startsWith("http")) ? SHAFT.Properties.platform.executionAddress() : "http://" + SHAFT.Properties.platform.executionAddress() + "/";
@@ -249,6 +282,13 @@ public class DriverFactoryHelper {
     public void closeDriver() {
         closeDriver(driver);
         setDriver(null);
+        closeAppiumService(service);
+    }
+
+    public void closeAppiumService(AppiumDriverLocalService service) {
+        if (service != null) {
+            service.close();
+        }
     }
 
     public void closeDriver(WebDriver driver) {
@@ -489,6 +529,10 @@ public class DriverFactoryHelper {
     private void setRemoteDriverInstance(Capabilities capabilities) {
         // stage 1: ensure that the server is up and running
         if (SHAFT.Properties.timeouts.waitForRemoteServerToBeUp()) {
+            if (SHAFT.Properties.mobile.automaticallyInitializeAppiumServer()) {
+                ReportManager.logDiscrete("Attempting to instantiate Appium Server instance for up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + "min.");
+                initiateLocalAppiumServerInstance(SHAFT.Properties.platform.executionAddress());
+            }
             ReportManager.logDiscrete("Attempting to connect to remote server for up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + "min.");
             try {
                 TARGET_HUB_URL = TARGET_HUB_URL.contains("0.0.0.0") ? TARGET_HUB_URL.replace("0.0.0.0", "localhost") : TARGET_HUB_URL;
@@ -501,6 +545,7 @@ public class DriverFactoryHelper {
                 failAction("Failed to connect to remote server.", throwable);
             }
         }
+
 
         // stage 2: create remote driver instance (requires some time with dockerized appium)
         ReportManager.logDiscrete("Attempting to instantiate remote driver instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
