@@ -35,8 +35,8 @@ public class IOSBasicInteractionsTest {
 //        SHAFT.Properties.mobile.set().selfManaged(true);
 
 //         local appium server (for local and GitHub actions execution)
-        SHAFT.Properties.platform.set().executionAddress("localhost:4723");
-        SHAFT.Properties.mobile.set().app(SHAFT.Properties.paths.testData() + "apps/BStackSampleApp.ipa");
+//        SHAFT.Properties.platform.set().executionAddress("localhost:4723");
+//        SHAFT.Properties.mobile.set().app(SHAFT.Properties.paths.testData() + "apps/BStackSampleApp.ipa");
 
         // remote browserstack server (new app version)
 //        SHAFT.Properties.platform.set().executionAddress("browserstack");
@@ -58,6 +58,7 @@ public class IOSBasicInteractionsTest {
 
     @AfterClass(alwaysRun = true)
     public void teardown() {
-        driver.get().quit();
+        if (driver.get() != null)
+            driver.get().quit();
     }
 }
