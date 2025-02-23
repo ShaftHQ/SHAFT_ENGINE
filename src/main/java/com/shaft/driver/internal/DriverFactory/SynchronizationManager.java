@@ -17,11 +17,11 @@ public class SynchronizationManager {
         this.driver = driver;
     }
 
-    public FluentWait<?> fluentWait() {
+    public FluentWait<WebDriver> fluentWait() {
         return fluentWait(false);
     }
 
-    public FluentWait<?> fluentWait(boolean isValidToCheckForVisibility) {
+    public FluentWait<WebDriver> fluentWait(boolean isValidToCheckForVisibility) {
         return new FluentWait<>(driver)
                 .withTimeout(Duration.ofSeconds((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout())))
                 .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
