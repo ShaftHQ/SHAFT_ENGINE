@@ -555,6 +555,7 @@ public class BrowserActions extends FluentWebDriverAction {
         return this;
     }
 
+    @Deprecated
     public LocalStorage getLocalStorage() {
         if (SHAFT.Properties.platform.executionAddress().equals("local")) {
             return ((WebStorage) driver).getLocalStorage();
@@ -563,6 +564,7 @@ public class BrowserActions extends FluentWebDriverAction {
         }
     }
 
+    @Deprecated
     public SessionStorage getSessionStorage() {
         if (SHAFT.Properties.platform.executionAddress().equals("local")) {
             return ((WebStorage) driver).getSessionStorage();

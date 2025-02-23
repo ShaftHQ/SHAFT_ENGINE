@@ -19,7 +19,7 @@ public class RelativeLocatorsTests {
         new BrowserActions(driver.get().getDriver()).navigateToURL("https://duckduckgo.com/?");
         By searchbar = By.xpath("//*[@id='search_form_input_homepage'] | //input[@name='q']");
         new ElementActions(driver.get().getDriver()).type(searchbar, "SHAFT_Engine")
-                .keyPress(searchbar, Keys.ENTER);
+                .type(searchbar, Keys.ENTER);
 
         //the below locator matches all 10 search results
         By searchResults = By.xpath("//a[@data-testid='result-title-a']");
