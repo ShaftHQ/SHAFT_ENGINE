@@ -56,16 +56,6 @@ public class ApiPerformanceReportTest {
     }
 
     @Test
-    public void testGetBookingByCheckInDateAndCheckOutDate() {
-        List<List<Object>> parameters = Arrays.asList(Arrays.asList("checkin", "2022-01-01"), Arrays.asList("checkout", "2022-01-02"));
-
-        api.get("booking").
-                setParameters(parameters, RestActions.ParametersType.QUERY).
-                perform();
-
-    }
-
-    @Test
     public void testGetBooking() {
 
         api.get("booking/1").

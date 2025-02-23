@@ -41,6 +41,7 @@ public class RequestBuilder {
     private boolean appendDefaultContentCharsetToContentTypeIfUndefined;
     private boolean urlEncodingEnabled;
 
+    @Getter
     private static Map<String, List<Double>> performanceData = new HashMap<>();
 
     /**
@@ -319,8 +320,7 @@ public class RequestBuilder {
      */
     @Step("Perform {this.requestType} request to {this.serviceURI}{this.serviceName}")
     public Response performRequest() {
-        String request = serviceURI + serviceName;
-//        String request = prepareRequestURLWithParameters();
+        String request = prepareRequestURLWithParameters();
         RequestSpecification specs = prepareRequestSpecifications();
 
         setupAuthentication(specs);
@@ -350,12 +350,8 @@ public class RequestBuilder {
         return endpoint.replaceAll("/\\d+", "").replaceAll("/$", "");
     }
 
-    public static void logResponseTime(String endpoint, double responseTime) {
+    private synchronized void logResponseTime(String endpoint, double responseTime) {
         performanceData.computeIfAbsent(endpoint, k -> new ArrayList<>()).add(responseTime);
-    }
-
-    public static Map<String, List<Double>> getPerformanceData() {
-        return performanceData;
     }
 
     private String prepareRequestURLWithParameters() {
@@ -381,7 +377,7 @@ public class RequestBuilder {
 
     private Response sendRequest(String request, RequestSpecification specs) {
         if (!isSupportedRequestType()) {
-            RestActions.failAction(request, new Throwable[0]);
+            RestActions.failAction(request);
             return null;
         }
         return session.sendRequest(requestType, request, specs);
@@ -397,15 +393,15 @@ public class RequestBuilder {
         if (!reportMessage.isEmpty()) {
             RestActions.passAction(reportMessage, requestBody, specs, response);
         } else {
-            RestActions.failAction(reportMessage, requestBody, specs, response, new Throwable[0]);
+            RestActions.failAction(reportMessage, requestBody, specs, response);
         }
     }
 
     private void handleException(String request, RequestSpecification specs, Response response, Exception e) {
         if (response != null) {
-            RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody, specs, response, new Throwable[]{e});
+            RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody, specs, response, e);
         } else {
-            RestActions.failAction(request, new Throwable[]{e});
+            RestActions.failAction(request, e);
         }
     }
 
