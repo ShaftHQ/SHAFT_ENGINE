@@ -149,7 +149,7 @@ public class ValidationsExecutor {
         }
         this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
         ReportManager.logDiscrete(this.validationCategoryString + " that " + this.customReportMessage);
-        try (ProgressBarLogger pblogger = new ProgressBarLogger(this.validationCategoryString.equals("Assert") ? "Asserting..." : "Verifying...")) {
+        try (ProgressBarLogger ignored = new ProgressBarLogger(this.validationCategoryString.equals("Assert") ? "Asserting..." : "Verifying...")) {
             // perform validation
             performValidation();
         }

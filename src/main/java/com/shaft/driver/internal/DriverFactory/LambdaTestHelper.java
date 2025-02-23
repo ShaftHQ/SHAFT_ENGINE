@@ -7,6 +7,7 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ProgressBarLogger;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Platform;
@@ -86,7 +87,7 @@ public class LambdaTestHelper {
         parameters.add(apkFile);
         parameters.add(customID);
         var appUrl = "";
-        try {
+        try (ProgressBarLogger ignored = new ProgressBarLogger("Uploading app to LambdaTest...")) {
             appUrl = Objects.requireNonNull(RestActions.getResponseJSONValue(new SHAFT.API(serviceUri).post(appUploadServiceName).setContentType("multipart/form-data").setParameters(parameters, RestActions.ParametersType.FORM).setAuthentication(username, password, RequestBuilder.AuthenticationType.BASIC).perform(), "app_url"));
             ReportManager.logDiscrete("LambdaTest app_url: " + appUrl);
         } catch (NullPointerException exception) {
