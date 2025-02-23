@@ -9,10 +9,7 @@ import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.element.internal.Actions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
-import com.shaft.gui.waits.WaitActions;
 import org.openqa.selenium.WebDriver;
-
-import java.util.function.Function;
 
 public class FluentWebDriverAction {
     protected DriverFactoryHelper driverFactoryHelper;
@@ -85,9 +82,5 @@ public class FluentWebDriverAction {
 
     public FluentWebDriverAction and() {
         return this;
-    }
-
-    public WaitActions waitUntil(Function<? super WebDriver, ?> conditions) {
-        return new WaitActions(driverFactoryHelper).waitUntil(conditions);
     }
 }
