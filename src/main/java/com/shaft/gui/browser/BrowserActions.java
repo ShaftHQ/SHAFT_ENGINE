@@ -303,11 +303,11 @@ public class BrowserActions extends FluentWebDriverAction {
 
             // remove trailing slash which may cause comparing the current and target urls
             // to fail
-            if (initialURL.endsWith("/")) {
+            if (initialURL != null && initialURL.endsWith("/")) {
                 initialURL = initialURL.substring(0, initialURL.length() - 1);
             }
             ReportManager.logDiscrete("Initial URL: \"" + initialURL + "\"");
-            if (!initialURL.equals(modifiedTargetUrl)) {
+            if (initialURL != null && !initialURL.equals(modifiedTargetUrl)) {
                 // navigate to new url
                 browserActionsHelper.navigateToNewUrl(driver, initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
             } else {
@@ -416,7 +416,7 @@ public class BrowserActions extends FluentWebDriverAction {
             if (!navigationAction.equals(NavigationAction.REFRESH)) {
                 browserActionsHelper.waitUntilUrlIsNot(driver, initialURL);
                 newURL = driver.getCurrentUrl();
-                if (!newURL.equals(initialURL)) {
+                if (initialURL != null && !initialURL.equals(newURL)) {
                     browserActionsHelper.passAction(driver, "Navigate " + navigationAction + " to " + newURL);
                 } else {
                     browserActionsHelper.failAction(driver, newURL);
@@ -472,7 +472,7 @@ public class BrowserActions extends FluentWebDriverAction {
         var targetHeight = 1080;
 
         initialWindowSize = driver.manage().window().getSize();
-        ReportManager.logDiscrete("Initial window size: " + initialWindowSize.toString());
+        ReportManager.logDiscrete("Initial window size: " + initialWindowSize);
 
         String targetBrowserName = SHAFT.Properties.web.targetBrowserName();
         String targetOperatingSystem = SHAFT.Properties.platform.targetPlatform();
@@ -501,7 +501,7 @@ public class BrowserActions extends FluentWebDriverAction {
                 fullScreenWindow();
 
                 currentWindowSize = driver.manage().window().getSize();
-                ReportManager.logDiscrete("Window size after fullScreenWindow: " + currentWindowSize.toString());
+                ReportManager.logDiscrete("Window size after fullScreenWindow: " + currentWindowSize);
             }
 
             if ((currentWindowSize.height != targetHeight)
@@ -525,7 +525,7 @@ public class BrowserActions extends FluentWebDriverAction {
         Dimension currentWindowSize;
 
         initialWindowSize = driver.manage().window().getSize();
-        ReportManager.logDiscrete("Initial window size: " + initialWindowSize.toString());
+        ReportManager.logDiscrete("Initial window size: " + initialWindowSize);
 
         driver.manage().window().setPosition(new Point(0, 0));
         driver.manage().window().setSize(new Dimension(width, height));
@@ -533,7 +533,7 @@ public class BrowserActions extends FluentWebDriverAction {
         // the expected window size
 
         currentWindowSize = driver.manage().window().getSize();
-        ReportManager.logDiscrete("Window size after SWD: " + currentWindowSize.toString());
+        ReportManager.logDiscrete("Window size after SWD: " + currentWindowSize);
 
         if ((initialWindowSize.height == currentWindowSize.height)
                 && (initialWindowSize.width == currentWindowSize.width)) {
