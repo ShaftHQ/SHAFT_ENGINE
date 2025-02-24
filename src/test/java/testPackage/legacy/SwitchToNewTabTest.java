@@ -16,7 +16,7 @@ public class SwitchToNewTabTest {
         driver.get().browser().navigateToURL("https://duckduckgo.com/?");
         driver.get().browser().navigateToURL("https://www.google.com/", WindowType.TAB);
         By searchbar = GoogleSearch.getSearchBox_textField();
-        driver.get().element().type(searchbar, "SHAFT_Engine").keyPress(searchbar, Keys.ENTER);
+        driver.get().element().type(searchbar, "SHAFT_Engine").type(searchbar, Keys.ENTER);
     }
 
 	@BeforeMethod

@@ -173,6 +173,8 @@ public class ValidationsExecutor {
                     new ValidationsHelper().validateElementMatches(validationCategory, driver.get(), locator, visualValidationEngine, validationType, customReportMessage);
             case "elementAttributeEquals" ->
                     new ValidationsHelper2(validationCategory).validateElementAttribute(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
+            case "elementPropertyEquals" ->
+                    new ValidationsHelper2(validationCategory).validateElementProperty(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "elementCssPropertyEquals" ->
                     new ValidationsHelper2(validationCategory).validateElementCSSProperty(driver.get(), locator, elementCssProperty, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "browserAttributeEquals" ->

@@ -17,7 +17,7 @@ public class CrossBrowserExecutionTests {
         driver.get().browser().navigateToURL("https://www.google.com/");
 
         //search for SHAFT_Engine
-        driver.get().element().type(serchbox_input, "SHAFT_Engine").keyPress(serchbox_input, Keys.ENTER);
+        driver.get().element().type(serchbox_input, "SHAFT_Engine").type(serchbox_input, Keys.ENTER);
 
         //assert that result stats is not empty
         driver.get().assertThat().element(resultstats_label).text().doesNotEqual("").withCustomReportMessage("Check that result stats are not empty").perform();

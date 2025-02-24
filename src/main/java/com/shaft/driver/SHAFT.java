@@ -12,7 +12,6 @@ import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.AsyncElementActions;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.element.internal.Actions;
-import com.shaft.gui.waits.WaitActions;
 import com.shaft.listeners.internal.WebDriverListener;
 import com.shaft.tools.io.*;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -26,7 +25,6 @@ import org.openqa.selenium.support.events.EventFiringDecorator;
 import java.io.InputStream;
 import java.sql.ResultSet;
 import java.util.List;
-import java.util.function.Function;
 
 @SuppressWarnings("unused")
 public class SHAFT {
@@ -62,10 +60,6 @@ public class SHAFT {
                 return new Actions(helper);
             }
 
-//            @Beta public com.shaft.gui.element.internal.Actions newActions(){
-//                return new com.shaft.gui.element.internal.Actions(helper);
-//            }
-
             public TouchActions touch() {
                 return new TouchActions(helper);
             }
@@ -76,17 +70,6 @@ public class SHAFT {
 
             public AlertActions alert() {
                 return new AlertActions(helper);
-            }
-
-            /**
-             * Use this method to do any selenium explicit wait if needed. <br>
-             * Please note that most of the used wait methods are implemented in the related classes (browser and element)
-             *
-             * @param conditions Any Selenium explicit wait, also supports <a href="http://appium.io/docs/en/commands/mobile-command/">expected conditions</a>
-             * @return wait actions reference to be used to chain actions
-             */
-            public WaitActions waitUntil(Function<? super org.openqa.selenium.WebDriver, ?> conditions) {
-                return new WaitActions(helper).waitUntil(conditions);
             }
 
             public WizardHelpers.WebDriverAssertions assertThat() {

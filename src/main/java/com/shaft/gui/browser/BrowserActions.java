@@ -8,10 +8,10 @@ import com.shaft.enums.internal.NavigationAction;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
+import com.shaft.gui.element.internal.Actions;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
-import com.shaft.gui.waits.WaitActions;
 import com.shaft.performance.internal.LightHouseGenerateReport;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
@@ -31,10 +31,10 @@ import org.openqa.selenium.remote.Augmenter;
 import org.openqa.selenium.remote.http.HttpRequest;
 import org.openqa.selenium.remote.http.HttpResponse;
 import org.openqa.selenium.remote.http.Route;
-import org.openqa.selenium.support.ui.ExpectedConditions;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
@@ -303,11 +303,11 @@ public class BrowserActions extends FluentWebDriverAction {
 
             // remove trailing slash which may cause comparing the current and target urls
             // to fail
-            if (initialURL.endsWith("/")) {
+            if (initialURL != null && initialURL.endsWith("/")) {
                 initialURL = initialURL.substring(0, initialURL.length() - 1);
             }
             ReportManager.logDiscrete("Initial URL: \"" + initialURL + "\"");
-            if (!initialURL.equals(modifiedTargetUrl)) {
+            if (initialURL != null && !initialURL.equals(modifiedTargetUrl)) {
                 // navigate to new url
                 browserActionsHelper.navigateToNewUrl(driver, initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
             } else {
@@ -416,7 +416,7 @@ public class BrowserActions extends FluentWebDriverAction {
             if (!navigationAction.equals(NavigationAction.REFRESH)) {
                 browserActionsHelper.waitUntilUrlIsNot(driver, initialURL);
                 newURL = driver.getCurrentUrl();
-                if (!newURL.equals(initialURL)) {
+                if (initialURL != null && !initialURL.equals(newURL)) {
                     browserActionsHelper.passAction(driver, "Navigate " + navigationAction + " to " + newURL);
                 } else {
                     browserActionsHelper.failAction(driver, newURL);
@@ -472,7 +472,7 @@ public class BrowserActions extends FluentWebDriverAction {
         var targetHeight = 1080;
 
         initialWindowSize = driver.manage().window().getSize();
-        ReportManager.logDiscrete("Initial window size: " + initialWindowSize.toString());
+        ReportManager.logDiscrete("Initial window size: " + initialWindowSize);
 
         String targetBrowserName = SHAFT.Properties.web.targetBrowserName();
         String targetOperatingSystem = SHAFT.Properties.platform.targetPlatform();
@@ -501,7 +501,7 @@ public class BrowserActions extends FluentWebDriverAction {
                 fullScreenWindow();
 
                 currentWindowSize = driver.manage().window().getSize();
-                ReportManager.logDiscrete("Window size after fullScreenWindow: " + currentWindowSize.toString());
+                ReportManager.logDiscrete("Window size after fullScreenWindow: " + currentWindowSize);
             }
 
             if ((currentWindowSize.height != targetHeight)
@@ -525,7 +525,7 @@ public class BrowserActions extends FluentWebDriverAction {
         Dimension currentWindowSize;
 
         initialWindowSize = driver.manage().window().getSize();
-        ReportManager.logDiscrete("Initial window size: " + initialWindowSize.toString());
+        ReportManager.logDiscrete("Initial window size: " + initialWindowSize);
 
         driver.manage().window().setPosition(new Point(0, 0));
         driver.manage().window().setSize(new Dimension(width, height));
@@ -533,7 +533,7 @@ public class BrowserActions extends FluentWebDriverAction {
         // the expected window size
 
         currentWindowSize = driver.manage().window().getSize();
-        ReportManager.logDiscrete("Window size after SWD: " + currentWindowSize.toString());
+        ReportManager.logDiscrete("Window size after SWD: " + currentWindowSize);
 
         if ((initialWindowSize.height == currentWindowSize.height)
                 && (initialWindowSize.width == currentWindowSize.width)) {
@@ -555,6 +555,7 @@ public class BrowserActions extends FluentWebDriverAction {
         return this;
     }
 
+    @Deprecated
     public LocalStorage getLocalStorage() {
         if (SHAFT.Properties.platform.executionAddress().equals("local")) {
             return ((WebStorage) driver).getLocalStorage();
@@ -563,6 +564,7 @@ public class BrowserActions extends FluentWebDriverAction {
         }
     }
 
+    @Deprecated
     public SessionStorage getSessionStorage() {
         if (SHAFT.Properties.platform.executionAddress().equals("local")) {
             return ((WebStorage) driver).getSessionStorage();
@@ -777,48 +779,77 @@ public class BrowserActions extends FluentWebDriverAction {
         return this;
     }
 
+    @Deprecated
     public BrowserActions waitUntilTitleIs(String title) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.titleIs(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new Actions(driverFactoryHelper).waitUntil(d -> title.equals(driver.getTitle()), Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
         return this;
     }
 
+    @Deprecated
     public BrowserActions waitUntilTitleContains(String title) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.titleContains(title), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new Actions(driverFactoryHelper).waitUntil(d -> {
+            var currentTitle = driver.getTitle();
+            currentTitle = currentTitle != null ? currentTitle : "";
+            return currentTitle.equals(title);
+        }, Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
         return this;
     }
 
+    @Deprecated
     public BrowserActions waitUntilTitleNotContains(String title) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.not(ExpectedConditions.titleContains(title)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new Actions(driverFactoryHelper).waitUntil(d -> {
+            var currentTitle = driver.getTitle();
+            currentTitle = currentTitle != null ? currentTitle : "";
+            return !currentTitle.equals(title);
+        }, Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
         return this;
     }
 
+    @Deprecated
     public BrowserActions waitUntilUrlContains(String url) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.urlContains(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new Actions(driverFactoryHelper).waitUntil(d -> {
+            var currentUrl = driver.getCurrentUrl();
+            currentUrl = currentUrl != null ? currentUrl : "";
+            return currentUrl.contains(url);
+        }, Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
         return this;
     }
 
+    @Deprecated
     public BrowserActions waitUntilUrlNotContains(String url) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.not(ExpectedConditions.urlContains(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new Actions(driverFactoryHelper).waitUntil(d -> {
+            var currentUrl = driver.getCurrentUrl();
+            currentUrl = currentUrl != null ? currentUrl : "";
+            return !currentUrl.contains(url);
+        }, Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
         return this;
     }
 
+    @Deprecated
     public BrowserActions waitUntilUrlToBe(String url) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.urlToBe(url), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new Actions(driverFactoryHelper).waitUntil(d -> url.equals(driver.getCurrentUrl()), Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
         return this;
     }
 
+    @Deprecated
     public BrowserActions waitUntilUrlNotToBe(String url) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.not(ExpectedConditions.urlToBe(url)), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new Actions(driverFactoryHelper).waitUntil(d -> !url.equals(driver.getCurrentUrl()), Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
         return this;
     }
 
+    @Deprecated
     public BrowserActions waitUntilUrlMatches(String urlRegex) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.urlMatches(urlRegex), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+        new Actions(driverFactoryHelper).waitUntil(d -> {
+            var currentUrl = driver.getCurrentUrl();
+            currentUrl = currentUrl != null ? currentUrl : "";
+            return currentUrl.matches(urlRegex);
+        }, Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
         return this;
     }
 
-    public BrowserActions waitUntilNumberOfWindowsToBe(int numberOfWindows) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.numberOfWindowsToBe(numberOfWindows), BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER);
+    @Deprecated
+    public BrowserActions waitUntilNumberOfWindowsToBe(int expectedNumberOfWindows) {
+        new Actions(driverFactoryHelper).waitUntil(d -> driver.getWindowHandles().size() == expectedNumberOfWindows, Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
         return this;
     }
 

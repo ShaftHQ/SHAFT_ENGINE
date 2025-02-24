@@ -5,12 +5,16 @@ import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.internal.Actions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.ElementInformation;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.internal.*;
+import com.shaft.tools.io.internal.CheckpointStatus;
+import com.shaft.tools.io.internal.ExecutionSummaryReport;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
 import io.qameta.allure.Allure;
 import io.qameta.allure.model.Parameter;
@@ -116,12 +120,12 @@ public class ValidationsHelper2 {
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
                 actual.set(switch (attribute.toLowerCase()) {
-                    case "text" -> new ElementActions(driver, true).getText(locator);
-                    case "texttrimmed", "trimmedtext" -> new ElementActions(driver, true).getText(locator).trim();
+                    case "text" -> new Actions(driver, true).get().text(locator);
+                    case "texttrimmed", "trimmedtext" -> new Actions(driver, true).get().text(locator).trim();
                     case "tagname" -> elementInformation.getElementTag();
                     case "size" -> elementInformation.getFirstElement().getSize().toString();
-                    case "selectedtext" -> new ElementActions(driver, true).getSelectedText(locator);
-                    default -> new ElementActions(driver, true).getAttribute(locator, attribute);
+                    case "selectedtext" -> new Actions(driver, true).getSelectedText(locator);
+                    default -> new Actions(driver, true).get().domAttribute(locator, attribute);
                 });
                 validationState.set(performValidation(expected, actual.get(), type, validation));
                 return validationState.get();
@@ -132,7 +136,44 @@ public class ValidationsHelper2 {
         //reporting block
         List<Parameter> parameters = new ArrayList<>();
         parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Attribute").setValue(attribute).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("DOM Attribute").setValue(attribute).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Expected value").setValue(String.valueOf(expected)).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual)).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
+        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
+        reportValidationState(validationState.get(), expected, actual, driver, locator);
+    }
+
+    protected void validateElementProperty(WebDriver driver, By locator, String property,
+                                           String expected, ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
+        // read actual value based on desired attribute
+        // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
+        var elementInformation = ElementInformation.fromList(new ElementActionsHelper(true).identifyUniqueElementIgnoringVisibility(driver, locator));
+
+        AtomicReference<String> actual = new AtomicReference<>();
+        AtomicReference<Boolean> validationState = new AtomicReference<>();
+
+        try {
+            new SynchronizationManager(driver).fluentWait(false).until(f -> {
+                actual.set(switch (property.toLowerCase()) {
+                    case "text" -> new Actions(driver, true).get().text(locator);
+                    case "texttrimmed", "trimmedtext" -> new Actions(driver, true).get().text(locator).trim();
+                    case "tagname" -> elementInformation.getElementTag();
+                    case "size" -> elementInformation.getFirstElement().getSize().toString();
+                    case "selectedtext" -> new Actions(driver, true).getSelectedText(locator);
+                    default -> new Actions(driver, true).get().domProperty(locator, property);
+                });
+                validationState.set(performValidation(expected, actual.get(), type, validation));
+                return validationState.get();
+            });
+        } catch (TimeoutException timeoutException) {
+            //timeout was exhausted and the validation failed
+        }
+        //reporting block
+        List<Parameter> parameters = new ArrayList<>();
+        parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("DOM Property").setValue(property).setMode(Parameter.Mode.DEFAULT));
         parameters.add(new Parameter().setName("Expected value").setValue(String.valueOf(expected)).setMode(Parameter.Mode.DEFAULT));
         parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual)).setMode(Parameter.Mode.DEFAULT));
         parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));

@@ -31,7 +31,7 @@ public class GUIWizardTests {
         driver.get().browser().navigateToURL("https://www.google.com/");
         driver.get().verifyThat().browser().title().isEqualTo("Google").perform();
         driver.get().element().type(searchBox, testData.getTestData("searchQuery"))
-                .keyPress(searchBox, Keys.ENTER);
+                .type(searchBox, Keys.ENTER);
         driver.get().assertThat().element(resultStats).text().doesNotEqual("").withCustomReportMessage("Check that result stats is not empty").perform();
     }
 

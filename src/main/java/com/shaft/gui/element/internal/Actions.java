@@ -40,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 public class Actions extends ElementActions {
     public Actions() {
@@ -64,7 +65,6 @@ public class Actions extends ElementActions {
 
     @Step("Click")
     @Override public Actions click(@NonNull By locator) {
-        //performClick
         performAction(ActionType.CLICK, locator, null);
         return this;
     }
@@ -76,6 +76,27 @@ public class Actions extends ElementActions {
         return this;
     }
 
+    @Step("Type securely")
+    @Override
+    public Actions typeSecure(@NonNull By locator, @NonNull CharSequence text) {
+        performAction(ActionType.TYPE_SECURELY, locator, text);
+        return this;
+    }
+
+    @Step("Append")
+    @Override
+    public Actions typeAppend(@NonNull By locator, @NonNull CharSequence text) {
+        performAction(ActionType.TYPE_APPEND, locator, text);
+        return this;
+    }
+
+    @Step("Clear")
+    @Override
+    public Actions clear(@NonNull By locator) {
+        performAction(ActionType.CLEAR, locator, null);
+        return this;
+    }
+
     @Step("Drag and drop")
     @Override
     public Actions dragAndDrop(@NonNull By sourceElementLocator, @NonNull By destinationElementLocator) {
@@ -83,36 +104,70 @@ public class Actions extends ElementActions {
         return this;
     }
 
-    @Step("Get DOM attribute")
-    @Override
-    public String getAttribute(@NonNull By locator, @NonNull String attributeName) {
-        return performAction(ActionType.GET_DOM_ATTRIBUTE, locator, attributeName);
+    public GetElementInformation get() {
+        return new GetElementInformation();
     }
 
-    @Step("Get DOM attribute")
-    public String getDomAttribute(@NonNull By locator, @NonNull String attributeName) {
-        return performAction(ActionType.GET_DOM_ATTRIBUTE, locator, attributeName);
+    @Step("Wait until")
+    public Actions waitUntil(Function<? super WebDriver, ?> isTrue) {
+        new SynchronizationManager(driver).fluentWait().until(isTrue);
+        return this;
     }
 
-    @Step("Get DOM property")
-    public String getDomProperty(@NonNull By locator, @NonNull String attributeName) {
-        return performAction(ActionType.GET_DOM_PROPERTY, locator, attributeName);
+    @Step("Wait until")
+    public Actions waitUntil(Function<? super WebDriver, ?> isTrue, Duration timeout) {
+        new SynchronizationManager(driver).fluentWait().withTimeout(timeout).until(isTrue);
+        return this;
     }
 
-    @Step("Get name")
-    public String getName(@NonNull By locator) {
-        return performAction(ActionType.GET_NAME, locator, null);
+    public class GetElementInformation {
+        protected GetElementInformation() {
+        }
+
+        @Step("Get DOM attribute")
+        public String domAttribute(@NonNull By locator, @NonNull String attributeName) {
+            return performAction(ActionType.GET_DOM_ATTRIBUTE, locator, attributeName);
+        }
+
+        @Step("Get DOM property")
+        public String domProperty(@NonNull By locator, @NonNull String propertyName) {
+            return performAction(ActionType.GET_DOM_PROPERTY, locator, propertyName);
+        }
+
+        @Step("Get name")
+        public String name(@NonNull By locator) {
+            return performAction(ActionType.GET_NAME, locator, null);
+        }
+
+        @Step("Get text")
+        public String text(@NonNull By locator) {
+            return performAction(ActionType.GET_TEXT, locator, null);
+        }
+
+        @Step("Get CSS value")
+        public String cssValue(@NonNull By locator, @NonNull String propertyName) {
+            return performAction(ActionType.GET_CSS_VALUE, locator, propertyName);
+        }
+
+        @Step("Get is displayed")
+        public boolean isDisplayed(@NonNull By locator) {
+            return Boolean.parseBoolean(performAction(ActionType.GET_IS_DISPLAYED, locator, null));
+        }
+
+        @Step("Get is enabled")
+        public boolean isEnabled(@NonNull By locator) {
+            return Boolean.parseBoolean(performAction(ActionType.GET_IS_ENABLED, locator, null));
+        }
+
+        @Step("Get is selected")
+        public boolean isSelected(@NonNull By locator) {
+            return Boolean.parseBoolean(performAction(ActionType.GET_IS_SELECTED, locator, null));
+        }
     }
 
-    @Step("Get text")
-    @Override
-    public String getText(@NonNull By locator) {
-        return performAction(ActionType.GET_TEXT, locator, null);
-    }
+    protected enum ActionType {CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, CLEAR, DRAG_AND_DROP, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, GET_IS_SELECTED}
 
-    private enum ActionType {CLICK, TYPE, DRAG_AND_DROP, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT}
-
-    private String performAction(ActionType action, By locator, Object data) {
+    protected String performAction(ActionType action, By locator, Object data) {
         AtomicReference<String> output = new AtomicReference<>("");
         AtomicReference<String> accessibleName = new AtomicReference<>(JavaHelper.formatLocatorToString(locator));
         final byte[][] screenshot = {null};
@@ -188,7 +243,7 @@ public class Actions extends ElementActions {
                             }
                         }
                     }
-                    case TYPE -> {
+                    case TYPE, TYPE_SECURELY -> {
                         PropertiesHelper.setClearBeforeTypingMode();
                         String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
                         switch (clearMode) {
@@ -206,13 +261,37 @@ public class Actions extends ElementActions {
                         screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
                         foundElements.get().getFirst().sendKeys((CharSequence) data);
                     }
+                    case TYPE_APPEND -> {
+                        screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
+                        foundElements.get().getFirst().sendKeys((CharSequence) data);
+                    }
+                    case CLEAR -> {
+                        screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
+                        String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
+                        switch (clearMode) {
+                            case "native":
+                                foundElements.get().getFirst().clear();
+                                break;
+                            case "backspace":
+                                String text = parseElementText(foundElements.get().getFirst());
+                                if (!text.isEmpty())
+                                    foundElements.get().getFirst().sendKeys(String.valueOf(Keys.BACK_SPACE).repeat(text.length()));
+                                break;
+                            case "off":
+                                break;
+                        }
+                    }
                     case DRAG_AND_DROP -> new org.openqa.selenium.interactions.Actions(driver)
                             .dragAndDrop(foundElements.get().getFirst(),
                                     driver.findElement((By) data))
                             .pause(Duration.ofMillis(300)).build().perform();
                     case GET_DOM_ATTRIBUTE -> output.set(foundElements.get().getFirst().getDomAttribute((String) data));
                     case GET_DOM_PROPERTY -> output.set(foundElements.get().getFirst().getDomProperty((String) data));
+                    case GET_CSS_VALUE -> output.set(foundElements.get().getFirst().getCssValue((String) data));
                     case GET_NAME -> output.set(foundElements.get().getFirst().getAccessibleName());
+                    case GET_IS_DISPLAYED -> output.set(String.valueOf(foundElements.get().getFirst().isDisplayed()));
+                    case GET_IS_ENABLED -> output.set(String.valueOf(foundElements.get().getFirst().isEnabled()));
+                    case GET_IS_SELECTED -> output.set(String.valueOf(foundElements.get().getFirst().isSelected()));
                     case GET_TEXT -> {
                         output.set(foundElements.get().getFirst().getText());
                         if ((output.get() == null || output.get().isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
@@ -235,17 +314,21 @@ public class Actions extends ElementActions {
         } catch (WebDriverException exception) {
             // take failure screenshot if needed
             if (screenshot[0] == null) {
-                if (foundElements.get() == null || foundElements.get().size() !=1 ) {
-                    screenshot[0] = takeFailureScreenshot(null);
-                } else {
-                    screenshot[0] = takeFailureScreenshot(foundElements.get().getFirst());
+                try {
+                    if (foundElements.get() == null || foundElements.get().size() != 1) {
+                        screenshot[0] = takeFailureScreenshot(null);
+                    } else {
+                        screenshot[0] = takeFailureScreenshot(foundElements.get().getFirst());
+                    }
+                    // report broken
+                    reportBroken(action.name(), accessibleName.get(), screenshot[0], exception);
+                } catch (RuntimeException exception2) {
+                    exception2.addSuppressed(exception);
+                    // report broken
+                    reportBroken(action.name(), accessibleName.get(), screenshot[0], exception2);
                 }
             }
-
-            // report broken
-            reportBroken(action.name(), accessibleName.get(), screenshot[0], exception);
         }
-
         //report pass
         reportPass(action.name(),accessibleName.get(), screenshot[0]);
         return output.get();
@@ -471,6 +554,18 @@ public class Actions extends ElementActions {
             stepName.append(" ").append(JavaHelper.convertToSentenceCase(status.name()));
 
         Allure.getLifecycle().updateStep(update -> update.setName(stepName.toString()));
+
+        // handle secure typing
+        if (ActionType.TYPE_SECURELY.name().equals(action))
+            Allure.getLifecycle().updateStep(update -> {
+                var params = update.getParameters();
+                params.forEach(parameter -> {
+                    if (parameter.getName().equals("text")) {
+                        parameter.setValue("********");
+                    }
+                });
+                update.setParameters(params);
+            });
 
         // attach screenshot
         if (screenshot!=null)
