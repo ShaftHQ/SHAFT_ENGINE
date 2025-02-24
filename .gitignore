@@ -29,3 +29,4 @@ OpenLHReport.js
 /src/main/resources/docker-compose/data/
 /src/test/resources/testDataFiles/allure-results/
 /src/test/resources/META-INF/services/
+/.idea/
