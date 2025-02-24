@@ -314,17 +314,21 @@ public class Actions extends ElementActions {
         } catch (WebDriverException exception) {
             // take failure screenshot if needed
             if (screenshot[0] == null) {
-                if (foundElements.get() == null || foundElements.get().size() !=1 ) {
-                    screenshot[0] = takeFailureScreenshot(null);
-                } else {
-                    screenshot[0] = takeFailureScreenshot(foundElements.get().getFirst());
+                try {
+                    if (foundElements.get() == null || foundElements.get().size() != 1) {
+                        screenshot[0] = takeFailureScreenshot(null);
+                    } else {
+                        screenshot[0] = takeFailureScreenshot(foundElements.get().getFirst());
+                    }
+                    // report broken
+                    reportBroken(action.name(), accessibleName.get(), screenshot[0], exception);
+                } catch (RuntimeException exception2) {
+                    exception2.addSuppressed(exception);
+                    // report broken
+                    reportBroken(action.name(), accessibleName.get(), screenshot[0], exception2);
                 }
             }
-
-            // report broken
-            reportBroken(action.name(), accessibleName.get(), screenshot[0], exception);
         }
-
         //report pass
         reportPass(action.name(),accessibleName.get(), screenshot[0]);
         return output.get();
