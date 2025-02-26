@@ -30,6 +30,7 @@ public class RequestBuilder {
 
     private String urlArguments = null;
     private List<List<Object>> parameters = null;
+    private Map<String, Object> parametersMap = null;
     private RestActions.ParametersType parametersType = null;
     private Object requestBody = null;
     private ContentType contentType = null;
@@ -182,14 +183,31 @@ public class RequestBuilder {
     }
 
     /**
+     * @deprecated Use setParameters(Map<String, Object>, RestActions.ParametersType) instead.
+     * This method will be removed in a future release.
      * Sets the parameters (if any) for the API request that you're currently building. A request usually has only one of the following: urlArguments, parameters+type, or body
      *
      * @param parameters     a list of key/value pairs that will be sent as parameters with this API call, is nullable, Example: Arrays.asList(Arrays.asList("itemId", "123"), Arrays.asList("contents", XMLContents));
      * @param parametersType FORM, QUERY
      * @return a self-reference to be used to continue building your API request
      */
+    @Deprecated
     public RequestBuilder setParameters(List<List<Object>> parameters, RestActions.ParametersType parametersType) {
         this.parameters = parameters;
+        this.parametersType = parametersType;
+        return this;
+    }
+
+    /**
+     * Sets API request parameters using a Map<String, Object>.
+     * Recommended for better readability and usability.
+     *
+     * @param parameters A Map where keys represent parameter names, and values represent corresponding values.
+     * @param parametersType The type of parameters (FORM, QUERY).
+     * @return A self-reference to continue building the API request.
+     */
+    public RequestBuilder setParameters(Map<String, Object> parameters, RestActions.ParametersType parametersType) {
+        this.parametersMap = parameters;  // Store in new field
         this.parametersType = parametersType;
         return this;
     }
