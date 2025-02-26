@@ -374,8 +374,12 @@ public class RequestBuilder {
 
     private String prepareRequestURLWithParameters() {
         String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
-        if (parameters != null && parametersType == RestActions.ParametersType.QUERY) {
-            request = addParametersToUrl(request, parameters);
+        if (parametersType == RestActions.ParametersType.QUERY) {
+            if (parametersMap != null) {
+                request = addParametersToUrl(request, parametersMap);
+            } else if (parameters != null) {
+                request = addParametersToUrl(request, parameters);
+            }
         }
         return request;
     }
@@ -430,6 +434,28 @@ public class RequestBuilder {
                 requestType == RestActions.RequestType.GET ||
                 requestType == RestActions.RequestType.DELETE;
     }
+
+    private String addParametersToUrl(String url, Map<String, Object> parameters) {
+        StringBuilder urlWithParams = new StringBuilder(url);
+
+        if (!url.contains("?")) {
+            urlWithParams.append("?");
+        } else {
+            urlWithParams.append("&");
+        }
+
+        for (Map.Entry<String, Object> param : parameters.entrySet()) {
+            urlWithParams.append(param.getKey()).append("=").append(param.getValue()).append("&");
+        }
+
+        // Remove the last '&' if parameters exist
+        if (!parameters.isEmpty()) {
+            urlWithParams.setLength(urlWithParams.length() - 1);
+        }
+
+        return urlWithParams.toString();
+    }
+
 
     private String addParametersToUrl(String url, List<List<Object>> parameters) {
         StringBuilder urlWithParams = new StringBuilder(url);
