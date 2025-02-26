@@ -26,6 +26,13 @@ public class BasicAPITests {
                 "}";
         api = new SHAFT.API("https://httpbin.org/");
         api.post("post").setRequestBody(body).setParameters(queryParameters, RestActions.ParametersType.QUERY).perform();
+
+        api.assertThatResponse().extractedJsonValue("args.FirstName")
+                .isEqualTo("Abdelrahman")
+                .perform();
+        api.assertThatResponse().extractedJsonValue("args.LastName")
+                .isEqualTo("Fahd")
+                .perform();
     }
 
     @Test
