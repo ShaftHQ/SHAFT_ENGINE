@@ -689,12 +689,11 @@ public class DriverFactoryHelper {
                 }
             }
 
-            if (SHAFT.Properties.web.headlessExecution()) {
-                driver.manage().window().setSize(new Dimension(TARGET_WINDOW_SIZE.getWidth(), TARGET_WINDOW_SIZE.getHeight()));
-            } else {
-                Dimension browserWindowSize = new Dimension(SHAFT.Properties.web.browserWindowWidth(), SHAFT.Properties.web.browserWindowHeight());
-                if (!isMobileExecution && !SHAFT.Properties.flags.autoMaximizeBrowserWindow()) {
-                    driver.manage().window().setSize(browserWindowSize);
+            if (!isMobileExecution && SHAFT.Properties.web.headlessExecution()) {
+                if (SHAFT.Properties.flags.autoMaximizeBrowserWindow()) {
+                    driver.manage().window().setSize(new Dimension(TARGET_WINDOW_SIZE.getWidth(), TARGET_WINDOW_SIZE.getHeight()));
+                } else {
+                    driver.manage().window().setSize(new Dimension(SHAFT.Properties.web.browserWindowWidth(), SHAFT.Properties.web.browserWindowHeight()));
                 }
             }
 

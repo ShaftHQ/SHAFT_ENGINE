@@ -8,11 +8,9 @@ import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.enums.internal.ClipboardAction;
 import com.shaft.enums.internal.ElementAction;
-import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.ElementInformation;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
-import com.shaft.gui.waits.WaitActions;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -294,8 +292,9 @@ public class ElementActions extends FluentWebDriverAction {
         return this;
     }
 
+    @Deprecated
     public String getAttribute(By elementLocator, String attributeName) {
-        return new com.shaft.gui.element.internal.Actions(driverFactoryHelper).getAttribute(elementLocator, attributeName);
+        return new com.shaft.gui.element.internal.Actions(driverFactoryHelper).get().domProperty(elementLocator, attributeName);
     }
 
     /**
@@ -313,17 +312,10 @@ public class ElementActions extends FluentWebDriverAction {
      * @param propertyName   the target CSS property of the webElement under test
      * @return the value of the target CSS property of the webElement under test
      */
+    @Deprecated
     public String getCSSProperty(By elementLocator, String propertyName) {
-        try {
-            var elementName = elementActionsHelper.getElementName(driver, elementLocator);
-            String elementCssProperty = ((WebElement) elementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getCssValue(propertyName);
-            elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementCssProperty, null, elementName);
-            return elementCssProperty;
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
-        }
-        return null;
+        return new com.shaft.gui.element.internal.Actions(driverFactoryHelper).get().cssValue(elementLocator, propertyName);
+
 
     }
 
@@ -334,8 +326,9 @@ public class ElementActions extends FluentWebDriverAction {
      *                       selector, name ...etc.)
      * @return the text value of the target webElement
      */
+    @Deprecated
     public String getText(By elementLocator) {
-        return new com.shaft.gui.element.internal.Actions(driverFactoryHelper).getText(elementLocator);
+        return new com.shaft.gui.element.internal.Actions(driverFactoryHelper).get().text(elementLocator);
     }
 
     /**
@@ -375,29 +368,6 @@ public class ElementActions extends FluentWebDriverAction {
     public ElementActions hoverAndClick(List<By> hoverElementLocators, By clickableElementLocator) {
         hoverElementLocators.forEach(this::hover);
         click(clickableElementLocator);
-        return this;
-    }
-
-    /**
-     * Sends a key-press to the target element.
-     *
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc.)
-     * @param key            the key that should be pressed
-     * @return a self-reference to be used to chain actions
-     */
-    @Deprecated
-    public ElementActions keyPress(By elementLocator, Keys key) {
-        try {
-            var elementName = elementActionsHelper.getElementName(driver, elementLocator);
-            List<Object> screenshot = elementActionsHelper.takeScreenshot(driver, elementLocator, "keyPress", null, true);
-            // takes screenshot before moving the element out of view
-            ((WebElement) elementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).sendKeys(key);
-            elementActionsHelper.passAction(driver, elementLocator, key.name(), screenshot, elementName);
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            elementActionsHelper.failAction(driver, key.name(), elementLocator, throwable);
-        }
         return this;
     }
 
@@ -591,37 +561,7 @@ public class ElementActions extends FluentWebDriverAction {
     }
 
     public ElementActions clear(By elementLocator) {
-        try {
-            // try clearing text
-            var elementInformation = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElement(driver, elementLocator, ElementAction.CLEAR));
-            var elementName = elementInformation.getElementName();
-            if (!SHAFT.Properties.flags.forceCheckTextWasTypedCorrectly()){
-                elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "", null, elementName);
-            }else {
-                var currentText = getText(elementLocator);
-                if (currentText.isBlank()) {
-                    elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "", null, elementName);
-                } else {
-                    // try deleting letter by letter using backspaces
-                    for (var ignored : currentText.toCharArray()) {
-                        try {
-                            (elementInformation.getFirstElement()).sendKeys(Keys.BACK_SPACE);
-                        } catch (WebDriverException webDriverException) {
-                            elementActionsHelper.performActionAgainstUniqueElement(driver, elementInformation.getLocator(), ElementAction.BACKSPACE);
-                        }
-                    }
-                    var currentTextAfterClearingUsingBackSpace = getText(elementLocator);
-                    if (currentText.isBlank()) {
-                        elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "", null, elementName);
-                    } else {
-                        elementActionsHelper.failAction(driver, "Expected to clear existing text, but ended up with: \"" + currentText + "\"", elementLocator);
-                    }
-                }
-            }
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
-        }
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).clear(elementLocator);
         return this;
     }
 
@@ -635,17 +575,8 @@ public class ElementActions extends FluentWebDriverAction {
      *                       target webElement
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions typeAppend(By elementLocator, String text) {
-        try {
-            if (text != null) {
-                var elementInformation = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElement(driver, elementLocator, ElementAction.SEND_KEYS, text));
-                var elementName = elementInformation.getElementName();
-                elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
-            }
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
-        }
+    public ElementActions typeAppend(By elementLocator, CharSequence text) {
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).typeAppend(elementLocator, text);
         return this;
     }
 
@@ -712,20 +643,8 @@ public class ElementActions extends FluentWebDriverAction {
      *                       webElement
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions typeSecure(By elementLocator, String text) {
-        try {
-            var elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
-            String actualResult = elementActionsHelper.typeWrapper(driver, elementInformation, text);
-            var elementName = elementInformation.getElementName();
-            if (actualResult.equals(text)) {
-                elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), ElementActionsHelper.OBFUSCATED_STRING.repeat(text.length()), null, elementName);
-            } else {
-                elementActionsHelper.failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \"" + actualResult + "\"", elementLocator);
-            }
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
-        }
+    public ElementActions typeSecure(By elementLocator, CharSequence text) {
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).typeSecure(elementLocator, text);
         return this;
     }
 
@@ -736,10 +655,12 @@ public class ElementActions extends FluentWebDriverAction {
      *                       id, selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
+    @Deprecated
     public ElementActions waitToBeReady(By elementLocator) {
         return waitToBeReady(elementLocator, true);
     }
 
+    @Deprecated
     public ElementActions waitToBeReady(By elementLocator, boolean isExpectedToBeVisible) {
         ReportManager.logDiscrete("Waiting for element to be present; elementLocator \"" + elementLocator + "\", isExpectedToBeVisible\"" + isExpectedToBeVisible + "\"...");
         String reportMessage = "Waited for the element's state of visibility to be (" + isExpectedToBeVisible + "). Element locator (" + JavaHelper.formatLocatorToString(elementLocator) + ")";
@@ -777,6 +698,7 @@ public class ElementActions extends FluentWebDriverAction {
      *                       id, selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
+    @Deprecated
     public ElementActions waitToBeInvisible(By elementLocator) {
         return waitToBeReady(elementLocator, false);
     }
@@ -791,6 +713,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     @SuppressWarnings("UnusedReturnValue")
+    @Deprecated
     public ElementActions waitForTextToChange(By elementLocator, String initialValue) {
         try {
             var elementName = elementActionsHelper.getElementName(driver, elementLocator);
@@ -818,6 +741,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @param expectedValue  the expected value of the attribute
      * @return a self-reference to be used to chain actions
      */
+    @Deprecated
     public ElementActions waitToAttribute(By elementLocator, String attribute, String expectedValue) {
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
@@ -839,6 +763,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return boolean value, true if the element is displayed, and false if the
      * element is not displayed
      */
+    @Deprecated
     public boolean isElementDisplayed(By elementLocator) {
         try {
             var elementName = elementActionsHelper.getElementName(driver, elementLocator);
@@ -860,6 +785,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return boolean value, true if the element is clickable, and false if the
      * element is not clickable
      */
+    @Deprecated
     public boolean isElementClickable(By elementLocator) {
         try {
             var elementName = elementActionsHelper.getElementName(driver, elementLocator);
@@ -933,38 +859,49 @@ public class ElementActions extends FluentWebDriverAction {
         return this;
     }
 
+    @Deprecated
     public ElementActions waitUntilNumberOfElementsToBe(By elementLocator, int numberOfElements) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.numberOfElementsToBe(elementLocator, numberOfElements), (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).waitUntil(d -> d.findElements(elementLocator).size() == numberOfElements, Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
         return this;
     }
 
+    @Deprecated
     public ElementActions waitUntilNumberOfElementsToBeLessThan(By elementLocator, int numberOfElements) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.numberOfElementsToBeLessThan(elementLocator, numberOfElements), (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).waitUntil(d -> d.findElements(elementLocator).size() < numberOfElements, Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
         return this;
     }
 
+    @Deprecated
     public ElementActions waitUntilNumberOfElementsToBeMoreThan(By elementLocator, int numberOfElements) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.numberOfElementsToBeMoreThan(elementLocator, numberOfElements), (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).waitUntil(d -> d.findElements(elementLocator).size() > numberOfElements, Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
         return this;
     }
 
+    @Deprecated
     public ElementActions waitUntilAttributeContains(By elementLocator, String attribute, String attributeContainsValue) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.attributeContains(elementLocator, attribute, attributeContainsValue), (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).waitUntil(d -> {
+            var currentValue = driver.findElement(elementLocator).getDomProperty(attribute);
+            currentValue = currentValue != null ? currentValue : "";
+            return currentValue.contains(attributeContainsValue);
+        }, Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
         return this;
     }
 
+    @Deprecated
     public ElementActions waitUntilElementTextToBe(By elementLocator, String text) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.textToBe(elementLocator, text), (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).waitUntil(d -> text.equals(driver.findElement(elementLocator).getText()), Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
         return this;
     }
 
+    @Deprecated
     public ElementActions waitUntilElementToBeSelected(By elementLocator) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.elementToBeSelected(elementLocator), (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).waitUntil(d -> d.findElement(elementLocator).isSelected(), Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
         return this;
     }
 
+    @Deprecated
     public ElementActions waitUntilPresenceOfAllElementsLocatedBy(By elementLocator) {
-        new WaitActions(driverFactoryHelper).explicitWaits(ExpectedConditions.presenceOfAllElementsLocatedBy(elementLocator), (int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout());
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).waitUntil(d -> !d.findElements(elementLocator).isEmpty(), Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
         return this;
     }
 

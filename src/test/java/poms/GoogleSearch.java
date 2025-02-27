@@ -30,7 +30,7 @@ public class GoogleSearch {
 
     public void searchForQuery(String searchQuery) {
         new ElementActions(driver).type(searchBox_textField, searchQuery);
-        new ElementActions(driver).keyPress(searchBox_textField, Keys.ENTER);
+        new ElementActions(driver).type(searchBox_textField, Keys.ENTER);
     }
 
     public void typeQuery(String searchQuery) {

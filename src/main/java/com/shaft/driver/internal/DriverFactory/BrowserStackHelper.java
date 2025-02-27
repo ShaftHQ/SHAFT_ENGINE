@@ -7,6 +7,7 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ProgressBarLogger;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.MutableCapabilities;
 
@@ -90,7 +91,8 @@ public class BrowserStackHelper {
         parameters.add(apkFile);
         parameters.add(customID);
         var appUrl = "";
-        try {
+
+        try (ProgressBarLogger ignored = new ProgressBarLogger("Uploading app to BrowserStack...")) {
             appUrl = Objects.requireNonNull(RestActions.getResponseJSONValue(new RestActions(serviceUri).buildNewRequest(appUploadServiceName, RestActions.RequestType.POST)
                             .setParameters(parameters, RestActions.ParametersType.FORM)
                             .setAuthentication(username, password, RequestBuilder.AuthenticationType.BASIC)

@@ -4,7 +4,6 @@ import com.shaft.driver.SHAFT;
 import com.shaft.enums.internal.ClipboardAction;
 import io.cucumber.java.en.When;
 import org.openqa.selenium.By;
-import org.openqa.selenium.Keys;
 
 import java.util.Objects;
 
@@ -97,20 +96,6 @@ public class ElementSteps {
     @When("I Upload the file {string} to the element found by {string}: {string}")
     public void typeFileLocationForUpload(String absoluteFilePath, String locatorType, String locatorValue) {
         driver.get().element().typeFileLocationForUpload(getLocatorFromTypeAndValue(locatorType, locatorValue), absoluteFilePath);
-    }
-
-    /**
-     * Sends a keypress to the target element. Supported keys are: ENTER, RETURN, TAB.
-     *
-     * @param key          the key that should be pressed
-     * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
-     * @param locatorValue the value/expression of the desired element locator
-     */
-    @SuppressWarnings("SpellCheckingInspection")
-    @When("I Press the {string} key into the element found by {string}: {string}")
-//    @عندما("اقوم بالضغط على زر {string} بداخل عنصر الويب المحدد بإستخدام {string} بقيمة {string}")
-    public void keyPress(String key, String locatorType, String locatorValue) {
-        driver.get().element().keyPress(getLocatorFromTypeAndValue(locatorType, locatorValue), Keys.valueOf(key.toUpperCase()));
     }
 
     /**
@@ -244,6 +229,7 @@ public class ElementSteps {
      * @param locatorValue the value/expression of the desired element locator
      */
     @When("I Wait for the element found by {string}: {string} to be present")
+    @Deprecated
     public void waitForElementToBePresent(String locatorType, String locatorValue) {
         driver.get().element().waitToBeReady(getLocatorFromTypeAndValue(locatorType, locatorValue));
     }
@@ -258,6 +244,7 @@ public class ElementSteps {
      * @param locatorValue the value/expression of the desired element locator
      */
     @When("I Wait for the element found by {string}: {string} to be not present")
+    @Deprecated
     public void waitForElementToBeNotPresent(String locatorType, String locatorValue) {
         driver.get().element().waitToBeInvisible(getLocatorFromTypeAndValue(locatorType, locatorValue));
     }
@@ -273,6 +260,7 @@ public class ElementSteps {
      * @param initialValue the initial text value of the target webElement
      */
     @When("I Wait for the text inside the element found by {string}: {string} to change from the initial value {string}")
+    @Deprecated
     public void waitForTextToChange(String locatorType, String locatorValue, String initialValue) {
         driver.get().element().waitForTextToChange(getLocatorFromTypeAndValue(locatorType, locatorValue), initialValue);
 

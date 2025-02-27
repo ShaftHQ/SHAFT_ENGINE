@@ -121,13 +121,26 @@ public class WebDriverElementValidationsBuilder {
     /**
      * Use this to check against a certain element attribute
      *
-     * @param elementAttribute the target element attribute that will be checked against
+     * @param domAttribute the target element DOM attribute that will be checked against
      * @return a NativeValidationsBuilder object to continue building your validation
      */
-    public NativeValidationsBuilder attribute(String elementAttribute) {
+    public NativeValidationsBuilder attribute(String domAttribute) {
         this.validationMethod = "elementAttributeEquals";
-        this.elementAttribute = elementAttribute;
-        reportMessageBuilder.append("attribute \"").append(elementAttribute).append("\" ");
+        this.elementAttribute = domAttribute;
+        reportMessageBuilder.append("DOM attribute \"").append(domAttribute).append("\" ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    /**
+     * Use this to check against a certain element attribute
+     *
+     * @param domProperty the target element DOM property that will be checked against
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    public NativeValidationsBuilder property(String domProperty) {
+        this.validationMethod = "elementPropertyEquals";
+        this.elementAttribute = domProperty;
+        reportMessageBuilder.append("DOM property \"").append(domProperty).append("\" ");
         return new NativeValidationsBuilder(this);
     }
 

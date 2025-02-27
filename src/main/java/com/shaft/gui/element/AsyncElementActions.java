@@ -6,7 +6,6 @@ import com.shaft.enums.internal.ClipboardAction;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.Beta;
 import org.openqa.selenium.By;
-import org.openqa.selenium.Keys;
 
 import java.util.ArrayList;
 
@@ -47,11 +46,6 @@ public class AsyncElementActions extends FluentWebDriverAction {
 
     public AsyncElementActions clickUsingJavascript(By elementLocator) {
         actionThreads.add(Thread.ofVirtual().start(() -> elementActions.clickUsingJavascript(elementLocator)));
-        return this;
-    }
-
-    public AsyncElementActions keyPress(By elementLocator, Keys key) {
-        actionThreads.add(Thread.ofVirtual().start(() -> elementActions.keyPress(elementLocator, key)));
         return this;
     }
 

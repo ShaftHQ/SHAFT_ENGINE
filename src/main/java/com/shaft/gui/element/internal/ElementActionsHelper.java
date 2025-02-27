@@ -35,8 +35,6 @@ import java.awt.*;
 import java.time.Duration;
 import java.util.List;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @SuppressWarnings({"UnusedReturnValue"})
@@ -324,29 +322,30 @@ public class ElementActionsHelper {
     }
 
     public List<Object> scrollToFindElement(WebDriver driver, By elementLocator) {
+        var elementInformation = new ArrayList<>();
         try {
-            return new SynchronizationManager(driver).fluentWait().until(f -> {
-                WebElement targetElement;
-                try {
-                    targetElement = driver.findElement(elementLocator);
-                } catch (NoSuchElementException noSuchElementException) {
-                    new Actions(driver).scrollByAmount(0, driver.manage().window().getSize().getHeight()).perform();
-                    targetElement = driver.findElement(elementLocator);
+            boolean elementFound = new SynchronizationManager(driver).fluentWait().until(f -> {
+                if (!driver.findElements(elementLocator).isEmpty()) {
+                    ReportManagerHelper.logDiscrete("Element found.", Level.DEBUG);
+                    elementInformation.add(driver.findElements(elementLocator).size());
+                    elementInformation.add(driver.findElement(elementLocator));
+                    return true;
                 }
-                var elementInformation = new ArrayList<>();
-                elementInformation.add(driver.findElements(elementLocator).size());
-                elementInformation.add(targetElement);
-                return elementInformation;
+                new Actions(driver).scrollByAmount(0, driver.manage().window().getSize().getHeight()).perform();
+                return false;
             });
+            if (!elementFound) {
+                elementInformation.add(0);
+                elementInformation.add(null);
+            }
         } catch (org.openqa.selenium.TimeoutException timeoutException) {
             // In case the element was not found / not visible and the timeout expired
             ReportManager.logDiscrete(timeoutException.getMessage() + " || " + timeoutException.getCause().getMessage().substring(0, timeoutException.getCause().getMessage().indexOf("\n")));
-            var elementInformation = new ArrayList<>();
             elementInformation.add(0);
             elementInformation.add(null);
             elementInformation.add(timeoutException);
-            return elementInformation;
         }
+        return elementInformation;
     }
 
 
