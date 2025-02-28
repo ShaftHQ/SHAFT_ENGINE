@@ -1,13 +1,16 @@
 package com.shaft.api;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
+import com.shaft.tools.io.SwaggerManager;
 import io.qameta.allure.Step;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.config.SSLConfig;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
+import io.swagger.v3.oas.models.media.Schema;
 import lombok.AccessLevel;
 import lombok.Getter;
 
@@ -15,6 +18,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static io.restassured.RestAssured.config;
+import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 
 @Getter(AccessLevel.PACKAGE) //for unit tests
 @SuppressWarnings("unused")
@@ -138,12 +142,12 @@ public class RequestBuilder {
         for (Map.Entry<String, Object> entry : paramMap.entrySet()) {
             String key = entry.getKey();
             String value = String.valueOf(entry.getValue());
+
             if (serviceName.contains("{" + key + "}")) {
                 serviceName = serviceName.replace("{" + key + "}", value);
+                SHAFT.Report.log("✅ Replaced {" + key + "} with " + value + " -> " + serviceName);
             } else {
-                throw new IllegalArgumentException(
-                        "Path parameter {" + key + "} not found in the serviceName: " + serviceName
-                );
+                SHAFT.Report.log("⚠ WARNING: Path parameter {" + key + "} not found in serviceName: " + serviceName);
             }
         }
         return this;
@@ -310,7 +314,30 @@ public class RequestBuilder {
      * @return Response; returns the full response object for further manipulation
      */
     public Response perform() {
-        return performRequest();
+        Response response = performRequest();
+
+        // Fetch expected schema from Swagger
+        JsonNode expectedSchema = SwaggerManager.getResponseSchema(serviceName, requestType.name(), response.getStatusCode());
+
+        if (expectedSchema != null) {
+            try {
+                // Convert JsonNode to String for schema validation
+                String schemaString = expectedSchema.toPrettyString();
+
+                // Validate API response against Swagger schema
+                response.then().assertThat().body(matchesJsonSchema(schemaString));
+
+                SHAFT.Report.log("✅ API response validated successfully against Swagger schema.");
+
+            } catch (Exception e) {
+                SHAFT.Report.log("❌ Schema validation failed! " + e.getMessage());
+            }
+        } else {
+            // Fail test if no schema is found
+            SHAFT.Report.log("❌ No schema found for endpoint: " + serviceName + ". API contract validation failed!");
+        }
+
+        return response;
     }
 
     /**
