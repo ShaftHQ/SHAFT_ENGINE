@@ -2,12 +2,14 @@ package com.shaft.api;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
+import com.shaft.tools.io.SwaggerManager;
 import io.qameta.allure.Step;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.config.SSLConfig;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
+import io.swagger.v3.oas.models.media.Schema;
 import lombok.AccessLevel;
 import lombok.Getter;
 
@@ -15,6 +17,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static io.restassured.RestAssured.config;
+import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 
 @Getter(AccessLevel.PACKAGE) //for unit tests
 @SuppressWarnings("unused")
@@ -310,7 +313,18 @@ public class RequestBuilder {
      * @return Response; returns the full response object for further manipulation
      */
     public Response perform() {
-        return performRequest();
+        Response response = performRequest();
+
+        // Fetch expected schema from Swagger
+        Schema<?> expectedSchema = SwaggerManager.getResponseSchema(serviceName, requestType.name(), response.getStatusCode());
+
+        if (expectedSchema != null) {
+            response.then().assertThat().body(matchesJsonSchema(expectedSchema.toString()));
+        } else {
+            System.out.println("⚠ No schema found for endpoint: " + serviceName);
+        }
+
+        return response;
     }
 
     /**
