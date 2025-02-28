@@ -30,6 +30,7 @@ public class RequestBuilder {
 
     private String urlArguments = null;
     private List<List<Object>> parameters = null;
+    private Map<String, Object> parametersMap = null;
     private RestActions.ParametersType parametersType = null;
     private Object requestBody = null;
     private ContentType contentType = null;
@@ -182,14 +183,31 @@ public class RequestBuilder {
     }
 
     /**
+     * @deprecated Use setParameters(Map<String, Object>, RestActions.ParametersType) instead.
+     * This method will be removed in a future release.
      * Sets the parameters (if any) for the API request that you're currently building. A request usually has only one of the following: urlArguments, parameters+type, or body
      *
      * @param parameters     a list of key/value pairs that will be sent as parameters with this API call, is nullable, Example: Arrays.asList(Arrays.asList("itemId", "123"), Arrays.asList("contents", XMLContents));
      * @param parametersType FORM, QUERY
      * @return a self-reference to be used to continue building your API request
      */
+    @Deprecated
     public RequestBuilder setParameters(List<List<Object>> parameters, RestActions.ParametersType parametersType) {
         this.parameters = parameters;
+        this.parametersType = parametersType;
+        return this;
+    }
+
+    /**
+     * Sets API request parameters using a Map<String, Object>.
+     * Recommended for better readability and usability.
+     *
+     * @param parameters A Map where keys represent parameter names, and values represent corresponding values.
+     * @param parametersType The type of parameters (FORM, QUERY).
+     * @return A self-reference to continue building the API request.
+     */
+    public RequestBuilder setParameters(Map<String, Object> parameters, RestActions.ParametersType parametersType) {
+        this.parametersMap = parameters;  // Store in new field
         this.parametersType = parametersType;
         return this;
     }
@@ -356,8 +374,12 @@ public class RequestBuilder {
 
     private String prepareRequestURLWithParameters() {
         String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
-        if (parameters != null && parametersType == RestActions.ParametersType.QUERY) {
-            request = addParametersToUrl(request, parameters);
+        if (parametersType == RestActions.ParametersType.QUERY) {
+            if (parametersMap != null) {
+                request = addParametersToUrl(request, parametersMap);
+            } else if (parameters != null) {
+                request = addParametersToUrl(request, parameters);
+            }
         }
         return request;
     }
@@ -412,6 +434,28 @@ public class RequestBuilder {
                 requestType == RestActions.RequestType.GET ||
                 requestType == RestActions.RequestType.DELETE;
     }
+
+    private String addParametersToUrl(String url, Map<String, Object> parameters) {
+        StringBuilder urlWithParams = new StringBuilder(url);
+
+        if (!url.contains("?")) {
+            urlWithParams.append("?");
+        } else {
+            urlWithParams.append("&");
+        }
+
+        for (Map.Entry<String, Object> param : parameters.entrySet()) {
+            urlWithParams.append(param.getKey()).append("=").append(param.getValue()).append("&");
+        }
+
+        // Remove the last '&' if parameters exist
+        if (!parameters.isEmpty()) {
+            urlWithParams.setLength(urlWithParams.length() - 1);
+        }
+
+        return urlWithParams.toString();
+    }
+
 
     private String addParametersToUrl(String url, List<List<Object>> parameters) {
         StringBuilder urlWithParams = new StringBuilder(url);
