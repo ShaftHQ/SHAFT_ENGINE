@@ -1,6 +1,5 @@
 package com.shaft.tools.io;
 
-
 import com.shaft.properties.internal.Properties;
 import io.swagger.models.HttpMethod;
 import io.swagger.parser.SwaggerParser;
@@ -16,31 +15,57 @@ import io.swagger.v3.oas.models.PathItem;
 import java.util.Map;
 
 public class SwaggerManager {
-    private static final String SWAGGER_URL = Properties.api.swaggerUrl();  // Dynamic Swagger URL from Properties
+    private static final String SWAGGER_URL = Properties.api.swaggerUrl();
 
+    // Prevent instantiation
+    private SwaggerManager() {
+        throw new IllegalStateException("Utility class");
+    }
+
+    /**
+     * Loads the OpenAPI specification dynamically (supports both OpenAPI 3.x & Swagger 2.x).
+     *
+     * @return Parsed OpenAPI/Swagger object.
+     */
     public static Object getOpenAPI() {
+        ReportManager.log("Fetching OpenAPI specification from: " + SWAGGER_URL);
         try {
-            // Try parsing as OpenAPI 3.x
             return new OpenAPIV3Parser().read(SWAGGER_URL);
         } catch (Exception e) {
-            // Fallback to Swagger 2.x
+            ReportManager.logDiscrete("Failed to parse as OpenAPI 3.x, trying Swagger 2.x...");
             return new SwaggerParser().read(SWAGGER_URL);
         }
     }
 
+    /**
+     * Retrieves all available API endpoints.
+     *
+     * @return Map containing API paths.
+     */
     public static Map<String, ?> getAllEndpoints() {
         Object openAPI = getOpenAPI();
 
-        if (openAPI instanceof OpenAPI) {
-            return ((OpenAPI) openAPI).getPaths();
-        } else if (openAPI instanceof Swagger) {
-            return ((Swagger) openAPI).getPaths();
+        if (openAPI instanceof OpenAPI openAPI3) {
+            return openAPI3.getPaths();
+        } else if (openAPI instanceof Swagger swagger) {
+            return swagger.getPaths();
         }
+
+        ReportManager.logDiscrete("⚠ No endpoints found in the API specification.");
         return null;
     }
 
+    /**
+     * Fetches the response schema for a given API endpoint, method, and status code.
+     *
+     * @param endpoint    API endpoint (e.g., "/users/{id}").
+     * @param method      HTTP method (e.g., "GET").
+     * @param statusCode  Expected response status code (e.g., 200).
+     * @return The corresponding OpenAPI 3.x schema.
+     */
     public static io.swagger.v3.oas.models.media.Schema<?> getResponseSchema(String endpoint, String method, int statusCode) {
-        Object openAPI = getOpenAPI(); // Get either OpenAPI 3.x or Swagger 2.x
+        Object openAPI = getOpenAPI();
+        ReportManager.log("Fetching response schema for: " + method + " " + endpoint + " [" + statusCode + "]");
 
         if (openAPI instanceof OpenAPI openAPI3) { // OpenAPI 3.x
             PathItem pathItem = openAPI3.getPaths().get(endpoint);
@@ -65,14 +90,20 @@ public class SwaggerManager {
 
             io.swagger.models.Response response = operation.getResponses().get(String.valueOf(statusCode));
             if (response != null && response.getSchema() != null) {
-                // Fix: Cast Swagger 2.x schema to OpenAPI 3.x Schema format
                 return convertSwaggerSchemaToOpenAPISchema(response.getSchema());
             }
         }
 
+        ReportManager.logDiscrete("⚠ No schema found for: " + method + " " + endpoint + " [" + statusCode + "]");
         return null;
     }
 
+    /**
+     * Converts Swagger 2.x schema to OpenAPI 3.x format.
+     *
+     * @param property Swagger 2.x property.
+     * @return Converted OpenAPI 3.x schema.
+     */
     private static io.swagger.v3.oas.models.media.Schema<?> convertSwaggerSchemaToOpenAPISchema(io.swagger.models.properties.Property property) {
         if (property == null) return null;
 
@@ -91,12 +122,9 @@ public class SwaggerManager {
         } else if (property instanceof io.swagger.models.properties.ObjectProperty) {
             openAPISchema.setType("object");
         } else {
-            openAPISchema.setType("unknown"); // Default case
+            openAPISchema.setType("unknown");
         }
 
         return openAPISchema;
     }
-
-
 }
-
