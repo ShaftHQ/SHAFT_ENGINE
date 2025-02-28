@@ -22,15 +22,13 @@ public class SwaggerContractTest {
         // Perform API call
         Response response = api.get(GET_USER_BY_USERNAME)
                 .setPathParameters(parameters)
+                //.setTargetStatusCode(404)
                 .perform();
 
-        // Fetch expected schema from Swagger
-        var expectedSchema = getResponseSchema(GET_USER_BY_USERNAME, "GET", response.getStatusCode());
-
-        if (expectedSchema != null) {
-
-        } else {
-            SHAFT.Report.log("⚠ No schema found for endpoint: " + GET_USER_BY_USERNAME);
-        }
+        /*
+        api.assertThatResponse()
+                .matchesSchema("user_schema.json")
+                .perform();
+        */
     }
 }

@@ -16,7 +16,6 @@ import lombok.Getter;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-
 import static io.restassured.RestAssured.config;
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 
@@ -316,29 +315,30 @@ public class RequestBuilder {
     public Response perform() {
         Response response = performRequest();
 
-        // Fetch expected schema from Swagger
+        // Log the API validation process
+        SHAFT.Report.log("[INFO] ✅ Validating API Response for: " + requestType.name() + " " + serviceName);
+
+        // Fetch the expected schema from Swagger
         JsonNode expectedSchema = SwaggerManager.getResponseSchema(serviceName, requestType.name(), response.getStatusCode());
 
-        if (expectedSchema != null) {
-            try {
-                // Convert JsonNode to String for schema validation
-                String schemaString = expectedSchema.toPrettyString();
+        // ✅ If no schema found, fail the test immediately
+        if (expectedSchema == null) {
+            //SHAFT.Report.log("[ERROR] ❌ No schema found for endpoint: " + serviceName);
+            throw new AssertionError("Test Failed: API endpoint `" + serviceName + "` does NOT exist in Swagger!");
+        }
 
-                // Validate API response against Swagger schema
-                response.then().assertThat().body(matchesJsonSchema(schemaString));
-
-                SHAFT.Report.log("✅ API response validated successfully against Swagger schema.");
-
-            } catch (Exception e) {
-                SHAFT.Report.log("❌ Schema validation failed! " + e.getMessage());
-            }
-        } else {
-            // Fail test if no schema is found
-            SHAFT.Report.log("❌ No schema found for endpoint: " + serviceName + ". API contract validation failed!");
+        // ✅ Validate response against the expected schema
+        try {
+            response.then().assertThat().body(matchesJsonSchema(expectedSchema.toPrettyString()));
+            SHAFT.Report.log("[INFO] ✅ Schema Validation PASSED for: " + serviceName);
+        } catch (Exception e) {
+            SHAFT.Report.log("[ERROR] ❌ Schema validation FAILED for: " + serviceName);
+            throw new AssertionError("Test Failed: API response does NOT match expected Swagger schema!");
         }
 
         return response;
     }
+
 
     /**
      * After you finish building your request, use this method to trigger the request and get back the response object.
