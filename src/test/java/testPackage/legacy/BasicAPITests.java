@@ -54,4 +54,16 @@ public class BasicAPITests {
                 .perform();
 
     }
+
+    @Test
+    public void apiTest4() {
+        Map <String, Object> formParameters = Map.of("name", "SHAFT",
+                                                     "job", "Automation Engineer");
+        api = new SHAFT.API("https://reqres.in/api");
+
+        api.post("users")
+                .setParameters(formParameters, RestActions.ParametersType.FORM)
+                .setTargetStatusCode(200)
+                .perform();
+    }
 }
