@@ -15,7 +15,7 @@ import org.aeonbits.owner.ConfigFactory;
 })
 public interface Api extends EngineProperties<Api> {
     @Key("swaggerUrl")
-    @DefaultValue("https://petstore.swagger.io/")
+    @DefaultValue("https://petstore.swagger.io/v2/swagger.json")
     String swaggerUrl();
 
     @Key("apiBaseUrl")
