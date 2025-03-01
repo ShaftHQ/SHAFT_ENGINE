@@ -5,7 +5,7 @@ import com.shaft.driver.SHAFT;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class BasicAPITests {
     SHAFT.API api;
@@ -26,5 +26,44 @@ public class BasicAPITests {
                 "}";
         api = new SHAFT.API("https://httpbin.org/");
         api.post("post").setRequestBody(body).setParameters(queryParameters, RestActions.ParametersType.QUERY).perform();
+
+        api.assertThatResponse().extractedJsonValue("args.FirstName")
+                .isEqualTo("Abdelrahman")
+                .perform();
+        api.assertThatResponse().extractedJsonValue("args.LastName")
+                .isEqualTo("Fahd")
+                .perform();
+    }
+
+    @Test
+    public void apiTest3() {
+        Map <String, Object> queryParameters = Map.of("FirstName", "Abdelrahman",
+                "LastName", "Fahd");
+        String body = "{\n" +
+                "\"Body1\": \"Abdelrahman\",\n" +
+                "\"Body2\": \"Fahd\"\n" +
+                "}";
+        api = new SHAFT.API("https://httpbin.org/");
+        api.post("post").setRequestBody(body).setParameters(queryParameters, RestActions.ParametersType.QUERY).perform();
+
+        api.assertThatResponse().extractedJsonValue("args.FirstName")
+                .isEqualTo("Abdelrahman")
+                .perform();
+        api.assertThatResponse().extractedJsonValue("args.LastName")
+                .isEqualTo("Fahd")
+                .perform();
+
+    }
+
+    @Test
+    public void apiTest4() {
+        Map <String, Object> formParameters = Map.of("name", "SHAFT",
+                                                     "job", "Automation Engineer");
+        api = new SHAFT.API("https://reqres.in/api");
+
+        api.post("users")
+                .setParameters(formParameters, RestActions.ParametersType.FORM)
+                .setTargetStatusCode(200)
+                .perform();
     }
 }
