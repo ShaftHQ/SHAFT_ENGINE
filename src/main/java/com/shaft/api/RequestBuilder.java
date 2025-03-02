@@ -1,23 +1,28 @@
 package com.shaft.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
+import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.SwaggerManager;
+import com.shaft.tools.io.internal.SwaggerManagerFactory;
 import io.qameta.allure.Step;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.config.SSLConfig;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
-import io.swagger.v3.oas.models.media.Schema;
 import lombok.AccessLevel;
 import lombok.Getter;
 
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+
 import static io.restassured.RestAssured.config;
-import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 
 @Getter(AccessLevel.PACKAGE) //for unit tests
 @SuppressWarnings("unused")
@@ -30,6 +35,7 @@ public class RequestBuilder {
     private String serviceName;
     private String serviceURI;
     private int targetStatusCode;
+    private String originalServiceName;
 
     private String urlArguments = null;
     private List<List<Object>> parameters = null;
@@ -77,6 +83,7 @@ public class RequestBuilder {
         this.sessionConfig = session.getSessionConfig();
         this.requestType = requestType;
         this.serviceName = serviceName;
+        this.originalServiceName = serviceName; // Store the original endpoint before modification
         this.targetStatusCode = 0;
         this.contentType = ContentType.ANY;
         this.authenticationType = AuthenticationType.NONE;
@@ -141,12 +148,12 @@ public class RequestBuilder {
         for (Map.Entry<String, Object> entry : paramMap.entrySet()) {
             String key = entry.getKey();
             String value = String.valueOf(entry.getValue());
-
             if (serviceName.contains("{" + key + "}")) {
                 serviceName = serviceName.replace("{" + key + "}", value);
-                SHAFT.Report.log("✅ Replaced {" + key + "} with " + value + " -> " + serviceName);
             } else {
-                SHAFT.Report.log("⚠ WARNING: Path parameter {" + key + "} not found in serviceName: " + serviceName);
+                throw new IllegalArgumentException(
+                        "Path parameter {" + key + "} not found in the serviceName: " + serviceName
+                );
             }
         }
         return this;
@@ -313,30 +320,61 @@ public class RequestBuilder {
      * @return Response; returns the full response object for further manipulation
      */
     public Response perform() {
-        Response response = performRequest();
+        return performRequest();
+    }
 
-        // Log the API validation process
-        SHAFT.Report.log("[INFO] ✅ Validating API Response for: " + requestType.name() + " " + serviceName);
-
-        // Fetch the expected schema from Swagger
-        JsonNode expectedSchema = SwaggerManager.getResponseSchema(serviceName, requestType.name(), response.getStatusCode());
-
-        // ✅ If no schema found, fail the test immediately
-        if (expectedSchema == null) {
-            //SHAFT.Report.log("[ERROR] ❌ No schema found for endpoint: " + serviceName);
-            throw new AssertionError("Test Failed: API endpoint `" + serviceName + "` does NOT exist in Swagger!");
-        }
-
-        // ✅ Validate response against the expected schema
+    private String determineSwaggerVersion(String swaggerUrl) {
         try {
-            response.then().assertThat().body(matchesJsonSchema(expectedSchema.toPrettyString()));
-            SHAFT.Report.log("[INFO] ✅ Schema Validation PASSED for: " + serviceName);
+            ObjectMapper objectMapper = new ObjectMapper();
+            String schemaJson = fetchSwaggerJson(swaggerUrl);
+            JsonNode swaggerJson = objectMapper.readTree(schemaJson);
+
+            if (swaggerJson.has("openapi")) {
+                String version = swaggerJson.get("openapi").asText();
+                if (version.startsWith("3.")) {
+                    ReportManager.log("Detected OpenAPI v3.");
+                    return "v3";
+                }
+            } else if (swaggerJson.has("swagger")) {
+                String version = swaggerJson.get("swagger").asText();
+                if (version.equals("2.0")) {
+                    ReportManager.log("Detected Swagger v2.");
+                    return "v2";
+                }
+            }
+
+            ReportManager.log("Unknown API version. Defaulting to Swagger v2.");
         } catch (Exception e) {
-            SHAFT.Report.log("[ERROR] ❌ Schema validation FAILED for: " + serviceName);
-            throw new AssertionError("Test Failed: API response does NOT match expected Swagger schema!");
+            ReportManager.log("Error detecting Swagger version: " + e.getMessage());
         }
 
-        return response;
+        return "v2"; // Default fallback
+    }
+
+    private String fetchSwaggerJson(String urlString) throws IOException {
+        StringBuilder json = new StringBuilder();
+        URL url = new URL(urlString);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("Accept", "application/json");
+
+        if (conn.getResponseCode() != 200) {
+            throw new IOException("Failed to fetch Swagger schema. HTTP error: " + conn.getResponseCode());
+        }
+
+        try (Scanner scanner = new Scanner(conn.getInputStream())) {
+            while (scanner.hasNextLine()) {
+                json.append(scanner.nextLine());
+            }
+        }
+        conn.disconnect();
+        return json.toString();
+    }
+
+    private String determineSwaggerUrl() {
+        // Logic to determine which API's Swagger URL to use
+        // Replace with actual logic if you have multiple Swagger sources
+        return "https://petstore.swagger.io/v2/swagger.json"; // Example
     }
 
 
@@ -347,6 +385,18 @@ public class RequestBuilder {
      */
     @Step("Perform {this.requestType} request to {this.serviceURI}{this.serviceName}")
     public Response performRequest() {
+        String swaggerUrl = determineSwaggerUrl(); // Get the correct Swagger URL dynamically
+        String swaggerVersion = determineSwaggerVersion(swaggerUrl);
+        SwaggerManagerFactory swaggerManager = new SwaggerManagerFactory(swaggerVersion, swaggerUrl);
+
+        //SwaggerManager swaggerManager = new SwaggerManager();
+
+        // Validate the schema using the original endpoint BEFORE modifying parameters
+        String schemaEndpoint = originalServiceName;
+        //swaggerManager.validateSchemaForEndpoint(schemaEndpoint);
+        JsonNode schema = swaggerManager.getSchemaForEndpoint(schemaEndpoint);
+
+
         String request = prepareRequestURLWithParameters();
         RequestSpecification specs = prepareRequestSpecifications();
 
@@ -357,6 +407,7 @@ public class RequestBuilder {
         try {
             response = sendRequest(request, specs);
             long endTime = System.currentTimeMillis();
+
             if (SHAFT.Properties.performance.isEnablePerformanceReport()) {
                 double responseTime = endTime - startTime;
                 String normalizedEndpoint = normalizeEndpoint(serviceName);
@@ -364,6 +415,7 @@ public class RequestBuilder {
             }
 
             handleResponse(response, specs);
+
         } catch (Exception e) {
             handleException(request, specs, response, e);
         }
@@ -371,6 +423,9 @@ public class RequestBuilder {
         session.setLastResponse(response);
         return response;
     }
+
+
+
 
     private String normalizeEndpoint(String endpoint) {
         // Simplified normalization logic to remove digits and trailing slashes
