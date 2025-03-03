@@ -555,7 +555,7 @@ public class ElementActions extends FluentWebDriverAction {
         return currentFrame;
     }
 
-    public ElementActions type(By elementLocator, CharSequence text) {
+    public ElementActions type(By elementLocator, CharSequence... text) {
         new com.shaft.gui.element.internal.Actions(driverFactoryHelper).type(elementLocator, text);
         return this;
     }
@@ -575,7 +575,7 @@ public class ElementActions extends FluentWebDriverAction {
      *                       target webElement
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions typeAppend(By elementLocator, CharSequence text) {
+    public ElementActions typeAppend(By elementLocator, CharSequence... text) {
         new com.shaft.gui.element.internal.Actions(driverFactoryHelper).typeAppend(elementLocator, text);
         return this;
     }
@@ -643,7 +643,7 @@ public class ElementActions extends FluentWebDriverAction {
      *                       webElement
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions typeSecure(By elementLocator, CharSequence text) {
+    public ElementActions typeSecure(By elementLocator, CharSequence... text) {
         new com.shaft.gui.element.internal.Actions(driverFactoryHelper).typeSecure(elementLocator, text);
         return this;
     }
