@@ -1,5 +1,6 @@
 package com.shaft.gui.element.internal;
 
+import com.google.common.annotations.Beta;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
@@ -12,6 +13,7 @@ import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotHelper;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
+import com.shaft.gui.internal.locator.SmartLocators;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
@@ -23,10 +25,11 @@ import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
 import lombok.NonNull;
 import org.apache.logging.log4j.Level;
-import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.*;
+import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.support.locators.RelativeLocator;
+import org.openqa.selenium.support.pagefactory.ByAll;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -59,33 +62,49 @@ public class Actions extends ElementActions {
         super(helper);
     }
 
-    @Override public Actions and() {
+    @Override
+    public Actions and() {
         return this;
     }
 
     @Step("Click")
-    @Override public Actions click(@NonNull By locator) {
+    @Override
+    public Actions click(@NonNull By locator) {
         performAction(ActionType.CLICK, locator, null);
+        return this;
+    }
+
+    @Beta
+    @Step("Click")
+    public Actions click(@NonNull String elementName) {
+        performAction(ActionType.CLICK, SmartLocators.clickableField(elementName), null);
         return this;
     }
 
     @Step("Type")
     @Override
-    public Actions type(@NonNull By locator, @NonNull CharSequence text) {
+    public Actions type(@NonNull By locator, @NonNull CharSequence... text) {
         performAction(ActionType.TYPE, locator, text);
+        return this;
+    }
+
+    @Beta
+    @Step("Type")
+    public Actions type(@NonNull String elementName, @NonNull CharSequence... text) {
+        performAction(ActionType.TYPE, SmartLocators.inputField(elementName), text);
         return this;
     }
 
     @Step("Type securely")
     @Override
-    public Actions typeSecure(@NonNull By locator, @NonNull CharSequence text) {
+    public Actions typeSecure(@NonNull By locator, @NonNull CharSequence... text) {
         performAction(ActionType.TYPE_SECURELY, locator, text);
         return this;
     }
 
     @Step("Append")
     @Override
-    public Actions typeAppend(@NonNull By locator, @NonNull CharSequence text) {
+    public Actions typeAppend(@NonNull By locator, @NonNull CharSequence... text) {
         performAction(ActionType.TYPE_APPEND, locator, text);
         return this;
     }
@@ -109,13 +128,13 @@ public class Actions extends ElementActions {
     }
 
     @Step("Wait until")
-    public Actions waitUntil(Function<? super WebDriver, ?> isTrue) {
+    public Actions waitUntil(@NonNull Function<? super WebDriver, ?> isTrue) {
         new SynchronizationManager(driver).fluentWait().until(isTrue);
         return this;
     }
 
     @Step("Wait until")
-    public Actions waitUntil(Function<? super WebDriver, ?> isTrue, Duration timeout) {
+    public Actions waitUntil(@NonNull Function<? super WebDriver, ?> isTrue, @NonNull Duration timeout) {
         new SynchronizationManager(driver).fluentWait().withTimeout(timeout).until(isTrue);
         return this;
     }
@@ -173,17 +192,17 @@ public class Actions extends ElementActions {
         final byte[][] screenshot = {null};
         AtomicReference<List<WebElement>> foundElements = new AtomicReference<>();
 
-        try{
-            new SynchronizationManager(driver).fluentWait(true).until(d->{
+        try {
+            new SynchronizationManager(driver).fluentWait(true).until(d -> {
                 // find all elements matching the target locator
                 foundElements.set(findAllElements(locator));
 
                 // fail fast if no elements were found
                 if (foundElements.get().isEmpty())
-                    throw new NoSuchElementException("Cannot locate an element using "+JavaHelper.formatLocatorToString(locator));
+                    throw new NoSuchElementException("Cannot locate an element using " + JavaHelper.formatLocatorToString(locator));
 
                 // ensure element locator is unique if applicable
-                if (foundElements.get().size() > 1 && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique() && !(locator instanceof RelativeLocator.RelativeBy))
+                if (foundElements.get().size() > 1 && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique() && !(locator instanceof RelativeLocator.RelativeBy) && !(locator instanceof ByAll))
                     throw new MultipleElementsFoundException();
 
                 // identify run type
@@ -229,12 +248,12 @@ public class Actions extends ElementActions {
                 }
 
                 // perform action
-                switch (action){
+                switch (action) {
                     case CLICK -> {
                         try {
                             screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
                             foundElements.get().getFirst().click();
-                        } catch (ElementClickInterceptedException exception){
+                        } catch (ElementClickInterceptedException exception) {
                             if (SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails()) {
                                 ((JavascriptExecutor) driver).executeScript("arguments[0].click();", foundElements.get().getFirst());
                                 ReportManager.logDiscrete("Performed Click using JavaScript; If the report is showing that the click passed but you observe that no action was taken, we recommend trying a different element locator.");
@@ -259,11 +278,11 @@ public class Actions extends ElementActions {
                                 break;
                         }
                         screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
-                        foundElements.get().getFirst().sendKeys((CharSequence) data);
+                        foundElements.get().getFirst().sendKeys((CharSequence[]) data);
                     }
                     case TYPE_APPEND -> {
                         screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
-                        foundElements.get().getFirst().sendKeys((CharSequence) data);
+                        foundElements.get().getFirst().sendKeys((CharSequence[]) data);
                     }
                     case CLEAR -> {
                         screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
@@ -330,7 +349,7 @@ public class Actions extends ElementActions {
             }
         }
         //report pass
-        reportPass(action.name(),accessibleName.get(), screenshot[0]);
+        reportPass(action.name(), accessibleName.get(), screenshot[0]);
         return output.get();
     }
 
@@ -377,17 +396,17 @@ public class Actions extends ElementActions {
         return foundElements;
     }
 
-    private byte[] takeActionScreenshot(WebElement element){
+    private byte[] takeActionScreenshot(WebElement element) {
         if (SHAFT.Properties.visuals.createAnimatedGif() || "Always".equals(SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot()))
             return captureScreenshot(element, true);
         return null;
     }
 
-    private byte[] takeFailureScreenshot(WebElement element){
+    private byte[] takeFailureScreenshot(WebElement element) {
         return captureScreenshot(element, false);
     }
 
-    private byte[] captureScreenshot(WebElement element, boolean isPass){
+    private byte[] captureScreenshot(WebElement element, boolean isPass) {
         // capture screenshot
         byte[] screenshot;
         if (element != null && Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsHighlightElements())) {
@@ -408,7 +427,7 @@ public class Actions extends ElementActions {
         return screenshot;
     }
 
-    private byte[] appendShaftWatermark(byte[] screenshot){
+    private byte[] appendShaftWatermark(byte[] screenshot) {
         try {
             // add SHAFT_Engine logo overlay
             BufferedImage screenshotImage = ImageIO.read(new ByteArrayInputStream(screenshot));
@@ -438,28 +457,28 @@ public class Actions extends ElementActions {
                         }
                         WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
                         skippedElementsArray = skippedElementsList.toArray(skippedElementsArray);
-                        screenshot= ScreenshotHelper.makeFullScreenshot(driver, skippedElementsArray);
+                        screenshot = ScreenshotHelper.makeFullScreenshot(driver, skippedElementsArray);
                     } else {
                         // make full page screenshot using BiDi, CDP, or manually based on the target browser
-                        screenshot= ScreenshotHelper.makeFullScreenshot(driver);
+                        screenshot = ScreenshotHelper.makeFullScreenshot(driver);
                     }
                 } catch (Throwable throwable) {
                     // return regular screenshot in case of failure
                     ReportManagerHelper.logDiscrete(throwable);
-                    screenshot= ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                    screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
                 }
             }
             case ELEMENT -> {
-                try{
+                try {
                     //get element screenshot
-                    screenshot= element.getScreenshotAs(OutputType.BYTES);
+                    screenshot = element.getScreenshotAs(OutputType.BYTES);
                 } catch (Throwable throwable) {
                     // return regular screenshot in case of failure
                     ReportManagerHelper.logDiscrete(throwable);
-                    screenshot= ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                    screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
                 }
             }
-            default -> screenshot= ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+            default -> screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
         }
         //append shaft watermark
         screenshot = appendShaftWatermark(screenshot);
@@ -471,7 +490,7 @@ public class Actions extends ElementActions {
         Rectangle elementLocation = element.getRect();
 
         //take screenshot
-        byte [] src = takeScreenshot(element);
+        byte[] src = takeScreenshot(element);
 
         //highlightElement using OpenCV
         Color color;
@@ -491,7 +510,7 @@ public class Actions extends ElementActions {
                 setHighlightedElementStyle(isPass));
 
         //take screenshot
-        byte [] src = takeScreenshot(element);
+        byte[] src = takeScreenshot(element);
 
         //append highlighted element screenshot to GIF
         AnimatedGifManager.startOrAppendToAnimatedGif(src);
@@ -537,15 +556,15 @@ public class Actions extends ElementActions {
 
     }
 
-    private void reportPass(String action, String elementName, byte[] screenshot){
+    private void reportPass(String action, String elementName, byte[] screenshot) {
         report(action, elementName, Status.PASSED, screenshot, null);
     }
 
-    private void reportBroken(String action, String elementName, byte[] screenshot, RuntimeException exception){
+    private void reportBroken(String action, String elementName, byte[] screenshot, RuntimeException exception) {
         report(action, elementName, Status.BROKEN, screenshot, exception);
     }
 
-    private void report(String action, String elementName, Status status, byte[] screenshot, RuntimeException exception){
+    private void report(String action, String elementName, Status status, byte[] screenshot, RuntimeException exception) {
         // update allure step name
         StringBuilder stepName = new StringBuilder();
         stepName.append(JavaHelper.convertToSentenceCase(action)).append(" \"").append(elementName).append("\"");
@@ -568,14 +587,14 @@ public class Actions extends ElementActions {
             });
 
         // attach screenshot
-        if (screenshot!=null)
-            Allure.addAttachment(new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime())+"_"+JavaHelper.convertToSentenceCase(action) + "_"+JavaHelper.removeSpecialCharacters(elementName), "image/png", new ByteArrayInputStream(screenshot), ".png");
+        if (screenshot != null)
+            Allure.addAttachment(new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime()) + "_" + JavaHelper.convertToSentenceCase(action) + "_" + JavaHelper.removeSpecialCharacters(elementName), "image/png", new ByteArrayInputStream(screenshot), ".png");
 
         // handle reporting based on status
-        if (Status.PASSED.equals(status)){
+        if (Status.PASSED.equals(status)) {
             // if the step passed
             ReportManager.logDiscrete(stepName.toString());
-        }else{
+        } else {
             // if the step failed
             ReportManager.logDiscrete(stepName.toString(), Level.ERROR);
 
@@ -585,7 +604,7 @@ public class Actions extends ElementActions {
             // update test status to failed
             Allure.getLifecycle().updateTestCase(update -> update.setStatus(Status.FAILED));
 
-            if (exception!=null){
+            if (exception != null) {
                 // update allure stacktrace
                 Allure.getLifecycle().updateStep(update -> {
                     var trace = update.getStatusDetails() == null ? exception : update.getStatusDetails().getTrace() + System.lineSeparator() + exception;
@@ -593,7 +612,7 @@ public class Actions extends ElementActions {
                     details.setTrace(trace.toString().trim());
                     update.setStatusDetails(details);
                 });
-                throw new RuntimeException(FailureReporter.getRootCause(exception).trim(),exception);
+                throw new RuntimeException(FailureReporter.getRootCause(exception).trim(), exception);
             }
         }
     }
