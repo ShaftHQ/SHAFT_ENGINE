@@ -21,19 +21,19 @@ public interface Timeouts extends EngineProperties<Timeouts> {
     Boolean waitForLazyLoading();
 
     @Key("browserNavigationTimeout")
-    @DefaultValue("60")
+    @DefaultValue("30")
     int browserNavigationTimeout();
 
     @Key("pageLoadTimeout")
-    @DefaultValue("60")
+    @DefaultValue("30")
     int pageLoadTimeout();
 
     @Key("scriptExecutionTimeout")
-    @DefaultValue("60")
+    @DefaultValue("30")
     int scriptExecutionTimeout();
 
     @Key("defaultElementIdentificationTimeout")
-    @DefaultValue("60")
+    @DefaultValue("10")
     double defaultElementIdentificationTimeout();
 
     @Key("apiSocketTimeout")
