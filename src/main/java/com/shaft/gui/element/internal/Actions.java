@@ -253,7 +253,7 @@ public class Actions extends ElementActions {
                         try {
                             screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
                             foundElements.get().getFirst().click();
-                        } catch (ElementClickInterceptedException exception) {
+                        } catch (InvalidElementStateException exception) {
                             if (SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails()) {
                                 ((JavascriptExecutor) driver).executeScript("arguments[0].click();", foundElements.get().getFirst());
                                 ReportManager.logDiscrete("Performed Click using JavaScript; If the report is showing that the click passed but you observe that no action was taken, we recommend trying a different element locator.");
