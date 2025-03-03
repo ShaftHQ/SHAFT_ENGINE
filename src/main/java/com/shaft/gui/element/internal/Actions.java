@@ -74,6 +74,13 @@ public class Actions extends ElementActions {
         return this;
     }
 
+    @Step("Click using JavaScript")
+    @Override
+    public Actions clickUsingJavascript(@NonNull By locator) {
+        performAction(ActionType.CLICK_JAVASCRIPT, locator, null);
+        return this;
+    }
+
     @Beta
     @Step("Click")
     public Actions click(@NonNull String elementName) {
@@ -184,7 +191,7 @@ public class Actions extends ElementActions {
         }
     }
 
-    protected enum ActionType {CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, CLEAR, DRAG_AND_DROP, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, GET_IS_SELECTED}
+    protected enum ActionType {CLICK, CLICK_JAVASCRIPT, TYPE, TYPE_SECURELY, TYPE_APPEND, CLEAR, DRAG_AND_DROP, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, GET_IS_SELECTED}
 
     protected String performAction(ActionType action, By locator, Object data) {
         AtomicReference<String> output = new AtomicReference<>("");
@@ -261,6 +268,10 @@ public class Actions extends ElementActions {
                                 throw exception;
                             }
                         }
+                    }
+                    case CLICK_JAVASCRIPT ->{
+                        screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", foundElements.get().getFirst());
                     }
                     case TYPE, TYPE_SECURELY -> {
                         PropertiesHelper.setClearBeforeTypingMode();

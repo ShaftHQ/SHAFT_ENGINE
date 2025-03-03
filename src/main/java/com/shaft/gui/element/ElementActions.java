@@ -131,16 +131,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions clickUsingJavascript(By elementLocator) {
-
-        try {
-            var elementName = elementActionsHelper.getElementName(driver, elementLocator);
-            List<Object> screenshot = elementActionsHelper.takeScreenshot(driver, elementLocator, "clickUsingJavascript", null, true);
-            elementActionsHelper.clickUsingJavascript(driver, elementLocator);
-            elementActionsHelper.passAction(driver, elementLocator, "", screenshot, elementName);
-        } catch (Throwable throwable) {
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
-        }
-
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).clickUsingJavascript(elementLocator);
         return this;
     }
 
