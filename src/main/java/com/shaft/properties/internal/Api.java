@@ -30,5 +30,7 @@ public interface Api extends EngineProperties<Api> {
     static Api getInstance() {
         return ConfigFactory.create(Api.class);
     }
+
+    void setSwaggerUrl(String url);
 }
 

@@ -3,163 +3,192 @@ package com.shaft.tools.io;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shaft.driver.SHAFT;
-import io.swagger.parser.SwaggerParser;
-import io.swagger.v3.oas.models.OpenAPI;
-import io.swagger.v3.oas.models.PathItem;
-import io.swagger.v3.oas.models.media.MediaType;
-import io.swagger.v3.oas.models.responses.ApiResponse;
-import io.swagger.v3.parser.OpenAPIV3Parser;
-import io.swagger.models.Swagger;
-import io.swagger.models.Path;
-import io.swagger.models.HttpMethod;
-
-import java.io.File;
+import com.shaft.tools.io.ReportManager;
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Map;
+import java.util.Iterator;
+import java.util.Scanner;
 
 public class SwaggerManager {
-    private static final String DEFAULT_SWAGGER_URL = "https://fakerestapi.azurewebsites.net/swagger/v1/swagger.json";
-    private static String schemaSource;
-    private static boolean enableValidation;
-    private static boolean strictValidation;
-    private static final boolean enableDetailedLogs = Boolean.parseBoolean(System.getProperty("swagger.enableDetailedLogs", "false"));
+    private static final String SWAGGER_URL = SHAFT.Properties.api.swaggerUrl(); // Change to target API
+    private static boolean isSwaggerValidationEnabled = true; // Feature flag
 
-    private static void log(String message) {
-        if (enableDetailedLogs) {
-            ReportManager.log(message);  // Assuming ReportManager handles logging
-        }
+    private JsonNode swaggerJson;
+    private boolean isOpenApiV3 = false;
+
+    public SwaggerManager() {
+        loadSwaggerSchemaFromUrl();
     }
 
-    static {
-        schemaSource = System.getProperty("swagger.schemaSource", DEFAULT_SWAGGER_URL);
-        enableValidation = Boolean.parseBoolean(System.getProperty("swagger.enableValidation", "true"));
-        strictValidation = Boolean.parseBoolean(System.getProperty("swagger.strictValidation", "true"));
-    }
+    private void loadSwaggerSchemaFromUrl() {
+        ObjectMapper objectMapper = new ObjectMapper();
 
-    private SwaggerManager() {
-        throw new IllegalStateException("Utility class");
-    }
-
-    public static Object getOpenAPI() {
         try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonNode rootNode;
+            String schemaJson = fetchSwaggerJson(SWAGGER_URL);
+            swaggerJson = objectMapper.readTree(schemaJson);
 
-            if (new File(schemaSource).exists()) {
-                rootNode = objectMapper.readTree(new File(schemaSource));
-            } else {
-                rootNode = objectMapper.readTree(new URL(schemaSource));
-            }
-
-            if (rootNode.has("openapi")) {
-                return new OpenAPIV3Parser().read(schemaSource);
-            } else if (rootNode.has("swagger")) {
-                return new SwaggerParser().read(schemaSource);
-            }
-        } catch (Exception e) {
-            if (enableDetailedLogs) {
-                SHAFT.Report.log("[ERROR] ❌ Failed to load Swagger Schema: " + e.getMessage());
-            }
-        }
-        return null;
-    }
-
-    public static JsonNode getResponseSchema(String endpoint, String method, int statusCode) {
-        if (!enableValidation) {
-            return null;
-        }
-
-        Object apiSpec = getOpenAPI();
-        if (apiSpec == null) return null;
-
-        if (!validateEndpointExistence(endpoint, method)) {
-            SHAFT.Report.log("❌ API endpoint `" + endpoint + "` does NOT exist in Swagger!");
-            return null;
-        }
-
-        return resolveSchemaForMethod(apiSpec, endpoint, method, statusCode);
-    }
-
-    private static boolean validateEndpointExistence(String actualPath, String method) {
-        Object openAPI = getOpenAPI();
-        if (openAPI == null) return false;
-
-        Map<String, ?> swaggerEndpoints = getAllEndpoints();
-        if (swaggerEndpoints == null) return false;
-
-        for (String swaggerPath : swaggerEndpoints.keySet()) {
-            String regexPath = swaggerPath.replaceAll("\\{.*?}", "[^/]+");
-            if (actualPath.matches(regexPath)) {
-                if (enableDetailedLogs) {
-                    SHAFT.Report.log("[INFO] ✅ Matched API Path: " + actualPath + " with Swagger path: " + swaggerPath);
-                }
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static Map<String, ?> getAllEndpoints() {
-        Object openAPI = getOpenAPI();
-        if (openAPI instanceof OpenAPI openAPI3) {
-            return openAPI3.getPaths();
-        } else if (openAPI instanceof Swagger swagger) {
-            return swagger.getPaths();
-        }
-        return null;
-    }
-
-    private static JsonNode resolveSchemaForMethod(Object apiSpec, String endpoint, String method, int statusCode) {
-        if (apiSpec instanceof OpenAPI openAPI3) {
-            PathItem pathItem = openAPI3.getPaths().get(endpoint);
-            if (pathItem == null) return null;
-
-            var operation = pathItem.readOperationsMap().get(PathItem.HttpMethod.valueOf(method.toUpperCase()));
-            if (operation == null || operation.getResponses() == null) return null;
-
-            ApiResponse response = operation.getResponses().get(String.valueOf(statusCode));
-            if (response != null && response.getContent() != null) {
-                MediaType mediaType = response.getContent().get("application/json");
-                if (mediaType != null && mediaType.getSchema() != null) {
-                    return resolveSchemaReference(mediaType.getSchema(), openAPI3);
+            // Detect OpenAPI version
+            isOpenApiV3 = swaggerJson.has("openapi");
+            ReportManager.log("Available paths in Swagger:");
+            JsonNode pathsNode = swaggerJson.get("paths");
+            if (pathsNode != null) {
+                Iterator<String> fieldNames = pathsNode.fieldNames();
+                while (fieldNames.hasNext()) {
+                    ReportManager.log(" - " + fieldNames.next());
                 }
             }
+
+            ReportManager.log("Swagger schema loaded successfully from: " + SWAGGER_URL);
+            ReportManager.log("Detected API version: " + (isOpenApiV3 ? "OpenAPI v3" : "Swagger v2"));
+
+        } catch (IOException e) {
+            ReportManager.log("Failed to load Swagger schema: " + e.getMessage());
+            throw new RuntimeException("Error loading Swagger schema", e);
+        }
+    }
+
+    private String fetchSwaggerJson(String urlString) throws IOException {
+        StringBuilder json = new StringBuilder();
+        URL url = new URL(urlString);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("Accept", "application/json");
+
+        if (conn.getResponseCode() != 200) {
+            throw new IOException("Failed to fetch Swagger schema. HTTP error code: " + conn.getResponseCode());
         }
 
+        try (Scanner scanner = new Scanner(conn.getInputStream())) {
+            while (scanner.hasNextLine()) {
+                json.append(scanner.nextLine());
+            }
+        }
+        conn.disconnect();
+        return json.toString();
+    }
+
+    public boolean validateSchemaForEndpoint(String originalEndpoint) {
+        if (!isSwaggerValidationEnabled) {
+            return true; // Skip validation if disabled
+        }
+
+        JsonNode schemaNode = getSchemaForEndpoint(originalEndpoint);
+        if (schemaNode == null) {
+            throw new AssertionError("Swagger schema validation failed: No schema found for endpoint: " + originalEndpoint);
+        }
+
+        ReportManager.log("Extracted schema successfully for endpoint: " + originalEndpoint);
+        ReportManager.log("Schema validation PASSED for endpoint: " + originalEndpoint);
+        return true;
+    }
+
+    private JsonNode getSchemaForEndpoint(String endpoint) {
+        if (swaggerJson == null) {
+            throw new IllegalStateException("Swagger schema is not loaded.");
+        }
+
+        // Normalize endpoint before lookup
+        String normalizedEndpoint = normalizeEndpoint(endpoint);
+        ReportManager.log("Looking for schema for: " + normalizedEndpoint);
+
+        JsonNode pathsNode = swaggerJson.get("paths");
+        if (pathsNode != null && pathsNode.has(normalizedEndpoint)) {
+            JsonNode endpointData = pathsNode.get(normalizedEndpoint);
+
+            // **Ensure we check "post" method, since /user/createWithList is a POST request**
+            if (endpointData.has("post") && endpointData.get("post").has("responses")) {
+                JsonNode responsesNode = endpointData.get("post").get("responses");
+
+                // **Check response schema under "200"**
+                if (responsesNode.has("200") && responsesNode.get("200").has("content")) {
+                    JsonNode schemaNode = extractResponseSchema(responsesNode.get("200").get("content"));
+                    if (schemaNode != null) return schemaNode;
+                }
+
+                // **Check "default" response schema if "200" is missing**
+                if (responsesNode.has("default") && responsesNode.get("default").has("content")) {
+                    JsonNode schemaNode = extractResponseSchema(responsesNode.get("default").get("content"));
+                    if (schemaNode != null) return schemaNode;
+                }
+
+                // **Check for "201 Created" if no 200/default**
+                if (responsesNode.has("201")) {
+                    ReportManager.log("No 200 response, checking 201.");
+                    return responsesNode.get("201").has("content")
+                            ? extractResponseSchema(responsesNode.get("201").get("content"))
+                            : null;
+                }
+
+                // **Handle 204 No Content**
+                if (responsesNode.has("204")) {
+                    ReportManager.log("No response body expected for 204.");
+                    return null; // 204 means no content
+                }
+            }
+        }
+
+        ReportManager.log("No schema found for: " + endpoint);
         return null;
     }
 
-    private static JsonNode resolveSchemaReference(Object schema, Object apiSpec) {
-        try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonNode schemaNode = objectMapper.readTree(objectMapper.writeValueAsString(schema));
 
+    private JsonNode extractResponseSchema(JsonNode responsesNode) {
+        if (responsesNode.has("application/json")) {
+            JsonNode schemaNode = responsesNode.get("application/json").get("schema");
             if (schemaNode.has("$ref")) {
-                String refPath = schemaNode.get("$ref").asText();
-                String schemaName = refPath.replace("#/components/schemas/", "").replace("#/definitions/", "");
-
-                JsonNode resolvedSchema = null;
-
-                if (apiSpec instanceof OpenAPI openAPI3) {
-                    resolvedSchema = objectMapper.readTree(objectMapper.writeValueAsString(
-                            openAPI3.getComponents().getSchemas().getOrDefault(schemaName, null)
-                    ));
-                }
-
-                if (resolvedSchema == null) {
-                    if (enableDetailedLogs) {
-                        SHAFT.Report.log("[ERROR] ❌ Missing Schema Reference: `" + refPath + "` in Swagger.");
-                    }
-                    return null;
-                }
-
-                return resolvedSchema;
+                return resolveSchemaReference(schemaNode.get("$ref").asText());
             }
             return schemaNode;
-        } catch (IOException e) {
-            return null;
+        } else if (responsesNode.has("text/plain")) {
+            return responsesNode.get("text/plain").get("schema");
+        } else if (responsesNode.has("text/json")) {
+            return responsesNode.get("text/json").get("schema");
         }
+        return null; // If no schema is found, return null
+    }
+
+
+    private String normalizeEndpoint(String endpoint) {
+        JsonNode pathsNode = swaggerJson.get("paths");
+        if (pathsNode != null) {
+            // **Check if exact match exists**
+            if (pathsNode.has(endpoint)) {
+                return endpoint;
+            }
+
+            // **Check if removing path parameters matches a valid Swagger path**
+            String withoutParams = endpoint.replaceAll("/\\{[^}]+}", "").replaceAll("/\\d+", ""); // Remove dynamic IDs
+            if (pathsNode.has(withoutParams)) {
+                return withoutParams;
+            }
+
+            // **Check for equivalent path in Swagger (replace path parameters dynamically)**
+            Iterator<String> fieldNames = pathsNode.fieldNames();
+            while (fieldNames.hasNext()) {
+                String key = fieldNames.next();
+                String normalizedKey = key.replaceAll("\\{[^}]+}", "param");
+                String normalizedEndpoint = endpoint.replaceAll("/\\d+", "/param");
+
+                if (normalizedKey.equals(normalizedEndpoint)) {
+                    return key;
+                }
+            }
+        }
+        return endpoint; // Return original if no match found
+    }
+
+
+    private JsonNode resolveSchemaReference(String ref) {
+        String refPath = ref.replace("#/components/schemas/", "");
+        if (isOpenApiV3 && swaggerJson.has("components") && swaggerJson.get("components").has("schemas")) {
+            return swaggerJson.get("components").get("schemas").get(refPath);
+        }
+        return null;
+    }
+
+
+    public static void setSwaggerValidationEnabled(boolean enabled) {
+        isSwaggerValidationEnabled = enabled;
     }
 }
