@@ -24,7 +24,7 @@ public class MultipleElementsFailureTest {
         driver.get().element().click(By.xpath("//input"));
     }
 
-    @Test(expectedExceptions = {AssertionError.class})
+    @Test(expectedExceptions = {RuntimeException.class})
     public void clickUsingJS() {
         driver.get().browser().navigateToURL(mockedHTML);
         driver.get().element().clickUsingJavascript(By.xpath("//input"));
