@@ -2,6 +2,7 @@ package com.shaft.tools.io.internal;
 
 import com.epam.reportportal.service.ReportPortal;
 import com.google.common.io.Files;
+import com.shaft.listeners.TestNGListener;
 import io.qameta.allure.Allure;
 
 import java.io.ByteArrayInputStream;
@@ -86,7 +87,7 @@ public class AttachmentReporter {
 
     private static void attachFileBased(String attachmentDescription, String contentType, ByteArrayOutputStream content, String fileExtension) {
         Allure.addAttachment(attachmentDescription, contentType, new ByteArrayInputStream(content.toByteArray()), fileExtension);
-        if (System.getProperty("rp.enable") != null && System.getProperty("rp.enable").trim().equalsIgnoreCase("true")) {
+        if (TestNGListener.isReportPortalEnabled()) {
             try {
                 File file = File.createTempFile("rp-test", fileExtension);
                 Files.write(content.toByteArray(), file);
