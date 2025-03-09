@@ -52,6 +52,7 @@ public class PropertiesHelper {
         Properties.timeouts = ConfigFactory.create(Timeouts.class);
         Properties.performance = ConfigFactory.create(Performance.class);
         Properties.lambdaTest = ConfigFactory.create(LambdaTest.class);
+        Properties.api = ConfigFactory.create(Api.class);
     }
 
     public static void setKeySystemProperties() {

@@ -304,6 +304,18 @@
             <artifactId>rest-assured</artifactId>
             <version>5.5.1</version>
         </dependency>
+        <!--  https://mvnrepository.com/artifact/io.swagger.parser.v3/swagger-parser  -->
+        <dependency>
+            <groupId>io.swagger.parser.v3</groupId>
+            <artifactId>swagger-parser</artifactId>
+            <version>2.1.25</version>
+        </dependency>
+        <!--  https://mvnrepository.com/artifact/com.networknt/openapi-parser  -->
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>openapi-parser</artifactId>
+            <version>2.2.0</version>
+        </dependency>
         <dependency>
             <groupId>com.googlecode.json-simple</groupId>
             <artifactId>json-simple</artifactId>
