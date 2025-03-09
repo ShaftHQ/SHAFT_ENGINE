@@ -219,53 +219,6 @@ public class ElementSteps {
         driver.get().element().submitFormUsingJavaScript(getLocatorFromTypeAndValue(locatorType, locatorValue));
     }
 
-    /**
-     * Waits dynamically for a specific element to achieve the desired
-     * stateOfPresence on the current page. Waits for a specific number of retries
-     * multiplied by the default element identification timeout (in the POM.xml
-     * file)
-     *
-     * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
-     * @param locatorValue the value/expression of the desired element locator
-     */
-    @When("I Wait for the element found by {string}: {string} to be present")
-    @Deprecated
-    public void waitForElementToBePresent(String locatorType, String locatorValue) {
-        driver.get().element().waitToBeReady(getLocatorFromTypeAndValue(locatorType, locatorValue));
-    }
-
-    /**
-     * Waits dynamically for a specific element to achieve the desired
-     * stateOfPresence on the current page. Waits for a specific number of retries
-     * multiplied by the default element identification timeout (in the POM.xml
-     * file)
-     *
-     * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
-     * @param locatorValue the value/expression of the desired element locator
-     */
-    @When("I Wait for the element found by {string}: {string} to be not present")
-    @Deprecated
-    public void waitForElementToBeNotPresent(String locatorType, String locatorValue) {
-        driver.get().element().waitToBeInvisible(getLocatorFromTypeAndValue(locatorType, locatorValue));
-    }
-
-    /**
-     * Waits dynamically for a specific element's text to change from the initial
-     * value to a new unknown value. Waits for a specific number of retries
-     * multiplied by the default element identification timeout (in the POM.xml
-     * file)
-     *
-     * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
-     * @param locatorValue the value/expression of the desired element locator
-     * @param initialValue the initial text value of the target webElement
-     */
-    @When("I Wait for the text inside the element found by {string}: {string} to change from the initial value {string}")
-    @Deprecated
-    public void waitForTextToChange(String locatorType, String locatorValue, String initialValue) {
-        driver.get().element().waitForTextToChange(getLocatorFromTypeAndValue(locatorType, locatorValue), initialValue);
-
-    }
-
     @SuppressWarnings("unused")
     protected enum LocatorType {
         ID("id"), TAG_NAME("tagname"), CLASS_NAME("classname"), NAME("name"), LINK_TEXT("linktext"),

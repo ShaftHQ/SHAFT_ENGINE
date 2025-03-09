@@ -3,25 +3,20 @@ package com.shaft.gui.element;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
-import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.enums.internal.ClipboardAction;
-import com.shaft.enums.internal.ElementAction;
 import com.shaft.gui.element.internal.ElementInformation;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
-import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
-import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.locators.RelativeLocator;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
-import org.openqa.selenium.support.ui.UnexpectedTagNameException;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.nio.file.FileSystems;
@@ -69,23 +64,9 @@ public class ElementActions extends FluentWebDriverAction {
      *                       selector, name ...etc.)
      * @return the selected text of the target webElement
      */
+    @Deprecated
     public String getSelectedText(By elementLocator) {
-        try {
-            var elementName = elementActionsHelper.getElementName(driver, elementLocator);
-            StringBuilder elementSelectedText = new StringBuilder();
-            try {
-                new Select(((WebElement) elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1))).getAllSelectedOptions().forEach(selectedOption -> elementSelectedText.append(selectedOption.getText()));
-                elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementSelectedText.toString().trim(), null, elementName);
-                return elementSelectedText.toString().trim();
-            } catch (UnexpectedTagNameException rootCauseException) {
-                elementActionsHelper.failAction(driver, elementLocator, rootCauseException);
-                return null;
-            }
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
-        }
-        return null;
+        return new com.shaft.gui.element.internal.Actions(driverFactoryHelper).get().selectedText(elementLocator);
     }
 
     /**
@@ -164,18 +145,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions clickAndHold(By elementLocator) {
-        try {
-            var elementName = elementActionsHelper.getElementName(driver, elementLocator);
-            List<Object> screenshot = elementActionsHelper.takeScreenshot(driver, elementLocator, "clickAndHold", null, true);
-            WebElement element = (WebElement) elementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1);
-            if (Boolean.FALSE.equals(elementActionsHelper.waitForElementToBeClickable(driver, elementLocator, "clickAndHold"))) {
-                elementActionsHelper.failAction(driver, "element is not clickable", elementLocator);
-            }
-            elementActionsHelper.passAction(driver, elementLocator, "", screenshot, elementName);
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
-        }
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).clickAndHold(elementLocator);
         return this;
     }
 
@@ -212,22 +182,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions doubleClick(By elementLocator) {
-        try {
-            var elementName = elementActionsHelper.getElementName(driver, elementLocator);
-            // takes screenshot before clicking the element out of view
-            var screenshot = elementActionsHelper.takeScreenshot(driver, elementLocator, "doubleClick", null, true);
-            List<List<Object>> attachments = new LinkedList<>();
-            attachments.add(screenshot);
-            try {
-                (new Actions(driver)).moveToElement(((WebElement) elementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).doubleClick().perform();
-            } catch (Exception e) {
-                elementActionsHelper.failAction(driver, elementLocator, e);
-            }
-            elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, elementName);
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
-        }
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).doubleClick(elementLocator);
         return this;
     }
 
@@ -261,25 +216,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions dragAndDropByOffset(By sourceElementLocator, int xOffset, int yOffset) {
-        try {
-            var elementName = elementActionsHelper.getElementName(driver, sourceElementLocator);
-            WebElement sourceElement = ((WebElement) elementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1));
-            String startLocation = sourceElement.getLocation().toString();
-            // attempt to perform drag and drop
-            try {
-                (new Actions(driver)).dragAndDropBy(((WebElement) elementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)), xOffset, yOffset).build().perform();
-            } catch (Exception rootCauseException) {
-                elementActionsHelper.failAction(driver, sourceElementLocator, rootCauseException);
-            }
-            String endLocation = ((WebElement) elementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
-            if (!endLocation.equals(startLocation)) {
-                elementActionsHelper.passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "Start point: " + startLocation + ", End point: " + endLocation, null, elementName);
-            } else {
-                elementActionsHelper.failAction(driver, "Start point = End point: " + endLocation, sourceElementLocator);
-            }
-        } catch (Exception throwable) {
-            elementActionsHelper.failAction(driver, sourceElementLocator, throwable);
-        }
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).dragAndDropByOffset(sourceElementLocator, xOffset, yOffset);
         return this;
     }
 
@@ -332,15 +269,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions hover(By elementLocator) {
-        try {
-            var elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
-            var elementName = elementInformation.getElementName();
-            ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElement(driver, elementInformation.getLocator(), ElementAction.HOVER));
-            elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
-        }
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).hover(elementLocator);
         return this;
     }
 
@@ -441,17 +370,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions setValueUsingJavaScript(By elementLocator, String value) {
-        try {
-            var elementName = elementActionsHelper.getElementName(driver, elementLocator);
-            Boolean valueSetSuccessfully = elementActionsHelper.setValueUsingJavascript(driver, elementLocator, value);
-            if (Boolean.TRUE.equals(valueSetSuccessfully)) {
-                elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), value, null, elementName);
-            } else {
-                elementActionsHelper.failAction(driver, elementLocator);
-            }
-        } catch (Exception throwable) {
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
-        }
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).setValueUsingJavaScript(elementLocator, value);
         return this;
     }
 
@@ -636,113 +555,6 @@ public class ElementActions extends FluentWebDriverAction {
      */
     public ElementActions typeSecure(By elementLocator, CharSequence... text) {
         new com.shaft.gui.element.internal.Actions(driverFactoryHelper).typeSecure(elementLocator, text);
-        return this;
-    }
-
-    /**
-     * Waits dynamically for a specific element to be present in DOM, and ready to interact with, on the current page.
-     *
-     * @param elementLocator the locator of the webElement under test (By xpath,
-     *                       id, selector, name ...etc.)
-     * @return a self-reference to be used to chain actions
-     */
-    @Deprecated
-    public ElementActions waitToBeReady(By elementLocator) {
-        return waitToBeReady(elementLocator, true);
-    }
-
-    @Deprecated
-    public ElementActions waitToBeReady(By elementLocator, boolean isExpectedToBeVisible) {
-        ReportManager.logDiscrete("Waiting for element to be present; elementLocator \"" + elementLocator + "\", isExpectedToBeVisible\"" + isExpectedToBeVisible + "\"...");
-        String reportMessage = "Waited for the element's state of visibility to be (" + isExpectedToBeVisible + "). Element locator (" + JavaHelper.formatLocatorToString(elementLocator) + ")";
-        try {
-            var elementInformation = ElementInformation.fromList(elementActionsHelper.performActionAgainstUniqueElementIgnoringVisibility(driver, elementLocator, ElementAction.IS_DISPLAYED));
-            boolean isDisplayed = Boolean.parseBoolean(elementInformation.getActionResult());
-            //element is present
-            if (isExpectedToBeVisible == isDisplayed) {
-                //either expected to be visible and is displayed, or not expected to be visible and not displayed
-                elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementInformation.getElementName());
-            } else //noinspection ConstantValue
-                if (!isExpectedToBeVisible && isDisplayed) {
-                    // Element is displayed and needed to wait until it's invisible
-                    if (elementActionsHelper.waitForElementInvisibility(driver, elementLocator)) {
-                        elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementInformation.getElementName());
-                    } else {
-                        // Element still exists after timeout
-                        elementActionsHelper.failAction(driver, reportMessage, elementLocator);
-                    }
-                } else {
-                    // Element is not displayed
-                    elementActionsHelper.failAction(driver, reportMessage, elementLocator);
-                }
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            elementActionsHelper.failAction(driver, reportMessage, null, throwable);
-        }
-        return this;
-    }
-
-    /**
-     * Waits dynamically for a specific element to be detached from DOM, or hidden, on the current page.
-     *
-     * @param elementLocator the locator of the webElement under test (By xpath,
-     *                       id, selector, name ...etc.)
-     * @return a self-reference to be used to chain actions
-     */
-    @Deprecated
-    public ElementActions waitToBeInvisible(By elementLocator) {
-        return waitToBeReady(elementLocator, false);
-    }
-
-    /**
-     * Waits dynamically for a specific element's text to change from the initial
-     * value to a new unknown value. Waits until the default element identification timeout
-     *
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc.)
-     * @param initialValue   the initial text value of the target webElement
-     * @return a self-reference to be used to chain actions
-     */
-    @SuppressWarnings("UnusedReturnValue")
-    @Deprecated
-    public ElementActions waitForTextToChange(By elementLocator, String initialValue) {
-        try {
-            var elementName = elementActionsHelper.getElementName(driver, elementLocator);
-            if (!Boolean.TRUE.equals(elementActionsHelper.waitForElementTextToBeNot(driver, elementLocator, initialValue))) {
-                elementActionsHelper.failAction(driver, initialValue, elementLocator);
-            }
-            try {
-                elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "from: \"" + initialValue + "\", to: \"" + getText(elementLocator) + "\"", null, elementName);
-            } catch (Exception e) {
-                elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "from: \"" + initialValue + "\", to a new value.", null, elementName);
-            }
-        } catch (Exception throwable) {
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
-        }
-        return this;
-    }
-
-    /**
-     * Waits dynamically for a specific element's attribute to be a certain value.
-     * Waits until the default element identification timeout
-     *
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc.)
-     * @param attribute      the attribute name of the target webElement
-     * @param expectedValue  the expected value of the attribute
-     * @return a self-reference to be used to chain actions
-     */
-    @Deprecated
-    public ElementActions waitToAttribute(By elementLocator, String attribute, String expectedValue) {
-        try {
-            new SynchronizationManager(driver).fluentWait(false).until(f -> {
-                var actualValue = new ElementActions(driver, true).getAttribute(elementLocator, attribute);
-                return Objects.equals(expectedValue, actualValue);
-            });
-            elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "wait for element attribute \"" + attribute + "\" to be \"" + expectedValue + "\"", null, elementActionsHelper.getElementName(driver, elementLocator));
-        } catch (TimeoutException timeoutException) {
-            elementActionsHelper.failAction(driver, elementLocator, timeoutException);
-        }
         return this;
     }
 
