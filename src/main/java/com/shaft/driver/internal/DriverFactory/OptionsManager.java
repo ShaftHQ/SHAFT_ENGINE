@@ -46,9 +46,14 @@ public class OptionsManager {
     private InternetExplorerOptions ieOptions;
     private DesiredCapabilities appiumCapabilities;
 
+    private PageLoadStrategy pageLoadStrategy;
+
     protected void setDriverOptions(DriverFactory.DriverType driverType, MutableCapabilities customDriverOptions) {
         // get Proxy server settings | testing behind a proxy
         String proxyServerSettings = SHAFT.Properties.platform.proxy();
+
+        // get Page Load Strategy
+        this.pageLoadStrategy = PageLoadStrategy.fromString(Properties.web.pageLoadStrategy());
 
         //https://github.com/GoogleChrome/chrome-launcher/blob/master/docs/chrome-flags-for-tools.md#--enable-automation
         switch (driverType) {
@@ -84,7 +89,7 @@ public class OptionsManager {
                     ffOptions.addArguments("-private");
                 }
                 ffOptions.setLogLevel(FirefoxDriverLogLevel.WARN);
-                ffOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
+                ffOptions.setPageLoadStrategy(this.pageLoadStrategy);
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
@@ -110,7 +115,7 @@ public class OptionsManager {
                 ieOptions = new InternetExplorerOptions();
                 if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local"))
                     ieOptions.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
-                ieOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
+                ieOptions.setPageLoadStrategy(this.pageLoadStrategy);
                 ieOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ieOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
@@ -147,7 +152,7 @@ public class OptionsManager {
                 if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local"))
                     sfOptions.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
                 sfOptions.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
-                sfOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
+                sfOptions.setPageLoadStrategy(this.pageLoadStrategy);
                 sfOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 sfOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
@@ -256,7 +261,7 @@ public class OptionsManager {
         if (DriverFactoryHelper.isMobileWebExecution()) {
             //https://chromedriver.chromium.org/capabilities
             appiumCapabilities.setBrowserName(SHAFT.Properties.mobile.browserName());
-            appiumCapabilities.setCapability("pageLoadStrategy", PageLoadStrategy.NONE);
+            appiumCapabilities.setCapability("pageLoadStrategy", this.pageLoadStrategy);
         }
         /*
         if (!DriverFactoryHelper.isMobileWebExecution() && Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
@@ -402,7 +407,7 @@ public class OptionsManager {
         options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
         options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
         if (DriverFactoryHelper.isNotMobileExecution())
-            options.setPageLoadStrategy(PageLoadStrategy.NONE); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
+            options.setPageLoadStrategy(this.pageLoadStrategy); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
         options.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
         options.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
         options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);

@@ -160,7 +160,7 @@ public class BrowserActionsHelper {
 
         try {
             // upgrading to w3c compliant browsing context for navigation
-            new BrowsingContext(driver, driver.getWindowHandle()).navigate(internalURL, ReadinessState.COMPLETE);
+            new BrowsingContext(driver, driver.getWindowHandle()).navigate(internalURL, ReadinessState.valueOf(SHAFT.Properties.web.readinessState().trim().toUpperCase()));
         } catch (TimeoutException | java.lang.IllegalArgumentException |
                  org.openqa.selenium.bidi.BiDiException illegalArgumentException) {
             // Caused by: java.lang.IllegalArgumentException: WebDriver instance must support BiDi protocol
@@ -211,7 +211,7 @@ public class BrowserActionsHelper {
                 driver.manage().window().maximize();
                 Dimension currentWindowSize = driver.manage().window().getSize();
                 ReportManager.logDiscrete(
-                        "Window size after SWD Maximize: " + currentWindowSize.toString());
+                        "Window size after SWD Maximize: " + currentWindowSize);
                 return currentWindowSize;
             } catch (WebDriverException rootCauseException) {
                 // org.openqa.selenium.WebDriverException: unknown error: failed to change
@@ -234,7 +234,7 @@ public class BrowserActionsHelper {
             driver.manage().window().setPosition(new org.openqa.selenium.Point(0, 0));
             driver.manage().window().setSize(new Dimension(targetWidth, targetHeight));
 
-            ReportManager.logDiscrete("Window size after Toolkit: " + driver.manage().window().getSize().toString());
+            ReportManager.logDiscrete("Window size after Toolkit: " + driver.manage().window().getSize());
             return driver.manage().window().getSize();
         } catch (HeadlessException e) {
             ((JavascriptExecutor) driver).executeScript(JavaScriptHelper.WINDOW_FOCUS.getValue());
@@ -243,7 +243,7 @@ public class BrowserActionsHelper {
                     .replace("$WIDTH", String.valueOf(targetWidth)).replace("$HEIGHT", String.valueOf(targetHeight)));
 
             ReportManager.logDiscrete(
-                    "Window size after JavascriptExecutor: " + driver.manage().window().getSize().toString());
+                    "Window size after JavascriptExecutor: " + driver.manage().window().getSize());
             return driver.manage().window().getSize();
         }
     }
@@ -254,7 +254,7 @@ public class BrowserActionsHelper {
         driver.manage().window().setSize(new Dimension(width, height));
 
         ReportManager.logDiscrete(
-                "Window size after WebDriver.Manage.Window: " + driver.manage().window().getSize().toString());
+                "Window size after WebDriver.Manage.Window: " + driver.manage().window().getSize());
         return driver.manage().window().getSize();
     }
 

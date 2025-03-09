@@ -72,6 +72,16 @@ public interface Web extends EngineProperties<Web> {
     @DefaultValue("1080")
     int browserWindowHeight();
 
+    // none, eager, or normal
+    @Key("pageLoadStrategy")
+    @DefaultValue("NONE")
+    String pageLoadStrategy();
+
+    // interactive, none, or complete
+    @Key("readinessState")
+    @DefaultValue("NONE")
+    String readinessState();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -147,6 +157,16 @@ public interface Web extends EngineProperties<Web> {
 
         public SetProperty browserWindowHeight(int value) {
             setProperty("browserWindowHeight", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty pageLoadStrategy(String value) {
+            setProperty("pageLoadStrategy", value);
+            return this;
+        }
+
+        public SetProperty readinessState(String value) {
+            setProperty("readinessState", value);
             return this;
         }
     }
