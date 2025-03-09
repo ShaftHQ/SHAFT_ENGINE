@@ -15,6 +15,7 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.*;
 import io.qameta.allure.Allure;
 import lombok.Getter;
+import org.apache.logging.log4j.Level;
 import org.testng.*;
 import org.testng.annotations.ITestAnnotation;
 import org.testng.internal.IResultListener2;
@@ -48,7 +49,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     private static final AtomicInteger REPORT_PORTAL_INSTANCES = new AtomicInteger(0);
     public static final Supplier<ITestNGService> REPORT_PORTAL_SERVICE = new MemoizingSupplier<>(() -> new TestNGService(ReportPortal.builder().build()));
     private ITestNGService reportPortalTestNGService;
-    private boolean isReportPortalEnabled;
+
+    @Getter
+    private static boolean isReportPortalEnabled;
 
     public static ProjectStructureManager.RunType identifyRunType() {
         Supplier<Stream<?>> stacktraceSupplier = () -> Arrays.stream((new Throwable()).getStackTrace()).map(StackTraceElement::getClassName);
@@ -108,14 +111,14 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         if (REPORT_PORTAL_INSTANCES.incrementAndGet() > 1) {
             String warning = "WARNING! More than one ReportPortal listener is added";
             System.out.println(warning);
+            ReportManagerHelper.logDiscrete(warning, Level.WARN);
         }
-        if (System.getProperty("rp.enable").trim().equalsIgnoreCase("true")) {
-            String info = "ReportPortal integration is enabled.";
-            System.out.println(info);
-        } else {
-            isReportPortalEnabled = false;
+        TestNGListener.isReportPortalEnabled = Boolean.parseBoolean(System.getProperty("rp.enable").trim());
+        if (TestNGListener.isReportPortalEnabled) {
+            String info = "Initializing ReportPortal Reporting Environment.";
+            ReportManagerHelper.logDiscrete(info, Level.INFO);
+            this.reportPortalTestNGService.startLaunch();
         }
-        if (isReportPortalEnabled) this.reportPortalTestNGService.startLaunch();
     }
 
     /**
