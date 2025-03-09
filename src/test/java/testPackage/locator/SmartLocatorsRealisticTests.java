@@ -1,10 +1,8 @@
 package testPackage.locator;
 
 import org.openqa.selenium.By;
-import org.openqa.selenium.Keys;
 import org.testng.annotations.Test;
 import testPackage.TestScenario;
-import testPackage.Tests;
 
 public class SmartLocatorsRealisticTests extends TestScenario {
     // Phase 3: Realistic Testing

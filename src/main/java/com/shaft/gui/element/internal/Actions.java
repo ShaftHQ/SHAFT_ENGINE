@@ -30,6 +30,7 @@ import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.support.locators.RelativeLocator;
 import org.openqa.selenium.support.pagefactory.ByAll;
+import org.openqa.selenium.support.ui.Select;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -67,6 +68,13 @@ public class Actions extends ElementActions {
         return this;
     }
 
+    @Step("Hover")
+    @Override
+    public Actions hover(@NonNull By locator) {
+        performAction(ActionType.HOVER, locator, null);
+        return this;
+    }
+
     @Step("Click")
     @Override
     public Actions click(@NonNull By locator) {
@@ -74,10 +82,31 @@ public class Actions extends ElementActions {
         return this;
     }
 
+    @Step("Click and hold")
+    @Override
+    public Actions clickAndHold(@NonNull By locator) {
+        performAction(ActionType.CLICK_AND_HOLD, locator, null);
+        return this;
+    }
+
+    @Step("Double click")
+    @Override
+    public Actions doubleClick(@NonNull By locator) {
+        performAction(ActionType.DOUBLE_CLICK, locator, null);
+        return this;
+    }
+
     @Step("Click using JavaScript")
     @Override
     public Actions clickUsingJavascript(@NonNull By locator) {
-        performAction(ActionType.CLICK_JAVASCRIPT, locator, null);
+        performAction(ActionType.JAVASCRIPT_CLICK, locator, null);
+        return this;
+    }
+
+    @Step("Set value using JavaScript")
+    @Override
+    public Actions setValueUsingJavaScript(@NonNull By locator, @NonNull String value) {
+        performAction(ActionType.JAVASCRIPT_SET_VALUE, locator, value);
         return this;
     }
 
@@ -130,6 +159,13 @@ public class Actions extends ElementActions {
         return this;
     }
 
+    @Step("Drag and drop by offset")
+    @Override
+    public Actions dragAndDropByOffset(@NonNull By sourceElementLocator, int xOffset, int yOffset) {
+        performAction(ActionType.DRAG_AND_DROP_BY_OFFSET, sourceElementLocator, new ArrayList<>(List.of(xOffset, yOffset)));
+        return this;
+    }
+
     public GetElementInformation get() {
         return new GetElementInformation();
     }
@@ -170,6 +206,11 @@ public class Actions extends ElementActions {
             return performAction(ActionType.GET_TEXT, locator, null);
         }
 
+        @Step("Get selected text")
+        public String selectedText(@NonNull By locator) {
+            return performAction(ActionType.GET_SELECTED_TEXT, locator, null);
+        }
+
         @Step("Get CSS value")
         public String cssValue(@NonNull By locator, @NonNull String propertyName) {
             return performAction(ActionType.GET_CSS_VALUE, locator, propertyName);
@@ -191,7 +232,7 @@ public class Actions extends ElementActions {
         }
     }
 
-    protected enum ActionType {CLICK, CLICK_JAVASCRIPT, TYPE, TYPE_SECURELY, TYPE_APPEND, CLEAR, DRAG_AND_DROP, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, GET_IS_SELECTED}
+    protected enum ActionType {HOVER, CLICK, JAVASCRIPT_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, JAVASCRIPT_SET_VALUE, CLEAR, DRAG_AND_DROP, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, DRAG_AND_DROP_BY_OFFSET, GET_SELECTED_TEXT, CLICK_AND_HOLD, DOUBLE_CLICK, GET_IS_SELECTED}
 
     protected String performAction(ActionType action, By locator, Object data) {
         AtomicReference<String> output = new AtomicReference<>("");
@@ -256,6 +297,7 @@ public class Actions extends ElementActions {
 
                 // perform action
                 switch (action) {
+                    case HOVER -> (new org.openqa.selenium.interactions.Actions(driver)).pause(Duration.ofMillis(400)).moveToElement(foundElements.get().getFirst()).perform();
                     case CLICK -> {
                         try {
                             screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
@@ -269,9 +311,17 @@ public class Actions extends ElementActions {
                             }
                         }
                     }
-                    case CLICK_JAVASCRIPT ->{
+                    case JAVASCRIPT_CLICK ->{
                         screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
                         ((JavascriptExecutor) driver).executeScript("arguments[0].click();", foundElements.get().getFirst());
+                    }
+                    case CLICK_AND_HOLD -> {
+                        screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
+                        new org.openqa.selenium.interactions.Actions(driver).pause(Duration.ofMillis(400)).clickAndHold(foundElements.get().getFirst()).perform();
+                    }
+                    case DOUBLE_CLICK -> {
+                        screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
+                        new org.openqa.selenium.interactions.Actions(driver).pause(Duration.ofMillis(400)).doubleClick(foundElements.get().getFirst()).perform();
                     }
                     case TYPE, TYPE_SECURELY -> {
                         PropertiesHelper.setClearBeforeTypingMode();
@@ -288,15 +338,11 @@ public class Actions extends ElementActions {
                             case "off":
                                 break;
                         }
-                        screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
                         foundElements.get().getFirst().sendKeys((CharSequence[]) data);
                     }
-                    case TYPE_APPEND -> {
-                        screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
-                        foundElements.get().getFirst().sendKeys((CharSequence[]) data);
-                    }
+                    case TYPE_APPEND -> foundElements.get().getFirst().sendKeys((CharSequence[]) data);
+                    case JAVASCRIPT_SET_VALUE -> ((JavascriptExecutor) driver).executeScript("arguments[0].value = arguments[1];", foundElements.get().getFirst(), data);
                     case CLEAR -> {
-                        screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
                         String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
                         switch (clearMode) {
                             case "native":
@@ -311,10 +357,13 @@ public class Actions extends ElementActions {
                                 break;
                         }
                     }
-                    case DRAG_AND_DROP -> new org.openqa.selenium.interactions.Actions(driver)
+                    case DRAG_AND_DROP -> new org.openqa.selenium.interactions.Actions(driver).pause(Duration.ofMillis(400))
                             .dragAndDrop(foundElements.get().getFirst(),
-                                    driver.findElement((By) data))
-                            .pause(Duration.ofMillis(300)).build().perform();
+                                    driver.findElement((By) data)).perform();
+                    case DRAG_AND_DROP_BY_OFFSET -> new org.openqa.selenium.interactions.Actions(driver).pause(Duration.ofMillis(400))
+                            .dragAndDropBy(foundElements.get().getFirst(),
+                                    (int) ((ArrayList<?>) data).get(0),
+                                    (int) ((ArrayList<?>) data).get(1)).perform();
                     case GET_DOM_ATTRIBUTE -> output.set(foundElements.get().getFirst().getDomAttribute((String) data));
                     case GET_DOM_PROPERTY -> output.set(foundElements.get().getFirst().getDomProperty((String) data));
                     case GET_CSS_VALUE -> output.set(foundElements.get().getFirst().getCssValue((String) data));
@@ -333,6 +382,11 @@ public class Actions extends ElementActions {
                         if (output.get() == null) {
                             output.set("");
                         }
+                    }
+                    case GET_SELECTED_TEXT -> {
+                        StringBuilder elementSelectedText = new StringBuilder();
+                        new Select(foundElements.get().getFirst()).getAllSelectedOptions().forEach(selectedOption -> elementSelectedText.append(selectedOption.getText()));
+                        output.set(elementSelectedText.toString());
                     }
                 }
 
