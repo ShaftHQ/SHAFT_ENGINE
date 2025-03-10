@@ -182,58 +182,6 @@ public class Actions extends ElementActions {
         return this;
     }
 
-    public class GetElementInformation {
-        protected GetElementInformation() {
-        }
-
-        @Step("Get DOM attribute")
-        public String domAttribute(@NonNull By locator, @NonNull String attributeName) {
-            return performAction(ActionType.GET_DOM_ATTRIBUTE, locator, attributeName);
-        }
-
-        @Step("Get DOM property")
-        public String domProperty(@NonNull By locator, @NonNull String propertyName) {
-            return performAction(ActionType.GET_DOM_PROPERTY, locator, propertyName);
-        }
-
-        @Step("Get name")
-        public String name(@NonNull By locator) {
-            return performAction(ActionType.GET_NAME, locator, null);
-        }
-
-        @Step("Get text")
-        public String text(@NonNull By locator) {
-            return performAction(ActionType.GET_TEXT, locator, null);
-        }
-
-        @Step("Get selected text")
-        public String selectedText(@NonNull By locator) {
-            return performAction(ActionType.GET_SELECTED_TEXT, locator, null);
-        }
-
-        @Step("Get CSS value")
-        public String cssValue(@NonNull By locator, @NonNull String propertyName) {
-            return performAction(ActionType.GET_CSS_VALUE, locator, propertyName);
-        }
-
-        @Step("Get is displayed")
-        public boolean isDisplayed(@NonNull By locator) {
-            return Boolean.parseBoolean(performAction(ActionType.GET_IS_DISPLAYED, locator, null));
-        }
-
-        @Step("Get is enabled")
-        public boolean isEnabled(@NonNull By locator) {
-            return Boolean.parseBoolean(performAction(ActionType.GET_IS_ENABLED, locator, null));
-        }
-
-        @Step("Get is selected")
-        public boolean isSelected(@NonNull By locator) {
-            return Boolean.parseBoolean(performAction(ActionType.GET_IS_SELECTED, locator, null));
-        }
-    }
-
-    protected enum ActionType {HOVER, CLICK, JAVASCRIPT_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, JAVASCRIPT_SET_VALUE, CLEAR, DRAG_AND_DROP, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, DRAG_AND_DROP_BY_OFFSET, GET_SELECTED_TEXT, CLICK_AND_HOLD, DOUBLE_CLICK, GET_IS_SELECTED}
-
     protected String performAction(ActionType action, By locator, Object data) {
         AtomicReference<String> output = new AtomicReference<>("");
         AtomicReference<String> accessibleName = new AtomicReference<>(JavaHelper.formatLocatorToString(locator));
@@ -297,7 +245,8 @@ public class Actions extends ElementActions {
 
                 // perform action
                 switch (action) {
-                    case HOVER -> (new org.openqa.selenium.interactions.Actions(driver)).pause(Duration.ofMillis(400)).moveToElement(foundElements.get().getFirst()).perform();
+                    case HOVER ->
+                            (new org.openqa.selenium.interactions.Actions(driver)).pause(Duration.ofMillis(400)).moveToElement(foundElements.get().getFirst()).perform();
                     case CLICK -> {
                         try {
                             screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
@@ -311,7 +260,7 @@ public class Actions extends ElementActions {
                             }
                         }
                     }
-                    case JAVASCRIPT_CLICK ->{
+                    case JAVASCRIPT_CLICK -> {
                         screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
                         ((JavascriptExecutor) driver).executeScript("arguments[0].click();", foundElements.get().getFirst());
                     }
@@ -329,15 +278,18 @@ public class Actions extends ElementActions {
                         foundElements.get().getFirst().sendKeys((CharSequence[]) data);
                     }
                     case TYPE_APPEND -> foundElements.get().getFirst().sendKeys((CharSequence[]) data);
-                    case JAVASCRIPT_SET_VALUE -> ((JavascriptExecutor) driver).executeScript("arguments[0].value = arguments[1];", foundElements.get().getFirst(), data);
+                    case JAVASCRIPT_SET_VALUE ->
+                            ((JavascriptExecutor) driver).executeScript("arguments[0].value = arguments[1];", foundElements.get().getFirst(), data);
                     case CLEAR -> executeClearBasedOnClearMode(foundElements);
-                    case DRAG_AND_DROP -> new org.openqa.selenium.interactions.Actions(driver).pause(Duration.ofMillis(400))
-                            .dragAndDrop(foundElements.get().getFirst(),
-                                    driver.findElement((By) data)).perform();
-                    case DRAG_AND_DROP_BY_OFFSET -> new org.openqa.selenium.interactions.Actions(driver).pause(Duration.ofMillis(400))
-                            .dragAndDropBy(foundElements.get().getFirst(),
-                                    (int) ((ArrayList<?>) data).get(0),
-                                    (int) ((ArrayList<?>) data).get(1)).perform();
+                    case DRAG_AND_DROP ->
+                            new org.openqa.selenium.interactions.Actions(driver).pause(Duration.ofMillis(400))
+                                    .dragAndDrop(foundElements.get().getFirst(),
+                                            driver.findElement((By) data)).perform();
+                    case DRAG_AND_DROP_BY_OFFSET ->
+                            new org.openqa.selenium.interactions.Actions(driver).pause(Duration.ofMillis(400))
+                                    .dragAndDropBy(foundElements.get().getFirst(),
+                                            (int) ((ArrayList<?>) data).get(0),
+                                            (int) ((ArrayList<?>) data).get(1)).perform();
                     case GET_DOM_ATTRIBUTE -> output.set(foundElements.get().getFirst().getDomAttribute((String) data));
                     case GET_DOM_PROPERTY -> output.set(foundElements.get().getFirst().getDomProperty((String) data));
                     case GET_CSS_VALUE -> output.set(foundElements.get().getFirst().getCssValue((String) data));
@@ -669,6 +621,58 @@ public class Actions extends ElementActions {
                 });
                 throw new RuntimeException(FailureReporter.getRootCause(exception).trim(), exception);
             }
+        }
+    }
+
+    protected enum ActionType {HOVER, CLICK, JAVASCRIPT_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, JAVASCRIPT_SET_VALUE, CLEAR, DRAG_AND_DROP, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, DRAG_AND_DROP_BY_OFFSET, GET_SELECTED_TEXT, CLICK_AND_HOLD, DOUBLE_CLICK, GET_IS_SELECTED}
+
+    public class GetElementInformation {
+        protected GetElementInformation() {
+        }
+
+        @Step("Get DOM attribute")
+        public String domAttribute(@NonNull By locator, @NonNull String attributeName) {
+            return performAction(ActionType.GET_DOM_ATTRIBUTE, locator, attributeName);
+        }
+
+        @Step("Get DOM property")
+        public String domProperty(@NonNull By locator, @NonNull String propertyName) {
+            return performAction(ActionType.GET_DOM_PROPERTY, locator, propertyName);
+        }
+
+        @Step("Get name")
+        public String name(@NonNull By locator) {
+            return performAction(ActionType.GET_NAME, locator, null);
+        }
+
+        @Step("Get text")
+        public String text(@NonNull By locator) {
+            return performAction(ActionType.GET_TEXT, locator, null);
+        }
+
+        @Step("Get selected text")
+        public String selectedText(@NonNull By locator) {
+            return performAction(ActionType.GET_SELECTED_TEXT, locator, null);
+        }
+
+        @Step("Get CSS value")
+        public String cssValue(@NonNull By locator, @NonNull String propertyName) {
+            return performAction(ActionType.GET_CSS_VALUE, locator, propertyName);
+        }
+
+        @Step("Get is displayed")
+        public boolean isDisplayed(@NonNull By locator) {
+            return Boolean.parseBoolean(performAction(ActionType.GET_IS_DISPLAYED, locator, null));
+        }
+
+        @Step("Get is enabled")
+        public boolean isEnabled(@NonNull By locator) {
+            return Boolean.parseBoolean(performAction(ActionType.GET_IS_ENABLED, locator, null));
+        }
+
+        @Step("Get is selected")
+        public boolean isSelected(@NonNull By locator) {
+            return Boolean.parseBoolean(performAction(ActionType.GET_IS_SELECTED, locator, null));
         }
     }
 }

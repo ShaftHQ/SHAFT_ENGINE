@@ -59,7 +59,8 @@ public class BrowserActions extends FluentWebDriverAction {
         initialize(helper);
     }
 
-    @Override public BrowserActions and() {
+    @Override
+    public BrowserActions and() {
         return this;
     }
 
@@ -283,7 +284,7 @@ public class BrowserActions extends FluentWebDriverAction {
             modifiedTargetUrlForLogging = modifiedTargetUrl.replaceAll(matcher.group(1), "•".repeat(matcher.group(1).length()));
         }
 
-        String targetUrlMessage = "•";
+        String targetUrlMessage;
         if (targetUrl.equals(targetUrlAfterRedirection)) {
             targetUrlMessage = "Target URL: \"" + modifiedTargetUrlForLogging + "\"";
         } else {
@@ -543,7 +544,7 @@ public class BrowserActions extends FluentWebDriverAction {
                     .replace("$WIDTH", String.valueOf(width)).replace("$HEIGHT", String.valueOf(height)));
 
             currentWindowSize = driver.manage().window().getSize();
-            ReportManager.logDiscrete("Window size after JavascriptExecutor: " + currentWindowSize.toString());
+            ReportManager.logDiscrete("Window size after JavascriptExecutor: " + currentWindowSize);
         }
 
         if ((initialWindowSize.height == currentWindowSize.height)

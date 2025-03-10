@@ -44,30 +44,30 @@ public enum JavaScriptHelper {
                     };
                     $.extend($.simulateDragDrop.prototype, {
                             simulateEvent: function(elem, options) {
-
+            
                                     /*Simulating drag start*/
                                     var type = 'dragstart';
                                     var event = this.createEvent(type);
                                     this.dispatchEvent(elem, type, event);
-
+            
             			/*Simulating drag enter*/
                                     type = 'dragenter';
                                     var dragenterEvent1 = this.createEvent(type, {});
             			dragenterEvent1.dataTransfer = event.dataTransfer;
                                     this.dispatchEvent(elem, type, dragenterEvent1);
-
+            
             			/*Simulating drag over*/
             			type = 'dragover';
                                     var dragoverEvent1 = this.createEvent(type, {});
                                     dragoverEvent1.dataTransfer = event.dataTransfer;
                                     this.dispatchEvent(elem, type, dragoverEvent1);
-
+            
             			/*Simulating drag leave*/
                                     type = 'dragleave';
                                     var dragleaveevent = this.createEvent(type, {});
             			dragleaveevent.dataTransfer = event.dataTransfer;
                                     this.dispatchEvent(elem, type, dragleaveevent);
-
+            
             			/*Sleep for 1000 milliseconds (1 second)*/
             			var start = new Date().getTime();
             			for (var i = 0; i < 1e7; i++) {
@@ -75,25 +75,25 @@ public enum JavaScriptHelper {
             				break;
             				}
             			}
-
+            
             			/*Simulating drag enter*/
             			type = 'dragenter';
                                     var dragenterEvent = this.createEvent(type, {});
                                     dragenterEvent.dataTransfer = event.dataTransfer;
                                     this.dispatchEvent($(options.dropTarget)[0], type, dragenterEvent);
-
+            
             			/*Simulating drag over*/
             			type = 'dragover';
                                     var dragoverEvent = this.createEvent(type, {});
                                     dragoverEvent.dataTransfer = event.dataTransfer;
                                     this.dispatchEvent($(options.dropTarget)[0], type, dragoverEvent);
-
+            
                                     /*Simulating drop*/
                                     type = 'drop';
                                     var dropEvent = this.createEvent(type, {});
                                     dropEvent.dataTransfer = event.dataTransfer;
                                     this.dispatchEvent($(options.dropTarget)[0], type, dropEvent);
-
+            
                             },
                             createEvent: function(type) {
                                     var event = document.createEvent("CustomEvent");
@@ -124,7 +124,7 @@ public enum JavaScriptHelper {
                 var xpath = '';
                 var count = 0;
                 while (element) {
-
+            
                     /** Getting the Element's Index
                      **/
                     var pathIndex = "";
@@ -134,7 +134,7 @@ public enum JavaScriptHelper {
                             for (var sibling = element.previousSibling; sibling; sibling = sibling.previousSibling) {
                                 if (sibling.nodeType == Node.DOCUMENT_TYPE_NODE)
                                     continue;
-
+            
                                 if (sibling.nodeName == element.nodeName)
                                     ++index;
                             }
@@ -143,11 +143,11 @@ public enum JavaScriptHelper {
                             continue;
                         }
                     }
-
+            
                     /** Getting the Element's Xpath
                      **/
                     var nodeXpath = '';
-
+            
                     /** Try to get element ID
                      **/
                     try {
@@ -155,7 +155,7 @@ public enum JavaScriptHelper {
                             nodeXpath += '@id=\\"' + element.id + '\\"';
                         }
                     } catch (err) {}
-
+            
                     /** Try to get element Name
                      **/
                     try {
@@ -165,7 +165,7 @@ public enum JavaScriptHelper {
                             nodeXpath += '@name=\\"' + element.name + '\\"';
                         }
                     } catch (err) {}
-
+            
                     /** Try to get element Type
                      **/
                     try {
@@ -175,7 +175,7 @@ public enum JavaScriptHelper {
                             nodeXpath += '@type=\\"' + element.type + '\\"';
                         }
                     } catch (err) {}
-
+            
                     /** Try to get element Class Name
                      **/
                     try {
@@ -185,7 +185,7 @@ public enum JavaScriptHelper {
                             nodeXpath += '@class=\\"' + element.className + '\\"';
                         }
                     } catch (err) {}
-
+            
                     /** Try to get element Text
                      **/
                     try {
@@ -218,7 +218,7 @@ public enum JavaScriptHelper {
                                     nodeXpath += 'contains(normalize-space(),\\'' + uiElementText + '\\')';
                             }
                         } else if (element.innerText && element.innerText.length < 50 && element.innerText == element.innerHTML && $$GetText$$) {
-
+            
                             var uiElementText = element.innerText;
                             try {
                                 uiElementText = uiElementText.trim();
@@ -252,11 +252,11 @@ public enum JavaScriptHelper {
                             }
                         }
                     } catch (err) {}
-
+            
                     /** Getting the Element's Tag Name
                      **/
                     var currentElementTagName = element.nodeName.toLocaleLowerCase();
-
+            
                     /** Building Xpath for the current Element Node
                      **/
                     if (nodeXpath == '') {
@@ -264,21 +264,21 @@ public enum JavaScriptHelper {
                     } else {
                         xpath = '/' + currentElementTagName + pathIndex + '[' + nodeXpath + ']' + xpath;
                     }
-
+            
                     /** Switching focus to parent node
                      **/
                     element = element.parentElement;
-
+            
                     /** Incrementing the element counter and breaking the loop in case we reach the maximum number of elements defined by the user
                      **/
                     count++;
                     if (count >= $$MaxCount$$)
                         break;
                 }
-
+            
                 return '/' + xpath;
             };
-
+            
             if (arguments[0] && !window.lastelem) {
                 return getXPath(arguments[0]);
             } else if (!arguments[0] && window.lastelem) {

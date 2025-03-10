@@ -143,7 +143,7 @@ public class ScreenshotManager {
         }
     }
 
-    public byte[] takeElementScreenshot(WebDriver driver, By targetElementLocator){
+    public byte[] takeElementScreenshot(WebDriver driver, By targetElementLocator) {
         return takeElementScreenshot(driver, targetElementLocator, false);
     }
 
@@ -178,7 +178,7 @@ public class ScreenshotManager {
         return new ArrayList<>();
     }
 
-    public byte[] internalCaptureScreenshot(WebDriver driver, By elementLocator, boolean isPass){
+    public byte[] internalCaptureScreenshot(WebDriver driver, By elementLocator, boolean isPass) {
         if ("JavaScript".equals(SHAFT.Properties.visuals.screenshotParamsHighlightMethod())) {
             return takeJavaScriptHighlightedScreenshot(driver, elementLocator, isPass);
         } else {
@@ -258,7 +258,7 @@ public class ScreenshotManager {
 
     private String highlightElementAndReturnDefaultStyle(WebDriver driver, WebElement element, JavascriptExecutor js,
                                                          String highlightedElementStyle) {
-        String regularElementStyle = element.getAttribute("style");
+        String regularElementStyle = element.getDomProperty("style");
         if (regularElementStyle != null && !regularElementStyle.isEmpty()) {
             js.executeScript("arguments[0].style.cssText = arguments[1];", element,
                     regularElementStyle + highlightedElementStyle);

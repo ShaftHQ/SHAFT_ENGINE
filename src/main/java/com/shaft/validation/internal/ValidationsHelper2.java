@@ -129,7 +129,7 @@ public class ValidationsHelper2 {
                     case "texttrimmed", "trimmedtext" -> new Actions(driver, true).get().text(locator).trim();
                     case "tagname" -> elementInformation.getElementTag();
                     case "size" -> elementInformation.getFirstElement().getSize().toString();
-                    case "selectedtext" -> new Actions(driver, true).getSelectedText(locator);
+                    case "selectedtext" -> new Actions(driver, true).get().selectedText(locator);
                     default -> new Actions(driver, true).get().domAttribute(locator, attribute);
                 });
                 validationState.set(performValidation(expected, actual.get(), type, validation));
@@ -166,7 +166,7 @@ public class ValidationsHelper2 {
                     case "texttrimmed", "trimmedtext" -> new Actions(driver, true).get().text(locator).trim();
                     case "tagname" -> elementInformation.getElementTag();
                     case "size" -> elementInformation.getFirstElement().getSize().toString();
-                    case "selectedtext" -> new Actions(driver, true).getSelectedText(locator);
+                    case "selectedtext" -> new Actions(driver, true).get().selectedText(locator);
                     default -> new Actions(driver, true).get().domProperty(locator, property);
                 });
                 validationState.set(performValidation(expected, actual.get(), type, validation));
@@ -299,7 +299,7 @@ public class ValidationsHelper2 {
                 }
 
                 // if found set value to 1, else set value to zero
-                elementCount.set(actualResult?1:0);
+                elementCount.set(actualResult ? 1 : 0);
 
                 expected.set(validation.getValue());
                 actual.set(actualResult);

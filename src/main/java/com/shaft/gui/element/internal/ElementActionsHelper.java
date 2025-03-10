@@ -113,81 +113,81 @@ public class ElementActionsHelper {
                                 FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", invalidSelectorException);
                             }
                         }
-                                // BLOCK #2 :: GETTING THE ELEMENT LOCATION (RECT)
+                        // BLOCK #2 :: GETTING THE ELEMENT LOCATION (RECT)
+                        try {
+                            elementInformation.setElementRect(targetElement[0].getRect());
+                        } catch (ElementNotInteractableException elementNotInteractableException) {
+                            // this exception happens sometimes with certain browsers and causes a timeout
+                            // this empty block should handle that issue
+                        }
+                        // BLOCK #3 :: SCROLLING TO ELEMENT | CONFIRMING IT IS DISPLAYED
+                        if (isValidToCheckForVisibility) {
+                            if (!isMobileExecution) {
                                 try {
-                                    elementInformation.setElementRect(targetElement[0].getRect());
-                                } catch (ElementNotInteractableException elementNotInteractableException) {
-                                    // this exception happens sometimes with certain browsers and causes a timeout
-                                    // this empty block should handle that issue
-                                }
-                                // BLOCK #3 :: SCROLLING TO ELEMENT | CONFIRMING IT IS DISPLAYED
-                                if (isValidToCheckForVisibility) {
-                                    if (!isMobileExecution) {
-                                        try {
-                                            // native Javascript scroll to center (smooth / auto)
-                                            ((JavascriptExecutor) driver).executeScript("""
-                                                            
-                                                            arguments[0].scrollIntoView({behavior: "smooth", block: "center", inline: "center"});""",
-                                                    targetElement[0]);
-                                        } catch (Throwable throwable) {
-                                            try {
-                                                // w3c compliant scroll
-                                                new Actions(driver).
-                                                        scrollToElement(targetElement[0]).
-                                                        perform();
-                                            } catch (Throwable throwable1) {
-                                                // old school selenium scroll
-                                                ((Locatable) driver).getCoordinates().
-                                                        inViewPort();
-                                            }
-                                        }
-                                    } else {
-                                        targetElement[0].
-                                                isDisplayed();
-                                    }
-                                }
-                                // BLOCK #4 :: GETTING THE NUMBER OF FOUND ELEMENTS
-                                if (shadowDomLocator != null &&
-                                        cssSelector == elementLocator) {
-                                    elementInformation.setNumberOfFoundElements(driver.
-                                            findElement(shadowDomLocator)
-                                            .getShadowRoot
-                                                    ()
-                                            .findElements(cssSelector)
-                                            .size());
-                                } else {
-                                    elementInformation.setNumberOfFoundElements(driver.findElements(elementLocator).size());
-                                }
-
-                                // BLOCK #5 :: GETTING INNER HTML AND OUTER HTML
-                                if (!
-
-                                        isMobileExecution &&
-                                        GET_ELEMENT_HTML) {
-                                    elementInformation.setOuterHTML(targetElement[0].getDomProperty("outerHTML"));
-                                    elementInformation.setInnerHTML(
-                                            targetElement[0].getDomProperty("innerHTML"));
-                                }
-                                // BLOCK #6 :: GETTING ELEMENT NAME
-                                if (SHAFT.Properties.reporting.
-                                        captureElementName()) {
-                                    var elementName = JavaHelper.
-                                            formatLocatorToString(elementLocator);
+                                    // native Javascript scroll to center (smooth / auto)
+                                    ((JavascriptExecutor) driver).executeScript("""
+                                                    
+                                                    arguments[0].scrollIntoView({behavior: "smooth", block: "center", inline: "center"});""",
+                                            targetElement[0]);
+                                } catch (Throwable throwable) {
                                     try {
-                                        var accessibleName = targetElement[0].getAccessibleName();
-                                        if (
-                                                accessibleName != null && !accessibleName.
-                                                        isBlank()) {
-                                            elementName =
-                                                    accessibleName;
-                                        }
-                                    } catch (Throwable throwable) {
-                                        //happens on some elements that show unhandled inspector error
-                                        //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
-                                        //ignore
+                                        // w3c compliant scroll
+                                        new Actions(driver).
+                                                scrollToElement(targetElement[0]).
+                                                perform();
+                                    } catch (Throwable throwable1) {
+                                        // old school selenium scroll
+                                        ((Locatable) driver).getCoordinates().
+                                                inViewPort();
                                     }
-                                    elementInformation.setElementName(elementName);
                                 }
+                            } else {
+                                targetElement[0].
+                                        isDisplayed();
+                            }
+                        }
+                        // BLOCK #4 :: GETTING THE NUMBER OF FOUND ELEMENTS
+                        if (shadowDomLocator != null &&
+                                cssSelector == elementLocator) {
+                            elementInformation.setNumberOfFoundElements(driver.
+                                    findElement(shadowDomLocator)
+                                    .getShadowRoot
+                                            ()
+                                    .findElements(cssSelector)
+                                    .size());
+                        } else {
+                            elementInformation.setNumberOfFoundElements(driver.findElements(elementLocator).size());
+                        }
+
+                        // BLOCK #5 :: GETTING INNER HTML AND OUTER HTML
+                        if (!
+
+                                isMobileExecution &&
+                                GET_ELEMENT_HTML) {
+                            elementInformation.setOuterHTML(targetElement[0].getDomProperty("outerHTML"));
+                            elementInformation.setInnerHTML(
+                                    targetElement[0].getDomProperty("innerHTML"));
+                        }
+                        // BLOCK #6 :: GETTING ELEMENT NAME
+                        if (SHAFT.Properties.reporting.
+                                captureElementName()) {
+                            var elementName = JavaHelper.
+                                    formatLocatorToString(elementLocator);
+                            try {
+                                var accessibleName = targetElement[0].getAccessibleName();
+                                if (
+                                        accessibleName != null && !accessibleName.
+                                                isBlank()) {
+                                    elementName =
+                                            accessibleName;
+                                }
+                            } catch (Throwable throwable) {
+                                //happens on some elements that show unhandled inspector error
+                                //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
+                                //ignore
+                            }
+                            elementInformation.setElementName(elementName);
+                        }
                         elementInformation.setFirstElement(targetElement[0]);
                         elementInformation.setLocator(elementLocator);
 

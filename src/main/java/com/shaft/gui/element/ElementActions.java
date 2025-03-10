@@ -42,7 +42,8 @@ public class ElementActions extends FluentWebDriverAction {
         initialize(helper);
     }
 
-    @Override public Actions and() {
+    @Override
+    public Actions and() {
         return new Actions(driverFactoryHelper);
     }
 
@@ -53,7 +54,7 @@ public class ElementActions extends FluentWebDriverAction {
     public WebDriverElementValidationsBuilder verifyThat(By elementLocator) {
         return new WizardHelpers.WebDriverVerifications(driverFactoryHelper).element(elementLocator);
     }
-    
+
     public int getElementsCount(By elementLocator) {
         return elementActionsHelper.getElementsCount(driver, elementLocator);
     }
@@ -218,10 +219,10 @@ public class ElementActions extends FluentWebDriverAction {
 
     /**
      * Deprecated use {@link Actions.GetElementInformation#domProperty(By, String)} or {@link Actions.GetElementInformation#domAttribute(By, String)} instead
-     * 
+     *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                             selector, name ...etc.)
-     * @param attributeName the target DOM property of the webElement under test
+     *                       selector, name ...etc.)
+     * @param attributeName  the target DOM property of the webElement under test
      * @return the value of the target DOM property of the webElement under test
      */
     @Deprecated
@@ -636,7 +637,7 @@ public class ElementActions extends FluentWebDriverAction {
         ReportManagerHelper.log("Capture element screenshot", Collections.singletonList(screenshotManager.prepareImageForReport(screenshotManager.takeElementScreenshot(driver, elementLocator), "captureScreenshot")));
         return new Actions(driverFactoryHelper);
     }
-    
+
     @Deprecated
     public Actions waitUntilNumberOfElementsToBe(By elementLocator, int numberOfElements) {
         return new Actions(driverFactoryHelper).waitUntil(d -> d.findElements(elementLocator).size() == numberOfElements, Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));

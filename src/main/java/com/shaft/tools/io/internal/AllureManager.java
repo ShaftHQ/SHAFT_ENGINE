@@ -18,12 +18,11 @@ public class AllureManager {
     private static final String allureExtractionLocation = System.getProperty("user.home") + File.separator + ".m2"
             + File.separator + "repository" + File.separator + "allure" + File.separator;
     private static final String allureReportPath = "allure-report";
+    private static final TerminalActions internalTerminalSession = TerminalActions.getInstance(false, false, true);
+    private static final FileActions internalFileSession = FileActions.getInstance(true);
     private static String allureResultsFolderPath = "";
     private static String allureBinaryPath = "";
     private static String allureOutPutDirectory = "";
-
-    private static final TerminalActions internalTerminalSession = TerminalActions.getInstance(false,false,true);
-    private static final FileActions internalFileSession = FileActions.getInstance(true);
 
     public static void initializeAllureReportingEnvironment() {
         ReportManager.logDiscrete("Initializing Allure Reporting Environment...");

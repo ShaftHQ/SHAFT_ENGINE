@@ -133,7 +133,7 @@ public class LambdaTestHelper {
         String testData = "Username: " + username + ", Password: " + password + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", App URL: " + appUrl;
         // set properties
         passAction(testData);
-        
+
         MutableCapabilities lambdaTestCapabilities = new MutableCapabilities();
         HashMap<String, Object> lambdaTestOptions = setLambdaTestProperties(username, password, deviceName, osVersion, appUrl);
         lambdaTestOptions.put("w3c", SHAFT.Properties.lambdaTest.w3c());

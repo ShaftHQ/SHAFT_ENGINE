@@ -44,7 +44,8 @@ public class TouchActions extends FluentWebDriverAction {
         initialize(helper);
     }
 
-    @Override public TouchActions and() {
+    @Override
+    public TouchActions and() {
         return this;
     }
 
@@ -252,7 +253,7 @@ public class TouchActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeByOffset(By elementLocator, int xOffset, int yOffset) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).dragAndDropByOffset(elementLocator,xOffset,yOffset);
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).dragAndDropByOffset(elementLocator, xOffset, yOffset);
         return this;
     }
 

@@ -314,7 +314,7 @@ public class OptionsManager {
                 appiumCapabilities.setCapability("appium:showChromedriverLog", true);
         }
          */
-        
+
         ReportManager.log(appiumCapabilities.toString());
     }
 
@@ -451,7 +451,7 @@ public class OptionsManager {
         }
 
         if (!SHAFT.Properties.flags.autoCloseDriverInstance()) {
-            Map<Object, Object> chromeOptions = new HashMap<>((Map<Object, Object>) options.getCapability(ChromeOptions.CAPABILITY));
+            @SuppressWarnings("unchecked") Map<Object, Object> chromeOptions = new HashMap<>((Map<Object, Object>) options.getCapability(ChromeOptions.CAPABILITY));
             chromeOptions.put("detach", true);
             options.setCapability(ChromeOptions.CAPABILITY, chromeOptions);
         }

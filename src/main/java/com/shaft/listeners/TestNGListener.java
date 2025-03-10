@@ -35,23 +35,20 @@ import java.util.stream.Stream;
 public class TestNGListener implements IAlterSuiteListener, IAnnotationTransformer,
         IExecutionListener, ISuiteListener, IInvokedMethodListener, ITestListener, IResultListener2 {
 
+    public static final Supplier<ITestNGService> REPORT_PORTAL_SERVICE = new MemoizingSupplier<>(() -> new TestNGService(ReportPortal.builder().build()));
     private static final List<ITestNGMethod> passedTests = new ArrayList<>();
     private static final List<ITestNGMethod> failedTests = new ArrayList<>();
     private static final List<ITestNGMethod> skippedTests = new ArrayList<>();
+    // ReportPortal
+    private static final AtomicInteger REPORT_PORTAL_INSTANCES = new AtomicInteger(0);
     @Getter
     private static ITestResult iTestResult;
     private static long executionStartTime;
-
     @Getter
     private static XmlTest xmlTest;
-
-    // ReportPortal
-    private static final AtomicInteger REPORT_PORTAL_INSTANCES = new AtomicInteger(0);
-    public static final Supplier<ITestNGService> REPORT_PORTAL_SERVICE = new MemoizingSupplier<>(() -> new TestNGService(ReportPortal.builder().build()));
-    private ITestNGService reportPortalTestNGService;
-
     @Getter
     private static boolean isReportPortalEnabled;
+    private ITestNGService reportPortalTestNGService;
 
     public static ProjectStructureManager.RunType identifyRunType() {
         Supplier<Stream<?>> stacktraceSupplier = () -> Arrays.stream((new Throwable()).getStackTrace()).map(StackTraceElement::getClassName);
