@@ -33,8 +33,8 @@ import io.qameta.allure.Allure;
 import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.cucumber7jvm.AllureCucumber7Jvm;
 import io.qameta.allure.cucumber7jvm.testsourcemodel.TestSourcesModelProxy;
-import io.qameta.allure.model.Status;
 import io.qameta.allure.model.*;
+import io.qameta.allure.model.Status;
 import lombok.Getter;
 import org.testng.Reporter;
 

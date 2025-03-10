@@ -9,8 +9,8 @@ import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.ElementInformation;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import lombok.SneakyThrows;
-import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.*;
+import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.support.locators.RelativeLocator;
 
 import javax.imageio.ImageIO;

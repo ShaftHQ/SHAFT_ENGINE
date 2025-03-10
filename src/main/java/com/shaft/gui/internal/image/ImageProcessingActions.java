@@ -17,8 +17,8 @@ import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.Validations;
 import nu.pattern.OpenCV;
-import org.opencv.core.Point;
 import org.opencv.core.*;
+import org.opencv.core.Point;
 import org.opencv.highgui.HighGui;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
@@ -37,8 +37,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.FileSystems;
-import java.util.List;
 import java.util.*;
+import java.util.List;
 
 @SuppressWarnings("SpellCheckingInspection")
 public class ImageProcessingActions {
