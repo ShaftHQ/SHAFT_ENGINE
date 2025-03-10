@@ -1,6 +1,7 @@
 package com.shaft.driver.internal.DriverFactory;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.Browser;
 import org.openqa.selenium.support.ui.FluentWait;
@@ -35,6 +36,7 @@ public class SynchronizationManager {
         expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
         expectedExceptions.add(org.openqa.selenium.JavascriptException.class);
         expectedExceptions.add(org.openqa.selenium.ElementClickInterceptedException.class);
+        expectedExceptions.add(MultipleElementsFoundException.class);
 
         if (isValidToCheckForVisibility) {
             expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);

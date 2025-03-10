@@ -348,7 +348,7 @@ public class ReportManagerHelper {
         StackTraceElement[] callingStack = Thread.currentThread().getStackTrace();
         var getCallingClassFullName = new StringBuilder();
         for (var i = 1; i < callingStack.length; i++) {
-            if (!callingStack[i].getClassName().contains("shaft")) {
+            if (!callingStack[i].getClassName().contains("shaft") && !callingStack[i].getClassName().equals("org.openqa.selenium.support.ui.FluentWait")) {
                 getCallingClassFullName.append(callingStack[i].getClassName());
                 break;
             }
