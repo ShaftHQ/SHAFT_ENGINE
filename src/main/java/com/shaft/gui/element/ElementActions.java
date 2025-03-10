@@ -18,6 +18,7 @@ import org.openqa.selenium.support.locators.RelativeLocator;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import com.shaft.gui.element.internal.Actions;
 
 import java.nio.file.FileSystems;
 import java.time.Duration;
@@ -41,8 +42,8 @@ public class ElementActions extends FluentWebDriverAction {
         initialize(helper);
     }
 
-    @Override public ElementActions and() {
-        return this;
+    @Override public Actions and() {
+        return new Actions(driverFactoryHelper);
     }
 
     public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
@@ -52,12 +53,13 @@ public class ElementActions extends FluentWebDriverAction {
     public WebDriverElementValidationsBuilder verifyThat(By elementLocator) {
         return new WizardHelpers.WebDriverVerifications(driverFactoryHelper).element(elementLocator);
     }
-
+    
     public int getElementsCount(By elementLocator) {
         return elementActionsHelper.getElementsCount(driver, elementLocator);
     }
 
     /**
+     * Deprecated use {@link Actions.GetElementInformation#selectedText(By)} instead
      * Retrieves the selected text from the target drop-down list element and returns it as a string value.
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
@@ -66,7 +68,7 @@ public class ElementActions extends FluentWebDriverAction {
      */
     @Deprecated
     public String getSelectedText(By elementLocator) {
-        return new com.shaft.gui.element.internal.Actions(driverFactoryHelper).get().selectedText(elementLocator);
+        return new Actions(driverFactoryHelper).get().selectedText(elementLocator);
     }
 
     /**
@@ -81,7 +83,7 @@ public class ElementActions extends FluentWebDriverAction {
      *                   ImmutableMap.of("direction", "down")
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions executeNativeMobileCommand(String command, Map<String, String> parameters) {
+    public Actions executeNativeMobileCommand(String command, Map<String, String> parameters) {
         try {
             elementActionsHelper.executeNativeMobileCommandUsingJavascript(driver, command, parameters);
             var testData = "Command: " + command + ", Parameters: " + parameters;
@@ -89,7 +91,7 @@ public class ElementActions extends FluentWebDriverAction {
         } catch (Exception rootCauseException) {
             elementActionsHelper.failAction(driver, null, rootCauseException);
         }
-        return this;
+        return new Actions(driverFactoryHelper);
     }
 
     /**
@@ -99,9 +101,8 @@ public class ElementActions extends FluentWebDriverAction {
      *                       selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions click(By elementLocator) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).click(elementLocator);
-        return this;
+    public Actions click(By elementLocator) {
+        return new Actions(driverFactoryHelper).click(elementLocator);
     }
 
     /**
@@ -111,9 +112,8 @@ public class ElementActions extends FluentWebDriverAction {
      *                       selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions clickUsingJavascript(By elementLocator) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).clickUsingJavascript(elementLocator);
-        return this;
+    public Actions clickUsingJavascript(By elementLocator) {
+        return new Actions(driverFactoryHelper).clickUsingJavascript(elementLocator);
     }
 
     /**
@@ -123,7 +123,7 @@ public class ElementActions extends FluentWebDriverAction {
      *                       selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions scrollToElement(By elementLocator) {
+    public Actions scrollToElement(By elementLocator) {
         // if mobile, call swipeElementIntoView(null, targetElementLocator, swipeDirection); for convenience
         if (DriverFactoryHelper.isMobileNativeExecution()) {
             performTouchAction().swipeElementIntoView(elementLocator, TouchActions.SwipeDirection.DOWN);
@@ -134,7 +134,7 @@ public class ElementActions extends FluentWebDriverAction {
         } catch (Exception throwable) {
             elementActionsHelper.failAction(driver, elementLocator, throwable);
         }
-        return this;
+        return new Actions(driverFactoryHelper);
     }
 
     /**
@@ -144,9 +144,8 @@ public class ElementActions extends FluentWebDriverAction {
      *                       selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions clickAndHold(By elementLocator) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).clickAndHold(elementLocator);
-        return this;
+    public Actions clickAndHold(By elementLocator) {
+        return new Actions(driverFactoryHelper).clickAndHold(elementLocator);
     }
 
     /**
@@ -159,7 +158,7 @@ public class ElementActions extends FluentWebDriverAction {
      *                       "select all", "unselect"
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions clipboardActions(By elementLocator, ClipboardAction action) {
+    public Actions clipboardActions(By elementLocator, ClipboardAction action) {
         try {
             var elementName = elementActionsHelper.getElementName(driver, elementLocator);
             boolean wasActionPerformed = elementActionsHelper.performClipboardActions(driver, action);
@@ -171,7 +170,7 @@ public class ElementActions extends FluentWebDriverAction {
         } catch (Exception throwable) {
             elementActionsHelper.failAction(driver, elementLocator, throwable);
         }
-        return this;
+        return new Actions(driverFactoryHelper);
     }
 
     /**
@@ -181,9 +180,8 @@ public class ElementActions extends FluentWebDriverAction {
      *                       selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions doubleClick(By elementLocator) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).doubleClick(elementLocator);
-        return this;
+    public Actions doubleClick(By elementLocator) {
+        return new Actions(driverFactoryHelper).doubleClick(elementLocator);
     }
 
     /**
@@ -198,9 +196,8 @@ public class ElementActions extends FluentWebDriverAction {
      *                                  ...etc.)
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions dragAndDrop(By sourceElementLocator, By destinationElementLocator) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).dragAndDrop(sourceElementLocator, destinationElementLocator);
-        return this;
+    public Actions dragAndDrop(By sourceElementLocator, By destinationElementLocator) {
+        return new Actions(driverFactoryHelper).dragAndDrop(sourceElementLocator, destinationElementLocator);
     }
 
     /**
@@ -215,17 +212,25 @@ public class ElementActions extends FluentWebDriverAction {
      *                             be moved
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions dragAndDropByOffset(By sourceElementLocator, int xOffset, int yOffset) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).dragAndDropByOffset(sourceElementLocator, xOffset, yOffset);
-        return this;
-    }
-
-    @Deprecated
-    public String getAttribute(By elementLocator, String attributeName) {
-        return new com.shaft.gui.element.internal.Actions(driverFactoryHelper).get().domProperty(elementLocator, attributeName);
+    public Actions dragAndDropByOffset(By sourceElementLocator, int xOffset, int yOffset) {
+        return new Actions(driverFactoryHelper).dragAndDropByOffset(sourceElementLocator, xOffset, yOffset);
     }
 
     /**
+     * Deprecated use {@link Actions.GetElementInformation#domProperty(By, String)} or {@link Actions.GetElementInformation#domAttribute(By, String)} instead
+     * 
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                             selector, name ...etc.)
+     * @param attributeName the target DOM property of the webElement under test
+     * @return the value of the target DOM property of the webElement under test
+     */
+    @Deprecated
+    public String getAttribute(By elementLocator, String attributeName) {
+        return new Actions(driverFactoryHelper).get().domProperty(elementLocator, attributeName);
+    }
+
+    /**
+     * Deprecated use {@link Actions.GetElementInformation#cssValue(By, String)} instead
      * Get the value of a given CSS property. Color values should be returned as
      * RGBA strings, so, for example if the "background-color" property is SetProperty as
      * "green" in the HTML source, the returned value will be "RGBA(0, 255, 0, 1)".
@@ -242,12 +247,13 @@ public class ElementActions extends FluentWebDriverAction {
      */
     @Deprecated
     public String getCSSProperty(By elementLocator, String propertyName) {
-        return new com.shaft.gui.element.internal.Actions(driverFactoryHelper).get().cssValue(elementLocator, propertyName);
+        return new Actions(driverFactoryHelper).get().cssValue(elementLocator, propertyName);
 
 
     }
 
     /**
+     * Deprecated use {@link Actions.GetElementInformation#text(By)} instead
      * Retrieves text from the target element and returns it as a string value.
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
@@ -256,7 +262,7 @@ public class ElementActions extends FluentWebDriverAction {
      */
     @Deprecated
     public String getText(By elementLocator) {
-        return new com.shaft.gui.element.internal.Actions(driverFactoryHelper).get().text(elementLocator);
+        return new Actions(driverFactoryHelper).get().text(elementLocator);
     }
 
     /**
@@ -268,9 +274,8 @@ public class ElementActions extends FluentWebDriverAction {
      *                       selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions hover(By elementLocator) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).hover(elementLocator);
-        return this;
+    public Actions hover(By elementLocator) {
+        return new Actions(driverFactoryHelper).hover(elementLocator);
     }
 
     /**
@@ -285,10 +290,9 @@ public class ElementActions extends FluentWebDriverAction {
      *                                xpath, id, selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions hoverAndClick(List<By> hoverElementLocators, By clickableElementLocator) {
+    public Actions hoverAndClick(List<By> hoverElementLocators, By clickableElementLocator) {
         hoverElementLocators.forEach(this::hover);
-        click(clickableElementLocator);
-        return this;
+        return click(clickableElementLocator);
     }
 
     /**
@@ -300,7 +304,7 @@ public class ElementActions extends FluentWebDriverAction {
      *                           target dropDown menu or the string value of attribute "value"
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions select(By elementLocator, String valueOrVisibleText) {
+    public Actions select(By elementLocator, String valueOrVisibleText) {
         ElementInformation elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElement(driver, elementLocator));
 
         //Capture the Element Tag
@@ -357,7 +361,7 @@ public class ElementActions extends FluentWebDriverAction {
             }
 
         }
-        return this;
+        return new Actions(driverFactoryHelper);
     }
 
     /**
@@ -369,9 +373,8 @@ public class ElementActions extends FluentWebDriverAction {
      *                       element
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions setValueUsingJavaScript(By elementLocator, String value) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).setValueUsingJavaScript(elementLocator, value);
-        return this;
+    public Actions setValueUsingJavaScript(By elementLocator, String value) {
+        return new Actions(driverFactoryHelper).setValueUsingJavaScript(elementLocator, value);
     }
 
     /**
@@ -381,7 +384,7 @@ public class ElementActions extends FluentWebDriverAction {
      *                       selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions submitFormUsingJavaScript(By elementLocator) {
+    public Actions submitFormUsingJavaScript(By elementLocator) {
         try {
             var elementName = elementActionsHelper.getElementName(driver, elementLocator);
             List<Object> screenshot = null;
@@ -400,7 +403,7 @@ public class ElementActions extends FluentWebDriverAction {
         } catch (Exception throwable) {
             elementActionsHelper.failAction(driver, elementLocator, throwable);
         }
-        return this;
+        return new Actions(driverFactoryHelper);
     }
 
     /**
@@ -412,7 +415,7 @@ public class ElementActions extends FluentWebDriverAction {
      *                       xpath, id, selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions switchToIframe(By elementLocator) {
+    public Actions switchToIframe(By elementLocator) {
         try {
             var elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElement(driver, elementLocator));
             LocatorBuilder.getIFrameLocator().set(elementInformation.getLocator());
@@ -426,7 +429,7 @@ public class ElementActions extends FluentWebDriverAction {
             // has to be throwable to catch assertion errors in case element was not found
             elementActionsHelper.failAction(driver, elementLocator, throwable);
         }
-        return this;
+        return new Actions(driverFactoryHelper);
     }
 
     /**
@@ -437,7 +440,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     @SuppressWarnings("UnusedReturnValue")
-    public ElementActions switchToDefaultContent() {
+    public Actions switchToDefaultContent() {
         try {
             driver.switchTo().defaultContent();
             LocatorBuilder.getIFrameLocator().remove();
@@ -451,7 +454,7 @@ public class ElementActions extends FluentWebDriverAction {
         // if there is no last used driver or no drivers in the drivers list, do
         // nothing...
 //        return new ElementActions(Objects.requireNonNull(driver).get());
-        return this;
+        return new Actions(driverFactoryHelper);
     }
 
     /**
@@ -465,14 +468,12 @@ public class ElementActions extends FluentWebDriverAction {
         return currentFrame;
     }
 
-    public ElementActions type(By elementLocator, CharSequence... text) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).type(elementLocator, text);
-        return this;
+    public Actions type(By elementLocator, CharSequence... text) {
+        return new Actions(driverFactoryHelper).type(elementLocator, text);
     }
 
-    public ElementActions clear(By elementLocator) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).clear(elementLocator);
-        return this;
+    public Actions clear(By elementLocator) {
+        return new Actions(driverFactoryHelper).clear(elementLocator);
     }
 
     /**
@@ -485,9 +486,8 @@ public class ElementActions extends FluentWebDriverAction {
      *                       target webElement
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions typeAppend(By elementLocator, CharSequence... text) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).typeAppend(elementLocator, text);
-        return this;
+    public Actions typeAppend(By elementLocator, CharSequence... text) {
+        return new Actions(driverFactoryHelper).typeAppend(elementLocator, text);
     }
 
     /**
@@ -500,7 +500,7 @@ public class ElementActions extends FluentWebDriverAction {
      *                       path, Engine will detect that.
      * @return a self-reference to be used to chain actions.
      */
-    public ElementActions typeFileLocationForUpload(By elementLocator, String filePath) {
+    public Actions typeFileLocationForUpload(By elementLocator, String filePath) {
         var absoluteFilePath = filePath;
         if (filePath.startsWith("src")) {
             absoluteFilePath = FileActions.getInstance(true).getAbsolutePath(filePath);
@@ -539,7 +539,7 @@ public class ElementActions extends FluentWebDriverAction {
             // has to be throwable to catch assertion errors in case element was not found
             elementActionsHelper.failAction(driver, elementLocator, throwable);
         }
-        return this;
+        return new Actions(driverFactoryHelper);
     }
 
     /**
@@ -553,12 +553,12 @@ public class ElementActions extends FluentWebDriverAction {
      *                       webElement
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions typeSecure(By elementLocator, CharSequence... text) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).typeSecure(elementLocator, text);
-        return this;
+    public Actions typeSecure(By elementLocator, CharSequence... text) {
+        return new Actions(driverFactoryHelper).typeSecure(elementLocator, text);
     }
 
     /**
+     * Deprecated use {@link Actions.GetElementInformation#isDisplayed(By)} instead
      * Checks to see if an element is displayed
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
@@ -568,19 +568,11 @@ public class ElementActions extends FluentWebDriverAction {
      */
     @Deprecated
     public boolean isElementDisplayed(By elementLocator) {
-        try {
-            var elementName = elementActionsHelper.getElementName(driver, elementLocator);
-            boolean isDisplayed = ((WebElement) elementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).isDisplayed();
-            elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
-            return isDisplayed;
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
-        }
-        return false;
+        return new Actions(driverFactoryHelper).get().isDisplayed(elementLocator);
     }
 
     /**
+     * Deprecated use {@link Actions.GetElementInformation#isEnabled(By)} instead
      * Checks to see if an element is clickable
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
@@ -590,22 +582,7 @@ public class ElementActions extends FluentWebDriverAction {
      */
     @Deprecated
     public boolean isElementClickable(By elementLocator) {
-        try {
-            var elementName = elementActionsHelper.getElementName(driver, elementLocator);
-            if (elementActionsHelper.waitForElementToBeClickable(driver, elementLocator, "")) {
-                //element is clickable
-                elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "element is clickable", null, elementName);
-                return true;
-            } else {
-                //element is not clickable
-                elementActionsHelper.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "element is not clickable", null, elementName);
-                return false;
-            }
-        } catch (Exception throwable) {
-            elementActionsHelper.failAction(driver, elementLocator, throwable);
-            //unreachable code
-            return false;
-        }
+        return new Actions(driverFactoryHelper).get().isEnabled(elementLocator);
     }
 
     /**
@@ -649,63 +626,54 @@ public class ElementActions extends FluentWebDriverAction {
                 String cellValue = cells.get(cellIndex).getText();
                 rowData.put(columnName, cellValue);
             }
-
             tableData.add(rowData);
         }
-
         return tableData;
     }
 
-    public ElementActions captureScreenshot(By elementLocator) {
+    public Actions captureScreenshot(By elementLocator) {
         var screenshotManager = new ScreenshotManager();
         ReportManagerHelper.log("Capture element screenshot", Collections.singletonList(screenshotManager.prepareImageForReport(screenshotManager.takeElementScreenshot(driver, elementLocator), "captureScreenshot")));
-        return this;
+        return new Actions(driverFactoryHelper);
+    }
+    
+    @Deprecated
+    public Actions waitUntilNumberOfElementsToBe(By elementLocator, int numberOfElements) {
+        return new Actions(driverFactoryHelper).waitUntil(d -> d.findElements(elementLocator).size() == numberOfElements, Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
     }
 
     @Deprecated
-    public ElementActions waitUntilNumberOfElementsToBe(By elementLocator, int numberOfElements) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).waitUntil(d -> d.findElements(elementLocator).size() == numberOfElements, Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
-        return this;
+    public Actions waitUntilNumberOfElementsToBeLessThan(By elementLocator, int numberOfElements) {
+        return new Actions(driverFactoryHelper).waitUntil(d -> d.findElements(elementLocator).size() < numberOfElements, Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
     }
 
     @Deprecated
-    public ElementActions waitUntilNumberOfElementsToBeLessThan(By elementLocator, int numberOfElements) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).waitUntil(d -> d.findElements(elementLocator).size() < numberOfElements, Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
-        return this;
+    public Actions waitUntilNumberOfElementsToBeMoreThan(By elementLocator, int numberOfElements) {
+        return new Actions(driverFactoryHelper).waitUntil(d -> d.findElements(elementLocator).size() > numberOfElements, Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
     }
 
     @Deprecated
-    public ElementActions waitUntilNumberOfElementsToBeMoreThan(By elementLocator, int numberOfElements) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).waitUntil(d -> d.findElements(elementLocator).size() > numberOfElements, Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
-        return this;
-    }
-
-    @Deprecated
-    public ElementActions waitUntilAttributeContains(By elementLocator, String attribute, String attributeContainsValue) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).waitUntil(d -> {
+    public Actions waitUntilAttributeContains(By elementLocator, String attribute, String attributeContainsValue) {
+        return new Actions(driverFactoryHelper).waitUntil(d -> {
             var currentValue = driver.findElement(elementLocator).getDomProperty(attribute);
             currentValue = currentValue != null ? currentValue : "";
             return currentValue.contains(attributeContainsValue);
         }, Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
-        return this;
     }
 
     @Deprecated
-    public ElementActions waitUntilElementTextToBe(By elementLocator, String text) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).waitUntil(d -> text.equals(driver.findElement(elementLocator).getText()), Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
-        return this;
+    public Actions waitUntilElementTextToBe(By elementLocator, String text) {
+        return new Actions(driverFactoryHelper).waitUntil(d -> text.equals(driver.findElement(elementLocator).getText()), Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
     }
 
     @Deprecated
-    public ElementActions waitUntilElementToBeSelected(By elementLocator) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).waitUntil(d -> d.findElement(elementLocator).isSelected(), Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
-        return this;
+    public Actions waitUntilElementToBeSelected(By elementLocator) {
+        return new Actions(driverFactoryHelper).waitUntil(d -> d.findElement(elementLocator).isSelected(), Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
     }
 
     @Deprecated
-    public ElementActions waitUntilPresenceOfAllElementsLocatedBy(By elementLocator) {
-        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).waitUntil(d -> !d.findElements(elementLocator).isEmpty(), Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
-        return this;
+    public Actions waitUntilPresenceOfAllElementsLocatedBy(By elementLocator) {
+        return new Actions(driverFactoryHelper).waitUntil(d -> !d.findElements(elementLocator).isEmpty(), Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
     }
 
 }

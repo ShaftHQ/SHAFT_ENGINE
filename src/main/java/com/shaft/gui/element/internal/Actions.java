@@ -325,38 +325,12 @@ public class Actions extends ElementActions {
                     }
                     case TYPE, TYPE_SECURELY -> {
                         PropertiesHelper.setClearBeforeTypingMode();
-                        String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
-                        switch (clearMode) {
-                            case "native":
-                                foundElements.get().getFirst().clear();
-                                break;
-                            case "backspace":
-                                String text = parseElementText(foundElements.get().getFirst());
-                                if (!text.isEmpty())
-                                    foundElements.get().getFirst().sendKeys(String.valueOf(Keys.BACK_SPACE).repeat(text.length()));
-                                break;
-                            case "off":
-                                break;
-                        }
+                        executeClearBasedOnClearMode(foundElements);
                         foundElements.get().getFirst().sendKeys((CharSequence[]) data);
                     }
                     case TYPE_APPEND -> foundElements.get().getFirst().sendKeys((CharSequence[]) data);
                     case JAVASCRIPT_SET_VALUE -> ((JavascriptExecutor) driver).executeScript("arguments[0].value = arguments[1];", foundElements.get().getFirst(), data);
-                    case CLEAR -> {
-                        String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
-                        switch (clearMode) {
-                            case "native":
-                                foundElements.get().getFirst().clear();
-                                break;
-                            case "backspace":
-                                String text = parseElementText(foundElements.get().getFirst());
-                                if (!text.isEmpty())
-                                    foundElements.get().getFirst().sendKeys(String.valueOf(Keys.BACK_SPACE).repeat(text.length()));
-                                break;
-                            case "off":
-                                break;
-                        }
-                    }
+                    case CLEAR -> executeClearBasedOnClearMode(foundElements);
                     case DRAG_AND_DROP -> new org.openqa.selenium.interactions.Actions(driver).pause(Duration.ofMillis(400))
                             .dragAndDrop(foundElements.get().getFirst(),
                                     driver.findElement((By) data)).perform();
@@ -416,6 +390,22 @@ public class Actions extends ElementActions {
         //report pass
         reportPass(action.name(), accessibleName.get(), screenshot[0]);
         return output.get();
+    }
+
+    private void executeClearBasedOnClearMode(AtomicReference<List<WebElement>> foundElements) {
+        String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
+        switch (clearMode) {
+            case "native":
+                foundElements.get().getFirst().clear();
+                break;
+            case "backspace":
+                String text = parseElementText(foundElements.get().getFirst());
+                if (!text.isEmpty())
+                    foundElements.get().getFirst().sendKeys(String.valueOf(Keys.BACK_SPACE).repeat(text.length()));
+                break;
+            case "off":
+                break;
+        }
     }
 
     private String parseElementText(WebElement element) {
