@@ -8,7 +8,9 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.internal.Actions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.ElementInformation;
+import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.properties.internal.Properties;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.CheckpointStatus;
@@ -18,9 +20,12 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
 import io.qameta.allure.Allure;
 import io.qameta.allure.model.Parameter;
+import org.apache.logging.log4j.Level;
 import org.openqa.selenium.By;
+import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.remote.Browser;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -52,7 +57,7 @@ public class ValidationsHelper2 {
         Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
         //end of reporting block
         boolean validationState = performValidation(expected, actual, type, validation);
-        reportValidationState(validationState, expected, actual, null, null);
+        reportValidationState(validationState, expected, actual, null, null, null);
     }
 
     protected void validateNumber(Number expected, Number actual,
@@ -67,7 +72,7 @@ public class ValidationsHelper2 {
         parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
         parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
         Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
-        reportValidationState(validationState, expected, actual, null, null);
+        reportValidationState(validationState, expected, actual, null, null, null);
     }
 
     protected void validateBrowserAttribute(WebDriver driver, String attribute,
@@ -105,7 +110,7 @@ public class ValidationsHelper2 {
         parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
         parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
         Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
-        reportValidationState(validationState.get(), expected, actual, driver, null);
+        reportValidationState(validationState.get(), expected, actual, driver, null, null);
     }
 
     protected void validateElementAttribute(WebDriver driver, By locator, String attribute,
@@ -142,7 +147,7 @@ public class ValidationsHelper2 {
         parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
         parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
         Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
-        reportValidationState(validationState.get(), expected, actual, driver, locator);
+        reportValidationState(validationState.get(), expected, actual, driver, locator, null);
     }
 
     protected void validateElementProperty(WebDriver driver, By locator, String property,
@@ -179,7 +184,7 @@ public class ValidationsHelper2 {
         parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
         parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
         Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
-        reportValidationState(validationState.get(), expected, actual, driver, locator);
+        reportValidationState(validationState.get(), expected, actual, driver, locator, null);
     }
 
     protected void validateElementCSSProperty(WebDriver driver, By locator, String property,
@@ -191,7 +196,7 @@ public class ValidationsHelper2 {
 
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
-                actual.set(new ElementActions(driver, true).getCSSProperty(locator, property));
+                actual.set(new Actions(driver, true).get().cssValue(locator, property));
                 validationState.set(performValidation(expected, actual.get(), type, validation));
                 return validationState.get();
             });
@@ -207,7 +212,7 @@ public class ValidationsHelper2 {
         parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
         parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
         Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
-        reportValidationState(validationState.get(), expected, actual, driver, locator);
+        reportValidationState(validationState.get(), expected, actual, driver, locator, null);
     }
 
     protected void validateElementExists(WebDriver driver, By locator,
@@ -238,7 +243,82 @@ public class ValidationsHelper2 {
         parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual.get())).setMode(Parameter.Mode.DEFAULT));
         Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
         // force take page screenshot, (rather than element highlighted screenshot)
-        reportValidationState(validationState.get(), expected, actual, driver, elementCount.get() == 0 ? null : locator);
+        reportValidationState(validationState.get(), expected, actual, driver, elementCount.get() == 0 ? null : locator, null);
+    }
+
+
+    protected void validateElementMatches(WebDriver driver, By locator,
+                                          ValidationEnums.VisualValidationEngine visualValidationEngine, ValidationEnums.ValidationType validation) {
+        // read actual value based on desired existing state
+        // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
+        AtomicBoolean expected = new AtomicBoolean(false);
+        AtomicBoolean actual = new AtomicBoolean(false);
+        AtomicBoolean validationState = new AtomicBoolean(false);
+        AtomicInteger elementCount = new AtomicInteger();
+        AtomicReference<ValidationEnums.VisualValidationEngine> internalVisualEngine = new AtomicReference<>(visualValidationEngine);
+        List<List<Object>> attachments = new ArrayList<>();
+
+        try {
+            new SynchronizationManager(driver).fluentWait(true).until(f -> {
+                //https://github.com/assertthat/selenium-shutterbug/issues/105
+                if (Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
+                    internalVisualEngine.set(ValidationEnums.VisualValidationEngine.EXACT_OPENCV);
+                }
+
+                // get reference image
+                byte[] referenceImage = ImageProcessingActions.getReferenceImage(locator);
+                if (!Arrays.equals(new byte[0], referenceImage)) {
+                    ReportManagerHelper.logDiscrete("Reference image found.", Level.INFO);
+                    List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Reference Screenshot",
+                            referenceImage);
+                    attachments.add(expectedValueAttachment);
+                } else {
+                    ReportManagerHelper.logDiscrete("Reference image not found, attempting to capture new reference.", Level.INFO);
+                }
+
+                // get actual screenshot
+                byte[] elementScreenshot;
+                Boolean actualResult;
+
+                elementScreenshot = driver.findElement(locator).getScreenshotAs(OutputType.BYTES);
+                actualResult = ImageProcessingActions.compareAgainstBaseline(driver, locator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
+
+                List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
+                        elementScreenshot);
+                attachments.add(actualValueAttachment);
+
+                // compare actual and reference screenshots
+                if (visualValidationEngine.equals(ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG) && !actualResult) {
+                    //if shutterbug and failed, get differences screenshot
+                    byte[] shutterbugDifferencesImage = ImageProcessingActions.getShutterbugDifferencesImage(locator);
+                    if (!Arrays.equals(new byte[0], shutterbugDifferencesImage)) {
+                        List<Object> differencesAttachment = Arrays.asList("Validation Test Data", "Differences",
+                                shutterbugDifferencesImage);
+                        attachments.add(differencesAttachment);
+                    }
+                }
+
+                // if found set value to 1, else set value to zero
+                elementCount.set(actualResult?1:0);
+
+                expected.set(validation.getValue());
+                actual.set(actualResult);
+                // force validation type to be positive since the expected and actual values have been adjusted already
+                validationState.set(performValidation(expected.get(), actual.get(), ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE));
+                return validationState.get();
+            });
+        } catch (TimeoutException timeoutException) {
+            //timeout was exhausted and the validation failed
+        }
+        //reporting block
+        List<Parameter> parameters = new ArrayList<>();
+        parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Should exist").setValue(String.valueOf(expected.get())).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Visual engine").setValue(visualValidationEngine.name()).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual.get())).setMode(Parameter.Mode.DEFAULT));
+        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
+        // force take page screenshot, (rather than element highlighted screenshot)
+        reportValidationState(validationState.get(), expected, actual, driver, elementCount.get() == 0 ? null : locator, attachments);
     }
 
     private boolean performValidation(Object expected, Object actual,
@@ -264,12 +344,15 @@ public class ValidationsHelper2 {
         return validationState;
     }
 
-    private void reportValidationState(boolean validationState, Object expected, Object actual, WebDriver driver, By locator) {
-        List<List<Object>> attachments = new ArrayList<>();
+    private void reportValidationState(boolean validationState, Object expected, Object actual, WebDriver driver, By locator, List<List<Object>> attachments) {
+        //initialize attachments object if no attachments were already prepared
+        attachments = attachments == null ? new ArrayList<>() : attachments;
+
         // prepare WebDriver attachments
         if (driver != null) {
             // prepare screenshot with element highlighting
-            attachments.add(new ScreenshotManager().takeScreenshot(driver, locator, this.validationCategoryString, validationState));
+            if (attachments.isEmpty())
+                attachments.add(new ScreenshotManager().takeScreenshot(driver, locator, this.validationCategoryString, validationState));
             // prepare page snapshot mhtml/html
             var whenToTakePageSourceSnapshot = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().toLowerCase();
             if (Boolean.FALSE.equals(validationState)
