@@ -1,9 +1,9 @@
 ---
 name: Bug report
 about: Create a report to help us improve
-title: '[Bug]: '
-labels: ['bug', 'triage']
-assignees: 'MohabMohie'
+title: "[Bug]: "
+labels: bug, triage
+assignees: ''
 
 ---
 
@@ -60,4 +60,3 @@ If applicable, add screenshots, gifs, or video recordings to help explain the is
 **Additional context**
 
 Add any other relevant context about the problem here.
-
