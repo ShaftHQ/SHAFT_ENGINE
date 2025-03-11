@@ -38,10 +38,10 @@ public class FailureReporter {
         Assert.fail(message);
     }
 
-    public static String getRootCause(Throwable throwable){
+    public static String getRootCause(Throwable throwable) {
         var rootCauseMessage = Throwables.getRootCause(throwable).getLocalizedMessage();
-        if (rootCauseMessage!=null)
+        if (rootCauseMessage != null)
             return " Root cause: \"" + Throwables.getRootCause(throwable).getClass().getName() + ": " + rootCauseMessage.split("\n")[0] + "\"";
-        return" Root cause: \"" + Throwables.getRootCause(throwable).getClass().getName() + ": " + "\"";
+        return " Root cause: \"" + Throwables.getRootCause(throwable).getClass().getName() + ": " + "\"";
     }
 }

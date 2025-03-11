@@ -20,9 +20,10 @@ public class ValidationsExecutor {
     private final ValidationEnums.ValidationCategory validationCategory;
     private final ValidationEnums.ValidationType validationType;
     private final String validationMethod;
+    private final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
+    private final ThreadLocal<Object> response = new ThreadLocal<>();
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private String validationCategoryString;
-    private final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
     private By locator;
     private String customReportMessage = "";
     private ValidationEnums.VisualValidationEngine visualValidationEngine;
@@ -34,7 +35,6 @@ public class ValidationsExecutor {
     private boolean condition;
     private Object actualValue;
     private ValidationEnums.NumbersComparativeRelation numbersComparativeRelation;
-    private final ThreadLocal<Object> response = new ThreadLocal<>();
     private String fileAbsolutePath;
     private RestActions.ComparisonType restComparisonType;
     private String jsonPath;
@@ -169,7 +169,8 @@ public class ValidationsExecutor {
                     new ValidationsHelper().validateTrue(validationCategory, condition, validationType, customReportMessage);
             case "elementExists" ->
                     new ValidationsHelper2(validationCategory).validateElementExists(driver.get(), locator, validationType);
-            case "elementMatches" -> new ValidationsHelper2(validationCategory).validateElementMatches(driver.get(), locator, visualValidationEngine, validationType);
+            case "elementMatches" ->
+                    new ValidationsHelper2(validationCategory).validateElementMatches(driver.get(), locator, visualValidationEngine, validationType);
             case "elementAttributeEquals" ->
                     new ValidationsHelper2(validationCategory).validateElementAttribute(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "elementPropertyEquals" ->

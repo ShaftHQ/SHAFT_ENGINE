@@ -23,9 +23,9 @@ public class UpdateChecker {
         String currentVersion = SHAFT.Properties.internal.shaftEngineVersion();
         String latestVersion = getLatestVersionFromGitHub();
 
-        Thread.ofVirtual().start(() -> FileActions.getInstance(true).writeToFile("target/", "engine_check", todayDate+"_"+latestVersion));
+        Thread.ofVirtual().start(() -> FileActions.getInstance(true).writeToFile("target/", "engine_check", todayDate + "_" + latestVersion));
 
-        if (currentVersion.equalsIgnoreCase(latestVersion)){
+        if (currentVersion.equalsIgnoreCase(latestVersion)) {
             var logMessage = "You're using the latest engine version \"" + latestVersion + "\". \uD83D\uDC4D";
             ReportManagerHelper.logDiscrete(logMessage, Level.INFO);
         } else {

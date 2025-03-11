@@ -29,7 +29,8 @@ public interface Performance extends EngineProperties<Performance> {
     int port();
 
     @Key("generatePerformanceReport")
-    @DefaultValue("true")  // Default is enabled
+    @DefaultValue("true")
+        // Default is enabled
     boolean isEnablePerformanceReport();
 
     default SetProperty set() {

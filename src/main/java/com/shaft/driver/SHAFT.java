@@ -332,6 +332,7 @@ public class SHAFT {
                 return new CSVFileManager(csvFilePath);
             }
         }
+
         public static class YAML extends YAMLFileManager {
             /**
              * Creates a new instance of the test data Excel reader using the target Excel

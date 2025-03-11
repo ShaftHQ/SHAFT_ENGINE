@@ -19,6 +19,8 @@ import static io.restassured.RestAssured.config;
 @Getter(AccessLevel.PACKAGE) //for unit tests
 @SuppressWarnings("unused")
 public class RequestBuilder {
+    @Getter
+    private static final Map<String, List<Double>> performanceData = new HashMap<>();
     private RestActions session;
     private Map<String, String> sessionHeaders;
     private Map<String, Object> sessionCookies;
@@ -27,23 +29,17 @@ public class RequestBuilder {
     private String serviceName;
     private String serviceURI;
     private int targetStatusCode;
-
     private String urlArguments = null;
     private List<List<Object>> parameters = null;
     private Map<String, Object> parametersMap = null;
     private RestActions.ParametersType parametersType = null;
     private Object requestBody = null;
     private ContentType contentType = null;
-
     private AuthenticationType authenticationType;
     private String authenticationUsername;
     private String authenticationPassword;
-
     private boolean appendDefaultContentCharsetToContentTypeIfUndefined;
     private boolean urlEncodingEnabled;
-
-    @Getter
-    private static Map<String, List<Double>> performanceData = new HashMap<>();
 
     /**
      * Start building a new API request.
@@ -183,13 +179,12 @@ public class RequestBuilder {
     }
 
     /**
-     * @deprecated Use setParameters(Map<String, Object>, RestActions.ParametersType) instead.
-     * This method will be removed in a future release.
-     * Sets the parameters (if any) for the API request that you're currently building. A request usually has only one of the following: urlArguments, parameters+type, or body
-     *
      * @param parameters     a list of key/value pairs that will be sent as parameters with this API call, is nullable, Example: Arrays.asList(Arrays.asList("itemId", "123"), Arrays.asList("contents", XMLContents));
      * @param parametersType FORM, QUERY
      * @return a self-reference to be used to continue building your API request
+     * @deprecated Use setParameters(Map<String, Object>, RestActions.ParametersType) instead.
+     * This method will be removed in a future release.
+     * Sets the parameters (if any) for the API request that you're currently building. A request usually has only one of the following: urlArguments, parameters+type, or body
      */
     @Deprecated
     public RequestBuilder setParameters(List<List<Object>> parameters, RestActions.ParametersType parametersType) {
@@ -202,7 +197,7 @@ public class RequestBuilder {
      * Sets API request parameters using a Map<String, Object>.
      * Recommended for better readability and usability.
      *
-     * @param parameters A Map where keys represent parameter names, and values represent corresponding values.
+     * @param parameters     A Map where keys represent parameter names, and values represent corresponding values.
      * @param parametersType The type of parameters (FORM, QUERY).
      * @return A self-reference to continue building the API request.
      */

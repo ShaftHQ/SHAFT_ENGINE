@@ -51,7 +51,7 @@ public class JavaHelper {
     public static String removeSpecialCharacters(String text) {
         StringBuilder cleanString = new StringBuilder();
         if (text != null) {
-            for (int i = 0; i < text.toCharArray().length; i++) {
+            for (int i = 0; i < text.length(); i++) {
                 var character = String.valueOf(text.toCharArray()[i]);
                 if (Pattern.compile("[^a-z0-9]", Pattern.CASE_INSENSITIVE).matcher(character).find()) {
                     cleanString.append("_");

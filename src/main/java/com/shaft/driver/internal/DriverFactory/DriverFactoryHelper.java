@@ -177,9 +177,10 @@ public class DriverFactoryHelper {
             } catch (SessionNotCreatedException | URISyntaxException sessionNotCreatedException1) {
                 exception = sessionNotCreatedException1;
                 String message = sessionNotCreatedException1.getMessage();
-                if (message.contains("missing in the capabilities")
+                if (message !=null &&
+                        (message.contains("missing in the capabilities")
                         || message.contains("not allowed on your current plan")
-                        || message.contains("has been exhausted")) {
+                        || message.contains("has been exhausted"))) {
                     break;
                 } else {
                     try {
@@ -473,7 +474,7 @@ public class DriverFactoryHelper {
             killSwitch = true;
             failAction("Unreachable Browser, terminated test suite execution.", e);
         } catch (WebDriverException e) {
-            if (e.getMessage().contains("Error forwarding the new session cannot find")) {
+            if (e.getMessage() !=null && e.getMessage().contains("Error forwarding the new session cannot find")) {
                 ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + TARGET_HUB_URL + "\".");
                 failAction("Error forwarding the new session: Couldn't find a node that matches the desired capabilities.", e);
             } else {
@@ -574,7 +575,7 @@ public class DriverFactoryHelper {
                 var driverLogs = driver.manage().logs();
                 driverLogs.getAvailableLogTypes().forEach(logType -> {
                     var logBuilder = new StringBuilder();
-                    driverLogs.get(logType).getAll().forEach(logEntry -> logBuilder.append(logEntry.toString()).append(System.lineSeparator()));
+                    driverLogs.get(logType).getAll().forEach(logEntry -> logBuilder.append(logEntry).append(System.lineSeparator()));
                     ReportManagerHelper.attach("Selenium WebDriver Logs", logType, logBuilder.toString());
                 });
             } catch (WebDriverException e) {

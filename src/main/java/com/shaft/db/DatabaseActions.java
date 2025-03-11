@@ -445,9 +445,8 @@ public class DatabaseActions {
             try {
                 DriverManager.setLoginTimeout(SHAFT.Properties.timeouts.databaseLoginTimeout());
                 connection = DriverManager.getConnection(connectionString);
-            }
-            catch (SQLException rootCauseException)
-            { failAction(connectionString, rootCauseException);
+            } catch (SQLException rootCauseException) {
+                failAction(connectionString, rootCauseException);
             }
         }
         // to open connection with DB Data directly
@@ -514,7 +513,7 @@ public class DatabaseActions {
     private String getReportMessage(String queryType, String query) {
         if (!"".equals(customConnectionString)) {
             return customConnectionString.replaceAll("Password=([^;]+)", "Password=*****")
-                    .replaceAll("User=([^;]+)","User=****");
+                    .replaceAll("User=([^;]+)", "User=****");
 
         } else {
             return "Database Type: \"" + dbType + "\"" +

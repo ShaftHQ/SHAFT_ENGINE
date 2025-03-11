@@ -58,7 +58,7 @@ public class FileActions {
         try {
             var targetFile = new File(filePath);
             String targetDirectory = targetFile.getParentFile().getAbsolutePath();
-            File newFile =  new File(targetDirectory + File.separator + newFileName);
+            File newFile = new File(targetDirectory + File.separator + newFileName);
             if (!targetFile.getPath().equals(newFile.getPath())) {
                 FileUtils.copyFile(targetFile, newFile);
                 FileUtils.deleteQuietly(targetFile);
@@ -66,7 +66,7 @@ public class FileActions {
             } else {
                 passAction("Target File Path: \"" + filePath + "\", already has the desired name \"" + newFileName + "\".");
             }
-            } catch (IOException e) {
+        } catch (IOException e) {
             failAction(e);
         }
     }
@@ -591,7 +591,7 @@ public class FileActions {
                 var log = new StringBuilder();
                 fileWalker.filter(Files::isRegularFile)
                         .forEach(filePath -> {
-                            log.append(filePath.toString());
+                            log.append(filePath);
                             log.append("\n");
                         });
                 ReportManager.log("Archiving the following files:\n" + log);
