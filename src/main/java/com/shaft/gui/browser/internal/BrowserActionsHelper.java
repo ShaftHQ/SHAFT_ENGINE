@@ -3,6 +3,7 @@ package com.shaft.gui.browser.internal;
 import com.google.common.net.InternetDomainName;
 import com.shaft.db.DatabaseActions;
 import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.internal.support.JavaScriptHelper;
@@ -119,33 +120,20 @@ public class BrowserActionsHelper {
     }
 
     public void confirmThatWebsiteIsNotDown(WebDriver driver, String targetUrl) {
-        if (SHAFT.Properties.flags.forceCheckNavigationWasSuccessful()) {
-            List<String> navigationErrorMessages = Arrays.asList("This site can’t be reached", "Unable to connect",
-                    "Safari Can’t Connect to the Server", "This page can't be displayed", "Invalid URL",
-                    "<head></head><body></body>");
-            //TODO: get page loop outside the foreach loop
-            try {
-                navigationErrorMessages.forEach(errorMessage -> {
+        var navigationErrorMessages = Arrays.asList("This site can’t be reached", "Unable to connect",
+                "Safari Can’t Connect to the Server", "This page can't be displayed", "Invalid URL",
+                "<head></head><body></body>");
+        new SynchronizationManager(driver).fluentWait().withTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.browserNavigationTimeout()))
+                .until(d -> {
+                    JavaScriptWaitManager.waitForLazyLoading(driver);
                     var pageSource = driver.getPageSource();
-                    if (pageSource != null && pageSource.contains(errorMessage)) {
-                        failAction(driver, "Error message: \"" + errorMessage + "\", Target URL: \"" + targetUrl + "\"");
-                    }
+                    navigationErrorMessages.forEach(errorMessage -> {
+                        if (pageSource != null && pageSource.contains(errorMessage)) {
+                            failAction(driver, "Error message: \"" + errorMessage + "\", Target URL: \"" + targetUrl + "\"");
+                        }
+                    });
+                    return true;
                 });
-            } catch (org.openqa.selenium.JavascriptException javascriptException) {
-                // this happens in some cases with local execution on windows
-            /*
-            Caused by: org.openqa.selenium.JavascriptException: javascript error: Cannot read properties of null (reading 'outerHTML')
-            (Session info: chrome=111.0.5563.111)
-            Build info: version: '4.8.2', revision: '826dbfc730'
-            System info: os.name: 'Windows 11', os.arch: 'amd64', os.version: '10.0', java.version: '17.0.3.1'
-            Driver info: org.openqa.selenium.chrome.ChromeDriver
-            Command: [3650f46d33000b7ed76f29f53d7810b6, getPageSource {}]
-            */
-                // try again
-                JavaScriptWaitManager.waitForLazyLoading(driver);
-                confirmThatWebsiteIsNotDown(driver, targetUrl);
-            }
-        }
     }
 
     public void navigateToNewUrl(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
@@ -169,10 +157,6 @@ public class BrowserActionsHelper {
             driver.navigate().to(internalURL);
         } catch (WebDriverException rootCauseException) {
             failAction(driver, targetUrl, rootCauseException);
-        }
-
-        if (SHAFT.Properties.flags.forceCheckNavigationWasSuccessful() && !targetUrl.contains("\n")) {
-            checkNavigationWasSuccessful(driver, initialURL, targetUrl, targetUrlAfterRedirection);
         }
     }
 

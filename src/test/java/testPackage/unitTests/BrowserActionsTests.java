@@ -93,6 +93,6 @@ public class BrowserActionsTests {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.get().browser().closeCurrentWindow();
+        driver.get().quit();
     }
 }

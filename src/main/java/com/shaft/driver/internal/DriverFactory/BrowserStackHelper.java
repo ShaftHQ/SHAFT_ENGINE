@@ -145,6 +145,7 @@ public class BrowserStackHelper {
         browserstackOptions.put("osVersion", osVersion);
         browserstackOptions.put("local", SHAFT.Properties.browserStack.local());
         browserstackOptions.put("appiumVersion", SHAFT.Properties.browserStack.appiumVersion());
+        browserstackOptions.put("seleniumVersion", SHAFT.Properties.browserStack.seleniumVersion());
         browserstackOptions.put("deviceName", SHAFT.Properties.browserStack.deviceName());
 
         var pathItems = System.getProperty("user.dir").split(Pattern.quote(File.separator));
@@ -153,6 +154,9 @@ public class BrowserStackHelper {
         browserstackOptions.put("buildName", pathItems[pathItems.length - 1] + "_" + time.getYear() + time.getMonthValue() + time.getDayOfMonth());
 
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
+
+        browserStackCapabilities.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+
 
         passAction(testData);
         return browserStackCapabilities;
@@ -169,7 +173,6 @@ public class BrowserStackHelper {
         // set properties
         SHAFT.Properties.platform.set().executionAddress(username + ":" + password + "@" + hubUrl);
         SHAFT.Properties.mobile.set().browserName(SHAFT.Properties.web.targetBrowserName());
-//        System.setProperty("browserName", SHAFT.Properties.web.targetBrowserName());
 
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
         var browserVersion = SHAFT.Properties.browserStack.browserVersion();
