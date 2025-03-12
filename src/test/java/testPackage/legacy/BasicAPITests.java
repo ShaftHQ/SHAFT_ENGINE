@@ -68,11 +68,14 @@ public class BasicAPITests {
     }
 
     @Test(description = "This test is used to Test add headers to the request")
-    public void apiTest5() {
+    public void addHeadersMethodTest() {
         Map<String, String> headers = Map.of("Firstheader", "FirstHeaderValue",
                 "Secondheader", "SecondHeaderValue");
         api = new SHAFT.API("https://httpbin.org/");
-        api.get("get").addHeaders(headers).perform();
+        api.get("get")
+                .addHeaders(headers)
+                .setTargetStatusCode(200)
+                .perform();
         api.assertThatResponse().extractedJsonValue("headers.Firstheader")
                 .isEqualTo("FirstHeaderValue")
                 .perform();
@@ -81,17 +84,40 @@ public class BasicAPITests {
                 .perform();
     }
 
+    @Test(description = "This test is used to Test add headers to the request")
+    public void addEmptyHeadersMethodTest() {
+        Map<String, String> headers = Map.of();
+        api = new SHAFT.API("https://httpbin.org/");
+        api.get("get")
+                .addHeaders(headers)
+                .setTargetStatusCode(200)
+                .perform();
+    }
+
     @Test(description = "This test is used to Test add cookies to the request")
-    public void apiTest6() {
+    public void addCookiesMethodTest() {
         Map<String, String> cookies = Map.of("FirstCookie", "FirstCookieValue",
                 "SecondCookie", "SecondCookieValue");
         api = new SHAFT.API("https://httpbin.org/");
-        api.get("get").addCookies(cookies).perform();
+        api.get("get")
+                .addCookies(cookies)
+                .setTargetStatusCode(200)
+                .perform();
         api.assertThatResponse().extractedJsonValue("headers.Cookie")
                 .contains("FirstCookie=FirstCookieValue")
                 .perform();
         api.assertThatResponse().extractedJsonValue("headers.Cookie")
                 .contains("SecondCookie=SecondCookieValue")
+                .perform();
+    }
+
+    @Test(description = "This test is used to Test add cookies to the request")
+    public void addEmptyCookiesMethodTest() {
+        Map<String, String> cookies = Map.of();
+        api = new SHAFT.API("https://httpbin.org/");
+        api.get("get")
+                .addCookies(cookies)
+                .setTargetStatusCode(200)
                 .perform();
     }
 

@@ -290,7 +290,7 @@ public class RequestBuilder {
     }
 
     /**
-     * Append headers to the current session to be used in the current and all the following requests.
+     * Append headers to the current session to be used in the current and all the following requests. This feature is commonly used for authentication tokens.
      *
      * @param headers a map of headers that you want to add
      * @return a self-reference to be used to continue building your API request
