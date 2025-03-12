@@ -37,7 +37,7 @@ public class BasicAPITests {
 
     @Test
     public void apiTest3() {
-        Map <String, Object> queryParameters = Map.of("FirstName", "Abdelrahman",
+        Map<String, Object> queryParameters = Map.of("FirstName", "Abdelrahman",
                 "LastName", "Fahd");
         String body = "{\n" +
                 "\"Body1\": \"Abdelrahman\",\n" +
@@ -57,8 +57,8 @@ public class BasicAPITests {
 
     @Test
     public void apiTest4() {
-        Map <String, Object> formParameters = Map.of("name", "SHAFT",
-                                                     "job", "Automation Engineer");
+        Map<String, Object> formParameters = Map.of("name", "SHAFT",
+                "job", "Automation Engineer");
         api = new SHAFT.API("https://reqres.in/api");
 
         api.post("users")
@@ -66,4 +66,33 @@ public class BasicAPITests {
                 .setTargetStatusCode(200)
                 .perform();
     }
+
+    @Test(description = "This test is used to Test add headers to the request")
+    public void apiTest5() {
+        Map<String, String> headers = Map.of("Firstheader", "FirstHeaderValue",
+                "Secondheader", "SecondHeaderValue");
+        api = new SHAFT.API("https://httpbin.org/");
+        api.get("get").addHeaders(headers).perform();
+        api.assertThatResponse().extractedJsonValue("headers.Firstheader")
+                .isEqualTo("FirstHeaderValue")
+                .perform();
+        api.assertThatResponse().extractedJsonValue("headers.Secondheader")
+                .isEqualTo("SecondHeaderValue")
+                .perform();
+    }
+
+    @Test(description = "This test is used to Test add cookies to the request")
+    public void apiTest6() {
+        Map<String, String> cookies = Map.of("FirstCookie", "FirstCookieValue",
+                "SecondCookie", "SecondCookieValue");
+        api = new SHAFT.API("https://httpbin.org/");
+        api.get("get").addCookies(cookies).perform();
+        api.assertThatResponse().extractedJsonValue("headers.Cookie")
+                .contains("FirstCookie=FirstCookieValue")
+                .perform();
+        api.assertThatResponse().extractedJsonValue("headers.Cookie")
+                .contains("SecondCookie=SecondCookieValue")
+                .perform();
+    }
+
 }
