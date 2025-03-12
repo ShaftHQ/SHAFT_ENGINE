@@ -327,42 +327,6 @@ jobs:
         with:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
-  Android_Web_Samsung_BrowserStack:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-DbrowserName=samsung" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
-      - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Android_Web_Samsung_BrowserStack_Allure
-          path: "allure-report/*.html"
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
-        if: always()
   MacOSX_Safari_BrowserStack:
     runs-on: ubuntu-latest
     steps:
