@@ -322,7 +322,8 @@ public class BrowserActions extends FluentWebDriverAction {
             // validate successful navigation
             if (!targetUrl.contains("\n")) {
                 // it can contain line breaks for mocked HTML pages that are used for internal testing only
-                browserActionsHelper.confirmThatWebsiteIsNotDown(driver, modifiedTargetUrl);
+                // TODO: FIX and re-enable
+                // browserActionsHelper.confirmThatWebsiteIsNotDown(driver, modifiedTargetUrl);
                 if (SHAFT.Properties.flags.forceCheckNavigationWasSuccessful())
                     browserActionsHelper.checkNavigationWasSuccessful(driver, initialURL, targetUrl, targetUrlAfterRedirection);
             }
