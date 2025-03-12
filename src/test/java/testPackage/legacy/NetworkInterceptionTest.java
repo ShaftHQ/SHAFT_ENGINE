@@ -26,7 +26,7 @@ public class NetworkInterceptionTest {
         driver.get().quit();
     }
 
-    @Test(expectedExceptions = {AssertionError.class})
+    @Test
     public void interceptShaftLogoAndReplaceItWithYoutubeLogo() {
         // prepare the expected result => should always pass
         driver.get().browser().navigateToURL("https://shafthq.github.io/")
@@ -43,7 +43,7 @@ public class NetworkInterceptionTest {
         // mock and compare actual to expected => should always fail
         driver.get().browser().mock(requestPredicate, mockedResponse)
                 .navigateToURL("https://shafthq.github.io/")
-                .element().assertThat(By.xpath("//img[@alt='SHAFT_Engine']")).matchesReferenceImage().perform();
+                .element().assertThat(By.xpath("//img[@alt='SHAFT_Engine']")).doesNotMatchReferenceImage().perform();
     }
 
 

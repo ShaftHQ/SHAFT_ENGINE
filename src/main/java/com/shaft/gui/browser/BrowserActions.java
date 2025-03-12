@@ -19,6 +19,7 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
+import io.qameta.allure.Step;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.DevTools;
@@ -296,7 +297,7 @@ public class BrowserActions extends FluentWebDriverAction {
         String initialURL = null;
         try {
             initialURL = driver.getCurrentUrl();
-        } catch (UnsupportedCommandException exception){
+        } catch (UnsupportedCommandException exception) {
             ReportManager.logDiscrete("Failed to get current URL, attempting to navigate to target URL.", Level.WARN);
         }
 
@@ -439,7 +440,6 @@ public class BrowserActions extends FluentWebDriverAction {
 
     /**
      * Closes the current browser window
-     *
      */
     public void closeCurrentWindow() {
         driverFactoryHelper.closeDriver();
@@ -559,12 +559,19 @@ public class BrowserActions extends FluentWebDriverAction {
         }
     }
 
+    @Step("Mock HTTP Request")
     public BrowserActions mock(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse) {
-        return intercept(requestPredicate, mockedResponse);
+        return internalIntercept(requestPredicate, mockedResponse);
     }
 
+    @Step("Intercept HTTP Request")
     public BrowserActions intercept(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse) {
-        ReportManager.logDiscrete("Attempting to configure network interceptor for \"" + requestPredicate + "\", will provide mocked response \"" + mockedResponse + "\"");
+        return internalIntercept(requestPredicate, mockedResponse);
+    }
+
+    private BrowserActions internalIntercept(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse) {
+        ReportManager.logDiscrete("Attempting to configure network interceptor for \"" + requestPredicate + "\", will provide mocked response.");
+        ReportManagerHelper.attach("HTTP Response", "Mocked HTTP Response", String.valueOf(mockedResponse));
         try {
             NetworkInterceptor networkInterceptor = new NetworkInterceptor(
                     driver,
