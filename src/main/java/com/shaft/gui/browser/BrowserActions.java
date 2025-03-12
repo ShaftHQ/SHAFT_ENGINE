@@ -17,9 +17,9 @@ import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
-import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
+import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
@@ -293,32 +293,37 @@ public class BrowserActions extends FluentWebDriverAction {
         ReportManager.logDiscrete(targetUrlMessage);
 
         forceStopCurrentNavigation();
+        String initialURL = null;
         try {
-            String initialURL;
+            initialURL = driver.getCurrentUrl();
+        } catch (UnsupportedCommandException exception){
+            ReportManager.logDiscrete("Failed to get current URL, attempting to navigate to target URL.", Level.WARN);
+        }
 
-            if (driver instanceof AppiumDriver appiumDriver) {
-                initialURL = appiumDriver.getCurrentUrl();
-            } else {
-                initialURL = driver.getCurrentUrl();
-            }
-
+        try {
             // remove trailing slash which may cause comparing the current and target urls
             // to fail
-            if (initialURL != null && initialURL.endsWith("/")) {
-                initialURL = initialURL.substring(0, initialURL.length() - 1);
-            }
-            ReportManager.logDiscrete("Initial URL: \"" + initialURL + "\"");
-            if (initialURL != null && !initialURL.equals(modifiedTargetUrl)) {
+            if (initialURL != null) {
+                if (initialURL.endsWith("/"))
+                    initialURL = initialURL.substring(0, initialURL.length() - 1);
+                ReportManager.logDiscrete("Initial URL: \"" + initialURL + "\"");
+                if (!initialURL.equals(modifiedTargetUrl))
+                    // navigate to new url
+                    browserActionsHelper.navigateToNewUrl(driver, initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
+                else
+                    // already on the same page
+                    driver.navigate().refresh();
+                JavaScriptWaitManager.waitForLazyLoading(driver);
+            } else
                 // navigate to new url
                 browserActionsHelper.navigateToNewUrl(driver, initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
-            } else {
-                // already on the same page
-                driver.navigate().refresh();
-            }
-            JavaScriptWaitManager.waitForLazyLoading(driver);
+
+            // validate successful navigation
             if (!targetUrl.contains("\n")) {
                 // it can contain line breaks for mocked HTML pages that are used for internal testing only
                 browserActionsHelper.confirmThatWebsiteIsNotDown(driver, modifiedTargetUrl);
+                if (SHAFT.Properties.flags.forceCheckNavigationWasSuccessful())
+                    browserActionsHelper.checkNavigationWasSuccessful(driver, initialURL, targetUrl, targetUrlAfterRedirection);
             }
             browserActionsHelper.passAction(driver, modifiedTargetUrlForLogging);
         } catch (Exception rootCauseException) {
