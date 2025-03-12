@@ -259,23 +259,23 @@ public class ValidationsHelper2 {
         List<List<Object>> attachments = new ArrayList<>();
 
         try {
+            //https://github.com/assertthat/selenium-shutterbug/issues/105
+            if (Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
+                internalVisualEngine.set(ValidationEnums.VisualValidationEngine.EXACT_OPENCV);
+            }
+
+            // get reference image
+            byte[] referenceImage = ImageProcessingActions.getReferenceImage(locator);
+            if (!Arrays.equals(new byte[0], referenceImage)) {
+                ReportManagerHelper.logDiscrete("Reference image found.", Level.INFO);
+                List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Reference Screenshot",
+                        referenceImage);
+                attachments.add(expectedValueAttachment);
+            } else {
+                ReportManagerHelper.logDiscrete("Reference image not found, attempting to capture new reference.", Level.INFO);
+            }
+
             new SynchronizationManager(driver).fluentWait(true).until(f -> {
-                //https://github.com/assertthat/selenium-shutterbug/issues/105
-                if (Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
-                    internalVisualEngine.set(ValidationEnums.VisualValidationEngine.EXACT_OPENCV);
-                }
-
-                // get reference image
-                byte[] referenceImage = ImageProcessingActions.getReferenceImage(locator);
-                if (!Arrays.equals(new byte[0], referenceImage)) {
-                    ReportManagerHelper.logDiscrete("Reference image found.", Level.INFO);
-                    List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Reference Screenshot",
-                            referenceImage);
-                    attachments.add(expectedValueAttachment);
-                } else {
-                    ReportManagerHelper.logDiscrete("Reference image not found, attempting to capture new reference.", Level.INFO);
-                }
-
                 // get actual screenshot
                 byte[] elementScreenshot;
                 Boolean actualResult;
