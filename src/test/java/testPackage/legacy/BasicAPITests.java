@@ -85,6 +85,19 @@ public class BasicAPITests {
     }
 
     @Test(description = "This test is used to Test add headers to the request")
+    public void addSingleHeadersMethodTest() {
+        Map<String, String> headers = Map.of("Firstheader", "FirstHeaderValue");
+        api = new SHAFT.API("https://httpbin.org/");
+        api.get("get")
+                .addHeaders(headers)
+                .setTargetStatusCode(200)
+                .perform();
+        api.assertThatResponse().extractedJsonValue("headers.Firstheader")
+                .isEqualTo("FirstHeaderValue")
+                .perform();
+    }
+
+    @Test(description = "This test is used to Test add headers to the request")
     public void addEmptyHeadersMethodTest() {
         Map<String, String> headers = Map.of();
         api = new SHAFT.API("https://httpbin.org/");
@@ -108,6 +121,19 @@ public class BasicAPITests {
                 .perform();
         api.assertThatResponse().extractedJsonValue("headers.Cookie")
                 .contains("SecondCookie=SecondCookieValue")
+                .perform();
+    }
+
+    @Test(description = "This test is used to Test add cookies to the request")
+    public void addSingleCookiesMethodTest() {
+        Map<String, String> cookies = Map.of("FirstCookie", "FirstCookieValue");
+        api = new SHAFT.API("https://httpbin.org/");
+        api.get("get")
+                .addCookies(cookies)
+                .setTargetStatusCode(200)
+                .perform();
+        api.assertThatResponse().extractedJsonValue("headers.Cookie")
+                .contains("FirstCookie=FirstCookieValue")
                 .perform();
     }
 
