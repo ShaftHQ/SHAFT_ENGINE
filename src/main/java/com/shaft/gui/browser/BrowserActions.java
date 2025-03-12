@@ -435,30 +435,10 @@ public class BrowserActions extends FluentWebDriverAction {
     /**
      * Closes the current browser window
      *
-     * @return a self-reference to be used to chain actions
      */
-    public BrowserActions closeCurrentWindow() {
-        if (driver != null) {
-            try {
-                // TODO: handle session timeout while attempting to close empty window
-                String lastPageSource = driver.getPageSource();
-                driverFactoryHelper.closeDriver(driver);
-                browserActionsHelper.passAction(lastPageSource);
-            } catch (WebDriverException rootCauseException) {
-                if (rootCauseException.getMessage() != null
-                        && (rootCauseException.getMessage().contains("was terminated due to TIMEOUT") || rootCauseException.getMessage().contains("Session ID is null"))) {
-                    browserActionsHelper.passAction(null);
-                } else {
-                    browserActionsHelper.failAction(rootCauseException);
-                }
-            } catch (Exception rootCauseException) {
-                browserActionsHelper.failAction(rootCauseException);
-            }
-        } else {
-            ReportManager.logDiscrete("Window is already closed and driver object is null.");
-            browserActionsHelper.passAction(null);
-        }
-        return this;
+    public void closeCurrentWindow() {
+        driverFactoryHelper.closeDriver();
+        this.driver = driverFactoryHelper.getDriver();
     }
 
     /**
