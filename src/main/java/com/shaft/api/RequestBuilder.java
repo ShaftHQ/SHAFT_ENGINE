@@ -289,6 +289,16 @@ public class RequestBuilder {
         return this;
     }
 
+    /**
+     * Append headers to the current session to be used in the current and all the following requests. This feature is commonly used for authentication tokens.
+     *
+     * @param headers a map of headers that you want to add
+     * @return a self-reference to be used to continue building your API request
+     */
+    public RequestBuilder addHeaders(Map<String, String> headers) {
+        this.sessionHeaders.putAll(headers);
+        return this;
+    }
 
     /**
      * Append a cookie to the current session to be used in the current and all the following requests. This feature is commonly used for authentication cookies.
@@ -299,6 +309,17 @@ public class RequestBuilder {
      */
     public RequestBuilder addCookie(String key, Object value) {
         this.sessionCookies.put(key, value);
+        return this;
+    }
+
+    /**
+     * Append cookies to the current session to be used in the current and all the following requests. This feature is commonly used for authentication cookies.
+     *
+     * @param cookies a map of cookies that you want to add
+     * @return a self-reference to be used to continue building your API request
+     */
+    public RequestBuilder addCookies(Map<String, String> cookies) {
+        this.sessionCookies.putAll(cookies);
         return this;
     }
 
