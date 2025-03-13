@@ -1,14 +1,17 @@
-name: Maven Central Continuous Delivery
+name: JavaDocs Publisher
 # Executed automatically when a new PR is merged to master, if the release number already exists this job will fail
 # This pipeline will build from main, upload the artifacts, and create the GitHub release
 
 on:
-  push:
-    branches: [ main ]
+  workflow_run:
+    workflows: [ "Maven Central Continuous Delivery" ]
+    types: [ completed ]
+    branches:
+      - 'main'
   workflow_dispatch:
 
 jobs:
-  build_release_and_deliver:
+  generate_java_docs:
     env:
       gpg.keyname: ${{ secrets.GPG_KEYNAME }}
       gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
@@ -40,27 +43,12 @@ jobs:
       - name: Set Release Version Number
         run: |
           echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
-      # Attempt to create a GitHub release using the version in the pom.xml, if this release already exists, this job will fail fast
-      - name: Create GitHub Release
-        id: create_release
-        uses: ncipollo/release-action@v1.16.0
+      - name: Publish updated JavaDocs
+        uses: MathieuSoysal/Javadoc-publisher.yml@v3.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          allowUpdates: false
-          generateReleaseNotes: true
-          name: ${{ env.RELEASE_VERSION }}
-          tag: ${{ env.RELEASE_VERSION }}
-      - name: Setup Prerequisites
-        run: |
-          git config --global user.signingKey "${{ secrets.GPG_KEYNAME }}"
-          git config --global commit.gpgsign true
-          gpg --version
-          gpgconf --kill gpg-agent
-          gpg -K --keyid-format SHORT
-          export GPG_TTY=$(tty)
-      - name: Deploy to maven central
-        env:
-          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-        run: mvn --batch-mode deploy "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          javadoc-branch: javadoc
+          java-version: 21
+          project: maven
