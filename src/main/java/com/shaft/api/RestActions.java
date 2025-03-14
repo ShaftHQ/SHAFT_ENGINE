@@ -1,5 +1,6 @@
 package com.shaft.api;
 
+import com.atlassian.oai.validator.restassured.SwaggerValidationFilter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,6 +54,8 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import java.io.*;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.net.URLConnection;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -928,20 +931,46 @@ public class RestActions {
             return serviceURI + serviceName;
         }
     }
+    protected RequestSpecification prepareRequestSpecs(
+            List<List<Object>> parameters,
+            ParametersType parametersType,
+            Object body,
+            ContentType contentType,
+            Map<String, Object> sessionCookies,
+            Map<String, String> sessionHeaders,
+            RestAssuredConfig sessionConfig,
+            boolean appendDefaultContentCharsetToContentTypeIfUndefined,
+            boolean urlEncodingEnabled) {
 
-    protected RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
-                                                       Object body, ContentType contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, RestAssuredConfig sessionConfig, boolean appendDefaultContentCharsetToContentTypeIfUndefined, boolean urlEncodingEnabled) {
         RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders, sessionConfig, appendDefaultContentCharsetToContentTypeIfUndefined);
+
+        // Check if Swagger validation is enabled
+        if (SHAFT.Properties.api.swaggerValidationEnabled()) {
+            String swaggerUrl = SHAFT.Properties.api.swaggerValidationUrl();
+
+            if (swaggerUrl == null || swaggerUrl.isEmpty()) {
+                throw new RuntimeException("Swagger Validation is enabled, but OpenAPI URL is not set in properties.");
+            }
+
+            // Ensure URL format is correct (replace Windows-style `\` with `/`)
+            swaggerUrl = swaggerUrl.replace("\\", "/");
+
+            try {
+                SwaggerValidationFilter swaggerValidationFilter = new SwaggerValidationFilter(String.valueOf(new URL(swaggerUrl)));
+                builder.addFilter(swaggerValidationFilter);
+                ReportManager.log("Swagger Validation enabled using OpenAPI URL: " + swaggerUrl);
+            } catch (MalformedURLException e) {
+                throw new RuntimeException("Invalid Swagger URL in properties: " + swaggerUrl, e);
+            }
+        }
 
         // Check if contentType is still ANY and use the Content-Type header value directly
         if (contentType == ContentType.ANY) {
             String contentTypeHeader = sessionHeaders.get("Content-Type");
             if (contentTypeHeader != null) {
-                // Set the content type to the exact header value
                 builder.setContentType(contentTypeHeader);
             }
         } else {
-            // If contentType is explicitly set, use it
             builder.setContentType(contentType);
         }
 
@@ -952,6 +981,7 @@ public class RestActions {
         } else if (parameters != null && !parameters.isEmpty() && !parameters.getFirst().getFirst().equals("")) {
             prepareRequestBody(builder, parameters, parametersType);
         }
+
         return builder.build();
     }
 
