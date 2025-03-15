@@ -1,5 +1,6 @@
 package com.shaft.api;
 
+import com.atlassian.oai.validator.restassured.OpenApiValidationFilter;
 import com.atlassian.oai.validator.restassured.SwaggerValidationFilter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -944,24 +945,22 @@ public class RestActions {
 
         RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders, sessionConfig, appendDefaultContentCharsetToContentTypeIfUndefined);
 
-        // Check if Swagger validation is enabled
-        if (SHAFT.Properties.api.swaggerValidationEnabled()) {
+        boolean isSwaggerValidationEnabled = Boolean.parseBoolean(System.getProperty("swagger.validation.enabled", "false"));
+
+        if (isSwaggerValidationEnabled) {
             String swaggerUrl = SHAFT.Properties.api.swaggerValidationUrl();
 
             if (swaggerUrl == null || swaggerUrl.isEmpty()) {
-                throw new RuntimeException("Swagger Validation is enabled, but OpenAPI URL is not set in properties.");
+                failAction("Swagger Validation is enabled, but OpenAPI URL is not set in properties.");
+                return builder.build();
             }
 
             // Ensure URL format is correct (replace Windows-style `\` with `/`)
             swaggerUrl = swaggerUrl.replace("\\", "/");
 
-            try {
-                SwaggerValidationFilter swaggerValidationFilter = new SwaggerValidationFilter(String.valueOf(new URL(swaggerUrl)));
-                builder.addFilter(swaggerValidationFilter);
-                ReportManager.log("Swagger Validation enabled using OpenAPI URL: " + swaggerUrl);
-            } catch (MalformedURLException e) {
-                throw new RuntimeException("Invalid Swagger URL in properties: " + swaggerUrl, e);
-            }
+            OpenApiValidationFilter openApiValidationFilter = new OpenApiValidationFilter(swaggerUrl);
+            builder.addFilter(openApiValidationFilter);
+            ReportManager.log("Swagger Validation enabled using OpenAPI URL: " + swaggerUrl);
         }
 
         // Check if contentType is still ANY and use the Content-Type header value directly

@@ -436,12 +436,25 @@ public class RequestBuilder {
     }
 
     private void handleException(String request, RequestSpecification specs, Response response, Exception e) {
-        if (response != null) {
-            RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody, specs, response, e);
+        if (e instanceof com.atlassian.oai.validator.restassured.OpenApiValidationFilter.OpenApiValidationException) {
+            // Handle Swagger validation failure separately
+            RestActions.failAction(
+                    " Swagger Schema Validation Failed! \nURL: " + request + "\nError Details: " + e.getMessage(),
+                    requestBody, specs, response, e
+            );
         } else {
-            RestActions.failAction(request, e);
+            // Generic error handling
+            if (response != null) {
+                RestActions.failAction(
+                        request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms",
+                        requestBody, specs, response, e
+                );
+            } else {
+                RestActions.failAction(request, e);
+            }
         }
     }
+
 
     private boolean isSupportedRequestType() {
         return requestType == RestActions.RequestType.POST ||

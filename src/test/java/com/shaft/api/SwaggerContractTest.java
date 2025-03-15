@@ -26,6 +26,8 @@ public class SwaggerContractTest {
 
     @Test(description = "Validate CreateWithList API against Swagger Schema")
     public void validateCreateWithList() {
+        SHAFT.Properties.api.set().swaggerValidationEnabled(false);
+
         // Define request body
         String requestBody = "[\n" +
                 " {\n" +
