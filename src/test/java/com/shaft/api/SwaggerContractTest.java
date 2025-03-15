@@ -14,22 +14,50 @@ public class SwaggerContractTest {
 
     @Test(description = "Validate GET_USER_BY_USERNAME API against Swagger Schema")
     public void validateGetUserByUsername() {
-        // Define path parameters dynamically
         Map<String, Object> parameters = new HashMap<>();
         parameters.put("username", "string");
 
-        // Perform API call
         Response response = api.get(GET_USER_BY_USERNAME)
                 .setPathParameters(parameters)
+                .perform();
+
+        api.assertThatResponse()
+                .extractedJsonValue("username")
+                .isEqualTo("string")
                 .perform();
     }
 
     @Test(description = "Validate CreateWithList API against Swagger Schema")
     public void validateCreateWithList() {
+        String requestBody = "[\n" +
+                " {\n" +
+                " \"id\": 0,\n" +
+                " \"username\": \"string\",\n" +
+                " \"firstName\": \"string\",\n" +
+                " \"lastName\": \"string\",\n" +
+                " \"email\": test@SHAFT.com,\n" +
+                " \"password\": \"string\",\n" +
+                " \"phone\": \"string\",\n" +
+                " \"userStatus\": 0\n" +
+                " }\n" +
+                "]";
+
+        Response response = api.post("/user/createWithList")
+                .setContentType("application/json")
+                .setRequestBody(requestBody)
+                .perform();
+
+        api.assertThatResponse()
+                .extractedJsonValue("username")
+                .isEqualTo("string")
+                .perform();
+    }
+
+    @Test(description = "Validate CreateWithList API with invalid payload")
+    public void validateCreateWithListInvalidPayload() {
         SHAFT.Properties.api.set().swaggerValidationEnabled(false);
 
-        // Define request body
-        String requestBody = "[\n" +
+        String invalidRequestBody = "[\n" +
                 " {\n" +
                 " \"id\": 0,\n" +
                 " \"username\": \"string\",\n" +
@@ -42,11 +70,11 @@ public class SwaggerContractTest {
                 " }\n" +
                 "]";
 
-        // Perform API call
         Response response = api.post("/user/createWithList")
                 .setContentType("application/json")
-                .setRequestBody(requestBody)
+                .setRequestBody(invalidRequestBody)
+                .setTargetStatusCode(400)
                 .perform();
-
     }
+
 }
