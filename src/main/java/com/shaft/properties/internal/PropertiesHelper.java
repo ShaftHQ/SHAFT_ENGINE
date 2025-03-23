@@ -52,6 +52,8 @@ public class PropertiesHelper {
         Properties.timeouts = ConfigFactory.create(Timeouts.class);
         Properties.performance = ConfigFactory.create(Performance.class);
         Properties.lambdaTest = ConfigFactory.create(LambdaTest.class);
+        Properties.api = ConfigFactory.create(API.class, System.getProperties());
+
     }
 
     public static void setKeySystemProperties() {
@@ -80,10 +82,10 @@ public class PropertiesHelper {
         setClearBeforeTypingMode();
     }
 
-    public static void setClearBeforeTypingMode() {
+    public static void setClearBeforeTypingMode(){
         if (!Properties.flags.attemptClearBeforeTyping()) {
             SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
-            return;
+            return ;
         }
 
         if (Properties.flags.attemptClearBeforeTypingUsingBackspace() || SHAFT.Properties.flags.clearBeforeTypingMode().equals("backspace")) {
@@ -99,7 +101,7 @@ public class PropertiesHelper {
     private static void overrideScreenScalingFactorForWindows() {
         if (Properties.platform.targetPlatform().equalsIgnoreCase(org.openqa.selenium.Platform.WINDOWS.toString())) {
             int res = Toolkit.getDefaultToolkit().getScreenResolution();
-            double scale = (double) res / 96;
+            double scale = (double)res/96;
             Properties.visuals.set().screenshotParamsScalingFactor(scale);
         }
     }

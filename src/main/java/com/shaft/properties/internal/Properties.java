@@ -22,5 +22,5 @@ public class Properties {
     public static Web web;
     public static Performance performance;
     public static LambdaTest lambdaTest;
-
+    public static API api;
 }
