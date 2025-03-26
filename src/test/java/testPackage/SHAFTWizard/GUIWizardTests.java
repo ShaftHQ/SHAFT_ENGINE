@@ -1,15 +1,21 @@
 package testPackage.SHAFTWizard;
 
 import com.shaft.driver.SHAFT;
+import org.mockito.Mockito;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.support.events.WebDriverListener;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
 import poms.GoogleSearch;
+
+import java.lang.reflect.Method;
+
+import static org.mockito.ArgumentMatchers.any;
 
 public class GUIWizardTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
@@ -78,7 +84,16 @@ public class GUIWizardTests {
         driver.get().element().captureScreenshot(By.id("dropdown"));
 
     }
-
+    
+    @Test
+    public void test_GetWebDriverWithCustomListener() {
+        var mockListener = Mockito.mock(CustomWebDriverListener.class);
+        
+        var nativeDriver = driver.get().getDriver(mockListener);
+        nativeDriver.get("https://www.google.com/");
+        
+        Mockito.verify(mockListener).shouldBeCalled();
+    }
 
     @BeforeMethod
     public void beforeMethod() {
@@ -89,5 +104,18 @@ public class GUIWizardTests {
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
         driver.get().quit();
+    }
+    
+    public static class CustomWebDriverListener implements WebDriverListener {
+        @Override
+        public void beforeAnyCall(Object target, Method method, Object[] args) {
+            WebDriverListener.super.beforeAnyCall(target, method, args);
+            
+            shouldBeCalled();
+        }
+        
+        private void shouldBeCalled() {
+            // Used to check that the listener is being called
+        }
     }
 }
