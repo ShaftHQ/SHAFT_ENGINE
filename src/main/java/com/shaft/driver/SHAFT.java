@@ -19,8 +19,11 @@ import com.shaft.validation.internal.RestValidationsBuilder;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.restassured.response.Response;
+import javassist.expr.Instanceof;
 import org.openqa.selenium.MutableCapabilities;
+import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.events.EventFiringDecorator;
+import org.testng.internal.thread.Async;
 
 import java.io.InputStream;
 import java.sql.ResultSet;
@@ -78,6 +81,35 @@ public class SHAFT {
 
             public WizardHelpers.WebDriverVerifications verifyThat() {
                 return new WizardHelpers.WebDriverVerifications(helper);
+            }
+
+            /**
+             * Retrieves the current Selenium WebDriver instance, allowing for custom manipulation.
+             * <p>
+             * This method enables attaching a WebDriverListener to the driver. It is recommended 
+             * to use a listener that extends SHAFT's WebDriverListener (see {@link WebDriverListener}) 
+             * to leverage its built-in functionality.
+             * <p>
+             * Note: This method bypasses the "enableTrueNativeMode" flag in SHAFT Properties, 
+             * ensuring that attaching a listener is prioritized as per the user's intent.
+             * @param listener The WebDriverListener to attach. If null, a default listener is used.
+             * @return The WebDriver instance with the listener attached, or the original driver for Appium.
+             */
+            public org.openqa.selenium.WebDriver getDriver(org.openqa.selenium.support.events.WebDriverListener listener) {
+                /*
+                 * Decorator is not working for appium drivers as per the following issues/articles
+                 * https://github.com/appium/java-client/issues/1694
+                 * https://github.com/appium/java-client/blob/master/docs/The-event_firing.md#createproxy-api-since-java-client-830
+                 * https://github.com/SeleniumHQ/selenium/blob/316f9738a8e2079265a0691954ca8847e68c598d/java/test/org/openqa/selenium/support/events/EventFiringDecoratorTest.java#L422
+                 */
+                var driver = helper.getDriver();
+                if (!(driver instanceof AndroidDriver) && !(driver instanceof IOSDriver)) {
+                    return new EventFiringDecorator<>(
+                            org.openqa.selenium.WebDriver.class,
+                            listener != null ? listener : new WebDriverListener()
+                    ).decorate(driver); 
+                }
+                return driver;
             }
 
             /**
