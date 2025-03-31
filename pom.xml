@@ -951,7 +951,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
-                        <version>3.5.2</version>
+                        <version>3.5.3</version>
                         <dependencies>
                             <dependency>
                                 <groupId>org.aspectj</groupId>
@@ -961,7 +961,7 @@
                             <dependency>
                                 <groupId>org.apache.maven.surefire</groupId>
                                 <artifactId>surefire-testng</artifactId>
-                                <version>3.5.2</version>
+                                <version>3.5.3</version>
                             </dependency>
                         </dependencies>
                         <configuration>
@@ -1011,7 +1011,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
-                        <version>3.5.2</version>
+                        <version>3.5.3</version>
                         <dependencies>
                             <dependency>
                                 <groupId>org.aspectj</groupId>
