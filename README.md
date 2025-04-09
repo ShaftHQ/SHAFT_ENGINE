@@ -1,7 +1,16 @@
 <!-- Badges provided by https://shields.io/ -->
 
 <h1>
-<img width="40" alt="SHAFT_ENGINE" src="https://github.com/user-attachments/assets/9cb4a7a8-2de7-486c-adb1-ad254af8c58b#gh-dark-mode-only"></a><a href="https://ShaftHQ.github.io/" target="_blank"><img width="40" alt="SHAFT_ENGINE" src="https://github.com/user-attachments/assets/b2e8454d-97ed-4dd8-91f2-1c09c53ba94e#gh-light-mode-only"> SHAFT : Unified Test Automation Engine
+<picture>
+  <!-- User prefers light mode: -->
+  <source srcset="https://github.com/user-attachments/assets/b2e8454d-97ed-4dd8-91f2-1c09c53ba94e" media="(prefers-color-scheme: light)" width="40"/>
+
+  <!-- User prefers dark mode: -->
+  <source srcset="https://github.com/user-attachments/assets/9cb4a7a8-2de7-486c-adb1-ad254af8c58b"  media="(prefers-color-scheme: dark)" width="40"/>
+
+  <!-- User has no color preference: -->
+  <img src="https://github.com/user-attachments/assets/016ebb3c-4090-4f07-a9b3-830fdf4cb696"/>
+</picture> SHAFT : Unified Test Automation Engine
 </h1>
  
 <table border="0" align="center">
