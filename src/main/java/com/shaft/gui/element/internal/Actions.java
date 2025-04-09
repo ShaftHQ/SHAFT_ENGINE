@@ -333,9 +333,15 @@ public class Actions extends ElementActions {
                     // report broken
                     reportBroken(action.name(), accessibleName.get(), screenshot[0], exception);
                 } catch (RuntimeException exception2) {
-                    exception2.addSuppressed(exception);
-                    // report broken
-                    reportBroken(action.name(), accessibleName.get(), screenshot[0], exception2);
+                    if (!exception2.getCause().equals(exception)){
+                        // in case a new exception was thrown while attempting to take a screenshot
+                        exception2.addSuppressed(exception);
+                        // report broken
+                        reportBroken(action.name(), accessibleName.get(), screenshot[0], exception2);
+                    } else {
+                        // in case no new exceptions where thrown, just the one created by SHAFT for the main issue
+                        throw exception2;
+                    }
                 }
             }
         }
