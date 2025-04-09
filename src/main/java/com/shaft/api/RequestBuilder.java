@@ -425,7 +425,7 @@ public class RequestBuilder {
         boolean responseStatus = session.evaluateResponseStatusCode(Objects.requireNonNull(response), targetStatusCode);
         String reportMessage = session.prepareReportMessage(response, targetStatusCode, requestType, serviceName, contentType, urlArguments);
         if (!Boolean.TRUE.equals(responseStatus)) {
-            throw new AssertionError("Invalid response status code; Expected " + targetStatusCode + " but found " + response.getStatusCode() + ".");
+            throw new AssertionError("Invalid response status code; Expected " + targetStatusCode + " but found " + response.getStatusCode() + "." +System.lineSeparator() + "Response: " +System.lineSeparator() +response.asPrettyString());
         }
 
         if (!reportMessage.isEmpty()) {
