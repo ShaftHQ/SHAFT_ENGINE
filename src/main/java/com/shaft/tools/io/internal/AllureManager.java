@@ -171,7 +171,7 @@ public class AllureManager {
         // edit defaults and input custom logo path
         var styleCssFilePath = allureExtractionLocation + "allure-" + allureVersion + File.separator + "plugins" + File.separator + "custom-logo-plugin" + File.separator + "static" + File.separator + "styles.css";
         var desiredStyle = internalFileSession.readFile(styleCssFilePath)
-                .replace("https://github.com/ShaftHQ/SHAFT_ENGINE/blob/main/src/main/resources/images/shaft_white.png?raw=true"
+                .replace("https://github.com/user-attachments/assets/9cb4a7a8-2de7-486c-adb1-ad254af8c58b"
                         , SHAFT.Properties.allure.customLogo());
         internalFileSession.writeToFile(styleCssFilePath, desiredStyle);
     }
