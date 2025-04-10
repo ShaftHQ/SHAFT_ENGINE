@@ -58,12 +58,12 @@
   <td valign="top">
 
 - [🏃 Quick start guide](#quick-start-guide)
-- [📚 User guide ➜](https://shafthq.github.io/)
+- [📚 User guide ➡️](https://shafthq.github.io/)
 - [🌍 Our success partners](#our-success-partners)
 - [🚀 Features](#features)
 - [👨‍💻 Tech stack](#tech-stack)
 - [🤝 Support & contributions](#support-and-contributions)
-- [📜 MIT license ➜](LICENSE)
+- [📜 MIT license ➡️](LICENSE)
 
 </td>
 </tr></table>
@@ -161,7 +161,7 @@ public void afterClass(){
 
 <a id="user-guide"></a>
 
-## 📚 [User guide ➜](https://shafthq.github.io/)
+## 📚 [User guide ➡️](https://shafthq.github.io/)
 - Check out our comprehensive and friendly [user guide](https://shafthq.github.io/) to learn why <b>SHAFT</b> should be your solution of choice if you're aiming for successful test automation.
 
 <br/><br/>
