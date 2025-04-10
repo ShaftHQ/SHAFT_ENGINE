@@ -73,13 +73,17 @@
 
 ## 🏃 Quick start guide [⤴](#-table-of-contents)
 ### Option 1: Maven archetype
-(Recommended for new local sandbox projects)
+
+> [!TIP]
+> Recommended for new local sandbox projects.
 
 - The easiest and most straightforward way to create a new project that uses SHAFT.
 - Just [follow the simple steps here ➡️](https://shafthq.github.io/docs/Getting_Started/first_steps_5) to generate your new project with one command (all configurations included).
 
 ### Option 2: Start from scratch
-(Recommended if you're upgrading an existing project from Native Selenium WebDriver to SHAFT)
+
+> [!TIP]
+> Recommended if you're upgrading an existing project from Native Selenium WebDriver to SHAFT.
 
 #### Step 1: Initial setup
 
@@ -89,10 +93,13 @@
   inside the ```<project>``` tag.
 
 #### Step 2: Creating tests
+
 ##### 2.1. TestNG
+
 - Create a new Package ```testPackage``` under ```src/test/java```
 - Create a new Java class ```TestClass``` under your newly created `testPackage`.
 - Copy the below imports into your newly created `TestClass` after the line that contains `package testPackage`.
+
 ```java
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.locator.Locator;
@@ -102,7 +109,9 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 ```
+
 - Copy the below code snippet into the body of your `TestClass` after the line that contains `public class TestClass {`.
+
 ```java
 SHAFT.GUI.WebDriver driver;
 SHAFT.TestData.JSON testData;
@@ -147,11 +156,19 @@ public void afterMethod(){
   driver.quit();
 }
 ```
+
 ##### 2.2. JUnit5
+
+```
 --TODO--
+```
 
 ##### 2.3. Cucumber
+
+```
 --TODO--
+```
+
 > [!TIP]
 > In case you are planning to use Cucumber with IntelliJ IDEA, due to a known issue with IntelliJ you need to edit your run configuration template before running your tests by following these steps:
 > <br/>- Open 'Edit Run/Debug Configurations' dialog > Edit Configurations... > Edit configuration templates...
