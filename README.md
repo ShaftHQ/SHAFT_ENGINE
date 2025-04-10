@@ -61,7 +61,7 @@
 - [🌍 Our success partners](#-our-success-partners)
 - [🚀 Features](#-features)
 - [👨‍💻 Tech Stack](#-tech-stack)
-- [🤝 Support & Contributions](#-support--contributions)
+- [🤝 Support & Contributions](#-support-and-contributions)
 - [📜 MIT License](LICENSE)
 
 </td>
@@ -164,6 +164,8 @@ public void afterClass(){
 
 <br/><br/>
 
+<a id="our-success-partners"></a>
+
 ## 🌍 Our success partners [⤴](#-table-of-contents)
 
 ### Sponsors:
@@ -211,6 +213,7 @@ public void afterClass(){
 
 [^4]: Company names are collected via anonymous surveys and provided freely by engineers who claimed to be using SHAFT_Engine within these companies.
 
+<a id="features"></a>
 
 ## 🚀 Features [⤴](#-table-of-contents)
 ### Supported Platforms
@@ -268,6 +271,8 @@ public void afterClass(){
 | :white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
 
 <br/>
+
+<a id="tech-stack"></a>
 
 ## 👨‍💻 Tech Stack [⤴](#-table-of-contents)
 
