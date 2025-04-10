@@ -12,20 +12,21 @@
   <img src="https://github.com/user-attachments/assets/016ebb3c-4090-4f07-a9b3-830fdf4cb696"/>
 </picture> SHAFT : Unified Test Automation Engine
 </h1>
- 
+ <br/><br/>
+
 <table border="0" align="center">
  <tr>
-  <td align="center">
+  <td align="center" valign="top">
    Fully documented
-<br/><br/><a href="https://ShaftHQ.github.io/"><img width="300" alt="User Guide" src="https://github.com/ShaftHQ/SHAFT_ENGINE/assets/19201898/bdd6db98-4121-4a86-b7db-fb94b8830d11"><a/>
+<br/><br/><a href="https://ShaftHQ.github.io/"><img width="300" alt="User Guide" src="https://github.com/ShaftHQ/SHAFT_ENGINE/assets/19201898/bdd6db98-4121-4a86-b7db-fb94b8830d11"></a>
   <br/></td>
-   <td align="center">
+   <td align="center" valign="top">
    Award Winning
-<br/><br/><a href="https://opensource.googleblog.com/2023/05/google-open-source-peer-bonus-program-announces-first-group-of-winners-2023.html"><img width="250" alt="Google Open Source" src="https://github.com/ShaftHQ/SHAFT_ENGINE/assets/19201898/1b6296b4-418d-4cb1-829f-6b15e7d17e87"></a>
+<br/><br/><a href="https://opensource.googleblog.com/2023/05/google-open-source-peer-bonus-program-announces-first-group-of-winners-2023.html"><img width="250" alt="Google Open Source" src="https://github.com/ShaftHQ/SHAFT_ENGINE/assets/19201898/1b6296b4-418d-4cb1-829f-6b15e7d17e87"/></a>
   <br/></td>
-  <td align="center">
+  <td align="center" valign="top">
    Selenium Ecosystem
-<br/><br/><a href="https://www.selenium.dev/ecosystem/#frameworks"><img width="300" alt="Selenium Ecosystem" src="https://github.com/ShaftHQ/SHAFT_ENGINE/assets/19201898/b13d4c2c-72ce-4de6-861f-d143f905c5ab"><a/>
+<br/><br/><a href="https://www.selenium.dev/ecosystem/#frameworks"><img width="300" alt="Selenium Ecosystem" src="https://github.com/ShaftHQ/SHAFT_ENGINE/assets/19201898/b13d4c2c-72ce-4de6-861f-d143f905c5ab"></a>
   <br/></td>
  </tr>
   <tr>
@@ -46,9 +47,173 @@
   </td>
  </tr>
 </table>
-<br/>
+<br/><br/>
 
-## 🌍 Our success partners:
+<a id="table-of-contents"></a>
+
+## 📜 Table of Contents
+
+<table border="0" align="center">
+ <tr>
+  <td valign="top">
+
+- [🏃 Quick start guide](#quick-start-guide)
+- [📚 User guide ➡️](https://shafthq.github.io/)
+- [🌍 Our success partners](#our-success-partners)
+- [🚀 Features](#features)
+- [👨‍💻 Tech stack](#tech-stack)
+- [🤝 Support & contributions](#support-and-contributions)
+- [📜 MIT license ➡️](LICENSE)
+
+</td>
+</tr></table>
+<br/><br/>
+
+<a id="quick-start-guide"></a>
+
+## 🏃 Quick start guide [⤴](#-table-of-contents)
+### Option 1: Maven archetype
+
+> [!TIP]
+> Recommended for new local sandbox projects.
+
+- The easiest and most straightforward way to create a new project that uses SHAFT.
+- Just [follow the simple steps here ➡️](https://shafthq.github.io/docs/Getting_Started/first_steps_5) to generate your new project with one command (all configurations included).
+
+### Option 2: Start from scratch
+
+> [!TIP]
+> Recommended if you're upgrading an existing project from Native Selenium WebDriver to SHAFT.
+
+#### Step 1: Initial setup
+
+- Create a new Java/Maven project using the latest version from IntelliJ IDEA, Eclipse or your favourite IDE.
+- Copy the highlighted contents of
+  this [pom.xml](https://github.com/ShaftHQ/using_SHAFT_Engine/blob/main/GUI_Web/pom.xml#L11-L156) file into yours
+  inside the ```<project>``` tag.
+
+#### Step 2: Creating tests
+
+##### 2.1. TestNG
+
+- Create a new Package ```testPackage``` under ```src/test/java```
+- Create a new Java class ```TestClass``` under your newly created `testPackage`.
+- Copy the below imports into your newly created `TestClass` after the line that contains `package testPackage`.
+
+```java
+import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.locator.Locator;
+import org.openqa.selenium.By;
+import org.openqa.selenium.Keys;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+```
+
+- Copy the below code snippet into the body of your `TestClass` after the line that contains `public class TestClass {`.
+
+```java
+SHAFT.GUI.WebDriver driver;
+SHAFT.TestData.JSON testData;
+
+String targetUrl = "https://duckduckgo.com/";
+
+By logo = By.xpath("//div[contains(@class,'container_fullWidth__1H_L8')]//img");
+By searchBox = Locator.hasAnyTagName().hasAttribute("name", "q").build(); // synonym to By.name("q");
+By firstSearchResult = Locator.hasTagName("article").isFirst().build(); // synonym to By.xpath("(//article)[1]");
+
+@Test
+public void navigateToDuckDuckGoAndAssertBrowserTitleIsDisplayedCorrectly() {
+  driver.browser().navigateToURL(targetUrl)
+          .and().assertThat().title().contains(testData.getTestData("expectedTitle"));
+}
+
+@Test
+public void navigateToDuckDuckGoAndAssertLogoIsDisplayedCorrectly() {
+  driver.browser().navigateToURL(targetUrl)
+          .and().element().assertThat(logo).matchesReferenceImage();
+}
+
+@Test
+public void searchForQueryAndAssert() {
+  driver.browser().navigateToURL(targetUrl)
+          .and().element().type(searchBox, testData.getTestData("searchQuery") + Keys.ENTER)
+          .and().assertThat(firstSearchResult).text().doesNotEqual(testData.getTestData("unexpectedInFirstResult"));
+}
+
+@BeforeClass
+public void beforeClass() {
+  testData = new SHAFT.TestData.JSON("simpleJSON.json");
+}
+
+@BeforeMethod
+public void beforeMethod() {
+  driver = new SHAFT.GUI.WebDriver();
+}
+
+@AfterMethod
+public void afterMethod(){
+  driver.quit();
+}
+```
+
+##### 2.2. JUnit5
+
+```
+--TODO--
+```
+
+##### 2.3. Cucumber
+
+```
+--TODO--
+```
+
+> [!TIP]
+> In case you are planning to use Cucumber with IntelliJ IDEA, due to a known issue with IntelliJ you need to edit your run configuration template before running your tests by following these steps:
+> <br/>- Open 'Edit Run/Debug Configurations' dialog > Edit Configurations... > Edit configuration templates...
+> <br/>- Select <b>Cucumber Java</b> > Program Arguments > and add this argument:
+> <br/>`--plugin com.shaft.listeners.CucumberFeatureListener`
+> <br/>- After saving the changes, remember to delete any old runs you may have triggered by mistake before adding the needed config.
+
+
+#### Step 3: Managing test data
+- Create the following file ```src/test/resources/testDataFiles/simpleJSON.json```.
+- Copy the below code snippet into your newly created json file.
+```json
+{
+  "searchQuery": "SHAFT_Engine",
+  "expectedTitle": "DuckDuckGo",
+  "unexpectedInFirstResult": "Nope"
+}
+```
+
+#### Step 4: Running tests
+- Run your ```TestClass.java``` either from the side menu or by pressing the run button.
+- On the first test run:
+  - SHAFT will create a new folder ```src/main/resources/properties``` and generate some default properties files.
+  - SHAFT will run in `minimalistic test run` mode and will self-configure its listeners under the `src/test/resources/META-INF/services` directory.
+> [!TIP]
+> You can visit the [user guide ➡️](https://shafthq.github.io/docs/Properties/PropertiesList) to learn how to configure all SHAFT's properties.
+- On all following test runs:
+  - After the run is complete, the Allure execution report will open automatically in your default web browser.
+- <b>Join</b> our ![GitHub Repo stars](https://img.shields.io/github/stars/shafthq/shaft_engine?logoColor=black&style=social) to get notified by email when a new release is pushed out.
+> [!NOTE]
+> After upgrading your Engine to a new major release it is sometimes recommended to delete the properties
+folder ```src\main\resources\properties``` and allow SHAFT to regenerate the defaults by running any test method.
+
+<br/><br/>
+
+<a id="user-guide"></a>
+
+## 📚 [User guide ➡️](https://shafthq.github.io/)
+- Check out our comprehensive and friendly [user guide](https://shafthq.github.io/) to learn why <b>SHAFT</b> should be your solution of choice if you're aiming for successful test automation.
+
+<br/><br/>
+
+<a id="our-success-partners"></a>
+
+## 🌍 Our success partners [⤴](#-table-of-contents)
 
 ### Sponsors:
 
@@ -62,7 +227,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.lambdatest.com" target="_blank"><img src="https://www.lambdatest.com/blog/wp-content/uploads/2024/10/LambdaTest-Logo.png" alt="LambdaTest" width="250px" height="50px"></a>
 <br/><br/>
   </td></tr></table>
-  
+
 ### Trusted solution of choice for: [^4]
 
 <table border="0" align="center">
@@ -92,18 +257,46 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href=""><img height="50" alt="" src=""></a>
   <br/><br/>
   </td></tr></table>
-  
+
 [^4]: Company names are collected via anonymous surveys and provided freely by engineers who claimed to be using SHAFT_Engine within these companies.
 
-<a id="user-guide"></a>
+<br/><br/>
+<a id="features"></a>
 
-## 📚 [User Guide](https://shafthq.github.io/):
-- Check out our comprehensive and friendly [user guide](https://shafthq.github.io/) to learn why <b>SHAFT</b> should be your solution of choice if you're aiming for successful test automation.
-- SHAFT is a unified test automation engine for web, mobile, API, CLI, database, and desktop e2e testing. Powered by best-in-class frameworks, SHAFT provides a wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve with no limitations! Stop reinventing the wheel! Upgrade now!
+## 🚀 Features [⤴](#-table-of-contents)
 
-### Supported Platforms:
+### Smart features
 
-#### Web:
+- SHAFT provides a lot of out-of-the-box convenience features to facilitate your testing process and eliminate the need for boilerplate code.
+- All of SHAFT's smart features target the three pillars of successful test automation:
+  - **Scalability**: The ability to run tests on multiple devices and browsers in parallel.
+  - **Reliability**: The ability to run tests without flakiness and with detailed reporting.
+  - **Maintainability**: The ability to easily maintain and update tests as the application changes.
+
+#### Scalability:
+
+| CI/CD integration |Cloud device farm integration  |Headless testing  |Parallel execution  |Containerized execution  |
+| :---: |:---: |:---: |:---: |:---: |
+| :white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
+
+#### Reliability:
+
+| Automated synchronization | Logging | Reporting | Screenshots/Attachments| Video recording|
+|:-------------------------:|:---: |:---: |:---: |:---: |
+|    :white_check_mark:     |:white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
+
+#### Maintainability:
+
+| Fluent design | Locator builder |   Smart locators   | Native `WebDriver` access | Element/Browser validations builder| AI-powered visual validations
+| :---: |:---: |:------------------:|:---: |:---: |:---: |
+| :white_check_mark: |:white_check_mark: | :white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
+
+
+<br/>
+
+### Supported platforms
+
+#### Browsers:
 
 |          | Linux | macOS | Windows | Android | iOS |
 |   :---   | :---: | :---: | :---:   | :---: | :---:   |
@@ -127,37 +320,18 @@
 | :---: | :---: | :---:|:---:|:---:|:---:|:---:|:---:|
 | :white_check_mark: |:white_check_mark: | :white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
 
-### Built-in features:
-
-- SHAFT also provides a lot of out-of-the-box convenience features to facilitate your testing process:
-
 #### Test orchestration:
 
 | TestNG | JUnit5 | Cucumber |
 | :---: |:---: |:---: |
 | :white_check_mark: |:white_check_mark: |:white_check_mark: |
 
-#### Test authoring (Maintainability):
 
-| Fluent design | Locator builder | Native `WebDriver` access | Element/Browser validations builder| AI-powered visual validations
-| :---: |:---: |:---: |:---: |:---: |
-| :white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
+<br/><br/>
 
-#### Reliability:
+<a id="tech-stack"></a>
 
-| Auto synchronization | Logging | Reporting | Screenshots/Attachments| Video recording|
-| :---: |:---: |:---: |:---: |:---: |
-| :white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
-
-#### Scalability:
-
-| CI/CD integration |Cloud device farm integration  |Headless testing  |Parallel execution  |Containerized execution  |
-| :---: |:---: |:---: |:---: |:---: |
-| :white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
-
-<br/>
-
-## 👨‍💻 Tech Stack:
+## 👨‍💻 Tech stack [⤴](#-table-of-contents)
 
 ### Developed using:
 
@@ -165,8 +339,8 @@
  <tr>
   <td align="center">
    <br/>
-<a href="https://www.oracle.com/eg/java/technologies/downloads/" target="_blank"><img src="https://www.chrisjmendez.com/content/images/2019/01/Java_logo_icon.png" alt="Java" height="50px"></a>
-<a href="https://maven.apache.org/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Apache_Maven_logo.svg/340px-Apache_Maven_logo.svg.png" alt="Maven" height="50px"></a>
+<a href="https://www.oracle.com/eg/java/technologies/downloads/" target="_blank"><img src="https://allurereport.org/images/java_ico.png" alt="Java" height="50px"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://maven.apache.org/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Apache_Maven_logo.svg/340px-Apache_Maven_logo.svg.png" alt="Maven" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.jetbrains.com/idea/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/IntelliJ_IDEA_Icon.svg/1200px-IntelliJ_IDEA_Icon.svg.png" alt="IntelliJ IDEA" height="50px"></a>
   <br/><br/></td></tr></table>
 
@@ -175,29 +349,30 @@
 <table border="0" align="center">
  <tr>
   <td align="center">
-   <br/>
-<a href="https://www.selenium.dev/" target="_blank"><img src="https://www.selenium.dev/images/selenium_4_logo.png" alt="Selenium WebDriver" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://appium.io/" target="_blank"><img src="https://appium.github.io/appium/docs/en/2.0/assets/images/appium-logo-horiz.png" alt="Appium" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://rest-assured.io/" target="_blank"><img src="https://avatars.githubusercontent.com/u/19369327?s=280&v=4" alt="REST Assured" height="50px"></a>REST Assured
+   <br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="https://www.selenium.dev/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Selenium_logo.svg/768px-Selenium_logo.svg.png?20210927154434" alt="Selenium" height="50px"></a>&nbsp;&nbsp;&nbsp;&nbsp;
+      <a href="https://appium.io/" target="_blank"><img src="https://appium.github.io/appium/docs/en/2.0/assets/images/appium-logo-horiz.png" alt="Appium" height="50px"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/><a href="https://rest-assured.io/" target="_blank"><img src="https://rest-assured.io/img/logo-transparent.png" alt="REST Assured" height="50px"></a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://rest-assured.io/" target="_blank"><img alt="REST Assured" height="50px" src="https://rest-assured.io/img/name-transparent.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://opencv.org/" target="_blank"><img src="https://opencv.org/wp-content/uploads/2022/05/logo.png" alt="OpenCV" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://testng.org/" target="_blank"><img src="https://545767148-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2F-MdBdUMSCcMYTyNwZf80%2Fuploads%2Fgit-blob-7e5b23257dbb5cc3262c56840d5cf9fa85b27dce%2Ftestng.png?alt=media" alt="TestNG" height="50px"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/><a href="https://testng.org/" target="_blank"><img src="https://545767148-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2F-MdBdUMSCcMYTyNwZf80%2Fuploads%2Fgit-blob-7e5b23257dbb5cc3262c56840d5cf9fa85b27dce%2Ftestng.png?alt=media" alt="TestNG" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://junit.org/junit5/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/5/59/JUnit_5_Banner.png" alt="JUnit5" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://cucumber.io/" target="_blank"><img src="https://raw.githubusercontent.com/cucumber/cucumber-ruby/main/docs/img/cucumber-open-logo.png" alt="Cucumber Open" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://allurereport.org/" target="_blank"><img src="https://avatars.githubusercontent.com/u/5879127?s=200&v=4" alt="Allure Reports" height="50px"></a>Allure Report
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/><a href="https://allurereport.org/" target="_blank"><img src="https://allurereport.org/svg/logo-report-sign.svg" alt="Allure Reports" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://reportportal.io/" target="_blank"><img src="https://i0.wp.com/blog.nashtechglobal.com/wp-content/uploads/2023/06/MicrosoftTeams-image-72.png" alt="ReportPortal" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.selenium.dev/documentation/grid/" target="_blank"><img src="https://media.softwaresim.com/Selenium_Grid_mpxkym-600.webp" alt="Selenium Grid" height="50px"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/><a href="https://www.selenium.dev/documentation/grid/" target="_blank"><img src="https://media.softwaresim.com/Selenium_Grid_mpxkym-600.webp" alt="Selenium Grid" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://github.com/features/actions" target="_blank"><img src="https://github.githubassets.com/images/modules/site/features/actions-icon-actions.svg" alt="GitHub Actions" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://github.com/dependabot" target="_blank"><img src="https://miro.medium.com/max/929/1*Lqt3yQYXJ-dmVuQEgpYcXQ.png" alt="Dependabot" height="50px"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/><a href="https://github.com/dependabot" target="_blank"><img src="https://miro.medium.com/max/929/1*Lqt3yQYXJ-dmVuQEgpYcXQ.png" alt="Dependabot" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://codeql.github.com/" target="_blank"><img src="https://github.gallerycdn.vsassets.io/extensions/github/vscode-codeql/1.7.7/1670939628664/Microsoft.VisualStudio.Services.Icons.Default" alt="CodeQL" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://app.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Codacy-logo-black.svg/2560px-Codacy-logo-black.svg.png" alt="Codacy" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.eclemma.org/jacoco/" target="_blank"><img src="https://mkyong.com/wp-content/uploads/2018/11/Jacoco.png" alt="JaCoCo" height="50px"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.jacoco.org/jacoco/" target="_blank"><img src="https://www.jacoco.org/images/jacoco.png" alt="JaCoCo" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE" target="_blank"><img src="https://assets-global.website-files.com/5f217a8e6bc2c82a9d803089/6387929c3810ef832471584f_codecov.png" alt="CodeCov" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://central.sonatype.com/" target="_blank"><img src="https://central.sonatype.com/sonatype-repository-logo-reverse.svg" alt="sonatype" height="50px"></a>
   <br/><br/></td></tr></table>
 
+<br/><br/>
 <a id="support-and-contributions"></a>
 
-## 🤝 Support & Contributions:
+## 🤝 Support & contributions [⤴](#-table-of-contents)
 - Feel free to create PRs directly. [This lovely tutorial](https://dev.to/genicsblog/how-to-create-a-pull-request-in-github-correctly-20np) will help.
 - Join us via Slack & Facebook
 <table border="0" align="center">
@@ -206,96 +381,9 @@
 <br/><a href="https://join.slack.com/t/shaft-engine/shared_invite/zt-oii5i2gg-0ZGnih_Y34NjK7QqDn01Dw" target="_blank"><img src="https://a.slack-edge.com/80588/marketing/img/icons/icon_slack_hash_colored.png" alt="automatest-workspace" height="50"/></a>  <a href="https://www.facebook.com/groups/Automatest" target="_blank"><img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjLMDbbgNWvnrNY3pjRSfgqZCPIbGMnVRm1jaaoGhgT2Buv-ipatDIe9zjRJIM1b8eZTZm7csh-R1vfHWwwW9nSlEC4agzoLrGqRsRWogha5oZIYS4LXXLSrAg7ekta6niiXxt5XHe_oLU/s200/f_logo_RGB-Blue_1024.png" alt="Automatest" height="50"/></a>
  <br/><br/> </td></tr></table>
 
-<a id="quick-start-guide"></a>
-
-## 🏃 Quick Start Guide:
-
-### Option 1: Maven Archetype
-(Recommended for new local sandbox projects)
-
-- The easiest and most straightforward way to create a new project that uses SHAFT.
-- Just [follow the simple steps here](https://github.com/ShaftHQ/testng-archetype) to generate your new project with one command (all configurations included).
-
-### Option 2: Template Project
-(Recommended for new source controlled projects)
-
-- Use our [Template Project](https://github.com/ShaftHQ/using_SHAFT_Engine) to create a new project with one click.
-- Follow the steps in the ReadMe to handle project configuration.
-
-### Option 3: Start from scratch
-(Recommended if you're upgrading an existing project from Native Selenium WebDriver to SHAFT)
-
-#### Step 1: Initial Setup
-
-- Create a new Java/Maven project using Eclipse, IntelliJ or your favourite IDE.
-- Copy the highlighted contents of
-  this [pom.xml](https://github.com/ShaftHQ/using_SHAFT_Engine/blob/main/GUI_Web/pom.xml#L11-L200) file into yours
-  inside the ```<project>``` tag.
-- Follow the steps in this footnote in case you are using IntelliJ[^1].
-
-#### Step 2: Creating Tests
-- Create a new Package ```TestPackage``` under ```src/test/java``` and create a new Java Class ```TestClass``` under that package.
-- Copy the below imports into your newly created java class.
-```java
-import com.shaft.driver.SHAFT;
-import org.openqa.selenium.By;
-import org.openqa.selenium.Keys;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-```
-- Copy the below code snippet into your newly created java class.
-```java
-SHAFT.GUI.WebDriver driver;
-SHAFT.TestData.JSON testData;
-
-By searchBox = By.name("q");
-By resultStats = By.id("result-stats");
-
-@Test
-public void test() {
-    driver.browser().navigateToURL("https://www.google.com/");
-    driver.verifyThat().browser().title().isEqualTo("Google").perform();
-    driver.element().type(searchBox, testData.getTestData("searchQuery"))
-            .keyPress(searchBox, Keys.ENTER);
-    driver.assertThat().element(resultStats).text().doesNotEqual("")
-            .withCustomReportMessage("Check that result stats is not empty").perform();
-}
-
-@BeforeClass
-public void beforeClass() {
-    driver = new SHAFT.GUI.WebDriver();
-    testData = new SHAFT.TestData.JSON("simpleJSON.json");
-    }
-
-@AfterClass(alwaysRun = true)
-public void afterClass(){
-        driver.quit();
-    }
-```
-
-#### Step 3: Managing Test Data
-- Create the following file ```src/test/resources/testDataFiles/simpleJSON.json```.
-- Copy the below code snippet into your newly created json file.
-```json
-{
-  "searchQuery": "SHAFT_Engine"
-}
-```
-
-#### Step 4: Running Tests
-- Run your ```TestClass.java``` as a TestNG Test Class.
-- The execution report will open automatically in your default web browser after the test run is completed.
-- <b>Join</b> our ![GitHub Repo stars](https://img.shields.io/github/stars/shafthq/shaft_engine?logoColor=black&style=social) to get notified by email when a new release is pushed out.
-- After upgrading your Engine to a new major release it is sometimes recommended to delete the properties
-  folder ```src\main\resources\properties``` and allow SHAFT to regenerate the defaults by running any test method.
-  [^1]: If you're using Cucumber due to a known issue with IntelliJ you need to edit your run configuration template before running your tests by following these steps:
-  <br/>- Open 'Edit Run/Debug Configurations' dialog > Edit Configurations... > Edit configuration templates...
-  <br/>- Select <b>Cucumber Java</b> > Program Arguments > and add this argument:
-  <br/>`--plugin com.shaft.listeners.CucumberFeatureListener`
-  <br/>- After saving the changes, remember to delete any old runs you may have triggered by mistake before adding the needed config.
-
 <br/><br/>
 
-#### Stop Reinventing the wheel! Start using SHAFT!
+> [!IMPORTANT]
+> Stop Reinventing the wheel! Start using SHAFT!
+
 <a href="https://ShaftHQ.github.io/" target="_blank"><img width="400" alt="SHAFT_ENGINE" src="src/main/resources/images/shaft.png"></a>
