@@ -57,13 +57,13 @@
  <tr>
   <td valign="top">
 
-- [📚 User Guide ➜](https://shafthq.github.io/)
-- [🏃 Quick Start Guide](#quick-start-guide)
+- [🏃 Quick start guide](#quick-start-guide)
+- [📚 User guide ➜](https://shafthq.github.io/)
 - [🌍 Our success partners](#our-success-partners)
 - [🚀 Features](#features)
-- [👨‍💻 Tech Stack](#tech-stack)
-- [🤝 Support & Contributions](#support-and-contributions)
-- [📜 MIT License ➜](LICENSE)
+- [👨‍💻 Tech stack](#tech-stack)
+- [🤝 Support & contributions](#support-and-contributions)
+- [📜 MIT license ➜](LICENSE)
 
 </td>
 </tr></table>
@@ -71,14 +71,14 @@
 
 <a id="quick-start-guide"></a>
 
-## 🏃 Quick Start Guide [⤴](#-table-of-contents)
-### Option 1: Maven Archetype
+## 🏃 Quick start guide [⤴](#-table-of-contents)
+### Option 1: Maven archetype
 (Recommended for new local sandbox projects)
 
 - The easiest and most straightforward way to create a new project that uses SHAFT.
 - Just [follow the simple steps here](https://github.com/ShaftHQ/testng-archetype) to generate your new project with one command (all configurations included).
 
-### Option 2: Template Project
+### Option 2: Template project
 (Recommended for new source controlled projects)
 
 - Use our [Template Project](https://github.com/ShaftHQ/using_SHAFT_Engine) to create a new project with one click.
@@ -87,7 +87,7 @@
 ### Option 3: Start from scratch
 (Recommended if you're upgrading an existing project from Native Selenium WebDriver to SHAFT)
 
-#### Step 1: Initial Setup
+#### Step 1: Initial setup
 
 - Create a new Java/Maven project using Eclipse, IntelliJ or your favourite IDE.
 - Copy the highlighted contents of
@@ -95,7 +95,7 @@
   inside the ```<project>``` tag.
 - Follow the steps in this footnote in case you are using IntelliJ[^1].
 
-#### Step 2: Creating Tests
+#### Step 2: Creating tests
 - Create a new Package ```TestPackage``` under ```src/test/java``` and create a new Java Class ```TestClass``` under that package.
 - Copy the below imports into your newly created java class.
 ```java
@@ -136,7 +136,7 @@ public void afterClass(){
     }
 ```
 
-#### Step 3: Managing Test Data
+#### Step 3: Managing test data
 - Create the following file ```src/test/resources/testDataFiles/simpleJSON.json```.
 - Copy the below code snippet into your newly created json file.
 ```json
@@ -145,7 +145,7 @@ public void afterClass(){
 }
 ```
 
-#### Step 4: Running Tests
+#### Step 4: Running tests
 - Run your ```TestClass.java``` as a TestNG Test Class.
 - The execution report will open automatically in your default web browser after the test run is completed.
 - <b>Join</b> our ![GitHub Repo stars](https://img.shields.io/github/stars/shafthq/shaft_engine?logoColor=black&style=social) to get notified by email when a new release is pushed out.
@@ -161,7 +161,7 @@ public void afterClass(){
 
 <a id="user-guide"></a>
 
-## 📚 [User Guide ➜](https://shafthq.github.io/)
+## 📚 [User guide ➜](https://shafthq.github.io/)
 - Check out our comprehensive and friendly [user guide](https://shafthq.github.io/) to learn why <b>SHAFT</b> should be your solution of choice if you're aiming for successful test automation.
 
 <br/><br/>
@@ -219,7 +219,33 @@ public void afterClass(){
 <a id="features"></a>
 
 ## 🚀 Features [⤴](#-table-of-contents)
-### Supported Platforms
+
+### Smart features:
+
+- SHAFT provides a lot of out-of-the-box convenience features to facilitate your testing process and eliminate the need for boilerplate code.
+
+#### Scalability:
+
+| CI/CD integration |Cloud device farm integration  |Headless testing  |Parallel execution  |Containerized execution  |
+| :---: |:---: |:---: |:---: |:---: |
+| :white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
+
+#### Reliability:
+
+| Automated synchronization | Logging | Reporting | Screenshots/Attachments| Video recording|
+|:-------------------------:|:---: |:---: |:---: |:---: |
+|    :white_check_mark:     |:white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
+
+#### Maintainability:
+
+| Fluent design | Locator builder |   Smart locators   | Native `WebDriver` access | Element/Browser validations builder| AI-powered visual validations
+| :---: |:---: |:------------------:|:---: |:---: |:---: |
+| :white_check_mark: |:white_check_mark: | :white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
+
+
+<br/>
+
+### Supported platforms
 
 #### Web:
 
@@ -245,39 +271,18 @@ public void afterClass(){
 | :---: | :---: | :---:|:---:|:---:|:---:|:---:|:---:|
 | :white_check_mark: |:white_check_mark: | :white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
 
-### Built-in features:
-
-- SHAFT also provides a lot of out-of-the-box convenience features to facilitate your testing process:
-
 #### Test orchestration:
 
 | TestNG | JUnit5 | Cucumber |
 | :---: |:---: |:---: |
 | :white_check_mark: |:white_check_mark: |:white_check_mark: |
 
-#### Test authoring (Maintainability):
-
-| Fluent design | Locator builder | Native `WebDriver` access | Element/Browser validations builder| AI-powered visual validations
-| :---: |:---: |:---: |:---: |:---: |
-| :white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
-
-#### Reliability:
-
-| Auto synchronization | Logging | Reporting | Screenshots/Attachments| Video recording|
-| :---: |:---: |:---: |:---: |:---: |
-| :white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
-
-#### Scalability:
-
-| CI/CD integration |Cloud device farm integration  |Headless testing  |Parallel execution  |Containerized execution  |
-| :---: |:---: |:---: |:---: |:---: |
-| :white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
 
 <br/><br/>
 
 <a id="tech-stack"></a>
 
-## 👨‍💻 Tech Stack [⤴](#-table-of-contents)
+## 👨‍💻 Tech stack [⤴](#-table-of-contents)
 
 ### Developed using:
 
@@ -318,7 +323,7 @@ public void afterClass(){
 <br/><br/>
 <a id="support-and-contributions"></a>
 
-## 🤝 Support & Contributions [⤴](#-table-of-contents)
+## 🤝 Support & contributions [⤴](#-table-of-contents)
 - Feel free to create PRs directly. [This lovely tutorial](https://dev.to/genicsblog/how-to-create-a-pull-request-in-github-correctly-20np) will help.
 - Join us via Slack & Facebook
 <table border="0" align="center">
