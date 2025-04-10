@@ -15,17 +15,17 @@
  
 <table border="0" align="center">
  <tr>
-  <td align="center">
+  <td align="center" valign="top">
    Fully documented
-<br/><br/><a href="https://ShaftHQ.github.io/"><img width="300" alt="User Guide" src="https://github.com/ShaftHQ/SHAFT_ENGINE/assets/19201898/bdd6db98-4121-4a86-b7db-fb94b8830d11"><a/>
+<br/><br/><a href="https://ShaftHQ.github.io/"><img width="300" alt="User Guide" src="https://github.com/ShaftHQ/SHAFT_ENGINE/assets/19201898/bdd6db98-4121-4a86-b7db-fb94b8830d11"></a>
   <br/></td>
-   <td align="center">
+   <td align="center" valign="top">
    Award Winning
-<br/><br/><a href="https://opensource.googleblog.com/2023/05/google-open-source-peer-bonus-program-announces-first-group-of-winners-2023.html"><img width="250" alt="Google Open Source" src="https://github.com/ShaftHQ/SHAFT_ENGINE/assets/19201898/1b6296b4-418d-4cb1-829f-6b15e7d17e87"></a>
+<br/><br/><a href="https://opensource.googleblog.com/2023/05/google-open-source-peer-bonus-program-announces-first-group-of-winners-2023.html"><img width="250" alt="Google Open Source" src="https://github.com/ShaftHQ/SHAFT_ENGINE/assets/19201898/1b6296b4-418d-4cb1-829f-6b15e7d17e87"/></a>
   <br/></td>
-  <td align="center">
+  <td align="center" valign="top">
    Selenium Ecosystem
-<br/><br/><a href="https://www.selenium.dev/ecosystem/#frameworks"><img width="300" alt="Selenium Ecosystem" src="https://github.com/ShaftHQ/SHAFT_ENGINE/assets/19201898/b13d4c2c-72ce-4de6-861f-d143f905c5ab"><a/>
+<br/><br/><a href="https://www.selenium.dev/ecosystem/#frameworks"><img width="300" alt="Selenium Ecosystem" src="https://github.com/ShaftHQ/SHAFT_ENGINE/assets/19201898/b13d4c2c-72ce-4de6-861f-d143f905c5ab"></a>
   <br/></td>
  </tr>
   <tr>
@@ -48,6 +48,120 @@
 </table>
 <br/>
 
+## 📜 Table of Contents:
+
+<table border="0" align="center">
+ <tr>
+  <td valign="top">
+
+- [📚 User Guide](https://shafthq.github.io/)
+- [🏃 Quick Start Guide](#-quick-start-guide)
+- [🌍 Our success partners](#-our-success-partners)
+- [🚀 Features](#-features)
+- [👨‍💻 Tech Stack](#-tech-stack)
+- [🤝 Support & Contributions](#-support--contributions)
+- [📜 MIT License](LICENSE)
+
+</td>
+</tr></table>
+
+
+<a id="user-guide"></a>
+
+## 📚 [User Guide](https://shafthq.github.io/):
+- Check out our comprehensive and friendly [user guide](https://shafthq.github.io/) to learn why <b>SHAFT</b> should be your solution of choice if you're aiming for successful test automation.
+- SHAFT is a unified test automation engine for web, mobile, API, CLI, database, and desktop e2e testing. Powered by best-in-class frameworks, SHAFT provides a wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve with no limitations! Stop reinventing the wheel! Upgrade now!
+
+<a id="quick-start-guide"></a>
+
+## 🏃 Quick Start Guide:
+### Option 1: Maven Archetype
+(Recommended for new local sandbox projects)
+
+- The easiest and most straightforward way to create a new project that uses SHAFT.
+- Just [follow the simple steps here](https://github.com/ShaftHQ/testng-archetype) to generate your new project with one command (all configurations included).
+
+### Option 2: Template Project
+(Recommended for new source controlled projects)
+
+- Use our [Template Project](https://github.com/ShaftHQ/using_SHAFT_Engine) to create a new project with one click.
+- Follow the steps in the ReadMe to handle project configuration.
+
+### Option 3: Start from scratch
+(Recommended if you're upgrading an existing project from Native Selenium WebDriver to SHAFT)
+
+#### Step 1: Initial Setup
+
+- Create a new Java/Maven project using Eclipse, IntelliJ or your favourite IDE.
+- Copy the highlighted contents of
+  this [pom.xml](https://github.com/ShaftHQ/using_SHAFT_Engine/blob/main/GUI_Web/pom.xml#L11-L200) file into yours
+  inside the ```<project>``` tag.
+- Follow the steps in this footnote in case you are using IntelliJ[^1].
+
+#### Step 2: Creating Tests
+- Create a new Package ```TestPackage``` under ```src/test/java``` and create a new Java Class ```TestClass``` under that package.
+- Copy the below imports into your newly created java class.
+```java
+import com.shaft.driver.SHAFT;
+import org.openqa.selenium.By;
+import org.openqa.selenium.Keys;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+```
+- Copy the below code snippet into your newly created java class.
+```java
+SHAFT.GUI.WebDriver driver;
+SHAFT.TestData.JSON testData;
+
+By searchBox = By.name("q");
+By resultStats = By.id("result-stats");
+
+@Test
+public void test() {
+    driver.browser().navigateToURL("https://www.google.com/");
+    driver.verifyThat().browser().title().isEqualTo("Google").perform();
+    driver.element().type(searchBox, testData.getTestData("searchQuery"))
+            .keyPress(searchBox, Keys.ENTER);
+    driver.assertThat().element(resultStats).text().doesNotEqual("")
+            .withCustomReportMessage("Check that result stats is not empty").perform();
+}
+
+@BeforeClass
+public void beforeClass() {
+    driver = new SHAFT.GUI.WebDriver();
+    testData = new SHAFT.TestData.JSON("simpleJSON.json");
+    }
+
+@AfterClass(alwaysRun = true)
+public void afterClass(){
+        driver.quit();
+    }
+```
+
+#### Step 3: Managing Test Data
+- Create the following file ```src/test/resources/testDataFiles/simpleJSON.json```.
+- Copy the below code snippet into your newly created json file.
+```json
+{
+  "searchQuery": "SHAFT_Engine"
+}
+```
+
+#### Step 4: Running Tests
+- Run your ```TestClass.java``` as a TestNG Test Class.
+- The execution report will open automatically in your default web browser after the test run is completed.
+- <b>Join</b> our ![GitHub Repo stars](https://img.shields.io/github/stars/shafthq/shaft_engine?logoColor=black&style=social) to get notified by email when a new release is pushed out.
+- After upgrading your Engine to a new major release it is sometimes recommended to delete the properties
+  folder ```src\main\resources\properties``` and allow SHAFT to regenerate the defaults by running any test method.
+  [^1]: If you're using Cucumber due to a known issue with IntelliJ you need to edit your run configuration template before running your tests by following these steps:
+  <br/>- Open 'Edit Run/Debug Configurations' dialog > Edit Configurations... > Edit configuration templates...
+  <br/>- Select <b>Cucumber Java</b> > Program Arguments > and add this argument:
+  <br/>`--plugin com.shaft.listeners.CucumberFeatureListener`
+  <br/>- After saving the changes, remember to delete any old runs you may have triggered by mistake before adding the needed config.
+
+<br/><br/>
+
 ## 🌍 Our success partners:
 
 ### Sponsors:
@@ -62,7 +176,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.lambdatest.com" target="_blank"><img src="https://www.lambdatest.com/blog/wp-content/uploads/2024/10/LambdaTest-Logo.png" alt="LambdaTest" width="250px" height="50px"></a>
 <br/><br/>
   </td></tr></table>
-  
+
 ### Trusted solution of choice for: [^4]
 
 <table border="0" align="center">
@@ -92,15 +206,11 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href=""><img height="50" alt="" src=""></a>
   <br/><br/>
   </td></tr></table>
-  
+
 [^4]: Company names are collected via anonymous surveys and provided freely by engineers who claimed to be using SHAFT_Engine within these companies.
 
-<a id="user-guide"></a>
 
-## 📚 [User Guide](https://shafthq.github.io/):
-- Check out our comprehensive and friendly [user guide](https://shafthq.github.io/) to learn why <b>SHAFT</b> should be your solution of choice if you're aiming for successful test automation.
-- SHAFT is a unified test automation engine for web, mobile, API, CLI, database, and desktop e2e testing. Powered by best-in-class frameworks, SHAFT provides a wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve with no limitations! Stop reinventing the wheel! Upgrade now!
-
+## 🚀 Features:
 ### Supported Platforms:
 
 #### Web:
@@ -205,97 +315,6 @@
   <td align="center">
 <br/><a href="https://join.slack.com/t/shaft-engine/shared_invite/zt-oii5i2gg-0ZGnih_Y34NjK7QqDn01Dw" target="_blank"><img src="https://a.slack-edge.com/80588/marketing/img/icons/icon_slack_hash_colored.png" alt="automatest-workspace" height="50"/></a>  <a href="https://www.facebook.com/groups/Automatest" target="_blank"><img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjLMDbbgNWvnrNY3pjRSfgqZCPIbGMnVRm1jaaoGhgT2Buv-ipatDIe9zjRJIM1b8eZTZm7csh-R1vfHWwwW9nSlEC4agzoLrGqRsRWogha5oZIYS4LXXLSrAg7ekta6niiXxt5XHe_oLU/s200/f_logo_RGB-Blue_1024.png" alt="Automatest" height="50"/></a>
  <br/><br/> </td></tr></table>
-
-<a id="quick-start-guide"></a>
-
-## 🏃 Quick Start Guide:
-
-### Option 1: Maven Archetype
-(Recommended for new local sandbox projects)
-
-- The easiest and most straightforward way to create a new project that uses SHAFT.
-- Just [follow the simple steps here](https://github.com/ShaftHQ/testng-archetype) to generate your new project with one command (all configurations included).
-
-### Option 2: Template Project
-(Recommended for new source controlled projects)
-
-- Use our [Template Project](https://github.com/ShaftHQ/using_SHAFT_Engine) to create a new project with one click.
-- Follow the steps in the ReadMe to handle project configuration.
-
-### Option 3: Start from scratch
-(Recommended if you're upgrading an existing project from Native Selenium WebDriver to SHAFT)
-
-#### Step 1: Initial Setup
-
-- Create a new Java/Maven project using Eclipse, IntelliJ or your favourite IDE.
-- Copy the highlighted contents of
-  this [pom.xml](https://github.com/ShaftHQ/using_SHAFT_Engine/blob/main/GUI_Web/pom.xml#L11-L200) file into yours
-  inside the ```<project>``` tag.
-- Follow the steps in this footnote in case you are using IntelliJ[^1].
-
-#### Step 2: Creating Tests
-- Create a new Package ```TestPackage``` under ```src/test/java``` and create a new Java Class ```TestClass``` under that package.
-- Copy the below imports into your newly created java class.
-```java
-import com.shaft.driver.SHAFT;
-import org.openqa.selenium.By;
-import org.openqa.selenium.Keys;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-```
-- Copy the below code snippet into your newly created java class.
-```java
-SHAFT.GUI.WebDriver driver;
-SHAFT.TestData.JSON testData;
-
-By searchBox = By.name("q");
-By resultStats = By.id("result-stats");
-
-@Test
-public void test() {
-    driver.browser().navigateToURL("https://www.google.com/");
-    driver.verifyThat().browser().title().isEqualTo("Google").perform();
-    driver.element().type(searchBox, testData.getTestData("searchQuery"))
-            .keyPress(searchBox, Keys.ENTER);
-    driver.assertThat().element(resultStats).text().doesNotEqual("")
-            .withCustomReportMessage("Check that result stats is not empty").perform();
-}
-
-@BeforeClass
-public void beforeClass() {
-    driver = new SHAFT.GUI.WebDriver();
-    testData = new SHAFT.TestData.JSON("simpleJSON.json");
-    }
-
-@AfterClass(alwaysRun = true)
-public void afterClass(){
-        driver.quit();
-    }
-```
-
-#### Step 3: Managing Test Data
-- Create the following file ```src/test/resources/testDataFiles/simpleJSON.json```.
-- Copy the below code snippet into your newly created json file.
-```json
-{
-  "searchQuery": "SHAFT_Engine"
-}
-```
-
-#### Step 4: Running Tests
-- Run your ```TestClass.java``` as a TestNG Test Class.
-- The execution report will open automatically in your default web browser after the test run is completed.
-- <b>Join</b> our ![GitHub Repo stars](https://img.shields.io/github/stars/shafthq/shaft_engine?logoColor=black&style=social) to get notified by email when a new release is pushed out.
-- After upgrading your Engine to a new major release it is sometimes recommended to delete the properties
-  folder ```src\main\resources\properties``` and allow SHAFT to regenerate the defaults by running any test method.
-  [^1]: If you're using Cucumber due to a known issue with IntelliJ you need to edit your run configuration template before running your tests by following these steps:
-  <br/>- Open 'Edit Run/Debug Configurations' dialog > Edit Configurations... > Edit configuration templates...
-  <br/>- Select <b>Cucumber Java</b> > Program Arguments > and add this argument:
-  <br/>`--plugin com.shaft.listeners.CucumberFeatureListener`
-  <br/>- After saving the changes, remember to delete any old runs you may have triggered by mistake before adding the needed config.
-
-<br/><br/>
 
 #### Stop Reinventing the wheel! Start using SHAFT!
 <a href="https://ShaftHQ.github.io/" target="_blank"><img width="400" alt="SHAFT_ENGINE" src="src/main/resources/images/shaft.png"></a>
