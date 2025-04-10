@@ -51,7 +51,7 @@
 
 <a id="table-of-contents"></a>
 
-## 📜 Table of Contents:
+## 📜 Table of Contents
 
 <table border="0" align="center">
  <tr>
