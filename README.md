@@ -48,6 +48,8 @@
 </table>
 <br/>
 
+<a id="table-of-contents"></a>
+
 ## 📜 Table of Contents:
 
 <table border="0" align="center">
@@ -68,13 +70,13 @@
 
 <a id="user-guide"></a>
 
-## 📚 [User Guide](https://shafthq.github.io/):
+## 📚 [User Guide ➜](https://shafthq.github.io/)
 - Check out our comprehensive and friendly [user guide](https://shafthq.github.io/) to learn why <b>SHAFT</b> should be your solution of choice if you're aiming for successful test automation.
 - SHAFT is a unified test automation engine for web, mobile, API, CLI, database, and desktop e2e testing. Powered by best-in-class frameworks, SHAFT provides a wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve with no limitations! Stop reinventing the wheel! Upgrade now!
 
 <a id="quick-start-guide"></a>
 
-## 🏃 Quick Start Guide:
+## 🏃 Quick Start Guide [⤴](#-table-of-contents)
 ### Option 1: Maven Archetype
 (Recommended for new local sandbox projects)
 
@@ -162,7 +164,7 @@ public void afterClass(){
 
 <br/><br/>
 
-## 🌍 Our success partners:
+## 🌍 Our success partners [⤴](#-table-of-contents)
 
 ### Sponsors:
 
@@ -210,8 +212,8 @@ public void afterClass(){
 [^4]: Company names are collected via anonymous surveys and provided freely by engineers who claimed to be using SHAFT_Engine within these companies.
 
 
-## 🚀 Features:
-### Supported Platforms:
+## 🚀 Features [⤴](#-table-of-contents)
+### Supported Platforms
 
 #### Web:
 
@@ -267,7 +269,7 @@ public void afterClass(){
 
 <br/>
 
-## 👨‍💻 Tech Stack:
+## 👨‍💻 Tech Stack [⤴](#-table-of-contents)
 
 ### Developed using:
 
@@ -307,7 +309,7 @@ public void afterClass(){
 
 <a id="support-and-contributions"></a>
 
-## 🤝 Support & Contributions:
+## 🤝 Support & Contributions [⤴](#-table-of-contents)
 - Feel free to create PRs directly. [This lovely tutorial](https://dev.to/genicsblog/how-to-create-a-pull-request-in-github-correctly-20np) will help.
 - Join us via Slack & Facebook
 <table border="0" align="center">
