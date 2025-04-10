@@ -223,6 +223,10 @@ public void afterClass(){
 ### Smart features:
 
 - SHAFT provides a lot of out-of-the-box convenience features to facilitate your testing process and eliminate the need for boilerplate code.
+- All of SHAFT's smart features target the three pillars of successful test automation:
+  - **Scalability**: The ability to run tests on multiple devices and browsers in parallel.
+  - **Reliability**: The ability to run tests without flakiness and with detailed reporting.
+  - **Maintainability**: The ability to easily maintain and update tests as the application changes.
 
 #### Scalability:
 
