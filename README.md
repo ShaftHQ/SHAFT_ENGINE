@@ -220,7 +220,7 @@ public void afterClass(){
 
 ## 🚀 Features [⤴](#-table-of-contents)
 
-### Smart features:
+### Smart features
 
 - SHAFT provides a lot of out-of-the-box convenience features to facilitate your testing process and eliminate the need for boilerplate code.
 - All of SHAFT's smart features target the three pillars of successful test automation:
