@@ -12,7 +12,8 @@
   <img src="https://github.com/user-attachments/assets/016ebb3c-4090-4f07-a9b3-830fdf4cb696"/>
 </picture> SHAFT : Unified Test Automation Engine
 </h1>
- 
+ <br/><br/>
+
 <table border="0" align="center">
  <tr>
   <td align="center" valign="top">
@@ -46,7 +47,7 @@
   </td>
  </tr>
 </table>
-<br/>
+<br/><br/>
 
 <a id="table-of-contents"></a>
 
@@ -56,23 +57,17 @@
  <tr>
   <td valign="top">
 
-- [📚 User Guide](https://shafthq.github.io/)
+- [📚 User Guide ➜](https://shafthq.github.io/)
 - [🏃 Quick Start Guide](#quick-start-guide)
 - [🌍 Our success partners](#our-success-partners)
 - [🚀 Features](#features)
 - [👨‍💻 Tech Stack](#tech-stack)
 - [🤝 Support & Contributions](#support-and-contributions)
-- [📜 MIT License](LICENSE)
+- [📜 MIT License ➜](LICENSE)
 
 </td>
 </tr></table>
-
-
-<a id="user-guide"></a>
-
-## 📚 [User Guide ➜](https://shafthq.github.io/)
-- Check out our comprehensive and friendly [user guide](https://shafthq.github.io/) to learn why <b>SHAFT</b> should be your solution of choice if you're aiming for successful test automation.
-- SHAFT is a unified test automation engine for web, mobile, API, CLI, database, and desktop e2e testing. Powered by best-in-class frameworks, SHAFT provides a wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve with no limitations! Stop reinventing the wheel! Upgrade now!
+<br/><br/>
 
 <a id="quick-start-guide"></a>
 
@@ -164,6 +159,13 @@ public void afterClass(){
 
 <br/><br/>
 
+<a id="user-guide"></a>
+
+## 📚 [User Guide ➜](https://shafthq.github.io/)
+- Check out our comprehensive and friendly [user guide](https://shafthq.github.io/) to learn why <b>SHAFT</b> should be your solution of choice if you're aiming for successful test automation.
+
+<br/><br/>
+
 <a id="our-success-partners"></a>
 
 ## 🌍 Our success partners [⤴](#-table-of-contents)
@@ -213,6 +215,7 @@ public void afterClass(){
 
 [^4]: Company names are collected via anonymous surveys and provided freely by engineers who claimed to be using SHAFT_Engine within these companies.
 
+<br/><br/>
 <a id="features"></a>
 
 ## 🚀 Features [⤴](#-table-of-contents)
@@ -270,7 +273,7 @@ public void afterClass(){
 | :---: |:---: |:---: |:---: |:---: |
 | :white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
 
-<br/>
+<br/><br/>
 
 <a id="tech-stack"></a>
 
@@ -312,6 +315,7 @@ public void afterClass(){
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://central.sonatype.com/" target="_blank"><img src="https://central.sonatype.com/sonatype-repository-logo-reverse.svg" alt="sonatype" height="50px"></a>
   <br/><br/></td></tr></table>
 
+<br/><br/>
 <a id="support-and-contributions"></a>
 
 ## 🤝 Support & Contributions [⤴](#-table-of-contents)
@@ -322,6 +326,8 @@ public void afterClass(){
   <td align="center">
 <br/><a href="https://join.slack.com/t/shaft-engine/shared_invite/zt-oii5i2gg-0ZGnih_Y34NjK7QqDn01Dw" target="_blank"><img src="https://a.slack-edge.com/80588/marketing/img/icons/icon_slack_hash_colored.png" alt="automatest-workspace" height="50"/></a>  <a href="https://www.facebook.com/groups/Automatest" target="_blank"><img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjLMDbbgNWvnrNY3pjRSfgqZCPIbGMnVRm1jaaoGhgT2Buv-ipatDIe9zjRJIM1b8eZTZm7csh-R1vfHWwwW9nSlEC4agzoLrGqRsRWogha5oZIYS4LXXLSrAg7ekta6niiXxt5XHe_oLU/s200/f_logo_RGB-Blue_1024.png" alt="Automatest" height="50"/></a>
  <br/><br/> </td></tr></table>
+
+<br/><br/>
 
 #### Stop Reinventing the wheel! Start using SHAFT!
 <a href="https://ShaftHQ.github.io/" target="_blank"><img width="400" alt="SHAFT_ENGINE" src="src/main/resources/images/shaft.png"></a>
