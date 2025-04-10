@@ -87,12 +87,12 @@
 - Copy the highlighted contents of
   this [pom.xml](https://github.com/ShaftHQ/using_SHAFT_Engine/blob/main/GUI_Web/pom.xml#L11-L156) file into yours
   inside the ```<project>``` tag.
-- Follow the steps in this footnote in case you are planning to use Cucumber with IntelliJ IDEA[^1].
 
 #### Step 2: Creating tests
 ##### 2.1. TestNG
-- Create a new Package ```testPackage``` under ```src/test/java``` and create a new Java Class ```TestClass``` under that package.
-- Copy the below imports into your newly created java class.
+- Create a new Package ```testPackage``` under ```src/test/java```
+- Create a new Java class ```TestClass``` under your newly created `testPackage`.
+- Copy the below imports into your newly created `TestClass` after the line that contains `package testPackage`.
 ```java
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.locator.Locator;
@@ -102,7 +102,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 ```
-- Copy the below code snippet into your newly created java class.
+- Copy the below code snippet into the body of your `TestClass` after the line that contains `public class TestClass {`.
 ```java
 SHAFT.GUI.WebDriver driver;
 SHAFT.TestData.JSON testData;
@@ -147,6 +147,18 @@ public void afterMethod(){
   driver.quit();
 }
 ```
+##### 2.2. JUnit5
+--TODO--
+
+##### 2.3. Cucumber
+--TODO--
+> [!TIP]
+> In case you are planning to use Cucumber with IntelliJ IDEA, due to a known issue with IntelliJ you need to edit your run configuration template before running your tests by following these steps:
+> <br/>- Open 'Edit Run/Debug Configurations' dialog > Edit Configurations... > Edit configuration templates...
+> <br/>- Select <b>Cucumber Java</b> > Program Arguments > and add this argument:
+> <br/>`--plugin com.shaft.listeners.CucumberFeatureListener`
+> <br/>- After saving the changes, remember to delete any old runs you may have triggered by mistake before adding the needed config.
+
 
 #### Step 3: Managing test data
 - Create the following file ```src/test/resources/testDataFiles/simpleJSON.json```.
@@ -160,20 +172,18 @@ public void afterMethod(){
 ```
 
 #### Step 4: Running tests
-- Run your ```TestClass.java```.
-- On the first test run, SHAFT will create a new folder ```src/main/resources/properties``` and generate some default properties files. You can visit the
-  [user guide ➡️](https://shafthq.github.io/docs/Properties/PropertiesList) to learn how to configure all SHAFT's properties.
-- On the first test run, SHAFT will run in `minimalistic test run` mode and will self-configure its listeners under the `src/test/resources/META-INF/services` directory. This will enable the `full experience mode` for following test runs.
-- On all following test runs, after the run is complete, the Allure execution report will open automatically in your default web browser.
+- Run your ```TestClass.java``` either from the side menu or by pressing the run button.
+- On the first test run:
+  - SHAFT will create a new folder ```src/main/resources/properties``` and generate some default properties files.
+  - SHAFT will run in `minimalistic test run` mode and will self-configure its listeners under the `src/test/resources/META-INF/services` directory.
+> [!TIP]
+> You can visit the [user guide ➡️](https://shafthq.github.io/docs/Properties/PropertiesList) to learn how to configure all SHAFT's properties.
+- On all following test runs:
+  - After the run is complete, the Allure execution report will open automatically in your default web browser.
 - <b>Join</b> our ![GitHub Repo stars](https://img.shields.io/github/stars/shafthq/shaft_engine?logoColor=black&style=social) to get notified by email when a new release is pushed out.
-- After upgrading your Engine to a new major release it is sometimes recommended to delete the properties
-  folder ```src\main\resources\properties``` and allow SHAFT to regenerate the defaults by running any test method.
-  
-[^1]: If you're using Cucumber due to a known issue with IntelliJ you need to edit your run configuration template before running your tests by following these steps:
-  <br/>- Open 'Edit Run/Debug Configurations' dialog > Edit Configurations... > Edit configuration templates...
-  <br/>- Select <b>Cucumber Java</b> > Program Arguments > and add this argument:
-  <br/>`--plugin com.shaft.listeners.CucumberFeatureListener`
-  <br/>- After saving the changes, remember to delete any old runs you may have triggered by mistake before adding the needed config.
+> [!NOTE]
+> After upgrading your Engine to a new major release it is sometimes recommended to delete the properties
+folder ```src\main\resources\properties``` and allow SHAFT to regenerate the defaults by running any test method.
 
 <br/><br/>
 
