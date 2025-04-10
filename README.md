@@ -386,4 +386,8 @@ folder ```src\main\resources\properties``` and allow SHAFT to regenerate the def
 > [!IMPORTANT]
 > Stop Reinventing the wheel! Start using SHAFT!
 
+<table border="0" align="center">
+ <tr>
+  <td align="center">
 <a href="https://ShaftHQ.github.io/" target="_blank"><img width="400" alt="SHAFT_ENGINE" src="src/main/resources/images/shaft.png"></a>
+</td></tr></table>
