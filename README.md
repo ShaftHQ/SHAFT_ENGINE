@@ -76,30 +76,26 @@
 (Recommended for new local sandbox projects)
 
 - The easiest and most straightforward way to create a new project that uses SHAFT.
-- Just [follow the simple steps here](https://github.com/ShaftHQ/testng-archetype) to generate your new project with one command (all configurations included).
+- Just [follow the simple steps here ➡️](https://shafthq.github.io/docs/Getting_Started/first_steps_5) to generate your new project with one command (all configurations included).
 
-### Option 2: Template project
-(Recommended for new source controlled projects)
-
-- Use our [Template Project](https://github.com/ShaftHQ/using_SHAFT_Engine) to create a new project with one click.
-- Follow the steps in the ReadMe to handle project configuration.
-
-### Option 3: Start from scratch
+### Option 2: Start from scratch
 (Recommended if you're upgrading an existing project from Native Selenium WebDriver to SHAFT)
 
 #### Step 1: Initial setup
 
-- Create a new Java/Maven project using Eclipse, IntelliJ or your favourite IDE.
+- Create a new Java/Maven project using the latest version from IntelliJ IDEA, Eclipse or your favourite IDE.
 - Copy the highlighted contents of
-  this [pom.xml](https://github.com/ShaftHQ/using_SHAFT_Engine/blob/main/GUI_Web/pom.xml#L11-L200) file into yours
+  this [pom.xml](https://github.com/ShaftHQ/using_SHAFT_Engine/blob/main/GUI_Web/pom.xml#L11-L156) file into yours
   inside the ```<project>``` tag.
-- Follow the steps in this footnote in case you are using IntelliJ[^1].
+- Follow the steps in this footnote in case you are planning to use Cucumber with IntelliJ IDEA[^1].
 
 #### Step 2: Creating tests
-- Create a new Package ```TestPackage``` under ```src/test/java``` and create a new Java Class ```TestClass``` under that package.
+##### 2.1. TestNG
+- Create a new Package ```testPackage``` under ```src/test/java``` and create a new Java Class ```TestClass``` under that package.
 - Copy the below imports into your newly created java class.
 ```java
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.locator.Locator;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.testng.annotations.AfterClass;
@@ -111,29 +107,45 @@ import org.testng.annotations.Test;
 SHAFT.GUI.WebDriver driver;
 SHAFT.TestData.JSON testData;
 
-By searchBox = By.name("q");
-By resultStats = By.id("result-stats");
+String targetUrl = "https://duckduckgo.com/";
+
+By logo = By.xpath("//div[contains(@class,'container_fullWidth__1H_L8')]//img");
+By searchBox = Locator.hasAnyTagName().hasAttribute("name", "q").build(); // synonym to By.name("q");
+By firstSearchResult = Locator.hasTagName("article").isFirst().build(); // synonym to By.xpath("(//article)[1]");
 
 @Test
-public void test() {
-    driver.browser().navigateToURL("https://www.google.com/");
-    driver.verifyThat().browser().title().isEqualTo("Google").perform();
-    driver.element().type(searchBox, testData.getTestData("searchQuery"))
-            .keyPress(searchBox, Keys.ENTER);
-    driver.assertThat().element(resultStats).text().doesNotEqual("")
-            .withCustomReportMessage("Check that result stats is not empty").perform();
+public void navigateToDuckDuckGoAndAssertBrowserTitleIsDisplayedCorrectly() {
+  driver.browser().navigateToURL(targetUrl)
+          .and().assertThat().title().contains(testData.getTestData("expectedTitle"));
+}
+
+@Test
+public void navigateToDuckDuckGoAndAssertLogoIsDisplayedCorrectly() {
+  driver.browser().navigateToURL(targetUrl)
+          .and().element().assertThat(logo).matchesReferenceImage();
+}
+
+@Test
+public void searchForQueryAndAssert() {
+  driver.browser().navigateToURL(targetUrl)
+          .and().element().type(searchBox, testData.getTestData("searchQuery") + Keys.ENTER)
+          .and().assertThat(firstSearchResult).text().doesNotEqual(testData.getTestData("unexpectedInFirstResult"));
 }
 
 @BeforeClass
 public void beforeClass() {
-    driver = new SHAFT.GUI.WebDriver();
-    testData = new SHAFT.TestData.JSON("simpleJSON.json");
-    }
+  testData = new SHAFT.TestData.JSON("simpleJSON.json");
+}
 
-@AfterClass(alwaysRun = true)
-public void afterClass(){
-        driver.quit();
-    }
+@BeforeMethod
+public void beforeMethod() {
+  driver = new SHAFT.GUI.WebDriver();
+}
+
+@AfterMethod
+public void afterMethod(){
+  driver.quit();
+}
 ```
 
 #### Step 3: Managing test data
@@ -141,17 +153,23 @@ public void afterClass(){
 - Copy the below code snippet into your newly created json file.
 ```json
 {
-  "searchQuery": "SHAFT_Engine"
+  "searchQuery": "SHAFT_Engine",
+  "expectedTitle": "DuckDuckGo",
+  "unexpectedInFirstResult": "Nope"
 }
 ```
 
 #### Step 4: Running tests
-- Run your ```TestClass.java``` as a TestNG Test Class.
-- The execution report will open automatically in your default web browser after the test run is completed.
+- Run your ```TestClass.java```.
+- On the first test run, SHAFT will create a new folder ```src/main/resources/properties``` and generate some default properties files. You can visit the
+  [user guide ➡️](https://shafthq.github.io/docs/Properties/PropertiesList) to learn how to configure all SHAFT's properties.
+- On the first test run, SHAFT will run in `minimalistic test run` mode and will self-configure its listeners under the `src/test/resources/META-INF/services` directory. This will enable the `full experience mode` for following test runs.
+- On all following test runs, after the run is complete, the Allure execution report will open automatically in your default web browser.
 - <b>Join</b> our ![GitHub Repo stars](https://img.shields.io/github/stars/shafthq/shaft_engine?logoColor=black&style=social) to get notified by email when a new release is pushed out.
 - After upgrading your Engine to a new major release it is sometimes recommended to delete the properties
   folder ```src\main\resources\properties``` and allow SHAFT to regenerate the defaults by running any test method.
-  [^1]: If you're using Cucumber due to a known issue with IntelliJ you need to edit your run configuration template before running your tests by following these steps:
+  
+[^1]: If you're using Cucumber due to a known issue with IntelliJ you need to edit your run configuration template before running your tests by following these steps:
   <br/>- Open 'Edit Run/Debug Configurations' dialog > Edit Configurations... > Edit configuration templates...
   <br/>- Select <b>Cucumber Java</b> > Program Arguments > and add this argument:
   <br/>`--plugin com.shaft.listeners.CucumberFeatureListener`
