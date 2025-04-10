@@ -74,16 +74,14 @@
 ## 🏃 Quick start guide [⤴](#-table-of-contents)
 ### Option 1: Maven archetype
 
-> [!TIP]
-> Recommended for new local sandbox projects.
+> [!TIP] Recommended for new local sandbox projects.
 
 - The easiest and most straightforward way to create a new project that uses SHAFT.
 - Just [follow the simple steps here ➡️](https://shafthq.github.io/docs/Getting_Started/first_steps_5) to generate your new project with one command (all configurations included).
 
 ### Option 2: Start from scratch
 
-> [!TIP]
-> Recommended if you're upgrading an existing project from Native Selenium WebDriver to SHAFT.
+> [!TIP] Recommended if you're upgrading an existing project from Native Selenium WebDriver to SHAFT.
 
 #### Step 1: Initial setup
 
@@ -169,8 +167,7 @@ public void afterMethod(){
 --TODO--
 ```
 
-> [!TIP]
-> In case you are planning to use Cucumber with IntelliJ IDEA, due to a known issue with IntelliJ you need to edit your run configuration template before running your tests by following these steps:
+> [!TIP] In case you are planning to use Cucumber with IntelliJ IDEA, due to a known issue with IntelliJ you need to edit your run configuration template before running your tests by following these steps:
 > <br/>- Open 'Edit Run/Debug Configurations' dialog > Edit Configurations... > Edit configuration templates...
 > <br/>- Select <b>Cucumber Java</b> > Program Arguments > and add this argument:
 > <br/>`--plugin com.shaft.listeners.CucumberFeatureListener`
@@ -193,13 +190,11 @@ public void afterMethod(){
 - On the first test run:
   - SHAFT will create a new folder ```src/main/resources/properties``` and generate some default properties files.
   - SHAFT will run in `minimalistic test run` mode and will self-configure its listeners under the `src/test/resources/META-INF/services` directory.
-> [!TIP]
-> You can visit the [user guide ➡️](https://shafthq.github.io/docs/Properties/PropertiesList) to learn how to configure all SHAFT's properties.
+> [!TIP] You can visit the [user guide ➡️](https://shafthq.github.io/docs/Properties/PropertiesList) to learn how to configure all SHAFT's properties.
 - On all following test runs:
   - After the run is complete, the Allure execution report will open automatically in your default web browser.
 - <b>Join</b> our ![GitHub Repo stars](https://img.shields.io/github/stars/shafthq/shaft_engine?logoColor=black&style=social) to get notified by email when a new release is pushed out.
-> [!NOTE]
-> After upgrading your Engine to a new major release it is sometimes recommended to delete the properties
+> [!NOTE] After upgrading your Engine to a new major release it is sometimes recommended to delete the properties
 folder ```src\main\resources\properties``` and allow SHAFT to regenerate the defaults by running any test method.
 
 <br/><br/>
@@ -383,5 +378,6 @@ folder ```src\main\resources\properties``` and allow SHAFT to regenerate the def
 
 <br/><br/>
 
-#### Stop Reinventing the wheel! Start using SHAFT!
+> [!IMPORTANT] Stop Reinventing the wheel! Start using SHAFT!
+
 <a href="https://ShaftHQ.github.io/" target="_blank"><img width="400" alt="SHAFT_ENGINE" src="src/main/resources/images/shaft.png"></a>
