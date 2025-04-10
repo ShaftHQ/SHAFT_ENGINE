@@ -57,11 +57,11 @@
   <td valign="top">
 
 - [📚 User Guide](https://shafthq.github.io/)
-- [🏃 Quick Start Guide](#-quick-start-guide)
-- [🌍 Our success partners](#-our-success-partners)
-- [🚀 Features](#-features)
-- [👨‍💻 Tech Stack](#-tech-stack)
-- [🤝 Support & Contributions](#-support-and-contributions)
+- [🏃 Quick Start Guide](#quick-start-guide)
+- [🌍 Our success partners](#our-success-partners)
+- [🚀 Features](#features)
+- [👨‍💻 Tech Stack](#tech-stack)
+- [🤝 Support & Contributions](#support-and-contributions)
 - [📜 MIT License](LICENSE)
 
 </td>
