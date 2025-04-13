@@ -284,7 +284,7 @@
         <dependency>
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjweaver</artifactId>
-            <version>1.9.23</version>
+            <version>1.9.24</version>
         </dependency>
         <dependency>
             <groupId>io.qameta.allure</groupId>
@@ -956,7 +956,7 @@
                             <dependency>
                                 <groupId>org.aspectj</groupId>
                                 <artifactId>aspectjweaver</artifactId>
-                                <version>1.9.23</version>
+                                <version>1.9.24</version>
                             </dependency>
                             <dependency>
                                 <groupId>org.apache.maven.surefire</groupId>
@@ -1016,7 +1016,7 @@
                             <dependency>
                                 <groupId>org.aspectj</groupId>
                                 <artifactId>aspectjweaver</artifactId>
-                                <version>1.9.23</version>
+                                <version>1.9.24</version>
                             </dependency>
                         </dependencies>
                         <configuration>
