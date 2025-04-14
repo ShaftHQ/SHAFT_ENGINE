@@ -22,7 +22,7 @@
   <br/></td>
    <td align="center" valign="top">
    Award Winning
-<br/><br/><a href="https://opensource.googleblog.com/2023/05/google-open-source-peer-bonus-program-announces-first-group-of-winners-2023.html"><img width="250" alt="Google Open Source" src="https://github.com/ShaftHQ/SHAFT_ENGINE/assets/19201898/1b6296b4-418d-4cb1-829f-6b15e7d17e87"/></a>
+<br/><br/><a href="https://opensource.googleblog.com/2023/05/google-open-source-peer-bonus-program-announces-first-group-of-winners-2023.html"><img width="250" alt="Google Open Source" src="https://github.com/user-attachments/assets/a21a9e31-c63d-4712-bd9d-2bd131e5173c"/></a>
   <br/></td>
   <td align="center" valign="top">
    Selenium Ecosystem
@@ -237,7 +237,7 @@ folder ```src\main\resources\properties``` and allow SHAFT to regenerate the def
    <br/>
 <a href="https://www.vodafone.com/careers/professional-career-areas/shared-services"><img height="50" alt="_VOIS (Vodafone Intelligent Solution)" src="https://www.vodafone.com/_ipx/w_768,q_75/https%3A%2F%2Fimages.ctfassets.net%2Fq7ob9vms4z5k%2F2u767jo6qLM730dcOVs1lN%2F110f5535a8a0505e3b0aef0934a4a07c%2FVOIS.png?url=https%3A%2F%2Fimages.ctfassets.net%2Fq7ob9vms4z5k%2F2u767jo6qLM730dcOVs1lN%2F110f5535a8a0505e3b0aef0934a4a07c%2FVOIS.png&w=768&q=75"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.getgroup.com/"><img height="50" alt="GET Group Holdings" src="https://media.licdn.com/dms/image/C510BAQFS-mP8SeyOyg/company-logo_200_200/0/1630600086112/get_group_logo?e=2147483647&v=beta&t=mhfpG9gfW0JC4afaWYeHWWrA5AgMOv6g9bP3FnsN40o"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.momah.gov.sa/en"><img height="50" alt="MOMRA (Saudi Arabia's Ministry of Municipal and Rural Affairs)" src="https://www.momah.gov.sa/themes/custom/momrah/assets/images/mh-logo.png"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.momah.gov.sa/en"><img height="50" alt="MOMRA (Saudi Arabia's Ministry of Municipal and Rural Affairs)" src="https://momah.gov.sa/themes/custom/momrah/assets/images/mh-logo-full.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.vodafone.com.eg"><img height="50" alt="Vodafone Egypt" src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Vodafone_logo_2017.png/1200px-Vodafone_logo_2017.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://solutions.com.sa/"><img height="50" alt="Solutions by STC" src="https://solutions.com.sa/wp-content/uploads/2019/11/logo.svg"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://gizasystems.com/"><img height="50" alt="GIZA Systems" src="https://gizasystems.com/assets/landing/images/giza-white.png"></a>
@@ -248,11 +248,11 @@ folder ```src\main\resources\properties``` and allow SHAFT to regenerate the def
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://adam.ai/"><img height="50" alt="Adam.ai" src="https://images.prismic.io/adamdotai/8e6625b0-e32b-4bee-b1b8-ebdc1d30cbfe_full-logo.svg?ixlib=gatsbyFP&auto=compress%2Cformat&fit=max&q=50"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.act.eg/"><img height="50" alt="ACT Global Soft" src="https://www.act.eg/wp-content/uploads/2021/01/3.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.elmenus.com/"><img height="50" alt="elmenus" src="https://assets-global.website-files.com/625d19c77d49d0aa53047be3/625d19c77d49d0142c047d36_615c77e71175c38163bca403_elmenus.png"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.idemia.com/"><img height="50" alt="IDEMIA" src="https://www.idemia.com/wp-content/themes/idemia/assets/img/idemia-group-logo.svg"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.idemia.com/"><img height="50" alt="IDEMIA" src="https://github.com/user-attachments/assets/f20a6eab-a7f9-4f73-b27f-0e808c446fe9"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.ihorizons.com/"><img height="50" alt="iHorizons" src="https://www.ihorizons.com/sites/all/themes/ihorizons_theme/imgs/logo.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://robustastudio.com/"><img height="50" alt="Robusta" src="https://images.wuzzuf-data.net/files/company_logo/Robusta-Egypt-7927.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.paymob.com/"><img height="50" alt="Paymob Solutions" src="https://www.paymob.com/images/paymobLogo.png"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://jahezgroup.com/"><img height="50" alt="Jahez Group" src="https://jahezgroup.com/wp-content/uploads/2021/10/slide-1.svg"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://jahezgroup.com/"><img height="50" alt="Jahez Group" src="https://github.com/user-attachments/assets/3c9f6bb3-d310-48d7-a852-47ff5537e629"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://salt.bank/"><img height="50" alt="Salt Bank" src="https://static.wikia.nocookie.net/logopedia/images/3/34/Salt_Bank.svg"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.baianat.com/"><img height="50" alt="Baianat" src="https://mir-s3-cdn-cf.behance.net/user/276/f5dc271705011.5b8c47fcee858.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href=""><img height="50" alt="" src=""></a>
@@ -354,7 +354,7 @@ folder ```src\main\resources\properties``` and allow SHAFT to regenerate the def
 <a href="https://www.selenium.dev/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Selenium_logo.svg/768px-Selenium_logo.svg.png?20210927154434" alt="Selenium" height="50px"></a>&nbsp;&nbsp;&nbsp;&nbsp;
       <a href="https://appium.io/" target="_blank"><img src="https://appium.github.io/appium/docs/en/2.0/assets/images/appium-logo-horiz.png" alt="Appium" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/><a href="https://rest-assured.io/" target="_blank"><img src="https://rest-assured.io/img/logo-transparent.png" alt="REST Assured" height="50px"></a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://rest-assured.io/" target="_blank"><img alt="REST Assured" height="50px" src="https://rest-assured.io/img/name-transparent.png"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://opencv.org/" target="_blank"><img src="https://opencv.org/wp-content/uploads/2022/05/logo.png" alt="OpenCV" height="50px"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://opencv.org/" target="_blank"><img src="https://github.com/user-attachments/assets/944f0043-7b76-472a-8fa6-9beee1ac3a2f" alt="OpenCV" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/><a href="https://testng.org/" target="_blank"><img src="https://545767148-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2F-MdBdUMSCcMYTyNwZf80%2Fuploads%2Fgit-blob-7e5b23257dbb5cc3262c56840d5cf9fa85b27dce%2Ftestng.png?alt=media" alt="TestNG" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://junit.org/junit5/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/5/59/JUnit_5_Banner.png" alt="JUnit5" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://cucumber.io/" target="_blank"><img src="https://raw.githubusercontent.com/cucumber/cucumber-ruby/main/docs/img/cucumber-open-logo.png" alt="Cucumber Open" height="50px"></a>
