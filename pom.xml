@@ -189,7 +189,7 @@
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-picocontainer</artifactId>
-            <version>7.22.0</version>
+            <version>7.22.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.cucumber</groupId>
