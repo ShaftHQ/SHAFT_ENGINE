@@ -240,7 +240,7 @@ folder ```src\main\resources\properties``` and allow SHAFT to regenerate the def
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.momah.gov.sa/en"><img height="50" alt="MOMRA (Saudi Arabia's Ministry of Municipal and Rural Affairs)" src="https://momah.gov.sa/themes/custom/momrah/assets/images/mh-logo-full.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.vodafone.com.eg"><img height="50" alt="Vodafone Egypt" src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Vodafone_logo_2017.png/1200px-Vodafone_logo_2017.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://solutions.com.sa/"><img height="50" alt="Solutions by STC" src="https://solutions.com.sa/wp-content/uploads/2019/11/logo.svg"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://gizasystems.com/"><img height="50" alt="GIZA Systems" src="https://github.com/user-attachments/assets/4cb08620-e754-478a-be6c-26f5b85fe463"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://gizasystems.com/"><img height="50" alt="GIZA Systems" src="https://github.com/user-attachments/assets/45e7bc17-b3f3-44c7-a053-2f250ea497b6"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.euronetworldwide.com/"><img height="50" alt="Euronet" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Euronet_Worldwide_logo.svg/1920px-Euronet_Worldwide_logo.svg.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.terkwaz.com/"><img height="50" alt="Terkwaz Business Solutions" src="https://images.wuzzuf-data.net/files/company_logo/Terkwaz-Solutions-Jordan-35434-1578830823.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.incorta.com/"><img height="50" alt="Incorta" src="https://media-exp1.licdn.com/dms/image/C560BAQHUWHhKl0xrCA/company-logo_200_200/0/1660913597037?e=2147483647&v=beta&t=CiDPUEvlIBqztN5gCre-pQ5f7M-03_02IQgJtL18wG8"></a>
@@ -256,7 +256,7 @@ folder ```src\main\resources\properties``` and allow SHAFT to regenerate the def
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://salt.bank/"><img height="50" alt="Salt Bank" src="https://static.wikia.nocookie.net/logopedia/images/3/34/Salt_Bank.svg"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.baianat.com/"><img height="50" alt="Baianat" src="https://mir-s3-cdn-cf.behance.net/user/276/f5dc271705011.5b8c47fcee858.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://dxc.com/us/en"><img height="50" alt="DXC Technology" src="https://github.com/user-attachments/assets/84cb59da-d29d-44fa-9012-b10d2cc671ff"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.efghldg.com/en"><img height="50" alt="EFG Holding" src="https://github.com/user-attachments/assets/4f8d8b8b-66e0-422f-ad5e-4cb18285318a"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.efghldg.com/en"><img height="50" alt="EFG Holding" src="https://github.com/user-attachments/assets/188f24c2-9e3c-4bcc-a2d6-40c5ab58d5e3"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href=""><img height="50" alt="" src=""></a>
 
   <br/><br/>
