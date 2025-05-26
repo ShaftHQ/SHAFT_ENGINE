@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Function;
 
 public class Actions extends ElementActions {
@@ -185,7 +186,7 @@ public class Actions extends ElementActions {
     protected String performAction(ActionType action, By locator, Object data) {
         AtomicReference<String> output = new AtomicReference<>("");
         AtomicReference<String> accessibleName = new AtomicReference<>(JavaHelper.formatLocatorToString(locator));
-        final byte[][] screenshot = {null};
+        AtomicReferenceArray<byte[]> screenshot = new AtomicReferenceArray<>(1);
         AtomicReference<List<WebElement>> foundElements = new AtomicReference<>();
 
         try {
@@ -249,7 +250,7 @@ public class Actions extends ElementActions {
                             (new org.openqa.selenium.interactions.Actions(driver)).pause(Duration.ofMillis(400)).moveToElement(foundElements.get().getFirst()).perform();
                     case CLICK -> {
                         try {
-                            screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
+                            screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
                             foundElements.get().getFirst().click();
                         } catch (InvalidElementStateException exception) {
                             if (SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails()) {
@@ -261,15 +262,15 @@ public class Actions extends ElementActions {
                         }
                     }
                     case JAVASCRIPT_CLICK -> {
-                        screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
+                        screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
                         ((JavascriptExecutor) driver).executeScript("arguments[0].click();", foundElements.get().getFirst());
                     }
                     case CLICK_AND_HOLD -> {
-                        screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
+                        screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
                         new org.openqa.selenium.interactions.Actions(driver).pause(Duration.ofMillis(400)).clickAndHold(foundElements.get().getFirst()).perform();
                     }
                     case DOUBLE_CLICK -> {
-                        screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
+                        screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
                         new org.openqa.selenium.interactions.Actions(driver).pause(Duration.ofMillis(400)).doubleClick(foundElements.get().getFirst()).perform();
                     }
                     case TYPE, TYPE_SECURELY -> {
@@ -317,27 +318,27 @@ public class Actions extends ElementActions {
                 }
 
                 // take screenshot if not already taken before action
-                if (screenshot[0] != null)
-                    screenshot[0] = takeActionScreenshot(foundElements.get().getFirst());
+                if (screenshot.get(0) == null)
+                    screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
                 return true;
             });
         } catch (WebDriverException exception) {
             // take failure screenshot if needed
-            if (screenshot[0] == null) {
+            if (screenshot.get(0) == null) {
                 try {
                     if (foundElements.get() == null || foundElements.get().size() != 1) {
-                        screenshot[0] = takeFailureScreenshot(null);
+                        screenshot.set(0, takeFailureScreenshot(null));
                     } else {
-                        screenshot[0] = takeFailureScreenshot(foundElements.get().getFirst());
+                        screenshot.set(0, takeFailureScreenshot(foundElements.get().getFirst()));
                     }
                     // report broken
-                    reportBroken(action.name(), accessibleName.get(), screenshot[0], exception);
+                    reportBroken(action.name(), accessibleName.get(), screenshot.get(0), exception);
                 } catch (RuntimeException exception2) {
                     if (!exception2.getCause().equals(exception)){
                         // in case a new exception was thrown while attempting to take a screenshot
                         exception2.addSuppressed(exception);
                         // report broken
-                        reportBroken(action.name(), accessibleName.get(), screenshot[0], exception2);
+                        reportBroken(action.name(), accessibleName.get(), screenshot.get(0), exception2);
                     } else {
                         // in case no new exceptions where thrown, just the one created by SHAFT for the main issue
                         throw exception2;
@@ -346,7 +347,7 @@ public class Actions extends ElementActions {
             }
         }
         //report pass
-        reportPass(action.name(), accessibleName.get(), screenshot[0]);
+        reportPass(action.name(), accessibleName.get(), screenshot.get(0));
         return output.get();
     }
 
@@ -422,7 +423,7 @@ public class Actions extends ElementActions {
     private byte[] captureScreenshot(WebElement element, boolean isPass) {
         // capture screenshot
         byte[] screenshot;
-        if (element != null && Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsHighlightElements())) {
+        if (element != null && SHAFT.Properties.visuals.screenshotParamsHighlightElements()) {
             if ("JavaScript".equals(SHAFT.Properties.visuals.screenshotParamsHighlightMethod())) {
                 // take screenshot, apply watermark and append it to gif before removing javascript highlighting
                 screenshot = takeJavaScriptHighlightedScreenshot(element, isPass);

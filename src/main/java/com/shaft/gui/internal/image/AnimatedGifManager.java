@@ -47,7 +47,7 @@ public class AnimatedGifManager {
 
     public static String attachAnimatedGif() {
         // stop and attach
-        if (Boolean.TRUE.equals(SHAFT.Properties.visuals.createAnimatedGif()) && !"".equals(gifRelativePathWithFileName)) {
+        if (SHAFT.Properties.visuals.createAnimatedGif() && !"".equals(gifRelativePathWithFileName)) {
             try {
                 ReportManagerHelper.attach("Animated Gif", String.valueOf(System.currentTimeMillis()), new FileInputStream(gifRelativePathWithFileName));
                 if (!gifWriter.equals(new ThreadLocal<>())) {
@@ -74,7 +74,7 @@ public class AnimatedGifManager {
 
     public static void startOrAppendToAnimatedGif(byte[] screenshot) {
         // ensure that animatedGif is started, else force start it
-        if (Boolean.TRUE.equals(SHAFT.Properties.visuals.createAnimatedGif())) {
+        if (SHAFT.Properties.visuals.createAnimatedGif()) {
             if (gifRelativePathWithFileName.isEmpty()) {
                 startAnimatedGif(screenshot);
             } else {
@@ -104,7 +104,7 @@ public class AnimatedGifManager {
     }
 
     protected static void startAnimatedGif(byte[] screenshot) {
-        if (Boolean.TRUE.equals(SHAFT.Properties.visuals.createAnimatedGif()) && screenshot != null) {
+        if (SHAFT.Properties.visuals.createAnimatedGif() && screenshot != null) {
             try {
                 String gifFileName = FileSystems.getDefault().getSeparator() + System.currentTimeMillis() + ".gif";
                 gifRelativePathWithFileName = SHAFT.Properties.paths.allureResults() + "/screenshots/" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + gifFileName;
