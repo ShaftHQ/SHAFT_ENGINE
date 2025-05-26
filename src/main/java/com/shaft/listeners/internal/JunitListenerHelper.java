@@ -1,9 +1,11 @@
 package com.shaft.listeners.internal;
 
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import lombok.Getter;
 import org.junit.platform.launcher.TestIdentifier;
 
 public class JunitListenerHelper {
+    @Getter
     private static final ThreadLocal<String> testName = new ThreadLocal<>();
 
     public static void setTestName(TestIdentifier testIdentifier) {
