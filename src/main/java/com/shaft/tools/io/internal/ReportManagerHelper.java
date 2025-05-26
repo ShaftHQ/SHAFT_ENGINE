@@ -4,6 +4,8 @@ import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.listeners.CucumberFeatureListener;
+import com.shaft.listeners.JunitListener;
+import com.shaft.listeners.internal.JunitListenerHelper;
 import com.shaft.properties.internal.PropertyFileManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
@@ -365,9 +367,12 @@ public class ReportManagerHelper {
     public static String getTestMethodName() {
         if (Reporter.getCurrentTestResult() != null) {
             return Reporter.getCurrentTestResult().getMethod().getMethodName();
-        } else {
-            // this happens when running a cucumber feature file directly because there is no testNG Reporter instance
+        } else if (CucumberFeatureListener.getLastStartedScenarioName() != null){
+            // this happens in case of native cucumber execution without TestNG Test Runner
             return JavaHelper.removeSpecialCharacters(CucumberFeatureListener.getLastStartedScenarioName());
+        } else {
+            // this happens in case of JUnit Test Runner
+            return JunitListenerHelper.getTestName().get();
         }
     }
 
@@ -388,10 +393,14 @@ public class ReportManagerHelper {
 
     public static Boolean isCurrentTestPassed() {
         if (Reporter.getCurrentTestResult() != null) {
+            // this happens in case of TestNG Test Runner
             return Reporter.getCurrentTestResult().isSuccess();
-        } else {
+        } else if (CucumberFeatureListener.getIsLastFinishedStepOK() != null){
             // this happens in case of native cucumber execution without TestNG Test Runner
             return CucumberFeatureListener.getIsLastFinishedStepOK();
+        } else {
+            // this happens in case of JUnit Test Runner
+            return JunitListener.getIsLastFinishedTestOK();
         }
     }
 
