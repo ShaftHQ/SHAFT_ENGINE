@@ -6,6 +6,7 @@ import com.shaft.listeners.internal.JiraHelper;
 import com.shaft.listeners.internal.JunitListenerHelper;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.internal.*;
+import lombok.Getter;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.launcher.*;
 
@@ -19,6 +20,8 @@ public class JunitListener implements LauncherSessionListener {
     private static final List<TestIdentifier> skippedTests = new ArrayList<>();
     private static long executionStartTime;
     private static boolean isEngineReady = false;
+    @Getter
+    private static Boolean isLastFinishedTestOK = true;
 
     @Override
     public void launcherSessionOpened(LauncherSession session) {
@@ -89,16 +92,19 @@ public class JunitListener implements LauncherSessionListener {
 
     private void onTestSuccess(TestIdentifier testIdentifier) {
         passedTests.add(testIdentifier);
+        isLastFinishedTestOK = true;
         appendToExecutionSummaryReport(testIdentifier, "", ExecutionSummaryReport.StatusIcon.PASSED, ExecutionSummaryReport.Status.PASSED);
     }
 
     private void onTestFailure(TestIdentifier testIdentifier, Throwable throwable) {
         failedTests.add(testIdentifier);
+        isLastFinishedTestOK = false;
         appendToExecutionSummaryReport(testIdentifier, throwable.getMessage(), ExecutionSummaryReport.StatusIcon.FAILED, ExecutionSummaryReport.Status.FAILED);
     }
 
     private void onTestSkipped(TestIdentifier testIdentifier, String reason) {
         skippedTests.add(testIdentifier);
+        isLastFinishedTestOK = false;
         appendToExecutionSummaryReport(testIdentifier, reason, ExecutionSummaryReport.StatusIcon.SKIPPED, ExecutionSummaryReport.Status.SKIPPED);
     }
 
