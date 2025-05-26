@@ -1,8 +1,10 @@
 package com.shaft.gui.internal.video;
 
 import com.automation.remarks.video.RecorderFactory;
+import com.automation.remarks.video.RecordingUtils;
+import com.automation.remarks.video.enums.RecorderType;
+import com.automation.remarks.video.enums.VideoSaveMode;
 import com.automation.remarks.video.recorder.IVideoRecorder;
-import com.automation.remarks.video.recorder.VideoRecorder;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.tools.io.ReportManager;
@@ -12,6 +14,7 @@ import io.appium.java_client.android.AndroidStartScreenRecordingOptions;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.ios.IOSStartScreenRecordingOptions;
 import org.apache.commons.io.FileUtils;
+import org.apache.log4j.BasicConfigurator;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import ws.schild.jave.Encoder;
@@ -25,8 +28,6 @@ import java.io.*;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Base64;
-
-import static com.automation.remarks.video.RecordingUtils.doVideoProcessing;
 
 public class RecordManager {
     private static final ThreadLocal<IVideoRecorder> recorder = new ThreadLocal<>();
@@ -66,7 +67,10 @@ public class RecordManager {
                 && SHAFT.Properties.platform.executionAddress().equals("local")
                 && !SHAFT.Properties.web.headlessExecution()
                 && recorder.get() == null) {
-            recorder.set(RecorderFactory.getRecorder(VideoRecorder.conf().recorderType()));
+            BasicConfigurator.configure();
+            System.setProperty("video.save.mode", VideoSaveMode.ALL.name());
+            recorder.set(RecorderFactory.getRecorder(RecorderType.MONTE));
+//            recorder.set(RecorderFactory.getRecorder(VideoRecorder.conf().recorderType()));
             recorder.get().start();
         }
     }
@@ -104,7 +108,7 @@ public class RecordManager {
         String testMethodName = ReportManagerHelper.getTestMethodName();
 
         if (Boolean.TRUE.equals(SHAFT.Properties.visuals.videoParamsRecordVideo()) && recorder.get() != null) {
-            pathToRecording = doVideoProcessing(ReportManagerHelper.isCurrentTestPassed(), recorder.get().stopAndSave(System.currentTimeMillis() + "_" + testMethodName));
+            pathToRecording = RecordingUtils.doVideoProcessing(ReportManagerHelper.isCurrentTestPassed(), recorder.get().stopAndSave(System.currentTimeMillis() + "_" + testMethodName));
             try {
                 inputStream = new FileInputStream(encodeRecording(pathToRecording));
             } catch (FileNotFoundException e) {
