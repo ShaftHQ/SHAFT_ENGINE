@@ -2,6 +2,8 @@ package com.shaft.listeners;
 
 import com.shaft.api.RequestBuilder;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.image.AnimatedGifManager;
+import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.listeners.internal.JiraHelper;
 import com.shaft.listeners.internal.JunitListenerHelper;
 import com.shaft.tools.internal.security.GoogleTink;
@@ -41,7 +43,7 @@ public class JunitListener implements LauncherSessionListener {
 
                 @Override
                 public void executionSkipped(TestIdentifier testIdentifier, String reason) {
-                    afterInvocation();
+                    afterInvocation(testIdentifier, null);
                     onTestSkipped(testIdentifier, reason);
                 }
 
@@ -53,7 +55,7 @@ public class JunitListener implements LauncherSessionListener {
 
                 @Override
                 public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
-                    afterInvocation();
+                    afterInvocation(testIdentifier, testExecutionResult);
                     if (testIdentifier.isTest()) {
                         switch (testExecutionResult.getStatus()) {
                             case SUCCESSFUL -> onTestSuccess(testIdentifier);
@@ -86,8 +88,12 @@ public class JunitListener implements LauncherSessionListener {
         ReportManagerHelper.logEngineClosure();
     }
 
-    private void afterInvocation() {
+    private void afterInvocation(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
+        if (SHAFT.Properties.visuals.videoParamsScope().equals("TestMethod")) {
+            RecordManager.attachVideoRecording();
+        }
+        AnimatedGifManager.attachAnimatedGif();
     }
 
     private void onTestSuccess(TestIdentifier testIdentifier) {
