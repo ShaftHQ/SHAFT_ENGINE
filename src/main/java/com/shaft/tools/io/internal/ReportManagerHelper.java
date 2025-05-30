@@ -15,6 +15,7 @@ import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
 import lombok.Getter;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.log4j.BasicConfigurator;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -169,7 +170,9 @@ public class ReportManagerHelper {
         // delete previous run execution log
         if (System.getProperty("appender.file.fileName") != null)
             FileActions.getInstance(true).deleteFile(System.getProperty("appender.file.fileName"));
-        // initialize
+        // initialize log4j, used by some transitive dependencies
+        BasicConfigurator.configure();
+        // initialize log4j2
         Configurator.initialize(null, PropertyFileManager.getCUSTOM_PROPERTIES_FOLDER_PATH() + "/log4j2.properties");
         logger = LogManager.getLogger(ReportManager.class.getName());
     }

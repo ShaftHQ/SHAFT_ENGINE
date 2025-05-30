@@ -17,7 +17,7 @@ public interface Flags extends EngineProperties<Flags> {
     }
 
     @Key("automaticallyAddRecommendedChromeOptions")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean automaticallyAddRecommendedChromeOptions();
 
     @Key("retryMaximumNumberOfAttempts")
