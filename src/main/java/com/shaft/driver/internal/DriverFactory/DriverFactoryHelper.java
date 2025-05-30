@@ -20,6 +20,7 @@ import io.github.bonigarcia.wdm.WebDriverManager;
 import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.qameta.allure.Step;
 import lombok.*;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -208,7 +209,16 @@ public class DriverFactoryHelper {
     }
 
     private static WebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws MalformedURLException, URISyntaxException {
-        var targetHubUrl = isLegacy ? TARGET_HUB_URL + "wd/hub" : TARGET_HUB_URL;
+        var targetHubUrl = TARGET_HUB_URL;
+        if (isLegacy) {
+            if (StringUtils.isNumeric(TARGET_HUB_URL.substring(TARGET_HUB_URL.length() - 1))) {
+                // this is a workaround for the case when the user sets the TARGET_HUB_URL to end with a numeric value like "4723"
+                // which is not a valid URL, so we append "/wd/hub" to it
+                targetHubUrl = TARGET_HUB_URL + "/wd/hub";
+            } else {
+                targetHubUrl = TARGET_HUB_URL + "wd/hub";
+            }
+        }
         var targetLambdaTestHubURL = targetHubUrl.replace("http", "https");
         var targetPlatform = Properties.platform.targetPlatform();
         var targetMobileHubUrl = targetHubUrl.replace("@", "@mobile-").replace("http", "https");
@@ -530,7 +540,7 @@ public class DriverFactoryHelper {
             //this happens when the user types an incorrect remote server address like so http://127.0.0.1:4723
             Throwable throwable1 = throwable;
             if (FailureReporter.getRootCause(throwable1).contains("NumberFormatException")) {
-                var newException = new MalformedURLException("Invalid remote server URL. Kindly insure using one of the supported patterns: `local`, `dockerized`, `browserstack`, `host:port`, `http://host:port/wd/hub`.");
+                var newException = new MalformedURLException("Invalid remote server URL `"+TARGET_HUB_URL+"`. Kindly ensure using one of the supported patterns: `local`, `dockerized`, `browserstack`, `host:port`, `http://host:port/wd/hub`.");
                 newException.addSuppressed(throwable1);
                 throwable1 = newException;
             }

@@ -77,6 +77,7 @@ public class ApiPerformanceReportTest {
     @Test
     public void testGetUsers() {
         SHAFT.API api = new SHAFT.API("https://reqres.in/");
+        api.addHeader("x-api-key","reqres-free-v1");
         List<List<Object>> parameters = Arrays.asList(Arrays.asList("page", "2"));
         api.get("api/users")
                 .setParameters(parameters, RestActions.ParametersType.QUERY)
@@ -86,12 +87,14 @@ public class ApiPerformanceReportTest {
     @Test
     public void testGetUser() {
         SHAFT.API api = new SHAFT.API("https://reqres.in/");
+        api.addHeader("x-api-key","reqres-free-v1");
         api.get("api/users/2").perform();
     }
 
     @Test
     public void testCreateUser() {
         SHAFT.API api = new SHAFT.API("https://reqres.in/");
+        api.addHeader("x-api-key","reqres-free-v1");
         api.post("api/users")
                 .setContentType("application/json")
                 .setRequestBody("{\n" +
@@ -104,6 +107,7 @@ public class ApiPerformanceReportTest {
     @Test
     public void testRegisterUser() {
         SHAFT.API api = new SHAFT.API("https://reqres.in/");
+        api.addHeader("x-api-key","reqres-free-v1");
         api.post("api/register")
                 .setContentType("application/json")
                 .setRequestBody("{\n" +
@@ -116,7 +120,7 @@ public class ApiPerformanceReportTest {
     @Test
     public void testLoginUser() {
         SHAFT.API api = new SHAFT.API("https://reqres.in/");
-
+        api.addHeader("x-api-key","reqres-free-v1");
         api.post("api/login")
                 .setContentType("application/json")
                 .setRequestBody("{\n" +
@@ -129,8 +133,8 @@ public class ApiPerformanceReportTest {
     @Test
     public void testDelayedResponse() {
         SHAFT.API api = new SHAFT.API("https://reqres.in/");
+        api.addHeader("x-api-key","reqres-free-v1");
         List<List<Object>> parameters = Arrays.asList(Arrays.asList("delay", "3"));
-
         api.get("api/users")
                 .setParameters(parameters, RestActions.ParametersType.QUERY)
                 .perform();
