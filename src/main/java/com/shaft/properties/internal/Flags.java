@@ -16,6 +16,9 @@ public interface Flags extends EngineProperties<Flags> {
         ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
 
+    @Key("automaticallyAddRecommendedChromeOptions")
+    @DefaultValue("true")
+    boolean automaticallyAddRecommendedChromeOptions();
 
     @Key("retryMaximumNumberOfAttempts")
     @DefaultValue("0")
@@ -48,7 +51,6 @@ public interface Flags extends EngineProperties<Flags> {
     @Key("clearBeforeTypingMode")
     @DefaultValue("native")
     String clearBeforeTypingMode();
-
 
     @Key("forceCheckNavigationWasSuccessful")
     @DefaultValue("false")
@@ -107,6 +109,12 @@ public interface Flags extends EngineProperties<Flags> {
     }
 
     class SetProperty implements EngineProperties.SetProperty {
+
+        public SetProperty automaticallyAddRecommendedChromeOptions(boolean value) {
+            setProperty("automaticallyAddRecommendedChromeOptions", String.valueOf(value));
+            return this;
+        }
+
         public SetProperty retryMaximumNumberOfAttempts(int value) {
             setProperty("retryMaximumNumberOfAttempts", String.valueOf(value));
             return this;
