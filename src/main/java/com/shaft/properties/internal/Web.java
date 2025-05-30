@@ -74,7 +74,7 @@ public interface Web extends EngineProperties<Web> {
 
     // none, eager, or normal
     @Key("pageLoadStrategy")
-    @DefaultValue("NORMAL")
+    @DefaultValue("NONE")
     String pageLoadStrategy();
 
     // interactive, none, or complete
