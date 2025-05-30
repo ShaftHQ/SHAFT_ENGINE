@@ -324,49 +324,63 @@ public class OptionsManager {
         if (!executionAddress.equalsIgnoreCase("local"))
             options.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
         if (SHAFT.Properties.web.headlessExecution()) {
-            options.addArguments("--headless=new");
+            options.addArguments("--headless");
             // https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md#headless
         }
         // Fix "org.openqa.selenium.TimeoutException: timeout: Timed out receiving message from renderer: 10.000" on chrome/mac
         // https://github.com/ultrafunkamsterdam/undetected-chromedriver/issues/1280
-        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())) {
+        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
+            && SHAFT.Properties.flags.automaticallyAddRecommendedChromeOptions()) {
             //         https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
             //         https://docs.google.com/spreadsheets/d/1n-vw_PCPS45jX3Jt9jQaAhFqBY6Ge1vWF_Pa0k7dCk4/edit#gid=1265672696
-            options.addArguments("--disable-search-engine-choice-screen"
-                    , "--remote-allow-origins=*"
-                    , "--enable-automation"
-                    , "--disable-background-timer-throttling"
-                    , "--disable-backgrounding-occluded-windows"
-                    , "--disable-features=OptimizationGuideModelDownloading,OptimizationHintsFetching,OptimizationTargetPrediction,OptimizationHints,CalculateNativeWinOcclusion,AutofillServerCommunication,MediaRouter,Translate,AvoidUnnecessaryBeforeUnloadCheckSync,CertificateTransparencyComponentUpdater,OptimizationHints,DialMediaRouteProvider,GlobalMediaControls,ImprovedCookieControls,LazyFrameLoading,InterestFeedContentSuggestions"
-                    , "--disable-hang-monitor"
-                    , "--disable-domain-reliability"
-                    , "--disable-renderer-backgrounding"
-                    , "--metrics-recording-only"
-                    , "--no-first-run"
-                    , "--no-default-browser-check"
-                    , "--silent-debugger-extension-api"
-                    , "--disable-extensions"
-                    , "--disable-component-extensions-with-background-pages"
-                    , "--disable-dev-shm-usage"
-                    , "--disable-ipc-flooding-protection"
-                    , "--disable-background-networking"
-                    , "--mute-audio"
-                    , "--disable-breakpad"
-                    , "--ignore-certificate-errors"
-                    , "--disable-device-discovery-notifications"
-                    , "--force-color-profile=srgb"
-                    , "--hide-scrollbars"
-                    , "--host-resolver-rules"
-                    , "--no-pings"
-                    , "--disable-sync"
-                    , "--disable-field-trial-config"
-                    , "--enable-features=NetworkService"
-                    , "--enable-features=NetworkServiceInProcess"
-                    , "--enable-use-zoom-for-dsf"
-                    , "--log-net-log"
-                    , "--net-log-capture-mode"
-                    , "--disable-client-side-phishing-detection"
-                    , "--disable-default-apps");
+            options.addArguments(
+                    // Commonly unwanted browser features
+                    "--disable-client-side-phishing-detection", //Disables client-side phishing detection
+                    "--disable-component-extensions-with-background-pages", //Disable some built-in extensions that aren't affected by --disable-extensions
+                    "--disable-default-apps", //Disable installation of default apps
+                    "--disable-extensions", //Disable all chrome extensions
+                    "--disable-features=InterestFeedContentSuggestions", //Disables the Discover feed on NTP
+                    "--disable-features=Translate", //Disables Chrome translation, both the manual option and the popup prompt when a page with differing language is detected.
+                    "--hide-scrollbars", //Hide scrollbars from screenshots.
+                    "--mute-audio", //Mute any audio
+                    "--no-default-browser-check", //Disable the default browser check, do not prompt to set it as such
+                    "--no-first-run", //Skip first run wizards
+                    "--ash-no-nudges", //Avoids blue bubble "user education" nudges (eg., "… give your browser a new look", Memory Saver)
+                    "--disable-search-engine-choice-screen", //Disable the 2023+ search engine choice screen
+                    "--propagate-iph-for-testing", //Specifies which in-product help (IPH) features are allowed. If no arguments are provided, then all IPH features are disabled.
+                    // Task throttling
+                    "--disable-background-timer-throttling", //Disable timers being throttled in background pages/tabs
+                    "--disable-backgrounding-occluded-windows", //Normally, Chrome will treat a 'foreground' tab instead as backgrounded if the surrounding window is occluded (aka visually covered) by another window. This flag disables that.
+                    "--disable-features=CalculateNativeWinOcclusion", //Disable the feature of: Calculate window occlusion on Windows will be used in the future to throttle and potentially unload foreground tabs in occluded windows.
+                    "--disable-hang-monitor", //Suppresses hang monitor dialogs in renderer processes. This flag may allow slow unload handlers on a page to prevent the tab from closing.
+                    "--disable-ipc-flooding-protection", //Some javascript functions can be used to flood the browser process with IPC. By default, protection is on to limit the number of IPC sent to 10 per second per frame. This flag disables it. https://crrev.com/604305
+                    "--disable-renderer-backgrounding", //This disables non-foreground tabs from getting a lower process priority This doesn't (on its own) affect timers or painting behavior. karma-chrome-launcher#123
+                    // Web platform behavior
+                    "--allow-running-insecure-content",
+                    // others
+                    "--remote-allow-origins=*",
+                    "--enable-automation",
+                    "--disable-features=OptimizationGuideModelDownloading,OptimizationHintsFetching,OptimizationTargetPrediction,OptimizationHints,CalculateNativeWinOcclusion,AutofillServerCommunication,MediaRouter,Translate,AvoidUnnecessaryBeforeUnloadCheckSync,CertificateTransparencyComponentUpdater,OptimizationHints,DialMediaRouteProvider,GlobalMediaControls,ImprovedCookieControls,LazyFrameLoading,InterestFeedContentSuggestions",
+                    "--disable-domain-reliability",
+                    "--metrics-recording-only",
+                    "--silent-debugger-extension-api",
+                    "--disable-dev-shm-usage",
+                    "--disable-background-networking",
+                    "--disable-breakpad",
+                    "--ignore-certificate-errors",
+                    "--disable-device-discovery-notifications",
+                    "--force-color-profile=srgb",
+                    "--host-resolver-rules",
+                    "--no-pings",
+                    "--disable-sync",
+                    "--disable-field-trial-config",
+                    "--enable-features=NetworkService",
+                    "--enable-features=NetworkServiceInProcess",
+                    "--enable-use-zoom-for-dsf",
+                    "--log-net-log",
+                    "--net-log-capture-mode",
+                    "--no-sandbox"
+            );
         }
         // Add if condtion to start the new session if flag=true on specific port
         if (SHAFT.Properties.performance.isEnabled()) {
@@ -382,14 +396,12 @@ public class OptionsManager {
                 options.addArguments("--remote-debugging-pipe");
             }
         }
-        options.addArguments("--no-sandbox");
-
+        // browser window size and position
         if (SHAFT.Properties.flags.autoMaximizeBrowserWindow() && !Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.MAC.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             options.addArguments("--start-maximized");
         } else {
             options.addArguments("--window-position=0,0", "--window-size=" + DriverFactoryHelper.getTARGET_WINDOW_SIZE().getWidth() + "," + DriverFactoryHelper.getTARGET_WINDOW_SIZE().getHeight());
         }
-        if (!SHAFT.Properties.flags.autoCloseDriverInstance()) options.setExperimentalOption("detach", true);
         //Incognito mode for Chrome and Edge
         if (SHAFT.Properties.web.incognitoMode()) {
             SHAFT.Properties.platform.set().enableBiDi(false);
@@ -399,18 +411,23 @@ public class OptionsManager {
                 options.addArguments("inPrivate");
             }
         }
-        Map<String, Object> chromePreferences = new HashMap<>();
-        chromePreferences.put("profile.default_content_settings.popups", 0);
-        chromePreferences.put("download.prompt_for_download", "false");
-        chromePreferences.put("download.default_directory", System.getProperty("user.dir") + File.separatorChar + SHAFT.Properties.paths.downloads().replace("/", File.separator));
-        options.setExperimentalOption("prefs", chromePreferences);
-        options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
-        options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
+        // optional capabilities and options
+        if (SHAFT.Properties.flags.automaticallyAddRecommendedChromeOptions()) {
+            Map<String, Object> chromePreferences = new HashMap<>();
+            chromePreferences.put("profile.default_content_settings.popups", 0);
+            chromePreferences.put("download.prompt_for_download", "false");
+            chromePreferences.put("download.default_directory", System.getProperty("user.dir") + File.separatorChar + SHAFT.Properties.paths.downloads().replace("/", File.separator));
+            options.setExperimentalOption("prefs", chromePreferences);
+            options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
+            options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
+            options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
+            options.setCapability(CapabilityType.ENABLE_DOWNLOADS, true);
+        }
+        // Timeouts and page load strategy
         if (DriverFactoryHelper.isNotMobileExecution())
             options.setPageLoadStrategy(this.pageLoadStrategy); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
         options.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
         options.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
-        options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
         //Add Proxy Setting if found
         String proxy = Properties.platform.proxy();
         if (SHAFT.Properties.platform.driverProxySettings() && !"".equals(proxy)) {
@@ -442,18 +459,20 @@ public class OptionsManager {
             options.setExperimentalOption("mobileEmulation", mobileEmulation);
         }
         // Enable BiDi
-        options.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+        if (SHAFT.Properties.platform.enableBiDi())
+            options.enableBiDi();
         //merge customWebdriverCapabilities.properties
         options = (ChromiumOptions<?>) options.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
         //merge hardcoded custom options
         if (customDriverOptions != null) {
             options = (ChromiumOptions<?>) options.merge(customDriverOptions);
         }
-
+        //detach Chrome instance if autoCloseDriverInstance is false
         if (!SHAFT.Properties.flags.autoCloseDriverInstance()) {
             @SuppressWarnings("unchecked") Map<Object, Object> chromeOptions = new HashMap<>((Map<Object, Object>) options.getCapability(ChromeOptions.CAPABILITY));
             chromeOptions.put("detach", true);
             options.setCapability(ChromeOptions.CAPABILITY, chromeOptions);
+            options.setExperimentalOption("detach", true);
         }
         return options;
     }
