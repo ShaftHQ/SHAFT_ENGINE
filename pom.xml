@@ -698,7 +698,11 @@
             <artifactId>logger-java-log4j</artifactId>
             <version>5.2.3</version>
         </dependency>
-
+        <dependency>
+            <groupId>org.apache.maven.surefire</groupId>
+            <artifactId>surefire-testng</artifactId>
+            <version>3.5.3</version>
+        </dependency>
     </dependencies>
 
     <build>
