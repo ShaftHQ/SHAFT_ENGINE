@@ -113,8 +113,38 @@ public class ValidationsHelper2 {
         reportValidationState(validationState.get(), expected, actual, driver, null, null);
     }
 
-    protected void validateElementAttribute(WebDriver driver, By locator, String attribute,
-                                            String expected, ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
+    protected void validateElementDomProperty(WebDriver driver, By locator, String domProperty,
+                                              String expected, ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
+        // read actual value based on desired attribute
+        // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
+        var elementInformation = ElementInformation.fromList(new ElementActionsHelper(true).identifyUniqueElementIgnoringVisibility(driver, locator));
+
+        AtomicReference<String> actual = new AtomicReference<>();
+        AtomicReference<Boolean> validationState = new AtomicReference<>();
+
+        try {
+            new SynchronizationManager(driver).fluentWait(false).until(f -> {
+                new Actions(driver, true).get().domAttribute(locator, domProperty);
+                validationState.set(performValidation(expected, actual.get(), type, validation));
+                return validationState.get();
+            });
+        } catch (TimeoutException timeoutException) {
+            //timeout was exhausted and the validation failed
+        }
+        //reporting block
+        List<Parameter> parameters = new ArrayList<>();
+        parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("DOM Attribute").setValue(domProperty).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Expected value").setValue(String.valueOf(expected)).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual)).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
+        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
+        reportValidationState(validationState.get(), expected, actual, driver, locator, null);
+    }
+
+    protected void validateElementDomAttribute(WebDriver driver, By locator, String attribute,
+                                               String expected, ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
         // read actual value based on desired attribute
         // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
         var elementInformation = ElementInformation.fromList(new ElementActionsHelper(true).identifyUniqueElementIgnoringVisibility(driver, locator));

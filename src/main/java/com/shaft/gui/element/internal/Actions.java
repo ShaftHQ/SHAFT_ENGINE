@@ -16,6 +16,7 @@ import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
 import com.shaft.gui.internal.locator.SmartLocators;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.support.JavaHelper;
+import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -37,6 +38,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
@@ -150,6 +152,12 @@ public class Actions extends ElementActions {
     @Override
     public Actions clear(@NonNull By locator) {
         performAction(ActionType.CLEAR, locator, null);
+        return this;
+    }
+
+    @Step("Drop file to upload")
+    public Actions dropFileToUpload(@NonNull By locator, @NonNull String filePath) {
+        performAction(ActionType.DROP_FILE_TO_UPLOAD, locator, filePath);
         return this;
     }
 
@@ -291,6 +299,28 @@ public class Actions extends ElementActions {
                                     .dragAndDropBy(foundElements.get().getFirst(),
                                             (int) ((ArrayList<?>) data).get(0),
                                             (int) ((ArrayList<?>) data).get(1)).perform();
+                    case DROP_FILE_TO_UPLOAD -> {
+                        // Prepare target file to be uploaded
+                        File file = new File((String) data);
+                        if(!file.exists())
+                            throw new RuntimeException("File not found: " + data);
+                        String absoluteFilePath = file.getAbsoluteFile().toString();
+
+                        // Prepare custom script to inject the upload input field with required parameters
+                        double offsetX = 0;
+                        double offsetY = 0;
+
+                        // Inject upload input field
+                        WebElement input;
+                        JavascriptExecutor javascriptExecutor = (JavascriptExecutor) driver;
+                        input = (WebElement) javascriptExecutor.executeScript(JavaScriptHelper.INJECT_INPUT_TO_UPLOAD_FILE_VIA_DROP_ACTION.getValue(), foundElements.get().getFirst(), offsetX, offsetY);
+
+                        // Ensure that the upload input field was created successfully
+                        assert input != null;
+
+                        // Use upload input field to send the file location for upload
+                        input.sendKeys(absoluteFilePath);
+                    }
                     case GET_DOM_ATTRIBUTE -> output.set(foundElements.get().getFirst().getDomAttribute((String) data));
                     case GET_DOM_PROPERTY -> output.set(foundElements.get().getFirst().getDomProperty((String) data));
                     case GET_CSS_VALUE -> output.set(foundElements.get().getFirst().getCssValue((String) data));
@@ -631,7 +661,7 @@ public class Actions extends ElementActions {
         }
     }
 
-    protected enum ActionType {HOVER, CLICK, JAVASCRIPT_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, JAVASCRIPT_SET_VALUE, CLEAR, DRAG_AND_DROP, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, DRAG_AND_DROP_BY_OFFSET, GET_SELECTED_TEXT, CLICK_AND_HOLD, DOUBLE_CLICK, GET_IS_SELECTED}
+    protected enum ActionType {HOVER, CLICK, JAVASCRIPT_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, JAVASCRIPT_SET_VALUE, CLEAR, DRAG_AND_DROP, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, DRAG_AND_DROP_BY_OFFSET, GET_SELECTED_TEXT, CLICK_AND_HOLD, DOUBLE_CLICK, GET_IS_SELECTED, DROP_FILE_TO_UPLOAD}
 
     public class GetElementInformation {
         protected GetElementInformation() {
