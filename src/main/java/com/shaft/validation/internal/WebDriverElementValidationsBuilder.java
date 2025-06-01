@@ -125,9 +125,20 @@ public class WebDriverElementValidationsBuilder {
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     public NativeValidationsBuilder attribute(String domAttribute) {
-        this.validationMethod = "elementAttributeEquals";
+        return domAttribute(domAttribute);
+    }
+
+    public NativeValidationsBuilder domAttribute(String domAttribute) {
+        this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = domAttribute;
         reportMessageBuilder.append("DOM attribute \"").append(domAttribute).append("\" ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    public NativeValidationsBuilder domProperty(String domProperty) {
+        this.validationMethod = "elementDomPropertyEquals";
+        this.elementAttribute = domProperty;
+        reportMessageBuilder.append("DOM property \"").append(domProperty).append("\" ");
         return new NativeValidationsBuilder(this);
     }
 
