@@ -575,11 +575,14 @@ public class FileActions {
 
     public void createFile(String folderPath, String fileName) {
         try {
+            FileUtils.deleteQuietly(new File(folderPath + fileName));
             FileUtils.forceMkdir(new File(folderPath));
             FileUtils.touch(new File(folderPath + fileName));
             passAction("Target Folder: \"" + folderPath + "\", Target File: \"" + fileName + "\"");
+        } catch (java.nio.file.FileAlreadyExistsException fileAlreadyExistsException) {
+            passAction("Target Folder: \"" + folderPath + "\", Target File: \"" + fileName + "\" already exists.");
         } catch (IOException rootCauseException) {
-            failAction(rootCauseException);
+            failAction("Target Folder: \"" + folderPath + "\", Target File: \"" + fileName + "\"", rootCauseException);
         }
     }
 
