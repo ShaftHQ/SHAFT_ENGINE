@@ -34,6 +34,7 @@ public class JavaScriptWaitManager {
             lazyLoadingThreads.add(Thread.ofVirtual().start(JavaScriptWaitManager::waitForJQuery));
             lazyLoadingThreads.add(Thread.ofVirtual().start(JavaScriptWaitManager::waitForAngular));
             lazyLoadingThreads.add(Thread.ofVirtual().start(JavaScriptWaitManager::waitForDocumentReadyState));
+            lazyLoadingThreads.add(Thread.ofVirtual().start(JavaScriptWaitManager::waitUntilNoActiveNetworkFetchRequests));
             lazyLoadingThreads.forEach(thread -> {
                 try {
                     thread.join();
@@ -42,6 +43,14 @@ public class JavaScriptWaitManager {
                 }
             });
         }
+    }
+
+    private static void waitUntilNoActiveNetworkFetchRequests() {
+        //Wait for active requests to be zero
+        new SynchronizationManager(jsWaitDriver.get()).fluentWait().until(f -> {
+            var returnedValue = jsExec.get().executeScript("return window.performance.getEntriesByType('resource').filter(r => r.responseEnd === '0' && (r.initiatorType === 'xmlhttprequest' || r.initiatorType === 'fetch')).length");
+            return (Integer.parseInt(String.valueOf(returnedValue)) == 0);
+        });
     }
 
     private static void waitForDocumentReadyState() {
