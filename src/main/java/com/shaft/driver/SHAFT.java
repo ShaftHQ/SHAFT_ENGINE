@@ -50,8 +50,10 @@ public class SHAFT {
             }
 
             public void quit() {
-                helper.closeDriver();
-                factory.setHelper(null);
+                if (helper != null)
+                    helper.closeDriver();
+                if (factory != null)
+                    factory.setHelper(null);
                 helper = null;
                 factory = null;
             }
