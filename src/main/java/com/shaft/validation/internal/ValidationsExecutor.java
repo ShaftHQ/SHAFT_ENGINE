@@ -175,8 +175,6 @@ public class ValidationsExecutor {
                     new ValidationsHelper2(validationCategory).validateElementDomAttribute(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "elementDomPropertyEquals" ->
                     new ValidationsHelper2(validationCategory).validateElementDomProperty(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
-            case "elementPropertyEquals" ->
-                    new ValidationsHelper2(validationCategory).validateElementProperty(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "elementCssPropertyEquals" ->
                     new ValidationsHelper2(validationCategory).validateElementCSSProperty(driver.get(), locator, elementCssProperty, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "browserAttributeEquals" ->
