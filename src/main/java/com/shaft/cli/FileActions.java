@@ -310,11 +310,7 @@ public class FileActions {
         String absoluteFilePath = (new File(filePath)).getAbsolutePath();
         try {
             Path targetFilePath = Paths.get(absoluteFilePath);
-            Path parentDir = targetFilePath.getParent();
-            if (!parentDir.toFile().exists()) {
-                Files.createDirectories(parentDir);
-            }
-            Files.write(targetFilePath, content);
+            FileUtils.writeByteArrayToFile(targetFilePath.toFile(), content);
             passAction("Target File Path: \"" + targetFilePath + "\"", Arrays.toString(content));
         } catch (InvalidPathException | IOException rootCauseException) {
             failAction("Folder Name: \"" + filePath + "\".", rootCauseException);
