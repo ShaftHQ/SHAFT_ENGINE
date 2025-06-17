@@ -7,24 +7,12 @@ import org.openqa.selenium.remote.http.Contents;
 import org.openqa.selenium.remote.http.HttpMethod;
 import org.openqa.selenium.remote.http.HttpRequest;
 import org.openqa.selenium.remote.http.HttpResponse;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import testPackage.Tests;
 
 import java.util.function.Predicate;
 
-public class NetworkInterceptionTest {
-    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
-
-    @BeforeMethod
-    public void setup() {
-        driver.set(new SHAFT.GUI.WebDriver());
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void tearDown() {
-        driver.get().quit();
-    }
+public class NetworkInterceptionTest extends Tests {
 
     @Test
     public void interceptShaftLogoAndReplaceItWithYoutubeLogo() {
