@@ -43,7 +43,7 @@ jobs:
       # Attempt to create a GitHub release using the version in the pom.xml, if this release already exists, this job will fail fast
       - name: Create GitHub Release
         id: create_release
-        uses: ncipollo/release-action@v1.16.0
+        uses: ncipollo/release-action@v1.18.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
