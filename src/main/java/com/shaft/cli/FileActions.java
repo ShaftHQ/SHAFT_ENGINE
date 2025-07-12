@@ -310,11 +310,7 @@ public class FileActions {
         String absoluteFilePath = (new File(filePath)).getAbsolutePath();
         try {
             Path targetFilePath = Paths.get(absoluteFilePath);
-            Path parentDir = targetFilePath.getParent();
-            if (!parentDir.toFile().exists()) {
-                Files.createDirectories(parentDir);
-            }
-            Files.write(targetFilePath, content);
+            FileUtils.writeByteArrayToFile(targetFilePath.toFile(), content);
             passAction("Target File Path: \"" + targetFilePath + "\"", Arrays.toString(content));
         } catch (InvalidPathException | IOException rootCauseException) {
             failAction("Folder Name: \"" + filePath + "\".", rootCauseException);
@@ -575,11 +571,14 @@ public class FileActions {
 
     public void createFile(String folderPath, String fileName) {
         try {
+            FileUtils.deleteQuietly(new File(folderPath + fileName));
             FileUtils.forceMkdir(new File(folderPath));
             FileUtils.touch(new File(folderPath + fileName));
             passAction("Target Folder: \"" + folderPath + "\", Target File: \"" + fileName + "\"");
+        } catch (java.nio.file.FileAlreadyExistsException fileAlreadyExistsException) {
+            passAction("Target Folder: \"" + folderPath + "\", Target File: \"" + fileName + "\" already exists.");
         } catch (IOException rootCauseException) {
-            failAction(rootCauseException);
+            failAction("Target Folder: \"" + folderPath + "\", Target File: \"" + fileName + "\"", rootCauseException);
         }
     }
 

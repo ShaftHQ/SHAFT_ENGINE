@@ -1,17 +1,14 @@
 package testPackage.legacy;
 
-import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import poms.GoogleSearch;
+import testPackage.Tests;
 
-public class AssertEqualsTests {
-    // Declaring webdriver instance
-    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
+public class AssertEqualsTests extends Tests {
 
     @Test
     public void test_assertElementAttribute() {
@@ -40,12 +37,6 @@ public class AssertEqualsTests {
 
     @BeforeMethod // Set-up method, to be run once before the first test
     public void beforeMethod() {
-        driver.set(new SHAFT.GUI.WebDriver());
         new BrowserActions(driver.get().getDriver()).navigateToURL("https://www.google.com/ncr", "https://www.google.com/");
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void afterMethod() {
-        new BrowserActions(driver.get().getDriver()).closeCurrentWindow();
     }
 }
