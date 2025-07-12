@@ -574,11 +574,15 @@ public class BrowserActions extends FluentWebDriverAction {
         ReportManager.logDiscrete("Attempting to configure network interceptor for \"" + requestPredicate + "\", will provide mocked response.");
         ReportManagerHelper.attach("HTTP Response", "Mocked HTTP Response", String.valueOf(mockedResponse));
         try {
-            NetworkInterceptor networkInterceptor = new NetworkInterceptor(
-                    driver,
-                    Route.matching(requestPredicate)
-                            .to(() -> req -> mockedResponse));
-            browserActionsHelper.passAction(driver, "Successfully configured network interceptor.");
+            if (driver instanceof HasDevTools hasDevTools) {
+                NetworkInterceptor networkInterceptor = new NetworkInterceptor(
+                        driver,
+                        Route.matching(requestPredicate)
+                                .to(() -> req -> mockedResponse));
+                browserActionsHelper.passAction(driver, "Successfully configured network interceptor.");
+            } else {
+                browserActionsHelper.failAction(driver, "Network Interceptor is not supported by the current driver type.");
+            }
         } catch (Exception rootCauseException) {
             browserActionsHelper.failAction(rootCauseException);
         }

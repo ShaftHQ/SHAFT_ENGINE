@@ -12,16 +12,14 @@ import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.remote.Augmenter;
 import org.openqa.selenium.remote.Browser;
 import org.openqa.selenium.remote.RemoteWebDriver;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import testPackage.Tests;
 
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class BasicAuthenticationTests {
-    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
+public class BasicAuthenticationTests extends Tests {
 
     @Test
     public void basicAuthentication_traditional(){
@@ -74,19 +72,4 @@ public class BasicAuthenticationTests {
         SHAFT.Validations.assertThat().object(text).equals("Congratulations! You must have the proper credentials.");
     }
 
-    @BeforeMethod
-    public void beforeMethod(){
-        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
-                || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
-            driver.set(new SHAFT.GUI.WebDriver());
-        }
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void afterMethod(){
-        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
-                || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
-            driver.get().quit();
-        }
-    }
 }

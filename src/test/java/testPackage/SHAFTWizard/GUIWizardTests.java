@@ -5,14 +5,13 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
 import poms.GoogleSearch;
+import testPackage.Tests;
 
-public class GUIWizardTests {
-    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
+public class GUIWizardTests extends Tests {
     SHAFT.TestData.JSON testData;
 
     By searchBox = GoogleSearch.getSearchBox_textField();
@@ -79,15 +78,8 @@ public class GUIWizardTests {
 
     }
 
-
-    @BeforeMethod
-    public void beforeMethod() {
-        driver.set(new SHAFT.GUI.WebDriver());
+    @BeforeClass
+    public void beforeClass() {
         testData = new SHAFT.TestData.JSON("simpleJSON.json");
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void afterMethod() {
-        driver.get().quit();
     }
 }

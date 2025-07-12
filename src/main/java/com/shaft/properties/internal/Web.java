@@ -74,12 +74,12 @@ public interface Web extends EngineProperties<Web> {
 
     // none, eager, or normal
     @Key("pageLoadStrategy")
-    @DefaultValue("NONE")
+    @DefaultValue("eager")
     String pageLoadStrategy();
 
     // interactive, none, or complete
     @Key("readinessState")
-    @DefaultValue("NONE")
+    @DefaultValue("interactive")
     String readinessState();
 
     default SetProperty set() {

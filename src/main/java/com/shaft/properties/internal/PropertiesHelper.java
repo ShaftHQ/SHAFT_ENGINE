@@ -100,9 +100,13 @@ public class PropertiesHelper {
 
     private static void overrideScreenScalingFactorForWindows() {
         if (Properties.platform.targetPlatform().equalsIgnoreCase(org.openqa.selenium.Platform.WINDOWS.toString())) {
-            int res = Toolkit.getDefaultToolkit().getScreenResolution();
-            double scale = (double)res/96;
-            Properties.visuals.set().screenshotParamsScalingFactor(scale);
+            try {
+                int res = Toolkit.getDefaultToolkit().getScreenResolution();
+                double scale = (double) res / 96;
+                Properties.visuals.set().screenshotParamsScalingFactor(scale);
+            } catch (java.awt.HeadlessException headlessException) {
+                //ignore the exception if running in headless OS => used by claude
+            }
         }
     }
 
@@ -177,10 +181,25 @@ public class PropertiesHelper {
 
         var fileActions = FileActions.getInstance(true);
         // always override default properties
-        if (isExternalRun) {
-            fileActions.copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
+        if (FileActions.getInstance(true).doesFileExist(propertiesFolderPath)){
+            if (isExternalRun) {
+                fileActions.copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
+            } else {
+                fileActions.copyFolder(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
+            }
         } else {
-            fileActions.copyFolder(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
+            ReportManager.logDiscrete("Downloading default properties to user.home...");
+
+            propertiesFolderPath = System.getProperty("user.home") + File.separator + "SHAFT" + File.separator + "properties";
+            Properties.paths.set().properties(propertiesFolderPath);
+
+            Arrays.asList(
+                    "TestNG.properties",
+                    "cucumber.properties",
+                    "customWebdriverCapabilities.properties",
+                    "junit-platform.properties",
+                    "log4j2.properties",
+                    "reportportal.properties").forEach(PropertiesHelper::downloadPropertiesFile);
         }
 
         // override target properties only if they do not exist
@@ -195,6 +214,12 @@ public class PropertiesHelper {
                         }
                     }
                 });
+    }
+
+    private static void downloadPropertiesFile(String fileName){
+        var baseURI = "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/main/src/main/resources/properties/default/";
+        FileActions.getInstance(true).downloadFile(baseURI + fileName,
+                PropertyFileManager.getCUSTOM_PROPERTIES_FOLDER_PATH() + File.separator + fileName);
     }
 
     private static void attachPropertyFiles() {

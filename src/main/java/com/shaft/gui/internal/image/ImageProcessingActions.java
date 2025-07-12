@@ -388,7 +388,7 @@ public class ImageProcessingActions {
         if (FileActions.getInstance(true).doesFileExist(referenceImagePath)) {
             return FileActions.getInstance(true).readFileAsByteArray(referenceImagePath);
         } else {
-            return new byte[0];
+            return null;
         }
     }
 
@@ -409,9 +409,7 @@ public class ImageProcessingActions {
             String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
             String resultingImagePath = aiFolderPath + hashedLocatorName + "_shutterbug";
 
-            boolean doesReferenceFileExist = FileActions.getInstance(true).doesFileExist(referenceImagePath);
-
-            if (doesReferenceFileExist && (elementScreenshot != null && elementScreenshot.length > 0)) {
+            if (getReferenceImage(elementLocator) !=null && elementScreenshot != null && elementScreenshot.length > 0) {
                 boolean actualResult = false;
                 try {
                     var snapshot = Shutterbug.shootElement(driver, elementLocator, CaptureElement.VIEWPORT, true);
