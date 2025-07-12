@@ -26,9 +26,9 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void onError(Object target, Method method, Object[] args, InvocationTargetException e) {
-        ReportManager.log(JavaHelper.convertToSentenceCase(method.getName()) + " action failed.");
+//        ReportManager.log(JavaHelper.convertToSentenceCase(method.getName()) + " action failed.");
 //        ReportManagerHelper.attach(ScreenshotManager.takeScreenshot(currentWebDriver, null, method.getName(), false));
-        ReportManagerHelper.logDiscrete(e);
+//        ReportManagerHelper.logDiscrete(e);
     }
 
     // WebDriver

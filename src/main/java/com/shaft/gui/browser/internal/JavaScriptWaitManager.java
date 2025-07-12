@@ -11,30 +11,21 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 public class JavaScriptWaitManager {
-    private static final ThreadLocal<WebDriver> jsWaitDriver = new ThreadLocal<>();
-    private static final ThreadLocal<JavascriptExecutor> jsExec = new ThreadLocal<>();
-
     private JavaScriptWaitManager() {
         throw new IllegalStateException("Utility class");
-    }
-
-    private static void setDriver(WebDriver driver) {
-        jsWaitDriver.set(driver);
-        jsExec.set((JavascriptExecutor) jsWaitDriver.get());
     }
 
     /**
      * Waits for jQuery, Angular, and/or Javascript if present on the current page.
      */
     public static void waitForLazyLoading(WebDriver driver) {
-        setDriver(driver);
         if (SHAFT.Properties.timeouts.waitForLazyLoading()
                 && !DriverFactoryHelper.isMobileNativeExecution()) {
             ArrayList<Thread> lazyLoadingThreads = new ArrayList<>();
-            lazyLoadingThreads.add(Thread.ofVirtual().start(JavaScriptWaitManager::waitForJQuery));
-            lazyLoadingThreads.add(Thread.ofVirtual().start(JavaScriptWaitManager::waitForAngular));
-            lazyLoadingThreads.add(Thread.ofVirtual().start(JavaScriptWaitManager::waitForDocumentReadyState));
-            lazyLoadingThreads.add(Thread.ofVirtual().start(JavaScriptWaitManager::waitUntilNoActiveNetworkFetchRequests));
+            lazyLoadingThreads.add(Thread.ofVirtual().start(() -> waitForJQuery(driver)));
+            lazyLoadingThreads.add(Thread.ofVirtual().start(() -> waitForAngular(driver)));
+            lazyLoadingThreads.add(Thread.ofVirtual().start(() -> waitForDocumentReadyState(driver)));
+            lazyLoadingThreads.add(Thread.ofVirtual().start(() -> waitUntilNoActiveNetworkFetchRequests(driver)));
             lazyLoadingThreads.forEach(thread -> {
                 try {
                     thread.join();
@@ -45,47 +36,59 @@ public class JavaScriptWaitManager {
         }
     }
 
-    private static void waitUntilNoActiveNetworkFetchRequests() {
+    private static void waitUntilNoActiveNetworkFetchRequests(WebDriver driver) {
         //Wait for active requests to be zero
-        new SynchronizationManager(jsWaitDriver.get()).fluentWait().until(f -> {
-            var returnedValue = jsExec.get().executeScript("return window.performance.getEntriesByType('resource').filter(r => r.responseEnd === '0' && (r.initiatorType === 'xmlhttprequest' || r.initiatorType === 'fetch')).length");
-            return (Integer.parseInt(String.valueOf(returnedValue)) == 0);
+        new SynchronizationManager(driver).fluentWait().until(f -> {
+            if (f instanceof JavascriptExecutor javascriptExecutor) {
+                var returnedValue = javascriptExecutor.executeScript("return window.performance.getEntriesByType('resource').filter(r => r.responseEnd === '0' && (r.initiatorType === 'xmlhttprequest' || r.initiatorType === 'fetch')).length");
+                return (Integer.parseInt(String.valueOf(returnedValue)) == 0);
+            }
+            return true;
         });
     }
 
-    private static void waitForDocumentReadyState() {
-        new SynchronizationManager(jsWaitDriver.get()).fluentWait().until(f -> {
-            try {
-                var ready = Arrays.asList("loaded", "complete");
-                return ready.contains(jsExec.get().executeScript(JavaScriptHelper.DOCUMENT_READY_STATE.getValue()).toString());
-            } catch (Exception exception) {
-                // force return in case of unexpected exception
-                return true;
+    private static void waitForDocumentReadyState(WebDriver driver) {
+        new SynchronizationManager(driver).fluentWait().until(f -> {
+            if (f instanceof JavascriptExecutor javascriptExecutor) {
+                try {
+                    var ready = Arrays.asList("loaded", "complete");
+                    return ready.contains(String.valueOf(javascriptExecutor.executeScript(JavaScriptHelper.DOCUMENT_READY_STATE.getValue())));
+                } catch (Exception exception) {
+                    // force return in case of unexpected exception
+                    return true;
+                }
             }
+            return true;
         });
     }
 
-    private static void waitForJQuery() {
-        new SynchronizationManager(jsWaitDriver.get()).fluentWait().until(f -> {
-            try {
-                return Long.parseLong(jsExec.get().executeScript(JavaScriptHelper.JQUERY_ACTIVE_STATE.getValue()).toString()) == 0;
-            } catch (Exception exception) {
-                // force return in case of unexpected exception
-                // org.openqa.selenium.JavascriptException: javascript error: jQuery is not defined
-                return true;
+    private static void waitForJQuery(WebDriver driver) {
+        new SynchronizationManager(driver).fluentWait().until(f -> {
+            if (f instanceof JavascriptExecutor javascriptExecutor) {
+                try {
+                    return Long.parseLong(String.valueOf(javascriptExecutor.executeScript(JavaScriptHelper.JQUERY_ACTIVE_STATE.getValue()))) == 0;
+                } catch (Exception exception) {
+                    // force return in case of unexpected exception
+                    // org.openqa.selenium.JavascriptException: javascript error: jQuery is not defined
+                    return true;
+                }
             }
+            return true;
         });
     }
 
-    private static void waitForAngular() {
-        new SynchronizationManager(jsWaitDriver.get()).fluentWait().until(f -> {
-            try {
-                return Long.parseLong(jsExec.get().executeScript(JavaScriptHelper.ANGULAR_READY_STATE.getValue()).toString()) == 0;
-            } catch (Exception exception) {
-                // force return in case of unexpected exception
-                // org.openqa.selenium.JavascriptException: javascript error: angular is not defined
-                return true;
+    private static void waitForAngular(WebDriver driver) {
+        new SynchronizationManager(driver).fluentWait().until(f -> {
+            if (f instanceof JavascriptExecutor javascriptExecutor) {
+                try {
+                    return Long.parseLong(String.valueOf(javascriptExecutor.executeScript(JavaScriptHelper.ANGULAR_READY_STATE.getValue()))) == 0;
+                } catch (Exception exception) {
+                    // force return in case of unexpected exception
+                    // org.openqa.selenium.JavascriptException: javascript error: angular is not defined
+                    return true;
+                }
             }
+            return true;
         });
     }
 }

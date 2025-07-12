@@ -230,7 +230,12 @@ public class ElementActionsHelper {
                     elementInformation.add(driver.findElement(elementLocator));
                     return true;
                 }
-                new Actions(driver).scrollByAmount(0, driver.manage().window().getSize().getHeight()).perform();
+                try {
+                    new Actions(driver).scrollByAmount(0, driver.manage().window().getSize().getHeight()).perform();
+                } catch (WebDriverException webDriverException) {
+                    // this can happen on firefox or if any browser isn't using the actions API properly
+                    ((JavascriptExecutor) driver).executeScript("return window.scrollBy(0, arguments[0]);", driver.manage().window().getSize().getHeight());
+                }
                 return false;
             });
             if (!elementFound) {

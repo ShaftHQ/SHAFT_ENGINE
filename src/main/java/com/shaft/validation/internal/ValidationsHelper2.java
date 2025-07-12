@@ -275,6 +275,8 @@ public class ValidationsHelper2 {
                 } catch (WebDriverException webDriverException) {
                     if (Objects.requireNonNull(webDriverException.getMessage()).contains("Cannot take screenshot with 0 width.")) {
                         throw new NoSuchElementException("Cannot take screenshot with 0 width.");
+                    } else if (Objects.requireNonNull(webDriverException.getMessage()).contains("NS_ERROR_FAILURE")) {
+                        return false; // force the wait block to try again in case of unknown error with firefox
                     } else {
                         throw webDriverException;
                     }
