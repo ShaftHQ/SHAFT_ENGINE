@@ -1,4 +1,4 @@
-![image](https://github.com/user-attachments/assets/7e9276b5-bc11-4f9d-9bc1-545c5116a8ab)<!-- Badges provided by https://shields.io/ -->
+<!-- Badges provided by https://shields.io/ -->
 
 <h1>
 <picture>
