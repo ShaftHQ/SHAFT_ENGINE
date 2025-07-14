@@ -910,50 +910,50 @@
             <!--                    </execution>-->
             <!--                </executions>-->
             <!--            </plugin>-->
-<!--            <plugin>-->
-<!--                <groupId>org.sonatype.central</groupId>-->
-<!--                <artifactId>central-publishing-maven-plugin</artifactId>-->
-<!--                <version>0.8.0</version>-->
-<!--                <extensions>true</extensions>-->
-<!--                <configuration>-->
-<!--                    <publishingServerId>central</publishingServerId>-->
-<!--                    <centralBaseUrl>https://central.sonatype.com</centralBaseUrl>-->
-<!--                    <tokenAuth>true</tokenAuth>-->
-<!--                    <autoPublish>true</autoPublish>-->
-<!--                    <waitUntil>published</waitUntil>-->
-<!--                    <waitMaxTime>3600</waitMaxTime> &lt;!&ndash; one hour &ndash;&gt;-->
-<!--                </configuration>-->
-<!--            </plugin>-->
-<!--            <plugin>-->
-<!--                &lt;!&ndash; https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-gpg-plugin &ndash;&gt;-->
-<!--                <groupId>org.apache.maven.plugins</groupId>-->
-<!--                <artifactId>maven-gpg-plugin</artifactId>-->
-<!--                <version>3.2.8</version>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <id>sign-artifacts</id>-->
-<!--                        <phase>verify</phase>-->
-<!--                        <goals>-->
-<!--                            <goal>sign</goal>-->
-<!--                        </goals>-->
-<!--                        <configuration>-->
-<!--                            <keyname>${gpg.keyname}</keyname>-->
-<!--                            <passphrase>${gpg.passphrase}</passphrase>-->
-<!--                            &lt;!&ndash; Prevent gpg from using pinentry programs &ndash;&gt;-->
-<!--                            <gpgArguments>-->
-<!--                                <arg>&#45;&#45;pinentry-mode</arg>-->
-<!--                                <arg>loopback</arg>-->
-<!--                            </gpgArguments>-->
-<!--                            &lt;!&ndash; Follow these steps: https://www.git-tower.com/blog/setting-up-gpg-windows/ &ndash;&gt;-->
-<!--                            &lt;!&ndash; In case you get `gpg: skipped "xxxxxx": No secret key` error-->
-<!--                            navigate to where gpg is installed, usually here `C:\Program Files (x86)\GnuPG\bin`-->
-<!--                            then copy/paste/rename `gpg.exe` to `gpg2.exe`-->
-<!--                            run `git config {DASH_DASH}global gpg.program "C:\Program Files (x86)\GnuPG\bin\gpg2.exe"`-->
-<!--                            then try again &ndash;&gt;-->
-<!--                        </configuration>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--            </plugin>-->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.8.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <centralBaseUrl>https://central.sonatype.com</centralBaseUrl>
+                    <tokenAuth>true</tokenAuth>
+                    <autoPublish>true</autoPublish>
+                    <waitUntil>published</waitUntil>
+                    <waitMaxTime>3600</waitMaxTime> <!-- one hour -->
+                </configuration>
+            </plugin>
+            <plugin>
+                <!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-gpg-plugin -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.2.8</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                        <configuration>
+                            <keyname>${gpg.keyname}</keyname>
+                            <passphrase>${gpg.passphrase}</passphrase>
+                            <!-- Prevent gpg from using pinentry programs -->
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                            <!-- Follow these steps: https://www.git-tower.com/blog/setting-up-gpg-windows/ -->
+                            <!-- In case you get `gpg: skipped "xxxxxx": No secret key` error
+                            navigate to where gpg is installed, usually here `C:\Program Files (x86)\GnuPG\bin`
+                            then copy/paste/rename `gpg.exe` to `gpg2.exe`
+                            run `git config {DASH_DASH}global gpg.program "C:\Program Files (x86)\GnuPG\bin\gpg2.exe"`
+                            then try again -->
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
