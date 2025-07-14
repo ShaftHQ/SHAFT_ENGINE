@@ -12,6 +12,7 @@ import org.openqa.selenium.remote.Browser;
 
 import java.awt.*;
 import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.util.Arrays;
 
@@ -82,10 +83,10 @@ public class PropertiesHelper {
         setClearBeforeTypingMode();
     }
 
-    public static void setClearBeforeTypingMode(){
+    public static void setClearBeforeTypingMode() {
         if (!Properties.flags.attemptClearBeforeTyping()) {
             SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
-            return ;
+            return;
         }
 
         if (Properties.flags.attemptClearBeforeTypingUsingBackspace() || SHAFT.Properties.flags.clearBeforeTypingMode().equals("backspace")) {
@@ -177,49 +178,59 @@ public class PropertiesHelper {
             propertiesFolderPath = DEFAULT_PROPERTIES_FOLDER_PATH;
         }
 
-        boolean isExternalRun = propertiesFolderPath.contains("file:");
+//        boolean isExternalRun = propertiesFolderPath.contains("file:");
+        boolean isExternalRun = !propertiesFolderPath.equals(DEFAULT_PROPERTIES_FOLDER_PATH);
 
         var fileActions = FileActions.getInstance(true);
+
         // always override default properties
-        if (FileActions.getInstance(true).doesFileExist(propertiesFolderPath)){
-            if (isExternalRun) {
-                fileActions.copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
-            } else {
-                fileActions.copyFolder(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
+        if (isExternalRun) {
+            fileActions.createFolder(propertiesFolderPath);
+            try {
+                if (propertiesFolderPath.contains("file:")) {
+                    fileActions.copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
+                } else {
+                    throw new IOException("Properties folder path does not contain 'file:' protocol, indicating it is not running from a jar file.");
+                }
+            } catch (Throwable ignored) {
+                ReportManager.logDiscrete("Failed to copy default properties from jar.");
+                ReportManager.logDiscrete("Downloading default properties to user.home...");
+
+                propertiesFolderPath = "target" + File.separator + "temp" + File.separator + "properties";
+                Properties.paths.set().properties(propertiesFolderPath);
+
+                Arrays.asList(
+                        "TestNG.properties",
+                        "cucumber.properties",
+                        "customWebdriverCapabilities.properties",
+                        "junit-platform.properties",
+                        "log4j2.properties",
+                        "reportportal.properties").forEach(PropertiesHelper::downloadPropertiesFile);
             }
-        } else {
-            ReportManager.logDiscrete("Downloading default properties to user.home...");
-
-            propertiesFolderPath = System.getProperty("user.home") + File.separator + "SHAFT" + File.separator + "properties";
-            Properties.paths.set().properties(propertiesFolderPath);
-
-            Arrays.asList(
-                    "TestNG.properties",
-                    "cucumber.properties",
-                    "customWebdriverCapabilities.properties",
-                    "junit-platform.properties",
-                    "log4j2.properties",
-                    "reportportal.properties").forEach(PropertiesHelper::downloadPropertiesFile);
         }
-
         // override target properties only if they do not exist
-        var finalPropertiesFolderPath = propertiesFolderPath;
+        var finalPropertiesFolderPath = propertiesFolderPath.replace("/default","");
         Arrays.asList("/cucumber.properties", "/customWebdriverCapabilities.properties", "/log4j2.properties", "/TestNG.properties", "/reportportal.properties", "/junit-platform.properties")
                 .forEach(file -> {
                     if (!fileActions.doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + file)) {
-                        if (isExternalRun) {
-                            fileActions.copyFileFromJar(finalPropertiesFolderPath, TARGET_PROPERTIES_FOLDER_PATH, file.replace("/", ""));
-                        } else {
+                        try {
+                            if (finalPropertiesFolderPath.contains("file:")) {
+                                fileActions.copyFileFromJar(finalPropertiesFolderPath, TARGET_PROPERTIES_FOLDER_PATH, file.replace("/", ""));
+                            } else {
+                                throw new IOException("Properties folder path does not contain 'file:' protocol, indicating it is not running from a jar file.");
+                            }
+                        } catch (Throwable ignored) {
                             fileActions.copyFile(finalPropertiesFolderPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);
                         }
                     }
                 });
+        Properties.paths.set().properties(TARGET_PROPERTIES_FOLDER_PATH);
     }
 
-    private static void downloadPropertiesFile(String fileName){
+    private static void downloadPropertiesFile(String fileName) {
         var baseURI = "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/main/src/main/resources/properties/default/";
         FileActions.getInstance(true).downloadFile(baseURI + fileName,
-                PropertyFileManager.getCUSTOM_PROPERTIES_FOLDER_PATH() + File.separator + fileName);
+                Properties.paths.properties() + File.separator + fileName);
     }
 
     private static void attachPropertyFiles() {

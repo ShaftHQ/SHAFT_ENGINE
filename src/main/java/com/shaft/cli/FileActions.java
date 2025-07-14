@@ -634,11 +634,11 @@ public class FileActions {
     public URL downloadFile(String targetFileURL, String destinationFilePath, int connectionTimeout,
                             int readTimeout) {
         if (targetFileURL != null && destinationFilePath != null) {
-            // force logging
+            // force discrete logging
             boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(false);
             try {
-                ReportManager.log("Downloading a file from this url \"" + targetFileURL + "\" to this directory \""
+                ReportManager.logDiscrete("Downloading a file from this url \"" + targetFileURL + "\" to this directory \""
                         + destinationFilePath + "\", please wait as downloading may take some time...");
                 FileUtils.copyURLToFile(URI.create(targetFileURL).toURL(), new File(destinationFilePath), connectionTimeout,
                         readTimeout);
