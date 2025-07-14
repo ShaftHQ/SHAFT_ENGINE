@@ -5,6 +5,7 @@ import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.SystemUtils;
 
 import java.io.File;
@@ -159,10 +160,15 @@ public class AllureManager {
         }
     }
 
+    @SneakyThrows
     private static void overrideAllurePluginConfiguration() {
         String allureVersion = SHAFT.Properties.internal.allureVersion();
         // extract allure from SHAFT_Engine jar
         URL allureSHAFTConfigArchive = ReportManagerHelper.class.getResource("/resources/allure/allureBinary_SHAFTEngineConfigFiles.zip");
+        if (allureSHAFTConfigArchive == null) {
+            //Internal engine run.
+            allureSHAFTConfigArchive = new File("src/main/resources/allure/allureBinary_SHAFTEngineConfigFiles.zip").toURI().toURL();
+        }
         internalFileSession.unpackArchive(allureSHAFTConfigArchive,
                 allureExtractionLocation + "allure-" + allureVersion + File.separator);
         // deleting custom-logo.svg to avoid generating extra folder with report in single mode
