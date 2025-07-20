@@ -58,6 +58,14 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+                 <!-- https://mvnrepository.com/artifact/io.cucumber/cucumber-bom -->
+                  <dependency>
+                      <groupId>io.cucumber</groupId>
+                      <artifactId>cucumber-bom</artifactId>
+                      <version>7.26.0</version>
+                      <type>pom</type>
+                      <scope>test</scope>
+                  </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -165,12 +173,10 @@
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-java</artifactId>
-            <version>7.26.0</version>
         </dependency>
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-testng</artifactId>
-            <version>7.25.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.testng</groupId>
@@ -189,7 +195,6 @@
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-picocontainer</artifactId>
-            <version>7.25.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.cucumber</groupId>
