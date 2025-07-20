@@ -134,6 +134,9 @@ public class OptionsManager {
                     ieOptions.setCapability(InternetExplorerDriver.IE_ENSURE_CLEAN_SESSION, true);
                     ieOptions.setCapability("applicationCacheEnabled", false);
                 }
+                if (SHAFT.Properties.flags.disableSslCertificateCheck()) {
+                    ieOptions.setCapability("acceptInsecureCerts",true);
+                }
                 //merge customWebDriverCapabilities.properties
                 ieOptions = ieOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
                 //merge hardcoded custom options

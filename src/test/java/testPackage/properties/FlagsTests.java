@@ -23,6 +23,7 @@ public class FlagsTests {
     boolean attemptToClickBeforeTyping ;
     boolean disableCache ;
     boolean enableTrueNativeMode ;
+    boolean disableSSLCertificateCheck;
 
 
     @BeforeClass
@@ -44,6 +45,7 @@ public class FlagsTests {
         attemptToClickBeforeTyping = SHAFT.Properties.flags.attemptToClickBeforeTyping();
         disableCache = SHAFT.Properties.flags.disableCache();
         enableTrueNativeMode = SHAFT.Properties.flags.enableTrueNativeMode();
+        disableSSLCertificateCheck = SHAFT.Properties.flags.disableSslCertificateCheck();
 
     }
 
@@ -66,6 +68,7 @@ public class FlagsTests {
         SHAFT.Properties.flags.set().disableCache(disableCache);
         SHAFT.Properties.flags.set().enableTrueNativeMode(enableTrueNativeMode);
         SHAFT.Properties.flags.set().attemptClearBeforeTyping(attemptClearBeforeTyping);
+        SHAFT.Properties.flags.set().disableSslCertificateCheck(disableSSLCertificateCheck);
 
     }
 }

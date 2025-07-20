@@ -105,7 +105,7 @@ public interface Flags extends EngineProperties<Flags> {
     boolean validateSwipeToElement();
 
     @Key("disableSslCertificateCheck")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean disableSslCertificateCheck();
 
     default SetProperty set() {
@@ -236,6 +236,11 @@ public interface Flags extends EngineProperties<Flags> {
 
         public SetProperty validateSwipeToElement(boolean value) {
             setProperty("validateSwipeToElement", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty disableSslCertificateCheck(boolean value) {
+            setProperty("disableSslCertificateCheck", String.valueOf(value));
             return this;
         }
 
