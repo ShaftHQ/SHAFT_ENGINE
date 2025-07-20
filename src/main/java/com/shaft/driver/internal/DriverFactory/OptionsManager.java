@@ -99,6 +99,11 @@ public class OptionsManager {
                     proxy.setSslProxy(proxyServerSettings);
                     ffOptions.setProxy(proxy);
                 }
+                //disable SSL certificates check
+                if(SHAFT.Properties.flags.disableSslCertificateCheck())
+                {
+                    ffOptions.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS,true);
+                }
                 ffOptions.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
                 // Enable BiDi
                 ffOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
@@ -164,6 +169,11 @@ public class OptionsManager {
                 }
                 if (SHAFT.Properties.flags.disableCache()) {
                     sfOptions.setCapability("safari:cleanSession", "true");
+                }
+                //disable SSL certificate check
+                if(SHAFT.Properties.flags.disableSslCertificateCheck())
+                {
+                    sfOptions.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS,true);
                 }
                 //merge customWebDriverCapabilities.properties
                 sfOptions = sfOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
@@ -473,6 +483,11 @@ public class OptionsManager {
             chromeOptions.put("detach", true);
             options.setCapability(ChromeOptions.CAPABILITY, chromeOptions);
             options.setExperimentalOption("detach", true);
+        }
+        //disable SSL certificate check
+        if(SHAFT.Properties.flags.disableSslCertificateCheck())
+        {
+            options.addArguments("ignore-certificate-errors");
         }
         return options;
     }
