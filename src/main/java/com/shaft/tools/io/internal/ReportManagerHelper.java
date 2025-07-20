@@ -549,7 +549,7 @@ public class ReportManagerHelper {
         createLogEntry(logText, true);
         if (attachments != null && !attachments.isEmpty()) {
             attachments.forEach(attachment -> {
-                if (attachment != null && !attachment.isEmpty() && attachment.get(2).getClass().toString().toLowerCase().contains("string")
+                if (attachment != null && !attachment.isEmpty() && attachment.get(2)!=null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
                         && !attachment.get(2).getClass().toString().contains("StringInputStream")) {
                     if (!attachment.get(2).toString().isEmpty()) {
                         attach(attachment.get(0).toString(), attachment.get(1).toString(), attachment.get(2).toString());
@@ -726,7 +726,7 @@ public class ReportManagerHelper {
     public static void attach(List<List<Object>> attachments) {
         if (attachments != null && !attachments.isEmpty()) {
             attachments.forEach(attachment -> {
-                if (attachment != null && !attachment.isEmpty() && attachment.get(2).getClass().toString().toLowerCase().contains("string")
+                if (attachment != null && !attachment.isEmpty() && attachment.get(2)!=null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
                         && !attachment.get(2).getClass().toString().contains("StringInputStream")) {
                     if (!attachment.get(2).toString().isEmpty()) {
                         attach(attachment.get(0).toString(), attachment.get(1).toString(),

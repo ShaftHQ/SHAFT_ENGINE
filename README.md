@@ -191,9 +191,16 @@ public void afterMethod(){
 
 #### Step 4: Running tests
 - Run your ```TestClass.java``` either from the side menu or by pressing the run button.
-- On the first test run:
+- On the first test run: 
   - SHAFT will create a new folder ```src/main/resources/properties``` and generate some default properties files.
   - SHAFT will run in `minimalistic test run` mode and will self-configure its listeners under the `src/test/resources/META-INF/services` directory.
+> [!NOTE]
+> In case you got the following error message trying to execute your first run![image](https://github.com/user-attachments/assets/6b894234-e365-4fdd-a1d2-abd06ead7e98)
+And you didn't get the option ```Shorten the command line and rerun```.
+  - From Intellij IDEA main menu, go to Help/Edit Custom VM Options
+  - Add the following line and click save ```-Didea.dynamic.classpath=true```
+  - Restart IntelliJ to apply the changes
+
 > [!TIP]
 > You can visit the [user guide ➡️](https://shafthq.github.io/docs/Properties/PropertiesList) to learn how to configure all SHAFT's properties.
 - On all following test runs:
