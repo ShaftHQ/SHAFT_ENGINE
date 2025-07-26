@@ -178,8 +178,7 @@ public class PropertiesHelper {
             propertiesFolderPath = DEFAULT_PROPERTIES_FOLDER_PATH;
         }
 
-//        boolean isExternalRun = propertiesFolderPath.contains("file:");
-        boolean isExternalRun = !propertiesFolderPath.equals(DEFAULT_PROPERTIES_FOLDER_PATH);
+        boolean isExternalRun = propertiesFolderPath.contains("file:") && propertiesFolderPath.contains(".jar!");
 
         var fileActions = FileActions.getInstance(true);
 
