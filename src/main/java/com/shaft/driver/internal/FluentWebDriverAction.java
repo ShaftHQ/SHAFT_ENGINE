@@ -13,22 +13,19 @@ import org.openqa.selenium.WebDriver;
 
 public class FluentWebDriverAction {
     protected DriverFactoryHelper driverFactoryHelper;
-    protected WebDriver driver;
     protected ElementActionsHelper elementActionsHelper;
     protected BrowserActionsHelper browserActionsHelper;
 
     public void initialize() {
         this.driverFactoryHelper = new DriverFactory().getHelper();
-        this.driver = driverFactoryHelper.getDriver();
-        JavaScriptWaitManager.waitForLazyLoading(this.driver);
+        JavaScriptWaitManager.waitForLazyLoading(driverFactoryHelper.getDriver());
         this.elementActionsHelper = new ElementActionsHelper(false);
         this.browserActionsHelper = new BrowserActionsHelper(false);
     }
 
     public void initialize(WebDriver driver) {
-        this.driver = driver;
-        this.driverFactoryHelper = new DriverFactoryHelper(this.driver);
-        JavaScriptWaitManager.waitForLazyLoading(this.driver);
+        this.driverFactoryHelper = new DriverFactoryHelper(driver);
+        JavaScriptWaitManager.waitForLazyLoading(driver);
         this.elementActionsHelper = new ElementActionsHelper(false);
         this.browserActionsHelper = new BrowserActionsHelper(false);
     }
@@ -41,8 +38,7 @@ public class FluentWebDriverAction {
 
     public void initialize(DriverFactoryHelper helper) {
         this.driverFactoryHelper = helper;
-        this.driver = helper.getDriver();
-        JavaScriptWaitManager.waitForLazyLoading(this.driver);
+        JavaScriptWaitManager.waitForLazyLoading(helper.getDriver());
         this.elementActionsHelper = new ElementActionsHelper(false);
         this.browserActionsHelper = new BrowserActionsHelper(false);
     }

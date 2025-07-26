@@ -181,13 +181,13 @@ public class Actions extends ElementActions {
 
     @Step("Wait until")
     public Actions waitUntil(@NonNull Function<? super WebDriver, ?> isTrue) {
-        new SynchronizationManager(driver).fluentWait().until(isTrue);
+        new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(isTrue);
         return this;
     }
 
     @Step("Wait until")
     public Actions waitUntil(@NonNull Function<? super WebDriver, ?> isTrue, @NonNull Duration timeout) {
-        new SynchronizationManager(driver).fluentWait().withTimeout(timeout).until(isTrue);
+        new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().withTimeout(timeout).until(isTrue);
         return this;
     }
 
@@ -198,7 +198,7 @@ public class Actions extends ElementActions {
         AtomicReference<List<WebElement>> foundElements = new AtomicReference<>();
 
         try {
-            new SynchronizationManager(driver).fluentWait(true).until(d -> {
+            new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait(true).until(d -> {
                 // find all elements matching the target locator
                 foundElements.set(findAllElements(locator));
 
@@ -239,15 +239,15 @@ public class Actions extends ElementActions {
                 if (!isMobileNativeExecution) {
                     try {
                         // native Javascript scroll to center (smooth / auto)
-                        ((JavascriptExecutor) driver).executeScript("""
+                        ((JavascriptExecutor) d).executeScript("""
                                 arguments[0].scrollIntoView({behavior: "auto", block: "center", inline: "center"});""", foundElements.get().getFirst());
                     } catch (Throwable throwable) {
                         try {
                             // w3c compliant scroll
-                            new org.openqa.selenium.interactions.Actions(driver).scrollToElement(foundElements.get().getFirst()).perform();
+                            new org.openqa.selenium.interactions.Actions(d).scrollToElement(foundElements.get().getFirst()).perform();
                         } catch (Throwable throwable1) {
                             // old school selenium scroll
-                            ((Locatable) driver).getCoordinates().inViewPort();
+                            ((Locatable) d).getCoordinates().inViewPort();
                         }
                     }
                 }
@@ -255,14 +255,14 @@ public class Actions extends ElementActions {
                 // perform action
                 switch (action) {
                     case HOVER ->
-                            (new org.openqa.selenium.interactions.Actions(driver)).pause(Duration.ofMillis(400)).moveToElement(foundElements.get().getFirst()).perform();
+                            (new org.openqa.selenium.interactions.Actions(d)).pause(Duration.ofMillis(400)).moveToElement(foundElements.get().getFirst()).perform();
                     case CLICK -> {
                         try {
                             screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
                             foundElements.get().getFirst().click();
                         } catch (InvalidElementStateException exception) {
                             if (SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails()) {
-                                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", foundElements.get().getFirst());
+                                ((JavascriptExecutor) d).executeScript("arguments[0].click();", foundElements.get().getFirst());
                                 ReportManager.logDiscrete("Performed Click using JavaScript; If the report is showing that the click passed but you observe that no action was taken, we recommend trying a different element locator.");
                             } else {
                                 throw exception;
@@ -271,15 +271,15 @@ public class Actions extends ElementActions {
                     }
                     case JAVASCRIPT_CLICK -> {
                         screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
-                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", foundElements.get().getFirst());
+                        ((JavascriptExecutor) d).executeScript("arguments[0].click();", foundElements.get().getFirst());
                     }
                     case CLICK_AND_HOLD -> {
                         screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
-                        new org.openqa.selenium.interactions.Actions(driver).pause(Duration.ofMillis(400)).clickAndHold(foundElements.get().getFirst()).perform();
+                        new org.openqa.selenium.interactions.Actions(d).pause(Duration.ofMillis(400)).clickAndHold(foundElements.get().getFirst()).perform();
                     }
                     case DOUBLE_CLICK -> {
                         screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
-                        new org.openqa.selenium.interactions.Actions(driver).pause(Duration.ofMillis(400)).doubleClick(foundElements.get().getFirst()).perform();
+                        new org.openqa.selenium.interactions.Actions(d).pause(Duration.ofMillis(400)).doubleClick(foundElements.get().getFirst()).perform();
                     }
                     case TYPE, TYPE_SECURELY -> {
                         PropertiesHelper.setClearBeforeTypingMode();
@@ -288,14 +288,14 @@ public class Actions extends ElementActions {
                     }
                     case TYPE_APPEND -> foundElements.get().getFirst().sendKeys((CharSequence[]) data);
                     case JAVASCRIPT_SET_VALUE ->
-                            ((JavascriptExecutor) driver).executeScript("arguments[0].value = arguments[1];", foundElements.get().getFirst(), data);
+                            ((JavascriptExecutor) d).executeScript("arguments[0].value = arguments[1];", foundElements.get().getFirst(), data);
                     case CLEAR -> executeClearBasedOnClearMode(foundElements);
                     case DRAG_AND_DROP ->
-                            new org.openqa.selenium.interactions.Actions(driver).pause(Duration.ofMillis(400))
+                            new org.openqa.selenium.interactions.Actions(d).pause(Duration.ofMillis(400))
                                     .dragAndDrop(foundElements.get().getFirst(),
-                                            driver.findElement((By) data)).perform();
+                                            d.findElement((By) data)).perform();
                     case DRAG_AND_DROP_BY_OFFSET ->
-                            new org.openqa.selenium.interactions.Actions(driver).pause(Duration.ofMillis(400))
+                            new org.openqa.selenium.interactions.Actions(d).pause(Duration.ofMillis(400))
                                     .dragAndDropBy(foundElements.get().getFirst(),
                                             (int) ((ArrayList<?>) data).get(0),
                                             (int) ((ArrayList<?>) data).get(1)).perform();
@@ -312,7 +312,7 @@ public class Actions extends ElementActions {
 
                         // Inject upload input field
                         WebElement input;
-                        JavascriptExecutor javascriptExecutor = (JavascriptExecutor) driver;
+                        JavascriptExecutor javascriptExecutor = (JavascriptExecutor) d;
                         input = (WebElement) javascriptExecutor.executeScript(JavaScriptHelper.INJECT_INPUT_TO_UPLOAD_FILE_VIA_DROP_ACTION.getValue(), foundElements.get().getFirst(), offsetX, offsetY);
 
                         // Ensure that the upload input field was created successfully
@@ -421,21 +421,21 @@ public class Actions extends ElementActions {
 
         if (shadowDomLocator != null && cssSelector == locator) {
             //reset to default content
-            driver.switchTo().defaultContent();
+            driverFactoryHelper.getDriver().switchTo().defaultContent();
             //switch to shadow root and find elements
-            foundElements = driver.findElement(shadowDomLocator)
+            foundElements = driverFactoryHelper.getDriver().findElement(shadowDomLocator)
                     .getShadowRoot()
                     .findElements(cssSelector);
         } else if (LocatorBuilder.getIFrameLocator().get() != null) {
             //reset to default content
-            driver.switchTo().defaultContent();
+            driverFactoryHelper.getDriver().switchTo().defaultContent();
             //switch to frame and find elements
-            foundElements = driver.switchTo()
-                    .frame(driver.findElement(LocatorBuilder.getIFrameLocator().get()))
+            foundElements = driverFactoryHelper.getDriver().switchTo()
+                    .frame(driverFactoryHelper.getDriver().findElement(LocatorBuilder.getIFrameLocator().get()))
                     .findElements(locator);
         } else {
             //normal case, just find the elements
-            foundElements = driver.findElements(locator);
+            foundElements = driverFactoryHelper.getDriver().findElements(locator);
         }
         return foundElements;
     }
@@ -495,21 +495,21 @@ public class Actions extends ElementActions {
                         List<WebElement> skippedElementsList = new ArrayList<>();
                         String[] skippedElementLocators = SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().split(";");
                         for (String locator : skippedElementLocators) {
-                            if (elementActionsHelper.getElementsCount(driver, By.xpath(locator)) == 1) {
-                                skippedElementsList.add(((WebElement) elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, By.xpath(locator)).get(1)));
+                            if (elementActionsHelper.getElementsCount(driverFactoryHelper.getDriver(), By.xpath(locator)) == 1) {
+                                skippedElementsList.add(((WebElement) elementActionsHelper.identifyUniqueElementIgnoringVisibility(driverFactoryHelper.getDriver(), By.xpath(locator)).get(1)));
                             }
                         }
                         WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
                         skippedElementsArray = skippedElementsList.toArray(skippedElementsArray);
-                        screenshot = ScreenshotHelper.makeFullScreenshot(driver, skippedElementsArray);
+                        screenshot = ScreenshotHelper.makeFullScreenshot(driverFactoryHelper.getDriver(), skippedElementsArray);
                     } else {
                         // make full page screenshot using BiDi, CDP, or manually based on the target browser
-                        screenshot = ScreenshotHelper.makeFullScreenshot(driver);
+                        screenshot = ScreenshotHelper.makeFullScreenshot(driverFactoryHelper.getDriver());
                     }
                 } catch (Throwable throwable) {
                     // return regular screenshot in case of failure
                     ReportManagerHelper.logDiscrete(throwable);
-                    screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                    screenshot = ((TakesScreenshot) driverFactoryHelper.getDriver()).getScreenshotAs(OutputType.BYTES);
                 }
             }
             case ELEMENT -> {
@@ -519,10 +519,10 @@ public class Actions extends ElementActions {
                 } catch (Throwable throwable) {
                     // return regular screenshot in case of failure
                     ReportManagerHelper.logDiscrete(throwable);
-                    screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                    screenshot = ((TakesScreenshot) driverFactoryHelper.getDriver()).getScreenshotAs(OutputType.BYTES);
                 }
             }
-            default -> screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+            default -> screenshot = ((TakesScreenshot) driverFactoryHelper.getDriver()).getScreenshotAs(OutputType.BYTES);
         }
         //append shaft watermark
         screenshot = appendShaftWatermark(screenshot);
@@ -549,8 +549,8 @@ public class Actions extends ElementActions {
 
     private byte[] takeJavaScriptHighlightedScreenshot(WebElement element, boolean isPass) {
         //highlightElement
-        JavascriptExecutor js = (JavascriptExecutor) driver;
-        String regularElementStyle = highlightElementAndReturnDefaultStyle(driver, element, js,
+        JavascriptExecutor js = (JavascriptExecutor) driverFactoryHelper.getDriver();
+        String regularElementStyle = highlightElementAndReturnDefaultStyle(driverFactoryHelper.getDriver(), element, js,
                 setHighlightedElementStyle(isPass));
 
         //take screenshot
