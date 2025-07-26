@@ -568,15 +568,15 @@ public class TouchActions extends FluentWebDriverAction {
         var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, targetElementLocator);
         AtomicBoolean canScrollMore = new AtomicBoolean(true);
 
-        new SynchronizationManager(driver).fluentWait().until(f -> {
+        new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
             // for the animated GIF:
             elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
 
-            var elementExistsOnViewPort = !driver.findElements(targetElementLocator).isEmpty();
+            var elementExistsOnViewPort = !driverFactoryHelper.getDriver().findElements(targetElementLocator).isEmpty();
             if (elementExistsOnViewPort)
                 return true;
             canScrollMore.set(performW3cCompliantScroll(scrollParameters));
-            elementExistsOnViewPort = !driver.findElements(targetElementLocator).isEmpty();
+            elementExistsOnViewPort = !driverFactoryHelper.getDriver().findElements(targetElementLocator).isEmpty();
             if (!canScrollMore.get() && !elementExistsOnViewPort)
                 throw new RuntimeException("Element not found after scrolling to the end of the page.");
             return elementExistsOnViewPort;

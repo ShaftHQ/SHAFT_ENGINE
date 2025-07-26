@@ -259,7 +259,7 @@ public class BrowserActionsHelper {
         } catch (WebDriverException webDriverException) {
             // unknown error: unhandled inspector error: {"code":-32000,"message":"Failed to generate MHTML"
             // try again but just get the regular page source this time
-            return capturePageSnapshot(driver);
+            return capturePageSnapshot(null);
         } catch (Exception rootCauseException) {
             failAction(driver, serializedPageData, rootCauseException);
             return serializedPageData;

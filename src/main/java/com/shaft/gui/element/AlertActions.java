@@ -27,7 +27,7 @@ public class AlertActions extends FluentWebDriverAction {
 
     private void waitForAlertToBePresent() {
         try {
-            new SynchronizationManager(driver).fluentWait(false)
+            new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait(false)
                     .until(f -> ExpectedConditions.alertIsPresent());
             driverFactoryHelper.getDriver().switchTo().alert();
             ReportManager.logDiscrete("Alert is present");

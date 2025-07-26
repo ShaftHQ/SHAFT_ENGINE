@@ -178,14 +178,12 @@ public class PropertiesHelper {
             propertiesFolderPath = DEFAULT_PROPERTIES_FOLDER_PATH;
         }
 
-//        boolean isExternalRun = propertiesFolderPath.contains("file:");
-        boolean isExternalRun = !propertiesFolderPath.equals(DEFAULT_PROPERTIES_FOLDER_PATH);
+        boolean isExternalRun = propertiesFolderPath.contains("file:") && propertiesFolderPath.contains(".jar!");
 
         var fileActions = FileActions.getInstance(true);
 
         // always override default properties
         if (isExternalRun) {
-            fileActions.createFolder(propertiesFolderPath);
             try {
                 if (propertiesFolderPath.contains("file:")) {
                     fileActions.copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
@@ -209,17 +207,22 @@ public class PropertiesHelper {
             }
         }
         // override target properties only if they do not exist
-        var finalPropertiesFolderPath = propertiesFolderPath.replace("/default","");
+        String finalPropertiesFolderPath = propertiesFolderPath;
         Arrays.asList("/cucumber.properties", "/customWebdriverCapabilities.properties", "/log4j2.properties", "/TestNG.properties", "/reportportal.properties", "/junit-platform.properties")
                 .forEach(file -> {
                     if (!fileActions.doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + file)) {
-                        try {
-                            if (finalPropertiesFolderPath.contains("file:")) {
-                                fileActions.copyFileFromJar(finalPropertiesFolderPath, TARGET_PROPERTIES_FOLDER_PATH, file.replace("/", ""));
-                            } else {
-                                throw new IOException("Properties folder path does not contain 'file:' protocol, indicating it is not running from a jar file.");
+                        if (isExternalRun) {
+                            var tempPath = finalPropertiesFolderPath.replace("/default","");
+                            try {
+                                if (tempPath.contains("file:")) {
+                                    fileActions.copyFileFromJar(tempPath, TARGET_PROPERTIES_FOLDER_PATH, file.replace("/", ""));
+                                } else {
+                                    throw new IOException("Properties folder path does not contain 'file:' protocol, indicating it is not running from a jar file.");
+                                }
+                            } catch (Throwable ignored) {
+                                fileActions.copyFile(tempPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);
                             }
-                        } catch (Throwable ignored) {
+                        } else {
                             fileActions.copyFile(finalPropertiesFolderPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);
                         }
                     }
