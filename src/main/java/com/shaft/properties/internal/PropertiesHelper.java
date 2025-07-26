@@ -184,7 +184,6 @@ public class PropertiesHelper {
 
         // always override default properties
         if (isExternalRun) {
-            fileActions.createFolder(propertiesFolderPath);
             try {
                 if (propertiesFolderPath.contains("file:")) {
                     fileActions.copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
