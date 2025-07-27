@@ -200,6 +200,7 @@ public class PropertiesHelper {
                 Arrays.asList(
                         "TestNG.properties",
                         "cucumber.properties",
+                        "custom.properties",
                         "customWebdriverCapabilities.properties",
                         "junit-platform.properties",
                         "log4j2.properties",
@@ -208,7 +209,7 @@ public class PropertiesHelper {
         }
         // override target properties only if they do not exist
         String finalPropertiesFolderPath = propertiesFolderPath;
-        Arrays.asList("/cucumber.properties", "/customWebdriverCapabilities.properties", "/log4j2.properties", "/TestNG.properties", "/reportportal.properties", "/junit-platform.properties")
+        Arrays.asList("/cucumber.properties","/custom.properties", "/customWebdriverCapabilities.properties", "/log4j2.properties", "/TestNG.properties", "/reportportal.properties", "/junit-platform.properties")
                 .forEach(file -> {
                     if (!fileActions.doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + file)) {
                         if (isExternalRun) {
