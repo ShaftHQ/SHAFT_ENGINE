@@ -1,11 +1,12 @@
 package com.shaft.gui.internal.locator;
 
+import lombok.NonNull;
 import org.openqa.selenium.Beta;
 import org.openqa.selenium.By;
 
 public class Locator {
 
-    public static LocatorBuilder hasTagName(String tagName) {
+    public static LocatorBuilder hasTagName(@NonNull String tagName) {
         return LocatorBuilder.hasTagName(tagName);
     }
 
@@ -14,17 +15,17 @@ public class Locator {
     }
 
     @Beta
-    public static LocatorBuilder hasRole(Role ariaRole) {
+    public static LocatorBuilder hasRole(@NonNull Role ariaRole) {
         return LocatorBuilder.byRole(ariaRole);
     }
 
     @Beta
-    public static By inputField(String inputFieldName) {
-        return SmartLocators.inputField(inputFieldName);
+    public static By inputField(@NonNull String elementName) {
+        return SmartLocators.inputField(elementName);
     }
 
     @Beta
-    public static By clickableField(String clickableFieldName) {
-        return SmartLocators.clickableField(clickableFieldName);
+    public static By clickableField(@NonNull String elementName) {
+        return SmartLocators.clickableField(elementName);
     }
 }
