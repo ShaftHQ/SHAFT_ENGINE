@@ -34,7 +34,7 @@
     <properties>
         <surefireArgLine></surefireArgLine>
         <!-- Build Commands-->
-        <installToLocalRepository>mvn clean install -DskipTests</installToLocalRepository>
+        <installToLocalRepository>mvn clean install "-DskipTests" "-Dgpg.skip"</installToLocalRepository>
         <publishJavaDocs>mvn resources:resources javadoc:javadoc scm-publish:publish-scm</publishJavaDocs>
         <!-- Deploy Commands -->
         <deployToMavenCentral>mvn clean deploy -DskipTests</deployToMavenCentral>
