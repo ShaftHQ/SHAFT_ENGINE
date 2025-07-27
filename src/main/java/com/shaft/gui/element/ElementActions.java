@@ -317,7 +317,7 @@ public class ElementActions extends FluentWebDriverAction {
                 click(elementInformation.getLocator());
                 elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator));
                 try {
-                    RelativeLocator.RelativeBy relativeBy = SHAFT.GUI.Locator.hasAnyTagName().and().containsText(valueOrVisibleText).relativeBy().below(elementInformation.getLocator());
+                    RelativeLocator.RelativeBy relativeBy = SHAFT.GUI.Locator.hasAnyTagName().and().containsText(valueOrVisibleText).byRelation().below(elementInformation.getLocator());
                     elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), relativeBy));
                 } catch (Throwable var9) {
                     ReportManager.logDiscrete("Cannot Find Element with the following Locator in the DropDown Options: " + By.xpath("//*[text()='" + valueOrVisibleText + "']"));
