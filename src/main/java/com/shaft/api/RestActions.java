@@ -932,6 +932,8 @@ public class RestActions {
             return serviceURI + serviceName;
         }
     }
+
+    @Deprecated
     protected RequestSpecification prepareRequestSpecs(
             List<List<Object>> parameters,
             ParametersType parametersType,
@@ -977,12 +979,99 @@ public class RestActions {
 
         if (body != null && contentType != null && !body.toString().isEmpty()) {
             prepareRequestBody(builder, body, contentType);
-        } else if (parameters != null && !parameters.isEmpty() && !parameters.getFirst().getFirst().equals("")) {
-            prepareRequestBody(builder, parameters, parametersType);
-        }
+        } else if (parameters != null && !parameters.isEmpty() && !String.valueOf(parameters.getFirst().getFirst()).isEmpty()) {
+            boolean containsFile = parameters.stream().anyMatch(p -> p.get(1) instanceof File);
+            boolean useMultipart = (parametersType == ParametersType.MULTIPART) || containsFile;
 
+            if (useMultipart) {
+                prepareMultipartBody(builder, parameters);   // builds UTF-8 text parts + files
+            } else {
+                prepareRequestBody(builder, parameters, parametersType); // existing form/query path
+            }
+        }
         return builder.build();
     }
+
+    private void prepareMultipartBody(RequestSpecBuilder builder, List<List<Object>> parameters) {
+        boolean hasAnyPart = false;
+
+        for (List<Object> param : parameters) {
+            String name  = String.valueOf(param.get(0));
+            Object value = param.get(1);
+
+            if (value instanceof File f) {
+                MultiPartSpecBuilder mp = new MultiPartSpecBuilder(f)
+                        .controlName(name)
+                        .fileName(f.getName());
+
+                String mimeType = URLConnection.guessContentTypeFromName(f.getName());
+                if (mimeType == null) {
+                    mimeType = MimeUtil2.getMostSpecificMimeType(MimeUtil.getMimeTypes(f.getName())).toString();
+                }
+                mp.mimeType(mimeType);
+                builder.addMultiPart(mp.build());
+                hasAnyPart = true;
+            } else {
+                // send ALL non-file values as text parts with UTF-8
+                MultiPartSpecBuilder mp = new MultiPartSpecBuilder(String.valueOf(value))
+                        .controlName(name)
+                        .mimeType("text/plain")
+                        .charset("UTF-8");
+                builder.addMultiPart(mp.build());
+                hasAnyPart = true;
+            }
+        }
+
+        if (hasAnyPart) {
+            // Let RA set the boundary
+            builder.setContentType("multipart/form-data");
+        }
+    }
+
+    protected RequestSpecification prepareRequestSpecs(
+            Map<String, Object> parametersMap,
+            ParametersType parametersType,
+            Object body,
+            ContentType contentType,
+            Map<String, Object> cookies,          // match original types
+            Map<String, String> headers,          // match original types
+            RestAssuredConfig config,
+            boolean appendDefaultContentCharsetToContentTypeIfUndefined,
+            boolean urlEncodingEnabled) {
+
+        // Normalize Map -> List
+        List<List<Object>> paramsList = null;
+        if (parametersMap != null && !parametersMap.isEmpty()) {
+            paramsList = new ArrayList<>();
+            for (Map.Entry<String, Object> e : parametersMap.entrySet()) {
+                paramsList.add(Arrays.asList(e.getKey(), e.getValue()));
+            }
+        }
+
+        return prepareRequestSpecs(
+                paramsList,
+                parametersType,
+                body,
+                contentType,
+                cookies,
+                headers,
+                config,
+                appendDefaultContentCharsetToContentTypeIfUndefined,
+                urlEncodingEnabled
+        );
+    }
+
+
+    private void prepareRequestBody(RequestSpecBuilder builder, Map<String, Object> parameters, ParametersType parametersType) {
+        // Normalize to List
+        List<List<Object>> paramsList = new ArrayList<>();
+        for (Map.Entry<String, Object> e : parameters.entrySet()) {
+            paramsList.add(Arrays.asList(e.getKey(), e.getValue()));
+        }
+        prepareRequestBody(builder, paramsList, parametersType);
+    }
+
+
 
     private void prepareRequestBody(RequestSpecBuilder builder, Object body, ContentType contentType) {
         if (body instanceof String bodyString && bodyString.contains("\n")) {
@@ -1143,7 +1232,7 @@ public class RestActions {
     }
 
     public enum ParametersType {
-        FORM, QUERY
+        FORM, QUERY, MULTIPART
     }
 
     public enum RequestType {
