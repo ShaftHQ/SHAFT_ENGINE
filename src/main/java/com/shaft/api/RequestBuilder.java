@@ -401,7 +401,17 @@ public class RequestBuilder {
     }
 
     private RequestSpecification prepareRequestSpecifications() {
-        return session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, sessionConfig, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);
+        List<List<Object>> paramsToSend = this.parameters;
+
+        if ((paramsToSend == null || paramsToSend.isEmpty())
+                && this.parametersMap != null && !this.parametersMap.isEmpty()) {
+            paramsToSend = new ArrayList<>();
+            for (Map.Entry<String, Object> e : this.parametersMap.entrySet()) {
+                // Preserve exact object type (File stays File, etc.)
+                paramsToSend.add(Arrays.asList(e.getKey(), e.getValue()));
+            }
+        }
+        return session.prepareRequestSpecs(paramsToSend, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, sessionConfig, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);
     }
 
     private void setupAuthentication(RequestSpecification specs) {
@@ -425,7 +435,7 @@ public class RequestBuilder {
         boolean responseStatus = session.evaluateResponseStatusCode(Objects.requireNonNull(response), targetStatusCode);
         String reportMessage = session.prepareReportMessage(response, targetStatusCode, requestType, serviceName, contentType, urlArguments);
         if (!Boolean.TRUE.equals(responseStatus)) {
-            throw new AssertionError("Invalid response status code; Expected " + targetStatusCode + " but found " + response.getStatusCode() + "." +System.lineSeparator() + "Response: " +System.lineSeparator() +response.asPrettyString());
+            throw new AssertionError("Invalid response status code; Expected " + targetStatusCode + " but found " + response.getStatusCode() + ".");
         }
 
         if (!reportMessage.isEmpty()) {
@@ -436,24 +446,12 @@ public class RequestBuilder {
     }
 
     private void handleException(String request, RequestSpecification specs, Response response, Exception e) {
-        if (e instanceof com.atlassian.oai.validator.restassured.OpenApiValidationFilter.OpenApiValidationException) {
-            RestActions.failAction(
-                    " Swagger Schema Validation Failed! \nURL: " + request + "\nError Details: " + e.getMessage(),
-                    requestBody, specs, response, e
-            );
-
+        if (response != null) {
+            RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody, specs, response, e);
         } else {
-            if (response != null) {
-                RestActions.failAction(
-                        request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms",
-                        requestBody, specs, response, e
-                );
-            } else {
-                RestActions.failAction(request, e);
-            }
+            RestActions.failAction(request, e);
         }
     }
-
 
     private boolean isSupportedRequestType() {
         return requestType == RestActions.RequestType.POST ||
