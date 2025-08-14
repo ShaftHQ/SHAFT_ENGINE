@@ -25,9 +25,6 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.devtools.NetworkInterceptor;
-import org.openqa.selenium.html5.LocalStorage;
-import org.openqa.selenium.html5.SessionStorage;
-import org.openqa.selenium.html5.WebStorage;
 import org.openqa.selenium.remote.Augmenter;
 import org.openqa.selenium.remote.http.HttpRequest;
 import org.openqa.selenium.remote.http.HttpResponse;
@@ -317,7 +314,7 @@ public class BrowserActions extends FluentWebDriverAction {
                 JavaScriptWaitManager.waitForLazyLoading(driverFactoryHelper.getDriver());
             } else
                 // navigate to new url
-                browserActionsHelper.navigateToNewUrl(driverFactoryHelper.getDriver(), initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
+                browserActionsHelper.navigateToNewUrl(driverFactoryHelper.getDriver(), null, modifiedTargetUrl, targetUrlAfterRedirection);
 
             // validate successful navigation
             if (!targetUrl.contains("\n")) {
@@ -539,24 +536,6 @@ public class BrowserActions extends FluentWebDriverAction {
 
         browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "New screen size is now: " + currentWindowSize);
         return this;
-    }
-
-    @Deprecated
-    public LocalStorage getLocalStorage() {
-        if (SHAFT.Properties.platform.executionAddress().equals("local")) {
-            return ((WebStorage) driverFactoryHelper.getDriver()).getLocalStorage();
-        } else {
-            return (LocalStorage) ((JavascriptExecutor) driverFactoryHelper.getDriver()).executeScript("return window.localStorage;");
-        }
-    }
-
-    @Deprecated
-    public SessionStorage getSessionStorage() {
-        if (SHAFT.Properties.platform.executionAddress().equals("local")) {
-            return ((WebStorage) driverFactoryHelper.getDriver()).getSessionStorage();
-        } else {
-            return (SessionStorage) ((JavascriptExecutor) driverFactoryHelper.getDriver()).executeScript("return window.sessionStorage;");
-        }
     }
 
     @Step("Mock HTTP Request")
