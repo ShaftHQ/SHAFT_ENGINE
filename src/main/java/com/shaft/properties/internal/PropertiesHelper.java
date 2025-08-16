@@ -122,6 +122,7 @@ public class PropertiesHelper {
             SHAFT.Properties.flags.set().respectBuiltInWaitsInNativeMode(false);
             SHAFT.Properties.flags.set().handleNonSelectDropDown(false);
             SHAFT.Properties.flags.set().validateSwipeToElement(false);
+            SHAFT.Properties.flags.set().scrollingMode("w3c");
         }
     }
 
