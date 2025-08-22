@@ -48,6 +48,10 @@ public interface Flags extends EngineProperties<Flags> {
     @DefaultValue("true")
     boolean attemptClearBeforeTyping();
 
+    @Key("scrollingMode")
+    @DefaultValue("javascript")
+    String scrollingMode();
+
     @Key("clearBeforeTypingMode")
     @DefaultValue("native")
     String clearBeforeTypingMode();
@@ -171,6 +175,11 @@ public interface Flags extends EngineProperties<Flags> {
          */
         public SetProperty clearBeforeTypingMode(String value) {
             setProperty("clearBeforeTypingMode", value);
+            return this;
+        }
+
+        public SetProperty scrollingMode(String value) {
+            setProperty("scrollingMode", value);
             return this;
         }
 

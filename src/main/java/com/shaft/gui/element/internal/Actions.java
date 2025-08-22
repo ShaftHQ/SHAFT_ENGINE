@@ -235,19 +235,45 @@ public class Actions extends ElementActions {
                 }
 
                 // scroll to element (avoid relocating the element if already found)
-                // if not mobile else just do the w3c compliant scroll
-                if (!isMobileNativeExecution) {
-                    try {
-                        // native Javascript scroll to center (smooth / auto)
-                        ((JavascriptExecutor) d).executeScript("""
-                                arguments[0].scrollIntoView({behavior: "auto", block: "center", inline: "center"});""", foundElements.get().getFirst());
-                    } catch (Throwable throwable) {
+                switch (SHAFT.Properties.flags.scrollingMode().toLowerCase()){
+                    case "w3c" -> {
                         try {
                             // w3c compliant scroll
                             new org.openqa.selenium.interactions.Actions(d).scrollToElement(foundElements.get().getFirst()).perform();
                         } catch (Throwable throwable1) {
                             // old school selenium scroll
-                            ((Locatable) d).getCoordinates().inViewPort();
+                            if (d instanceof Locatable locatable) {
+                                locatable.getCoordinates().inViewPort();
+                            } else if (d instanceof JavascriptExecutor) {
+                                // native Javascript scroll to center (smooth / auto)
+                                ((JavascriptExecutor) d).executeScript("""
+                                    arguments[0].scrollIntoView({behavior: "auto", block: "center", inline: "center"});""", foundElements.get().getFirst());
+                            }
+                        }
+                    }
+                    case "javascript" -> {
+                        try {
+                            // native Javascript scroll to center (smooth / auto)
+                            ((JavascriptExecutor) d).executeScript("""
+                                arguments[0].scrollIntoView({behavior: "auto", block: "center", inline: "center"});""", foundElements.get().getFirst());
+                        } catch (Throwable throwable) {
+                            try {
+                                // w3c compliant scroll
+                                new org.openqa.selenium.interactions.Actions(d).scrollToElement(foundElements.get().getFirst()).perform();
+                            } catch (Throwable throwable1) {
+                                // old school selenium scroll
+                                if (d instanceof Locatable locatable)
+                                    locatable.getCoordinates().inViewPort();
+                            }
+                        }
+                    }
+                    case "legacy" -> {
+                        if (d instanceof Locatable locatable) {
+                            locatable.getCoordinates().inViewPort();
+                        } else if (d instanceof JavascriptExecutor) {
+                            // native Javascript scroll to center (smooth / auto)
+                            ((JavascriptExecutor) d).executeScript("""
+                                    arguments[0].scrollIntoView({behavior: "auto", block: "center", inline: "center"});""", foundElements.get().getFirst());
                         }
                     }
                 }
