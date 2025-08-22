@@ -22,7 +22,16 @@ public class PropertiesHelper {
 
     public static void initialize() {
         //initialize default properties
-        initializeDefaultProperties();
+        initializeDefaultProperties(false);
+        //attach property files
+        attachPropertyFiles();
+        //load properties
+        loadProperties();
+    }
+
+    public static void initializeAiAgent() {
+        //initialize default properties
+        initializeDefaultProperties(true);
         //attach property files
         attachPropertyFiles();
         //load properties
@@ -170,51 +179,67 @@ public class PropertiesHelper {
         }
     }
 
-    private static void initializeDefaultProperties() {
-        URL propertiesFolder = PropertyFileManager.class.getResource(DEFAULT_PROPERTIES_FOLDER_PATH.replace("src/main", "") + "/");
-        var propertiesFolderPath = "";
-        if (propertiesFolder != null) {
-            propertiesFolderPath = propertiesFolder.getFile();
+    private static void downloadDefaultProperties(){
+        ReportManager.logDiscrete("Downloading default properties to user.home...");
+
+        var propertiesFolderPath = "target" + File.separator + "temp" + File.separator + "properties";
+        Properties.paths.set().properties(propertiesFolderPath);
+
+        Arrays.asList(
+                "TestNG.properties",
+                "cucumber.properties",
+                "custom.properties",
+                "customWebdriverCapabilities.properties",
+                "junit-platform.properties",
+                "log4j2.properties",
+                "reportportal.properties").forEach(PropertiesHelper::downloadPropertiesFile);
+    }
+
+    private static void initializeDefaultProperties(boolean forceDownload) {
+        if (forceDownload){
+            downloadDefaultProperties();
         } else {
-            propertiesFolderPath = DEFAULT_PROPERTIES_FOLDER_PATH;
-        }
+            URL propertiesFolder = PropertyFileManager.class.getResource(DEFAULT_PROPERTIES_FOLDER_PATH.replace("src/main", "") + "/");
+            var propertiesFolderPath = "";
+            if (propertiesFolder != null) {
+                propertiesFolderPath = propertiesFolder.getFile();
+            } else {
+                propertiesFolderPath = DEFAULT_PROPERTIES_FOLDER_PATH;
+            }
+            Properties.paths.set().properties(propertiesFolderPath);
 
-        boolean isExternalRun = propertiesFolderPath.contains("file:") && propertiesFolderPath.contains(".jar!");
+            boolean isExternalRun = propertiesFolderPath.contains("file:") && propertiesFolderPath.contains(".jar!");
 
-        var fileActions = FileActions.getInstance(true);
+            var fileActions = FileActions.getInstance(true);
 
-        // always override default properties
-        if (isExternalRun) {
-            try {
-                if (propertiesFolderPath.contains("file:")) {
-                    fileActions.copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
-                } else {
-                    throw new IOException("Properties folder path does not contain 'file:' protocol, indicating it is not running from a jar file.");
+            // always override default properties
+            if (isExternalRun) {
+                try {
+                    if (propertiesFolderPath.contains("file:")) {
+                        fileActions.copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
+                    } else {
+                        throw new IOException("Properties folder path does not contain 'file:' protocol, indicating it is not running from a jar file.");
+                    }
+                } catch (Throwable ignored) {
+                    ReportManager.logDiscrete("Failed to copy default properties from jar.");
+                    downloadDefaultProperties();
                 }
-            } catch (Throwable ignored) {
-                ReportManager.logDiscrete("Failed to copy default properties from jar.");
-                ReportManager.logDiscrete("Downloading default properties to user.home...");
-
-                propertiesFolderPath = "target" + File.separator + "temp" + File.separator + "properties";
-                Properties.paths.set().properties(propertiesFolderPath);
-
-                Arrays.asList(
-                        "TestNG.properties",
-                        "cucumber.properties",
-                        "custom.properties",
-                        "customWebdriverCapabilities.properties",
-                        "junit-platform.properties",
-                        "log4j2.properties",
-                        "reportportal.properties").forEach(PropertiesHelper::downloadPropertiesFile);
             }
         }
         // override target properties only if they do not exist
-        String finalPropertiesFolderPath = propertiesFolderPath;
-        Arrays.asList("/cucumber.properties","/custom.properties", "/customWebdriverCapabilities.properties", "/log4j2.properties", "/TestNG.properties", "/reportportal.properties", "/junit-platform.properties")
+        overrideTargetProperties();
+    }
+
+    private static void overrideTargetProperties(){
+        var fileActions = FileActions.getInstance(true);
+        var propertiesFolderPath = Properties.paths.properties();
+        boolean isExternalRun = propertiesFolderPath.contains("file:") && propertiesFolderPath.contains(".jar!");
+
+        Arrays.asList("/cucumber.properties", "/custom.properties", "/customWebdriverCapabilities.properties", "/log4j2.properties", "/TestNG.properties", "/reportportal.properties", "/junit-platform.properties")
                 .forEach(file -> {
                     if (!fileActions.doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + file)) {
                         if (isExternalRun) {
-                            var tempPath = finalPropertiesFolderPath.replace("/default","");
+                            var tempPath = propertiesFolderPath.replace("/default", "");
                             try {
                                 if (tempPath.contains("file:")) {
                                     fileActions.copyFileFromJar(tempPath, TARGET_PROPERTIES_FOLDER_PATH, file.replace("/", ""));
@@ -225,7 +250,7 @@ public class PropertiesHelper {
                                 fileActions.copyFile(tempPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);
                             }
                         } else {
-                            fileActions.copyFile(finalPropertiesFolderPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);
+                            fileActions.copyFile(propertiesFolderPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);
                         }
                     }
                 });
