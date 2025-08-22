@@ -242,7 +242,13 @@ public class Actions extends ElementActions {
                             new org.openqa.selenium.interactions.Actions(d).scrollToElement(foundElements.get().getFirst()).perform();
                         } catch (Throwable throwable1) {
                             // old school selenium scroll
-                            ((Locatable) d).getCoordinates().inViewPort();
+                            if (d instanceof Locatable locatable) {
+                                locatable.getCoordinates().inViewPort();
+                            } else if (d instanceof JavascriptExecutor) {
+                                // native Javascript scroll to center (smooth / auto)
+                                ((JavascriptExecutor) d).executeScript("""
+                                    arguments[0].scrollIntoView({behavior: "auto", block: "center", inline: "center"});""", foundElements.get().getFirst());
+                            }
                         }
                     }
                     case "javascript" -> {
@@ -256,11 +262,20 @@ public class Actions extends ElementActions {
                                 new org.openqa.selenium.interactions.Actions(d).scrollToElement(foundElements.get().getFirst()).perform();
                             } catch (Throwable throwable1) {
                                 // old school selenium scroll
-                                ((Locatable) d).getCoordinates().inViewPort();
+                                if (d instanceof Locatable locatable)
+                                    locatable.getCoordinates().inViewPort();
                             }
                         }
                     }
-                    case "legacy" -> ((Locatable) d).getCoordinates().inViewPort();
+                    case "legacy" -> {
+                        if (d instanceof Locatable locatable) {
+                            locatable.getCoordinates().inViewPort();
+                        } else if (d instanceof JavascriptExecutor) {
+                            // native Javascript scroll to center (smooth / auto)
+                            ((JavascriptExecutor) d).executeScript("""
+                                    arguments[0].scrollIntoView({behavior: "auto", block: "center", inline: "center"});""", foundElements.get().getFirst());
+                        }
+                    }
                 }
 
                 // perform action
