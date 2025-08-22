@@ -24,7 +24,7 @@ public class ProjectStructureManager {
                     FileActions.getInstance(true).createFolder(Properties.paths.services());
                     FileActions.getInstance(true).writeToFile(Properties.paths.services(), "org.junit.platform.launcher.LauncherSessionListener", "com.shaft.listeners.JunitListener");
                 }
-                case TESTNG -> {
+                case TESTNG, AI_AGENT -> {
                     FileActions.getInstance(true).createFolder(Properties.paths.services());
                     FileActions.getInstance(true).writeToFile(Properties.paths.services(), "org.testng.ITestNGListener", "com.shaft.listeners.TestNGListener");
                 }
@@ -43,5 +43,5 @@ public class ProjectStructureManager {
                 "io.qameta.allure.listener.StepLifecycleListener", "io.qameta.allure.listener.TestLifecycleListener").forEach(fileName -> FileActions.getInstance(true).writeToFile(Properties.paths.services(), fileName, "com.shaft.listeners.AllureListener"));
     }
 
-    public enum RunType {TESTNG, JUNIT, CUCUMBER}
+    public enum RunType {TESTNG, JUNIT, CUCUMBER, AI_AGENT}
 }

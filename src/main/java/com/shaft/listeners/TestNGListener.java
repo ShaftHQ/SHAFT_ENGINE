@@ -72,7 +72,11 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         Allure.getLifecycle();
         Reporter.setEscapeHtml(false);
         ReportManagerHelper.setDiscreteLogging(true);
-        PropertiesHelper.initialize();
+        if (runType == ProjectStructureManager.RunType.AI_AGENT) {
+            PropertiesHelper.initializeAiAgent();
+        } else {
+            PropertiesHelper.initialize();
+        }
         ReportManager.logDiscrete("Initializing Engine Setup...");
         SHAFT.Properties.reporting.set().disableLogging(true);
         switch (runType) {
@@ -82,6 +86,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
                     Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.CUCUMBER));
             case JUNIT ->
                     Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.JUNIT));
+            case AI_AGENT ->
+                    ProjectStructureManager.initialize(ProjectStructureManager.RunType.AI_AGENT);
         }
         TestNGListenerHelper.configureJVMProxy();
         Thread.ofVirtual().start(() -> {
