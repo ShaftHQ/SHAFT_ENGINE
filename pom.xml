@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>9.3.20250822</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
+    <version>9.3.20250823</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
     <name>${project.groupId}:${project.artifactId}</name>
     <description>SHAFT is a unified test automation engine. Powered by best-in-class frameworks, SHAFT provides a
         wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve.
