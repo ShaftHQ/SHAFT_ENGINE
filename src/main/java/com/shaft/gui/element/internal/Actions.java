@@ -234,6 +234,7 @@ public class Actions extends ElementActions {
                         accessibleName.set(fetchedName.trim());
                 }
 
+                if (!isMobileNativeExecution) {
                 // scroll to element (avoid relocating the element if already found)
                 switch (SHAFT.Properties.flags.scrollingMode().toLowerCase()){
                     case "w3c" -> {
@@ -276,6 +277,7 @@ public class Actions extends ElementActions {
                                     arguments[0].scrollIntoView({behavior: "auto", block: "center", inline: "center"});""", foundElements.get().getFirst());
                         }
                     }
+                }
                 }
 
                 // perform action
