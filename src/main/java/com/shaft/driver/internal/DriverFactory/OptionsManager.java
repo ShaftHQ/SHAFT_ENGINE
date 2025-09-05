@@ -392,7 +392,8 @@ public class OptionsManager {
                     "--enable-use-zoom-for-dsf",
                     "--log-net-log",
                     "--net-log-capture-mode",
-                    "--no-sandbox"
+                    "--no-sandbox",
+                    "--disable-save-password-bubble"
             );
         }
         // Add if condtion to start the new session if flag=true on specific port
@@ -427,6 +428,9 @@ public class OptionsManager {
         // optional capabilities and options
         if (SHAFT.Properties.flags.automaticallyAddRecommendedChromeOptions()) {
             Map<String, Object> chromePreferences = new HashMap<>();
+            chromePreferences.put("credentials_enable_service", false);
+            chromePreferences.put("profile.password_manager_enabled", false);
+            chromePreferences.put("profile.password_manager_leak_detection", false);
             chromePreferences.put("profile.default_content_settings.popups", 0);
             chromePreferences.put("download.prompt_for_download", "false");
             chromePreferences.put("download.default_directory", System.getProperty("user.dir") + File.separatorChar + SHAFT.Properties.paths.downloads().replace("/", File.separator));
