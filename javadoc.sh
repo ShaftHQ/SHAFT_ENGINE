@@ -1,1 +1,1 @@
-/opt/hostedtoolcache/Java_Adopt_jdk/21.0.7-6.0.LTS/x64/bin/javadoc -J-Duser.language= -J-Duser.country= @options @argfile
+/opt/hostedtoolcache/Java_Adopt_jdk/21.0.8-9.0.LTS/x64/bin/javadoc -J-Duser.language= -J-Duser.country= @options @argfile
