@@ -171,6 +171,8 @@ public class ValidationsExecutor {
                     new ValidationsHelper2(validationCategory).validateElementExists(driver.get(), locator, validationType);
             case "elementMatches" ->
                     new ValidationsHelper2(validationCategory).validateElementMatches(driver.get(), locator, visualValidationEngine, validationType);
+            case "elementAttributeEquals" ->
+                    new ValidationsHelper2(validationCategory).validateElementAttribute(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "elementDomAttributeEquals" ->
                     new ValidationsHelper2(validationCategory).validateElementDomAttribute(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "elementDomPropertyEquals" ->

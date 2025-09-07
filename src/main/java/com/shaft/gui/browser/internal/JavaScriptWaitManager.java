@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.tools.internal.support.JavaScriptHelper;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 
@@ -19,6 +20,7 @@ public class JavaScriptWaitManager {
      * Waits for jQuery, Angular, and/or Javascript if present on the current page.
      */
     public static void waitForLazyLoading(WebDriver driver) {
+        try {
         if (SHAFT.Properties.timeouts.waitForLazyLoading()
                 && !DriverFactoryHelper.isMobileNativeExecution()) {
             ArrayList<Thread> lazyLoadingThreads = new ArrayList<>();
@@ -33,6 +35,9 @@ public class JavaScriptWaitManager {
                     //do nothing
                 }
             });
+        }
+        } catch (Exception e) {
+            ReportManagerHelper.logDiscrete(e);
         }
     }
 

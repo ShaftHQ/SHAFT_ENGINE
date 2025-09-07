@@ -121,7 +121,7 @@ public class ValidationsHelper2 {
 
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
-                new Actions(driver, true).get().domProperty(locator, domProperty);
+                actual.set(new Actions(driver, true).get().domProperty(locator, domProperty));
                 validationState.set(performValidation(expected, actual.get(), type, validation));
                 return validationState.get();
             });
@@ -139,6 +139,44 @@ public class ValidationsHelper2 {
         Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
         reportValidationState(validationState.get(), expected, actual, driver, locator, null);
     }
+
+    protected void validateElementAttribute(WebDriver driver, By locator, String attribute,
+                                               String expected, ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
+        // read actual value based on desired attribute
+        // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
+        var elementInformation = ElementInformation.fromList(new ElementActionsHelper(true).identifyUniqueElementIgnoringVisibility(driver, locator));
+
+        AtomicReference<String> actual = new AtomicReference<>();
+        AtomicReference<Boolean> validationState = new AtomicReference<>();
+
+        try {
+            new SynchronizationManager(driver).fluentWait(false).until(f -> {
+                actual.set(switch (attribute.toLowerCase()) {
+                    case "text" -> new Actions(driver, true).get().text(locator);
+                    case "texttrimmed", "trimmedtext" -> new Actions(driver, true).get().text(locator).trim();
+                    case "tagname" -> elementInformation.getElementTag();
+                    case "size" -> elementInformation.getFirstElement().getSize().toString();
+                    case "selectedtext" -> new Actions(driver, true).get().selectedText(locator);
+                    default -> new Actions(driver, true).get().attribute(locator, attribute);
+                });
+                validationState.set(performValidation(expected, actual.get(), type, validation));
+                return validationState.get();
+            });
+        } catch (TimeoutException timeoutException) {
+            //timeout was exhausted and the validation failed
+        }
+        //reporting block
+        List<Parameter> parameters = new ArrayList<>();
+        parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Attribute").setValue(attribute).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Expected value").setValue(String.valueOf(expected)).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual)).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
+        parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
+        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
+        reportValidationState(validationState.get(), expected, actual, driver, locator, null);
+    }
+
 
     protected void validateElementDomAttribute(WebDriver driver, By locator, String attribute,
                                                String expected, ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {

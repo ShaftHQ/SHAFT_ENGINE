@@ -280,6 +280,8 @@ public class Actions extends ElementActions {
                 }
                 }
 
+                //wait for lazy loading
+                JavaScriptWaitManager.waitForLazyLoading(d);
                 // perform action
                 switch (action) {
                     case HOVER ->
@@ -317,7 +319,10 @@ public class Actions extends ElementActions {
                     case TYPE_APPEND -> foundElements.get().getFirst().sendKeys((CharSequence[]) data);
                     case JAVASCRIPT_SET_VALUE ->
                             ((JavascriptExecutor) d).executeScript("arguments[0].value = arguments[1];", foundElements.get().getFirst(), data);
-                    case CLEAR -> executeClearBasedOnClearMode(foundElements);
+                    case CLEAR -> {
+                        executeClearBasedOnClearMode(foundElements);
+                        ((JavascriptExecutor) d).executeScript("arguments[0].value = arguments[1];", foundElements.get().getFirst(), "");
+                    }
                     case DRAG_AND_DROP ->
                             new org.openqa.selenium.interactions.Actions(d).pause(Duration.ofMillis(400))
                                     .dragAndDrop(foundElements.get().getFirst(),
@@ -349,6 +354,7 @@ public class Actions extends ElementActions {
                         // Use upload input field to send the file location for upload
                         input.sendKeys(absoluteFilePath);
                     }
+                    case GET_ATTRIBUTE -> output.set(foundElements.get().getFirst().getAttribute((String) data));
                     case GET_DOM_ATTRIBUTE -> output.set(foundElements.get().getFirst().getDomAttribute((String) data));
                     case GET_DOM_PROPERTY -> output.set(foundElements.get().getFirst().getDomProperty((String) data));
                     case GET_CSS_VALUE -> output.set(foundElements.get().getFirst().getCssValue((String) data));
@@ -411,14 +417,16 @@ public class Actions extends ElementActions {
 
     private void executeClearBasedOnClearMode(AtomicReference<List<WebElement>> foundElements) {
         String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
+        var elem = foundElements.get().getFirst();
         switch (clearMode) {
             case "native":
-                foundElements.get().getFirst().clear();
+                elem.click();
+                elem.clear();
                 break;
             case "backspace":
-                String text = parseElementText(foundElements.get().getFirst());
+                String text = parseElementText(elem);
                 if (!text.isEmpty())
-                    foundElements.get().getFirst().sendKeys(String.valueOf(Keys.BACK_SPACE).repeat(text.length()));
+                    elem.sendKeys(String.valueOf(Keys.BACK_SPACE).repeat(text.length()));
                 break;
             case "off":
                 break;
@@ -603,11 +611,7 @@ public class Actions extends ElementActions {
             js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, highlightedElementStyle);
         }
 
-        try {
-            JavaScriptWaitManager.waitForLazyLoading(driver);
-        } catch (Exception e) {
-            ReportManagerHelper.logDiscrete(e);
-        }
+        JavaScriptWaitManager.waitForLazyLoading(driver);
         return regularElementStyle;
     }
 
@@ -689,10 +693,15 @@ public class Actions extends ElementActions {
         }
     }
 
-    protected enum ActionType {HOVER, CLICK, JAVASCRIPT_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, JAVASCRIPT_SET_VALUE, CLEAR, DRAG_AND_DROP, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, DRAG_AND_DROP_BY_OFFSET, GET_SELECTED_TEXT, CLICK_AND_HOLD, DOUBLE_CLICK, GET_IS_SELECTED, DROP_FILE_TO_UPLOAD}
+    protected enum ActionType {HOVER, CLICK, JAVASCRIPT_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, JAVASCRIPT_SET_VALUE, CLEAR, DRAG_AND_DROP, GET_ATTRIBUTE, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, DRAG_AND_DROP_BY_OFFSET, GET_SELECTED_TEXT, CLICK_AND_HOLD, DOUBLE_CLICK, GET_IS_SELECTED, DROP_FILE_TO_UPLOAD}
 
     public class GetElementInformation {
         protected GetElementInformation() {
+        }
+
+        @Step("Get Attribute")
+        public String attribute(@NonNull By locator, @NonNull String attributeName) {
+            return performAction(ActionType.GET_ATTRIBUTE, locator, attributeName);
         }
 
         @Step("Get DOM attribute")
