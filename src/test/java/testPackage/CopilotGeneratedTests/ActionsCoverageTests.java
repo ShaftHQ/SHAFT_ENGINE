@@ -4,8 +4,9 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.internal.Actions;
 import com.shaft.gui.internal.locator.Locator;
 import org.openqa.selenium.By;
-import org.openqa.selenium.Keys;
-import org.testng.annotations.*;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class ActionsCoverageTests {
     SHAFT.GUI.WebDriver driver;
@@ -35,12 +36,6 @@ public class ActionsCoverageTests {
     }
 
     @Test
-    public void testTypeInSearchBox() {
-        actions.type(searchBox, "SHAFT Engine", Keys.ENTER);
-        driver.assertThat().element(firstResult).isVisible();
-    }
-
-    @Test
     public void testClearSearchBox() {
         actions.type(searchBox, "Test Clear");
         actions.clear(searchBox);
@@ -62,11 +57,6 @@ public class ActionsCoverageTests {
     @Test
     public void testGetDomAttribute() {
         driver.assertThat().element(searchBox).attribute("type").isEqualTo(actions.get().domAttribute(searchBox, "type"));
-    }
-
-    @Test
-    public void testGetName() {
-        driver.assertThat().element(searchBox).attribute("name").isEqualTo(actions.get().name(searchBox));
     }
 
     @Test

@@ -6,8 +6,6 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.internal.Actions;
-import com.shaft.gui.element.internal.ElementActionsHelper;
-import com.shaft.gui.element.internal.ElementInformation;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.properties.internal.Properties;
@@ -142,10 +140,6 @@ public class ValidationsHelper2 {
 
     protected void validateElementAttribute(WebDriver driver, By locator, String attribute,
                                                String expected, ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
-        // read actual value based on desired attribute
-        // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
-        var elementInformation = ElementInformation.fromList(new ElementActionsHelper(true).identifyUniqueElementIgnoringVisibility(driver, locator));
-
         AtomicReference<String> actual = new AtomicReference<>();
         AtomicReference<Boolean> validationState = new AtomicReference<>();
 
@@ -154,8 +148,6 @@ public class ValidationsHelper2 {
                 actual.set(switch (attribute.toLowerCase()) {
                     case "text" -> new Actions(driver, true).get().text(locator);
                     case "texttrimmed", "trimmedtext" -> new Actions(driver, true).get().text(locator).trim();
-                    case "tagname" -> elementInformation.getElementTag();
-                    case "size" -> elementInformation.getFirstElement().getSize().toString();
                     case "selectedtext" -> new Actions(driver, true).get().selectedText(locator);
                     default -> new Actions(driver, true).get().attribute(locator, attribute);
                 });
@@ -181,9 +173,6 @@ public class ValidationsHelper2 {
     protected void validateElementDomAttribute(WebDriver driver, By locator, String attribute,
                                                String expected, ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
         // read actual value based on desired attribute
-        // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
-        var elementInformation = ElementInformation.fromList(new ElementActionsHelper(true).identifyUniqueElementIgnoringVisibility(driver, locator));
-
         AtomicReference<String> actual = new AtomicReference<>();
         AtomicReference<Boolean> validationState = new AtomicReference<>();
 
@@ -192,8 +181,6 @@ public class ValidationsHelper2 {
                 actual.set(switch (attribute.toLowerCase()) {
                     case "text" -> new Actions(driver, true).get().text(locator);
                     case "texttrimmed", "trimmedtext" -> new Actions(driver, true).get().text(locator).trim();
-                    case "tagname" -> elementInformation.getElementTag();
-                    case "size" -> elementInformation.getFirstElement().getSize().toString();
                     case "selectedtext" -> new Actions(driver, true).get().selectedText(locator);
                     default -> new Actions(driver, true).get().domAttribute(locator, attribute);
                 });
