@@ -65,7 +65,14 @@ public class TouchActions extends FluentWebDriverAction {
      */
     public TouchActions nativeKeyboardKeyPress(KeyboardKeys key) {
         try {
-            ((RemoteWebDriver) driverFactoryHelper.getDriver()).executeScript("performEditorAction", key.getValue());
+            if (driverFactoryHelper.getDriver() instanceof RemoteWebDriver remoteWebDriver) {
+                new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait(false).until(d -> {
+                    boolean isKeyboardShown = Boolean.parseBoolean(String.valueOf(remoteWebDriver.executeScript("isKeyboardShown")));
+                    if (isKeyboardShown)
+                        remoteWebDriver.executeScript("performEditorAction", key.getValue());
+                    return isKeyboardShown;
+                });
+            }
             elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), key.name(), null, null);
         } catch (Exception rootCauseException) {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null, rootCauseException);
@@ -398,7 +405,7 @@ public class TouchActions extends FluentWebDriverAction {
                 if (driverFactoryHelper.getDriver() instanceof AppiumDriver appiumDriver) {
                     // appium native application
                     boolean isElementFound = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, targetElementLocator);
-                    if (Boolean.FALSE.equals(isElementFound)) {
+                    if (!isElementFound) {
                         elementActionsHelper.failAction(appiumDriver, targetElementLocator);
                     }
                 } else {
@@ -555,10 +562,10 @@ public class TouchActions extends FluentWebDriverAction {
     private boolean performW3cCompliantScroll(HashMap<Object, Object> scrollParameters) {
         boolean canScrollMore = true;
         if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
-            canScrollMore = Boolean.parseBoolean(String.valueOf(androidDriver.executeScript("mobile:scrollGesture", scrollParameters)));
+            canScrollMore = Boolean.parseBoolean(String.valueOf(androidDriver.executeScript("scrollGesture", scrollParameters)));
         } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
             //http://appium.github.io/appium-xcuitest-driver/4.16/execute-methods/#mobile-scroll
-            var ret = iosDriver.executeScript("mobile:scroll", scrollParameters);
+            var ret = iosDriver.executeScript("scroll", scrollParameters);
             canScrollMore = ret == null || (Boolean) ret;
         }
         return canScrollMore;

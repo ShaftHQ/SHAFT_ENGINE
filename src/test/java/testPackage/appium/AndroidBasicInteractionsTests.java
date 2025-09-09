@@ -5,17 +5,12 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.TouchActions;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.android.AndroidDriver;
-import io.appium.java_client.remote.AutomationName;
 import org.openqa.selenium.By;
-import org.openqa.selenium.Platform;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.time.Duration;
 
-public class AndroidBasicInteractionsTests {
-    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
+public class AndroidBasicInteractionsTests extends MobileTest {
     private final String PACKAGE = "io.appium.android.apis";
 
     @Test
@@ -127,7 +122,7 @@ public class AndroidBasicInteractionsTests {
     public void testSendKeys() {
         String SEARCH_ACTIVITY = ".app.SearchInvoke";
 
-        ((AndroidDriver) driver.get().getDriver()).executeScript("mobile:startActivity", ImmutableMap.of("intent", PACKAGE + "/" + SEARCH_ACTIVITY));
+        ((AndroidDriver) driver.get().getDriver()).executeScript("startActivity", ImmutableMap.of("intent", PACKAGE + "/" + SEARCH_ACTIVITY));
 //        ((AndroidDriver) driver.get().getDriver()).startActivity(new Activity(PACKAGE, SEARCH_ACTIVITY));
 
         driver.get().element().type(By.id("txt_query_prefill"), "Hello world!")
@@ -140,7 +135,7 @@ public class AndroidBasicInteractionsTests {
         // Open the "Alert Dialog" activity of the android app
         String ALERT_DIALOG_ACTIVITY = ".app.AlertDialogSamples";
 
-        ((AndroidDriver) driver.get().getDriver()).executeScript("mobile:startActivity", ImmutableMap.of("intent", PACKAGE + "/" + ALERT_DIALOG_ACTIVITY));
+        ((AndroidDriver) driver.get().getDriver()).executeScript("startActivity", ImmutableMap.of("intent", PACKAGE + "/" + ALERT_DIALOG_ACTIVITY));
 //        ((AndroidDriver) driver.get().getDriver()).startActivity(new Activity(PACKAGE, ALERT_DIALOG_ACTIVITY));
 
         // Click button that opens a dialog
@@ -155,48 +150,5 @@ public class AndroidBasicInteractionsTests {
 
         // Close the dialog
         driver.get().element().touch().tap(By.id("android:id/button1"));
-    }
-
-    @SuppressWarnings("CommentedOutCode")
-    @BeforeMethod
-    public void setup() {
-        System.setProperty("mobile_autoGrantPermissions", "true");
-        // common attributes
-        SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
-        SHAFT.Properties.mobile.set().automationName(AutomationName.ANDROID_UIAUTOMATOR2);
-
-        // self-managed execution
-//        SHAFT.Properties.mobile.set().selfManaged(true);
-//        SHAFT.Properties.mobile.set().selfManagedAndroidSDKVersion(31);
-
-        // local appium server (for local and GitHub actions execution)
-//        SHAFT.Properties.platform.set().executionAddress("localhost:4723");
-//        SHAFT.Properties.mobile.set().app("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
-
-        // local appium server (android-emulator docker-compose)
-//        SHAFT.Properties.platform.set().executionAddress("localhost:4725");
-//        SHAFT.Properties.mobile.set().app("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
-
-        // remote browserstack server (new app version)
-//        SHAFT.Properties.platform.set().executionAddress("browserstack");
-//        SHAFT.Properties.browserStack.set().platformVersion("13.0");
-//        SHAFT.Properties.browserStack.set().deviceName("Google Pixel 7");
-//        SHAFT.Properties.browserStack.set().appName("ApiDemos-debug.apk");
-//        SHAFT.Properties.browserStack.set().appRelativeFilePath("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
-//        SHAFT.Properties.browserStack.set().appUrl("");
-
-        // remote browserstack server (existing app version)
-//        SHAFT.Properties.platform.set().executionAddress("browserstack");
-//        SHAFT.Properties.browserStack.set().platformVersion("13.0");
-//        SHAFT.Properties.browserStack.set().deviceName("Google Pixel 7");
-//        SHAFT.Properties.browserStack.set().appName("ApiDemos-debug.apk");
-//        SHAFT.Properties.browserStack.set().appRelativeFilePath("");
-//        SHAFT.Properties.browserStack.set().appUrl("bs://e744ef24a081b0d4cb5f9699a5dd69d6a3a2dbce");
-        driver.set(new SHAFT.GUI.WebDriver());
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void teardown() {
-        driver.get().quit();
     }
 }
