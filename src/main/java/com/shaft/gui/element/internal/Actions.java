@@ -319,11 +319,9 @@ public class Actions extends ElementActions {
                         PropertiesHelper.setClearBeforeTypingMode();
                         executeClearBasedOnClearMode(foundElements.get().getFirst(), SHAFT.Properties.flags.clearBeforeTypingMode());
                         foundElements.get().getFirst().sendKeys((CharSequence[]) data);
-                        foundElements.get().getFirst().sendKeys(Keys.ARROW_RIGHT);
                     }
                     case TYPE_APPEND -> {
                         foundElements.get().getFirst().sendKeys((CharSequence[]) data);
-                        foundElements.get().getFirst().sendKeys(Keys.ARROW_RIGHT);
                     }
                     case JAVASCRIPT_SET_VALUE ->
                             ((JavascriptExecutor) d).executeScript("arguments[0].value = arguments[1];", foundElements.get().getFirst(), data);
@@ -415,7 +413,7 @@ public class Actions extends ElementActions {
                     // report broken
                     reportBroken(action.name(), accessibleName.get(), screenshot.get(0), exception);
                 } catch (RuntimeException exception2) {
-                    if (!exception2.getCause().equals(exception)){
+                    if (exception2.getCause() == null || !exception2.getCause().equals(exception)) {
                         // in case a new exception was thrown while attempting to take a screenshot
                         exception2.addSuppressed(exception);
                         // report broken
