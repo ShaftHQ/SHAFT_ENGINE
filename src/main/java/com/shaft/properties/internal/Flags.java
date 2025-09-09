@@ -151,7 +151,7 @@ public interface Flags extends EngineProperties<Flags> {
         /**
          * Please use {@link #clearBeforeTypingMode(String value)} instead.
          */
-        @Deprecated()
+        @Deprecated(forRemoval = true)
         public SetProperty attemptClearBeforeTyping(boolean value) {
             setProperty("attemptClearBeforeTyping", String.valueOf(value));
             return this;
@@ -160,7 +160,7 @@ public interface Flags extends EngineProperties<Flags> {
         /**
          * Please use {@link #clearBeforeTypingMode(String value)} instead.
          */
-        @Deprecated
+        @Deprecated(forRemoval = true)
         public SetProperty attemptClearBeforeTypingUsingBackspace(boolean value) {
             setProperty("attemptClearBeforeTypingUsingBackspace", String.valueOf(value));
             return this;

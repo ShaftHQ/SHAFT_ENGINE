@@ -173,7 +173,7 @@ public class NewValidationHelperTests {
         try {
             driver.get().element().assertThat(By.tagName("h3")).text().doesNotContain("Welcome").perform();
             throw new Exception("Expected to fail but passed.");
-        } catch (AssertionError e) {
+        } catch (RuntimeException e) {
             // pass
         }
     }
@@ -198,7 +198,7 @@ public class NewValidationHelperTests {
         try {
             driver.get().element().assertThat(By.tagName("h3")).attribute("text").contains("Welcome").perform();
             throw new Exception("Expected to fail but passed.");
-        } catch (AssertionError e) {
+        } catch (RuntimeException e) {
             // pass
         }
     }

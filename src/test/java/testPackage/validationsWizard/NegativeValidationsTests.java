@@ -75,7 +75,7 @@ public class NegativeValidationsTests {
         Validations.assertThat().object("aa").isEqualTo("aa");
     }
 
-    @Test(expectedExceptions = AssertionError.class)
+    @Test(expectedExceptions = RuntimeException.class)
     public void isVisible() {
         driver.get().element().assertThat(button2).isVisible().perform();
     }
