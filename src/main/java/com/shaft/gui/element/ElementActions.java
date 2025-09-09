@@ -23,6 +23,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import java.nio.file.FileSystems;
 import java.time.Duration;
 import java.util.*;
+import java.util.function.Function;
 
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class ElementActions extends FluentWebDriverAction {
@@ -67,7 +68,7 @@ public class ElementActions extends FluentWebDriverAction {
      *                       selector, name ...etc.)
      * @return the selected text of the target webElement
      */
-    @Deprecated
+    @Deprecated(forRemoval = true)
     public String getSelectedText(By elementLocator) {
         return new Actions(driverFactoryHelper).get().selectedText(elementLocator);
     }
@@ -150,6 +151,11 @@ public class ElementActions extends FluentWebDriverAction {
     }
 
     /**
+     * Deprecated instead you should use {@link Actions.ClipboardAction#copyAll(By)}
+     * or {@link Actions.ClipboardAction#cutAll(By)}
+     * or {@link Actions.ClipboardAction#paste(By)}
+     * or {@link Actions.ClipboardAction#deleteAll(By)}
+     *
      * Attempts to perform a native clipboard action on the text from a certain web
      * element, like copy/cut/paste
      *
@@ -159,11 +165,12 @@ public class ElementActions extends FluentWebDriverAction {
      *                       "select all", "unselect"
      * @return a self-reference to be used to chain actions
      */
+    @Deprecated(forRemoval = true)
     public Actions clipboardActions(By elementLocator, ClipboardAction action) {
         try {
             var elementName = elementActionsHelper.getElementName(driverFactoryHelper.getDriver(), elementLocator);
             boolean wasActionPerformed = elementActionsHelper.performClipboardActions(driverFactoryHelper.getDriver(), action);
-            if (Boolean.TRUE.equals(wasActionPerformed)) {
+            if (wasActionPerformed) {
                 elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), action.getValue(), null, elementName);
             } else {
                 elementActionsHelper.failAction(driverFactoryHelper.getDriver(), action.getValue(), elementLocator);
@@ -225,7 +232,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @param attributeName  the target DOM property of the webElement under test
      * @return the value of the target DOM property of the webElement under test
      */
-    @Deprecated
+    @Deprecated(forRemoval = true)
     public String getAttribute(By elementLocator, String attributeName) {
         return new Actions(driverFactoryHelper).get().domProperty(elementLocator, attributeName);
     }
@@ -246,7 +253,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @param propertyName   the target CSS property of the webElement under test
      * @return the value of the target CSS property of the webElement under test
      */
-    @Deprecated
+    @Deprecated(forRemoval = true)
     public String getCSSProperty(By elementLocator, String propertyName) {
         return new Actions(driverFactoryHelper).get().cssValue(elementLocator, propertyName);
 
@@ -261,7 +268,7 @@ public class ElementActions extends FluentWebDriverAction {
      *                       selector, name ...etc.)
      * @return the text value of the target webElement
      */
-    @Deprecated
+    @Deprecated(forRemoval = true)
     public String getText(By elementLocator) {
         return new Actions(driverFactoryHelper).get().text(elementLocator);
     }
@@ -336,7 +343,7 @@ public class ElementActions extends FluentWebDriverAction {
 
             try {
                 String elementName = elementActionsHelper.getElementName(driverFactoryHelper.getDriver(), elementLocator);
-                if (!Boolean.TRUE.equals(elementActionsHelper.waitForElementTextToBeNot(driverFactoryHelper.getDriver(), elementLocator, ""))) {
+                if (!elementActionsHelper.waitForElementTextToBeNot(driverFactoryHelper.getDriver(), elementLocator, "")) {
                     elementActionsHelper.failAction(driverFactoryHelper.getDriver(), valueOrVisibleText, elementLocator);
                 }
 
@@ -354,7 +361,7 @@ public class ElementActions extends FluentWebDriverAction {
                     }
                 }
 
-                if (Boolean.FALSE.equals(isOptionFound)) {
+                if (!isOptionFound) {
                     throw new NoSuchElementException("Cannot locate option with Value or Visible text =" + valueOrVisibleText);
                 }
             } catch (Throwable var9) {
@@ -567,7 +574,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return boolean value, true if the element is displayed, and false if the
      * element is not displayed
      */
-    @Deprecated
+    @Deprecated(forRemoval = true)
     public boolean isElementDisplayed(By elementLocator) {
         return new Actions(driverFactoryHelper).get().isDisplayed(elementLocator);
     }
@@ -581,7 +588,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return boolean value, true if the element is clickable, and false if the
      * element is not clickable
      */
-    @Deprecated
+    @Deprecated(forRemoval = true)
     public boolean isElementClickable(By elementLocator) {
         return new Actions(driverFactoryHelper).get().isEnabled(elementLocator);
     }
@@ -638,22 +645,66 @@ public class ElementActions extends FluentWebDriverAction {
         return new Actions(driverFactoryHelper);
     }
 
-    @Deprecated
+    /**
+     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
+     * or {@link Actions#waitUntil(Function)}
+     * <p>
+     * Waits until the number of elements located by the given locator matches the expected number of elements
+     *
+     * @param elementLocator   the locator of the webElement under test (By xpath, id,
+     *                         selector, name ...etc.)
+     * @param numberOfElements the expected number of elements located by the given locator
+     * @return a self-reference to be used to chain actions
+     */
+    @Deprecated(forRemoval = true)
     public Actions waitUntilNumberOfElementsToBe(By elementLocator, int numberOfElements) {
         return new Actions(driverFactoryHelper).waitUntil(d -> d.findElements(elementLocator).size() == numberOfElements, Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
     }
 
-    @Deprecated
+    /**
+     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
+     * or {@link Actions#waitUntil(Function)}
+     * <p>
+     * Waits until the number of elements located by the given locator is less than the expected number of elements
+     *
+     * @param elementLocator   the locator of the webElement under test (By xpath, id,
+     *                         selector, name ...etc.)
+     * @param numberOfElements the expected number of elements located by the given locator
+     * @return a self-reference to be used to chain actions
+     */
+    @Deprecated(forRemoval = true)
     public Actions waitUntilNumberOfElementsToBeLessThan(By elementLocator, int numberOfElements) {
         return new Actions(driverFactoryHelper).waitUntil(d -> d.findElements(elementLocator).size() < numberOfElements, Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
     }
 
-    @Deprecated
+    /**
+     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
+     * or {@link Actions#waitUntil(Function)}
+     * <p>
+     * Waits until the number of elements located by the given locator is more than the expected number of elements
+     *
+     * @param elementLocator   the locator of the webElement under test (By xpath, id,
+     *                         selector, name ...etc.)
+     * @param numberOfElements the expected number of elements located by the given locator
+     * @return a self-reference to be used to chain actions
+     */
+    @Deprecated(forRemoval = true)
     public Actions waitUntilNumberOfElementsToBeMoreThan(By elementLocator, int numberOfElements) {
         return new Actions(driverFactoryHelper).waitUntil(d -> d.findElements(elementLocator).size() > numberOfElements, Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
     }
 
-    @Deprecated
+    /**
+     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
+     * or {@link Actions#waitUntil(Function)}
+     *
+     * Waits until the attribute of the element located by the given locator contains the expected value
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc.)
+     * @param attribute the target DOM property of the webElement under test
+     * @param attributeContainsValue the expected value that should be contained in the target attribute
+     * @return a self-reference to be used to chain actions
+     */
+    @Deprecated(forRemoval = true)
     public Actions waitUntilAttributeContains(By elementLocator, String attribute, String attributeContainsValue) {
         return new Actions(driverFactoryHelper).waitUntil(d -> {
             var currentValue = driverFactoryHelper.getDriver().findElement(elementLocator).getDomProperty(attribute);
@@ -662,17 +713,45 @@ public class ElementActions extends FluentWebDriverAction {
         }, Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
     }
 
-    @Deprecated
+    /**
+     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
+     * or {@link Actions#waitUntil(Function)}
+     *
+     * Waits until the text of the element located by the given locator matches the expected text
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc.)
+     * @param text the expected text that should be matched with the element text
+     * @return a self-reference to be used to chain actions
+     */
+    @Deprecated(forRemoval = true)
     public Actions waitUntilElementTextToBe(By elementLocator, String text) {
         return new Actions(driverFactoryHelper).waitUntil(d -> text.equals(driverFactoryHelper.getDriver().findElement(elementLocator).getText()), Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
     }
 
-    @Deprecated
+    /**
+     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
+     * or {@link Actions#waitUntil(Function)}
+     *
+     * Waits until the element located by the given locator is selected
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc.)
+     * @return a self-reference to be used to chain actions
+     */
+    @Deprecated(forRemoval = true)
     public Actions waitUntilElementToBeSelected(By elementLocator) {
         return new Actions(driverFactoryHelper).waitUntil(d -> d.findElement(elementLocator).isSelected(), Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
     }
 
-    @Deprecated
+    /**
+     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
+     * or {@link Actions#waitUntil(Function)}
+     *
+     * Waits until at least one element located by the given locator is present in the DOM
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc.)
+     * @return a self-reference to be used to chain actions
+     */
+    @Deprecated(forRemoval = true)
     public Actions waitUntilPresenceOfAllElementsLocatedBy(By elementLocator) {
         return new Actions(driverFactoryHelper).waitUntil(d -> !d.findElements(elementLocator).isEmpty(), Duration.ofSeconds((int) SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()));
     }

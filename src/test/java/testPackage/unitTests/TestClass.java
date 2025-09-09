@@ -4,7 +4,8 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.locator.Locator;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
-import org.testng.annotations.*;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 import testPackage.Tests;
 
 public class TestClass extends Tests {
@@ -28,8 +29,9 @@ public class TestClass extends Tests {
                 .and().element().assertThat(logo).matchesReferenceImage();
     }
 
-    @Test
+    @Test(enabled = false)
     public void searchForQueryAndAssert() {
+        // this test will fail when duckduckgo detects that a bot is using it and shows a captcha instead of search results
         driver.get().browser().navigateToURL(targetUrl)
                 .and().element().type(searchBox, testData.getTestData("searchQuery") + Keys.ENTER)
                 .and().assertThat(firstSearchResult).text().doesNotEqual(testData.getTestData("unexpectedInFirstResult"));

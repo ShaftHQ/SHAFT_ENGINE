@@ -179,6 +179,10 @@ public class Actions extends ElementActions {
         return new GetElementInformation();
     }
 
+    public ClipboardAction clipboard() {
+        return new ClipboardAction(this);
+    }
+
     @Step("Wait until")
     public Actions waitUntil(@NonNull Function<? super WebDriver, ?> isTrue) {
         new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(isTrue);
@@ -280,6 +284,8 @@ public class Actions extends ElementActions {
                 }
                 }
 
+                //wait for lazy loading
+                JavaScriptWaitManager.waitForLazyLoading(d);
                 // perform action
                 switch (action) {
                     case HOVER ->
@@ -311,13 +317,19 @@ public class Actions extends ElementActions {
                     }
                     case TYPE, TYPE_SECURELY -> {
                         PropertiesHelper.setClearBeforeTypingMode();
-                        executeClearBasedOnClearMode(foundElements);
+                        executeClearBasedOnClearMode(foundElements.get().getFirst(), SHAFT.Properties.flags.clearBeforeTypingMode());
                         foundElements.get().getFirst().sendKeys((CharSequence[]) data);
                     }
-                    case TYPE_APPEND -> foundElements.get().getFirst().sendKeys((CharSequence[]) data);
+                    case TYPE_APPEND -> {
+                        foundElements.get().getFirst().sendKeys((CharSequence[]) data);
+                    }
                     case JAVASCRIPT_SET_VALUE ->
                             ((JavascriptExecutor) d).executeScript("arguments[0].value = arguments[1];", foundElements.get().getFirst(), data);
-                    case CLEAR -> executeClearBasedOnClearMode(foundElements);
+                    case CLEAR -> {
+                        executeClearBasedOnClearMode(foundElements.get().getFirst(), "native");
+                        if (!"".equals(foundElements.get().getFirst().getDomProperty("value")))
+                            executeClearBasedOnClearMode(foundElements.get().getFirst(), "backspace");
+                    }
                     case DRAG_AND_DROP ->
                             new org.openqa.selenium.interactions.Actions(d).pause(Duration.ofMillis(400))
                                     .dragAndDrop(foundElements.get().getFirst(),
@@ -349,6 +361,7 @@ public class Actions extends ElementActions {
                         // Use upload input field to send the file location for upload
                         input.sendKeys(absoluteFilePath);
                     }
+                    case GET_ATTRIBUTE -> output.set(foundElements.get().getFirst().getAttribute((String) data));
                     case GET_DOM_ATTRIBUTE -> output.set(foundElements.get().getFirst().getDomAttribute((String) data));
                     case GET_DOM_PROPERTY -> output.set(foundElements.get().getFirst().getDomProperty((String) data));
                     case GET_CSS_VALUE -> output.set(foundElements.get().getFirst().getCssValue((String) data));
@@ -373,6 +386,14 @@ public class Actions extends ElementActions {
                         new Select(foundElements.get().getFirst()).getAllSelectedOptions().forEach(selectedOption -> elementSelectedText.append(selectedOption.getText()));
                         output.set(elementSelectedText.toString());
                     }
+                    case CLIPBOARD_COPY ->
+                            foundElements.get().getFirst().sendKeys(Keys.chord(Keys.CONTROL, "a"), Keys.chord(Keys.CONTROL, "c"), Keys.ARROW_RIGHT);
+                    case CLIPBOARD_CUT ->
+                            foundElements.get().getFirst().sendKeys(Keys.chord(Keys.CONTROL, "a"), Keys.chord(Keys.CONTROL, "x"), Keys.ARROW_RIGHT);
+                    case CLIPBOARD_PASTE ->
+                            foundElements.get().getFirst().sendKeys(Keys.chord(Keys.CONTROL, "v"), Keys.ARROW_RIGHT);
+                    case CLIPBOARD_DELETE ->
+                            foundElements.get().getFirst().sendKeys(Keys.chord(Keys.CONTROL, "a"), Keys.BACK_SPACE, Keys.ARROW_RIGHT);
                 }
 
                 // take screenshot if not already taken before action
@@ -392,7 +413,7 @@ public class Actions extends ElementActions {
                     // report broken
                     reportBroken(action.name(), accessibleName.get(), screenshot.get(0), exception);
                 } catch (RuntimeException exception2) {
-                    if (!exception2.getCause().equals(exception)){
+                    if (exception2.getCause() == null || !exception2.getCause().equals(exception)) {
                         // in case a new exception was thrown while attempting to take a screenshot
                         exception2.addSuppressed(exception);
                         // report broken
@@ -409,16 +430,16 @@ public class Actions extends ElementActions {
         return output.get();
     }
 
-    private void executeClearBasedOnClearMode(AtomicReference<List<WebElement>> foundElements) {
-        String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
+    private void executeClearBasedOnClearMode(WebElement elem, String clearMode) {
         switch (clearMode) {
             case "native":
-                foundElements.get().getFirst().clear();
+                elem.click();
+                elem.clear();
                 break;
             case "backspace":
-                String text = parseElementText(foundElements.get().getFirst());
+                String text = parseElementText(elem);
                 if (!text.isEmpty())
-                    foundElements.get().getFirst().sendKeys(String.valueOf(Keys.BACK_SPACE).repeat(text.length()));
+                    elem.sendKeys(String.valueOf(Keys.BACK_SPACE).repeat(text.length()));
                 break;
             case "off":
                 break;
@@ -603,11 +624,7 @@ public class Actions extends ElementActions {
             js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, highlightedElementStyle);
         }
 
-        try {
-            JavaScriptWaitManager.waitForLazyLoading(driver);
-        } catch (Exception e) {
-            ReportManagerHelper.logDiscrete(e);
-        }
+        JavaScriptWaitManager.waitForLazyLoading(driver);
         return regularElementStyle;
     }
 
@@ -689,10 +706,15 @@ public class Actions extends ElementActions {
         }
     }
 
-    protected enum ActionType {HOVER, CLICK, JAVASCRIPT_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, JAVASCRIPT_SET_VALUE, CLEAR, DRAG_AND_DROP, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, DRAG_AND_DROP_BY_OFFSET, GET_SELECTED_TEXT, CLICK_AND_HOLD, DOUBLE_CLICK, GET_IS_SELECTED, DROP_FILE_TO_UPLOAD}
+    protected enum ActionType {HOVER, CLICK, JAVASCRIPT_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, JAVASCRIPT_SET_VALUE, CLEAR, DRAG_AND_DROP, GET_ATTRIBUTE, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, DRAG_AND_DROP_BY_OFFSET, GET_SELECTED_TEXT, CLICK_AND_HOLD, DOUBLE_CLICK, GET_IS_SELECTED, CLIPBOARD_DELETE, CLIPBOARD_COPY, CLIPBOARD_CUT, CLIPBOARD_PASTE, DROP_FILE_TO_UPLOAD}
 
     public class GetElementInformation {
         protected GetElementInformation() {
+        }
+
+        @Step("Get Attribute")
+        public String attribute(@NonNull By locator, @NonNull String attributeName) {
+            return performAction(ActionType.GET_ATTRIBUTE, locator, attributeName);
         }
 
         @Step("Get DOM attribute")
@@ -738,6 +760,42 @@ public class Actions extends ElementActions {
         @Step("Get is selected")
         public boolean isSelected(@NonNull By locator) {
             return Boolean.parseBoolean(performAction(ActionType.GET_IS_SELECTED, locator, null));
+        }
+    }
+
+    public class ClipboardAction {
+        private final Actions actions;
+
+        private ClipboardAction() {
+            actions = null;
+        }
+
+        protected ClipboardAction(Actions actions) {
+            this.actions = actions;
+        }
+
+        @Step("Delete text")
+        public Actions deleteAll(@NonNull By locator) {
+            performAction(ActionType.CLIPBOARD_DELETE, locator, null);
+            return this.actions;
+        }
+
+        @Step("Copy text to clipboard")
+        public Actions copyAll(@NonNull By locator) {
+            performAction(ActionType.CLIPBOARD_COPY, locator, null);
+            return this.actions;
+        }
+
+        @Step("Cut text to clipboard")
+        public Actions cutAll(@NonNull By locator) {
+            performAction(ActionType.CLIPBOARD_CUT, locator, null);
+            return this.actions;
+        }
+
+        @Step("Paste from clipboard")
+        public Actions paste(@NonNull By locator) {
+            performAction(ActionType.CLIPBOARD_PASTE, locator, null);
+            return this.actions;
         }
     }
 }

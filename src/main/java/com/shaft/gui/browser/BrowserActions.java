@@ -35,6 +35,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -348,6 +349,27 @@ public class BrowserActions extends FluentWebDriverAction {
         }
     }
 
+    /**
+     * Navigates to targetUrl using basic authentication in case the current URL
+     * is different, else refreshes the current page. Waits for successfully
+     * navigating to the final url after redirection.
+     * <p>
+     * Note: Basic authentication is supported only on Chrome and Firefox browsers,
+     * for other browsers the username and password will be embedded in the URL as
+     * follows: http://username:password@the_rest_of_the_url and a warning will be
+     * logged
+     *
+     * @param targetUrl                    a string that represents the URL that you
+     *                                     wish to navigate to
+     * @param username                     the username to be used for basic
+     *                                     authentication
+     * @param password                     the password to be used for basic
+     *                                     authentication
+     * @param targetUrlAfterAuthentication a string that represents a part of the
+     *                                     url that should be present after
+     *                                     redirection, this string is used to confirm successful
+     *                                     navigation
+     */
     @SuppressWarnings("UnusedReturnValue")
     public BrowserActions navigateToURLWithBasicAuthentication(String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
         try {
@@ -755,13 +777,31 @@ public class BrowserActions extends FluentWebDriverAction {
         return this;
     }
 
-    @Deprecated
+    /**
+     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
+     * or {@link Actions#waitUntil(Function)}
+     * <p>
+     * Use this action to wait until the page title is exactly as provided
+     *
+     * @param title the expected title
+     * @return a self-reference for chainable actions
+     */
+    @Deprecated(forRemoval = true)
     public BrowserActions waitUntilTitleIs(String title) {
         new Actions(driverFactoryHelper).waitUntil(d -> title.equals(driverFactoryHelper.getDriver().getTitle()), Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
         return this;
     }
 
-    @Deprecated
+    /**
+     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
+     * or {@link Actions#waitUntil(Function)}
+     * <p>
+     * Use this action to wait until the page title contains the provided text
+     *
+     * @param title the expected title
+     * @return a self-reference for chainable actions
+     */
+    @Deprecated(forRemoval = true)
     public BrowserActions waitUntilTitleContains(String title) {
         new Actions(driverFactoryHelper).waitUntil(d -> {
             var currentTitle = driverFactoryHelper.getDriver().getTitle();
@@ -771,7 +811,16 @@ public class BrowserActions extends FluentWebDriverAction {
         return this;
     }
 
-    @Deprecated
+    /**
+     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
+     * or {@link Actions#waitUntil(Function)}
+     * <p>
+     * Use this action to wait until the page title does not contain the provided text
+     *
+     * @param title the expected title
+     * @return a self-reference for chainable actions
+     */
+    @Deprecated(forRemoval = true)
     public BrowserActions waitUntilTitleNotContains(String title) {
         new Actions(driverFactoryHelper).waitUntil(d -> {
             var currentTitle = driverFactoryHelper.getDriver().getTitle();
@@ -781,7 +830,15 @@ public class BrowserActions extends FluentWebDriverAction {
         return this;
     }
 
-    @Deprecated
+    /**
+     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
+     * or {@link Actions#waitUntil(Function)}
+     *
+     * Use this action to wait until the current URL contains the provided text
+     * @param url the expected URL
+     * @return a self-reference for chainable actions
+     */
+    @Deprecated(forRemoval = true)
     public BrowserActions waitUntilUrlContains(String url) {
         new Actions(driverFactoryHelper).waitUntil(d -> {
             var currentUrl = driverFactoryHelper.getDriver().getCurrentUrl();
@@ -791,7 +848,15 @@ public class BrowserActions extends FluentWebDriverAction {
         return this;
     }
 
-    @Deprecated
+    /**
+     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
+     * or {@link Actions#waitUntil(Function)}
+     *
+     * Use this action to wait until the current URL does not contain the provided text
+     * @param url the expected URL
+     * @return a self-reference for chainable actions
+     */
+    @Deprecated(forRemoval = true)
     public BrowserActions waitUntilUrlNotContains(String url) {
         new Actions(driverFactoryHelper).waitUntil(d -> {
             var currentUrl = driverFactoryHelper.getDriver().getCurrentUrl();
@@ -801,19 +866,43 @@ public class BrowserActions extends FluentWebDriverAction {
         return this;
     }
 
-    @Deprecated
+    /**
+     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
+     * or {@link Actions#waitUntil(Function)}
+     *
+     * Use this action to wait until the current URL is exactly as provided
+     * @param url the expected URL
+     * @return a self-reference for chainable actions
+     */
+    @Deprecated(forRemoval = true)
     public BrowserActions waitUntilUrlToBe(String url) {
         new Actions(driverFactoryHelper).waitUntil(d -> url.equals(driverFactoryHelper.getDriver().getCurrentUrl()), Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
         return this;
     }
 
-    @Deprecated
+    /**
+     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
+     * or {@link Actions#waitUntil(Function)}
+     *
+     * Use this action to wait until the current URL is not the provided text
+     * @param url the expected URL
+     * @return a self-reference for chainable actions
+     */
+    @Deprecated(forRemoval = true)
     public BrowserActions waitUntilUrlNotToBe(String url) {
         new Actions(driverFactoryHelper).waitUntil(d -> !url.equals(driverFactoryHelper.getDriver().getCurrentUrl()), Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
         return this;
     }
 
-    @Deprecated
+    /**
+     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
+     * or {@link Actions#waitUntil(Function)}
+     *
+     * Use this action to wait until the current URL matches the provided regex
+     * @param urlRegex the expected URL regex
+     * @return a self-reference for chainable actions
+     */
+    @Deprecated(forRemoval = true)
     public BrowserActions waitUntilUrlMatches(String urlRegex) {
         new Actions(driverFactoryHelper).waitUntil(d -> {
             var currentUrl = driverFactoryHelper.getDriver().getCurrentUrl();
@@ -823,7 +912,15 @@ public class BrowserActions extends FluentWebDriverAction {
         return this;
     }
 
-    @Deprecated
+    /**
+     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
+     * or {@link Actions#waitUntil(Function)}
+     *
+     * Use this action to wait until the number of currently open windows matches the expected number
+     * @param expectedNumberOfWindows the expected number of open windows
+     * @return a self-reference for chainable actions
+     */
+    @Deprecated(forRemoval = true)
     public BrowserActions waitUntilNumberOfWindowsToBe(int expectedNumberOfWindows) {
         new Actions(driverFactoryHelper).waitUntil(d -> driverFactoryHelper.getDriver().getWindowHandles().size() == expectedNumberOfWindows, Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
         return this;

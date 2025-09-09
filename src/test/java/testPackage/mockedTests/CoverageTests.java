@@ -2,9 +2,7 @@ package testPackage.mockedTests;
 
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
-import org.openqa.selenium.InvalidSelectorException;
 import org.openqa.selenium.NoSuchSessionException;
-import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.remote.Browser;
 import org.testng.annotations.*;
 import testPackage.legacy.SearchOptimizationTest;
@@ -68,26 +66,25 @@ public class CoverageTests {
     public void nativeWebDriverListenerTests() {
         String testElement = "data:text/html,<form><input type=\"text\"><br><br></form>";
         By locator = SHAFT.GUI.Locator.hasTagName("input").build();
-        var nativeDriver = driver.get().getDriver();
-        nativeDriver.navigate().to("https://www.google.com/ncr");
-        nativeDriver.get(testElement);
-        nativeDriver.navigate().back();
-        nativeDriver.navigate().forward();
-        nativeDriver.navigate().refresh();
-        nativeDriver.manage().window().minimize();
-        nativeDriver.manage().window().maximize();
-        nativeDriver.getCurrentUrl();
-        nativeDriver.getTitle();
-        nativeDriver.findElement(locator).click();
-        nativeDriver.findElement(locator).clear();
-        nativeDriver.findElement(locator).sendKeys("test");
-        nativeDriver.findElement(locator).getAttribute("value");
-        nativeDriver.findElement(locator).getText();
-        nativeDriver.findElement(locator).submit();
+        driver.get().getDriver().navigate().to("https://www.automatest.org");
+        driver.get().getDriver().get(testElement);
+        driver.get().getDriver().navigate().back();
+        driver.get().getDriver().navigate().forward();
+        driver.get().getDriver().navigate().refresh();
+        driver.get().getDriver().manage().window().minimize();
+        driver.get().getDriver().manage().window().maximize();
+        driver.get().getDriver().getCurrentUrl();
+        driver.get().getDriver().getTitle();
+        driver.get().getDriver().findElement(locator).click();
+        driver.get().getDriver().findElement(locator).clear();
+        driver.get().getDriver().findElement(locator).sendKeys("test");
+        driver.get().getDriver().findElement(locator).getAttribute("value");
+        driver.get().getDriver().findElement(locator).getText();
+        driver.get().getDriver().findElement(locator).submit();
         driver.get().element().assertThat(locator).text().isEqualTo("test").perform();
-        nativeDriver.close();
+        driver.get().getDriver().close();
         try {
-            nativeDriver.quit();
+            driver.get().getDriver().quit();
         } catch (NoSuchSessionException noSuchSessionException) {
             // do nothing
         }
