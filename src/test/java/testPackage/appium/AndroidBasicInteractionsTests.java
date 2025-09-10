@@ -13,7 +13,7 @@ import java.time.Duration;
 public class AndroidBasicInteractionsTests extends MobileTest {
     private final String PACKAGE = "io.appium.android.apis";
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void wizard_scrollInExpandableLists_verticalScrolling_insideScreen() {
         ((AndroidDriver) driver.get().getDriver()).runAppInBackground(Duration.ofSeconds(5));
         driver.get().element().performTouchAction()
@@ -34,7 +34,7 @@ public class AndroidBasicInteractionsTests extends MobileTest {
                 .assertThat(By.xpath("//android.widget.TextView[@text='Group 1']")).exists();
     }
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void scrollInExpandableLists_verticalScrolling_insideScreen() {
         driver.get().touch()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
@@ -50,7 +50,7 @@ public class AndroidBasicInteractionsTests extends MobileTest {
                 .sendAppToBackground();
     }
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void scrollInExpandableLists_verticalScrolling_insideElement(){
         driver.get().touch()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
@@ -65,7 +65,7 @@ public class AndroidBasicInteractionsTests extends MobileTest {
 
     }
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void scrollInExpandableLists_verticalScrolling_insideElement2(){
         driver.get().touch()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
@@ -78,7 +78,7 @@ public class AndroidBasicInteractionsTests extends MobileTest {
                 .assertThat(By.xpath("//android.widget.ListView[1]/android.widget.TextView[@text='Abbaye de Belloc']")).exists();
     }
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void scrollInExpandableLists_horizontalScrolling_insideElement(){
         driver.get().touch()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
@@ -93,7 +93,7 @@ public class AndroidBasicInteractionsTests extends MobileTest {
                 .assertThat(By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 1']")).exists();
     }
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void visualElementIdentification_samedpi() {
         var referenceImageFile = "content.png";
         if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("browserstack")) {
@@ -109,7 +109,7 @@ public class AndroidBasicInteractionsTests extends MobileTest {
         driver.get().assertThat().element(AppiumBy.accessibilityId("Assets")).exists().perform();
     }
 
-    //    @Test
+    //    @Test(groups = {"ApiDemosDebug"})
     public void visualElementIdentification_requiresProcessing() {
         driver.get().touch()
                 .swipeElementIntoView("src/main/resources/dynamicObjectRepository/content2.png", TouchActions.SwipeDirection.DOWN)
@@ -118,11 +118,11 @@ public class AndroidBasicInteractionsTests extends MobileTest {
         driver.get().assertThat().element(AppiumBy.accessibilityId("Assets")).exists().perform();
     }
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void testSendKeys() {
         String SEARCH_ACTIVITY = ".app.SearchInvoke";
 
-        ((AndroidDriver) driver.get().getDriver()).executeScript("startActivity", ImmutableMap.of("intent", PACKAGE + "/" + SEARCH_ACTIVITY));
+        ((AndroidDriver) driver.get().getDriver()).executeScript("mobile: startActivity", ImmutableMap.of("intent", PACKAGE + "/" + SEARCH_ACTIVITY));
 //        ((AndroidDriver) driver.get().getDriver()).startActivity(new Activity(PACKAGE, SEARCH_ACTIVITY));
 
         driver.get().element().type(By.id("txt_query_prefill"), "Hello world!")
@@ -130,12 +130,12 @@ public class AndroidBasicInteractionsTests extends MobileTest {
                 .and().assertThat(By.id("android:id/search_src_text")).text().isEqualTo("Hello world!").perform();
     }
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void testOpensAlert() {
         // Open the "Alert Dialog" activity of the android app
         String ALERT_DIALOG_ACTIVITY = ".app.AlertDialogSamples";
 
-        ((AndroidDriver) driver.get().getDriver()).executeScript("startActivity", ImmutableMap.of("intent", PACKAGE + "/" + ALERT_DIALOG_ACTIVITY));
+        ((AndroidDriver) driver.get().getDriver()).executeScript("mobile: startActivity", ImmutableMap.of("intent", PACKAGE + "/" + ALERT_DIALOG_ACTIVITY));
 //        ((AndroidDriver) driver.get().getDriver()).startActivity(new Activity(PACKAGE, ALERT_DIALOG_ACTIVITY));
 
         // Click button that opens a dialog

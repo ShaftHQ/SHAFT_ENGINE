@@ -9,7 +9,7 @@ import testPackage.appium.MobileTest;
 public class AndroidTouchActionsCoverageTests extends MobileTest {
     private static final String PACKAGE = "io.appium.android.apis";
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void testKeyboardInteractions() {
         // Navigate to search activity for keyboard interactions
         driver.get().element().performTouchAction()
@@ -25,14 +25,14 @@ public class AndroidTouchActionsCoverageTests extends MobileTest {
                 .and().assertThat(textField).exists();
     }
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void testAppBackgroundAndActivate() {
         driver.get().element().performTouchAction().sendAppToBackground(5) // Send to background for 5 seconds
                 .activateAppFromBackground(PACKAGE)
                 .and().assertThat(AppiumBy.accessibilityId("Views")).exists();
     }
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void testTapAndDoubleTapActions() {
         driver.get().element().performTouchAction().swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
@@ -42,7 +42,7 @@ public class AndroidTouchActionsCoverageTests extends MobileTest {
                 .and().assertThat(AppiumBy.accessibilityId("Toggle")).exists();
     }
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void testLongTapAction() {
         driver.get().element().performTouchAction().swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
@@ -53,7 +53,7 @@ public class AndroidTouchActionsCoverageTests extends MobileTest {
                 .and().assertThat(By.id("android:id/title")).exists();
     }
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void testPinchToZoom() {
         // Navigate to photo view for zoom testing
         driver.get().element().performTouchAction().swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
@@ -65,7 +65,7 @@ public class AndroidTouchActionsCoverageTests extends MobileTest {
                 .pinchToZoom(TouchActions.ZoomDirection.OUT);
     }
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void testSwipeElementIntoViewWithScrollableContainer() {
         driver.get().element().performTouchAction().swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
@@ -79,7 +79,7 @@ public class AndroidTouchActionsCoverageTests extends MobileTest {
                 .and().assertThat(By.xpath("//android.widget.TextView[@text='17. Activate items']")).exists();
     }
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void testSwipeByOffset() {
         driver.get().element().performTouchAction().swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
@@ -90,7 +90,7 @@ public class AndroidTouchActionsCoverageTests extends MobileTest {
                 .swipeByOffset(By.className("android.widget.Gallery"), -200, 0); // Swipe left
     }
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void testSwipeToElement() {
         driver.get().element().performTouchAction().swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
@@ -103,7 +103,7 @@ public class AndroidTouchActionsCoverageTests extends MobileTest {
                 .and().assertThat(By.id("io.appium.android.apis:id/drag_result_text")).exists();
     }
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void testVisualElementIdentification() {
         String referenceImagePath = "src/main/resources/dynamicObjectRepository/Android/content_new.png";
         driver.get().element().performTouchAction().swipeElementIntoView(referenceImagePath, TouchActions.SwipeDirection.DOWN)
@@ -112,7 +112,7 @@ public class AndroidTouchActionsCoverageTests extends MobileTest {
                 .and().assertThat(AppiumBy.accessibilityId("Assets")).exists();
     }
 
-    @Test
+    @Test(groups = {"ApiDemosDebug"})
     public void testHorizontalSwipeInTabs() {
         driver.get().element().performTouchAction().swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))

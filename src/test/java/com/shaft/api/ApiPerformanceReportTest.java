@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
 import org.testng.annotations.AfterSuite;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -12,13 +13,16 @@ import java.util.List;
 
 
 public class ApiPerformanceReportTest {
+    ThreadLocal<SHAFT.API> api = new ThreadLocal<>();
 
-    String token;
-    SHAFT.API api = new SHAFT.API("https://restful-booker.herokuapp.com/");
+    @BeforeMethod(onlyForGroups = {"restful-booker"})
+    public void setupRestfulBooker() {
+        api.set(new SHAFT.API("https://restful-booker.herokuapp.com/"));
+    }
 
-    @Test
+    @Test(groups = {"restful-booker"})
     public void testALogin() {
-        Response response = api.post("auth").
+        Response response = api.get().post("auth").
                 setContentType("application/json").
                 setRequestBody("{\n" +
                         "    \"username\" : \"admin\",\n" +
@@ -31,41 +35,35 @@ public class ApiPerformanceReportTest {
         System.out.println(jsonPath.get("token").toString());
 
 
-        token = response.path("token").toString();
+        var token = response.path("token").toString();
         token = response.jsonPath().get("token").toString();
         System.out.println("The Tonken is: " + token);
 
     }
 
-    @Test
+    @Test(groups = {"restful-booker"})
     public void testGetALLBookingIds() {
-
-        api.get("booking").
+        api.get().get("booking").
                 perform();
-
     }
 
-    @Test
+    @Test(groups = {"restful-booker"})
     public void testGetBookingByName() {
         List<List<Object>> parameters = Arrays.asList(Arrays.asList("firstname", "Jim"), Arrays.asList("lastname", "Brown"));
-
-        api.get("booking").
+        api.get().get("booking").
                 setParameters(parameters, RestActions.ParametersType.QUERY).
                 perform();
-
     }
 
-    @Test
+    @Test(groups = {"restful-booker"})
     public void testGetBooking() {
-
-        api.get("booking/1").
+        api.get().get("booking/1").
                 perform();
-
     }
 
-    @Test
+    @Test(groups = {"restful-booker"})
     public void testCreateBookingJSON() {
-        api.post("booking").
+        api.get().post("booking").
                 setContentType("application/json").
                 setRequestBody("{\"firstname\":\"Jim\",\"lastname\":\"Brown\",\"totalprice\":111,\n" +
                         " \"depositpaid\":true,\"bookingdates\":{\"checkin\":\"2018-01-01\",\"checkout\":\"2019-01-01\"},\n" +
@@ -73,29 +71,30 @@ public class ApiPerformanceReportTest {
                 perform();
     }
 
+    @BeforeMethod(onlyForGroups = {"reqres"})
+    public void setupRegress() {
+        api.set(new SHAFT.API("https://reqres.in/"));
+    }
 
-    @Test
+    @Test(groups = {"reqres"})
     public void testGetUsers() {
-        SHAFT.API api = new SHAFT.API("https://reqres.in/");
-        api.addHeader("x-api-key","reqres-free-v1");
-        List<List<Object>> parameters = Arrays.asList(Arrays.asList("page", "2"));
-        api.get("api/users")
+        api.get().addHeader("x-api-key", "reqres-free-v1");
+        List<List<Object>> parameters = List.of(Arrays.asList("page", "2"));
+        api.get().get("api/users")
                 .setParameters(parameters, RestActions.ParametersType.QUERY)
                 .perform();
     }
 
-    @Test
+    @Test(groups = {"reqres"})
     public void testGetUser() {
-        SHAFT.API api = new SHAFT.API("https://reqres.in/");
-        api.addHeader("x-api-key","reqres-free-v1");
-        api.get("api/users/2").perform();
+        api.get().addHeader("x-api-key", "reqres-free-v1");
+        api.get().get("api/users/2").perform();
     }
 
-    @Test
+    @Test(groups = {"reqres"})
     public void testCreateUser() {
-        SHAFT.API api = new SHAFT.API("https://reqres.in/");
-        api.addHeader("x-api-key","reqres-free-v1");
-        api.post("api/users")
+        api.get().addHeader("x-api-key", "reqres-free-v1");
+        api.get().post("api/users")
                 .setContentType("application/json")
                 .setRequestBody("{\n" +
                         "  \"name\": \"morpheus\",\n" +
@@ -104,11 +103,10 @@ public class ApiPerformanceReportTest {
                 .perform();
     }
 
-    @Test
+    @Test(groups = {"reqres"})
     public void testRegisterUser() {
-        SHAFT.API api = new SHAFT.API("https://reqres.in/");
-        api.addHeader("x-api-key","reqres-free-v1");
-        api.post("api/register")
+        api.get().addHeader("x-api-key", "reqres-free-v1");
+        api.get().post("api/register")
                 .setContentType("application/json")
                 .setRequestBody("{\n" +
                         "    \"email\": \"eve.holt@reqres.in\",\n" +
@@ -117,11 +115,10 @@ public class ApiPerformanceReportTest {
                 .perform();
     }
 
-    @Test
+    @Test(groups = {"reqres"})
     public void testLoginUser() {
-        SHAFT.API api = new SHAFT.API("https://reqres.in/");
-        api.addHeader("x-api-key","reqres-free-v1");
-        api.post("api/login")
+        api.get().addHeader("x-api-key", "reqres-free-v1");
+        api.get().post("api/login")
                 .setContentType("application/json")
                 .setRequestBody("{\n" +
                         "    \"email\": \"eve.holt@reqres.in\",\n" +
@@ -130,57 +127,58 @@ public class ApiPerformanceReportTest {
                 .perform();
     }
 
-    @Test
+    @Test(groups = {"reqres"})
     public void testDelayedResponse() {
-        SHAFT.API api = new SHAFT.API("https://reqres.in/");
-        api.addHeader("x-api-key","reqres-free-v1");
-        List<List<Object>> parameters = Arrays.asList(Arrays.asList("delay", "3"));
-        api.get("api/users")
+        api.get().addHeader("x-api-key", "reqres-free-v1");
+        List<List<Object>> parameters = List.of(Arrays.asList("delay", "3"));
+        api.get().get("api/users")
                 .setParameters(parameters, RestActions.ParametersType.QUERY)
                 .perform();
     }
 
-    @Test
+    @BeforeMethod(onlyForGroups = {"fakerestapi"})
+    public void setupFakerestapi() {
+        api.set(new SHAFT.API("https://fakerestapi.azurewebsites.net/api/v1/"));
+    }
+
+    @Test(groups = {"fakerestapi"})
     public void testGetActivities() {
-        SHAFT.API api = new SHAFT.API("https://fakerestapi.azurewebsites.net/api/v1/");
-        api.get("Activities/1").perform();
+        api.get().get("Activities/1").perform();
     }
 
-    @Test
+    @Test(groups = {"fakerestapi"})
     public void testGetActivity() {
-        SHAFT.API api = new SHAFT.API("https://fakerestapi.azurewebsites.net/api/v1/");
-        api.get("Activities/1").perform();
+        api.get().get("Activities/1").perform();
     }
 
-    @Test
+    @Test(groups = {"fakerestapi"})
     public void testGetAuthors() {
-        SHAFT.API api = new SHAFT.API("https://fakerestapi.azurewebsites.net/api/v1/");
-        api.get("Authors").perform();
+        api.get().get("Authors").perform();
     }
 
-    @Test
+    @Test(groups = {"fakerestapi"})
     public void testGetAuthor() {
-        SHAFT.API api = new SHAFT.API("https://fakerestapi.azurewebsites.net/api/v1/");
-        api.get("Authors/1").perform();
+        api.get().get("Authors/1").perform();
     }
 
-
-    @Test
+    @Test(groups = {"fakerestapi"})
     public void testGetAuthorBook() {
-        SHAFT.API api = new SHAFT.API("https://fakerestapi.azurewebsites.net/api/v1/");
-        api.get("Authors/authors/books/1").perform();
+        api.get().get("Authors/authors/books/1").perform();
     }
 
-    @Test
+    @Test(groups = {"fakerestapi"})
     public void testGetBooks() {
-        SHAFT.API api = new SHAFT.API("https://fakerestapi.azurewebsites.net/api/v1/");
-        api.get("Books").perform();
+        api.get().get("Books").perform();
     }
 
-    @Test
+    @BeforeMethod(onlyForGroups = {"demoblaze"})
+    public void setupDemoblaze() {
+        api.set(new SHAFT.API("https://api.demoblaze.com/"));
+    }
+
+    @Test(groups = {"demoblaze"})
     public void addToCart() {
-        SHAFT.API api = new SHAFT.API("https://api.demoblaze.com/");
-        api.post("addtocart")
+        api.get().post("addtocart")
                 .setContentType("application/json")
                 .setRequestBody("{\n" +
                         "\"cookie\":\"dGVzdGNiYTEyMzE3MjI0MDI=\",\n" +
@@ -191,19 +189,17 @@ public class ApiPerformanceReportTest {
                 .perform();
     }
 
-    @Test
+    @Test(groups = {"demoblaze"})
     public void deleteCart() {
-        SHAFT.API api = new SHAFT.API("https://api.demoblaze.com/");
-        api.post("deletecart")
+        api.get().post("deletecart")
                 .setContentType("application/json")
                 .setRequestBody("{\"id\": \"995bed43-ab62-2940-c093-b42b2cc4d887\"}")
                 .perform();
     }
 
-    @Test
+    @Test(groups = {"demoblaze"})
     public  void viewCart() {
-        SHAFT.API api = new SHAFT.API("https://api.demoblaze.com/");
-        api.post("viewcart")
+        api.get().post("viewcart")
                 .setContentType("application/json")
                 .setRequestBody("{\n" +
                         "    \"cookie\": \"dGVzdGNiYTEyMzE3MjI0MDI=\", \n" +
@@ -212,12 +208,16 @@ public class ApiPerformanceReportTest {
                 .perform();
     }
 
+    @BeforeMethod
+    public void cleanup() {
+        api = new ThreadLocal<>();
+    }
+
     @AfterSuite
     public void afterSuite() throws IOException {
         //RequestBuilder.generatePerformanceReport("src/test/resources/report.html");
         //RequestBuilder.printPerformanceReport();
         // HTMLPerformanceReport.generatePerformanceReport();
-
     }
 
 }
