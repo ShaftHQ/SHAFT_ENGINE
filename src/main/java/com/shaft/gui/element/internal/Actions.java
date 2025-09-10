@@ -20,6 +20,7 @@ import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import io.appium.java_client.AppiumDriver;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
 import io.qameta.allure.model.Status;
@@ -29,6 +30,9 @@ import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.interactions.Locatable;
+import org.openqa.selenium.interactions.Pause;
+import org.openqa.selenium.interactions.PointerInput;
+import org.openqa.selenium.interactions.Sequence;
 import org.openqa.selenium.support.locators.RelativeLocator;
 import org.openqa.selenium.support.pagefactory.ByAll;
 import org.openqa.selenium.support.ui.Select;
@@ -50,6 +54,8 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Function;
 
 public class Actions extends ElementActions {
+    private static final Duration defaultPauseDuration = Duration.ofMillis(500);
+
     public Actions() {
         super();
     }
@@ -289,7 +295,7 @@ public class Actions extends ElementActions {
                 // perform action
                 switch (action) {
                     case HOVER ->
-                            (new org.openqa.selenium.interactions.Actions(d)).pause(Duration.ofMillis(400)).moveToElement(foundElements.get().getFirst()).perform();
+                            (new org.openqa.selenium.interactions.Actions(d)).pause(defaultPauseDuration).moveToElement(foundElements.get().getFirst()).perform();
                     case CLICK -> {
                         try {
                             screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
@@ -309,11 +315,40 @@ public class Actions extends ElementActions {
                     }
                     case CLICK_AND_HOLD -> {
                         screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
-                        new org.openqa.selenium.interactions.Actions(d).pause(Duration.ofMillis(400)).clickAndHold(foundElements.get().getFirst()).perform();
+                        new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration).clickAndHold(foundElements.get().getFirst()).perform();
                     }
                     case DOUBLE_CLICK -> {
-                        screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
-                        new org.openqa.selenium.interactions.Actions(d).pause(Duration.ofMillis(400)).doubleClick(foundElements.get().getFirst()).perform();
+                        var targetElement = foundElements.get().getFirst();
+                        screenshot.set(0, takeActionScreenshot(targetElement));
+
+                        if (d instanceof AppiumDriver appiumDriver) {
+                            PointerInput.Origin VIEW = PointerInput.Origin.viewport();
+                            Rectangle targetElementRectangle = targetElement.getRect();
+                            PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+                            Sequence doubleTap = new Sequence(finger, 0);
+
+                            // move to element
+                            doubleTap.addAction(finger.createPointerMove(defaultPauseDuration, VIEW,
+                                    targetElementRectangle.getWidth() / 2, targetElementRectangle.getHeight() / 2));
+
+                            // first tap
+                            doubleTap.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+                            doubleTap.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+
+                            // pause
+                            doubleTap.addAction(new Pause(finger, defaultPauseDuration));
+
+                            // second tap
+                            doubleTap.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+                            doubleTap.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+
+                            // perform
+                            appiumDriver.perform(List.of(doubleTap));
+                        } else {
+                            new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
+                                    .doubleClick(targetElement)
+                                    .perform();
+                        }
                     }
                     case TYPE, TYPE_SECURELY -> {
                         PropertiesHelper.setClearBeforeTypingMode();
@@ -330,12 +365,11 @@ public class Actions extends ElementActions {
                         if (!"".equals(foundElements.get().getFirst().getDomProperty("value")))
                             executeClearBasedOnClearMode(foundElements.get().getFirst(), "backspace");
                     }
-                    case DRAG_AND_DROP ->
-                            new org.openqa.selenium.interactions.Actions(d).pause(Duration.ofMillis(400))
+                    case DRAG_AND_DROP -> new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
                                     .dragAndDrop(foundElements.get().getFirst(),
                                             d.findElement((By) data)).perform();
                     case DRAG_AND_DROP_BY_OFFSET ->
-                            new org.openqa.selenium.interactions.Actions(d).pause(Duration.ofMillis(400))
+                            new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
                                     .dragAndDropBy(foundElements.get().getFirst(),
                                             (int) ((ArrayList<?>) data).get(0),
                                             (int) ((ArrayList<?>) data).get(1)).perform();
