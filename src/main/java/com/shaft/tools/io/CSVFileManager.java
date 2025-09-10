@@ -1,6 +1,7 @@
 package com.shaft.tools.io;
 
 import com.shaft.driver.DriverFactory;
+import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.internal.FailureReporter;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -31,6 +32,7 @@ public class CSVFileManager {
     public CSVFileManager(String csvFilePath) {
         DriverFactory.reloadProperties();
         initializeVariables();
+        csvFilePath = JavaHelper.appendTestDataToRelativePath(csvFilePath);
         this.csvFilePath = csvFilePath;
         try {
             reader = new FileReader(csvFilePath);
