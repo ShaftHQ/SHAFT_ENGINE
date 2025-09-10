@@ -11,13 +11,13 @@ import testPackage.Tests;
 import java.util.Objects;
 
 public class ActionsCoverageTests extends Tests {
-    protected static final ThreadLocal<Actions> actions = new ThreadLocal<>();
+    private final ThreadLocal<Actions> actions = new ThreadLocal<>();
     String testUrl = "https://duckduckgo.com/";
     By logo = By.xpath("//div[contains(@class,'container_fullWidth__1H_L8')]//img");
     By searchBox = Locator.hasAnyTagName().hasAttribute("id", "searchbox_input").build();
 
     @BeforeMethod
-    public void setup() {
+    public void internalSetup() {
         actions.set(driver.get().element());
         driver.get().browser().navigateToURL(testUrl);
     }
