@@ -152,4 +152,74 @@ public class RecordManager {
         }
         return target;
     }
+
+    /**
+     * Starts video recording specifically for retry scenarios.
+     * This method can be called mid-test execution to capture additional evidence during retries.
+     *
+     * @param driver the WebDriver instance
+     * @param testMethodName the test method name
+     * @param retryAttempt the current retry attempt number
+     */
+    public static void startVideoRecordingForRetry(WebDriver driver, String testMethodName, int retryAttempt) {
+        if (!SHAFT.Properties.flags.retryEnableVideoRecording()) {
+            return;
+        }
+
+        try {
+            ReportManager.logDiscrete("Starting video recording for retry #" + retryAttempt + " of test: " + testMethodName);
+            
+            if (driver != null && DriverFactoryHelper.isMobileNativeExecution()) {
+                // For mobile devices, start screen recording with retry-specific parameters
+                videoDriver.set(driver);
+                if (driver instanceof AndroidDriver androidDriver) {
+                    androidDriver.startRecordingScreen(new AndroidStartScreenRecordingOptions()
+                            .withVideoSize("540x960")
+                            .withBitRate(2000000)
+                            .withTimeLimit(Duration.ofMinutes(10))); // Shorter duration for retries
+                } else if (driver instanceof IOSDriver iosDriver) {
+                    iosDriver.startRecordingScreen(new IOSStartScreenRecordingOptions()
+                            .withVideoType("libx264")
+                            .withVideoQuality(IOSStartScreenRecordingOptions.VideoQuality.MEDIUM)
+                            .withTimeLimit(Duration.ofMinutes(10))); // Shorter duration for retries
+                }
+                isRecordingStarted = true;
+            } else if (SHAFT.Properties.platform.executionAddress().equals("local") 
+                    && !SHAFT.Properties.web.headlessExecution()) {
+                // For desktop browsers, start recording using Monte
+                BasicConfigurator.configure();
+                System.setProperty("video.save.mode", VideoSaveMode.ALL.name());
+                System.setProperty("video.folder", "target/video/retries");
+                recorder.set(RecorderFactory.getRecorder(RecorderType.MONTE));
+                recorder.get().start();
+            }
+            
+            ReportManager.logDiscrete("Video recording started successfully for retry #" + retryAttempt);
+        } catch (Exception e) {
+            ReportManager.logDiscrete("Failed to start video recording for retry: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Stops video recording for retry and attaches it to the test report.
+     *
+     * @param testMethodName the test method name
+     * @param retryAttempt the current retry attempt number
+     */
+    public static void stopVideoRecordingForRetryAndAttach(String testMethodName, int retryAttempt) {
+        if (!SHAFT.Properties.flags.retryEnableVideoRecording()) {
+            return;
+        }
+
+        try {
+            InputStream videoStream = getVideoRecording();
+            if (videoStream != null) {
+                ReportManagerHelper.attach("Video Recording - Retry #" + retryAttempt, 
+                        testMethodName + "_retry_" + retryAttempt + "_video", videoStream);
+                ReportManager.logDiscrete("Video recording attached for retry #" + retryAttempt + " of test: " + testMethodName);
+            }
+        } catch (Exception e) {
+            ReportManager.logDiscrete("Error attaching retry video recording: " + e.getMessage());
+        }
+    }
 }

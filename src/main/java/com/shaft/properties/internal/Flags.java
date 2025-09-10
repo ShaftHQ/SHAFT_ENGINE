@@ -24,6 +24,22 @@ public interface Flags extends EngineProperties<Flags> {
     @DefaultValue("0")
     int retryMaximumNumberOfAttempts();
 
+    @Key("retryEnableVideoRecording")
+    @DefaultValue("true")
+    boolean retryEnableVideoRecording();
+
+    @Key("retryEnableNetworkLogging")
+    @DefaultValue("true")
+    boolean retryEnableNetworkLogging();
+
+    @Key("retryEnableConsoleLogging")
+    @DefaultValue("true")
+    boolean retryEnableConsoleLogging();
+
+    @Key("retryEnableEnhancedStabilization")
+    @DefaultValue("true")
+    boolean retryEnableEnhancedStabilization();
+
     @Key("autoMaximizeBrowserWindow")
     @DefaultValue("true")
     boolean autoMaximizeBrowserWindow();
@@ -125,6 +141,26 @@ public interface Flags extends EngineProperties<Flags> {
 
         public SetProperty retryMaximumNumberOfAttempts(int value) {
             setProperty("retryMaximumNumberOfAttempts", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty retryEnableVideoRecording(boolean value) {
+            setProperty("retryEnableVideoRecording", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty retryEnableNetworkLogging(boolean value) {
+            setProperty("retryEnableNetworkLogging", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty retryEnableConsoleLogging(boolean value) {
+            setProperty("retryEnableConsoleLogging", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty retryEnableEnhancedStabilization(boolean value) {
+            setProperty("retryEnableEnhancedStabilization", String.valueOf(value));
             return this;
         }
 
