@@ -24,6 +24,12 @@ public class FlagsTests {
     boolean disableCache ;
     boolean enableTrueNativeMode ;
     boolean disableSSLCertificateCheck;
+    
+    // New retry evidence collection properties
+    boolean retryEnableVideoRecording;
+    boolean retryEnableNetworkLogging;
+    boolean retryEnableConsoleLogging;
+    boolean retryEnableEnhancedStabilization;
 
 
     @BeforeClass
@@ -46,6 +52,12 @@ public class FlagsTests {
         disableCache = SHAFT.Properties.flags.disableCache();
         enableTrueNativeMode = SHAFT.Properties.flags.enableTrueNativeMode();
         disableSSLCertificateCheck = SHAFT.Properties.flags.disableSslCertificateCheck();
+        
+        // Initialize new retry evidence collection properties
+        retryEnableVideoRecording = SHAFT.Properties.flags.retryEnableVideoRecording();
+        retryEnableNetworkLogging = SHAFT.Properties.flags.retryEnableNetworkLogging();
+        retryEnableConsoleLogging = SHAFT.Properties.flags.retryEnableConsoleLogging();
+        retryEnableEnhancedStabilization = SHAFT.Properties.flags.retryEnableEnhancedStabilization();
 
     }
 
@@ -69,6 +81,40 @@ public class FlagsTests {
         SHAFT.Properties.flags.set().enableTrueNativeMode(enableTrueNativeMode);
         SHAFT.Properties.flags.set().attemptClearBeforeTyping(attemptClearBeforeTyping);
         SHAFT.Properties.flags.set().disableSslCertificateCheck(disableSSLCertificateCheck);
+        
+        // Test new retry evidence collection properties
+        SHAFT.Properties.flags.set().retryEnableVideoRecording(retryEnableVideoRecording);
+        SHAFT.Properties.flags.set().retryEnableNetworkLogging(retryEnableNetworkLogging);
+        SHAFT.Properties.flags.set().retryEnableConsoleLogging(retryEnableConsoleLogging);
+        SHAFT.Properties.flags.set().retryEnableEnhancedStabilization(retryEnableEnhancedStabilization);
 
+    }
+
+    @Test
+    public void testRetryEvidenceCollectionProperties() {
+        // Test that retry evidence collection properties have correct default values
+        assert SHAFT.Properties.flags.retryEnableVideoRecording() == true : "Retry video recording should be enabled by default";
+        assert SHAFT.Properties.flags.retryEnableNetworkLogging() == true : "Retry network logging should be enabled by default";
+        assert SHAFT.Properties.flags.retryEnableConsoleLogging() == true : "Retry console logging should be enabled by default";
+        assert SHAFT.Properties.flags.retryEnableEnhancedStabilization() == true : "Retry enhanced stabilization should be enabled by default";
+        
+        // Test property setters
+        SHAFT.Properties.flags.set().retryEnableVideoRecording(false);
+        assert SHAFT.Properties.flags.retryEnableVideoRecording() == false : "Retry video recording setting should be changeable";
+        
+        SHAFT.Properties.flags.set().retryEnableNetworkLogging(false);
+        assert SHAFT.Properties.flags.retryEnableNetworkLogging() == false : "Retry network logging setting should be changeable";
+        
+        SHAFT.Properties.flags.set().retryEnableConsoleLogging(false);
+        assert SHAFT.Properties.flags.retryEnableConsoleLogging() == false : "Retry console logging setting should be changeable";
+        
+        SHAFT.Properties.flags.set().retryEnableEnhancedStabilization(false);
+        assert SHAFT.Properties.flags.retryEnableEnhancedStabilization() == false : "Retry enhanced stabilization setting should be changeable";
+        
+        // Reset to original values
+        SHAFT.Properties.flags.set().retryEnableVideoRecording(retryEnableVideoRecording);
+        SHAFT.Properties.flags.set().retryEnableNetworkLogging(retryEnableNetworkLogging);
+        SHAFT.Properties.flags.set().retryEnableConsoleLogging(retryEnableConsoleLogging);
+        SHAFT.Properties.flags.set().retryEnableEnhancedStabilization(retryEnableEnhancedStabilization);
     }
 }

@@ -92,9 +92,48 @@ public class TestNGListenerHelper {
 
     public static void updateTestMethods(ITestResult iTestResult) {
         if (iTestResult.getMethod().isTest()) {
+            // Check if this was a retry attempt and handle evidence collection
+            if (iTestResult.wasRetried() || hasRetryAnalyzer(iTestResult)) {
+                handleRetryEvidenceCollection(iTestResult);
+            }
+            
             // get test result and store it for later processing
             TestNGListenerHelper.attachTestArtifacts(iTestResult);
         }
+    }
+
+    /**
+     * Checks if the test method has a retry analyzer configured.
+     *
+     * @param iTestResult the test result
+     * @return true if retry analyzer is present
+     */
+    private static boolean hasRetryAnalyzer(ITestResult iTestResult) {
+        return iTestResult.getMethod().getRetryAnalyzer() != null;
+    }
+
+    /**
+     * Handles retry evidence collection for failed or retried tests.
+     *
+     * @param iTestResult the test result
+     */
+    private static void handleRetryEvidenceCollection(ITestResult iTestResult) {
+        String testMethodName = iTestResult.getMethod().getMethodName();
+        boolean wasSuccessful = iTestResult.getStatus() == ITestResult.SUCCESS;
+        
+        // Estimate retry attempt number based on test result attributes
+        // This is a best-effort approach since TestNG doesn't directly expose retry count
+        int retryAttempt = 1;
+        
+        if (iTestResult.getAttribute("retryCount") != null) {
+            retryAttempt = (Integer) iTestResult.getAttribute("retryCount");
+        } else if (iTestResult.wasRetried()) {
+            // If the test was retried but we don't have exact count, assume it's at least attempt 2
+            retryAttempt = 2;
+        }
+        
+        // Stop evidence collection and attach artifacts
+        RetryAnalyzer.stopRetryEvidenceCollection(testMethodName, retryAttempt, wasSuccessful);
     }
 
     public static String getTestName() {
