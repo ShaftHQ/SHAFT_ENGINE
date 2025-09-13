@@ -112,6 +112,10 @@ public interface Flags extends EngineProperties<Flags> {
     @DefaultValue("false")
     boolean disableSslCertificateCheck();
 
+    @Key("telemetry.enabled")
+    @DefaultValue("true")
+    boolean telemetryEnabled();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -250,6 +254,11 @@ public interface Flags extends EngineProperties<Flags> {
 
         public SetProperty disableSslCertificateCheck(boolean value) {
             setProperty("disableSslCertificateCheck", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty telemetryEnabled(boolean value) {
+            setProperty("telemetry.enabled", String.valueOf(value));
             return this;
         }
 

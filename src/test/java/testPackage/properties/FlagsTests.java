@@ -24,6 +24,7 @@ public class FlagsTests {
     boolean disableCache ;
     boolean enableTrueNativeMode ;
     boolean disableSSLCertificateCheck;
+    boolean telemetryEnabled;
 
 
     @BeforeClass
@@ -46,6 +47,7 @@ public class FlagsTests {
         disableCache = SHAFT.Properties.flags.disableCache();
         enableTrueNativeMode = SHAFT.Properties.flags.enableTrueNativeMode();
         disableSSLCertificateCheck = SHAFT.Properties.flags.disableSslCertificateCheck();
+        telemetryEnabled = SHAFT.Properties.flags.telemetryEnabled();
 
     }
 
@@ -69,6 +71,7 @@ public class FlagsTests {
         SHAFT.Properties.flags.set().enableTrueNativeMode(enableTrueNativeMode);
         SHAFT.Properties.flags.set().attemptClearBeforeTyping(attemptClearBeforeTyping);
         SHAFT.Properties.flags.set().disableSslCertificateCheck(disableSSLCertificateCheck);
+        SHAFT.Properties.flags.set().telemetryEnabled(telemetryEnabled);
 
     }
 }
