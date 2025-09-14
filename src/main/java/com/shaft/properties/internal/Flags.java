@@ -257,11 +257,6 @@ public interface Flags extends EngineProperties<Flags> {
             return this;
         }
 
-        public SetProperty telemetryEnabled(boolean value) {
-            setProperty("telemetry.enabled", String.valueOf(value));
-            return this;
-        }
-
     }
 
 }

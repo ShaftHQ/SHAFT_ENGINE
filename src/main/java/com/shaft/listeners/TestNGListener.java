@@ -10,8 +10,8 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.listeners.internal.*;
 import com.shaft.properties.internal.PropertiesHelper;
+import com.shaft.tools.internal.FirestoreRestClient;
 import com.shaft.tools.internal.security.GoogleTink;
-import com.shaft.tools.internal.TelemetryService;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.*;
 import io.qameta.allure.Allure;
@@ -99,7 +99,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ReportManagerHelper.logEngineVersion();
         Thread.ofVirtual().start(UpdateChecker::check);
         Thread.ofVirtual().start(ImageProcessingActions::loadOpenCV);
-        Thread.ofVirtual().start(TelemetryService::sendTelemetry);
+        Thread.ofVirtual().start(FirestoreRestClient::sendTelemetry);
         AllureManager.initializeAllureReportingEnvironment();
         Thread.ofVirtual().start(ReportManagerHelper::cleanExecutionSummaryReportDirectory);
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
