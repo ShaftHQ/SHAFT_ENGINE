@@ -6,6 +6,7 @@ import com.shaft.gui.internal.image.AnimatedGifManager;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.listeners.internal.JiraHelper;
 import com.shaft.listeners.internal.JunitListenerHelper;
+import com.shaft.tools.internal.FirestoreRestClient;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.internal.*;
 import lombok.Getter;
@@ -83,8 +84,9 @@ public class JunitListener implements LauncherSessionListener {
             Map<String, List<Double>> performanceData = RequestBuilder.getPerformanceData();
 
             // Generate the performance report using the fetched data
-            ApiPerformanceExecutionReport.generatePerformanceReport(performanceData, executionStartTime, System.currentTimeMillis());
+            ApiPerformanceExecutionReport.generatePerformanceReport(performanceData, executionStartTime, executionEndTime);
         });
+        Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime));
         ReportManagerHelper.logEngineClosure();
     }
 

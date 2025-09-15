@@ -24,6 +24,7 @@ public class FlagsTests {
     boolean disableCache ;
     boolean enableTrueNativeMode ;
     boolean disableSSLCertificateCheck;
+    boolean telemetryEnabled;
 
 
     @BeforeClass
@@ -46,6 +47,7 @@ public class FlagsTests {
         disableCache = SHAFT.Properties.flags.disableCache();
         enableTrueNativeMode = SHAFT.Properties.flags.enableTrueNativeMode();
         disableSSLCertificateCheck = SHAFT.Properties.flags.disableSslCertificateCheck();
+        telemetryEnabled = SHAFT.Properties.flags.telemetryEnabled();
 
     }
 
@@ -56,7 +58,6 @@ public class FlagsTests {
         SHAFT.Properties.flags.set().forceCheckForElementVisibility(forceCheckForElementVisibility);
         SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(forceCheckElementLocatorIsUnique);
         SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(forceCheckTextWasTypedCorrectly);
-        SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(attemptClearBeforeTypingUsingBackspace);
         SHAFT.Properties.flags.set().forceCheckNavigationWasSuccessful(forceCheckNavigationWasSuccessful);
         SHAFT.Properties.flags.set().respectBuiltInWaitsInNativeMode(respectBuiltInWaitsInNativeMode);
         SHAFT.Properties.flags.set().forceCheckStatusOfRemoteServer(forceCheckStatusOfRemoteServer);
@@ -67,8 +68,6 @@ public class FlagsTests {
         SHAFT.Properties.flags.set().attemptToClickBeforeTyping(attemptToClickBeforeTyping);
         SHAFT.Properties.flags.set().disableCache(disableCache);
         SHAFT.Properties.flags.set().enableTrueNativeMode(enableTrueNativeMode);
-        SHAFT.Properties.flags.set().attemptClearBeforeTyping(attemptClearBeforeTyping);
         SHAFT.Properties.flags.set().disableSslCertificateCheck(disableSSLCertificateCheck);
-
     }
 }

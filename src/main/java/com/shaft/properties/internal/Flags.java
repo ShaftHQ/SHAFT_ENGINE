@@ -112,6 +112,10 @@ public interface Flags extends EngineProperties<Flags> {
     @DefaultValue("false")
     boolean disableSslCertificateCheck();
 
+    @Key("telemetry.enabled")
+    @DefaultValue("true")
+    boolean telemetryEnabled();
+
     default SetProperty set() {
         return new SetProperty();
     }
