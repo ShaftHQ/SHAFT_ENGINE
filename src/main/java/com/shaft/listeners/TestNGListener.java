@@ -99,7 +99,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ReportManagerHelper.logEngineVersion();
         Thread.ofVirtual().start(UpdateChecker::check);
         Thread.ofVirtual().start(ImageProcessingActions::loadOpenCV);
-        Thread.ofVirtual().start(FirestoreRestClient::sendTelemetry);
         AllureManager.initializeAllureReportingEnvironment();
         Thread.ofVirtual().start(ReportManagerHelper::cleanExecutionSummaryReportDirectory);
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
@@ -277,9 +276,11 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onExecutionFinish() {
         ReportManagerHelper.setDiscreteLogging(true);
-        Thread.ofVirtual().start(() -> ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, System.currentTimeMillis()));
+        long executionEndTime = System.currentTimeMillis();
+        Thread.ofVirtual().start(() -> ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime));
         Thread.ofVirtual().start(JiraHelper::reportExecutionStatusToJira);
         Thread.ofVirtual().start(GoogleTink::encrypt);
+        Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime));
         ReportManagerHelper.logEngineClosure();
         Thread.ofVirtual().start(() -> {
             // Fetch performance data from RequestBuilder

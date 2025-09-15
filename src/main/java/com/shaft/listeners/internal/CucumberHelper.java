@@ -2,6 +2,7 @@ package com.shaft.listeners.internal;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.listeners.TestNGListener;
+import com.shaft.tools.internal.FirestoreRestClient;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.internal.*;
 import org.testng.Reporter;
@@ -10,6 +11,8 @@ import org.testng.xml.XmlSuite;
 import java.util.List;
 
 public class CucumberHelper {
+    static long executionStartTime;
+    static long executionEndTime;
 
     public static void configureCucumberProperties(List<XmlSuite> suites) {
         suites.forEach(suite -> {
@@ -32,6 +35,7 @@ public class CucumberHelper {
     }
 
     public static void engineSetup() {
+        executionStartTime = System.currentTimeMillis();
         TestNGListener.engineSetup(ProjectStructureManager.RunType.CUCUMBER);
         //set cucumber options
         System.setProperty("cucumber.options",
@@ -48,6 +52,7 @@ public class CucumberHelper {
 
     public static void shaftTearDown() {
         if (Reporter.getCurrentTestResult() == null) {
+            executionEndTime = System.currentTimeMillis();
             // running in native Cucumber mode
             ReportHelper.attachEngineLog();
             ReportHelper.attachCucumberReport();
@@ -59,6 +64,7 @@ public class CucumberHelper {
             GoogleTink.encrypt();
             AllureManager.generateAllureReportArchive();
             AllureManager.openAllureReportAfterExecution();
+            Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime));
             ReportManagerHelper.logEngineClosure();
         }
     }
