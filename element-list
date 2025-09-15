@@ -18,6 +18,7 @@ com.shaft.listeners
 com.shaft.listeners.internal
 com.shaft.performance.internal
 com.shaft.properties.internal
+com.shaft.tools.internal
 com.shaft.tools.internal.security
 com.shaft.tools.internal.support
 com.shaft.tools.internal.tms

@@ -32,6 +32,7 @@
 '/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/main/java/com/shaft/tools/internal/support/PerformanceReportHTMLHelper.java'
 '/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/main/java/com/shaft/tools/internal/support/JavaHelper.java'
 '/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/main/java/com/shaft/tools/internal/support/JavaScriptHelper.java'
+'/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/main/java/com/shaft/tools/internal/FirestoreRestClient.java'
 '/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/main/java/com/shaft/tools/internal/security/GoogleTink.java'
 '/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/main/java/com/shaft/tools/io/internal/CheckpointType.java'
 '/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/main/java/com/shaft/tools/io/internal/AttachmentReporter.java'
