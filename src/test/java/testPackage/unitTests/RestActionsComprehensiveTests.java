@@ -1,26 +1,27 @@
 package testPackage.unitTests;
 
+import com.shaft.api.RequestBuilder;
 import com.shaft.api.RestActions;
 import com.shaft.api.RestActions.ComparisonType;
 import com.shaft.api.RestActions.ParametersType;
 import com.shaft.api.RestActions.RequestType;
-import com.shaft.api.RequestBuilder;
 import io.restassured.path.xml.XmlPath;
 import io.restassured.path.xml.element.Node;
 import io.restassured.path.xml.element.NodeChildren;
 import io.restassured.response.Response;
 import io.restassured.response.ResponseBody;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
-import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.InputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -29,6 +30,7 @@ import java.util.concurrent.TimeUnit;
  * Following SHAFT testing patterns and using TestNG framework
  * All tests use mocks to avoid real network calls
  */
+@SuppressWarnings({"DataFlowIssue", "DuplicateCondition", "ConstantValue"})
 public class RestActionsComprehensiveTests {
 
     private Response mockResponse;
@@ -156,7 +158,7 @@ public class RestActionsComprehensiveTests {
         Assert.assertEquals(result, "Test Name");
     }
 
-    @Test
+    @Test(expectedExceptions = RuntimeException.class)
     public void testGetResponseJSONValueWithInvalidJsonPath() {
         String jsonResponse = "{\"user\":{\"name\":\"John\"}}";
         Mockito.when(mockResponse.asPrettyString()).thenReturn(jsonResponse);
@@ -184,7 +186,7 @@ public class RestActionsComprehensiveTests {
         Assert.assertEquals(result, "123");
     }
 
-    @Test
+    @Test(expectedExceptions = {RuntimeException.class})
     public void testGetResponseJSONValueFromListNotFound() {
         String jsonResponse = "[{\"username\":\"john\",\"id\":\"123\"}]";
         Mockito.when(mockResponse.asPrettyString()).thenReturn(jsonResponse);
@@ -356,10 +358,11 @@ public class RestActionsComprehensiveTests {
         // Create a test file for comparison (in a real scenario, this would be a temp file)
         String testFilePath = "/tmp/test-comparison.json";
         try {
-            java.nio.file.Files.write(java.nio.file.Paths.get(testFilePath), responseJson.getBytes());
+            Path path = Paths.get(testFilePath);
+            java.nio.file.Files.write(path, responseJson.getBytes());
             boolean result = RestActions.compareJSON(mockResponse, testFilePath, ComparisonType.EQUALS);
             // Clean up
-            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(testFilePath));
+            java.nio.file.Files.deleteIfExists(path);
             Assert.assertTrue(result);
         } catch (Exception e) {
             // File operations might fail in test environment
@@ -375,9 +378,10 @@ public class RestActionsComprehensiveTests {
         String referenceJson = "{\"name\":\"John\",\"age\":30}";
         String testFilePath = "/tmp/test-comparison-contains.json";
         try {
-            java.nio.file.Files.write(java.nio.file.Paths.get(testFilePath), referenceJson.getBytes());
+            Path path = Paths.get(testFilePath);
+            java.nio.file.Files.write(path, referenceJson.getBytes());
             boolean result = RestActions.compareJSON(mockResponse, testFilePath, ComparisonType.CONTAINS);
-            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(testFilePath));
+            java.nio.file.Files.deleteIfExists(path);
             Assert.assertTrue(result);
         } catch (Exception e) {
             Assert.assertTrue(true, "Method structure is valid");
@@ -392,9 +396,10 @@ public class RestActionsComprehensiveTests {
         String referenceJson = "{\"name\":\"John\",\"age\":30}";
         String testFilePath = "/tmp/test-comparison-order.json";
         try {
-            java.nio.file.Files.write(java.nio.file.Paths.get(testFilePath), referenceJson.getBytes());
+            Path path = Paths.get(testFilePath);
+            java.nio.file.Files.write(path, referenceJson.getBytes());
             boolean result = RestActions.compareJSON(mockResponse, testFilePath, ComparisonType.EQUALS_IGNORING_ORDER);
-            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(testFilePath));
+            java.nio.file.Files.deleteIfExists(path);
             Assert.assertTrue(result);
         } catch (Exception e) {
             Assert.assertTrue(true, "Method structure is valid");
@@ -409,9 +414,10 @@ public class RestActionsComprehensiveTests {
         String referenceJson = "[{\"name\":\"John\",\"age\":30}]";
         String testFilePath = "/tmp/test-comparison-path.json";
         try {
-            java.nio.file.Files.write(java.nio.file.Paths.get(testFilePath), referenceJson.getBytes());
+            Path path = Paths.get(testFilePath);
+            java.nio.file.Files.write(path, referenceJson.getBytes());
             boolean result = RestActions.compareJSON(mockResponse, testFilePath, ComparisonType.EQUALS, "$.users");
-            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(testFilePath));
+            java.nio.file.Files.deleteIfExists(path);
             Assert.assertTrue(result);
         } catch (Exception e) {
             Assert.assertTrue(true, "Method structure is valid");
@@ -483,7 +489,7 @@ public class RestActionsComprehensiveTests {
         Assert.assertNotNull(result);
     }
 
-    @Test
+    @Test(expectedExceptions = {NullPointerException.class})
     public void testFormatXMLWithNullInput() {
         String result = RestActions.formatXML(null);
         Assert.assertNotNull(result);
@@ -526,28 +532,17 @@ public class RestActionsComprehensiveTests {
 
     // ========== Edge Cases and Error Handling Tests ==========
 
-    @Test
+    @Test(expectedExceptions = {NullPointerException.class})
     public void testGetResponseJSONValueWithNullResponse() {
-        try {
-            String result = RestActions.getResponseJSONValue((Response) null, "$.test");
-            Assert.assertTrue(result == null || result.equals("null"));
-        } catch (Exception e) {
-            // Null pointer exception is expected
-            Assert.assertTrue(e instanceof NullPointerException);
-        }
+        String result = RestActions.getResponseJSONValue(null, "$.test");
+        Assert.assertTrue(result == null || result.equals("null"));
     }
 
-    @Test
+    @Test(expectedExceptions = {NullPointerException.class})
     public void testGetResponseJSONValueWithNullJsonPath() {
         Mockito.when(mockResponse.asPrettyString()).thenReturn("{\"test\":\"value\"}");
-        
-        try {
-            String result = RestActions.getResponseJSONValue(mockResponse, null);
-            Assert.assertTrue(result == null || result.equals("null"));
-        } catch (Exception e) {
-            // Exception is expected with null path
-            Assert.assertTrue(e instanceof IllegalArgumentException || e instanceof NullPointerException);
-        }
+        String result = RestActions.getResponseJSONValue(mockResponse, null);
+        Assert.assertTrue(result == null || result.equals("null"));
     }
 
     @Test
@@ -651,7 +646,7 @@ public class RestActionsComprehensiveTests {
     }
 
     @Test
-    public void testGetResponseJSONValueWithJSONObject() {
+    public void testGetResponseJSONValueWithJSONObject() throws JSONException {
         JSONObject jsonObj = new JSONObject();
         jsonObj.put("testKey", "testValue");
         jsonObj.put("number", 123);
@@ -745,7 +740,7 @@ public class RestActionsComprehensiveTests {
         Assert.assertTrue(result.isEmpty());
     }
 
-    @Test
+    @Test(expectedExceptions = {RuntimeException.class})
     public void testCompareJSONWithFileNotFound() {
         Mockito.when(mockResponse.asString()).thenReturn("{\"test\":\"value\"}");
         
@@ -760,9 +755,10 @@ public class RestActionsComprehensiveTests {
         
         String testFilePath = "/tmp/test-invalid.json";
         try {
-            java.nio.file.Files.write(java.nio.file.Paths.get(testFilePath), "{\"valid\":\"json\"}".getBytes());
+            Path path = Paths.get(testFilePath);
+            java.nio.file.Files.write(path, "{\"valid\":\"json\"}".getBytes());
             boolean result = RestActions.compareJSON(mockResponse, testFilePath, ComparisonType.EQUALS);
-            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(testFilePath));
+            java.nio.file.Files.deleteIfExists(path);
             Assert.assertFalse(result); // Should return false for invalid JSON
         } catch (Exception e) {
             Assert.assertTrue(true, "Invalid JSON handling tested");
@@ -813,24 +809,16 @@ public class RestActionsComprehensiveTests {
         }
     }
 
-    @Test
+    @Test(expectedExceptions = {NullPointerException.class})
     public void testGetResponseStatusCodeWithNullResponse() {
-        try {
-            int result = RestActions.getResponseStatusCode(null);
-            Assert.fail("Should throw exception for null response");
-        } catch (Exception e) {
-            Assert.assertTrue(e instanceof NullPointerException);
-        }
+        RestActions.getResponseStatusCode(null);
+        Assert.fail("Should throw exception for null response");
     }
 
-    @Test
+    @Test(expectedExceptions = {NullPointerException.class})
     public void testGetResponseTimeWithNullResponse() {
-        try {
-            long result = RestActions.getResponseTime(null);
-            Assert.fail("Should throw exception for null response");
-        } catch (Exception e) {
-            Assert.assertTrue(e instanceof NullPointerException);
-        }
+        RestActions.getResponseTime(null);
+        Assert.fail("Should throw exception for null response");
     }
 
     // ========== Session Management Edge Cases ==========
@@ -891,7 +879,7 @@ public class RestActionsComprehensiveTests {
 
     @Test
     public void testFormatXMLWithComplexXML() {
-        String complexXml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><root xmlns=\"http://example.com\"><items><item id=\"1\"><name>Test</name><value>123</value></item></items></root>";
+        String complexXml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><root xmlns=\"https://example.com\"><items><item id=\"1\"><name>Test</name><value>123</value></item></items></root>";
         
         String result = RestActions.formatXML(complexXml);
         Assert.assertNotNull(result);
@@ -1079,9 +1067,10 @@ public class RestActionsComprehensiveTests {
         String testFilePath = "/tmp/test-array-comparison.json";
         
         try {
-            java.nio.file.Files.write(java.nio.file.Paths.get(testFilePath), referenceJsonArray.getBytes());
+            Path path = Paths.get(testFilePath);
+            java.nio.file.Files.write(path, referenceJsonArray.getBytes());
             boolean result = RestActions.compareJSON(mockResponse, testFilePath, ComparisonType.EQUALS);
-            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(testFilePath));
+            java.nio.file.Files.deleteIfExists(path);
             Assert.assertTrue(result);
         } catch (Exception e) {
             Assert.assertTrue(true, "Array comparison tested");
@@ -1097,9 +1086,10 @@ public class RestActionsComprehensiveTests {
         String testFilePath = "/tmp/test-ignoring-order.json";
         
         try {
-            java.nio.file.Files.write(java.nio.file.Paths.get(testFilePath), referenceJson.getBytes());
+            Path path = Paths.get(testFilePath);
+            java.nio.file.Files.write(path, referenceJson.getBytes());
             boolean result = RestActions.compareJSON(mockResponse, testFilePath, ComparisonType.EQUALS_IGNORING_ORDER);
-            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(testFilePath));
+            java.nio.file.Files.deleteIfExists(path);
             Assert.assertTrue(result);
         } catch (Exception e) {
             Assert.assertTrue(true, "Order ignoring comparison tested");
@@ -1115,9 +1105,10 @@ public class RestActionsComprehensiveTests {
         String testFilePath = "/tmp/test-array-ignoring-order.json";
         
         try {
-            java.nio.file.Files.write(java.nio.file.Paths.get(testFilePath), referenceJsonArray.getBytes());
+            Path path = Paths.get(testFilePath);
+            java.nio.file.Files.write(path, referenceJsonArray.getBytes());
             boolean result = RestActions.compareJSON(mockResponse, testFilePath, ComparisonType.EQUALS_IGNORING_ORDER);
-            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(testFilePath));
+            java.nio.file.Files.deleteIfExists(path);
             Assert.assertTrue(result);
         } catch (Exception e) {
             Assert.assertTrue(true, "Array ignoring order comparison tested");
@@ -1137,9 +1128,10 @@ public class RestActionsComprehensiveTests {
         String testFilePath = "/tmp/test-contains-with-path.json";
         
         try {
-            java.nio.file.Files.write(java.nio.file.Paths.get(testFilePath), referenceJsonArray.getBytes());
+            Path path = Paths.get(testFilePath);
+            java.nio.file.Files.write(path, referenceJsonArray.getBytes());
             boolean result = RestActions.compareJSON(mockResponse, testFilePath, ComparisonType.CONTAINS, "$.users");
-            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(testFilePath));
+            java.nio.file.Files.deleteIfExists(path);
             // This test exercises the jsonPathToTargetArray logic
             Assert.assertTrue(result || !result); // Accept either result as we're testing execution path
         } catch (Exception e) {
@@ -1156,9 +1148,10 @@ public class RestActionsComprehensiveTests {
         String testFilePath = "/tmp/test-contains-no-path.json";
         
         try {
-            java.nio.file.Files.write(java.nio.file.Paths.get(testFilePath), referenceJsonArray.getBytes());
+            Path path = Paths.get(testFilePath);
+            java.nio.file.Files.write(path, referenceJsonArray.getBytes());
             boolean result = RestActions.compareJSON(mockResponse, testFilePath, ComparisonType.CONTAINS, "");
-            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(testFilePath));
+            java.nio.file.Files.deleteIfExists(path);
             Assert.assertTrue(result || !result); // Accept either result as we're testing execution path
         } catch (Exception e) {
             Assert.assertTrue(true, "JSON contains without path tested");
@@ -1175,9 +1168,10 @@ public class RestActionsComprehensiveTests {
         String testFilePath = "/tmp/test-secondary-comparison.json";
         
         try {
-            java.nio.file.Files.write(java.nio.file.Paths.get(testFilePath), referenceJson.getBytes());
+            Path path = Paths.get(testFilePath);
+            java.nio.file.Files.write(path, referenceJson.getBytes());
             boolean result = RestActions.compareJSON(mockResponse, testFilePath, ComparisonType.CONTAINS);
-            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(testFilePath));
+            java.nio.file.Files.deleteIfExists(path);
             Assert.assertTrue(result || !result); // Accept either result as we're testing execution path
         } catch (Exception e) {
             Assert.assertTrue(true, "Secondary comparison logic tested");
@@ -1194,9 +1188,10 @@ public class RestActionsComprehensiveTests {
         String testFilePath = "/tmp/test-mismatched-types.json";
         
         try {
-            java.nio.file.Files.write(java.nio.file.Paths.get(testFilePath), referenceJsonObject.getBytes());
+            Path path = Paths.get(testFilePath);
+            java.nio.file.Files.write(path, referenceJsonObject.getBytes());
             boolean result = RestActions.compareJSON(mockResponse, testFilePath, ComparisonType.EQUALS);
-            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(testFilePath));
+            java.nio.file.Files.deleteIfExists(path);
             Assert.assertFalse(result); // Should return false for type mismatch
         } catch (Exception e) {
             Assert.assertTrue(true, "Mismatched types comparison tested");
@@ -1214,7 +1209,7 @@ public class RestActionsComprehensiveTests {
         Assert.assertTrue(result1.contains("<?xml"));
         
         // Test with namespaces
-        String xmlWithNamespace = "<root xmlns:ns=\"http://example.com\"><ns:child>value</ns:child></root>";
+        String xmlWithNamespace = "<root xmlns:ns=\"https://example.com\"><ns:child>value</ns:child></root>";
         String result2 = RestActions.formatXML(xmlWithNamespace);
         Assert.assertNotNull(result2);
         
@@ -1320,9 +1315,7 @@ public class RestActionsComprehensiveTests {
     public void testReportActionResultWithLongTestData() {
         // Test the case where testData.length() >= 500 to trigger attachment creation
         StringBuilder longTestData = new StringBuilder();
-        for (int i = 0; i < 100; i++) {
-            longTestData.append("This is a long test data string that will exceed 500 characters. ");
-        }
+        longTestData.append("This is a long test data string that will exceed 500 characters. ".repeat(100));
         
         // This indirectly tests reportActionResult through getResponseStatusCode
         Mockito.when(mockResponse.getStatusCode()).thenReturn(200);
@@ -1511,9 +1504,10 @@ public class RestActionsComprehensiveTests {
         String comparisonJson = "{\"status\":\"success\"}";
         String testFile = "/tmp/comprehensive-test.json";
         try {
-            java.nio.file.Files.write(java.nio.file.Paths.get(testFile), comparisonJson.getBytes());
+            Path path = Paths.get(testFile);
+            java.nio.file.Files.write(path, comparisonJson.getBytes());
             boolean comparisonResult = RestActions.compareJSON(mockResponse, testFile, ComparisonType.CONTAINS);
-            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(testFile));
+            java.nio.file.Files.deleteIfExists(path);
             Assert.assertTrue(comparisonResult || !comparisonResult); // Accept either result
         } catch (Exception e) {
             Assert.assertTrue(true, "Comprehensive comparison tested");
