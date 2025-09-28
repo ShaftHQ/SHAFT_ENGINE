@@ -4,7 +4,6 @@ import com.google.common.base.Throwables;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
-import org.testng.Assert;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,12 +29,12 @@ public class FailureReporter {
             attachments.add(actualValueAttachment);
             ReportManagerHelper.log(message + rootCause, attachments);
         }
-        Assert.fail(message + rootCause, throwable);
+        throw new RuntimeException(message + rootCause, throwable);
     }
 
     public static void fail(String message) {
         ReportManager.log(message);
-        Assert.fail(message);
+        throw new RuntimeException(message);
     }
 
     public static String getRootCause(Throwable throwable) {

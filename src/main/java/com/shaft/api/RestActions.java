@@ -201,7 +201,7 @@ public class RestActions {
                     Object jsonValue = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
                     searchPool = String.valueOf(jsonValue);
                 }
-            } catch (JSONException rootCauseException) {
+            } catch (JSONException | PathNotFoundException rootCauseException) {
                 ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
                 failAction(jsonPath, rootCauseException);
             }
@@ -223,9 +223,39 @@ public class RestActions {
     }
 
     public static String getResponseJSONValue(Object response, String jsonPath) {
-        String searchPool = "";
+        String searchPool = null;
         try {
-            if (response instanceof HashMap<?, ?> hashMapResponse) {
+            if (response instanceof String responseString) {
+                if (jsonPath.contains("?")) {
+                    List<String> jsonValueAsList = JsonPath.read(responseString, jsonPath);
+                    searchPool = String.valueOf(jsonValueAsList.getFirst());
+                } else {
+                    var jsonValue = JsonPath.read(responseString, jsonPath);
+                    searchPool = String.valueOf(jsonValue);
+                }
+            } else if (response instanceof JSONArray jsonArray) {
+                JSONObject obj = new JSONObject();
+                obj.put("array", jsonArray);
+                jsonPath = jsonPath.startsWith("$[") ? jsonPath.substring(1) : jsonPath;
+                jsonPath = jsonPath.startsWith("[") ? "array" + jsonPath : "array." + jsonPath;
+                searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
+            } else if (response instanceof org.json.simple.JSONArray jsonSimpleArray) {
+                JSONObject obj = new JSONObject();
+                obj.put("array", jsonSimpleArray);
+                jsonPath = jsonPath.startsWith("$[") ? jsonPath.substring(1) : jsonPath;
+                jsonPath = jsonPath.startsWith("[") ? "array" + jsonPath : "array." + jsonPath;
+                searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
+            } else if (response instanceof org.json.simple.JSONObject jsonObject) {
+                searchPool = io.restassured.path.json.JsonPath.from(jsonObject.toString()).getString(jsonPath);
+            } else if (response instanceof JSONObject obj) {
+                searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
+            } else if (response instanceof List<?> objectsList) {
+                JSONObject obj = new JSONObject();
+                obj.put("array", new JSONArray(objectsList));
+                jsonPath = jsonPath.startsWith("$[") ? jsonPath.substring(1) : jsonPath;
+                jsonPath = jsonPath.startsWith("[") ? "array" + jsonPath : "array." + jsonPath;
+                searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
+            } else if (response instanceof HashMap<?, ?> hashMapResponse) {
                 JSONObject obj = new JSONObject(hashMapResponse);
                 searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
             } else if (response instanceof Response responseObject) {
@@ -258,7 +288,7 @@ public class RestActions {
         } catch (ClassCastException rootCauseException) {
             ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"");
             failAction(jsonPath, rootCauseException);
-        } catch (JsonPathException | IllegalArgumentException rootCauseException) {
+        } catch (JsonPathException | JSONException | IllegalArgumentException rootCauseException) {
             ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
             failAction(jsonPath, rootCauseException);
         }
@@ -316,7 +346,7 @@ public class RestActions {
      * @param jsonPathToValueNeeded    The JSON path to the attribute value you need to extract inside an object from the list. for example: id
      * @param jsonPathToValueReference The JSON path that refers to the needed attribute value inside an object from the list. for example: username
      * @param valueReference           The attribute value of the reference JSON path
-     * @return A string value from the object of the list
+     * @return A string value from the object of the list which represents the first match of the reference attribute value
      */
     public static String getResponseJSONValueFromList(Response response, String jsonPathToList, String jsonPathToValueNeeded,
                                                       String jsonPathToValueReference, String valueReference) {
@@ -325,6 +355,10 @@ public class RestActions {
         for (Object res : Objects.requireNonNull(list)) {
             if (Objects.equals(getResponseJSONValue(res, jsonPathToValueReference), valueReference)) {
                 value = getResponseJSONValue(res, jsonPathToValueNeeded);
+            }
+            // return the first match
+            if (!Objects.equals(value, "")) {
+                break;
             }
         }
         if (Objects.equals(value, "")) {
