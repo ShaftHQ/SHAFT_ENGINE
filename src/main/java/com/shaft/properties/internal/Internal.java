@@ -10,7 +10,7 @@ import org.aeonbits.owner.Config.Sources;
 })
 public interface Internal extends EngineProperties<Internal> {
     @Key("shaftEngineVersion")
-    @DefaultValue("9.3.20250823")
+    @DefaultValue("9.3.20250928")
     String shaftEngineVersion();
 
     @Key("watermarkImagePath")
@@ -18,7 +18,7 @@ public interface Internal extends EngineProperties<Internal> {
     String watermarkImagePath();
 
     @Key("allureVersion")
-    @DefaultValue("2.34.1")
+    @DefaultValue("2.35.1")
         //https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/
     String allureVersion();
 }
