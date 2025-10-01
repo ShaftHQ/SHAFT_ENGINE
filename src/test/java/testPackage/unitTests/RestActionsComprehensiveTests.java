@@ -1132,10 +1132,11 @@ public class RestActionsComprehensiveTests {
             java.nio.file.Files.write(path, referenceJsonArray.getBytes());
             boolean result = RestActions.compareJSON(mockResponse, testFilePath, ComparisonType.CONTAINS, "$.users");
             java.nio.file.Files.deleteIfExists(path);
-            // This test exercises the jsonPathToTargetArray logic
-            Assert.assertTrue(result || !result); // Accept either result as we're testing execution path
+            // This test exercises the jsonPathToTargetArray logic - execution without exception is sufficient
+            // No specific assertion needed as the test validates the execution path
         } catch (Exception e) {
-            Assert.assertTrue(true, "JSON path target array tested");
+            // If exception occurs, test that exception was thrown as expected
+            Assert.fail("JSON path target array test should not throw exception: " + e.getMessage());
         }
     }
 
@@ -1152,9 +1153,11 @@ public class RestActionsComprehensiveTests {
             java.nio.file.Files.write(path, referenceJsonArray.getBytes());
             boolean result = RestActions.compareJSON(mockResponse, testFilePath, ComparisonType.CONTAINS, "");
             java.nio.file.Files.deleteIfExists(path);
-            Assert.assertTrue(result || !result); // Accept either result as we're testing execution path
+            // Execution without exception is sufficient - test validates the execution path
+            // No specific assertion needed
         } catch (Exception e) {
-            Assert.assertTrue(true, "JSON contains without path tested");
+            // If exception occurs, test that exception was thrown as expected
+            Assert.fail("JSON contains without path test should not throw exception: " + e.getMessage());
         }
     }
 
@@ -1172,9 +1175,11 @@ public class RestActionsComprehensiveTests {
             java.nio.file.Files.write(path, referenceJson.getBytes());
             boolean result = RestActions.compareJSON(mockResponse, testFilePath, ComparisonType.CONTAINS);
             java.nio.file.Files.deleteIfExists(path);
-            Assert.assertTrue(result || !result); // Accept either result as we're testing execution path
+            // Execution without exception is sufficient - test validates the execution path
+            // No specific assertion needed
         } catch (Exception e) {
-            Assert.assertTrue(true, "Secondary comparison logic tested");
+            // If exception occurs, test that exception was thrown as expected
+            Assert.fail("Secondary comparison logic test should not throw exception: " + e.getMessage());
         }
     }
 
@@ -1508,9 +1513,11 @@ public class RestActionsComprehensiveTests {
             java.nio.file.Files.write(path, comparisonJson.getBytes());
             boolean comparisonResult = RestActions.compareJSON(mockResponse, testFile, ComparisonType.CONTAINS);
             java.nio.file.Files.deleteIfExists(path);
-            Assert.assertTrue(comparisonResult || !comparisonResult); // Accept either result
+            // Execution without exception is sufficient - test validates the execution path
+            // No specific assertion needed
         } catch (Exception e) {
-            Assert.assertTrue(true, "Comprehensive comparison tested");
+            // If exception occurs, test that exception was thrown as expected
+            Assert.fail("Comprehensive comparison test should not throw exception: " + e.getMessage());
         }
         
         // Test XML formatting
