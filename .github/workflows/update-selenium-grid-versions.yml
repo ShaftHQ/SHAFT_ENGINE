@@ -1,0 +1,177 @@
+name: Update Selenium Grid Docker Versions
+
+on:
+  schedule:
+    # Run every Monday at 8:00 AM UTC
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-versions:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+
+      - name: Fetch Latest Selenium Docker Compose Reference
+        id: fetch-reference
+        run: |
+          # Fetch the reference docker-compose file from docker-selenium repository
+          curl -s https://raw.githubusercontent.com/SeleniumHQ/docker-selenium/trunk/docker-compose-v3.yml > /tmp/reference-compose.yml
+          
+          # Extract version from the reference file (e.g., 4.35.0-20250909)
+          CHROME_VERSION=$(grep 'image: selenium/node-chrome:' /tmp/reference-compose.yml | head -1 | sed 's/.*selenium\/node-chrome://; s/[[:space:]]*$//')
+          EDGE_VERSION=$(grep 'image: selenium/node-edge:' /tmp/reference-compose.yml | head -1 | sed 's/.*selenium\/node-edge://; s/[[:space:]]*$//')
+          FIREFOX_VERSION=$(grep 'image: selenium/node-firefox:' /tmp/reference-compose.yml | head -1 | sed 's/.*selenium\/node-firefox://; s/[[:space:]]*$//')
+          HUB_VERSION=$(grep 'image: selenium/hub:' /tmp/reference-compose.yml | head -1 | sed 's/.*selenium\/hub://; s/[[:space:]]*$//')
+          
+          # Filter out any 'nightly', 'beta', 'dev' versions
+          if echo "$CHROME_VERSION" | grep -qiE 'nightly|beta|dev'; then
+            echo "Warning: Chrome version contains pre-release tag: $CHROME_VERSION"
+            CHROME_VERSION=$(echo "$CHROME_VERSION" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+-[0-9]+')
+          fi
+          
+          if echo "$EDGE_VERSION" | grep -qiE 'nightly|beta|dev'; then
+            echo "Warning: Edge version contains pre-release tag: $EDGE_VERSION"
+            EDGE_VERSION=$(echo "$EDGE_VERSION" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+-[0-9]+')
+          fi
+          
+          if echo "$FIREFOX_VERSION" | grep -qiE 'nightly|beta|dev'; then
+            echo "Warning: Firefox version contains pre-release tag: $FIREFOX_VERSION"
+            FIREFOX_VERSION=$(echo "$FIREFOX_VERSION" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+-[0-9]+')
+          fi
+          
+          if echo "$HUB_VERSION" | grep -qiE 'nightly|beta|dev'; then
+            echo "Warning: Hub version contains pre-release tag: $HUB_VERSION"
+            HUB_VERSION=$(echo "$HUB_VERSION" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+-[0-9]+')
+          fi
+          
+          echo "CHROME_VERSION=$CHROME_VERSION" >> $GITHUB_OUTPUT
+          echo "EDGE_VERSION=$EDGE_VERSION" >> $GITHUB_OUTPUT
+          echo "FIREFOX_VERSION=$FIREFOX_VERSION" >> $GITHUB_OUTPUT
+          echo "HUB_VERSION=$HUB_VERSION" >> $GITHUB_OUTPUT
+          
+          echo "Latest versions found:"
+          echo "Chrome: $CHROME_VERSION"
+          echo "Edge: $EDGE_VERSION"
+          echo "Firefox: $FIREFOX_VERSION"
+          echo "Hub: $HUB_VERSION"
+
+      - name: Check Current Versions
+        id: check-current
+        run: |
+          CURRENT_CHROME=$(grep 'image: selenium/node-chrome:' src/main/resources/docker-compose/selenium4.yml | head -1 | sed 's/.*selenium\/node-chrome://; s/[[:space:]]*$//')
+          CURRENT_EDGE=$(grep 'image: selenium/node-edge:' src/main/resources/docker-compose/selenium4.yml | head -1 | sed 's/.*selenium\/node-edge://; s/[[:space:]]*$//')
+          CURRENT_FIREFOX=$(grep 'image: selenium/node-firefox:' src/main/resources/docker-compose/selenium4.yml | head -1 | sed 's/.*selenium\/node-firefox://; s/[[:space:]]*$//')
+          CURRENT_HUB=$(grep 'image: selenium/hub:' src/main/resources/docker-compose/selenium4.yml | head -1 | sed 's/.*selenium\/hub://; s/[[:space:]]*$//')
+          
+          echo "CURRENT_CHROME=$CURRENT_CHROME" >> $GITHUB_OUTPUT
+          echo "CURRENT_EDGE=$CURRENT_EDGE" >> $GITHUB_OUTPUT
+          echo "CURRENT_FIREFOX=$CURRENT_FIREFOX" >> $GITHUB_OUTPUT
+          echo "CURRENT_HUB=$CURRENT_HUB" >> $GITHUB_OUTPUT
+          
+          echo "Current versions:"
+          echo "Chrome: $CURRENT_CHROME"
+          echo "Edge: $CURRENT_EDGE"
+          echo "Firefox: $CURRENT_FIREFOX"
+          echo "Hub: $CURRENT_HUB"
+
+      - name: Update Docker Compose File
+        id: update-file
+        run: |
+          NEW_CHROME="${{ steps.fetch-reference.outputs.CHROME_VERSION }}"
+          NEW_EDGE="${{ steps.fetch-reference.outputs.EDGE_VERSION }}"
+          NEW_FIREFOX="${{ steps.fetch-reference.outputs.FIREFOX_VERSION }}"
+          NEW_HUB="${{ steps.fetch-reference.outputs.HUB_VERSION }}"
+          
+          CURRENT_CHROME="${{ steps.check-current.outputs.CURRENT_CHROME }}"
+          CURRENT_EDGE="${{ steps.check-current.outputs.CURRENT_EDGE }}"
+          CURRENT_FIREFOX="${{ steps.check-current.outputs.CURRENT_FIREFOX }}"
+          CURRENT_HUB="${{ steps.check-current.outputs.CURRENT_HUB }}"
+          
+          # Check if any version has changed
+          CHANGES_MADE=false
+          
+          if [ "$NEW_CHROME" != "$CURRENT_CHROME" ]; then
+            echo "Updating Chrome from $CURRENT_CHROME to $NEW_CHROME"
+            sed -i "s|selenium/node-chrome:$CURRENT_CHROME|selenium/node-chrome:$NEW_CHROME|g" src/main/resources/docker-compose/selenium4.yml
+            CHANGES_MADE=true
+          fi
+          
+          if [ "$NEW_EDGE" != "$CURRENT_EDGE" ]; then
+            echo "Updating Edge from $CURRENT_EDGE to $NEW_EDGE"
+            sed -i "s|selenium/node-edge:$CURRENT_EDGE|selenium/node-edge:$NEW_EDGE|g" src/main/resources/docker-compose/selenium4.yml
+            CHANGES_MADE=true
+          fi
+          
+          if [ "$NEW_FIREFOX" != "$CURRENT_FIREFOX" ]; then
+            echo "Updating Firefox from $CURRENT_FIREFOX to $NEW_FIREFOX"
+            sed -i "s|selenium/node-firefox:$CURRENT_FIREFOX|selenium/node-firefox:$NEW_FIREFOX|g" src/main/resources/docker-compose/selenium4.yml
+            CHANGES_MADE=true
+          fi
+          
+          if [ "$NEW_HUB" != "$CURRENT_HUB" ]; then
+            echo "Updating Hub from $CURRENT_HUB to $NEW_HUB"
+            sed -i "s|selenium/hub:$CURRENT_HUB|selenium/hub:$NEW_HUB|g" src/main/resources/docker-compose/selenium4.yml
+            CHANGES_MADE=true
+          fi
+          
+          if [ "$CHANGES_MADE" = true ]; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "Changes were made to the docker-compose file"
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+            echo "No changes needed - versions are up to date"
+          fi
+
+      - name: Validate Docker Compose File
+        if: steps.update-file.outputs.changes == 'true'
+        run: |
+          docker compose -f src/main/resources/docker-compose/selenium4.yml config > /dev/null
+          echo "Docker Compose file validation successful"
+
+      - name: Create Pull Request
+        if: steps.update-file.outputs.changes == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: |
+            Update Selenium Grid Docker images to latest stable versions
+            
+            - Chrome: ${{ steps.check-current.outputs.CURRENT_CHROME }} → ${{ steps.fetch-reference.outputs.CHROME_VERSION }}
+            - Edge: ${{ steps.check-current.outputs.CURRENT_EDGE }} → ${{ steps.fetch-reference.outputs.EDGE_VERSION }}
+            - Firefox: ${{ steps.check-current.outputs.CURRENT_FIREFOX }} → ${{ steps.fetch-reference.outputs.FIREFOX_VERSION }}
+            - Hub: ${{ steps.check-current.outputs.CURRENT_HUB }} → ${{ steps.fetch-reference.outputs.HUB_VERSION }}
+          branch: auto-update-selenium-grid-versions
+          delete-branch: true
+          title: 'Update Selenium Grid Docker images to latest stable versions'
+          body: |
+            ## 🤖 Automated Docker Image Update
+            
+            This PR automatically updates the Selenium Grid Docker images to the latest stable versions from the [docker-selenium repository](https://github.com/SeleniumHQ/docker-selenium).
+            
+            ### Version Changes:
+            
+            | Image | Current Version | New Version |
+            |-------|----------------|-------------|
+            | Chrome | `${{ steps.check-current.outputs.CURRENT_CHROME }}` | `${{ steps.fetch-reference.outputs.CHROME_VERSION }}` |
+            | Edge | `${{ steps.check-current.outputs.CURRENT_EDGE }}` | `${{ steps.fetch-reference.outputs.EDGE_VERSION }}` |
+            | Firefox | `${{ steps.check-current.outputs.CURRENT_FIREFOX }}` | `${{ steps.fetch-reference.outputs.FIREFOX_VERSION }}` |
+            | Hub | `${{ steps.check-current.outputs.CURRENT_HUB }}` | `${{ steps.fetch-reference.outputs.HUB_VERSION }}` |
+            
+            ### ✅ Validation:
+            - Docker Compose file syntax validated successfully
+            - All versions are from the latest stable release (no nightly/beta/dev builds)
+            
+            ### 📋 Reference:
+            - Source: [docker-selenium docker-compose-v3.yml](https://github.com/SeleniumHQ/docker-selenium/blob/trunk/docker-compose-v3.yml)
+            - Docker Hub: [selenium/hub](https://hub.docker.com/r/selenium/hub)
+            
+            Please review and merge if the changes look correct.
+          labels: |
+            dependencies
+            automated
