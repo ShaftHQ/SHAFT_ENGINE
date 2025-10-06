@@ -7,25 +7,18 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@SuppressWarnings({"EqualsBetweenInconvertibleTypes", "ResultOfMethodCallIgnored"})
 public class NewValidationHelperTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
-    @Test
+    @Test(expectedExceptions = AssertionError.class)
     public void forceFail() {
-        try {
             Validations.assertThat().forceFail().perform();
-        } catch (AssertionError e) {
-            // pass
-        }
     }
 
-    @Test
+    @Test(expectedExceptions = AssertionError.class)
     public void forceFail2() {
-        try {
             Validations.assertThat().forceFail().withCustomReportMessage("Custom Message").perform();
-        } catch (AssertionError e) {
-            // pass
-        }
     }
 
     @Test
@@ -34,14 +27,9 @@ public class NewValidationHelperTests {
         Validations.assertThat().object(longString).isEqualTo(longString).withCustomReportMessage("Checking valid user data").perform();
     }
 
-    @Test
-    public void f2() throws Exception {
-        try {
+    @Test(expectedExceptions = AssertionError.class)
+    public void f2() {
             Validations.assertThat().number(2).equals(1);
-            throw new Exception("Expected to fail but passed.");
-        } catch (AssertionError e) {
-            // pass
-        }
     }
 
     @Test
@@ -64,36 +52,21 @@ public class NewValidationHelperTests {
         Validations.assertThat().object(1).isNotNull().perform();
     }
 
-    @Test
-    public void f6() throws Exception {
-        try {
+    @Test(expectedExceptions = AssertionError.class)
+    public void f6() {
             Validations.assertThat().object("NULL").isNull()
                     .withCustomReportMessage("Making sure that null string is not equal to null object").perform();
-            throw new Exception("Expected to fail but passed.");
-        } catch (AssertionError e) {
-            // pass
-        }
     }
 
-    @Test
-    public void f6_1() throws Exception {
-        try {
+    @Test(expectedExceptions = AssertionError.class)
+    public void f6_1() {
             Validations.assertThat().object(null).isNotNull().perform();
-            throw new Exception("Expected to fail but passed.");
-        } catch (AssertionError e) {
-            // pass
-        }
     }
 
-    @Test
-    public void f6_2() throws Exception {
-        try {
+    @Test(expectedExceptions = AssertionError.class)
+    public void f6_2() {
             Validations.assertThat().object("not null").isNull()
                     .withCustomReportMessage("Making sure that null string is not equal to null object").perform();
-            throw new Exception("Expected to fail but passed.");
-        } catch (AssertionError e) {
-            // pass
-        }
     }
 
     @Test
@@ -106,24 +79,14 @@ public class NewValidationHelperTests {
         driver.get().element().assertThat(By.tagName("h1")).exists().perform();
     }
 
-    @Test(groups = {"browserBasedTests"})
-    public void f9() throws Exception {
-        try {
+    @Test(groups = {"browserBasedTests"}, expectedExceptions = AssertionError.class)
+    public void f9() {
             driver.get().element().assertThat(By.tagName("h3")).exists().perform();
-            throw new Exception("Expected to fail but passed.");
-        } catch (AssertionError e) {
-            // pass
-        }
     }
 
-    @Test(groups = {"browserBasedTests"})
-    public void f10() throws Exception {
-        try {
-            driver.get().element().assertThat(By.tagName("div")).exists().perform();
-            throw new Exception("Expected to fail but passed.");
-        } catch (AssertionError e) {
-            // pass
-        }
+    @Test(groups = {"browserBasedTests"}, expectedExceptions = RuntimeException.class)
+    public void f10() {
+        driver.get().element().assertThat(By.tagName("div")).exists().perform();
     }
 
     @Test(groups = {"browserBasedTests"})
@@ -132,24 +95,14 @@ public class NewValidationHelperTests {
                 .withCustomReportMessage("Checking that false tag doesn't exist").perform();
     }
 
-    @Test(groups = {"browserBasedTests"})
-    public void f12() throws Exception {
-        try {
-            driver.get().element().assertThat(By.tagName("h1")).doesNotExist().perform();
-            throw new Exception("Expected to fail but passed.");
-        } catch (AssertionError e) {
-            // pass
-        }
+    @Test(groups = {"browserBasedTests"}, expectedExceptions = AssertionError.class)
+    public void f12() {
+        driver.get().element().assertThat(By.tagName("h1")).doesNotExist().perform();
     }
 
-    @Test(groups = {"browserBasedTests"})
-    public void f13() throws Exception {
-        try {
-            driver.get().element().assertThat(By.tagName("div")).doesNotExist().perform();
-            throw new Exception("Expected to fail but passed.");
-        } catch (AssertionError e) {
-            // pass
-        }
+    @Test(groups = {"browserBasedTests"}, expectedExceptions = RuntimeException.class)
+    public void f13() {
+        driver.get().element().assertThat(By.tagName("div")).doesNotExist().perform();
     }
 
     @Test(groups = {"browserBasedTests"})
@@ -158,24 +111,14 @@ public class NewValidationHelperTests {
                 .withCustomReportMessage("Asserting that the header text is correct").perform();
     }
 
-    @Test(groups = {"browserBasedTests"})
-    public void f15() throws Exception {
-        try {
+    @Test(groups = {"browserBasedTests"}, expectedExceptions = AssertionError.class)
+    public void f15() {
             driver.get().element().assertThat(By.tagName("h1")).text().doesNotContain("Welcome").perform();
-            throw new Exception("Expected to fail but passed.");
-        } catch (AssertionError e) {
-            // pass
-        }
     }
 
-    @Test(groups = {"browserBasedTests"})
-    public void f16() throws Exception {
-        try {
-            driver.get().element().assertThat(By.tagName("h3")).text().doesNotContain("Welcome").perform();
-            throw new Exception("Expected to fail but passed.");
-        } catch (RuntimeException e) {
-            // pass
-        }
+    @Test(groups = {"browserBasedTests"}, expectedExceptions = RuntimeException.class)
+    public void f16() {
+        driver.get().element().assertThat(By.tagName("h3")).text().doesNotContain("Welcome").perform();
     }
 
     @Test(groups = {"browserBasedTests"})
@@ -193,24 +136,14 @@ public class NewValidationHelperTests {
         driver.get().element().assertThat(By.tagName("h1")).attribute("size").doesNotContain("a").perform();
     }
 
-    @Test(groups = {"browserBasedTests"})
-    public void f21() throws Exception {
-        try {
+    @Test(groups = {"browserBasedTests"}, expectedExceptions = RuntimeException.class)
+    public void f21() {
             driver.get().element().assertThat(By.tagName("h3")).attribute("text").contains("Welcome").perform();
-            throw new Exception("Expected to fail but passed.");
-        } catch (RuntimeException e) {
-            // pass
-        }
     }
 
-    @Test(groups = {"browserBasedTests"})
-    public void f22() throws Exception {
-        try {
+    @Test(groups = {"browserBasedTests"}, expectedExceptions = AssertionError.class)
+    public void f22() {
             driver.get().element().assertThat(By.tagName("h1")).attribute("text").contains("yyy").perform();
-            throw new Exception("Expected to fail but passed.");
-        } catch (AssertionError e) {
-            // pass
-        }
     }
 
     @Test
@@ -248,14 +181,9 @@ public class NewValidationHelperTests {
         Validations.assertThat().number(11).isLessThanOrEquals(11).perform();
     }
 
-    @Test
-    public void f30() throws Exception {
-        try {
-            Validations.assertThat().number(11).isLessThanOrEquals(-9).perform();
-            throw new Exception("Expected to fail but passed.");
-        } catch (AssertionError e) {
-            // pass
-        }
+    @Test(expectedExceptions = AssertionError.class)
+    public void f30() {
+        Validations.assertThat().number(11).isLessThanOrEquals(-9).perform();
     }
 
     @Test
@@ -268,24 +196,14 @@ public class NewValidationHelperTests {
         Validations.assertThat().object(false).isFalse().perform();
     }
 
-    @Test
-    public void f33() throws Exception {
-        try {
+    @Test(expectedExceptions = AssertionError.class)
+    public void f33() {
             Validations.assertThat().object(true).isFalse().perform();
-            throw new Exception("Expected to fail but passed.");
-        } catch (AssertionError e) {
-            // pass
-        }
     }
 
-    @Test
-    public void f34() throws Exception {
-        try {
+    @Test(expectedExceptions = AssertionError.class)
+    public void f34() {
             Validations.assertThat().object(false).isTrue().perform();
-            throw new Exception("Expected to fail but passed.");
-        } catch (AssertionError e) {
-            // pass
-        }
     }
 
     @Test
@@ -293,14 +211,9 @@ public class NewValidationHelperTests {
         Validations.assertThat().file("", "pom.xml").exists().perform();
     }
 
-    @Test
-    public void f37() throws Exception {
-        try {
+    @Test(expectedExceptions = AssertionError.class)
+    public void f37() {
             Validations.assertThat().file("", "pom.xml").doesNotExist().perform();
-            throw new Exception("Expected to fail but passed.");
-        } catch (AssertionError e) {
-            // pass
-        }
     }
 
     @BeforeMethod(onlyForGroups = {"browserBasedTests"})
