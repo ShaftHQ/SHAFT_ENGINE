@@ -14,7 +14,7 @@ import java.nio.file.Paths;
 @Service
 public class ProjectGeneratorService {
 
-    private static final String TEMPLATE_BASE_PATH = "../templates/";
+    private static final String TEMPLATE_BASE_PATH = "project-generator/templates/";
 
     public byte[] generateProject(ProjectConfiguration config) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
