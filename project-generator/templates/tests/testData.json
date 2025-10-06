@@ -1,0 +1,5 @@
+{
+  "searchQuery": "SHAFT_Engine",
+  "expectedTextInFirstResult": "SHAFT_Engine",
+  "apiBaseUrl": "https://jsonplaceholder.typicode.com"
+}

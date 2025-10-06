@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHAFT Project Generator</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 SHAFT Project Generator</h1>
+            <p class="subtitle">AI-Powered Test Automation Project Generator</p>
+        </header>
+
+        <form id="projectForm">
+            <div class="form-section">
+                <h2>📦 Project Information</h2>
+                
+                <div class="form-group">
+                    <label for="groupId">Group ID:</label>
+                    <input type="text" id="groupId" name="groupId" value="com.example" required>
+                    <span class="help-text">Example: com.example</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="artifactId">Artifact ID:</label>
+                    <input type="text" id="artifactId" name="artifactId" value="my-automation-project" required>
+                    <span class="help-text">Example: my-automation-project</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="version">Version:</label>
+                    <input type="text" id="version" name="version" value="1.0.0" required>
+                    <span class="help-text">Example: 1.0.0</span>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2>🔧 Test Configuration</h2>
+                
+                <div class="form-group">
+                    <label for="testRunner">Test Runner:</label>
+                    <select id="testRunner" name="testRunner" required>
+                        <option value="TestNG">TestNG</option>
+                        <option value="JUnit">JUnit</option>
+                        <option value="Cucumber">Cucumber</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="targetPlatform">Target Platform:</label>
+                    <select id="targetPlatform" name="targetPlatform" required>
+                        <option value="Web GUI">Web GUI</option>
+                        <option value="API">API</option>
+                        <option value="Mobile GUI">Mobile GUI</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="executionEnvironment">Execution Environment:</label>
+                    <select id="executionEnvironment" name="executionEnvironment" required>
+                        <option value="Local">Local</option>
+                        <option value="LambdaTest">LambdaTest</option>
+                        <option value="BrowserStack">BrowserStack</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2>⚙️ GitHub Actions Workflow</h2>
+                
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="includeGitHubWorkflow" name="includeGitHubWorkflow">
+                        <span>Include GitHub Actions Workflow</span>
+                    </label>
+                </div>
+
+                <div class="form-group" id="workflowTriggerGroup" style="display: none;">
+                    <label for="workflowTrigger">Workflow Trigger:</label>
+                    <select id="workflowTrigger" name="workflowTrigger">
+                        <option value="workflow_dispatch">Manual (workflow_dispatch)</option>
+                        <option value="push">On Push</option>
+                        <option value="pull_request">On Pull Request</option>
+                        <option value="schedule">Scheduled (Daily)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">
+                    🎉 Generate Project
+                </button>
+            </div>
+        </form>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Generating your project...</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;">
+            <h3>❌ Error</h3>
+            <p id="errorMessage"></p>
+        </div>
+
+        <footer>
+            <p>Powered by <a href="https://github.com/ShaftHQ/SHAFT_ENGINE" target="_blank">SHAFT Engine</a></p>
+        </footer>
+    </div>
+
+    <script th:src="@{/js/app.js}"></script>
+</body>
+</html>

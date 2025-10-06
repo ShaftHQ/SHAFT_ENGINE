@@ -1,0 +1,49 @@
+name: Run Tests - LambdaTest Execution
+
+on:
+  {{WORKFLOW_TRIGGER}}
+
+env:
+  LAMBDATEST_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
+  LAMBDATEST_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'zulu'
+          cache: 'maven'
+      
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v5
+        with:
+          maven-version: 3.9.5
+      
+      - name: Run tests on LambdaTest
+        run: |
+          mvn clean test \
+            -DexecutionAddress=lambdatest \
+            -DtargetBrowserName=chrome \
+            -DlambdaTestUsername=${{ secrets.LAMBDATEST_USERNAME }} \
+            -DlambdaTestAccessKey=${{ secrets.LAMBDATEST_ACCESS_KEY }}
+      
+      - name: Upload Allure Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: allure-report/
+      
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()

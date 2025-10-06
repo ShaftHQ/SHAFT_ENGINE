@@ -1,0 +1,55 @@
+name: Run Tests - BrowserStack Execution
+
+on:
+  {{WORKFLOW_TRIGGER}}
+
+env:
+  BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+  BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'zulu'
+          cache: 'maven'
+      
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v5
+        with:
+          maven-version: 3.9.5
+      
+      - name: BrowserStack Environment Setup
+        uses: browserstack/github-actions/setup-env@master
+        with:
+          username: ${{ secrets.BROWSERSTACK_USERNAME }}
+          access-key: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+      
+      - name: Run tests on BrowserStack
+        run: |
+          mvn clean test \
+            -DexecutionAddress=browserstack \
+            -DtargetBrowserName=chrome \
+            -DbrowserStackUsername=${{ secrets.BROWSERSTACK_USERNAME }} \
+            -DbrowserStackAccessKey=${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+      
+      - name: Upload Allure Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: allure-report/
+      
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+        if: always()
