@@ -37,6 +37,7 @@ import org.testng.Reporter;
 
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
+import java.nio.channels.UnresolvedAddressException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -174,7 +175,8 @@ public class DriverFactoryHelper {
             try {
                 driver = connectToRemoteServer(capabilities, false);
                 isRemoteConnectionEstablished = true;
-            } catch (SessionNotCreatedException | URISyntaxException sessionNotCreatedException1) {
+            } catch (SessionNotCreatedException | URISyntaxException |
+                     UnresolvedAddressException sessionNotCreatedException1) {
                 exception = sessionNotCreatedException1;
                 String message = sessionNotCreatedException1.getMessage();
                 if (message !=null &&
@@ -187,7 +189,7 @@ public class DriverFactoryHelper {
                         driver = connectToRemoteServer(capabilities, true);
                         isRemoteConnectionEstablished = true;
                     } catch (SessionNotCreatedException |
-                             URISyntaxException sessionNotCreatedException2) {
+                             URISyntaxException | UnresolvedAddressException sessionNotCreatedException2) {
                         // do nothing
                         exception = sessionNotCreatedException2;
                         ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
@@ -503,18 +505,20 @@ public class DriverFactoryHelper {
         try (ProgressBarLogger pblogger = new ProgressBarLogger("Instantiating...", (int) remoteServerInstanceCreationTimeout)) {
             setDriver(attemptRemoteServerConnection(capabilities));
             ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
-            if (!isNotMobileExecution() && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase("Android")) {
+            if (!isNotMobileExecution()
+                    && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase("Android")
+                    && (driver instanceof AppiumDriver appiumDriver)) {
                 // https://github.com/appium/appium-uiautomator2-driver#settings-api
-                ((AppiumDriver) driver).setSetting(Setting.WAIT_FOR_IDLE_TIMEOUT, 5000);
-                ((AppiumDriver) driver).setSetting(Setting.ALLOW_INVISIBLE_ELEMENTS, true);
-                ((AppiumDriver) driver).setSetting(Setting.IGNORE_UNIMPORTANT_VIEWS, false);
-                ((AppiumDriver) driver).setSetting("enableMultiWindows", true);
+                appiumDriver.setSetting(Setting.WAIT_FOR_IDLE_TIMEOUT, 5000);
+                appiumDriver.setSetting(Setting.ALLOW_INVISIBLE_ELEMENTS, true);
+                appiumDriver.setSetting(Setting.IGNORE_UNIMPORTANT_VIEWS, false);
+                appiumDriver.setSetting("enableMultiWindows", true);
 //        elementResponseAttributes, shouldUseCompactResponses
-                ((AppiumDriver) driver).setSetting(Setting.MJPEG_SCALING_FACTOR, 25);
-                ((AppiumDriver) driver).setSetting(Setting.MJPEG_SERVER_SCREENSHOT_QUALITY, 100);
-                ((AppiumDriver) driver).setSetting("mjpegBilinearFiltering", true);
-                // ((AppiumDriver) driver).setSetting("limitXPathContextScope", false);
-//                ((AppiumDriver) driver).setSetting("disableIdLocatorAutocompletion", true);
+                appiumDriver.setSetting(Setting.MJPEG_SCALING_FACTOR, 25);
+                appiumDriver.setSetting(Setting.MJPEG_SERVER_SCREENSHOT_QUALITY, 100);
+                appiumDriver.setSetting("mjpegBilinearFiltering", true);
+                // appiumDriver.setSetting("limitXPathContextScope", false);
+//                appiumDriver.setSetting("disableIdLocatorAutocompletion", true);
 //        https://github.com/appium/appium-uiautomator2-driver#mobile-deeplink
 //        http://code2test.com/appium-tutorial/how-to-use-uiselector-in-appium/
 //        https://github.com/appium/appium-uiautomator2-driver
