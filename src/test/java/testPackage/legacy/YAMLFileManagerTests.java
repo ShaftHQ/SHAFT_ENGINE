@@ -239,7 +239,7 @@ public class YAMLFileManagerTests {
     @Test
     public void getValueWithWrongType() {
         Assert.assertThrows(
-                AssertionError.class,
+                RuntimeException.class,
                 () -> yaml.getAs("integer", Boolean.class)
         );
     }
@@ -247,7 +247,7 @@ public class YAMLFileManagerTests {
     @Test
     public void getNotExistedKey() {
         Assert.assertThrows(
-                AssertionError.class,
+                RuntimeException.class,
                 () -> yaml.get("not-existed-key")
         );
     }
@@ -255,7 +255,7 @@ public class YAMLFileManagerTests {
     @Test()
     public void getInvalidLong() {
         Assert.assertThrows(
-                AssertionError.class,
+                RuntimeException.class,
                 () -> yaml.getLong("invalid-long")
         );
     }

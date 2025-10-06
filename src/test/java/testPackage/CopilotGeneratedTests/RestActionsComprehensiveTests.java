@@ -1,4 +1,4 @@
-package testPackage.unitTests;
+package testPackage.CopilotGeneratedTests;
 
 import com.shaft.api.RequestBuilder;
 import com.shaft.api.RestActions;
