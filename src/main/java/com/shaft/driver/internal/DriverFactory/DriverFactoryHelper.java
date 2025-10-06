@@ -32,12 +32,13 @@ import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.ie.InternetExplorerDriver;
 import org.openqa.selenium.remote.*;
+import org.openqa.selenium.remote.http.ConnectionFailedException;
 import org.openqa.selenium.safari.SafariDriver;
 import org.testng.Reporter;
 
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.channels.UnresolvedAddressException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -165,7 +166,7 @@ public class DriverFactoryHelper {
         return statusCode;
     }
 
-    @SneakyThrows({InterruptedException.class})
+    @SneakyThrows({InterruptedException.class, MalformedURLException.class})
     private static WebDriver attemptRemoteServerConnection(Capabilities capabilities) {
         WebDriver driver = null;
         boolean isRemoteConnectionEstablished = false;
@@ -176,7 +177,7 @@ public class DriverFactoryHelper {
                 driver = connectToRemoteServer(capabilities, false);
                 isRemoteConnectionEstablished = true;
             } catch (SessionNotCreatedException | URISyntaxException |
-                     UnresolvedAddressException sessionNotCreatedException1) {
+                     ConnectionFailedException sessionNotCreatedException1) {
                 exception = sessionNotCreatedException1;
                 String message = sessionNotCreatedException1.getMessage();
                 if (message !=null &&
@@ -189,7 +190,7 @@ public class DriverFactoryHelper {
                         driver = connectToRemoteServer(capabilities, true);
                         isRemoteConnectionEstablished = true;
                     } catch (SessionNotCreatedException |
-                             URISyntaxException | UnresolvedAddressException sessionNotCreatedException2) {
+                             URISyntaxException | ConnectionFailedException sessionNotCreatedException2) {
                         // do nothing
                         exception = sessionNotCreatedException2;
                         ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
@@ -209,7 +210,7 @@ public class DriverFactoryHelper {
         return driver;
     }
 
-    private static WebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws URISyntaxException {
+    private static WebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws URISyntaxException, MalformedURLException {
         var targetHubUrl = TARGET_HUB_URL;
         if (isLegacy) {
             if (StringUtils.isNumeric(TARGET_HUB_URL.substring(TARGET_HUB_URL.length() - 1))) {
@@ -234,9 +235,20 @@ public class DriverFactoryHelper {
         else if (isLambdaTestExecution) targetExecutionUrl = targetLambdaTestHubURL;
         else targetExecutionUrl = targetHubUrl;
 
-        if (isAndroidExecution) return AndroidDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
-        else if (isIosExecution) return IOSDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
-        else return RemoteWebDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
+        ReportManagerHelper.logDiscrete("Target Execution URI after processing: `" + targetExecutionUrl + "`, and capabilities after processing: `" + capabilities.toString() + "`.", Level.INFO);
+        try {
+            //builder code block, has issues in many cases, test it locally via grid before using it
+//            if (isAndroidExecution) return AndroidDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
+//            else if (isIosExecution) return IOSDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
+//            else return RemoteWebDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
+            // legacy constructor-based code block
+            if (isAndroidExecution) return new AndroidDriver(new URI(targetExecutionUrl).toURL(), capabilities);
+            else if (isIosExecution) return new IOSDriver(new URI(targetExecutionUrl).toURL(), capabilities);
+            else return new RemoteWebDriver(new URI(targetExecutionUrl).toURL(), capabilities);
+        } catch (Throwable throwable) {
+            ReportManagerHelper.logDiscrete(throwable.getMessage(), Level.INFO);
+            throw throwable;
+        }
     }
 
     public static void initializeSystemProperties() {
@@ -504,7 +516,8 @@ public class DriverFactoryHelper {
         ReportManager.logDiscrete("Attempting to instantiate remote driver instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
         try (ProgressBarLogger pblogger = new ProgressBarLogger("Instantiating...", (int) remoteServerInstanceCreationTimeout)) {
             setDriver(attemptRemoteServerConnection(capabilities));
-            ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
+            if (driver instanceof RemoteWebDriver remoteWebDriver)
+                remoteWebDriver.setFileDetector(new LocalFileDetector());
             if (!isNotMobileExecution()
                     && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase("Android")
                     && (driver instanceof AppiumDriver appiumDriver)) {
