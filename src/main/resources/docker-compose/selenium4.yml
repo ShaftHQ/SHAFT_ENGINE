@@ -11,7 +11,7 @@ services:
       - selenium-hub
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
-      - SE_NODE_GRID_URL=http://selenium-hub:4444
+      - SE_NODE_GRID_URL=http://localhost:4444
       - SE_NODE_CONNECTION_LIMIT_PER_SESSION=1000
 
   edge:
@@ -21,7 +21,7 @@ services:
       - selenium-hub
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
-      - SE_NODE_GRID_URL=http://selenium-hub:4444
+      - SE_NODE_GRID_URL=http://localhost:4444
       - SE_NODE_CONNECTION_LIMIT_PER_SESSION=1000
 
   firefox:
@@ -31,7 +31,7 @@ services:
       - selenium-hub
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
-      - SE_NODE_GRID_URL=http://selenium-hub:4444
+      - SE_NODE_GRID_URL=http://localhost:4444
       - SE_NODE_CONNECTION_LIMIT_PER_SESSION=1000
 
   selenium-hub:

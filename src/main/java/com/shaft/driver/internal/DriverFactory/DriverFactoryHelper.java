@@ -23,6 +23,7 @@ import lombok.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
+import org.openqa.selenium.bidi.BiDiProvider;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.devtools.Command;
 import org.openqa.selenium.devtools.DevTools;
@@ -235,7 +236,7 @@ public class DriverFactoryHelper {
         else if (isLambdaTestExecution) targetExecutionUrl = targetLambdaTestHubURL;
         else targetExecutionUrl = targetHubUrl;
 
-        ReportManagerHelper.logDiscrete("Target Execution URI after processing: `" + targetExecutionUrl + "`, and capabilities after processing: `" + capabilities.toString() + "`.", Level.INFO);
+        ReportManagerHelper.logDiscrete("Target Execution URI after processing: `" + targetExecutionUrl + "`, and capabilities after processing: `" + capabilities.toString() + "`.", Level.DEBUG);
         try {
             //builder code block, has issues in many cases, test it locally via grid before using it
 //            if (isAndroidExecution) return AndroidDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
@@ -244,9 +245,16 @@ public class DriverFactoryHelper {
             // legacy constructor-based code block
             if (isAndroidExecution) return new AndroidDriver(new URI(targetExecutionUrl).toURL(), capabilities);
             else if (isIosExecution) return new IOSDriver(new URI(targetExecutionUrl).toURL(), capabilities);
-            else return new RemoteWebDriver(new URI(targetExecutionUrl).toURL(), capabilities);
+            else {
+                var driver = new RemoteWebDriver(new URI(targetExecutionUrl).toURL(), capabilities);
+                if (!SHAFT.Properties.platform.enableBiDi())
+                    return driver;
+                var augmenter = new Augmenter();
+                augmenter.addDriverAugmentation(new BiDiProvider());
+                return augmenter.augment(driver);
+            }
         } catch (Throwable throwable) {
-            ReportManagerHelper.logDiscrete(throwable.getMessage(), Level.INFO);
+            ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
             throw throwable;
         }
     }
