@@ -36,7 +36,6 @@ import org.openqa.selenium.safari.SafariDriver;
 import org.testng.Reporter;
 
 import java.net.MalformedURLException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -165,7 +164,7 @@ public class DriverFactoryHelper {
         return statusCode;
     }
 
-    @SneakyThrows({MalformedURLException.class, InterruptedException.class})
+    @SneakyThrows({InterruptedException.class})
     private static WebDriver attemptRemoteServerConnection(Capabilities capabilities) {
         WebDriver driver = null;
         boolean isRemoteConnectionEstablished = false;
@@ -208,7 +207,7 @@ public class DriverFactoryHelper {
         return driver;
     }
 
-    private static WebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws MalformedURLException, URISyntaxException {
+    private static WebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws URISyntaxException {
         var targetHubUrl = TARGET_HUB_URL;
         if (isLegacy) {
             if (StringUtils.isNumeric(TARGET_HUB_URL.substring(TARGET_HUB_URL.length() - 1))) {
@@ -223,33 +222,19 @@ public class DriverFactoryHelper {
         var targetPlatform = Properties.platform.targetPlatform();
         var targetMobileHubUrl = targetHubUrl.replace("@", "@mobile-").replace("http", "https");
 
-        if (targetPlatform.equalsIgnoreCase(Platform.ANDROID.toString())) {
-            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
-                return new AndroidDriver(new URI(targetMobileHubUrl).toURL(), capabilities);
-            } else {
-                if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                    return new AndroidDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities);
-                } else {
-                    return new AndroidDriver(new URI(targetHubUrl).toURL(), capabilities);
-                }
-            }
-        } else if (targetPlatform.equalsIgnoreCase(Platform.IOS.toString())) {
-            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
-                return new IOSDriver(new URI(targetMobileHubUrl).toURL(), capabilities);
-            } else {
-                if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                    return new IOSDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities);
-                } else {
-                    return new IOSDriver(new URI(targetHubUrl).toURL(), capabilities);
-                }
-            }
-        } else {
-            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                return new RemoteWebDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities, false);
-            } else {
-                return new RemoteWebDriver(new URI(targetHubUrl).toURL(), capabilities, false);
-            }
-        }
+        var isAndroidExecution = targetPlatform.equalsIgnoreCase(Platform.ANDROID.toString());
+        var isIosExecution = targetPlatform.equalsIgnoreCase(Platform.IOS.toString());
+        var isLambdaTestExecution = SHAFT.Properties.platform.executionAddress().contains("lambdatest");
+
+        var targetExecutionUrl = "";
+
+        if (isLambdaTestExecution && !isMobileWebExecution()) targetExecutionUrl = targetMobileHubUrl;
+        else if (isLambdaTestExecution) targetExecutionUrl = targetLambdaTestHubURL;
+        else targetExecutionUrl = targetHubUrl;
+
+        if (isAndroidExecution) return AndroidDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
+        else if (isIosExecution) return IOSDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
+        else return RemoteWebDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
     }
 
     public static void initializeSystemProperties() {
