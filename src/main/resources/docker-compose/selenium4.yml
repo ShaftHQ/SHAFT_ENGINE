@@ -1,28 +1,28 @@
 # https://github.com/SeleniumHQ/docker-selenium
-# To execute this docker compose yml file use `docker compose -f selenium4.yml up --scale chrome=4 --scale edge=0 --scale firefox=0`
+# To execute this docker compose yml file use `docker compose -f selenium4.yml up --scale chrome=4 --scale edge=0 --scale firefox=0 -d`
 # Add the `-d` flag at the end for detached execution
 # http://localhost:4444/grid/console
 # To stop the execution, hit Ctrl+C, and then `docker compose -f selenium4.yml down --remove-orphans`
 services:
   chrome:
     image: selenium/node-chrome:4.36.0-20251001
-    platform: linux/amd64
     shm_size: 2gb
     depends_on:
       - selenium-hub
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
-      - SE_NODE_GRID_URL=http://selenium-hub:4444
+      - SE_NODE_GRID_URL=http://localhost:4444
+      - SE_NODE_CONNECTION_LIMIT_PER_SESSION=1000
 
   edge:
     image: selenium/node-edge:4.36.0-20251001
-    platform: linux/amd64
     shm_size: 2gb
     depends_on:
       - selenium-hub
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
-      - SE_NODE_GRID_URL=http://selenium-hub:4444
+      - SE_NODE_GRID_URL=http://localhost:4444
+      - SE_NODE_CONNECTION_LIMIT_PER_SESSION=1000
 
   firefox:
     image: selenium/node-firefox:4.36.0-20251001
@@ -31,7 +31,8 @@ services:
       - selenium-hub
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
-      - SE_NODE_GRID_URL=http://selenium-hub:4444
+      - SE_NODE_GRID_URL=http://localhost:4444
+      - SE_NODE_CONNECTION_LIMIT_PER_SESSION=1000
 
   selenium-hub:
     image: selenium/hub:4.36.0-20251001

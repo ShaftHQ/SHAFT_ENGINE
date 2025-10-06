@@ -23,6 +23,7 @@ import lombok.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
+import org.openqa.selenium.bidi.BiDiProvider;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.devtools.Command;
 import org.openqa.selenium.devtools.DevTools;
@@ -32,6 +33,7 @@ import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.ie.InternetExplorerDriver;
 import org.openqa.selenium.remote.*;
+import org.openqa.selenium.remote.http.ConnectionFailedException;
 import org.openqa.selenium.safari.SafariDriver;
 import org.testng.Reporter;
 
@@ -165,7 +167,7 @@ public class DriverFactoryHelper {
         return statusCode;
     }
 
-    @SneakyThrows({MalformedURLException.class, InterruptedException.class})
+    @SneakyThrows({InterruptedException.class, MalformedURLException.class})
     private static WebDriver attemptRemoteServerConnection(Capabilities capabilities) {
         WebDriver driver = null;
         boolean isRemoteConnectionEstablished = false;
@@ -175,7 +177,8 @@ public class DriverFactoryHelper {
             try {
                 driver = connectToRemoteServer(capabilities, false);
                 isRemoteConnectionEstablished = true;
-            } catch (SessionNotCreatedException | URISyntaxException sessionNotCreatedException1) {
+            } catch (SessionNotCreatedException | URISyntaxException |
+                     ConnectionFailedException sessionNotCreatedException1) {
                 exception = sessionNotCreatedException1;
                 String message = sessionNotCreatedException1.getMessage();
                 if (message !=null &&
@@ -188,7 +191,7 @@ public class DriverFactoryHelper {
                         driver = connectToRemoteServer(capabilities, true);
                         isRemoteConnectionEstablished = true;
                     } catch (SessionNotCreatedException |
-                             URISyntaxException sessionNotCreatedException2) {
+                             URISyntaxException | ConnectionFailedException sessionNotCreatedException2) {
                         // do nothing
                         exception = sessionNotCreatedException2;
                         ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
@@ -208,7 +211,7 @@ public class DriverFactoryHelper {
         return driver;
     }
 
-    private static WebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws MalformedURLException, URISyntaxException {
+    private static WebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws URISyntaxException, MalformedURLException {
         var targetHubUrl = TARGET_HUB_URL;
         if (isLegacy) {
             if (StringUtils.isNumeric(TARGET_HUB_URL.substring(TARGET_HUB_URL.length() - 1))) {
@@ -223,32 +226,36 @@ public class DriverFactoryHelper {
         var targetPlatform = Properties.platform.targetPlatform();
         var targetMobileHubUrl = targetHubUrl.replace("@", "@mobile-").replace("http", "https");
 
-        if (targetPlatform.equalsIgnoreCase(Platform.ANDROID.toString())) {
-            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
-                return new AndroidDriver(new URI(targetMobileHubUrl).toURL(), capabilities);
-            } else {
-                if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                    return new AndroidDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities);
-                } else {
-                    return new AndroidDriver(new URI(targetHubUrl).toURL(), capabilities);
-                }
+        var isAndroidExecution = targetPlatform.equalsIgnoreCase(Platform.ANDROID.toString());
+        var isIosExecution = targetPlatform.equalsIgnoreCase(Platform.IOS.toString());
+        var isLambdaTestExecution = SHAFT.Properties.platform.executionAddress().contains("lambdatest");
+
+        var targetExecutionUrl = "";
+
+        if (isLambdaTestExecution && !isMobileWebExecution()) targetExecutionUrl = targetMobileHubUrl;
+        else if (isLambdaTestExecution) targetExecutionUrl = targetLambdaTestHubURL;
+        else targetExecutionUrl = targetHubUrl;
+
+        ReportManagerHelper.logDiscrete("Target Execution URI after processing: `" + targetExecutionUrl + "`, and capabilities after processing: `" + capabilities.toString() + "`.", Level.DEBUG);
+        try {
+            //builder code block, has issues in many cases, test it locally via grid before using it
+//            if (isAndroidExecution) return AndroidDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
+//            else if (isIosExecution) return IOSDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
+//            else return RemoteWebDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
+            // legacy constructor-based code block
+            if (isAndroidExecution) return new AndroidDriver(new URI(targetExecutionUrl).toURL(), capabilities);
+            else if (isIosExecution) return new IOSDriver(new URI(targetExecutionUrl).toURL(), capabilities);
+            else {
+                var driver = new RemoteWebDriver(new URI(targetExecutionUrl).toURL(), capabilities);
+                if (!SHAFT.Properties.platform.enableBiDi())
+                    return driver;
+                var augmenter = new Augmenter();
+                augmenter.addDriverAugmentation(new BiDiProvider());
+                return augmenter.augment(driver);
             }
-        } else if (targetPlatform.equalsIgnoreCase(Platform.IOS.toString())) {
-            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
-                return new IOSDriver(new URI(targetMobileHubUrl).toURL(), capabilities);
-            } else {
-                if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                    return new IOSDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities);
-                } else {
-                    return new IOSDriver(new URI(targetHubUrl).toURL(), capabilities);
-                }
-            }
-        } else {
-            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                return new RemoteWebDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities, false);
-            } else {
-                return new RemoteWebDriver(new URI(targetHubUrl).toURL(), capabilities, false);
-            }
+        } catch (Throwable throwable) {
+            ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
+            throw throwable;
         }
     }
 
@@ -517,19 +524,22 @@ public class DriverFactoryHelper {
         ReportManager.logDiscrete("Attempting to instantiate remote driver instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
         try (ProgressBarLogger pblogger = new ProgressBarLogger("Instantiating...", (int) remoteServerInstanceCreationTimeout)) {
             setDriver(attemptRemoteServerConnection(capabilities));
-            ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
-            if (!isNotMobileExecution() && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase("Android")) {
+            if (driver instanceof RemoteWebDriver remoteWebDriver)
+                remoteWebDriver.setFileDetector(new LocalFileDetector());
+            if (!isNotMobileExecution()
+                    && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase("Android")
+                    && (driver instanceof AppiumDriver appiumDriver)) {
                 // https://github.com/appium/appium-uiautomator2-driver#settings-api
-                ((AppiumDriver) driver).setSetting(Setting.WAIT_FOR_IDLE_TIMEOUT, 5000);
-                ((AppiumDriver) driver).setSetting(Setting.ALLOW_INVISIBLE_ELEMENTS, true);
-                ((AppiumDriver) driver).setSetting(Setting.IGNORE_UNIMPORTANT_VIEWS, false);
-                ((AppiumDriver) driver).setSetting("enableMultiWindows", true);
+                appiumDriver.setSetting(Setting.WAIT_FOR_IDLE_TIMEOUT, 5000);
+                appiumDriver.setSetting(Setting.ALLOW_INVISIBLE_ELEMENTS, true);
+                appiumDriver.setSetting(Setting.IGNORE_UNIMPORTANT_VIEWS, false);
+                appiumDriver.setSetting("enableMultiWindows", true);
 //        elementResponseAttributes, shouldUseCompactResponses
-                ((AppiumDriver) driver).setSetting(Setting.MJPEG_SCALING_FACTOR, 25);
-                ((AppiumDriver) driver).setSetting(Setting.MJPEG_SERVER_SCREENSHOT_QUALITY, 100);
-                ((AppiumDriver) driver).setSetting("mjpegBilinearFiltering", true);
-                // ((AppiumDriver) driver).setSetting("limitXPathContextScope", false);
-//                ((AppiumDriver) driver).setSetting("disableIdLocatorAutocompletion", true);
+                appiumDriver.setSetting(Setting.MJPEG_SCALING_FACTOR, 25);
+                appiumDriver.setSetting(Setting.MJPEG_SERVER_SCREENSHOT_QUALITY, 100);
+                appiumDriver.setSetting("mjpegBilinearFiltering", true);
+                // appiumDriver.setSetting("limitXPathContextScope", false);
+//                appiumDriver.setSetting("disableIdLocatorAutocompletion", true);
 //        https://github.com/appium/appium-uiautomator2-driver#mobile-deeplink
 //        http://code2test.com/appium-tutorial/how-to-use-uiselector-in-appium/
 //        https://github.com/appium/appium-uiautomator2-driver

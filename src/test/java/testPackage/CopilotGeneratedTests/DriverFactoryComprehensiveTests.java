@@ -1,16 +1,20 @@
-package testPackage.unitTests;
+package testPackage.CopilotGeneratedTests;
 
 import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
-import com.shaft.gui.internal.video.RecordManager;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.openqa.selenium.*;
+import org.openqa.selenium.Dimension;
+import org.openqa.selenium.MutableCapabilities;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.testng.Assert;
 import org.testng.Reporter;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -38,6 +42,37 @@ public class DriverFactoryComprehensiveTests {
 
     @BeforeMethod
     public void setUp() {
+        // Ensure previous static mocks are closed before creating new ones
+        if (mockedPropertiesHelper != null) {
+            try {
+                mockedPropertiesHelper.close();
+            } catch (Exception ignored) {
+            }
+        }
+        if (mockedReportManager != null) {
+            try {
+                mockedReportManager.close();
+            } catch (Exception ignored) {
+            }
+        }
+        if (mockedFailureReporter != null) {
+            try {
+                mockedFailureReporter.close();
+            } catch (Exception ignored) {
+            }
+        }
+        if (mockedRecordManager != null) {
+            try {
+                mockedRecordManager.close();
+            } catch (Exception ignored) {
+            }
+        }
+        if (mockedReporter != null) {
+            try {
+                mockedReporter.close();
+            } catch (Exception ignored) {
+            }
+        }
         // Initialize mocks
         driverFactoryHelper = new DriverFactoryHelper();
         mockWebDriver = Mockito.mock(WebDriver.class);
@@ -59,6 +94,41 @@ public class DriverFactoryComprehensiveTests {
         if (mockedFailureReporter != null) mockedFailureReporter.close();
         if (mockedRecordManager != null) mockedRecordManager.close();
         if (mockedReporter != null) mockedReporter.close();
+    }
+
+    @AfterClass
+    public void afterClass() {
+        // Safety net: ensure all static mocks are closed after all tests
+        if (mockedPropertiesHelper != null) {
+            try {
+                mockedPropertiesHelper.close();
+            } catch (Exception ignored) {
+            }
+        }
+        if (mockedReportManager != null) {
+            try {
+                mockedReportManager.close();
+            } catch (Exception ignored) {
+            }
+        }
+        if (mockedFailureReporter != null) {
+            try {
+                mockedFailureReporter.close();
+            } catch (Exception ignored) {
+            }
+        }
+        if (mockedRecordManager != null) {
+            try {
+                mockedRecordManager.close();
+            } catch (Exception ignored) {
+            }
+        }
+        if (mockedReporter != null) {
+            try {
+                mockedReporter.close();
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     @Test

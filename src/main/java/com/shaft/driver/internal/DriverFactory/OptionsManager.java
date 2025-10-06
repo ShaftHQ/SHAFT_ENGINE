@@ -28,8 +28,6 @@ import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.safari.SafariOptions;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.ServerSocket;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -399,17 +397,8 @@ public class OptionsManager {
         // Add if condtion to start the new session if flag=true on specific port
         if (SHAFT.Properties.performance.isEnabled()) {
             options.addArguments("--remote-debugging-port=" + SHAFT.Properties.performance.port());
-        } else {
-            // last edited to fix https://github.com/ShaftHQ/SHAFT_ENGINE/issues/1780
-//            options.addArguments("--remote-debugging-pipe"); //this is supposed to be needed to support CDP
-            // a seeming fix is to remove the above line, however I believe that setting a dynamic free port is better
-            // as a fallback precaution I will leave the old code in case SHAFT failed to find a free available port
-            try (ServerSocket serverSocket = new ServerSocket(0)) {
-                options.addArguments("--remote-debugging-port=" + serverSocket.getLocalPort());
-            } catch (IOException e) {
-                options.addArguments("--remote-debugging-pipe");
-            }
         }
+
         // browser window size and position
         if (SHAFT.Properties.flags.autoMaximizeBrowserWindow() && !Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.MAC.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             options.addArguments("--start-maximized");

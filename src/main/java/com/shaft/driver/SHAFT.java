@@ -16,10 +16,10 @@ import com.shaft.listeners.internal.WebDriverListener;
 import com.shaft.tools.io.*;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.RestValidationsBuilder;
-import io.appium.java_client.android.AndroidDriver;
-import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.AppiumDriver;
 import io.restassured.response.Response;
 import org.openqa.selenium.MutableCapabilities;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.events.EventFiringDecorator;
 
 import java.io.InputStream;
@@ -87,7 +87,6 @@ public class SHAFT {
              *
              * @return the current Selenium WebDriver instance for custom manipulation
              */
-            @SuppressWarnings("CommentedOutCode")
             public org.openqa.selenium.WebDriver getDriver() {
                 /*
                  * Decorator is not working for appium drivers as per the following issues/articles
@@ -95,29 +94,11 @@ public class SHAFT {
                  * https://github.com/appium/java-client/blob/master/docs/The-event_firing.md#createproxy-api-since-java-client-830
                  * https://github.com/SeleniumHQ/selenium/blob/316f9738a8e2079265a0691954ca8847e68c598d/java/test/org/openqa/selenium/support/events/EventFiringDecoratorTest.java#L422
                  */
-                if (helper.getDriver() instanceof AndroidDriver androidDriver) {
-//                    AndroidDriver decoratedDriver = createProxy(
-//                            AndroidDriver.class,
-//                            new Object[] {androidDriver},
-//                            new Class[] {AndroidDriver.class},
-//                            webDriverListener
-//                    );
-//                    return decoratedDriver;
-//                    return new EventFiringDecorator<>(AndroidDriver.class, listener).decorate(androidDriver);
+                if (helper.getDriver() instanceof AppiumDriver | helper.getDriver() instanceof RemoteWebDriver) {
+                    // remote execution
                     return helper.getDriver();
-                } else if (helper.getDriver() instanceof IOSDriver iosDriver) {
-//                    IOSDriver decoratedDriver = createProxy(
-//                            IOSDriver.class,
-//                            new Object[] {iosDriver},
-//                            new Class[] {IOSDriver.class},
-//                            webDriverListener
-//                    );
-//                    return decoratedDriver;
-//                    return new EventFiringDecorator<>(IOSDriver.class, listener).decorate(iosDriver);
-                    return helper.getDriver();
-//                } else if (driverThreadLocal.get() instanceof RemoteWebDriver remoteWebDriver) {
-//                    driverThreadLocal.set(new EventFiringDecorator<>(RemoteWebDriver.class, new WebDriverListener()).decorate(remoteWebDriver));
                 } else {
+                    // local execution
                     if (!SHAFT.Properties.flags.enableTrueNativeMode()) {
                         return new EventFiringDecorator<>(org.openqa.selenium.WebDriver.class, new WebDriverListener()).decorate(helper.getDriver());
                     } else {

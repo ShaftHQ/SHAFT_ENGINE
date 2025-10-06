@@ -29,11 +29,15 @@ public class FailureReporter {
             attachments.add(actualValueAttachment);
             ReportManagerHelper.log(message + rootCause, attachments);
         }
+        if (message.toLowerCase().contains("assert"))
+            throw new AssertionError(message + rootCause, throwable);
         throw new RuntimeException(message + rootCause, throwable);
     }
 
     public static void fail(String message) {
         ReportManager.log(message);
+        if (message.toLowerCase().contains("assert"))
+            throw new AssertionError(message);
         throw new RuntimeException(message);
     }
 
