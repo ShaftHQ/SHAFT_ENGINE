@@ -25,6 +25,7 @@ import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.bidi.BiDiProvider;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chromium.AddHasCdp;
 import org.openqa.selenium.devtools.Command;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.DevToolsException;
@@ -246,11 +247,20 @@ public class DriverFactoryHelper {
             if (isAndroidExecution) return new AndroidDriver(new URI(targetExecutionUrl).toURL(), capabilities);
             else if (isIosExecution) return new IOSDriver(new URI(targetExecutionUrl).toURL(), capabilities);
             else {
-                var driver = new RemoteWebDriver(new URI(targetExecutionUrl).toURL(), capabilities);
-                if (!SHAFT.Properties.platform.enableBiDi())
-                    return driver;
+                var driver = new RemoteWebDriver(URI.create(targetExecutionUrl).toURL(), capabilities);
+                driver.setFileDetector(new LocalFileDetector());
                 var augmenter = new Augmenter();
-                augmenter.addDriverAugmentation(new BiDiProvider());
+                var targetBrowser = SHAFT.Properties.web.targetBrowserName().toLowerCase();
+                if (Arrays.asList("chrome", "edge").contains(targetBrowser)) {
+                    augmenter.addDriverAugmentation(new AddHasCdp() {
+                        @Override
+                        public Map<String, CommandInfo> getAdditionalCommands() {
+                            return Map.of();
+                        }
+                    });
+                }
+                if (SHAFT.Properties.platform.enableBiDi())
+                    augmenter.addDriverAugmentation(new BiDiProvider());
                 return augmenter.augment(driver);
             }
         } catch (Throwable throwable) {
