@@ -343,7 +343,7 @@ public class RequestBuilder {
      *
      * @return Response; returns the full response object for further manipulation
      */
-    public Response perform() {
+    public SHAFT.API perform() {
         return performRequest();
     }
 
@@ -353,7 +353,7 @@ public class RequestBuilder {
      * @return Response; returns the full response object for further manipulation
      */
     @Step("Perform {this.requestType} request to {this.serviceURI}{this.serviceName}")
-    public Response performRequest() {
+    public SHAFT.API performRequest() {
         String request = prepareRequestURLWithParameters();
         RequestSpecification specs = prepareRequestSpecifications();
 
@@ -376,7 +376,7 @@ public class RequestBuilder {
         }
 
         session.setLastResponse(response);
-        return response;
+        return session.getDriver();
     }
 
     private String normalizeEndpoint(String endpoint) {
