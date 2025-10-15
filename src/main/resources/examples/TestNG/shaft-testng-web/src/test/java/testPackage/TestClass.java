@@ -4,9 +4,9 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.locator.Locator;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 public class TestClass {
@@ -22,7 +22,7 @@ public class TestClass {
     @Test
     public void navigateToDuckDuckGoAndAssertBrowserTitleIsDisplayedCorrectly() {
         driver.browser().navigateToURL(targetUrl)
-                .and().assertThat().title().contains(testData.getTestData("expectedTitle"));
+                .and().assertThat().title().contains(testData.get("expectedTitle"));
     }
 
     @Test
@@ -34,8 +34,8 @@ public class TestClass {
     @Test
     public void searchForQueryAndAssert() {
         driver.browser().navigateToURL(targetUrl)
-                .and().element().type(searchBox, testData.getTestData("searchQuery") + Keys.ENTER)
-                .and().assertThat(firstSearchResult).text().doesNotEqual(testData.getTestData("unexpectedInFirstResult"));
+                .and().element().type(searchBox, testData.get("searchQuery") + Keys.ENTER)
+                .and().assertThat(firstSearchResult).text().doesNotEqual(testData.get("unexpectedInFirstResult"));
     }
 
     @BeforeClass
