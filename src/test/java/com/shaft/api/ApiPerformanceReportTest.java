@@ -28,7 +28,7 @@ public class ApiPerformanceReportTest {
                         "    \"username\" : \"admin\",\n" +
                         "    \"password\" : \"password123\"\n" +
                         "}").
-                perform();
+                perform().getResponse();
 
 
         JsonPath jsonPath = response.jsonPath();
