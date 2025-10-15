@@ -189,15 +189,27 @@ public class Actions extends ElementActions {
         return new ClipboardAction(this);
     }
 
-    @Step("Wait until")
     public Actions waitUntil(@NonNull Function<? super WebDriver, ?> isTrue) {
-        new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(isTrue);
-        return this;
+        return waitUntil(isTrue, Duration.ofSeconds((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()) * 10));
     }
 
     @Step("Wait until")
     public Actions waitUntil(@NonNull Function<? super WebDriver, ?> isTrue, @NonNull Duration timeout) {
-        new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().withTimeout(timeout).until(isTrue);
+        String output = "";
+        try {
+            output = String.valueOf(new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().withTimeout(timeout).until(isTrue));
+            if (!"true".equalsIgnoreCase(output))
+                throw new TimeoutException("Condition was not met within the timeout period.");
+        } catch (WebDriverException exception) {
+            if (output.isEmpty())
+                output = "custom lambda expression";
+            reportBroken("waitUntil", output, takeFailureScreenshot(null), exception);
+        }
+        //report pass
+        var description = String.valueOf(isTrue);
+        output = description.contains(" ") ? description : "custom lambda expression";
+
+        reportPass("waitUntil", output, null);
         return this;
     }
 
@@ -693,7 +705,7 @@ public class Actions extends ElementActions {
         stepName.append(JavaHelper.convertToSentenceCase(action)).append(" \"").append(elementName).append("\"");
 
         if (!status.equals(Status.PASSED))
-            stepName.append(" ").append(JavaHelper.convertToSentenceCase(status.name()));
+            stepName.append(" is ").append(status.name().toLowerCase());
 
         Allure.getLifecycle().updateStep(update -> update.setName(stepName.toString()));
 
