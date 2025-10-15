@@ -20,12 +20,28 @@ public class WaitActionsTest {
                 .perform();
     }
 
+    @Test(expectedExceptions = RuntimeException.class)
+    public void lambdaExpressionExpectedToFail() {
+        driver.get().element().type(locator, "first string")
+                .and().waitUntil(webDriver -> webDriver.findElement(locator).getAttribute("value").equalsIgnoreCase("NANANANANANA"))
+                .and().element().assertThat(locator).text().isEqualTo("first string")
+                .perform();
+    }
+
     @Test
     public void expectedCondition() {
         driver.get().element().type(locator, "second ")
                 .typeAppend(locator, "string")
                 .and().waitUntil(ExpectedConditions.attributeToBe(locator, "value", "second string"))
                 .and().element().assertThat(locator).text().isEqualTo("second string")
+                .perform();
+    }
+
+    @Test(expectedExceptions = RuntimeException.class)
+    public void expectedConditionExpectedToFail() {
+        driver.get().element().type(locator, "first string")
+                .and().waitUntil(webDriver -> ExpectedConditions.attributeToBe(locator, "value", "NANANANANANA"))
+                .and().element().assertThat(locator).text().isEqualTo("first string")
                 .perform();
     }
 
