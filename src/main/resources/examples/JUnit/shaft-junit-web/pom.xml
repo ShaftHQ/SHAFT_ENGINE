@@ -77,7 +77,6 @@
                             <encoding>UTF-8</encoding>
                             <useManifestOnlyJar>true</useManifestOnlyJar>
                             <systemPropertyVariables>
-                                <testng.dtd.http>true</testng.dtd.http>
                                 <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>
                             </systemPropertyVariables>
                             <testFailureIgnore>true</testFailureIgnore>
@@ -93,12 +92,6 @@
                                 <property>
                                     <name>listener</name>
                                     <value>com.shaft.listeners.JunitListener</value>
-                                </property>
-                                <property>
-                                    <name>reporter</name>
-                                    <value>
-                                        org.testng.reporters.XMLReporter:generateTestResultAttributes=true,generateGroupsAttribute=true
-                                    </value>
                                 </property>
                             </properties>
                         </configuration>

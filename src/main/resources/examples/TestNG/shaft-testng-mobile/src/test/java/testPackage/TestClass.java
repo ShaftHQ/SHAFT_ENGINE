@@ -19,7 +19,7 @@ public class TestClass {
     @Test
     public void navigateToDuckDuckGoAndAssertBrowserTitleIsDisplayedCorrectly() {
         ((AndroidDriver) driver.getDriver()).runAppInBackground(Duration.ofSeconds(5));
-        driver.element().performTouchAction()
+        driver.touch()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
                 .swipeElementIntoView(AppiumBy.accessibilityId("Expandable Lists"), TouchActions.SwipeDirection.DOWN)
@@ -31,6 +31,7 @@ public class TestClass {
                 .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Child 13']"), TouchActions.SwipeDirection.DOWN)
                 .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 1']"), TouchActions.SwipeDirection.UP)
                 .sendAppToBackground(1)
+                .and()
                 .assertThat(By.xpath("//android.widget.TextView[@text='Group 1']")).exists();
     }
 
