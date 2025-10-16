@@ -256,18 +256,9 @@
         <div class="step active" id="step1">
             <h2 class="step-title">Which test runner do you want to use?</h2>
             <div class="radio-group" id="runnerGroup">
-                <label class="radio-option">
-                    <input type="radio" name="runner" value="TestNG">
-                    <span>TestNG</span>
-                </label>
-                <label class="radio-option">
-                    <input type="radio" name="runner" value="JUnit">
-                    <span>JUnit</span>
-                </label>
-                <label class="radio-option">
-                    <input type="radio" name="runner" value="Cucumber">
-                    <span>Cucumber</span>
-                </label>
+                <div style="text-align: center; padding: 20px; color: #667eea;" id="loadingIndicator">
+                    Loading available options...
+                </div>
             </div>
             <div class="button-group">
                 <button class="btn-primary" onclick="nextStep(1)" id="nextBtn1" disabled>Next</button>
@@ -357,41 +348,102 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script>
-        // Project data structure mapping
-        const projectData = {
-            'TestNG': {
-                'web': 'shaft-testng-web',
-                'mobile': 'shaft-testng-mobile',
-                'api': 'shaft-testng-api'
-            },
-            'JUnit': {
-                'web': 'shaft-junit-web',
-                'mobile': 'shaft-junit-mobile',
-                'api': 'shaft-junit-api'
-            },
-            'Cucumber': {
-                'web': 'shaft-cucumber-web'
-            }
-        };
-
+        // Project data structure - will be populated dynamically
+        let projectData = {};
         let currentStep = 1;
         let selectedRunner = '';
         let selectedPlatform = '';
+        let isDataLoaded = false;
 
-        // Initialize radio button listeners
-        document.querySelectorAll('input[name="runner"]').forEach(radio => {
-            radio.addEventListener('change', function() {
-                selectedRunner = this.value;
-                document.getElementById('nextBtn1').disabled = false;
+        // Fetch available projects from GitHub
+        async function loadProjectData() {
+            try {
+                const examplesUrl = 'https://api.github.com/repos/ShaftHQ/SHAFT_ENGINE/contents/src/main/resources/examples';
+                const response = await fetch(examplesUrl);
+                const runners = await response.json();
                 
-                // Update UI
-                document.querySelectorAll('.radio-option').forEach(opt => opt.classList.remove('selected'));
-                this.parentElement.classList.add('selected');
+                for (const runner of runners) {
+                    if (runner.type === 'dir') {
+                        projectData[runner.name] = {};
+                        
+                        // Fetch projects for this runner
+                        const projectsResponse = await fetch(runner.url);
+                        const projects = await projectsResponse.json();
+                        
+                        for (const project of projects) {
+                            if (project.type === 'dir') {
+                                // Extract platform from project name (e.g., shaft-testng-web -> web)
+                                const parts = project.name.split('-');
+                                const platform = parts[parts.length - 1];
+                                projectData[runner.name][platform] = project.name;
+                            }
+                        }
+                    }
+                }
                 
-                // Update available platforms
-                updatePlatformOptions();
+                isDataLoaded = true;
+                console.log('Loaded project data:', projectData);
+            } catch (error) {
+                console.error('Error loading project data:', error);
+                // Fallback to hardcoded data
+                projectData = {
+                    'TestNG': {
+                        'web': 'shaft-testng-web',
+                        'mobile': 'shaft-testng-mobile',
+                        'api': 'shaft-testng-api'
+                    },
+                    'JUnit': {
+                        'web': 'shaft-junit-web',
+                        'mobile': 'shaft-junit-mobile',
+                        'api': 'shaft-junit-api'
+                    },
+                    'Cucumber': {
+                        'web': 'shaft-cucumber-web'
+                    }
+                };
+                isDataLoaded = true;
+            }
+        }
+
+        // Load project data on page load
+        window.addEventListener('DOMContentLoaded', loadProjectData);
+
+        // Initialize runner options after data is loaded
+        async function initializeRunnerOptions() {
+            // Wait for data to be loaded
+            while (!isDataLoaded) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            const runnerGroup = document.getElementById('runnerGroup');
+            runnerGroup.innerHTML = '';
+            
+            // Populate runner options
+            Object.keys(projectData).sort().forEach(runner => {
+                const label = document.createElement('label');
+                label.className = 'radio-option';
+                label.innerHTML = `
+                    <input type="radio" name="runner" value="${runner}">
+                    <span>${runner}</span>
+                `;
+                runnerGroup.appendChild(label);
+                
+                label.querySelector('input').addEventListener('change', function() {
+                    selectedRunner = this.value;
+                    document.getElementById('nextBtn1').disabled = false;
+                    
+                    // Update UI
+                    document.querySelectorAll('#runnerGroup .radio-option').forEach(opt => opt.classList.remove('selected'));
+                    this.parentElement.classList.add('selected');
+                    
+                    // Update available platforms
+                    updatePlatformOptions();
+                });
             });
-        });
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', initializeRunnerOptions);
 
         function updatePlatformOptions() {
             const platformGroup = document.getElementById('platformGroup');
