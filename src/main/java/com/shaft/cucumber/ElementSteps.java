@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.enums.internal.ClipboardAction;
 import io.cucumber.java.en.When;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Keys;
 
 import java.util.Objects;
 
@@ -57,6 +58,19 @@ public class ElementSteps {
 //    @عندما("اقوم بكتابة {string} بداخل مربع الكتابة المحدد بإستخدام {string} بقيمة {string}")
     public void type(String text, String locatorType, String locatorValue) {
         driver.get().element().type(getLocatorFromTypeAndValue(locatorType, locatorValue), text);
+    }
+
+    /**
+     * Presses a specific keyboard key into the target element.
+     *
+     * @param key          the target key that needs to be pressed into the target webElement. Supported keys are defined in the org.openqa.selenium.Keys enum
+     * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
+     * @param locatorValue the value/expression of the desired element locator
+     */
+    @When("I Press {string} into the element found by {string}: {string}")
+//    @عندما("اقوم بكتابة {string} بداخل مربع الكتابة المحدد بإستخدام {string} بقيمة {string}")
+    public void keyPress(String key, String locatorType, String locatorValue) {
+        driver.get().element().type(getLocatorFromTypeAndValue(locatorType, locatorValue), Keys.valueOf(key.toUpperCase()));
     }
 
     /**
