@@ -405,30 +405,35 @@
             }
         }
 
-        // Load project data on page load
-        window.addEventListener('DOMContentLoaded', loadProjectData);
+        // Load project data on page load and then initialize runner options
+        window.addEventListener('DOMContentLoaded', async () => {
+            await loadProjectData();
+            initializeRunnerOptions();
+        });
 
         // Initialize runner options after data is loaded
-        async function initializeRunnerOptions() {
-            // Wait for data to be loaded
-            while (!isDataLoaded) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-            
+        function initializeRunnerOptions() {
             const runnerGroup = document.getElementById('runnerGroup');
             runnerGroup.innerHTML = '';
             
-            // Populate runner options
+            // Populate runner options with sanitized data
             Object.keys(projectData).sort().forEach(runner => {
                 const label = document.createElement('label');
                 label.className = 'radio-option';
-                label.innerHTML = `
-                    <input type="radio" name="runner" value="${runner}">
-                    <span>${runner}</span>
-                `;
+                
+                const input = document.createElement('input');
+                input.type = 'radio';
+                input.name = 'runner';
+                input.value = runner;
+                
+                const span = document.createElement('span');
+                span.textContent = runner; // Use textContent to prevent XSS
+                
+                label.appendChild(input);
+                label.appendChild(span);
                 runnerGroup.appendChild(label);
                 
-                label.querySelector('input').addEventListener('change', function() {
+                input.addEventListener('change', function() {
                     selectedRunner = this.value;
                     document.getElementById('nextBtn1').disabled = false;
                     
@@ -442,9 +447,6 @@
             });
         }
 
-        // Initialize on page load
-        window.addEventListener('DOMContentLoaded', initializeRunnerOptions);
-
         function updatePlatformOptions() {
             const platformGroup = document.getElementById('platformGroup');
             platformGroup.innerHTML = '';
@@ -454,13 +456,20 @@
                 Object.keys(platforms).forEach(platform => {
                     const label = document.createElement('label');
                     label.className = 'radio-option';
-                    label.innerHTML = `
-                        <input type="radio" name="platform" value="${platform}">
-                        <span>${platform.charAt(0).toUpperCase() + platform.slice(1)}</span>
-                    `;
+                    
+                    const input = document.createElement('input');
+                    input.type = 'radio';
+                    input.name = 'platform';
+                    input.value = platform;
+                    
+                    const span = document.createElement('span');
+                    span.textContent = platform.charAt(0).toUpperCase() + platform.slice(1); // Use textContent to prevent XSS
+                    
+                    label.appendChild(input);
+                    label.appendChild(span);
                     platformGroup.appendChild(label);
                     
-                    label.querySelector('input').addEventListener('change', function() {
+                    input.addEventListener('change', function() {
                         selectedPlatform = this.value;
                         document.getElementById('nextBtn2').disabled = false;
                         
