@@ -141,13 +141,13 @@ public class DriverFactoryHelper {
         var startTime = System.currentTimeMillis();
         do {
             try {
-                statusCode = session.get("status/").perform().andReturn().statusCode();
+                statusCode = session.get("status/").perform().getResponse().andReturn().statusCode();
                 if (statusCode >= 200 && statusCode < 300) {
                     serverReady = true;
                 }
             } catch (Throwable throwable1) {
                 try {
-                    statusCode = session.get("wd/hub/status/").perform().andReturn().statusCode();
+                    statusCode = session.get("wd/hub/status/").perform().getResponse().andReturn().statusCode();
                     if (statusCode >= 200 && statusCode < 300) {
                         serverReady = true;
                     }

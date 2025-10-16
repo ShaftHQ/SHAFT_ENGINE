@@ -49,7 +49,7 @@ public class DriverFactory {
             if (runType.equals(ProjectStructureManager.RunType.CUCUMBER)) {
                 // stuck on minimalistic test run in case of native cucumber execution without manual plugin configuration
                 System.out.println("To unlock the full capabilities of SHAFT kindly follow these steps to configure SHAFT's Cucumber plugin:");
-                System.out.println("https://github.com/ShaftHQ/SHAFT_ENGINE#stop-reinventing-the-wheel-start-using-shaft");
+                System.out.println("https://github.com/ShaftHQ/SHAFT_ENGINE?tab=readme-ov-file#23-cucumber");
             }
             TestNGListener.engineSetup(runType);
         }

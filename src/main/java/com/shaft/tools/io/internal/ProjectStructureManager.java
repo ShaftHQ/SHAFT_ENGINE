@@ -24,14 +24,14 @@ public class ProjectStructureManager {
                     FileActions.getInstance(true).createFolder(Properties.paths.services());
                     FileActions.getInstance(true).writeToFile(Properties.paths.services(), "org.junit.platform.launcher.LauncherSessionListener", "com.shaft.listeners.JunitListener");
                 }
-                case TESTNG, AI_AGENT -> {
+                case TESTNG, AI_AGENT, CUCUMBER -> {
                     FileActions.getInstance(true).createFolder(Properties.paths.services());
                     FileActions.getInstance(true).writeToFile(Properties.paths.services(), "org.testng.ITestNGListener", "com.shaft.listeners.TestNGListener");
                 }
-                case CUCUMBER -> {
-                    FileActions.getInstance(true).createFolder(Properties.paths.services());
-                    FileActions.getInstance(true).writeToFile(Properties.paths.services(), "io.cucumber.plugin.ConcurrentEventListener", "com.shaft.listeners.CucumberFeatureListener");
-                }
+//                case CUCUMBER -> {
+//                    FileActions.getInstance(true).createFolder(Properties.paths.services());
+//                    FileActions.getInstance(true).writeToFile(Properties.paths.services(), "io.cucumber.plugin.ConcurrentEventListener", "com.shaft.listeners.CucumberFeatureListener");
+//                }
             }
             createAllureListenersMetaFiles();
         }

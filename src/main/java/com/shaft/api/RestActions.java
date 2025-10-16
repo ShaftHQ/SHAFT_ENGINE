@@ -35,7 +35,6 @@ import io.restassured.path.xml.element.NodeChildren;
 import io.restassured.response.Response;
 import io.restassured.response.ResponseBody;
 import io.restassured.specification.RequestSpecification;
-import lombok.Getter;
 import lombok.Setter;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -80,9 +79,32 @@ public class RestActions {
     private final Map<String, String> sessionHeaders;
     private final Map<String, Object> sessionCookies;
     private final RestAssuredConfig sessionConfig;
-    @Getter
+    private SHAFT.API driver;
+
+    public RestActions(String serviceURI, SHAFT.API driver) {
+        initializeSystemProperties();
+        headerAuthorization = "";
+        this.serviceURI = serviceURI;
+        sessionCookies = new HashMap<>();
+        sessionHeaders = new HashMap<>();
+        sessionConfig = config();
+        this.driver = driver;
+    }
     @Setter
     private Response lastResponse;
+
+    /**
+     * private helper method for sendGraphqlRequest() method - WITHOUT TOKEN.
+     *
+     * @param base_URI_forHelperMethod    The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
+     * @param requestBody_forHelperMethod the request body.
+     * @return Response object
+     */
+    private static Response graphQlRequestHelper(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod) {
+        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod + "\"");
+        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
+                .setContentType(ContentType.JSON).performRequest().getResponse();
+    }
     private String headerAuthorization;
 
     public RestActions(String serviceURI) {
@@ -92,6 +114,21 @@ public class RestActions {
         sessionCookies = new HashMap<>();
         sessionHeaders = new HashMap<>();
         sessionConfig = config();
+    }
+
+    /**
+     * private helper method for sendGraphqlRequest method WITH Header.
+     *
+     * @param base_URI_forHelperMethod    The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
+     * @param requestBody_forHelperMethod the request body.
+     * @param headerKey_forHelperMethod   the name of the header that you want to add.
+     * @param headerValue_forHelperMethod the value that will be put inside the key.
+     * @return Response object
+     */
+    private static Response graphQlRequestHelperWithHeader(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod, String headerKey_forHelperMethod, String headerValue_forHelperMethod) {
+        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod + " | Header: \"" + headerKey_forHelperMethod + "\":\"" + headerValue_forHelperMethod + "\"\"");
+        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
+                .setContentType(ContentType.JSON).addHeader(headerKey_forHelperMethod, headerValue_forHelperMethod).performRequest().getResponse();
     }
 
     public static RequestBuilder buildNewRequest(String serviceURI, String serviceName, RequestType requestType) {
@@ -740,17 +777,8 @@ public class RestActions {
         AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = SHAFT.Properties.flags.automaticallyAssertResponseStatusCode();
     }
 
-    /**
-     * private helper method for sendGraphqlRequest() method - WITHOUT TOKEN.
-     *
-     * @param base_URI_forHelperMethod    The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
-     * @param requestBody_forHelperMethod the request body.
-     * @return Response object
-     */
-    private static Response graphQlRequestHelper(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod) {
-        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod + "\"");
-        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
-                .setContentType(ContentType.JSON).performRequest();
+    SHAFT.API getDriver() {
+        return driver;
     }
 
     /**
@@ -804,19 +832,8 @@ public class RestActions {
         return graphQlRequestHelper(base_URI, requestBody);
     }
 
-    /**
-     * private helper method for sendGraphqlRequest method WITH Header.
-     *
-     * @param base_URI_forHelperMethod    The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
-     * @param requestBody_forHelperMethod the request body.
-     * @param headerKey_forHelperMethod   the name of the header that you want to add.
-     * @param headerValue_forHelperMethod the value that will be put inside the key.
-     * @return Response object
-     */
-    private static Response graphQlRequestHelperWithHeader(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod, String headerKey_forHelperMethod, String headerValue_forHelperMethod) {
-        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod + " | Header: \"" + headerKey_forHelperMethod + "\":\"" + headerValue_forHelperMethod + "\"\"");
-        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
-                .setContentType(ContentType.JSON).addHeader(headerKey_forHelperMethod, headerValue_forHelperMethod).performRequest();
+    public Response getResponse() {
+        return lastResponse;
     }
 
     /**

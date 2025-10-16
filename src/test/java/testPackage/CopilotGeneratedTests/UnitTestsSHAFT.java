@@ -57,7 +57,7 @@ public class UnitTestsSHAFT {
         Response response = Mockito.mock(Response.class);
         RequestBuilder requestBuilder = Mockito.mock(RequestBuilder.class);
         RestValidationsBuilder validationsBuilder = Mockito.mock(RestValidationsBuilder.class);
-        Mockito.when(restActions.getLastResponse()).thenReturn(response);
+        Mockito.when(restActions.getResponse()).thenReturn(response);
         Mockito.when(restActions.buildNewRequest(Mockito.anyString(), Mockito.any())).thenReturn(requestBuilder);
         SHAFT.API api = Mockito.mock(SHAFT.API.class);
         Mockito.when(api.get("service")).thenReturn(requestBuilder);

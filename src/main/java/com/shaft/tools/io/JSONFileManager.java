@@ -76,6 +76,16 @@ public class JSONFileManager {
         }
     }
 
+    /**
+     * Alias to getTestData
+     *
+     * @param jsonPath the desired jsonpath that points to the needed test data, it can be written manually or generated using helper tools such as <a href="https://jsonpathfinder.com/">https://jsonpathfinder.com/</a>
+     * @return the string value of the desired test data
+     */
+    public String get(String jsonPath) {
+        return getTestData(jsonPath);
+    }
+
 
     /**
      * Reads the json object value at the desired jsonpath within the target test data file to map it to java object

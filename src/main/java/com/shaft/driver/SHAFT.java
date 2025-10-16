@@ -128,7 +128,7 @@ public class SHAFT {
         private String serviceURI;
 
         public API(String serviceURI) {
-            session = new RestActions(serviceURI);
+            session = new RestActions(serviceURI, this);
         }
 
         public static API getInstance(String serviceURI) {
@@ -164,43 +164,43 @@ public class SHAFT {
         }
 
         public RestValidationsBuilder assertThatResponse() {
-            return com.shaft.validation.Validations.assertThat().response(session.getLastResponse());
+            return com.shaft.validation.Validations.assertThat().response(session.getResponse());
         }
 
         public RestValidationsBuilder verifyThatResponse() {
-            return com.shaft.validation.Validations.verifyThat().response(session.getLastResponse());
+            return com.shaft.validation.Validations.verifyThat().response(session.getResponse());
         }
 
         public Response getResponse() {
-            return session.getLastResponse();
+            return session.getResponse();
         }
 
         public String getResponseBody() {
-            return RestActions.getResponseBody(session.getLastResponse());
+            return RestActions.getResponseBody(session.getResponse());
         }
 
         public int getResponseStatusCode() {
-            return RestActions.getResponseStatusCode(session.getLastResponse());
+            return RestActions.getResponseStatusCode(session.getResponse());
         }
 
         public long getResponseTime() {
-            return RestActions.getResponseTime(session.getLastResponse());
+            return RestActions.getResponseTime(session.getResponse());
         }
 
         public String getResponseJSONValue(String jsonPath) {
-            return RestActions.getResponseJSONValue(session.getLastResponse(), jsonPath);
+            return RestActions.getResponseJSONValue(session.getResponse(), jsonPath);
         }
 
         public List<Object> getResponseJSONValueAsList(String jsonPath) {
-            return RestActions.getResponseJSONValueAsList(session.getLastResponse(), jsonPath);
+            return RestActions.getResponseJSONValueAsList(session.getResponse(), jsonPath);
         }
 
         public String getResponseXMLValue(String xmlPath) {
-            return RestActions.getResponseXMLValue(session.getLastResponse(), xmlPath);
+            return RestActions.getResponseXMLValue(session.getResponse(), xmlPath);
         }
 
         public List<Object> getResponseXMLValueAsList(String xmlPath) {
-            return RestActions.getResponseXMLValueAsList(session.getLastResponse(), xmlPath);
+            return RestActions.getResponseXMLValueAsList(session.getResponse(), xmlPath);
         }
     }
 

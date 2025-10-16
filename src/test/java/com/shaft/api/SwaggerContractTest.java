@@ -1,9 +1,8 @@
 package com.shaft.api;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.validation.Validations;
 import io.restassured.response.Response;
-import org.testng.annotations.*;
+import org.testng.annotations.Test;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,7 +18,7 @@ public class SwaggerContractTest {
 
         Response response = api.get(GET_USER_BY_USERNAME)
                 .setPathParameters(parameters)
-                .perform();
+                .perform().getResponse();
 
         api.assertThatResponse()
                 .extractedJsonValue("username")
@@ -45,7 +44,7 @@ public class SwaggerContractTest {
         Response response = api.post("/user/createWithList")
                 .setContentType("application/json")
                 .setRequestBody(requestBody)
-                .perform();
+                .perform().getResponse();
 
         api.assertThatResponse()
                 .extractedJsonValue("username")
@@ -74,7 +73,7 @@ public class SwaggerContractTest {
                 .setContentType("application/json")
                 .setRequestBody(invalidRequestBody)
                 .setTargetStatusCode(400)
-                .perform();
+                .perform().getResponse();
     }
 
 }

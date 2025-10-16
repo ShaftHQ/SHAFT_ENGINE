@@ -40,39 +40,33 @@ public class ValidationsHelper2 {
     }
 
     protected void validateEquals(Object expected, Object actual,
-                                  ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
+                                  ValidationEnums.ValidationComparisonType comparisonType, ValidationEnums.ValidationType validationType) {
         // read actual value based on desired attribute
         // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
 
         //reporting block
-        List<Parameter> parameters = new ArrayList<>();
-        parameters.add(new Parameter().setName("Expected value").setValue(String.valueOf(expected)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
-        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
+        String comparisonTypeStr = ValidationEnums.ValidationType.NEGATIVE.name().equals(validationType.name()) ? "not " + comparisonType.name() : comparisonType.name();
+        var parameters = new LinkedHashMap<>(setCommonParameters(expected, actual, comparisonTypeStr));
+        updateAllureParameters(parameters);
         //end of reporting block
-        boolean validationState = performValidation(expected, actual, type, validation);
+        boolean validationState = performValidation(expected, actual, comparisonType, validationType);
         reportValidationState(validationState, expected, actual, null, null, null);
     }
 
     protected void validateNumber(Number expected, Number actual,
-                                  ValidationEnums.NumbersComparativeRelation type, ValidationEnums.ValidationType validation) {
+                                  ValidationEnums.NumbersComparativeRelation comparisonType, ValidationEnums.ValidationType validationType) {
         // read actual value based on desired attribute
         // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
-        boolean validationState = performValidation(expected, actual, type, validation);
+        boolean validationState = performValidation(expected, actual, comparisonType, validationType);
         //reporting block
-        List<Parameter> parameters = new ArrayList<>();
-        parameters.add(new Parameter().setName("Expected value").setValue(String.valueOf(expected)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
-        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
+        String comparisonTypeStr = ValidationEnums.ValidationType.NEGATIVE.name().equals(validationType.name()) ? "not " + comparisonType.name() : comparisonType.name();
+        var parameters = new LinkedHashMap<>(setCommonParameters(expected, actual, comparisonTypeStr));
+        updateAllureParameters(parameters);
         reportValidationState(validationState, expected, actual, null, null, null);
     }
 
     protected void validateBrowserAttribute(WebDriver driver, String attribute,
-                                            String expected, ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
+                                            String expected, ValidationEnums.ValidationComparisonType comparisonType, ValidationEnums.ValidationType validationType) {
         // read actual value based on desired attribute
         // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
         AtomicReference<String> actual = new AtomicReference<>();
@@ -92,25 +86,23 @@ public class ValidationsHelper2 {
                     case "windowsize", "pagesize", "size" -> new BrowserActions(driver, true).getWindowSize();
                     default -> "";
                 });
-                validationState.set(performValidation(expected, actual.get(), type, validation));
+                validationState.set(performValidation(expected, actual.get(), comparisonType, validationType));
                 return validationState.get();
             });
         } catch (TimeoutException timeoutException) {
             //timeout was exhausted and the validation failed
         }
         //reporting block
-        List<Parameter> parameters = new ArrayList<>();
-        parameters.add(new Parameter().setName("Attribute").setValue(attribute).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Expected value").setValue(String.valueOf(expected)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
-        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
+        String comparisonTypeStr = ValidationEnums.ValidationType.NEGATIVE.name().equals(validationType.name()) ? "not " + comparisonType.name() : comparisonType.name();
+        var parameters = new LinkedHashMap<String, String>();
+        parameters.put("Attribute", attribute);
+        parameters.putAll(setCommonParameters(expected, actual, comparisonTypeStr));
+        updateAllureParameters(parameters);
         reportValidationState(validationState.get(), expected, actual, driver, null, null);
     }
 
     protected void validateElementDomProperty(WebDriver driver, By locator, String domProperty,
-                                              String expected, ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
+                                              String expected, ValidationEnums.ValidationComparisonType comparisonType, ValidationEnums.ValidationType validationType) {
         // read actual value based on desired attribute
         // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
 
@@ -120,26 +112,24 @@ public class ValidationsHelper2 {
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
                 actual.set(new Actions(driver, true).get().domProperty(locator, domProperty));
-                validationState.set(performValidation(expected, actual.get(), type, validation));
+                validationState.set(performValidation(expected, actual.get(), comparisonType, validationType));
                 return validationState.get();
             });
         } catch (TimeoutException timeoutException) {
             //timeout was exhausted and the validation failed
         }
         //reporting block
-        List<Parameter> parameters = new ArrayList<>();
-        parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("DOM Property").setValue(domProperty).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Expected value").setValue(String.valueOf(expected)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
-        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
+        String comparisonTypeStr = ValidationEnums.ValidationType.NEGATIVE.name().equals(validationType.name()) ? "not " + comparisonType.name() : comparisonType.name();
+        var parameters = new LinkedHashMap<String, String>();
+        parameters.put("Locator", String.valueOf(locator));
+        parameters.put("DOM Property", domProperty);
+        parameters.putAll(setCommonParameters(expected, actual, comparisonTypeStr));
+        updateAllureParameters(parameters);
         reportValidationState(validationState.get(), expected, actual, driver, locator, null);
     }
 
     protected void validateElementAttribute(WebDriver driver, By locator, String attribute,
-                                               String expected, ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
+                                            String expected, ValidationEnums.ValidationComparisonType comparisonType, ValidationEnums.ValidationType validationType) {
         AtomicReference<String> actual = new AtomicReference<>();
         AtomicReference<Boolean> validationState = new AtomicReference<>();
 
@@ -151,27 +141,25 @@ public class ValidationsHelper2 {
                     case "selectedtext" -> new Actions(driver, true).get().selectedText(locator);
                     default -> new Actions(driver, true).get().attribute(locator, attribute);
                 });
-                validationState.set(performValidation(expected, actual.get(), type, validation));
+                validationState.set(performValidation(expected, actual.get(), comparisonType, validationType));
                 return validationState.get();
             });
         } catch (TimeoutException timeoutException) {
             //timeout was exhausted and the validation failed
         }
         //reporting block
-        List<Parameter> parameters = new ArrayList<>();
-        parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Attribute").setValue(attribute).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Expected value").setValue(String.valueOf(expected)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
-        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
+        String comparisonTypeStr = ValidationEnums.ValidationType.NEGATIVE.name().equals(validationType.name()) ? "not " + comparisonType.name() : comparisonType.name();
+        var parameters = new LinkedHashMap<String, String>();
+        parameters.put("Locator", String.valueOf(locator));
+        parameters.put("Attribute", attribute);
+        parameters.putAll(setCommonParameters(expected, actual, comparisonTypeStr));
+        updateAllureParameters(parameters);
         reportValidationState(validationState.get(), expected, actual, driver, locator, null);
     }
 
 
     protected void validateElementDomAttribute(WebDriver driver, By locator, String attribute,
-                                               String expected, ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
+                                               String expected, ValidationEnums.ValidationComparisonType comparisonType, ValidationEnums.ValidationType validationType) {
         // read actual value based on desired attribute
         AtomicReference<String> actual = new AtomicReference<>();
         AtomicReference<Boolean> validationState = new AtomicReference<>();
@@ -184,26 +172,24 @@ public class ValidationsHelper2 {
                     case "selectedtext" -> new Actions(driver, true).get().selectedText(locator);
                     default -> new Actions(driver, true).get().domAttribute(locator, attribute);
                 });
-                validationState.set(performValidation(expected, actual.get(), type, validation));
+                validationState.set(performValidation(expected, actual.get(), comparisonType, validationType));
                 return validationState.get();
             });
         } catch (TimeoutException timeoutException) {
             //timeout was exhausted and the validation failed
         }
         //reporting block
-        List<Parameter> parameters = new ArrayList<>();
-        parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("DOM Attribute").setValue(attribute).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Expected value").setValue(String.valueOf(expected)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
-        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
+        String comparisonTypeStr = ValidationEnums.ValidationType.NEGATIVE.name().equals(validationType.name()) ? "not " + comparisonType.name() : comparisonType.name();
+        var parameters = new LinkedHashMap<String, String>();
+        parameters.put("Locator", String.valueOf(locator));
+        parameters.put("DOM Attribute", attribute);
+        parameters.putAll(setCommonParameters(expected, actual, comparisonTypeStr));
+        updateAllureParameters(parameters);
         reportValidationState(validationState.get(), expected, actual, driver, locator, null);
     }
 
     protected void validateElementCSSProperty(WebDriver driver, By locator, String property,
-                                              String expected, ValidationEnums.ValidationComparisonType type, ValidationEnums.ValidationType validation) {
+                                              String expected, ValidationEnums.ValidationComparisonType comparisonType, ValidationEnums.ValidationType validationType) {
         // read actual value based on desired css property
         // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
         AtomicReference<String> actual = new AtomicReference<>();
@@ -212,26 +198,24 @@ public class ValidationsHelper2 {
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
                 actual.set(new Actions(driver, true).get().cssValue(locator, property));
-                validationState.set(performValidation(expected, actual.get(), type, validation));
+                validationState.set(performValidation(expected, actual.get(), comparisonType, validationType));
                 return validationState.get();
             });
         } catch (TimeoutException timeoutException) {
             //timeout was exhausted and the validation failed
         }
         //reporting block
-        List<Parameter> parameters = new ArrayList<>();
-        parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("CSS Property").setValue(property).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Expected value").setValue(String.valueOf(expected)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Comparison type").setValue(JavaHelper.convertToSentenceCase(String.valueOf(type))).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Validation").setValue(JavaHelper.convertToSentenceCase(String.valueOf(validation))).setMode(Parameter.Mode.DEFAULT));
-        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
+        String comparisonTypeStr = ValidationEnums.ValidationType.NEGATIVE.name().equals(validationType.name()) ? "not " + comparisonType.name() : comparisonType.name();
+        var parameters = new LinkedHashMap<String, String>();
+        parameters.put("Locator", String.valueOf(locator));
+        parameters.put("CSS Property", property);
+        parameters.putAll(setCommonParameters(expected, actual, comparisonTypeStr));
+        updateAllureParameters(parameters);
         reportValidationState(validationState.get(), expected, actual, driver, locator, null);
     }
 
     protected void validateElementExists(WebDriver driver, By locator,
-                                         ValidationEnums.ValidationType validation) {
+                                         ValidationEnums.ValidationType validationType) {
         // read actual value based on desired existing state
         // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
         AtomicBoolean expected = new AtomicBoolean(false);
@@ -242,7 +226,7 @@ public class ValidationsHelper2 {
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
                 elementCount.set(new ElementActions(driver, true).getElementsCount(locator));
-                expected.set(validation.getValue());
+                expected.set(validationType.getValue());
                 actual.set(elementCount.get() > 0);
                 // force validation type to be positive since the expected and actual values have been adjusted already
                 validationState.set(performValidation(expected.get(), actual.get(), ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE));
@@ -252,18 +236,19 @@ public class ValidationsHelper2 {
             //timeout was exhausted and the validation failed
         }
         //reporting block
-        List<Parameter> parameters = new ArrayList<>();
-        parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Should exist").setValue(String.valueOf(expected.get())).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual.get())).setMode(Parameter.Mode.DEFAULT));
-        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
+        var parameters = new LinkedHashMap<String, String>();
+        parameters.put("Locator", String.valueOf(locator));
+        parameters.put("Should exist", String.valueOf(expected.get()));
+        parameters.put("Actual value", String.valueOf(actual.get()));
+        updateAllureParameters(parameters);
+
         // force take page screenshot, (rather than element highlighted screenshot)
         reportValidationState(validationState.get(), expected, actual, driver, elementCount.get() == 0 ? null : locator, null);
     }
 
 
     protected void validateElementMatches(WebDriver driver, By locator,
-                                          ValidationEnums.VisualValidationEngine visualValidationEngine, ValidationEnums.ValidationType validation) {
+                                          ValidationEnums.VisualValidationEngine visualValidationEngine, ValidationEnums.ValidationType validationType) {
         // read actual value based on desired existing state
         // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
         AtomicBoolean expected = new AtomicBoolean(false);
@@ -348,7 +333,7 @@ public class ValidationsHelper2 {
                 // if found set value to 1, else set value to zero
                 elementCount.set(actualResult ? 1 : 0);
 
-                expected.set(validation.getValue());
+                expected.set(validationType.getValue());
                 actual.set(actualResult);
                 // force validation type to be positive since the expected and actual values have been adjusted already
                 validationState.set(performValidation(expected.get(), actual.get(), ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE));
@@ -358,28 +343,44 @@ public class ValidationsHelper2 {
             //timeout was exhausted and the validation failed
         }
         //reporting block
-        List<Parameter> parameters = new ArrayList<>();
-        parameters.add(new Parameter().setName("Locator").setValue(String.valueOf(locator)).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Should exist").setValue(String.valueOf(expected.get())).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Visual engine").setValue(visualValidationEngine.name()).setMode(Parameter.Mode.DEFAULT));
-        parameters.add(new Parameter().setName("Actual value").setValue(String.valueOf(actual.get())).setMode(Parameter.Mode.DEFAULT));
-        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(parameters));
+        var parameters = new LinkedHashMap<String, String>();
+        parameters.put("Locator", String.valueOf(locator));
+        parameters.put("Should match", String.valueOf(expected.get()));
+        parameters.put("Visual engine", internalVisualEngine.get().name());
+        parameters.put("Actual value", String.valueOf(actual.get()));
+        updateAllureParameters(parameters);
         // force take page screenshot, (rather than element highlighted screenshot)
         reportValidationState(validationState.get(), expected, actual, driver, elementCount.get() == 0 ? null : locator, attachments);
     }
 
+    private LinkedHashMap<String, String> setCommonParameters(Object expected, Object actual, String comparisonType) {
+        var commonParams = new LinkedHashMap<String, String>();
+        commonParams.put("Expected value", String.valueOf(expected));
+        commonParams.put("Comparison type", JavaHelper.convertToSentenceCase(comparisonType));
+        commonParams.put("Actual value", String.valueOf(actual));
+        return commonParams;
+    }
+
+    // this method will accept a hashmap of String parameter names and values to be added to the current step in allure
+    private void updateAllureParameters(LinkedHashMap<String, String> parameters) {
+        //reporting block
+        List<Parameter> params = new ArrayList<>();
+        parameters.forEach((key, value) -> params.add(new Parameter().setName(key).setValue(String.valueOf(value)).setMode(Parameter.Mode.DEFAULT)));
+        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(params));
+    }
+
     private boolean performValidation(Object expected, Object actual,
-                                      Object type, ValidationEnums.ValidationType validation) {
+                                      Object comparisonType, ValidationEnums.ValidationType validationType) {
         // compare actual and expected results
         int comparisonResult = 0;
-        if (type instanceof ValidationEnums.ValidationComparisonType validationComparisonType) {
+        if (comparisonType instanceof ValidationEnums.ValidationComparisonType validationComparisonType) {
             // comparison integer is used for all string-based, null, boolean, and Object comparisons
             comparisonResult = JavaHelper.compareTwoObjects(expected, actual,
-                    validationComparisonType.getValue(), validation.getValue());
-        } else if (type instanceof ValidationEnums.NumbersComparativeRelation numbersComparativeRelation) {
+                    validationComparisonType.getValue(), validationType.getValue());
+        } else if (comparisonType instanceof ValidationEnums.NumbersComparativeRelation numbersComparativeRelation) {
             // this means that it is a number-based comparison
             comparisonResult = JavaHelper.compareTwoObjects(expected, actual,
-                    numbersComparativeRelation, validation.getValue());
+                    numbersComparativeRelation, validationType.getValue());
         }
         // set validation state based on comparison results
         boolean validationState;

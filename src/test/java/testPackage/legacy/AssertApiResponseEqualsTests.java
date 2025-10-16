@@ -10,7 +10,7 @@ public class AssertApiResponseEqualsTests {
     @Test
     public void assertApiResponseEquals_expectedToPass() {
         RestActions apiObject = new RestActions("https://jsonplaceholder.typicode.com");
-        Response users = apiObject.buildNewRequest("/users", RequestType.GET).setTargetStatusCode(200).performRequest();
+        Response users = apiObject.buildNewRequest("/users", RequestType.GET).setTargetStatusCode(200).performRequest().getResponse();
         RestActions.getResponseJSONValueAsList(users, "$").forEach(user -> {
             if (RestActions.getResponseJSONValue(user, "name").equals("Leanne Graham")) {
                 Validations.verifyThat().response(user).extractedJsonValue("email").isEqualTo("Sincere@april.biz").perform();
