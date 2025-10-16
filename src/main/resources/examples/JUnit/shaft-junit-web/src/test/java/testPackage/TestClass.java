@@ -18,11 +18,6 @@ public class TestClass {
     By searchBox = Locator.hasAnyTagName().hasAttribute("name", "q").build(); // synonym to By.name("q");
     By firstSearchResult = Locator.hasTagName("article").isFirst().build(); // synonym to By.xpath("(//article)[1]");
 
-    @BeforeAll
-    static void beforeClass() {
-        testData = new SHAFT.TestData.JSON("simpleJSON.json");
-    }
-
     @Test
     void navigateToDuckDuckGoAndAssertBrowserTitleIsDisplayedCorrectly() {
         driver.browser().navigateToURL(targetUrl)
@@ -42,13 +37,18 @@ public class TestClass {
                 .and().assertThat(firstSearchResult).text().doesNotEqual(testData.get("unexpectedInFirstResult"));
     }
 
+    @BeforeAll
+    static void beforeAll() {
+        testData = new SHAFT.TestData.JSON("simpleJSON.json");
+    }
+
     @BeforeEach
-    void beforeMethod() {
+    void beforeEach() {
         driver = new SHAFT.GUI.WebDriver();
     }
 
     @AfterEach
-    void afterMethod() {
+    void afterEach() {
         driver.quit();
     }
 }
