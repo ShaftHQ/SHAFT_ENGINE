@@ -72,15 +72,25 @@
 <a id="quick-start-guide"></a>
 
 ## 🏃 Quick start guide [⤴](#-table-of-contents)
-### Option 1: Maven archetype
+### Option 1: Project Generator (NEW! 🎉)
 
 > [!TIP]
-> Recommended for new local sandbox projects.
+> Recommended for quickly creating new projects with a user-friendly interface.
+
+- The fastest way to create a new SHAFT project with your preferred test runner and platform.
+- Visit the [SHAFT Project Generator](https://shafthq.github.io/SHAFT_ENGINE/project-generator.html) to generate your project in seconds.
+- Choose your test runner (TestNG, JUnit, or Cucumber), select your platform (Web, Mobile, or API), and download a ready-to-use project.
+- Optionally includes GitHub Actions workflow and Dependabot configuration.
+
+### Option 2: Maven archetype
+
+> [!TIP]
+> Recommended for new local sandbox projects using command line.
 
 - The easiest and most straightforward way to create a new project that uses SHAFT.
 - Just [follow the simple steps here ➡️](https://shafthq.github.io/docs/Getting_Started/first_steps_5) to generate your new project with one command (all configurations included).
 
-### Option 2: Start from scratch
+### Option 3: Start from scratch
 
 > [!TIP]
 > Recommended if you're upgrading an existing project from Native Selenium WebDriver to SHAFT.

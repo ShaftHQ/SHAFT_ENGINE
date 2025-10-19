@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHAFT Project Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0060a8;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #2d3748;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 14px;
+        }
+
+        .step {
+            display: none;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .step.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .step-title {
+            color: #0060a8;
+            font-size: 20px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .radio-group, .checkbox-group {
+            margin: 20px 0;
+        }
+
+        .radio-option, .checkbox-option {
+            display: block;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .radio-option:hover, .checkbox-option:hover {
+            border-color: #0060a8;
+            background-color: #f7fafc;
+        }
+
+        .radio-option input, .checkbox-option input {
+            margin-right: 10px;
+        }
+
+        .radio-option.selected {
+            border-color: #0060a8;
+            background-color: #edf2f7;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            color: #4a5568;
+            font-weight: 500;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #0060a8;
+        }
+
+        .input-helper {
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 5px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0060a8 0%, #0060a8 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        .success-message {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .success-message.active {
+            display: block;
+        }
+
+        .success-icon {
+            font-size: 64px;
+            color: #48bb78;
+            margin-bottom: 20px;
+        }
+
+        .success-title {
+            color: #2d3748;
+            font-size: 24px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .success-text {
+            color: #718096;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .info-box {
+            text-align: left;
+            background: #edf2f7;
+            border-left: 4px solid #0060a8;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #4a5568;
+            line-height: 1.6;
+        }
+
+        .info-box a {
+            color: #0060a8;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .info-box a:hover {
+            text-decoration: underline;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #0060a8 0%, #0060a8 100%);
+            transition: width 0.3s ease;
+        }
+
+        .generation-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .generation-overlay.active {
+            display: flex;
+        }
+
+        .generation-content {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .generation-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #0060a8;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .generation-text {
+            color: #4a5568;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .generation-subtext {
+            color: #a0aec0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img class="logo" src="https://github.com/user-attachments/assets/016ebb3c-4090-4f07-a9b3-830fdf4cb696" alt="SHAFT Logo">
+            <h1>SHAFT Project Generator</h1>
+            <p class="subtitle">Create your test automation project in seconds</p>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 20%"></div>
+        </div>
+
+        <!-- Step 1: Test Runner Selection -->
+        <div class="step active" id="step1">
+            <h2 class="step-title">Which test runner do you want to use?</h2>
+            <div class="radio-group" id="runnerGroup">
+                <div id="loadingIndicator" style="text-align: center; padding: 20px; color: #0060a8;">
+                    Loading available options...
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="btn-primary" onclick="nextStep(1)" id="nextBtn1" disabled>Next</button>
+            </div>
+        </div>
+
+        <!-- Step 2: Platform Selection -->
+        <div class="step" id="step2">
+            <h2 class="step-title">Which platform would you like to start testing first?</h2>
+            <div class="radio-group" id="platformGroup">
+                <!-- Will be populated dynamically -->
+            </div>
+            <div class="button-group">
+                <button class="btn-secondary" onclick="prevStep(2)">Back</button>
+                <button class="btn-primary" onclick="nextStep(2)" id="nextBtn2" disabled>Next</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Project Naming -->
+        <div class="step" id="step3">
+            <h2 class="step-title">What would you like to name your new project?</h2>
+            <div class="input-group">
+                <label for="groupId">Group ID</label>
+                <input type="text" id="groupId" placeholder="io.github.yourUsername" value="io.github.yourUsername">
+                <div class="input-helper">The group ID for your Maven project</div>
+            </div>
+            <div class="input-group">
+                <label for="artifactId">Artifact ID</label>
+                <input type="text" id="artifactId" placeholder="shaft-web-testng" readonly>
+                <div class="input-helper">Auto-generated based on your selections</div>
+            </div>
+            <div class="input-group">
+                <label for="version">Version</label>
+                <input type="text" id="version" placeholder="1.0.0" value="1.0.0">
+                <div class="input-helper">The initial version of your project</div>
+            </div>
+            <div class="button-group">
+                <button class="btn-secondary" onclick="prevStep(3)">Back</button>
+                <button class="btn-primary" onclick="nextStep(3)">Next</button>
+            </div>
+        </div>
+
+        <!-- Step 4: GitHub Actions -->
+        <div class="step" id="step4">
+            <h2 class="step-title">Would you like to create a sample GitHub Actions workflow to execute your tests?</h2>
+            <div class="checkbox-group">
+                <label class="checkbox-option">
+                    <input type="checkbox" id="includeGithubActions" checked>
+                    <span>Yes, include GitHub Actions workflow</span>
+                </label>
+            </div>
+            <div class="button-group">
+                <button class="btn-secondary" onclick="prevStep(4)">Back</button>
+                <button class="btn-primary" onclick="nextStep(4)">Next</button>
+            </div>
+        </div>
+
+        <!-- Step 5: Dependabot -->
+        <div class="step" id="step5">
+            <h2 class="step-title">Would you like GitHub to open a PR automatically when a new version of SHAFT gets released?</h2>
+            <div class="checkbox-group">
+                <label class="checkbox-option">
+                    <input type="checkbox" id="includeDependabot" checked>
+                    <span>Yes, include Dependabot configuration</span>
+                </label>
+            </div>
+            <div class="button-group">
+                <button class="btn-secondary" onclick="prevStep(5)">Back</button>
+                <button class="btn-primary" onclick="generateProject()">Generate Project</button>
+            </div>
+        </div>
+
+        <!-- Success Message -->
+        <div class="success-message" id="successMessage">
+            <div class="success-icon">✓</div>
+            <h2 class="success-title">Project Generated Successfully!</h2>
+            <p class="success-text">Your SHAFT project has been generated and the download should start automatically.</p>
+            <div class="info-box">
+                📚 Visit <a href="https://shafthq.github.io/" target="_blank">shafthq.github.io</a> to learn more about SHAFT.<br>
+                ⚙️ For advanced integrations (BrowserStack, LambdaTest, Jira, Healenium) or configurations (headless mode, Selenium Grid, element timeout), visit <a href="https://shafthq.github.io/docs/Properties/PropertiesList" target="_blank">Properties List</a>.
+            </div>
+            <div class="button-group" style="margin-top: 30px;">
+                <button class="btn-primary" onclick="resetGenerator()">Generate Another Project</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generation Progress Overlay -->
+    <div class="generation-overlay" id="generationOverlay">
+        <div class="generation-content">
+            <div class="generation-spinner"></div>
+            <div class="generation-text">Generating Your Project</div>
+            <div class="generation-subtext">Please wait while we prepare your files...</div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        // Project data structure - will be populated dynamically
+        let projectData = {};
+        let currentStep = 1;
+        let selectedRunner = '';
+        let selectedPlatform = '';
+        let isDataLoaded = false;
+
+        // Fetch available projects from GitHub
+        async function loadProjectData() {
+            try {
+                const examplesUrl = 'https://api.github.com/repos/ShaftHQ/SHAFT_ENGINE/contents/src/main/resources/examples';
+                const response = await fetch(examplesUrl);
+                const runners = await response.json();
+                
+                for (const runner of runners) {
+                    if (runner.type === 'dir') {
+                        projectData[runner.name] = {};
+                        
+                        // Fetch projects for this runner
+                        const projectsResponse = await fetch(runner.url);
+                        const projects = await projectsResponse.json();
+                        
+                        for (const project of projects) {
+                            if (project.type === 'dir') {
+                                // Extract platform from project name (e.g., shaft-testng-web -> web)
+                                const parts = project.name.split('-');
+                                const platform = parts[parts.length - 1];
+                                projectData[runner.name][platform] = project.name;
+                            }
+                        }
+                    }
+                }
+                
+                isDataLoaded = true;
+                console.log('Loaded project data:', projectData);
+            } catch (error) {
+                console.error('Error loading project data:', error);
+                // Fallback to hardcoded data
+                projectData = {
+                    'TestNG': {
+                        'web': 'shaft-testng-web',
+                        'mobile': 'shaft-testng-mobile',
+                        'api': 'shaft-testng-api'
+                    },
+                    'JUnit': {
+                        'web': 'shaft-junit-web',
+                        'mobile': 'shaft-junit-mobile',
+                        'api': 'shaft-junit-api'
+                    },
+                    'Cucumber': {
+                        'web': 'shaft-cucumber-web'
+                    }
+                };
+                isDataLoaded = true;
+            }
+        }
+
+        // Load project data on page load and then initialize runner options
+        window.addEventListener('DOMContentLoaded', async () => {
+            await loadProjectData();
+            initializeRunnerOptions();
+        });
+
+        // Initialize runner options after data is loaded
+        function initializeRunnerOptions() {
+            const runnerGroup = document.getElementById('runnerGroup');
+            runnerGroup.innerHTML = '';
+            
+            // Populate runner options with sanitized data
+            Object.keys(projectData).sort().forEach(runner => {
+                const label = document.createElement('label');
+                label.className = 'radio-option';
+                
+                const input = document.createElement('input');
+                input.type = 'radio';
+                input.name = 'runner';
+                input.value = runner;
+                
+                const span = document.createElement('span');
+                span.textContent = runner; // Use textContent to prevent XSS
+                
+                label.appendChild(input);
+                label.appendChild(span);
+                runnerGroup.appendChild(label);
+                
+                input.addEventListener('change', function() {
+                    selectedRunner = this.value;
+                    document.getElementById('nextBtn1').disabled = false;
+                    
+                    // Update UI
+                    document.querySelectorAll('#runnerGroup .radio-option').forEach(opt => opt.classList.remove('selected'));
+                    this.parentElement.classList.add('selected');
+                    
+                    // Update available platforms
+                    updatePlatformOptions();
+                });
+            });
+        }
+
+        function updatePlatformOptions() {
+            const platformGroup = document.getElementById('platformGroup');
+            platformGroup.innerHTML = '';
+            
+            const platforms = projectData[selectedRunner];
+            if (platforms) {
+                Object.keys(platforms).forEach(platform => {
+                    const label = document.createElement('label');
+                    label.className = 'radio-option';
+                    
+                    const input = document.createElement('input');
+                    input.type = 'radio';
+                    input.name = 'platform';
+                    input.value = platform;
+                    
+                    const span = document.createElement('span');
+                    span.textContent = platform.charAt(0).toUpperCase() + platform.slice(1); // Use textContent to prevent XSS
+                    
+                    label.appendChild(input);
+                    label.appendChild(span);
+                    platformGroup.appendChild(label);
+                    
+                    input.addEventListener('change', function() {
+                        selectedPlatform = this.value;
+                        document.getElementById('nextBtn2').disabled = false;
+                        
+                        document.querySelectorAll('#platformGroup .radio-option').forEach(opt => opt.classList.remove('selected'));
+                        this.parentElement.classList.add('selected');
+                        
+                        updateArtifactId();
+                    });
+                });
+            }
+        }
+
+        function updateArtifactId() {
+            const artifactId = document.getElementById('artifactId');
+            if (selectedPlatform && selectedRunner) {
+                artifactId.value = `shaft-${selectedPlatform.toLowerCase()}-${selectedRunner.toLowerCase()}`;
+            }
+        }
+
+        function nextStep(step) {
+            if (step === 1 && !selectedRunner) return;
+            if (step === 2 && !selectedPlatform) return;
+            
+            document.getElementById(`step${step}`).classList.remove('active');
+            currentStep = step + 1;
+            document.getElementById(`step${currentStep}`).classList.add('active');
+            
+            // Check if we're entering step 4 (GitHub Actions)
+            if (currentStep === 4) {
+                // Only show GitHub Actions option for web and api platforms
+                const githubActionsCheckbox = document.getElementById('includeGithubActions');
+                const checkboxContainer = githubActionsCheckbox.parentElement.parentElement;
+                
+                if (selectedPlatform.toLowerCase() === 'mobile') {
+                    // Hide checkbox and uncheck it for mobile
+                    checkboxContainer.style.display = 'none';
+                    githubActionsCheckbox.checked = false;
+                } else {
+                    // Show checkbox for web and api
+                    checkboxContainer.style.display = 'block';
+                    githubActionsCheckbox.checked = true;
+                }
+            }
+            
+            updateProgress();
+        }
+
+        function prevStep(step) {
+            document.getElementById(`step${step}`).classList.remove('active');
+            currentStep = step - 1;
+            document.getElementById(`step${currentStep}`).classList.add('active');
+            
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const progress = (currentStep / 5) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+        }
+
+        async function generateProject() {
+            // Show generation overlay
+            document.getElementById('generationOverlay').classList.add('active');
+            
+            const groupId = document.getElementById('groupId').value;
+            const artifactId = document.getElementById('artifactId').value;
+            const version = document.getElementById('version').value;
+            const includeGithubActions = document.getElementById('includeGithubActions').checked;
+            const includeDependabot = document.getElementById('includeDependabot').checked;
+
+            // Get the template project name
+            const templateProject = projectData[selectedRunner][selectedPlatform];
+
+            try {
+                // Create ZIP file
+                const zip = new JSZip();
+                
+                // Fetch template files from GitHub
+                const baseUrl = `https://api.github.com/repos/ShaftHQ/SHAFT_ENGINE/contents/src/main/resources/examples/${selectedRunner}/${templateProject}`;
+                
+                await fetchDirectoryContents(zip, artifactId, baseUrl, '');
+                
+                // Update pom.xml with custom values
+                const pomContent = await zip.file(`${artifactId}/pom.xml`).async('string');
+                const updatedPom = pomContent
+                    .replace(/<groupId>io\.github\.shafthq<\/groupId>/, `<groupId>${groupId}</groupId>`)
+                    .replace(/<artifactId>.*?<\/artifactId>/, `<artifactId>${artifactId}</artifactId>`)
+                    .replace(/<version>1\.0-SNAPSHOT<\/version>/, `<version>${version}</version>`);
+                zip.file(`${artifactId}/pom.xml`, updatedPom);
+                
+                // Add GitHub Actions workflow if selected (only for web and api)
+                if (includeGithubActions && selectedPlatform.toLowerCase() !== 'mobile') {
+                    const platform = selectedPlatform.toLowerCase();
+                    let workflowUrl = '';
+                    let workflowFileName = '';
+                    
+                    if (platform === 'web') {
+                        workflowUrl = 'https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/copilot/create-ai-powered-project-generator/src/main/resources/examples/.github/workflows/web.yml';
+                        workflowFileName = 'web.yml';
+                    } else if (platform === 'api') {
+                        workflowUrl = 'https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/copilot/create-ai-powered-project-generator/src/main/resources/examples/.github/workflows/api.yml';
+                        workflowFileName = 'api.yml';
+                    }
+                    
+                    if (workflowUrl) {
+                        const workflowContent = await fetch(workflowUrl).then(r => r.text());
+                        zip.file(`${artifactId}/.github/workflows/${workflowFileName}`, workflowContent);
+                    }
+                }
+                
+                // Add Dependabot config if selected
+                if (includeDependabot) {
+                    const dependabotContent = await fetch('https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/copilot/create-ai-powered-project-generator/src/main/resources/examples/.github/dependabot.yml').then(r => r.text());
+                    zip.file(`${artifactId}/.github/dependabot.yml`, dependabotContent);
+                }
+                
+                // Generate and download ZIP
+                const blob = await zip.generateAsync({type: 'blob'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${artifactId}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                // Hide generation overlay
+                document.getElementById('generationOverlay').classList.remove('active');
+                
+                // Show success message
+                document.getElementById('step5').classList.remove('active');
+                document.getElementById('successMessage').classList.add('active');
+                updateProgress();
+            } catch (error) {
+                console.error('Error generating project:', error);
+                // Hide generation overlay on error
+                document.getElementById('generationOverlay').classList.remove('active');
+                alert('Error generating project. Please try again or check the browser console for details.');
+            }
+        }
+
+        async function fetchDirectoryContents(zip, projectName, url, path) {
+            try {
+                const response = await fetch(url);
+                const items = await response.json();
+                
+                for (const item of items) {
+                    const itemPath = path ? `${path}/${item.name}` : item.name;
+                    
+                    if (item.type === 'file') {
+                        // Fetch file content
+                        const fileResponse = await fetch(item.download_url);
+                        const fileContent = await fileResponse.text();
+                        zip.file(`${projectName}/${itemPath}`, fileContent);
+                    } else if (item.type === 'dir') {
+                        // Recursively fetch directory contents
+                        await fetchDirectoryContents(zip, projectName, item.url, itemPath);
+                    }
+                }
+            } catch (error) {
+                console.error(`Error fetching directory contents from ${url}:`, error);
+            }
+        }
+
+        function resetGenerator() {
+            currentStep = 1;
+            selectedRunner = '';
+            selectedPlatform = '';
+            
+            document.getElementById('successMessage').classList.remove('active');
+            document.getElementById('step1').classList.add('active');
+            
+            document.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
+            document.querySelectorAll('.radio-option').forEach(opt => opt.classList.remove('selected'));
+            
+            document.getElementById('nextBtn1').disabled = true;
+            document.getElementById('nextBtn2').disabled = true;
+            
+            document.getElementById('groupId').value = 'io.github.yourUsername';
+            document.getElementById('artifactId').value = '';
+            document.getElementById('version').value = '1.0.0';
+            document.getElementById('includeGithubActions').checked = true;
+            document.getElementById('includeDependabot').checked = true;
+            
+            updateProgress();
+        }
+    </script>
+</body>
+</html>
