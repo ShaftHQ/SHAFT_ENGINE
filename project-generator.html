@@ -13,7 +13,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #1a1b26;
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -238,6 +238,58 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             transition: width 0.3s ease;
         }
+
+        .generation-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .generation-overlay.active {
+            display: flex;
+        }
+
+        .generation-content {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .generation-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .generation-text {
+            color: #4a5568;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .generation-subtext {
+            color: #a0aec0;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -343,6 +395,15 @@
             <div class="button-group" style="margin-top: 30px;">
                 <button class="btn-primary" onclick="resetGenerator()">Generate Another Project</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Generation Progress Overlay -->
+    <div class="generation-overlay" id="generationOverlay">
+        <div class="generation-content">
+            <div class="generation-spinner"></div>
+            <div class="generation-text">Generating Your Project</div>
+            <div class="generation-subtext">Please wait while we prepare your files...</div>
         </div>
     </div>
 
@@ -497,6 +558,23 @@
             currentStep = step + 1;
             document.getElementById(`step${currentStep}`).classList.add('active');
             
+            // Check if we're entering step 4 (GitHub Actions)
+            if (currentStep === 4) {
+                // Only show GitHub Actions option for web and api platforms
+                const githubActionsCheckbox = document.getElementById('includeGithubActions');
+                const checkboxContainer = githubActionsCheckbox.parentElement.parentElement;
+                
+                if (selectedPlatform.toLowerCase() === 'mobile') {
+                    // Hide checkbox and uncheck it for mobile
+                    checkboxContainer.style.display = 'none';
+                    githubActionsCheckbox.checked = false;
+                } else {
+                    // Show checkbox for web and api
+                    checkboxContainer.style.display = 'block';
+                    githubActionsCheckbox.checked = true;
+                }
+            }
+            
             updateProgress();
         }
 
@@ -514,6 +592,9 @@
         }
 
         async function generateProject() {
+            // Show generation overlay
+            document.getElementById('generationOverlay').classList.add('active');
+            
             const groupId = document.getElementById('groupId').value;
             const artifactId = document.getElementById('artifactId').value;
             const version = document.getElementById('version').value;
@@ -540,15 +621,29 @@
                     .replace(/<version>1\.0-SNAPSHOT<\/version>/, `<version>${version}</version>`);
                 zip.file(`${artifactId}/pom.xml`, updatedPom);
                 
-                // Add GitHub Actions workflow if selected
-                if (includeGithubActions) {
-                    const workflowContent = await fetch('https://raw.githubusercontent.com/ShaftHQ/using_SHAFT_Engine/refs/heads/main/.github/workflows/e2etests.yml').then(r => r.text());
-                    zip.file(`${artifactId}/.github/workflows/e2etests.yml`, workflowContent);
+                // Add GitHub Actions workflow if selected (only for web and api)
+                if (includeGithubActions && selectedPlatform.toLowerCase() !== 'mobile') {
+                    const platform = selectedPlatform.toLowerCase();
+                    let workflowUrl = '';
+                    let workflowFileName = '';
+                    
+                    if (platform === 'web') {
+                        workflowUrl = 'https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/copilot/create-ai-powered-project-generator/src/main/resources/examples/.github/workflows/web.yml';
+                        workflowFileName = 'web.yml';
+                    } else if (platform === 'api') {
+                        workflowUrl = 'https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/copilot/create-ai-powered-project-generator/src/main/resources/examples/.github/workflows/api.yml';
+                        workflowFileName = 'api.yml';
+                    }
+                    
+                    if (workflowUrl) {
+                        const workflowContent = await fetch(workflowUrl).then(r => r.text());
+                        zip.file(`${artifactId}/.github/workflows/${workflowFileName}`, workflowContent);
+                    }
                 }
                 
                 // Add Dependabot config if selected
                 if (includeDependabot) {
-                    const dependabotContent = await fetch('https://raw.githubusercontent.com/ShaftHQ/using_SHAFT_Engine/refs/heads/main/.github/dependabot.yml').then(r => r.text());
+                    const dependabotContent = await fetch('https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/copilot/create-ai-powered-project-generator/src/main/resources/examples/.github/dependabot.yml').then(r => r.text());
                     zip.file(`${artifactId}/.github/dependabot.yml`, dependabotContent);
                 }
                 
@@ -563,12 +658,17 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 
+                // Hide generation overlay
+                document.getElementById('generationOverlay').classList.remove('active');
+                
                 // Show success message
                 document.getElementById('step5').classList.remove('active');
                 document.getElementById('successMessage').classList.add('active');
                 updateProgress();
             } catch (error) {
                 console.error('Error generating project:', error);
+                // Hide generation overlay on error
+                document.getElementById('generationOverlay').classList.remove('active');
                 alert('Error generating project. Please try again or check the browser console for details.');
             }
         }
