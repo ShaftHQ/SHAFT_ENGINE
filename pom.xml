@@ -769,6 +769,7 @@
                     <sourcepath>
                         ${project.basedir}/src/main/java;${project.basedir}/target/generated-sources/annotations
                     </sourcepath>
+                    <docfilessubdirs>true</docfilessubdirs>
                     <encoding>UTF-8</encoding>
                     <failOnError>false</failOnError>
                     <show>public</show>
