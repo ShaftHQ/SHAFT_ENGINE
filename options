@@ -14,6 +14,7 @@
 '/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/target/reports/apidocs'
 -docencoding
 'UTF-8'
+-docfilessubdirs
 -doctitle
 'SHAFT_Engine, 9.4.20251022'
 -header
