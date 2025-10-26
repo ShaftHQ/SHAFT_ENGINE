@@ -41,7 +41,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Windows_Edge_Local_Allure
           path: "allure-report/*.html"
@@ -77,7 +77,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: MacOSX_Safari_Local_Allure
           path: "allure-report/*.html"
@@ -113,7 +113,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Windows_Chrome_Local_Allure
           path: "allure-report/*.html"
@@ -149,7 +149,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: MacOSX_Chrome_Local_Allure
           path: "allure-report/*.html"
@@ -195,7 +195,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Windows_Edge_Cucumber_Local_Allure
           path: "allure-report/*.html"
