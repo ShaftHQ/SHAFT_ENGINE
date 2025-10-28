@@ -121,13 +121,40 @@ public class WebDriverElementValidationsBuilder {
     /**
      * Use this to check against a certain element attribute
      *
-     * @param elementAttribute the target element attribute that will be checked against
+     * @param attribute the target element attribute that will be checked against
      * @return a NativeValidationsBuilder object to continue building your validation
      */
-    public NativeValidationsBuilder attribute(String elementAttribute) {
+    public NativeValidationsBuilder attribute(String attribute) {
         this.validationMethod = "elementAttributeEquals";
-        this.elementAttribute = elementAttribute;
-        reportMessageBuilder.append("attribute \"").append(elementAttribute).append("\" ");
+        this.elementAttribute = attribute;
+        reportMessageBuilder.append("Attribute \"").append(attribute).append("\" ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    public NativeValidationsBuilder domAttribute(String domAttribute) {
+        this.validationMethod = "elementDomAttributeEquals";
+        this.elementAttribute = domAttribute;
+        reportMessageBuilder.append("DOM attribute \"").append(domAttribute).append("\" ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    public NativeValidationsBuilder domProperty(String domProperty) {
+        this.validationMethod = "elementDomPropertyEquals";
+        this.elementAttribute = domProperty;
+        reportMessageBuilder.append("DOM property \"").append(domProperty).append("\" ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    /**
+     * Use this to check against a certain element attribute
+     *
+     * @param domProperty the target element DOM property that will be checked against
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    public NativeValidationsBuilder property(String domProperty) {
+        this.validationMethod = "elementPropertyEquals";
+        this.elementAttribute = domProperty;
+        reportMessageBuilder.append("DOM property \"").append(domProperty).append("\" ");
         return new NativeValidationsBuilder(this);
     }
 
@@ -137,7 +164,7 @@ public class WebDriverElementValidationsBuilder {
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     public ValidationsExecutor isSelected() {
-        this.validationMethod = "elementAttributeEquals";
+        this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "selected";
         reportMessageBuilder.append("is selected; selected attribute ");
         return new NativeValidationsBuilder(this).isTrue();
@@ -149,7 +176,7 @@ public class WebDriverElementValidationsBuilder {
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     public ValidationsExecutor isChecked() {
-        this.validationMethod = "elementAttributeEquals";
+        this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "checked";
         reportMessageBuilder.append("is checked; checked attribute ");
         return new NativeValidationsBuilder(this).isTrue();
@@ -161,7 +188,7 @@ public class WebDriverElementValidationsBuilder {
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     public ValidationsExecutor isVisible() {
-        this.validationMethod = "elementAttributeEquals";
+        this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "hidden";
         reportMessageBuilder.append("is visible; hidden attribute ");
         return new NativeValidationsBuilder(this).isEqualTo("null");
@@ -173,7 +200,7 @@ public class WebDriverElementValidationsBuilder {
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     public ValidationsExecutor isEnabled() {
-        this.validationMethod = "elementAttributeEquals";
+        this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "disabled";
         reportMessageBuilder.append("is enabled; disabled attribute ");
         return new NativeValidationsBuilder(this).isEqualTo("null");
@@ -185,7 +212,7 @@ public class WebDriverElementValidationsBuilder {
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     public ValidationsExecutor isNotSelected() {
-        this.validationMethod = "elementAttributeEquals";
+        this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "selected";
         reportMessageBuilder.append("is not selected; selected attribute ");
         return new NativeValidationsBuilder(this).isEqualTo("null");
@@ -197,7 +224,7 @@ public class WebDriverElementValidationsBuilder {
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     public ValidationsExecutor isNotChecked() {
-        this.validationMethod = "elementAttributeEquals";
+        this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "checked";
         reportMessageBuilder.append("is not checked; checked attribute ");
         return new NativeValidationsBuilder(this).isEqualTo("null");
@@ -209,7 +236,7 @@ public class WebDriverElementValidationsBuilder {
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     public ValidationsExecutor isHidden() {
-        this.validationMethod = "elementAttributeEquals";
+        this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "hidden";
         reportMessageBuilder.append("is hidden; hidden attribute ");
         return new NativeValidationsBuilder(this).isTrue();
@@ -221,7 +248,7 @@ public class WebDriverElementValidationsBuilder {
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     public ValidationsExecutor isDisabled() {
-        this.validationMethod = "elementAttributeEquals";
+        this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "disabled";
         reportMessageBuilder.append("is disabled; disabled attribute ");
         return new NativeValidationsBuilder(this).isTrue();
@@ -233,7 +260,7 @@ public class WebDriverElementValidationsBuilder {
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     public NativeValidationsBuilder text() {
-        this.validationMethod = "elementAttributeEquals";
+        this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "text";
         reportMessageBuilder.append("text ");
         return new NativeValidationsBuilder(this);
@@ -245,7 +272,7 @@ public class WebDriverElementValidationsBuilder {
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     public NativeValidationsBuilder textTrimmed() {
-        this.validationMethod = "elementAttributeEquals";
+        this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "textTrimmed";
         reportMessageBuilder.append("text trimmed ");
         return new NativeValidationsBuilder(this);

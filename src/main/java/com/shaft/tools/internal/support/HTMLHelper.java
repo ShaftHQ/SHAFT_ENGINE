@@ -8,14 +8,14 @@ public enum HTMLHelper {
     CHECKPOINT_COUNTER("""
             <!DOCTYPE html>
             <html lang="en">
-
+            
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content=
                     "width=device-width, initial-scale=1.0">
-                    
+            
                 <title>Checkpoints Report</title>
-
+            
                 <link rel="stylesheet" type="text/css" href="https://colorlib.com/etc/tb/Table_Fixed_Header/vendor/bootstrap/css/bootstrap.min.css">
                 <br>
                 <style>
@@ -37,14 +37,14 @@ public enum HTMLHelper {
                         MediumSeaGreen ${CHECKPOINTS_PASSED_PERCENTAGE}deg,
                         Tomato 0);
                 }
-                
+            
                 body,
                 .piechart {
                     display: block;
                     justify-content: center;
                     align-items: center;
                 }
-                
+            
                 .table100 .ps__rail-y{
                     width:9px;
                     background-color:transparent;
@@ -209,10 +209,10 @@ public enum HTMLHelper {
                 .column4{
                     width:10%
                 }
-                
+            
             </style>
             </head>
-                            
+            
             <body>
             <center>
             <h1>Checkpoints Report</h1>
@@ -256,14 +256,14 @@ public enum HTMLHelper {
     EXECUTION_SUMMARY("""
             <!DOCTYPE html>
             <html lang="en">
-                        
+            
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content=
                         "width=device-width, initial-scale=1.0">
-                        
+            
                 <title>Execution Summary Report</title>
-                        
+            
                 <link rel="stylesheet" type="text/css"
                       href="https://colorlib.com/etc/tb/Table_Fixed_Header/vendor/bootstrap/css/bootstrap.min.css">
                 <br>
@@ -302,7 +302,7 @@ public enum HTMLHelper {
                             #logo{
                             	margin: 0 15px 0 0;
                             }
-                        
+            
                             body,
                             .piechart {
                                 display: block;
@@ -505,10 +505,10 @@ public enum HTMLHelper {
                                     margin-left: 50px;
                                     margin-right: 50px;
                                 }
-                        
+            
                 </style>
             </head>
-                        
+            
             <body>
             <center>
             	<a href="https://shafthq.github.io/" target="_blank"><img src="${LOGO_URL}" alt="SHAFT logo" height="100" id="logo"></a>
@@ -583,14 +583,14 @@ public enum HTMLHelper {
                     </div>
                     <br><br>
                 </div>
-                
+            
                     <script>
                                 $(document).ready(function() {
-                    
+            
                                     var search = function(){
                                         var value1 = $("#search").val().toLowerCase();
                                         var value2 = $("#searchDropDown").val();
-                    
+            
                                         console.log(value1 + value2)
                                         $("#table tr").filter(function() {
                                             $(this).toggle(
@@ -598,9 +598,9 @@ public enum HTMLHelper {
                                                 $(this).text().indexOf(value2) > -1
                                             )
                                         });
-                    
+            
                                     };
-                    
+            
                                     $("#search").on("keyup", function() {
                                         search();
                                     });

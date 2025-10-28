@@ -11,7 +11,7 @@ import org.aeonbits.owner.ConfigFactory;
         "file:src/main/resources/properties/default/MobileCapabilities.properties",
         "classpath:MobileCapabilities.properties",
 })
-public interface Mobile extends EngineProperties {
+public interface Mobile extends EngineProperties<Mobile> {
 
     private static void setProperty(String key, String value) {
         var updatedProps = new java.util.Properties();
@@ -22,7 +22,7 @@ public interface Mobile extends EngineProperties {
         ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
 
-    @Key("mobile_platformName")
+    @Key("platformName")
     @DefaultValue("")
     String platformName();
 
@@ -42,7 +42,7 @@ public interface Mobile extends EngineProperties {
     @DefaultValue("")
     String udid();
 
-    @Key("mobile_browserName")
+    @Key("browserName")
     @DefaultValue("")
     String browserName();
 
@@ -79,7 +79,7 @@ public interface Mobile extends EngineProperties {
         }
 
         public SetProperty platformName(String value) {
-            setProperty("mobile_platformName", value);
+            setProperty("platformName", value);
             return this;
         }
 
@@ -107,7 +107,7 @@ public interface Mobile extends EngineProperties {
         }
 
         public SetProperty browserName(String value) {
-            setProperty("mobile_browserName", value);
+            setProperty("browserName", value);
             return this;
         }
 

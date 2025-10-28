@@ -19,6 +19,7 @@ import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.AnimatedGifManager;
 import com.shaft.gui.internal.video.RecordManager;
+import com.shaft.listeners.internal.CucumberHelper;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.cucumber.core.feature.FeatureParser;
@@ -32,8 +33,8 @@ import io.qameta.allure.Allure;
 import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.cucumber7jvm.AllureCucumber7Jvm;
 import io.qameta.allure.cucumber7jvm.testsourcemodel.TestSourcesModelProxy;
-import io.qameta.allure.model.Status;
 import io.qameta.allure.model.*;
+import io.qameta.allure.model.Status;
 import lombok.Getter;
 import org.testng.Reporter;
 
@@ -47,7 +48,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static com.shaft.listeners.internal.CucumberHelper.shaftSetup;
 import static com.shaft.listeners.internal.CucumberHelper.shaftTearDown;
 import static io.qameta.allure.util.ResultsUtils.*;
 
@@ -93,7 +93,7 @@ public class CucumberFeatureListener extends AllureCucumber7Jvm {
     public CucumberFeatureListener(final AllureLifecycle lifecycle) {
         this.lifecycle = lifecycle;
         // custom code
-        shaftSetup();
+        CucumberHelper.engineSetup();
         // end of custom code
     }
 

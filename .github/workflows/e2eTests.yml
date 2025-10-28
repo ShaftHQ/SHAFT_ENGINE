@@ -3,104 +3,52 @@ name: E2E Tests
 on:
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - '**.md'
   schedule:
     - cron: '00 1 * * *'
   workflow_dispatch:
 
 env:
-  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*obile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*]"
+  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*], !%regex[.*CLI.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*obile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*]"
 
 jobs:
-  Windows_Edge_Local:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'zulu'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
-      - uses: browser-actions/setup-edge@v1
-        with:
-          edge-version: stable
-      - name: Print Edge version
-        run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*DatabaseActions.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*obile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*]"
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Windows_Edge_Local_Allure
-          path: "allure-report/*.html"
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
-        if: always()
-  MacOSX_Safari_Local:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'zulu'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=SAFARI" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: MacOSX_Safari_Local_Allure
-          path: "allure-report/*.html"
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
-        if: always()
   Ubuntu_Database:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+      - name: Connect to PostgreSQL
+        run: |
+            cd src/main/resources/docker-compose/postgres/
+            npm install pg
+            node client.js
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
+        run: mvn -e test "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
@@ -108,7 +56,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Ubuntu_Database_Allure
           path: "allure-report/*.html"
@@ -121,21 +69,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*API.*], %regex[.*Api.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*API.*], %regex[.*Api.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*]"
       - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
+        uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
@@ -143,7 +92,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Ubuntu_APIs_Allure
           path: "allure-report/*.html"
@@ -156,14 +105,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up Native Selenium Grid
-        run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=0 --scale firefox=10 -d
+        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=0 --scale firefox=10 -d
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -172,9 +122,9 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
+        uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
@@ -182,7 +132,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Ubuntu_Firefox_Grid_Allure
           path: "allure-report/*.html"
@@ -195,14 +145,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up Native Selenium Grid
-        run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=10 --scale edge=0 --scale firefox=0 -d
+        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=10 --scale edge=0 --scale firefox=0 -d
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -211,9 +162,9 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
+        uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
@@ -221,7 +172,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Ubuntu_Chrome_Grid_Allure
           path: "allure-report/*.html"
@@ -234,14 +185,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up Native Selenium Grid
-        run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=10 --scale firefox=0 -d
+        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=10 --scale firefox=0 -d
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -250,9 +202,9 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
+        uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
@@ -260,79 +212,9 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Ubuntu_Edge_Grid_Allure
-          path: "allure-report/*.html"
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
-        if: always()
-  Windows_Chrome_Local:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'zulu'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DforceBrowserDownload=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*DatabaseActions.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*obile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*]"
-      - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Windows_Chrome_Local_Allure
-          path: "allure-report/*.html"
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
-        if: always()
-  MacOSX_Chrome_Local:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'zulu'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DforceBrowserDownload=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
-      - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: MacOSX_Chrome_Local_Allure
           path: "allure-report/*.html"
       - name: Test Summary
         uses: test-summary/action@v2
@@ -343,21 +225,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appName=ApiDemos-debug.apk" "-DbrowserStack.appRelativeFilePath=src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroidBasic.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
       - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
+        uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
@@ -365,7 +248,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Android_Native_BrowserStack_Allure
           path: "allure-report/*.html"
@@ -378,21 +261,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=IOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-Dmobile_browserName=SAFARI" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=iOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-DbrowserName=safari" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
       - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
+        uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
@@ -400,7 +284,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: iOS_Web_SAFARI_BrowserStack_Allure
           path: "allure-report/*.html"
@@ -413,21 +297,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-Dmobile_browserName=CHROME" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-DbrowserName=chrome" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
       - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
+        uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
@@ -435,44 +320,9 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Android_Web_Chrome_BrowserStack_Allure
-          path: "allure-report/*.html"
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
-        if: always()
-  Android_Web_Samsung_BrowserStack:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'zulu'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-Dmobile_browserName=samsung" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
-      - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Android_Web_Samsung_BrowserStack_Allure
           path: "allure-report/*.html"
       - name: Test Summary
         uses: test-summary/action@v2
@@ -483,21 +333,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*]"
       - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
+        uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
@@ -505,7 +356,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: MacOSX_Safari_BrowserStack_Allure
           path: "allure-report/*.html"
@@ -518,19 +369,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup Node.js environment
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '16'
       - name: Set up Native Selenium Grid
         if: runner.os == 'Linux'
-        run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=10 --scale edge=0 --scale firefox=0 -d
+        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=10 --scale edge=0 --scale firefox=0 -d
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -541,9 +393,9 @@ jobs:
       - name: Run tests on Linux/MacOS
         if: runner.os != 'Windows'
         continue-on-error: true
-        run: mvn -e test "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
       - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
+        uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
@@ -551,54 +403,9 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Ubuntu_Chrome_Cucumber_Grid_Allure
-          path: "allure-report/*.html"
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
-        if: always()
-  Windows_Edge_Cucumber:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v4
-        with:
-          node-version: '16'
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'zulu'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
-      - uses: browser-actions/setup-edge@v1
-        with:
-          edge-version: stable
-      - name: Print Edge version
-        run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
-      - name: Run tests on Windows
-        if: runner.os == 'Windows'
-        continue-on-error: true
-        run: mvn -e test "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" -DexecutionAddress="local" -DtargetOperatingSystem="WINDOWS" -DmaximumPerformanceMode="2" -DtargetBrowserName="MicrosoftEdge" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*CucumberTests.*]"
-      - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Windows_Edge_Cucumber_Allure
           path: "allure-report/*.html"
       - name: Test Summary
         uses: test-summary/action@v2
@@ -609,25 +416,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup Node.js environment
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '16'
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'zulu'
+          cache: 'maven'
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*CucumberTests.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*CucumberTests.*]"
       - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
+        uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
@@ -635,168 +443,9 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: MacOSX_Safari_Cucumber_BrowserStack_Allure
-          path: "allure-report/*.html"
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
-        if: always()
-  LambdaTest_NativeAndroid:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v4
-        with:
-          node-version: '16'
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'zulu'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobAPK*.*]"
-      - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: LambdaTest_NativeAndroid_Allure
-          path: "allure-report/*.html"
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
-        if: always()
-  LambdaTest_NativeIOS:
-    runs-on: ubuntu-latest
-    needs: [ LambdaTest_NativeAndroid ]
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v4
-        with:
-          node-version: '16'
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'zulu'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobIPA*.*]"
-      - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: LambdaTest_NativeIOS_Allure
-          path: "allure-report/*.html"
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
-        if: always()
-  LambdaTest_WebApp:
-    runs-on: ubuntu-latest
-    needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS ]
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v4
-        with:
-          node-version: '16'
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'zulu'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DtargetOperatingSystem=windows" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTWebApp*.*]"
-      - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: LambdaTestWebApp_Allure
-          path: "allure-report/*.html"
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
-        if: always()
-  LambdaTest_DesktopWeb:
-    runs-on: ubuntu-latest
-    needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS, LambdaTest_WebApp ]
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v4
-        with:
-          node-version: '16'
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'zulu'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTDesktopWeb*.*]"
-      - name: Upload coverage to Codecov
-        uses:  codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: LambdaTestDesktopWeb_Allure
           path: "allure-report/*.html"
       - name: Test Summary
         uses: test-summary/action@v2

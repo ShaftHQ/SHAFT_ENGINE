@@ -44,9 +44,14 @@ public class OptionsManager {
     private InternetExplorerOptions ieOptions;
     private DesiredCapabilities appiumCapabilities;
 
+    private PageLoadStrategy pageLoadStrategy;
+
     protected void setDriverOptions(DriverFactory.DriverType driverType, MutableCapabilities customDriverOptions) {
         // get Proxy server settings | testing behind a proxy
         String proxyServerSettings = SHAFT.Properties.platform.proxy();
+
+        // get Page Load Strategy
+        this.pageLoadStrategy = PageLoadStrategy.fromString(Properties.web.pageLoadStrategy());
 
         //https://github.com/GoogleChrome/chrome-launcher/blob/master/docs/chrome-flags-for-tools.md#--enable-automation
         switch (driverType) {
@@ -76,8 +81,13 @@ public class OptionsManager {
                 if (SHAFT.Properties.web.headlessExecution()) {
                     ffOptions.addArguments("-headless");
                 }
+                //Incognito mode for Firefox
+                if (SHAFT.Properties.web.incognitoMode()) {
+                    SHAFT.Properties.platform.set().enableBiDi(false);
+                    ffOptions.addArguments("-private");
+                }
                 ffOptions.setLogLevel(FirefoxDriverLogLevel.WARN);
-                ffOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
+                ffOptions.setPageLoadStrategy(this.pageLoadStrategy);
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
@@ -86,6 +96,11 @@ public class OptionsManager {
                     proxy.setHttpProxy(proxyServerSettings);
                     proxy.setSslProxy(proxyServerSettings);
                     ffOptions.setProxy(proxy);
+                }
+                //disable SSL certificates check
+                if(SHAFT.Properties.flags.disableSslCertificateCheck())
+                {
+                    ffOptions.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS,true);
                 }
                 ffOptions.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
                 // Enable BiDi
@@ -103,7 +118,7 @@ public class OptionsManager {
                 ieOptions = new InternetExplorerOptions();
                 if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local"))
                     ieOptions.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
-                ieOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
+                ieOptions.setPageLoadStrategy(this.pageLoadStrategy);
                 ieOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 ieOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
@@ -116,6 +131,9 @@ public class OptionsManager {
                 if (SHAFT.Properties.flags.disableCache()) {
                     ieOptions.setCapability(InternetExplorerDriver.IE_ENSURE_CLEAN_SESSION, true);
                     ieOptions.setCapability("applicationCacheEnabled", false);
+                }
+                if (SHAFT.Properties.flags.disableSslCertificateCheck()) {
+                    ieOptions.setCapability("acceptInsecureCerts",true);
                 }
                 //merge customWebDriverCapabilities.properties
                 ieOptions = ieOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
@@ -140,7 +158,7 @@ public class OptionsManager {
                 if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local"))
                     sfOptions.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
                 sfOptions.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
-                sfOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
+                sfOptions.setPageLoadStrategy(this.pageLoadStrategy);
                 sfOptions.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
                 sfOptions.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
                 //Add Proxy Setting if found
@@ -152,6 +170,11 @@ public class OptionsManager {
                 }
                 if (SHAFT.Properties.flags.disableCache()) {
                     sfOptions.setCapability("safari:cleanSession", "true");
+                }
+                //disable SSL certificate check
+                if(SHAFT.Properties.flags.disableSslCertificateCheck())
+                {
+                    sfOptions.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS,true);
                 }
                 //merge customWebDriverCapabilities.properties
                 sfOptions = sfOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
@@ -169,30 +192,68 @@ public class OptionsManager {
     }
 
     private synchronized void setSeleniumManagerOptions(MutableCapabilities options) {
+        String folderPath = System.getProperty("user.home") + File.separatorChar + ".cache" + File.separatorChar + "selenium" + File.separatorChar;
+        String fileName = "se-config.toml";
+        var fileActions = FileActions.getInstance(true);
+
+        // create config file if it doesn't exist
+        if (!fileActions.doesFileExist(folderPath, fileName, 1)) {
+            fileActions.createFile(folderPath, fileName);
+        }
+
+        // read config file
+        String config = fileActions.readFile(folderPath, fileName);
+
+        // handle force browser download property
+        String forceBrowserDownloadProperty = "force-browser-download = true";
         if (SHAFT.Properties.web.forceBrowserDownload()) {
             if (options instanceof ChromeOptions chromeOptions) {
                 chromeOptions.setBrowserVersion("stable");
             } else if (options instanceof FirefoxOptions firefoxOptions) {
                 firefoxOptions.setBrowserVersion("stable");
             }
-            // configure selenium manager to force download chrome binaries
-            String folderPath = System.getProperty("user.home") + File.separatorChar + ".cache" + File.separatorChar + "selenium" + File.separatorChar;
-            String fileName = "se-config.toml";
-            var fileActions = FileActions.getInstance(true);
-            if (fileActions.doesFileExist(folderPath, fileName, 1)) {
-                String configFileContent = fileActions.readFile(folderPath, fileName);
-                if (!configFileContent.contains("force-browser-download = true"))
+
+            if (!config.contains(forceBrowserDownloadProperty))
+                if (config.isBlank()) {
+                    fileActions.writeToFile(folderPath, fileName, forceBrowserDownloadProperty);
+                } else {
                     fileActions.writeToFile(folderPath, fileName
-                            , configFileContent + System.lineSeparator() + "force-browser-download = true");
-            } else {
-                fileActions.createFile(folderPath, fileName);
-                fileActions.writeToFile(folderPath, fileName, "force-browser-download = true");
-            }
+                            , config + System.lineSeparator() + forceBrowserDownloadProperty);
+                }
+        } else {
+            if (config.contains("force-browser-download"))
+                fileActions.writeToFile(folderPath, fileName
+                        , config.replaceAll("force-browser-download.+\\Be", ""));
+        }
+
+        //reload config file
+        config = fileActions.readFile(folderPath, fileName);
+
+        // handle proxy property
+        String proxyProperty = "proxy = \"" + SHAFT.Properties.platform.proxy() + "\"";
+        if (!SHAFT.Properties.platform.proxy().isEmpty()) {
+            if (!config.contains(proxyProperty))
+                if (config.isBlank()) {
+                    fileActions.writeToFile(folderPath, fileName, proxyProperty);
+                } else {
+                    fileActions.writeToFile(folderPath, fileName
+                            , config + System.lineSeparator() + proxyProperty);
+                }
+        } else {
+            if (config.contains("proxy"))
+                fileActions.writeToFile(folderPath, fileName
+                        , config.replaceAll("proxy.+\\B", ""));
         }
     }
 
+
     @SuppressWarnings("SpellCheckingInspection")
     protected void initializeMobileDesiredCapabilities() {
+        switch (Properties.platform.targetPlatform().toLowerCase()) {
+            case "android" -> appiumCapabilities.setPlatform(Platform.ANDROID);
+            case "ios" -> appiumCapabilities.setPlatform(Platform.IOS);
+            default -> appiumCapabilities.setPlatform(Platform.ANY);
+        }
         if (!DriverFactoryHelper.isMobileWebExecution()) {
             Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
             caps.forEach((capabilityName, value) -> {
@@ -210,10 +271,10 @@ public class OptionsManager {
 
         if (DriverFactoryHelper.isMobileWebExecution()) {
             //https://chromedriver.chromium.org/capabilities
-            appiumCapabilities.setCapability("browserName", SHAFT.Properties.mobile.browserName());
-            appiumCapabilities.setCapability("pageLoadStrategy", PageLoadStrategy.NONE);
+            appiumCapabilities.setBrowserName(SHAFT.Properties.mobile.browserName());
+            appiumCapabilities.setCapability("pageLoadStrategy", this.pageLoadStrategy);
         }
-
+        /*
         if (!DriverFactoryHelper.isMobileWebExecution() && Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             // experimental android capabilities
             // https://github.com/appium/appium-uiautomator2-driver
@@ -263,6 +324,8 @@ public class OptionsManager {
             if (appiumCapabilities.getCapability("appium:showChromedriverLog") == null)
                 appiumCapabilities.setCapability("appium:showChromedriverLog", true);
         }
+         */
+
         ReportManager.log(appiumCapabilities.toString());
     }
 
@@ -272,39 +335,106 @@ public class OptionsManager {
         if (!executionAddress.equalsIgnoreCase("local"))
             options.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
         if (SHAFT.Properties.web.headlessExecution()) {
-            options.addArguments("--headless=new");
+            options.addArguments("--headless");
             // https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md#headless
         }
         // Fix "org.openqa.selenium.TimeoutException: timeout: Timed out receiving message from renderer: 10.000" on chrome/mac
         // https://github.com/ultrafunkamsterdam/undetected-chromedriver/issues/1280
-        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName()) && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.MAC.name())) {
+        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
+            && SHAFT.Properties.flags.automaticallyAddRecommendedChromeOptions()) {
             //         https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
             //         https://docs.google.com/spreadsheets/d/1n-vw_PCPS45jX3Jt9jQaAhFqBY6Ge1vWF_Pa0k7dCk4/edit#gid=1265672696
-            options.addArguments("--remote-allow-origins=*", "--enable-automation", "--disable-background-timer-throttling", "--disable-backgrounding-occluded-windows", "--disable-features=CalculateNativeWinOcclusion", "--disable-hang-monitor", "--disable-domain-reliability", "--disable-renderer-backgrounding", "--disable-features=AutofillServerCommunication", "--metrics-recording-only", "--no-first-run", "--no-default-browser-check", "--silent-debugger-extension-api", "--disable-extensions", "--disable-component-extensions-with-background-pages", "--disable-dev-shm-usage", "--disable-features=MediaRouter", "--disable-features=Translate", "--disable-ipc-flooding-protection", "--disable-background-networking", "--mute-audio", "--disable-breakpad", "--ignore-certificate-errors", "--disable-device-discovery-notifications", "--force-color-profile=srgb", "--hide-scrollbars", "--host-resolver-rules", "--no-pings", "--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync", "--disable-features=CertificateTransparencyComponentUpdater", "--disable-sync", "--disable-features=OptimizationHints", "--disable-features=DialMediaRouteProvider", "--disable-features=GlobalMediaControls", "--disable-features=ImprovedCookieControls", "--disable-features=LazyFrameLoading", "--disable-field-trial-config", "--enable-features=NetworkService", "--enable-features=NetworkServiceInProcess", "--enable-use-zoom-for-dsf", "--log-net-log", "--net-log-capture-mode", "--disable-client-side-phishing-detection", "--disable-default-apps", "--disable-features=InterestFeedContentSuggestions");
+            options.addArguments(
+                    // Commonly unwanted browser features
+                    "--disable-client-side-phishing-detection", //Disables client-side phishing detection
+                    "--disable-component-extensions-with-background-pages", //Disable some built-in extensions that aren't affected by --disable-extensions
+                    "--disable-default-apps", //Disable installation of default apps
+                    "--disable-extensions", //Disable all chrome extensions
+                    "--disable-features=InterestFeedContentSuggestions", //Disables the Discover feed on NTP
+                    "--disable-features=Translate", //Disables Chrome translation, both the manual option and the popup prompt when a page with differing language is detected.
+                    "--hide-scrollbars", //Hide scrollbars from screenshots.
+                    "--mute-audio", //Mute any audio
+                    "--no-default-browser-check", //Disable the default browser check, do not prompt to set it as such
+                    "--no-first-run", //Skip first run wizards
+                    "--ash-no-nudges", //Avoids blue bubble "user education" nudges (eg., "… give your browser a new look", Memory Saver)
+                    "--disable-search-engine-choice-screen", //Disable the 2023+ search engine choice screen
+                    "--propagate-iph-for-testing", //Specifies which in-product help (IPH) features are allowed. If no arguments are provided, then all IPH features are disabled.
+                    // Task throttling
+                    "--disable-background-timer-throttling", //Disable timers being throttled in background pages/tabs
+                    "--disable-backgrounding-occluded-windows", //Normally, Chrome will treat a 'foreground' tab instead as backgrounded if the surrounding window is occluded (aka visually covered) by another window. This flag disables that.
+                    "--disable-features=CalculateNativeWinOcclusion", //Disable the feature of: Calculate window occlusion on Windows will be used in the future to throttle and potentially unload foreground tabs in occluded windows.
+                    "--disable-hang-monitor", //Suppresses hang monitor dialogs in renderer processes. This flag may allow slow unload handlers on a page to prevent the tab from closing.
+                    "--disable-ipc-flooding-protection", //Some javascript functions can be used to flood the browser process with IPC. By default, protection is on to limit the number of IPC sent to 10 per second per frame. This flag disables it. https://crrev.com/604305
+                    "--disable-renderer-backgrounding", //This disables non-foreground tabs from getting a lower process priority This doesn't (on its own) affect timers or painting behavior. karma-chrome-launcher#123
+                    // Web platform behavior
+                    "--allow-running-insecure-content",
+                    // others
+                    "--remote-allow-origins=*",
+                    "--enable-automation",
+                    "--disable-features=OptimizationGuideModelDownloading,OptimizationHintsFetching,OptimizationTargetPrediction,OptimizationHints,CalculateNativeWinOcclusion,AutofillServerCommunication,MediaRouter,Translate,AvoidUnnecessaryBeforeUnloadCheckSync,CertificateTransparencyComponentUpdater,OptimizationHints,DialMediaRouteProvider,GlobalMediaControls,ImprovedCookieControls,LazyFrameLoading,InterestFeedContentSuggestions",
+                    "--disable-domain-reliability",
+                    "--metrics-recording-only",
+                    "--silent-debugger-extension-api",
+                    "--disable-dev-shm-usage",
+                    "--disable-background-networking",
+                    "--disable-breakpad",
+                    "--ignore-certificate-errors",
+                    "--disable-device-discovery-notifications",
+                    "--force-color-profile=srgb",
+                    "--host-resolver-rules",
+                    "--no-pings",
+                    "--disable-sync",
+                    "--disable-field-trial-config",
+                    "--enable-features=NetworkService",
+                    "--enable-features=NetworkServiceInProcess",
+                    "--enable-use-zoom-for-dsf",
+                    "--log-net-log",
+                    "--net-log-capture-mode",
+                    "--no-sandbox",
+                    "--disable-save-password-bubble"
+            );
         }
         // Add if condtion to start the new session if flag=true on specific port
         if (SHAFT.Properties.performance.isEnabled()) {
             options.addArguments("--remote-debugging-port=" + SHAFT.Properties.performance.port());
-            options.addArguments("--no-sandbox");
         }
+
+        // browser window size and position
         if (SHAFT.Properties.flags.autoMaximizeBrowserWindow() && !Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.MAC.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             options.addArguments("--start-maximized");
         } else {
             options.addArguments("--window-position=0,0", "--window-size=" + DriverFactoryHelper.getTARGET_WINDOW_SIZE().getWidth() + "," + DriverFactoryHelper.getTARGET_WINDOW_SIZE().getHeight());
         }
-        if (!SHAFT.Properties.flags.autoCloseDriverInstance()) options.setExperimentalOption("detach", true);
-
+        //Incognito mode for Chrome and Edge
+        if (SHAFT.Properties.web.incognitoMode()) {
+            SHAFT.Properties.platform.set().enableBiDi(false);
+            if (options.getBrowserName().equals(DriverFactory.DriverType.CHROME.getValue())) {
+                options.addArguments("--incognito");
+            } else if (options.getBrowserName().equals(DriverFactory.DriverType.EDGE.getValue())) {
+                options.addArguments("inPrivate");
+            }
+        }
+        // Configure download directory from downloadsFolderPath property (always applied)
         Map<String, Object> chromePreferences = new HashMap<>();
-        chromePreferences.put("profile.default_content_settings.popups", 0);
         chromePreferences.put("download.prompt_for_download", "false");
         chromePreferences.put("download.default_directory", System.getProperty("user.dir") + File.separatorChar + SHAFT.Properties.paths.downloads().replace("/", File.separator));
+        // Add additional recommended capabilities and options if flag is enabled
+        if (SHAFT.Properties.flags.automaticallyAddRecommendedChromeOptions()) {
+            chromePreferences.put("credentials_enable_service", false);
+            chromePreferences.put("profile.password_manager_enabled", false);
+            chromePreferences.put("profile.password_manager_leak_detection", false);
+            chromePreferences.put("profile.default_content_settings.popups", 0);
+            options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
+            options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
+            options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
+            options.setCapability(CapabilityType.ENABLE_DOWNLOADS, true);
+        }
         options.setExperimentalOption("prefs", chromePreferences);
-        options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
-        options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
-        options.setPageLoadStrategy(PageLoadStrategy.NORMAL); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
+        // Timeouts and page load strategy
+        if (DriverFactoryHelper.isNotMobileExecution())
+            options.setPageLoadStrategy(this.pageLoadStrategy); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
         options.setPageLoadTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.pageLoadTimeout()));
         options.setScriptTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.scriptExecutionTimeout()));
-        options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
         //Add Proxy Setting if found
         String proxy = Properties.platform.proxy();
         if (SHAFT.Properties.platform.driverProxySettings() && !"".equals(proxy)) {
@@ -315,7 +445,7 @@ public class OptionsManager {
             options.setCapability("goog:loggingPrefs", configureLoggingPreferences());
         }
         // Mobile Emulation
-        if (SHAFT.Properties.web.isMobileEmulation() && DriverFactoryHelper.isWebExecution()) {
+        if (SHAFT.Properties.web.isMobileEmulation() && DriverFactoryHelper.isNotMobileExecution()) {
             Map<String, Object> mobileEmulation = new HashMap<>();
             if (!SHAFT.Properties.web.mobileEmulationIsCustomDevice() && (!SHAFT.Properties.web.mobileEmulationDeviceName().isBlank())) {
                 mobileEmulation.put("deviceName", SHAFT.Properties.web.mobileEmulationDeviceName());
@@ -336,18 +466,25 @@ public class OptionsManager {
             options.setExperimentalOption("mobileEmulation", mobileEmulation);
         }
         // Enable BiDi
-        options.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+        if (SHAFT.Properties.platform.enableBiDi())
+            options.enableBiDi();
         //merge customWebdriverCapabilities.properties
         options = (ChromiumOptions<?>) options.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
         //merge hardcoded custom options
         if (customDriverOptions != null) {
             options = (ChromiumOptions<?>) options.merge(customDriverOptions);
         }
-
+        //detach Chrome instance if autoCloseDriverInstance is false
         if (!SHAFT.Properties.flags.autoCloseDriverInstance()) {
-            Map<Object, Object> chromeOptions = new HashMap<>((Map<Object, Object>) options.getCapability(ChromeOptions.CAPABILITY));
+            @SuppressWarnings("unchecked") Map<Object, Object> chromeOptions = new HashMap<>((Map<Object, Object>) options.getCapability(ChromeOptions.CAPABILITY));
             chromeOptions.put("detach", true);
             options.setCapability(ChromeOptions.CAPABILITY, chromeOptions);
+            options.setExperimentalOption("detach", true);
+        }
+        //disable SSL certificate check
+        if(SHAFT.Properties.flags.disableSslCertificateCheck())
+        {
+            options.addArguments("ignore-certificate-errors");
         }
         return options;
     }

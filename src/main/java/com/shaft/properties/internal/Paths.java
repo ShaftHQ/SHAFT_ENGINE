@@ -10,7 +10,7 @@ import org.aeonbits.owner.ConfigFactory;
         "file:src/main/resources/properties/default/path.properties",
         "classpath:path.properties",
 })
-public interface Paths extends EngineProperties {
+public interface Paths extends EngineProperties<Paths> {
     private static void setProperty(String key, String value) {
         var updatedProps = new java.util.Properties();
         updatedProps.setProperty(key, value);
@@ -51,6 +51,11 @@ public interface Paths extends EngineProperties {
     @Key("executionSummaryReportFolderPath")
     @DefaultValue("execution-summary/")
     String executionSummaryReport();
+
+    @Key("PerformanceReportFolderPath")
+    @DefaultValue("performanceReport/")
+    String performanceReportPath();
+
 
     @Key("video.folder")
     @DefaultValue("allure-results/videos")

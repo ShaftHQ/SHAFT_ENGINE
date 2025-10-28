@@ -15,7 +15,6 @@ public class PropertiesManagerTests {
         Properties.mobile.set().selfManaged(true);
         Properties.paths.set().properties("src/main/resources/properties/");
         Properties.pattern.set().testDataColumnNamePrefix("Data");
-        Properties.platform.set().executionAddress("0.0.0.0:4723");
         Properties.reporting.set().captureElementName(true);
         Properties.timeouts.set().waitForLazyLoading(true);
         Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
@@ -34,7 +33,6 @@ public class PropertiesManagerTests {
         SHAFT.Validations.assertThat().object(Properties.jira.isEnabled()).equals(true);
         SHAFT.Validations.assertThat().object(Properties.paths.properties()).equals("src/main/resources/properties/");
         SHAFT.Validations.assertThat().object(Properties.pattern.testDataColumnNamePrefix()).equals("Data");
-        SHAFT.Validations.assertThat().object(Properties.platform.executionAddress()).equals("0.0.0.0:4723");
         SHAFT.Validations.assertThat().object(Properties.log4j.name()).equals("PropertiesConfig");
         SHAFT.Validations.assertThat().object(Properties.reporting.captureElementName()).equals(true);
         SHAFT.Validations.assertThat().object(Properties.timeouts.waitForLazyLoading()).equals(true);

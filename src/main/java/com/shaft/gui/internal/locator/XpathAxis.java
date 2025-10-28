@@ -23,8 +23,18 @@ public class XpathAxis {
         return locatorBuilder;
     }
 
+    public LocatorBuilder parent(String tagName) {
+        locatorBuilder.partialXpath += "//parent::" + tagName;
+        return locatorBuilder;
+    }
+
     public LocatorBuilder descendant(String tagName) {
         locatorBuilder.partialXpath += "//descendant::" + tagName;
+        return locatorBuilder;
+    }
+
+    public LocatorBuilder child(String tagName) {
+        locatorBuilder.partialXpath += "//parent::" + tagName;
         return locatorBuilder;
     }
 

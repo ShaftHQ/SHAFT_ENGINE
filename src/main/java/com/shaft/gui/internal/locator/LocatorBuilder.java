@@ -8,11 +8,11 @@ import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class LocatorBuilder {
+    private static final ThreadLocal<Locators> mode = new ThreadLocal<>();
     @Getter
     static ThreadLocal<By> iFrameLocator = new ThreadLocal<>();
     @Getter
     static ThreadLocal<By> shadowDomLocator = new ThreadLocal<>();
-    private static final ThreadLocal<Locators> mode = new ThreadLocal<>();
     String partialXpath;
     private String tagName = "*";
     private ArrayList<String> parameters = new ArrayList<>();
@@ -103,14 +103,65 @@ public class LocatorBuilder {
         return this;
     }
 
-    public RelativeLocator.RelativeBy relativeBy() {
+    public RelativeLocator.RelativeBy byRelation() {
         return RelativeLocator.with(By.xpath(buildXpathExpression()));
     }
 
-    public XpathAxis axisBy() {
+    public XpathAxis byAxis() {
         mode.set(Locators.XPATH);
         partialXpath = buildXpathExpression();
         return new XpathAxis(this);
+    }
+
+    public static LocatorBuilder byRole(Role ariaRole) {
+        mode.set(Locators.XPATH);
+        var builder = new LocatorBuilder("", new ArrayList<>(), "");
+        switch (ariaRole) {
+            case BUTTON:
+                builder.partialXpath = "//button | //input[@type='button'] | //input[@type='submit'] | //input[@type='reset'] | //a[contains(@class,'button')]";
+                break;
+            case LINK:
+                builder.partialXpath = "//a[@href]";
+                break;
+            case TEXTBOX:
+                builder.partialXpath = "//input[@type='text'] | //textarea | //input[@type='email'] | //input[@type='password'] | //input[@type='search'] | //input[not(@type)] | //input[@type='tel'] | //input[@type='url'] | //input[@type='number'] | //input[@type='date'] | //input[@type='time'] | //input[@type='month'] | //input[@type='week'] | //input[@type='datetime-local']";
+                break;
+            case CHECKBOX:
+                builder.partialXpath = "//input[@type='checkbox']";
+                break;
+            case RADIO:
+                builder.partialXpath = "//input[@type='radio']";
+                break;
+            case COMBOBOX:
+                builder.partialXpath = "//select | //input[@type='select-one'] | //input[@type='select-multiple']";
+                break;
+            case HEADING:
+                builder.partialXpath = "//h1 | //h2 | //h3 | //h4 | //h5 | //h6";
+                break;
+            case IMAGE:
+                builder.partialXpath = "//img | //input[@type='image']";
+                break;
+            case LIST:
+                builder.partialXpath = "//ul | //ol | //dl";
+                break;
+            case LISTITEM:
+                builder.partialXpath = "//li | //dt | //dd";
+                break;
+            case TABLE:
+                builder.partialXpath = "//table";
+                break;
+            case TABLE_ROW:
+                builder.partialXpath = "//tr";
+                break;
+            case TABLE_CELL:
+                builder.partialXpath = "//td";
+                break;
+            case TABLE_COLUMNHEADER:
+                builder.partialXpath = "//th";
+                break;
+        }
+        builder.partialXpath = "(" + builder.partialXpath + ")";
+        return builder;
     }
 
     public By build() {

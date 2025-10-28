@@ -2,9 +2,9 @@ package com.shaft.tools.internal.support;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
-import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
+import org.apache.logging.log4j.Level;
 import org.openqa.selenium.By;
 import org.openqa.selenium.support.locators.RelativeLocator;
 import org.testng.Assert;
@@ -14,6 +14,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 
 @SuppressWarnings("unused")
 public class JavaHelper {
@@ -50,7 +51,7 @@ public class JavaHelper {
     public static String removeSpecialCharacters(String text) {
         StringBuilder cleanString = new StringBuilder();
         if (text != null) {
-            for (int i = 0; i < text.toCharArray().length; i++) {
+            for (int i = 0; i < text.length(); i++) {
                 var character = String.valueOf(text.toCharArray()[i]);
                 if (Pattern.compile("[^a-z0-9]", Pattern.CASE_INSENSITIVE).matcher(character).find()) {
                     cleanString.append("_");
@@ -75,8 +76,8 @@ public class JavaHelper {
         return replaceRegex(specialCharactersArray, text);
     }
 
-    public static String convertBase64(String text) {
-        return Base64.getEncoder().encodeToString(text.getBytes());
+    public static String encodeToBase64String(String text) {
+        return Base64.getUrlEncoder().encodeToString(text.getBytes());
     }
 
     /**
@@ -97,7 +98,7 @@ public class JavaHelper {
      */
     public static int compareTwoObjects(Object expectedValue, Object actualValue, Object comparisonType,
                                         Boolean validationType) {
-        ReportManager.logDiscrete("Expected \"" + expectedValue + "\", and actual \"" + actualValue + "\"");
+        ReportManagerHelper.logDiscrete("Expected \"" + expectedValue + "\", and actual \"" + actualValue + "\"", Level.DEBUG);
         if ("null".equals(expectedValue)) {
             expectedValue = null;
         }

@@ -2,6 +2,8 @@ package testPackage.LambdaTest;
 
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Platform;
+import org.openqa.selenium.remote.Browser;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -54,10 +56,10 @@ public class Test_LTWebAppRealme {
         // common attributes
         SHAFT.Properties.lambdaTest.set().deviceName("Pixel 7");
         SHAFT.Properties.lambdaTest.set().platformVersion("13");
-        SHAFT.Properties.platform.set().targetPlatform("Android");
+        SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
         SHAFT.Properties.platform.set().executionAddress("lambdatest");
-        SHAFT.Properties.web.set().targetBrowserName("chrome");
-        SHAFT.Properties.mobile.set().browserName("chrome");
+        SHAFT.Properties.web.set().targetBrowserName(Browser.CHROME.browserName());
+        SHAFT.Properties.mobile.set().browserName(Browser.CHROME.browserName());
         SHAFT.Properties.lambdaTest.set().selenium_version("4.8.0");
         SHAFT.Properties.lambdaTest.set().osVersion("11");
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));

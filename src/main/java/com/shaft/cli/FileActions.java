@@ -11,7 +11,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.commons.lang3.SystemUtils;
-import org.apache.logging.log4j.Level;
 import org.openqa.selenium.Platform;
 
 import java.io.*;
@@ -59,9 +58,14 @@ public class FileActions {
         try {
             var targetFile = new File(filePath);
             String targetDirectory = targetFile.getParentFile().getAbsolutePath();
-            FileUtils.copyFile(targetFile, new File(targetDirectory + File.separator + newFileName));
-            FileUtils.deleteQuietly(targetFile);
-            passAction("Target File Path: \"" + filePath + "\", file was renamed to \"" + newFileName + "\".");
+            File newFile = new File(targetDirectory + File.separator + newFileName);
+            if (!targetFile.getPath().equals(newFile.getPath())) {
+                FileUtils.copyFile(targetFile, newFile);
+                FileUtils.deleteQuietly(targetFile);
+                passAction("Target File Path: \"" + filePath + "\", file was renamed to \"" + newFileName + "\".");
+            } else {
+                passAction("Target File Path: \"" + filePath + "\", already has the desired name \"" + newFileName + "\".");
+            }
         } catch (IOException e) {
             failAction(e);
         }
@@ -293,7 +297,7 @@ public class FileActions {
         }
         String negation = wasFileDeleted ? "" : "not ";
         //if (!wasFileDeleted)
-            //ReportManager.log("File was not deleted: `"+targetFilePath+"`", Level.WARN);
+        //ReportManager.log("File was not deleted: `"+targetFilePath+"`", Level.WARN);
         passAction("Target File Path: \"" + targetFilePath + "\", file was " + negation + "deleted.");
     }
 
@@ -306,11 +310,7 @@ public class FileActions {
         String absoluteFilePath = (new File(filePath)).getAbsolutePath();
         try {
             Path targetFilePath = Paths.get(absoluteFilePath);
-            Path parentDir = targetFilePath.getParent();
-            if (!parentDir.toFile().exists()) {
-                Files.createDirectories(parentDir);
-            }
-            Files.write(targetFilePath, content);
+            FileUtils.writeByteArrayToFile(targetFilePath.toFile(), content);
             passAction("Target File Path: \"" + targetFilePath + "\"", Arrays.toString(content));
         } catch (InvalidPathException | IOException rootCauseException) {
             failAction("Folder Name: \"" + filePath + "\".", rootCauseException);
@@ -571,11 +571,14 @@ public class FileActions {
 
     public void createFile(String folderPath, String fileName) {
         try {
+            FileUtils.deleteQuietly(new File(folderPath + fileName));
             FileUtils.forceMkdir(new File(folderPath));
             FileUtils.touch(new File(folderPath + fileName));
             passAction("Target Folder: \"" + folderPath + "\", Target File: \"" + fileName + "\"");
+        } catch (java.nio.file.FileAlreadyExistsException fileAlreadyExistsException) {
+            passAction("Target Folder: \"" + folderPath + "\", Target File: \"" + fileName + "\" already exists.");
         } catch (IOException rootCauseException) {
-            failAction(rootCauseException);
+            failAction("Target Folder: \"" + folderPath + "\", Target File: \"" + fileName + "\"", rootCauseException);
         }
     }
 
@@ -587,7 +590,7 @@ public class FileActions {
                 var log = new StringBuilder();
                 fileWalker.filter(Files::isRegularFile)
                         .forEach(filePath -> {
-                            log.append(filePath.toString());
+                            log.append(filePath);
                             log.append("\n");
                         });
                 ReportManager.log("Archiving the following files:\n" + log);
@@ -631,11 +634,11 @@ public class FileActions {
     public URL downloadFile(String targetFileURL, String destinationFilePath, int connectionTimeout,
                             int readTimeout) {
         if (targetFileURL != null && destinationFilePath != null) {
-            // force logging
+            // force discrete logging
             boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(false);
             try {
-                ReportManager.log("Downloading a file from this url \"" + targetFileURL + "\" to this directory \""
+                ReportManager.logDiscrete("Downloading a file from this url \"" + targetFileURL + "\" to this directory \""
                         + destinationFilePath + "\", please wait as downloading may take some time...");
                 FileUtils.copyURLToFile(URI.create(targetFileURL).toURL(), new File(destinationFilePath), connectionTimeout,
                         readTimeout);
@@ -765,7 +768,6 @@ public class FileActions {
         try {
             FileUtils.copyFile(sourceFile, destinationFile);
         } catch (IOException rootCauseException) {
-
             failAction(rootCauseException);
         }
     }

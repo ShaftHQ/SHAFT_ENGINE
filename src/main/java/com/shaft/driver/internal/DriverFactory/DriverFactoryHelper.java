@@ -10,6 +10,7 @@ import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ProgressBarLogger;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.Setting;
@@ -19,16 +20,21 @@ import io.github.bonigarcia.wdm.WebDriverManager;
 import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.qameta.allure.Step;
 import lombok.*;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
+import org.openqa.selenium.bidi.BiDiProvider;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chromium.AddHasCdp;
 import org.openqa.selenium.devtools.Command;
 import org.openqa.selenium.devtools.DevTools;
+import org.openqa.selenium.devtools.DevToolsException;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.ie.InternetExplorerDriver;
 import org.openqa.selenium.remote.*;
+import org.openqa.selenium.remote.http.ConnectionFailedException;
 import org.openqa.selenium.safari.SafariDriver;
 import org.testng.Reporter;
 
@@ -95,7 +101,7 @@ public class DriverFactoryHelper {
      *
      * @return true if it's a web-based execution
      */
-    public static boolean isWebExecution() {
+    public static boolean isNotMobileExecution() {
         var isMobileExecution = Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform());
         return !isMobileExecution;
     }
@@ -116,7 +122,10 @@ public class DriverFactoryHelper {
     private static DriverType getDriverTypeFromName(String driverName) {
         int values = DriverType.values().length;
         for (var i = 0; i < values; i++) {
-            if (driverName.trim().toLowerCase().contains(Arrays.asList(DriverType.values()).get(i).getValue().toLowerCase())) {
+            var expectedName = driverName.trim().toLowerCase();
+            var supportedName = Arrays.asList(DriverType.values()).get(i).getValue().toLowerCase();
+
+            if (expectedName.contains(supportedName) || supportedName.contains(expectedName)) {
                 return Arrays.asList(DriverType.values()).get(i);
             }
         }
@@ -132,13 +141,13 @@ public class DriverFactoryHelper {
         var startTime = System.currentTimeMillis();
         do {
             try {
-                statusCode = session.get("status/").perform().andReturn().statusCode();
+                statusCode = session.get("status/").perform().getResponse().andReturn().statusCode();
                 if (statusCode >= 200 && statusCode < 300) {
                     serverReady = true;
                 }
             } catch (Throwable throwable1) {
                 try {
-                    statusCode = session.get("wd/hub/status/").perform().andReturn().statusCode();
+                    statusCode = session.get("wd/hub/status/").perform().getResponse().andReturn().statusCode();
                     if (statusCode >= 200 && statusCode < 300) {
                         serverReady = true;
                     }
@@ -159,26 +168,36 @@ public class DriverFactoryHelper {
         return statusCode;
     }
 
-    @SneakyThrows({MalformedURLException.class, InterruptedException.class})
+    @SneakyThrows({InterruptedException.class, MalformedURLException.class})
     private static WebDriver attemptRemoteServerConnection(Capabilities capabilities) {
         WebDriver driver = null;
         boolean isRemoteConnectionEstablished = false;
         var startTime = System.currentTimeMillis();
-        var exception = "";
+        Exception exception = null;
         do {
             try {
                 driver = connectToRemoteServer(capabilities, false);
                 isRemoteConnectionEstablished = true;
-            } catch (SessionNotCreatedException | URISyntaxException sessionNotCreatedException1) {
-                exception = sessionNotCreatedException1.getMessage();
-                try {
-                    driver = connectToRemoteServer(capabilities, true);
-                    isRemoteConnectionEstablished = true;
-                } catch (SessionNotCreatedException |
-                         URISyntaxException sessionNotCreatedException2) {
-                    // do nothing
-                    ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
-                    ReportManagerHelper.logDiscrete(sessionNotCreatedException2, Level.DEBUG);
+            } catch (SessionNotCreatedException | URISyntaxException |
+                     ConnectionFailedException sessionNotCreatedException1) {
+                exception = sessionNotCreatedException1;
+                String message = sessionNotCreatedException1.getMessage();
+                if (message !=null &&
+                        (message.contains("missing in the capabilities")
+                        || message.contains("not allowed on your current plan")
+                        || message.contains("has been exhausted"))) {
+                    break;
+                } else {
+                    try {
+                        driver = connectToRemoteServer(capabilities, true);
+                        isRemoteConnectionEstablished = true;
+                    } catch (SessionNotCreatedException |
+                             URISyntaxException | ConnectionFailedException sessionNotCreatedException2) {
+                        // do nothing
+                        exception = sessionNotCreatedException2;
+                        ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
+                        ReportManagerHelper.logDiscrete(sessionNotCreatedException2, Level.DEBUG);
+                    }
                 }
             }
             if (!isRemoteConnectionEstablished) {
@@ -188,43 +207,65 @@ public class DriverFactoryHelper {
             }
         } while (!isRemoteConnectionEstablished && (System.currentTimeMillis() - startTime < TimeUnit.SECONDS.toMillis(remoteServerInstanceCreationTimeout)));
         if (!isRemoteConnectionEstablished) {
-            failAction("Failed to connect to remote server. Session was still not created after " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + " minutes." + "\nOriginal Error is : " + exception);
+            failAction("Failed to connect to remote server. Session was still not created after " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + " minutes.", exception);
         }
         return driver;
     }
 
-    private static WebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws MalformedURLException, URISyntaxException {
-        var targetHubUrl = isLegacy ? TARGET_HUB_URL + "wd/hub" : TARGET_HUB_URL;
+    private static WebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws URISyntaxException, MalformedURLException {
+        var targetHubUrl = TARGET_HUB_URL;
+        if (isLegacy) {
+            if (StringUtils.isNumeric(TARGET_HUB_URL.substring(TARGET_HUB_URL.length() - 1))) {
+                // this is a workaround for the case when the user sets the TARGET_HUB_URL to end with a numeric value like "4723"
+                // which is not a valid URL, so we append "/wd/hub" to it
+                targetHubUrl = TARGET_HUB_URL + "/wd/hub";
+            } else {
+                targetHubUrl = TARGET_HUB_URL + "wd/hub";
+            }
+        }
         var targetLambdaTestHubURL = targetHubUrl.replace("http", "https");
         var targetPlatform = Properties.platform.targetPlatform();
         var targetMobileHubUrl = targetHubUrl.replace("@", "@mobile-").replace("http", "https");
 
-        if (targetPlatform.equalsIgnoreCase(Platform.ANDROID.toString())) {
-            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
-                return new AndroidDriver(new URI(targetMobileHubUrl).toURL(), capabilities);
-            } else {
-                if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                    return new AndroidDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities);
-                } else {
-                    return new AndroidDriver(new URI(targetHubUrl).toURL(), capabilities);
+        var isAndroidExecution = targetPlatform.equalsIgnoreCase(Platform.ANDROID.toString());
+        var isIosExecution = targetPlatform.equalsIgnoreCase(Platform.IOS.toString());
+        var isLambdaTestExecution = SHAFT.Properties.platform.executionAddress().contains("lambdatest");
+
+        var targetExecutionUrl = "";
+
+        if (isLambdaTestExecution && !isMobileWebExecution()) targetExecutionUrl = targetMobileHubUrl;
+        else if (isLambdaTestExecution) targetExecutionUrl = targetLambdaTestHubURL;
+        else targetExecutionUrl = targetHubUrl;
+
+        ReportManagerHelper.logDiscrete("Target Execution URI after processing: `" + targetExecutionUrl + "`, and capabilities after processing: `" + capabilities.toString() + "`.", Level.DEBUG);
+        try {
+            //builder code block, has issues in many cases, test it locally via grid before using it
+//            if (isAndroidExecution) return AndroidDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
+//            else if (isIosExecution) return IOSDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
+//            else return RemoteWebDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
+            // legacy constructor-based code block
+            if (isAndroidExecution) return new AndroidDriver(new URI(targetExecutionUrl).toURL(), capabilities);
+            else if (isIosExecution) return new IOSDriver(new URI(targetExecutionUrl).toURL(), capabilities);
+            else {
+                var driver = new RemoteWebDriver(URI.create(targetExecutionUrl).toURL(), capabilities);
+                driver.setFileDetector(new LocalFileDetector());
+                var augmenter = new Augmenter();
+                var targetBrowser = SHAFT.Properties.web.targetBrowserName().toLowerCase();
+                if (Arrays.asList("chrome", "edge").contains(targetBrowser)) {
+                    augmenter.addDriverAugmentation(new AddHasCdp() {
+                        @Override
+                        public Map<String, CommandInfo> getAdditionalCommands() {
+                            return Map.of();
+                        }
+                    });
                 }
+                if (SHAFT.Properties.platform.enableBiDi())
+                    augmenter.addDriverAugmentation(new BiDiProvider());
+                return augmenter.augment(driver);
             }
-        } else if (targetPlatform.equalsIgnoreCase(Platform.IOS.toString())) {
-            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest") && !isMobileWebExecution()) {
-                return new IOSDriver(new URI(targetMobileHubUrl).toURL(), capabilities);
-            } else {
-                if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                    return new IOSDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities);
-                } else {
-                    return new IOSDriver(new URI(targetHubUrl).toURL(), capabilities);
-                }
-            }
-        } else {
-            if (SHAFT.Properties.platform.executionAddress().contains("lambdatest")) {
-                return new RemoteWebDriver(new URI(targetLambdaTestHubURL).toURL(), capabilities, false);
-            } else {
-                return new RemoteWebDriver(new URI(targetHubUrl).toURL(), capabilities, false);
-            }
+        } catch (Throwable throwable) {
+            ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
+            throw throwable;
         }
     }
 
@@ -251,6 +292,11 @@ public class DriverFactoryHelper {
                     webDriverManager.get().quit(driver);
                     RecordManager.attachVideoRecording(pathToRecording);
                 } else {
+                    try {
+                        driver.close();
+                    } catch (Exception e) {
+                        //ignore
+                    }
                     driver.quit();
                 }
             } catch (WebDriverException | NullPointerException e) {
@@ -267,16 +313,21 @@ public class DriverFactoryHelper {
     }
 
     private void disableCacheEdgeAndChrome() {
-        if (SHAFT.Properties.flags.disableCache() && driver instanceof HasDevTools hasDevToolsDriver) {
-            DevTools devTools = hasDevToolsDriver.getDevTools();
-            devTools.createSessionIfThereIsNotOne();
-            LinkedHashMap<String, Object> params = new LinkedHashMap<>();
-            params.put("maxPostDataSize", 100000000);
-            devTools.send(new Command<>("Network.enable", Map.copyOf(params)));
-            params = new LinkedHashMap<>();
-            params.put("cacheDisabled", true);
-            devTools.send(new Command<>("Network.setCacheDisabled", params));
-            devTools.send(new Command<>("Network.clearBrowserCookies", Map.copyOf(new LinkedHashMap<>())));
+        try {
+            if (SHAFT.Properties.flags.disableCache() && driver instanceof HasDevTools hasDevToolsDriver) {
+                DevTools devTools = hasDevToolsDriver.getDevTools();
+                devTools.createSessionIfThereIsNotOne();
+                LinkedHashMap<String, Object> params = new LinkedHashMap<>();
+                params.put("maxPostDataSize", 100000000);
+                devTools.send(new Command<>("Network.enable", Map.copyOf(params)));
+                params = new LinkedHashMap<>();
+                params.put("cacheDisabled", true);
+                devTools.send(new Command<>("Network.setCacheDisabled", params));
+                devTools.send(new Command<>("Network.clearBrowserCookies", Map.copyOf(new LinkedHashMap<>())));
+            }
+        } catch (DevToolsException e) {
+            ReportManagerHelper.logDiscrete(e);
+            ReportManager.logDiscrete("We recommend disabling this property 'SHAFT.Properties.flags.disableCache()' or downgrading your browser.");
         }
     }
 
@@ -450,7 +501,7 @@ public class DriverFactoryHelper {
             killSwitch = true;
             failAction("Unreachable Browser, terminated test suite execution.", e);
         } catch (WebDriverException e) {
-            if (e.getMessage().contains("Error forwarding the new session cannot find")) {
+            if (e.getMessage() !=null && e.getMessage().contains("Error forwarding the new session cannot find")) {
                 ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + TARGET_HUB_URL + "\".");
                 failAction("Error forwarding the new session: Couldn't find a node that matches the desired capabilities.", e);
             } else {
@@ -481,28 +532,39 @@ public class DriverFactoryHelper {
 
         // stage 2: create remote driver instance (requires some time with dockerized appium)
         ReportManager.logDiscrete("Attempting to instantiate remote driver instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
-        try {
+        try (ProgressBarLogger pblogger = new ProgressBarLogger("Instantiating...", (int) remoteServerInstanceCreationTimeout)) {
             setDriver(attemptRemoteServerConnection(capabilities));
-            ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
-            if (!isWebExecution() && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase("Android")) {
+            if (driver instanceof RemoteWebDriver remoteWebDriver)
+                remoteWebDriver.setFileDetector(new LocalFileDetector());
+            if (!isNotMobileExecution()
+                    && SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase("Android")
+                    && (driver instanceof AppiumDriver appiumDriver)) {
                 // https://github.com/appium/appium-uiautomator2-driver#settings-api
-                ((AppiumDriver) driver).setSetting(Setting.WAIT_FOR_IDLE_TIMEOUT, 5000);
-                ((AppiumDriver) driver).setSetting(Setting.ALLOW_INVISIBLE_ELEMENTS, true);
-                ((AppiumDriver) driver).setSetting(Setting.IGNORE_UNIMPORTANT_VIEWS, false);
-                ((AppiumDriver) driver).setSetting("enableMultiWindows", true);
+                appiumDriver.setSetting(Setting.WAIT_FOR_IDLE_TIMEOUT, 5000);
+                appiumDriver.setSetting(Setting.ALLOW_INVISIBLE_ELEMENTS, true);
+                appiumDriver.setSetting(Setting.IGNORE_UNIMPORTANT_VIEWS, false);
+                appiumDriver.setSetting("enableMultiWindows", true);
 //        elementResponseAttributes, shouldUseCompactResponses
-                ((AppiumDriver) driver).setSetting(Setting.MJPEG_SCALING_FACTOR, 25);
-                ((AppiumDriver) driver).setSetting(Setting.MJPEG_SERVER_SCREENSHOT_QUALITY, 100);
-                ((AppiumDriver) driver).setSetting("mjpegBilinearFiltering", true);
-                // ((AppiumDriver) driver).setSetting("limitXPathContextScope", false);
-//                ((AppiumDriver) driver).setSetting("disableIdLocatorAutocompletion", true);
+                appiumDriver.setSetting(Setting.MJPEG_SCALING_FACTOR, 25);
+                appiumDriver.setSetting(Setting.MJPEG_SERVER_SCREENSHOT_QUALITY, 100);
+                appiumDriver.setSetting("mjpegBilinearFiltering", true);
+                // appiumDriver.setSetting("limitXPathContextScope", false);
+//                appiumDriver.setSetting("disableIdLocatorAutocompletion", true);
 //        https://github.com/appium/appium-uiautomator2-driver#mobile-deeplink
 //        http://code2test.com/appium-tutorial/how-to-use-uiselector-in-appium/
 //        https://github.com/appium/appium-uiautomator2-driver
             }
             ReportManager.logDiscrete("Successfully instantiated remote driver instance.");
         } catch (Throwable throwable) {
-            failAction("Failed to instantiate remote driver instance.", throwable);
+            //Root cause: "java.lang.NumberFormatException: Error at index 4 in: "4723wd""
+            //this happens when the user types an incorrect remote server address like so http://127.0.0.1:4723
+            Throwable throwable1 = throwable;
+            if (FailureReporter.getRootCause(throwable1).contains("NumberFormatException")) {
+                var newException = new MalformedURLException("Invalid remote server URL `"+TARGET_HUB_URL+"`. Kindly ensure using one of the supported patterns: `local`, `dockerized`, `browserstack`, `host:port`, `http://host:port/wd/hub`.");
+                newException.addSuppressed(throwable1);
+                throwable1 = newException;
+            }
+            failAction("Failed to create Remote WebDriver instance.", throwable1);
         }
     }
 
@@ -543,7 +605,7 @@ public class DriverFactoryHelper {
                 var driverLogs = driver.manage().logs();
                 driverLogs.getAvailableLogTypes().forEach(logType -> {
                     var logBuilder = new StringBuilder();
-                    driverLogs.get(logType).getAll().forEach(logEntry -> logBuilder.append(logEntry.toString()).append(System.lineSeparator()));
+                    driverLogs.get(logType).getAll().forEach(logEntry -> logBuilder.append(logEntry).append(System.lineSeparator()));
                     ReportManagerHelper.attach("Selenium WebDriver Logs", logType, logBuilder.toString());
                 });
             } catch (WebDriverException e) {
@@ -613,12 +675,11 @@ public class DriverFactoryHelper {
                 }
             }
 
-            if (SHAFT.Properties.web.headlessExecution()) {
-                driver.manage().window().setSize(new Dimension(TARGET_WINDOW_SIZE.getWidth(), TARGET_WINDOW_SIZE.getHeight()));
-            } else {
-                Dimension browserWindowSize = new Dimension(SHAFT.Properties.web.browserWindowWidth(), SHAFT.Properties.web.browserWindowHeight());
-                if (!isMobileExecution && !SHAFT.Properties.flags.autoMaximizeBrowserWindow()) {
-                    driver.manage().window().setSize(browserWindowSize);
+            if (!isMobileExecution && SHAFT.Properties.web.headlessExecution()) {
+                if (SHAFT.Properties.flags.autoMaximizeBrowserWindow()) {
+                    driver.manage().window().setSize(new Dimension(TARGET_WINDOW_SIZE.getWidth(), TARGET_WINDOW_SIZE.getHeight()));
+                } else {
+                    driver.manage().window().setSize(new Dimension(SHAFT.Properties.web.browserWindowWidth(), SHAFT.Properties.web.browserWindowHeight()));
                 }
             }
 
@@ -639,5 +700,11 @@ public class DriverFactoryHelper {
 //            driver =ThreadGuard.protect(SelfHealingDriver.create(driver)));
             setDriver(SelfHealingDriver.create(driver));
         }
+    }
+
+    public void initializeDriver(@NonNull WebDriver driver) {
+        initializeSystemProperties();
+        ReportManager.log("Attaching to existing driver session '" + driver + "'.");
+        setDriver(driver);
     }
 }

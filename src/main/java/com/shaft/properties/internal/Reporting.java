@@ -6,7 +6,7 @@ import org.aeonbits.owner.ConfigFactory;
 
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/Reporting.properties", "file:src/main/resources/properties/default/Reporting.properties", "classpath:Reporting.properties"})
-public interface Reporting extends EngineProperties {
+public interface Reporting extends EngineProperties<Reporting> {
     private static void setProperty(String key, String value) {
         var updatedProps = new java.util.Properties();
         updatedProps.setProperty(key, value);
@@ -32,18 +32,6 @@ public interface Reporting extends EngineProperties {
     @Key("debugMode")
     @DefaultValue("false")
     boolean debugMode();
-
-    @Key("cleanAllureResultsDirectoryBeforeExecution")
-    @DefaultValue("true")
-    boolean cleanAllureResultsDirectoryBeforeExecution();
-
-    @Key("generateAllureReportArchive")
-    @DefaultValue("false")
-    boolean generateAllureReportArchive();
-
-    @Key("openAllureReportAfterExecution")
-    @DefaultValue("true")
-    boolean openAllureReportAfterExecution();
 
     @Key("openLighthouseReportWhileExecution")
     @DefaultValue("false")
@@ -89,16 +77,6 @@ public interface Reporting extends EngineProperties {
 
         public SetProperty debugMode(boolean value) {
             setProperty("debugMode", String.valueOf(value));
-            return this;
-        }
-
-        public SetProperty generateAllureReportArchive(boolean value) {
-            setProperty("generateAllureReportArchive", String.valueOf(value));
-            return this;
-        }
-
-        public SetProperty openAllureReportAfterExecution(boolean value) {
-            setProperty("openAllureReportAfterExecution", String.valueOf(value));
             return this;
         }
 

@@ -2,6 +2,8 @@ package testPackage.LambdaTest;
 
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Platform;
+import org.openqa.selenium.remote.Browser;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -32,10 +34,10 @@ public class Test_LTWebAppIOS {
         // common attributes
         SHAFT.Properties.lambdaTest.set().deviceName("iPhone 13 Pro Max");
         SHAFT.Properties.lambdaTest.set().platformVersion("15");
-        SHAFT.Properties.platform.set().targetPlatform("ios");
+        SHAFT.Properties.platform.set().targetPlatform(Platform.IOS.name());
         SHAFT.Properties.platform.set().executionAddress("lambdatest");
-        SHAFT.Properties.web.set().targetBrowserName("safari");
-        SHAFT.Properties.mobile.set().browserName("safari");
+        SHAFT.Properties.web.set().targetBrowserName(Browser.SAFARI.browserName());
+        SHAFT.Properties.mobile.set().browserName(Browser.SAFARI.browserName());
         SHAFT.Properties.lambdaTest.set().selenium_version("4.8.0");
         SHAFT.Properties.lambdaTest.set().isRealMobile(true);
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));

@@ -42,17 +42,18 @@ public class DriverFactory {
         }
     }
 
-    public static void reloadProperties() {
+    public static boolean reloadProperties() {
         if (SHAFT.Properties.platform == null) {
             System.out.println("Execution Listeners are not loaded properly... Self-Healing... Initializing minimalistic test run...");
             var runType = TestNGListener.identifyRunType();
             if (runType.equals(ProjectStructureManager.RunType.CUCUMBER)) {
                 // stuck on minimalistic test run in case of native cucumber execution without manual plugin configuration
                 System.out.println("To unlock the full capabilities of SHAFT kindly follow these steps to configure SHAFT's Cucumber plugin:");
-                System.out.println("https://github.com/ShaftHQ/SHAFT_ENGINE#stop-reinventing-the-wheel-start-using-shaft");
+                System.out.println("https://github.com/ShaftHQ/SHAFT_ENGINE?tab=readme-ov-file#23-cucumber");
             }
             TestNGListener.engineSetup(runType);
         }
+        return true;
     }
 
     /**
@@ -145,6 +146,19 @@ public class DriverFactory {
             helper.initializeDriver(driverType, customDriverOptions);
             return helper;
         }
+    }
+
+    /**
+     * Attaches the Engine to an already up and running selenium webdriver instance
+     *
+     * @param driver an already initialized native selenium webdriver instance
+     * @return a helper instance to be used for driver manipulation
+     */
+    public DriverFactoryHelper getHelper(WebDriver driver) {
+        readLastMinuteUpdatedProperties();
+        var helper = new DriverFactoryHelper();
+        helper.initializeDriver(driver);
+        return helper;
     }
 
     /**

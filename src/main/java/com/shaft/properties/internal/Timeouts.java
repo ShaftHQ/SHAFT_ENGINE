@@ -6,7 +6,7 @@ import org.aeonbits.owner.ConfigFactory;
 
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/Timeouts.properties", "file:src/main/resources/properties/default/Timeouts.properties", "classpath:Timeouts.properties"})
-public interface Timeouts extends EngineProperties {
+public interface Timeouts extends EngineProperties<Timeouts> {
     private static void setProperty(String key, String value) {
         var updatedProps = new java.util.Properties();
         updatedProps.setProperty(key, value);
@@ -21,19 +21,19 @@ public interface Timeouts extends EngineProperties {
     Boolean waitForLazyLoading();
 
     @Key("browserNavigationTimeout")
-    @DefaultValue("60")
+    @DefaultValue("30")
     int browserNavigationTimeout();
 
     @Key("pageLoadTimeout")
-    @DefaultValue("60")
+    @DefaultValue("30")
     int pageLoadTimeout();
 
     @Key("scriptExecutionTimeout")
-    @DefaultValue("60")
+    @DefaultValue("30")
     int scriptExecutionTimeout();
 
     @Key("defaultElementIdentificationTimeout")
-    @DefaultValue("60")
+    @DefaultValue("10")
     double defaultElementIdentificationTimeout();
 
     @Key("apiSocketTimeout")
@@ -73,11 +73,11 @@ public interface Timeouts extends EngineProperties {
     Boolean waitForRemoteServerToBeUp();
 
     @Key("timeoutForRemoteServerToBeUp")
-    @DefaultValue("10")
+    @DefaultValue("1")
     int timeoutForRemoteServerToBeUp();
 
     @Key("remoteServerInstanceCreationTimeout")
-    @DefaultValue("10")
+    @DefaultValue("1")
     int remoteServerInstanceCreationTimeout();
 
     @Key("waitUntilTimeout")

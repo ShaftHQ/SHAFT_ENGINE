@@ -8,6 +8,7 @@ import com.applitools.eyes.images.Eyes;
 import com.assertthat.selenium_shutterbug.core.CaptureElement;
 import com.assertthat.selenium_shutterbug.core.Shutterbug;
 import com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesException;
+import com.google.common.hash.Hashing;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
@@ -17,8 +18,9 @@ import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.Validations;
 import nu.pattern.OpenCV;
-import org.opencv.core.Point;
+import org.apache.logging.log4j.Level;
 import org.opencv.core.*;
+import org.opencv.core.Point;
 import org.opencv.highgui.HighGui;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
@@ -36,9 +38,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
-import java.util.List;
 import java.util.*;
+import java.util.List;
 
 @SuppressWarnings("SpellCheckingInspection")
 public class ImageProcessingActions {
@@ -132,16 +135,19 @@ public class ImageProcessingActions {
             }
 
         } catch (NullPointerException | IOException e) {
-            ReportManagerHelper.logDiscrete(e);
-            ReportManager.log("Failed to compare image files ...");
+            FailureReporter.fail(ImageProcessingActions.class, "Failed to compare image files ...", e);
         }
     }
 
     public static byte[] highlightElementInScreenshot(byte[] targetScreenshot,
                                                       org.openqa.selenium.Rectangle elementLocation, Color highlightColor) {
-
-//        loadOpenCV();
-        Mat img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
+        Mat img;
+        try {
+            img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
+        } catch (java.lang.UnsatisfiedLinkError unsatisfiedLinkError) {
+            loadOpenCV();
+            img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
+        }
 
         int outlineThickness = 5;
         double elementHeight = elementLocation.getHeight(),
@@ -356,10 +362,21 @@ public class ImageProcessingActions {
         return foundLocation;
     }
 
+    private static final HashMap<String, String> locatorHashMapping = new HashMap<>();
+
     public static String formatElementLocatorToImagePath(By elementLocator) {
         String elementFileName = ReportManagerHelper.getCallingClassFullName() + "_" + JavaHelper.formatLocatorToString(elementLocator);
-        return elementFileName.replaceAll("[\\[\\]\\'\\/:]", "").replaceAll("[\\W\\s]", "_").replaceAll("_{2}", "_")
-                .replaceAll("_{2}", "_").replaceAll("contains", "_contains").replaceAll("_$", "");
+        if (locatorHashMapping.containsKey(elementFileName)) {
+            return locatorHashMapping.get(elementFileName);
+        } else {
+            String hashedFileName = elementFileName.replaceAll("[\\[\\]\\'\\/:]", "").replaceAll("[\\W\\s]", "_").replaceAll("_{2}", "_")
+                    .replaceAll("_{2}", "_").replaceAll("contains", "_contains").replaceAll("_$", "");
+            // https://github.com/ShaftHQ/SHAFT_ENGINE/issues/1604
+            hashedFileName = Hashing.sha256().hashString(elementFileName, StandardCharsets.UTF_8).toString();
+            ReportManager.log("Element Locator: " + elementLocator + " was formatted to: " + elementFileName, Level.INFO);
+            locatorHashMapping.put(elementFileName, hashedFileName);
+            return hashedFileName;
+        }
     }
 
     public static byte[] getReferenceImage(By elementLocator) {
@@ -371,7 +388,7 @@ public class ImageProcessingActions {
         if (FileActions.getInstance(true).doesFileExist(referenceImagePath)) {
             return FileActions.getInstance(true).readFileAsByteArray(referenceImagePath);
         } else {
-            return new byte[0];
+            return null;
         }
     }
 
@@ -392,9 +409,7 @@ public class ImageProcessingActions {
             String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
             String resultingImagePath = aiFolderPath + hashedLocatorName + "_shutterbug";
 
-            boolean doesReferenceFileExist = FileActions.getInstance(true).doesFileExist(referenceImagePath);
-
-            if (doesReferenceFileExist && (elementScreenshot != null && elementScreenshot.length > 0)) {
+            if (getReferenceImage(elementLocator) !=null && elementScreenshot != null && elementScreenshot.length > 0) {
                 boolean actualResult = false;
                 try {
                     var snapshot = Shutterbug.shootElement(driver, elementLocator, CaptureElement.VIEWPORT, true);

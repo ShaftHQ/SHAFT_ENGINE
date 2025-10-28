@@ -10,7 +10,9 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.openqa.selenium.remote.Browser;
 
+import java.awt.*;
 import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.util.Arrays;
 
@@ -20,19 +22,23 @@ public class PropertiesHelper {
 
     public static void initialize() {
         //initialize default properties
-        initializeDefaultProperties();
+        initializeDefaultProperties(false);
         //attach property files
         attachPropertyFiles();
         //load properties
         loadProperties();
-        //override key settings for special platforms
-        overrideScreenShotTypeForMobileAndMacPlatforms();
-        overrideForcedFlagsForMobilePlatforms();
     }
 
-    public static void loadProperties() {
-        //load paths as the default properties path is needed for the next step
-        Properties.paths = ConfigFactory.create(Paths.class);
+    public static void initializeAiAgent() {
+        //initialize default properties
+        initializeDefaultProperties(true);
+        //attach property files
+        attachPropertyFiles();
+        //load properties
+        loadProperties();
+    }
+
+    private static void loadProperties() {
         //read custom property files (if any) into system properties
         PropertyFileManager.readCustomPropertyFiles();
         //load property objects
@@ -48,6 +54,7 @@ public class PropertiesHelper {
         Properties.jira = ConfigFactory.create(Jira.class);
         Properties.pattern = ConfigFactory.create(Pattern.class);
         Properties.reporting = ConfigFactory.create(Reporting.class);
+        Properties.allure = ConfigFactory.create(Allure.class);
         Properties.tinkey = ConfigFactory.create(Tinkey.class);
         Properties.testNG = ConfigFactory.create(TestNG.class);
         Properties.log4j = ConfigFactory.create(Log4j.class);
@@ -55,40 +62,81 @@ public class PropertiesHelper {
         Properties.timeouts = ConfigFactory.create(Timeouts.class);
         Properties.performance = ConfigFactory.create(Performance.class);
         Properties.lambdaTest = ConfigFactory.create(LambdaTest.class);
+        Properties.api = ConfigFactory.create(API.class, System.getProperties());
+
+    }
+
+    public static void setKeySystemProperties() {
+        //load paths as the default properties path is needed for the next step
+        Properties.paths = ConfigFactory.create(Paths.class);
+        //set key system properties that are needed for the framework to function
+        System.setProperty("rp.properties.path", SHAFT.Properties.paths.properties());
+        System.setProperty("webdriver.http.factory", "jdk-http-client");
+        System.setProperty("log4j.configurationFile", SHAFT.Properties.paths.properties() + "log4j2.properties");
+        System.setProperty("allure.testng.hide.configuration.failures", "true");
+        System.setProperty("allure.testng.hide.disabled.tests", "true");
     }
 
     public static void postProcessing() {
+        ReportManager.logDiscrete("Post processing some properties to support platforms-specific restrictions.");
+        overrideScreenShotTypeForMacPlatform();
+        overrideForcedFlagsForMobilePlatforms();
         overrideTargetOperatingSystemForLocalExecution();
+        overrideScreenScalingFactorForWindows();
         overrideScreenMaximizationForRemoteExecution();
         overridePropertiesForMaximumPerformanceMode();
         setMobilePlatform();
         overrideScreenShotTypeForAnimatedGIF();
         overrideScreenshotTypeForSafariBrowser();
-        setExtraAllureProperties();
+        overrideScreenshotTypeForParallelExecution();
+        setClearBeforeTypingMode();
+    }
+
+    public static void setClearBeforeTypingMode() {
+        if (!Properties.flags.attemptClearBeforeTyping()) {
+            SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
+            return;
+        }
+
+        if (Properties.flags.attemptClearBeforeTypingUsingBackspace() || SHAFT.Properties.flags.clearBeforeTypingMode().equals("backspace")) {
+            SHAFT.Properties.flags.set().clearBeforeTypingMode("backspace");
+        }
+    }
+
+    private static void overrideScreenshotTypeForParallelExecution() {
+        if (!Properties.testNG.parallel().equals("NONE"))
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
+    }
+
+    private static void overrideScreenScalingFactorForWindows() {
+        if (Properties.platform.targetPlatform().equalsIgnoreCase(org.openqa.selenium.Platform.WINDOWS.toString())) {
+            try {
+                int res = Toolkit.getDefaultToolkit().getScreenResolution();
+                double scale = (double) res / 96;
+                Properties.visuals.set().screenshotParamsScalingFactor(scale);
+            } catch (java.awt.HeadlessException headlessException) {
+                //ignore the exception if running in headless OS => used by claude
+            }
+        }
     }
 
     private static void overrideForcedFlagsForMobilePlatforms() {
         if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString().toLowerCase(),
                 org.openqa.selenium.Platform.IOS.toString().toLowerCase()).contains(Properties.platform.targetPlatform().toLowerCase())) {
-            SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(false);
-            SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
+            SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
             SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(false);
             SHAFT.Properties.flags.set().enableTrueNativeMode(true);
             SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(false);
             SHAFT.Properties.flags.set().respectBuiltInWaitsInNativeMode(false);
             SHAFT.Properties.flags.set().handleNonSelectDropDown(false);
             SHAFT.Properties.flags.set().validateSwipeToElement(false);
+            SHAFT.Properties.flags.set().scrollingMode("w3c");
         }
     }
 
-    private static void setExtraAllureProperties() {
-        System.setProperty("allure.testng.hide.configuration.failures", "true");
-        System.setProperty("allure.testng.hide.disabled.tests", "true");
-    }
-
-    private static void overrideScreenShotTypeForMobileAndMacPlatforms() {
-        if (Arrays.asList(org.openqa.selenium.Platform.ANDROID.toString().toLowerCase(), org.openqa.selenium.Platform.MAC.toString().toLowerCase(),
-                org.openqa.selenium.Platform.IOS.toString().toLowerCase()).contains(Properties.platform.targetPlatform().toLowerCase())) {
+    private static void overrideScreenShotTypeForMacPlatform() {
+        if (Properties.platform.targetPlatform().equalsIgnoreCase(org.openqa.selenium.Platform.MAC.toString())) {
             SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
         }
     }
@@ -126,44 +174,93 @@ public class PropertiesHelper {
 
     public static void setMobilePlatform() {
         String targetOperatingSystem = Properties.platform.targetPlatform();
-        if (Arrays.asList("Android", "iOS").contains(targetOperatingSystem)) {
+        if (Arrays.asList("android", "ios").contains(targetOperatingSystem.toLowerCase())) {
             Properties.mobile.set().platformName(Properties.platform.targetPlatform().toLowerCase());
         }
     }
 
-    private static void initializeDefaultProperties() {
-        //  https://www.selenium.dev/blog/2022/using-java11-httpclient/
-        System.setProperty("webdriver.http.factory", "jdk-http-client");
+    private static void downloadDefaultProperties(){
+        ReportManager.logDiscrete("Downloading default properties to user.home...");
 
-        URL propertiesFolder = PropertyFileManager.class.getResource(DEFAULT_PROPERTIES_FOLDER_PATH.replace("src/main", "") + "/");
-        var propertiesFolderPath = "";
-        if (propertiesFolder != null) {
-            propertiesFolderPath = propertiesFolder.getFile();
+        var propertiesFolderPath = "target" + File.separator + "temp" + File.separator + "properties";
+        Properties.paths.set().properties(propertiesFolderPath);
+
+        Arrays.asList(
+                "TestNG.properties",
+                "cucumber.properties",
+                "custom.properties",
+                "customWebdriverCapabilities.properties",
+                "junit-platform.properties",
+                "log4j2.properties",
+                "reportportal.properties").forEach(PropertiesHelper::downloadPropertiesFile);
+    }
+
+    private static void initializeDefaultProperties(boolean forceDownload) {
+        if (forceDownload){
+            downloadDefaultProperties();
         } else {
-            propertiesFolderPath = DEFAULT_PROPERTIES_FOLDER_PATH;
+            URL propertiesFolder = PropertyFileManager.class.getResource(DEFAULT_PROPERTIES_FOLDER_PATH.replace("src/main", "") + "/");
+            var propertiesFolderPath = "";
+            if (propertiesFolder != null) {
+                propertiesFolderPath = propertiesFolder.getFile();
+            } else {
+                propertiesFolderPath = DEFAULT_PROPERTIES_FOLDER_PATH;
+            }
+            Properties.paths.set().properties(propertiesFolderPath);
+
+            boolean isExternalRun = propertiesFolderPath.contains("file:") && propertiesFolderPath.contains(".jar!");
+
+            var fileActions = FileActions.getInstance(true);
+
+            // always override default properties
+            if (isExternalRun) {
+                try {
+                    if (propertiesFolderPath.contains("file:")) {
+                        fileActions.copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
+                    } else {
+                        throw new IOException("Properties folder path does not contain 'file:' protocol, indicating it is not running from a jar file.");
+                    }
+                } catch (Throwable ignored) {
+                    ReportManager.logDiscrete("Failed to copy default properties from jar.");
+                    downloadDefaultProperties();
+                }
+            }
         }
-
-        boolean isExternalRun = propertiesFolderPath.contains("file:");
-
-        // always override default properties
-        if (isExternalRun) {
-            FileActions.getInstance(true).copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
-        } else {
-            FileActions.getInstance(true).copyFolder(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
-        }
-
         // override target properties only if they do not exist
-        var finalPropertiesFolderPath = propertiesFolderPath;
-        Arrays.asList("/cucumber.properties", "/customWebdriverCapabilities.properties", "/log4j2.properties", "/TestNG.properties")
+        overrideTargetProperties();
+    }
+
+    private static void overrideTargetProperties(){
+        var fileActions = FileActions.getInstance(true);
+        var propertiesFolderPath = Properties.paths.properties();
+        boolean isExternalRun = propertiesFolderPath.contains("file:") && propertiesFolderPath.contains(".jar!");
+
+        Arrays.asList("/cucumber.properties", "/custom.properties", "/customWebdriverCapabilities.properties", "/log4j2.properties", "/TestNG.properties", "/reportportal.properties", "/junit-platform.properties")
                 .forEach(file -> {
-                    if (!FileActions.getInstance(true).doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + file)) {
+                    if (!fileActions.doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + file)) {
                         if (isExternalRun) {
-                            FileActions.getInstance(true).copyFileFromJar(finalPropertiesFolderPath, TARGET_PROPERTIES_FOLDER_PATH, file.replace("/", ""));
+                            var tempPath = propertiesFolderPath.replace("/default", "");
+                            try {
+                                if (tempPath.contains("file:")) {
+                                    fileActions.copyFileFromJar(tempPath, TARGET_PROPERTIES_FOLDER_PATH, file.replace("/", ""));
+                                } else {
+                                    throw new IOException("Properties folder path does not contain 'file:' protocol, indicating it is not running from a jar file.");
+                                }
+                            } catch (Throwable ignored) {
+                                fileActions.copyFile(tempPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);
+                            }
                         } else {
-                            FileActions.getInstance(true).copyFile(finalPropertiesFolderPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);
+                            fileActions.copyFile(propertiesFolderPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);
                         }
                     }
                 });
+        Properties.paths.set().properties(TARGET_PROPERTIES_FOLDER_PATH);
+    }
+
+    private static void downloadPropertiesFile(String fileName) {
+        var baseURI = "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/main/src/main/resources/properties/default/";
+        FileActions.getInstance(true).downloadFile(baseURI + fileName,
+                Properties.paths.properties() + File.separator + fileName);
     }
 
     private static void attachPropertyFiles() {

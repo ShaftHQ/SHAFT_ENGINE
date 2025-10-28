@@ -436,12 +436,21 @@ public class DatabaseActions {
         return executeDataManipulationQueries(sql, "DELETE");
     }
 
-    private Connection createConnection() {
+    private Connection createConnection() throws SQLException {
         Connection connection = null;
         var connectionString = "";
+        // to open connection with customConnectionString
         if (!this.customConnectionString.isEmpty()) {
             connectionString = this.customConnectionString;
-        } else {
+            try {
+                DriverManager.setLoginTimeout(SHAFT.Properties.timeouts.databaseLoginTimeout());
+                connection = DriverManager.getConnection(connectionString);
+            } catch (SQLException rootCauseException) {
+                failAction(connectionString, rootCauseException);
+            }
+        }
+        // to open connection with DB Data directly
+        else {
             switch (dbType) {
                 case MY_SQL -> connectionString = "jdbc:mysql://" + dbServerIP + ":" + dbPort + "/" + dbName;
                 case SQL_SERVER ->
@@ -456,17 +465,16 @@ public class DatabaseActions {
                     failAction(dbType.toString());
                 }
             }
-        }
-        try {
-            DriverManager.setLoginTimeout(SHAFT.Properties.timeouts.databaseLoginTimeout());
-            connection = DriverManager.getConnection(connectionString, username, password);
-            if (!dbType.toString().equals("MY_SQL") && !dbType.toString().equals("POSTGRES_SQL")) {
-                // com.mysql.jdbc.JDBC4Connection.setNetworkTimeout
-                // org.postgresql.jdbc4.Jdbc4Connection.setNetworkTimeout
-                connection.setNetworkTimeout(Executors.newFixedThreadPool(1), SHAFT.Properties.timeouts.databaseNetworkTimeout() * 60000);
+            try {
+                DriverManager.setLoginTimeout(SHAFT.Properties.timeouts.databaseLoginTimeout());
+                connection = DriverManager.getConnection(connectionString, username, password);
+                if (!dbType.toString().equals("MY_SQL") && !dbType.toString().equals("POSTGRES_SQL")) {
+                    connection.setNetworkTimeout(Executors.newFixedThreadPool(1), SHAFT.Properties.timeouts.databaseNetworkTimeout() * 60000);
+                }
+
+            } catch (SQLException rootCauseException) {
+                failAction(connectionString, rootCauseException);
             }
-        } catch (SQLException rootCauseException) {
-            failAction(connectionString, rootCauseException);
         }
 
         if (connection != null) {
@@ -503,14 +511,19 @@ public class DatabaseActions {
     }
 
     private String getReportMessage(String queryType, String query) {
-        //noinspection SuspiciousRegexArgument
-        return "Database Type: \"" + dbType + "\"" +
-                "| Server: \"" + dbServerIP + ":" + dbPort + "\"" +
-                "| Name: \"" + dbName + "\"" +
-                "| Username: \"" + username + "\"" +
-                "| Password: \"" + password.replaceAll(".", "*") + "\"" +
-                "| Query Type: \"" + queryType + "\"" +
-                "| Query: \"" + query + "\"";
+        if (!"".equals(customConnectionString)) {
+            return customConnectionString.replaceAll("Password=([^;]+)", "Password=*****")
+                    .replaceAll("User=([^;]+)", "User=****");
+
+        } else {
+            return "Database Type: \"" + dbType + "\"" +
+                    "| Server: \"" + dbServerIP + ":" + dbPort + "\"" +
+                    "| Name: \"" + dbName + "\"" +
+                    "| Username: \"" + username + "\"" +
+                    "| Password: \"" + password.replaceAll(".", "*") + "\"" +
+                    "| Query Type: \"" + queryType + "\"" +
+                    "| Query: \"" + query + "\"";
+        }
     }
 
     public enum DatabaseType {

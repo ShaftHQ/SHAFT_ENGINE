@@ -1,0 +1,60 @@
+name: Web End-to-End Testing
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        browser: [ chrome, firefox, edge ]
+      fail-fast: false
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'zulu'
+
+      - name: Download Docker Compose
+        run: |
+          curl -o docker-compose.yml https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/main/src/main/resources/docker-compose/selenium4.yml
+
+      - name: Start Selenium Grid
+        run: |
+          docker compose -f docker-compose.yml up --scale chrome=2 --scale edge=2 --scale firefox=2 -d
+
+      - name: Wait for Grid
+        run: |
+          timeout 120s bash -c 'until curl -sSf http://localhost:4444/wd/hub/status > /dev/null; do sleep 1; done'
+
+      - name: Run Tests
+        run: |
+          mvn -e clean test "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=${{ matrix.browser }}" "-DexecutionAddress=localhost:4444" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-DretryMaximumNumberOfAttempts=1" "-DsetParallel=NONE" "-DsetParallelMode=DYNAMIC"
+
+      - name: Upload Allure Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report-${{ matrix.browser }}
+          path: "allure-report/*.html"
+          if-no-files-found: ignore
+
+      - name: Test Summary
+        if: always()
+        uses: test-summary/action@v2
+        with:
+          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose down -v || true
+          docker system prune -f || true

@@ -1,5 +1,6 @@
 package com.shaft.api;
 
+import com.atlassian.oai.validator.restassured.OpenApiValidationFilter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,6 +11,7 @@ import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.PathNotFoundException;
 import com.jayway.jsonpath.spi.json.JsonOrgJsonProvider;
+import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
@@ -33,7 +35,6 @@ import io.restassured.path.xml.element.NodeChildren;
 import io.restassured.response.Response;
 import io.restassured.response.ResponseBody;
 import io.restassured.specification.RequestSpecification;
-import lombok.Getter;
 import lombok.Setter;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -67,9 +68,9 @@ public class RestActions {
     private static final String ERROR_INCORRECT_XML_PATH = "Incorrect xmlPath ";
     private static final String ERROR_FAILED_TO_PARSE_JSON = "Failed to parse the JSON document";
     private static final String GRAPHQL_END_POINT = "graphql";
-    @Getter
-    @Setter
-    private Response lastResponse;
+    static AllureRestAssured allureFilter = new AllureRestAssured()
+            .setRequestAttachmentName("Request")
+            .setResponseAttachmentName("Response");
     private static boolean AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = true;
     private static int HTTP_SOCKET_TIMEOUT;
     private static int HTTP_CONNECTION_TIMEOUT;
@@ -78,11 +79,33 @@ public class RestActions {
     private final Map<String, String> sessionHeaders;
     private final Map<String, Object> sessionCookies;
     private final RestAssuredConfig sessionConfig;
-    private String headerAuthorization;
+    private SHAFT.API driver;
 
-    static AllureRestAssured allureFilter = new AllureRestAssured()
-            .setRequestAttachmentName("Request")
-            .setResponseAttachmentName("Response");
+    public RestActions(String serviceURI, SHAFT.API driver) {
+        initializeSystemProperties();
+        headerAuthorization = "";
+        this.serviceURI = serviceURI;
+        sessionCookies = new HashMap<>();
+        sessionHeaders = new HashMap<>();
+        sessionConfig = config();
+        this.driver = driver;
+    }
+    @Setter
+    private Response lastResponse;
+
+    /**
+     * private helper method for sendGraphqlRequest() method - WITHOUT TOKEN.
+     *
+     * @param base_URI_forHelperMethod    The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
+     * @param requestBody_forHelperMethod the request body.
+     * @return Response object
+     */
+    private static Response graphQlRequestHelper(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod) {
+        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod + "\"");
+        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
+                .setContentType(ContentType.JSON).performRequest().getResponse();
+    }
+    private String headerAuthorization;
 
     public RestActions(String serviceURI) {
         initializeSystemProperties();
@@ -91,6 +114,21 @@ public class RestActions {
         sessionCookies = new HashMap<>();
         sessionHeaders = new HashMap<>();
         sessionConfig = config();
+    }
+
+    /**
+     * private helper method for sendGraphqlRequest method WITH Header.
+     *
+     * @param base_URI_forHelperMethod    The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
+     * @param requestBody_forHelperMethod the request body.
+     * @param headerKey_forHelperMethod   the name of the header that you want to add.
+     * @param headerValue_forHelperMethod the value that will be put inside the key.
+     * @return Response object
+     */
+    private static Response graphQlRequestHelperWithHeader(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod, String headerKey_forHelperMethod, String headerValue_forHelperMethod) {
+        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod + " | Header: \"" + headerKey_forHelperMethod + "\":\"" + headerValue_forHelperMethod + "\"\"");
+        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
+                .setContentType(ContentType.JSON).addHeader(headerKey_forHelperMethod, headerValue_forHelperMethod).performRequest().getResponse();
     }
 
     public static RequestBuilder buildNewRequest(String serviceURI, String serviceName, RequestType requestType) {
@@ -188,7 +226,7 @@ public class RestActions {
                 var jsonValue = JsonPath.read(jsonResponse, jsonPath);
                 searchPool = String.valueOf(jsonValue);
             }
-        // This implementation is to handle the *PathNotFoundException* that happens when we have json object but inside html or xml tags, so it's not represented as json object
+            // This implementation is to handle the *PathNotFoundException* that happens when we have json object but inside html or xml tags, so it's not represented as json object
         } catch (PathNotFoundException e) {
             String jsonObject = jsonResponse.substring(jsonResponse.indexOf("{"), jsonResponse.lastIndexOf("}") + 1);
             Configuration confOrgJsonProvider = Configuration.builder().jsonProvider(new JsonOrgJsonProvider()).build();
@@ -200,7 +238,7 @@ public class RestActions {
                     Object jsonValue = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
                     searchPool = String.valueOf(jsonValue);
                 }
-            } catch (JSONException rootCauseException) {
+            } catch (JSONException | PathNotFoundException rootCauseException) {
                 ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
                 failAction(jsonPath, rootCauseException);
             }
@@ -222,9 +260,39 @@ public class RestActions {
     }
 
     public static String getResponseJSONValue(Object response, String jsonPath) {
-        String searchPool = "";
+        String searchPool = null;
         try {
-            if (response instanceof HashMap<?, ?> hashMapResponse) {
+            if (response instanceof String responseString) {
+                if (jsonPath.contains("?")) {
+                    List<String> jsonValueAsList = JsonPath.read(responseString, jsonPath);
+                    searchPool = String.valueOf(jsonValueAsList.getFirst());
+                } else {
+                    var jsonValue = JsonPath.read(responseString, jsonPath);
+                    searchPool = String.valueOf(jsonValue);
+                }
+            } else if (response instanceof JSONArray jsonArray) {
+                JSONObject obj = new JSONObject();
+                obj.put("array", jsonArray);
+                jsonPath = jsonPath.startsWith("$[") ? jsonPath.substring(1) : jsonPath;
+                jsonPath = jsonPath.startsWith("[") ? "array" + jsonPath : "array." + jsonPath;
+                searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
+            } else if (response instanceof org.json.simple.JSONArray jsonSimpleArray) {
+                JSONObject obj = new JSONObject();
+                obj.put("array", jsonSimpleArray);
+                jsonPath = jsonPath.startsWith("$[") ? jsonPath.substring(1) : jsonPath;
+                jsonPath = jsonPath.startsWith("[") ? "array" + jsonPath : "array." + jsonPath;
+                searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
+            } else if (response instanceof org.json.simple.JSONObject jsonObject) {
+                searchPool = io.restassured.path.json.JsonPath.from(jsonObject.toString()).getString(jsonPath);
+            } else if (response instanceof JSONObject obj) {
+                searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
+            } else if (response instanceof List<?> objectsList) {
+                JSONObject obj = new JSONObject();
+                obj.put("array", new JSONArray(objectsList));
+                jsonPath = jsonPath.startsWith("$[") ? jsonPath.substring(1) : jsonPath;
+                jsonPath = jsonPath.startsWith("[") ? "array" + jsonPath : "array." + jsonPath;
+                searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
+            } else if (response instanceof HashMap<?, ?> hashMapResponse) {
                 JSONObject obj = new JSONObject(hashMapResponse);
                 searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
             } else if (response instanceof Response responseObject) {
@@ -257,7 +325,7 @@ public class RestActions {
         } catch (ClassCastException rootCauseException) {
             ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"");
             failAction(jsonPath, rootCauseException);
-        } catch (JsonPathException | IllegalArgumentException rootCauseException) {
+        } catch (JsonPathException | JSONException | IllegalArgumentException rootCauseException) {
             ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
             failAction(jsonPath, rootCauseException);
         }
@@ -282,8 +350,9 @@ public class RestActions {
             List<Object> jsonList = null;
             try {
                 JSONArray jsonArray = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
-                jsonList = new ObjectMapper().readValue(Objects.requireNonNull(jsonArray).toString(), new TypeReference<>() {});
-            } catch (JSONException | JsonProcessingException rootCauseException ) {
+                jsonList = new ObjectMapper().readValue(Objects.requireNonNull(jsonArray).toString(), new TypeReference<>() {
+                });
+            } catch (JSONException | JsonProcessingException rootCauseException) {
                 ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
                 failAction(jsonPath, rootCauseException);
             }
@@ -314,7 +383,7 @@ public class RestActions {
      * @param jsonPathToValueNeeded    The JSON path to the attribute value you need to extract inside an object from the list. for example: id
      * @param jsonPathToValueReference The JSON path that refers to the needed attribute value inside an object from the list. for example: username
      * @param valueReference           The attribute value of the reference JSON path
-     * @return A string value from the object of the list
+     * @return A string value from the object of the list which represents the first match of the reference attribute value
      */
     public static String getResponseJSONValueFromList(Response response, String jsonPathToList, String jsonPathToValueNeeded,
                                                       String jsonPathToValueReference, String valueReference) {
@@ -323,6 +392,10 @@ public class RestActions {
         for (Object res : Objects.requireNonNull(list)) {
             if (Objects.equals(getResponseJSONValue(res, jsonPathToValueReference), valueReference)) {
                 value = getResponseJSONValue(res, jsonPathToValueNeeded);
+            }
+            // return the first match
+            if (!Objects.equals(value, "")) {
+                break;
             }
         }
         if (Objects.equals(value, "")) {
@@ -446,6 +519,7 @@ public class RestActions {
      */
     public static boolean compareJSON(Response response, String referenceJsonFilePath, ComparisonType comparisonType,
                                       String jsonPathToTargetArray) {
+        referenceJsonFilePath = JavaHelper.appendTestDataToRelativePath(referenceJsonFilePath);
         if (jsonPathToTargetArray.isEmpty()) {
             ReportManager.logDiscrete("Comparing the provided API response with the file at this path \""
                     + referenceJsonFilePath + "\", comparison type \"" + comparisonType + "\"");
@@ -693,6 +767,8 @@ public class RestActions {
     }
 
     private static void initializeSystemProperties() {
+        if (SHAFT.Properties.timeouts == null)
+            DriverFactory.reloadProperties();
         HTTP_SOCKET_TIMEOUT = SHAFT.Properties.timeouts.apiSocketTimeout();
         // timeout between two consecutive data packets in seconds
         HTTP_CONNECTION_TIMEOUT = SHAFT.Properties.timeouts.apiConnectionTimeout();
@@ -701,17 +777,8 @@ public class RestActions {
         AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = SHAFT.Properties.flags.automaticallyAssertResponseStatusCode();
     }
 
-    /**
-     * private helper method for sendGraphqlRequest() method - WITHOUT TOKEN.
-     *
-     * @param base_URI_forHelperMethod    The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
-     * @param requestBody_forHelperMethod the request body.
-     * @return Response object
-     */
-    private static Response graphQlRequestHelper(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod) {
-        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod + "\"");
-        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
-                .setContentType(ContentType.JSON).performRequest();
+    SHAFT.API getDriver() {
+        return driver;
     }
 
     /**
@@ -765,19 +832,8 @@ public class RestActions {
         return graphQlRequestHelper(base_URI, requestBody);
     }
 
-    /**
-     * private helper method for sendGraphqlRequest method WITH Header.
-     *
-     * @param base_URI_forHelperMethod    The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
-     * @param requestBody_forHelperMethod the request body.
-     * @param headerKey_forHelperMethod   the name of the header that you want to add.
-     * @param headerValue_forHelperMethod the value that will be put inside the key.
-     * @return Response object
-     */
-    private static Response graphQlRequestHelperWithHeader(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod, String headerKey_forHelperMethod, String headerValue_forHelperMethod) {
-        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod + " | Header: \"" + headerKey_forHelperMethod + "\":\"" + headerValue_forHelperMethod + "\"\"");
-        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
-                .setContentType(ContentType.JSON).addHeader(headerKey_forHelperMethod, headerValue_forHelperMethod).performRequest();
+    public Response getResponse() {
+        return lastResponse;
     }
 
     /**
@@ -926,21 +982,145 @@ public class RestActions {
         }
     }
 
-    protected RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
-                                                       Object body, ContentType contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, RestAssuredConfig sessionConfig, boolean appendDefaultContentCharsetToContentTypeIfUndefined, boolean urlEncodingEnabled) {
+    @Deprecated
+    protected RequestSpecification prepareRequestSpecs(
+            List<List<Object>> parameters,
+            ParametersType parametersType,
+            Object body,
+            ContentType contentType,
+            Map<String, Object> sessionCookies,
+            Map<String, String> sessionHeaders,
+            RestAssuredConfig sessionConfig,
+            boolean appendDefaultContentCharsetToContentTypeIfUndefined,
+            boolean urlEncodingEnabled) {
+
         RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders, sessionConfig, appendDefaultContentCharsetToContentTypeIfUndefined);
 
-        // set the default content type as part of the specs
-        builder.setContentType(contentType);
+        boolean isSwaggerValidationEnabled = Boolean.parseBoolean(System.getProperty("swagger.validation.enabled", "false"));
+
+        if (isSwaggerValidationEnabled) {
+            String swaggerUrl = SHAFT.Properties.api.swaggerValidationUrl();
+
+            if (swaggerUrl == null || swaggerUrl.isEmpty()) {
+                failAction("Swagger Validation is enabled, but OpenAPI URL is not set in properties.");
+                return builder.build();
+            }
+
+            // Ensure URL format is correct (replace Windows-style `\` with `/`)
+            swaggerUrl = swaggerUrl.replace("\\", "/");
+
+            OpenApiValidationFilter openApiValidationFilter = new OpenApiValidationFilter(swaggerUrl);
+            builder.addFilter(openApiValidationFilter);
+            ReportManager.log("Swagger Validation enabled using OpenAPI URL: " + swaggerUrl);
+        }
+
+        // Check if contentType is still ANY and use the Content-Type header value directly
+        if (contentType == ContentType.ANY) {
+            String contentTypeHeader = sessionHeaders.get("Content-Type");
+            if (contentTypeHeader != null) {
+                builder.setContentType(contentTypeHeader);
+            }
+        } else {
+            builder.setContentType(contentType);
+        }
+
         builder.setUrlEncodingEnabled(urlEncodingEnabled);
 
         if (body != null && contentType != null && !body.toString().isEmpty()) {
             prepareRequestBody(builder, body, contentType);
-        } else if (parameters != null && !parameters.isEmpty() && !parameters.getFirst().getFirst().equals("")) {
-            prepareRequestBody(builder, parameters, parametersType);
+        } else if (parameters != null && !parameters.isEmpty() && !String.valueOf(parameters.getFirst().getFirst()).isEmpty()) {
+            boolean containsFile = parameters.stream().anyMatch(p -> p.get(1) instanceof File);
+            boolean useMultipart = (parametersType == ParametersType.MULTIPART) || containsFile;
+
+            if (useMultipart) {
+                prepareMultipartBody(builder, parameters);   // builds UTF-8 text parts + files
+            } else {
+                prepareRequestBody(builder, parameters, parametersType); // existing form/query path
+            }
         }
         return builder.build();
     }
+
+    private void prepareMultipartBody(RequestSpecBuilder builder, List<List<Object>> parameters) {
+        boolean hasAnyPart = false;
+
+        for (List<Object> param : parameters) {
+            String name  = String.valueOf(param.get(0));
+            Object value = param.get(1);
+
+            if (value instanceof File f) {
+                MultiPartSpecBuilder mp = new MultiPartSpecBuilder(f)
+                        .controlName(name)
+                        .fileName(f.getName());
+
+                String mimeType = URLConnection.guessContentTypeFromName(f.getName());
+                if (mimeType == null) {
+                    mimeType = MimeUtil2.getMostSpecificMimeType(MimeUtil.getMimeTypes(f.getName())).toString();
+                }
+                mp.mimeType(mimeType);
+                builder.addMultiPart(mp.build());
+                hasAnyPart = true;
+            } else {
+                // send ALL non-file values as text parts with UTF-8
+                MultiPartSpecBuilder mp = new MultiPartSpecBuilder(String.valueOf(value))
+                        .controlName(name)
+                        .mimeType("text/plain")
+                        .charset("UTF-8");
+                builder.addMultiPart(mp.build());
+                hasAnyPart = true;
+            }
+        }
+
+        if (hasAnyPart) {
+            // Let RA set the boundary
+            builder.setContentType("multipart/form-data");
+        }
+    }
+
+    protected RequestSpecification prepareRequestSpecs(
+            Map<String, Object> parametersMap,
+            ParametersType parametersType,
+            Object body,
+            ContentType contentType,
+            Map<String, Object> cookies,          // match original types
+            Map<String, String> headers,          // match original types
+            RestAssuredConfig config,
+            boolean appendDefaultContentCharsetToContentTypeIfUndefined,
+            boolean urlEncodingEnabled) {
+
+        // Normalize Map -> List
+        List<List<Object>> paramsList = null;
+        if (parametersMap != null && !parametersMap.isEmpty()) {
+            paramsList = new ArrayList<>();
+            for (Map.Entry<String, Object> e : parametersMap.entrySet()) {
+                paramsList.add(Arrays.asList(e.getKey(), e.getValue()));
+            }
+        }
+
+        return prepareRequestSpecs(
+                paramsList,
+                parametersType,
+                body,
+                contentType,
+                cookies,
+                headers,
+                config,
+                appendDefaultContentCharsetToContentTypeIfUndefined,
+                urlEncodingEnabled
+        );
+    }
+
+
+    private void prepareRequestBody(RequestSpecBuilder builder, Map<String, Object> parameters, ParametersType parametersType) {
+        // Normalize to List
+        List<List<Object>> paramsList = new ArrayList<>();
+        for (Map.Entry<String, Object> e : parameters.entrySet()) {
+            paramsList.add(Arrays.asList(e.getKey(), e.getValue()));
+        }
+        prepareRequestBody(builder, paramsList, parametersType);
+    }
+
+
 
     private void prepareRequestBody(RequestSpecBuilder builder, Object body, ContentType contentType) {
         if (body instanceof String bodyString && bodyString.contains("\n")) {
@@ -1101,7 +1281,7 @@ public class RestActions {
     }
 
     public enum ParametersType {
-        FORM, QUERY
+        FORM, QUERY, MULTIPART
     }
 
     public enum RequestType {

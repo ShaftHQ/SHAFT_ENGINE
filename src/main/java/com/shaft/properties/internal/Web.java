@@ -6,7 +6,7 @@ import org.aeonbits.owner.ConfigFactory;
 
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/WebCapabilities.properties", "file:src/main/resources/properties/default/WebCapabilities.properties", "classpath:WebCapabilities.properties"})
-public interface Web extends EngineProperties {
+public interface Web extends EngineProperties<Web> {
     private static void setProperty(String key, String value) {
         var updatedProps = new java.util.Properties();
         updatedProps.setProperty(key, value);
@@ -27,6 +27,10 @@ public interface Web extends EngineProperties {
     @Key("headlessExecution")
     @DefaultValue("false")
     boolean headlessExecution();
+
+    @Key("incognitoMode")
+    @DefaultValue("false")
+    boolean incognitoMode();
 
     @Key("isMobileEmulation")
     @DefaultValue("false")
@@ -68,6 +72,16 @@ public interface Web extends EngineProperties {
     @DefaultValue("1080")
     int browserWindowHeight();
 
+    // none, eager, or normal
+    @Key("pageLoadStrategy")
+    @DefaultValue("none")
+    String pageLoadStrategy();
+
+    // interactive, none, or complete
+    @Key("readinessState")
+    @DefaultValue("none")
+    String readinessState();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -93,6 +107,11 @@ public interface Web extends EngineProperties {
 
         public SetProperty headlessExecution(boolean value) {
             setProperty("headlessExecution", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty incognitoMode(boolean value) {
+            setProperty("incognitoMode", String.valueOf(value));
             return this;
         }
 
@@ -138,6 +157,16 @@ public interface Web extends EngineProperties {
 
         public SetProperty browserWindowHeight(int value) {
             setProperty("browserWindowHeight", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty pageLoadStrategy(String value) {
+            setProperty("pageLoadStrategy", value);
+            return this;
+        }
+
+        public SetProperty readinessState(String value) {
+            setProperty("readinessState", value);
             return this;
         }
     }

@@ -19,11 +19,11 @@ public class FluentGuiActionsTest {
     // Note: you don't have to use thread local, but it is highly recommended since selenium/appium are not natively thread safe
     private final By email_input = By.id("email"); // this is a traditional By locator
     private final By password_label = SHAFT.GUI.Locator.hasTagName("label").hasText("Password").build(); // this is using the new SHAFT locator library
-    private final By password_input = SHAFT.GUI.Locator.hasAnyTagName().relativeBy().toRightOf(password_label);     // this is using the new SHAFT locator library powered by selenium 4 relative locators
+    private final By password_input = SHAFT.GUI.Locator.hasAnyTagName().byRelation().toRightOf(password_label);     // this is using the new SHAFT locator library powered by selenium 4 relative locators
     private final By register_button = By.xpath("//button[@type='submit']");
     // Note: remember that this is only a technical POC, but for real life cases just use the ID... if you find it :D
     private final By header_label = By.tagName("h2");
-    private final By confirmationText_label = SHAFT.GUI.Locator.hasTagName("div").relativeBy().below(header_label); // this is a valid example where it's easier to use this approach than to write a regular xpath
+    private final By confirmationText_label = SHAFT.GUI.Locator.hasTagName("div").byRelation().below(header_label); // this is a valid example where it's easier to use this approach than to write a regular xpath
 
     @Description("When I submit the registration form with valid information\nThen the same information will be displayed on the confirmation page")
     @Test(description = "Fluent GUI Actions Demo")

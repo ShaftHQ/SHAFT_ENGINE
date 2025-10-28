@@ -6,7 +6,7 @@ import org.aeonbits.owner.ConfigFactory;
 
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/PlatformFlags.properties", "file:src/main/resources/properties/default/PlatformFlags.properties", "classpath:PlatformFlags.properties",})
-public interface Flags extends EngineProperties {
+public interface Flags extends EngineProperties<Flags> {
     private static void setProperty(String key, String value) {
         var updatedProps = new java.util.Properties();
         updatedProps.setProperty(key, value);
@@ -16,6 +16,9 @@ public interface Flags extends EngineProperties {
         ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
 
+    @Key("automaticallyAddRecommendedChromeOptions")
+    @DefaultValue("false")
+    boolean automaticallyAddRecommendedChromeOptions();
 
     @Key("retryMaximumNumberOfAttempts")
     @DefaultValue("0")
@@ -44,6 +47,14 @@ public interface Flags extends EngineProperties {
     @Key("attemptClearBeforeTyping")
     @DefaultValue("true")
     boolean attemptClearBeforeTyping();
+
+    @Key("scrollingMode")
+    @DefaultValue("javascript")
+    String scrollingMode();
+
+    @Key("clearBeforeTypingMode")
+    @DefaultValue("native")
+    String clearBeforeTypingMode();
 
     @Key("forceCheckNavigationWasSuccessful")
     @DefaultValue("false")
@@ -97,11 +108,25 @@ public interface Flags extends EngineProperties {
     @DefaultValue("false")
     boolean validateSwipeToElement();
 
+    @Key("disableSslCertificateCheck")
+    @DefaultValue("false")
+    boolean disableSslCertificateCheck();
+
+    @Key("telemetry.enabled")
+    @DefaultValue("true")
+    boolean telemetryEnabled();
+
     default SetProperty set() {
         return new SetProperty();
     }
 
     class SetProperty implements EngineProperties.SetProperty {
+
+        public SetProperty automaticallyAddRecommendedChromeOptions(boolean value) {
+            setProperty("automaticallyAddRecommendedChromeOptions", String.valueOf(value));
+            return this;
+        }
+
         public SetProperty retryMaximumNumberOfAttempts(int value) {
             setProperty("retryMaximumNumberOfAttempts", String.valueOf(value));
             return this;
@@ -127,13 +152,38 @@ public interface Flags extends EngineProperties {
             return this;
         }
 
+        /**
+         * Please use {@link #clearBeforeTypingMode(String value)} instead.
+         */
+        @Deprecated(forRemoval = true)
         public SetProperty attemptClearBeforeTyping(boolean value) {
             setProperty("attemptClearBeforeTyping", String.valueOf(value));
             return this;
         }
 
+        /**
+         * Please use {@link #clearBeforeTypingMode(String value)} instead.
+         */
+        @Deprecated(forRemoval = true)
         public SetProperty attemptClearBeforeTypingUsingBackspace(boolean value) {
             setProperty("attemptClearBeforeTypingUsingBackspace", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * @param value <ul>
+         *                       <li><b>native</b> = clear using native Selenium method</li>
+         *                       <li><b>backspace</b> = clear by deleting letter by letter</li>
+         *                        <li><b>off</b> = no clearing</li>
+         *                       </ul>
+         */
+        public SetProperty clearBeforeTypingMode(String value) {
+            setProperty("clearBeforeTypingMode", value);
+            return this;
+        }
+
+        public SetProperty scrollingMode(String value) {
+            setProperty("scrollingMode", value);
             return this;
         }
 
@@ -199,6 +249,11 @@ public interface Flags extends EngineProperties {
 
         public SetProperty validateSwipeToElement(boolean value) {
             setProperty("validateSwipeToElement", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty disableSslCertificateCheck(boolean value) {
+            setProperty("disableSslCertificateCheck", String.valueOf(value));
             return this;
         }
 

@@ -9,8 +9,8 @@ import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.ElementInformation;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import lombok.SneakyThrows;
-import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.*;
+import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.support.locators.RelativeLocator;
 
 import javax.imageio.ImageIO;
@@ -34,11 +34,11 @@ public class ScreenshotManager {
     }
 
     public List<Object> takeScreenshot(WebDriver driver, By elementLocator, String actionName,
-                                              boolean passFailStatus) {
+                                       boolean passFailStatus) {
         return internalCaptureScreenShot(driver, elementLocator, actionName, shouldTakeScreenshot(actionName, passFailStatus), passFailStatus);
     }
 
-    public byte[] takeScreenshot(WebDriver driver, By targetElementLocator, Screenshots type) {
+    protected byte[] takeScreenshot(WebDriver driver, By targetElementLocator, Screenshots type) {
         return switch (type) {
             case ELEMENT -> takeElementScreenshot(driver, targetElementLocator, false);
             case VIEWPORT -> takeViewportScreenshot(driver);
@@ -51,8 +51,9 @@ public class ScreenshotManager {
             driver = selfHealingDriver.getDelegate();
         }
 
-        if (DriverFactoryHelper.isWebExecution()) {
-            return switch (Screenshots.getType()) {
+        byte[] screenshot;
+        if (DriverFactoryHelper.isNotMobileExecution()) {
+            screenshot = switch (Screenshots.getType()) {
                 case FULL -> {
                     try {
                         yield takeFullPageScreenshot(driver);
@@ -67,11 +68,12 @@ public class ScreenshotManager {
             };
         } else {
             if (Screenshots.getType().equals(Screenshots.ELEMENT)) {
-                return takeElementScreenshot(driver, targetElementLocator, true);
+                screenshot = takeElementScreenshot(driver, targetElementLocator, true);
             } else {
-                return this.takeViewportScreenshot(driver);
+                screenshot = this.takeViewportScreenshot(driver);
             }
         }
+        return screenshot;
     }
 
     public String generateAttachmentFileName(String actionName) {
@@ -141,6 +143,10 @@ public class ScreenshotManager {
         }
     }
 
+    public byte[] takeElementScreenshot(WebDriver driver, By targetElementLocator) {
+        return takeElementScreenshot(driver, targetElementLocator, false);
+    }
+
     private byte[] takeElementScreenshot(WebDriver driver, By targetElementLocator, Boolean
             returnRegularScreenshotInCaseOfFailure) {
         try {
@@ -165,16 +171,19 @@ public class ScreenshotManager {
 
     private List<Object> internalCaptureScreenShot(WebDriver driver, By elementLocator, String actionName, boolean shouldCaptureScreenshot, boolean isPass) {
         if (shouldCaptureScreenshot) {
-            byte[] src;
-            if ("JavaScript".equals(SHAFT.Properties.visuals.screenshotParamsHighlightMethod())) {
-                src = takeJavaScriptHighlightedScreenshot(driver, elementLocator, isPass);
-            } else {
-                src = takeAIHighlightedScreenshot(driver, elementLocator, isPass);
-            }
+            byte[] src = internalCaptureScreenshot(driver, elementLocator, isPass);
             return prepareImageForReport(src, actionName);
         }
         //return screenshot to be attached only if needed, else do nothing as it was already added to the GIF
         return new ArrayList<>();
+    }
+
+    public byte[] internalCaptureScreenshot(WebDriver driver, By elementLocator, boolean isPass) {
+        if ("JavaScript".equals(SHAFT.Properties.visuals.screenshotParamsHighlightMethod())) {
+            return takeJavaScriptHighlightedScreenshot(driver, elementLocator, isPass);
+        } else {
+            return takeAIHighlightedScreenshot(driver, elementLocator, isPass);
+        }
     }
 
     private byte[] takeAIHighlightedScreenshot(WebDriver driver, By elementLocator, boolean isPass) {
@@ -248,8 +257,8 @@ public class ScreenshotManager {
     }
 
     private String highlightElementAndReturnDefaultStyle(WebDriver driver, WebElement element, JavascriptExecutor js,
-                                                                String highlightedElementStyle) {
-        String regularElementStyle = element.getAttribute("style");
+                                                         String highlightedElementStyle) {
+        String regularElementStyle = element.getDomProperty("style");
         if (regularElementStyle != null && !regularElementStyle.isEmpty()) {
             js.executeScript("arguments[0].style.cssText = arguments[1];", element,
                     regularElementStyle + highlightedElementStyle);

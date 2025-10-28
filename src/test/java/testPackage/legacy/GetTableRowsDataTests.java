@@ -27,7 +27,7 @@ public class GetTableRowsDataTests {
         driver.get().browser().navigateToURL("https://datatables.net/examples/basic_init/zero_configuration.html");
     }
 
-    @AfterMethod(description = "Teardown Browser instance.")
+    @AfterMethod(description = "Teardown Browser instance.", alwaysRun = true)
     public void afterMethod() {
         driver.get().quit();
     }

@@ -4,6 +4,8 @@ import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.listeners.CucumberFeatureListener;
+import com.shaft.listeners.JunitListener;
+import com.shaft.listeners.internal.JunitListenerHelper;
 import com.shaft.properties.internal.PropertyFileManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
@@ -13,6 +15,7 @@ import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
 import lombok.Getter;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.log4j.BasicConfigurator;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,6 +29,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
 
 //@Getter
 @SuppressWarnings("unused")
@@ -164,10 +168,17 @@ public class ReportManagerHelper {
 
     private static void initializeLogger() {
         // delete previous run execution log
-        FileActions.getInstance(true).deleteFile(System.getProperty("appender.file.fileName"));
-        // initialize
+        if (System.getProperty("appender.file.fileName") != null)
+            FileActions.getInstance(true).deleteFile(System.getProperty("appender.file.fileName"));
+        // initialize log4j, used by some transitive dependencies
+        BasicConfigurator.configure();
+        // initialize log4j2
         Configurator.initialize(null, PropertyFileManager.getCUSTOM_PROPERTIES_FOLDER_PATH() + "/log4j2.properties");
         logger = LogManager.getLogger(ReportManager.class.getName());
+    }
+
+    public static void logImportantEntry(String logText, Level logLevel) {
+        createImportantReportEntry(logText, logLevel);
     }
 
     public static void logEngineVersion() {
@@ -177,7 +188,7 @@ public class ReportManagerHelper {
         System.setOut(new PrintStream(new LogRedirector(logger, Level.INFO)));
         System.setErr(new PrintStream(new LogRedirector(logger, Level.WARN)));
         String engineVersion = "Powered by \033[1mSHAFT v." + SHAFT.Properties.internal.shaftEngineVersion() + "\033[22m";
-        createImportantReportEntry(engineVersion);
+        createImportantReportEntry(engineVersion + "\n" + "Visit SHAFT's user guide \033[4mhttps://shafthq.github.io/\033[24m to learn more");
     }
 
     public static void logEngineClosure() {
@@ -187,7 +198,6 @@ public class ReportManagerHelper {
                 + "SHAFT \033[1;4mis and will always be 100% FREE\033[22;24m for commercial and private use\n"
                 + "in compliance with the \033[1mMIT license\033[22m\n"
                 + "Visit SHAFT's user guide \033[4mhttps://shafthq.github.io/\033[24m to learn more";
-//                + "https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE";
         createImportantReportEntry(copyrights);
     }
 
@@ -294,7 +304,7 @@ public class ReportManagerHelper {
     }
 
     public static void attachEngineLog(String executionEndTimestamp) {
-        if (!SHAFT.Properties.reporting.disableLogging()) {
+        if (SHAFT.Properties.reporting == null || !SHAFT.Properties.reporting.disableLogging()) {
             String engineLogCreated = "Successfully created attachment '" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
                     + "Execution log" + "'";
             var initialLoggingState = ReportManagerHelper.getDiscreteLogging();
@@ -343,7 +353,7 @@ public class ReportManagerHelper {
         StackTraceElement[] callingStack = Thread.currentThread().getStackTrace();
         var getCallingClassFullName = new StringBuilder();
         for (var i = 1; i < callingStack.length; i++) {
-            if (!callingStack[i].getClassName().contains("shaft")) {
+            if (!callingStack[i].getClassName().contains("shaft") && !callingStack[i].getClassName().equals("org.openqa.selenium.support.ui.FluentWait")) {
                 getCallingClassFullName.append(callingStack[i].getClassName());
                 break;
             }
@@ -360,9 +370,12 @@ public class ReportManagerHelper {
     public static String getTestMethodName() {
         if (Reporter.getCurrentTestResult() != null) {
             return Reporter.getCurrentTestResult().getMethod().getMethodName();
-        } else {
-            // this happens when running a cucumber feature file directly because there is no testNG Reporter instance
+        } else if (CucumberFeatureListener.getLastStartedScenarioName() != null){
+            // this happens in case of native cucumber execution without TestNG Test Runner
             return JavaHelper.removeSpecialCharacters(CucumberFeatureListener.getLastStartedScenarioName());
+        } else {
+            // this happens in case of JUnit Test Runner
+            return JunitListenerHelper.getTestName().get();
         }
     }
 
@@ -383,10 +396,14 @@ public class ReportManagerHelper {
 
     public static Boolean isCurrentTestPassed() {
         if (Reporter.getCurrentTestResult() != null) {
+            // this happens in case of TestNG Test Runner
             return Reporter.getCurrentTestResult().isSuccess();
-        } else {
+        } else if (CucumberFeatureListener.getIsLastFinishedStepOK() != null){
             // this happens in case of native cucumber execution without TestNG Test Runner
             return CucumberFeatureListener.getIsLastFinishedStepOK();
+        } else {
+            // this happens in case of JUnit Test Runner
+            return JunitListener.getIsLastFinishedTestOK();
         }
     }
 
@@ -426,7 +443,7 @@ public class ReportManagerHelper {
     }
 
     private static void createLogEntry(String logText, boolean addToConsoleLog) {
-        if (!SHAFT.Properties.reporting.disableLogging()) {
+        if (SHAFT.Properties.reporting == null || !SHAFT.Properties.reporting.disableLogging()) {
             String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
             if (logText == null) {
                 logText = "null";
@@ -468,11 +485,21 @@ public class ReportManagerHelper {
     }
 
     private static void createImportantReportEntry(String logText) {
+        createImportantReportEntry(logText, Level.INFO);
+    }
+
+    private static void createImportantReportEntry(String logText, Level loglevel) {
         boolean initialLoggingStatus = discreteLogging;
         setDiscreteLogging(false); // force log even if discrete logging was turned on
 
+        var color = switch (loglevel.name()) {
+            case "WARN" -> "\033[1;33m"; //yellow
+            case "ERROR" -> "\033[1;31m"; //red
+            default -> "\033[0;7m"; //white
+        };
+
         String log = System.lineSeparator() +
-                "\033[0;7m" +
+                color +
                 createSeparator('-') +
                 addSpacing(logText.trim()) +
                 createSeparator('-') +
@@ -483,7 +510,7 @@ public class ReportManagerHelper {
         if (logger == null) {
             initializeLogger();
         }
-        logger.log(Level.INFO, log);
+        logger.log(loglevel, log);
         setDiscreteLogging(initialLoggingStatus);
     }
 
@@ -494,7 +521,7 @@ public class ReportManagerHelper {
      * @param logText the text that needs to be logged in this action
      */
     public static void writeStepToReport(String logText) {
-        if (!SHAFT.Properties.reporting.disableLogging()) {
+        if (SHAFT.Properties.reporting == null || !SHAFT.Properties.reporting.disableLogging()) {
             createLogEntry(logText, true);
             Allure.step(logText, getStepStatus(logText));
         }
@@ -522,7 +549,7 @@ public class ReportManagerHelper {
         createLogEntry(logText, true);
         if (attachments != null && !attachments.isEmpty()) {
             attachments.forEach(attachment -> {
-                if (attachment != null && !attachment.isEmpty() && attachment.get(2).getClass().toString().toLowerCase().contains("string")
+                if (attachment != null && !attachment.isEmpty() && attachment.get(2)!=null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
                         && !attachment.get(2).getClass().toString().contains("StringInputStream")) {
                     if (!attachment.get(2).toString().isEmpty()) {
                         attach(attachment.get(0).toString(), attachment.get(1).toString(), attachment.get(2).toString());
@@ -629,7 +656,7 @@ public class ReportManagerHelper {
     }
 
     public static void log(String logText, List<List<Object>> attachments) {
-        if (!SHAFT.Properties.reporting.disableLogging()) {
+        if (SHAFT.Properties.reporting == null || !SHAFT.Properties.reporting.disableLogging()) {
             if (!logText.toLowerCase().contains("failed") && getDiscreteLogging() && isInternalStep()) {
                 createLogEntry(logText, Level.INFO);
                 if (attachments != null && !attachments.isEmpty() && (attachments.size() > 1 || (attachments.getFirst() != null && !attachments.getFirst().isEmpty()))) {
@@ -664,7 +691,7 @@ public class ReportManagerHelper {
         CheckpointType type = (logText.toLowerCase().contains("verification")) ? CheckpointType.VERIFICATION : CheckpointType.ASSERTION;
 
         if (type.equals(CheckpointType.VERIFICATION) && status.equals(CheckpointStatus.FAIL)
-                || !SHAFT.Properties.reporting.disableLogging()) {
+                || SHAFT.Properties.reporting == null || !SHAFT.Properties.reporting.disableLogging()) {
             if (customLogMessages != null && !customLogMessages.isEmpty() && !customLogMessages.getFirst().trim().isEmpty()) {
                 String customLogText = customLogMessages.getFirst();
                 if (status == CheckpointStatus.PASS) {
@@ -699,7 +726,7 @@ public class ReportManagerHelper {
     public static void attach(List<List<Object>> attachments) {
         if (attachments != null && !attachments.isEmpty()) {
             attachments.forEach(attachment -> {
-                if (attachment != null && !attachment.isEmpty() && attachment.get(2).getClass().toString().toLowerCase().contains("string")
+                if (attachment != null && !attachment.isEmpty() && attachment.get(2)!=null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
                         && !attachment.get(2).getClass().toString().contains("StringInputStream")) {
                     if (!attachment.get(2).toString().isEmpty()) {
                         attach(attachment.get(0).toString(), attachment.get(1).toString(),
@@ -788,5 +815,4 @@ public class ReportManagerHelper {
         }
         return duration;
     }
-
 }

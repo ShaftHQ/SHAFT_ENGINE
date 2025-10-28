@@ -1,9 +1,15 @@
 package com.shaft.tools.io.internal;
 
+import com.epam.reportportal.service.ReportPortal;
+import com.google.common.io.Files;
+import com.shaft.listeners.TestNGListener;
 import io.qameta.allure.Allure;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.util.Calendar;
 import java.util.LinkedHashMap;
 import java.util.function.BiConsumer;
 
@@ -81,6 +87,15 @@ public class AttachmentReporter {
 
     private static void attachFileBased(String attachmentDescription, String contentType, ByteArrayOutputStream content, String fileExtension) {
         Allure.addAttachment(attachmentDescription, contentType, new ByteArrayInputStream(content.toByteArray()), fileExtension);
+        if (TestNGListener.isReportPortalEnabled()) {
+            try {
+                File file = File.createTempFile("rp-test", fileExtension);
+                Files.write(content.toByteArray(), file);
+                ReportPortal.emitLog(attachmentDescription, "INFO", Calendar.getInstance().getTime(), file);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     public static void attachBasedOnFileType(String attachmentType, String attachmentName,

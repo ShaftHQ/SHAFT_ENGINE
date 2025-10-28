@@ -1,24 +1,21 @@
 package com.shaft.listeners;
 
+import com.shaft.api.RequestBuilder;
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.internal.image.ImageProcessingActions;
+import com.shaft.gui.internal.image.AnimatedGifManager;
+import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.listeners.internal.JiraHelper;
 import com.shaft.listeners.internal.JunitListenerHelper;
-import com.shaft.listeners.internal.TestNGListenerHelper;
-import com.shaft.listeners.internal.UpdateChecker;
-import com.shaft.properties.internal.PropertiesHelper;
+import com.shaft.tools.internal.FirestoreRestClient;
 import com.shaft.tools.internal.security.GoogleTink;
-import com.shaft.tools.io.internal.AllureManager;
-import com.shaft.tools.io.internal.ExecutionSummaryReport;
-import com.shaft.tools.io.internal.ProjectStructureManager;
-import com.shaft.tools.io.internal.ReportManagerHelper;
-import io.qameta.allure.Allure;
+import com.shaft.tools.io.internal.*;
+import lombok.Getter;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.launcher.*;
-import org.testng.Reporter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class JunitListener implements LauncherSessionListener {
     private static final List<TestIdentifier> passedTests = new ArrayList<>();
@@ -26,6 +23,8 @@ public class JunitListener implements LauncherSessionListener {
     private static final List<TestIdentifier> skippedTests = new ArrayList<>();
     private static long executionStartTime;
     private static boolean isEngineReady = false;
+    @Getter
+    private static Boolean isLastFinishedTestOK = true;
 
     @Override
     public void launcherSessionOpened(LauncherSession session) {
@@ -34,7 +33,7 @@ public class JunitListener implements LauncherSessionListener {
                 @Override
                 public void testPlanExecutionStarted(TestPlan testPlan) {
                     executionStartTime = System.currentTimeMillis();
-                    engineSetup();
+                    TestNGListener.engineSetup(ProjectStructureManager.RunType.JUNIT);
                     isEngineReady = true;
                 }
 
@@ -45,7 +44,7 @@ public class JunitListener implements LauncherSessionListener {
 
                 @Override
                 public void executionSkipped(TestIdentifier testIdentifier, String reason) {
-                    afterInvocation();
+                    afterInvocation(testIdentifier, null);
                     onTestSkipped(testIdentifier, reason);
                 }
 
@@ -57,7 +56,7 @@ public class JunitListener implements LauncherSessionListener {
 
                 @Override
                 public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
-                    afterInvocation();
+                    afterInvocation(testIdentifier, testExecutionResult);
                     if (testIdentifier.isTest()) {
                         switch (testExecutionResult.getStatus()) {
                             case SUCCESSFUL -> onTestSuccess(testIdentifier);
@@ -72,29 +71,6 @@ public class JunitListener implements LauncherSessionListener {
         }
     }
 
-    private void engineSetup() {
-        ReportManagerHelper.setDiscreteLogging(true);
-        PropertiesHelper.initialize();
-        SHAFT.Properties.reporting.set().disableLogging(true);
-        Allure.getLifecycle();
-        Reporter.setEscapeHtml(false);
-        ProjectStructureManager.initialize(ProjectStructureManager.RunType.JUNIT);
-        TestNGListenerHelper.configureJVMProxy();
-        GoogleTink.initialize();
-        GoogleTink.decrypt();
-        SHAFT.Properties.reporting.set().disableLogging(false);
-
-        ReportManagerHelper.logEngineVersion();
-        UpdateChecker.check();
-        ImageProcessingActions.loadOpenCV();
-
-        AllureManager.initializeAllureReportingEnvironment();
-        ReportManagerHelper.cleanExecutionSummaryReportDirectory();
-
-        ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
-        ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
-    }
-
     private void engineTearDown() {
         ReportManagerHelper.setDiscreteLogging(true);
         JiraHelper.reportExecutionStatusToJira();
@@ -103,25 +79,40 @@ public class JunitListener implements LauncherSessionListener {
         AllureManager.openAllureReportAfterExecution();
         long executionEndTime = System.currentTimeMillis();
         ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
+        Thread.ofVirtual().start(() -> {
+            // Fetch performance data from RequestBuilder
+            Map<String, List<Double>> performanceData = RequestBuilder.getPerformanceData();
+
+            // Generate the performance report using the fetched data
+            ApiPerformanceExecutionReport.generatePerformanceReport(performanceData, executionStartTime, executionEndTime);
+        });
+        Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime));
         ReportManagerHelper.logEngineClosure();
     }
 
-    private void afterInvocation() {
+    private void afterInvocation(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
+        if (SHAFT.Properties.visuals.videoParamsScope().equals("TestMethod")) {
+            RecordManager.attachVideoRecording();
+        }
+        AnimatedGifManager.attachAnimatedGif();
     }
 
     private void onTestSuccess(TestIdentifier testIdentifier) {
         passedTests.add(testIdentifier);
+        isLastFinishedTestOK = true;
         appendToExecutionSummaryReport(testIdentifier, "", ExecutionSummaryReport.StatusIcon.PASSED, ExecutionSummaryReport.Status.PASSED);
     }
 
     private void onTestFailure(TestIdentifier testIdentifier, Throwable throwable) {
         failedTests.add(testIdentifier);
+        isLastFinishedTestOK = false;
         appendToExecutionSummaryReport(testIdentifier, throwable.getMessage(), ExecutionSummaryReport.StatusIcon.FAILED, ExecutionSummaryReport.Status.FAILED);
     }
 
     private void onTestSkipped(TestIdentifier testIdentifier, String reason) {
         skippedTests.add(testIdentifier);
+        isLastFinishedTestOK = false;
         appendToExecutionSummaryReport(testIdentifier, reason, ExecutionSummaryReport.StatusIcon.SKIPPED, ExecutionSummaryReport.Status.SKIPPED);
     }
 

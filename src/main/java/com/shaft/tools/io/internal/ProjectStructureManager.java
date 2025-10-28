@@ -5,6 +5,7 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
 
 import java.nio.file.Paths;
+import java.util.Arrays;
 
 public class ProjectStructureManager {
     public static void initialize(RunType runType) {
@@ -23,17 +24,24 @@ public class ProjectStructureManager {
                     FileActions.getInstance(true).createFolder(Properties.paths.services());
                     FileActions.getInstance(true).writeToFile(Properties.paths.services(), "org.junit.platform.launcher.LauncherSessionListener", "com.shaft.listeners.JunitListener");
                 }
-                case TESTNG -> {
+                case TESTNG, AI_AGENT, CUCUMBER -> {
                     FileActions.getInstance(true).createFolder(Properties.paths.services());
                     FileActions.getInstance(true).writeToFile(Properties.paths.services(), "org.testng.ITestNGListener", "com.shaft.listeners.TestNGListener");
                 }
-                case CUCUMBER -> {
-                    FileActions.getInstance(true).createFolder(Properties.paths.services());
-                    FileActions.getInstance(true).writeToFile(Properties.paths.services(), "io.cucumber.plugin.ConcurrentEventListener", "com.shaft.listeners.CucumberFeatureListener");
-                }
+//                case CUCUMBER -> {
+//                    FileActions.getInstance(true).createFolder(Properties.paths.services());
+//                    FileActions.getInstance(true).writeToFile(Properties.paths.services(), "io.cucumber.plugin.ConcurrentEventListener", "com.shaft.listeners.CucumberFeatureListener");
+//                }
             }
+            createAllureListenersMetaFiles();
         }
     }
 
-    public enum RunType {TESTNG, JUNIT, CUCUMBER}
+    private static void createAllureListenersMetaFiles() {
+        FileActions.getInstance(true).createFolder(com.shaft.properties.internal.Properties.paths.services());
+        Arrays.asList("io.qameta.allure.listener.ContainerLifecycleListener", "io.qameta.allure.listener.FixtureLifecycleListener",
+                "io.qameta.allure.listener.StepLifecycleListener", "io.qameta.allure.listener.TestLifecycleListener").forEach(fileName -> FileActions.getInstance(true).writeToFile(Properties.paths.services(), fileName, "com.shaft.listeners.AllureListener"));
+    }
+
+    public enum RunType {TESTNG, JUNIT, CUCUMBER, AI_AGENT}
 }

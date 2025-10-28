@@ -16,11 +16,13 @@ jobs:
       MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write  # if you have a protection rule on your repository, you'll need to give write permission to the workflow.
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'zulu'
@@ -41,7 +43,7 @@ jobs:
       # Attempt to create a GitHub release using the version in the pom.xml, if this release already exists, this job will fail fast
       - name: Create GitHub Release
         id: create_release
-        uses: ncipollo/release-action@v1.14.0
+        uses: ncipollo/release-action@v1.20.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -62,8 +64,3 @@ jobs:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
         run: mvn --batch-mode deploy "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
-      - name: Publish updated JavaDocs
-        env:
-          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-        run: mvn resources:resources javadoc:javadoc scm-publish:publish-scm "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"

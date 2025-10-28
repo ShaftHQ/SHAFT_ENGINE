@@ -10,26 +10,21 @@ import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.AsyncElementActions;
-import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.TouchActions;
-import com.shaft.gui.waits.WaitActions;
+import com.shaft.gui.element.internal.Actions;
 import com.shaft.listeners.internal.WebDriverListener;
-import com.shaft.tools.io.ExcelFileManager;
-import com.shaft.tools.io.JSONFileManager;
-import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.YAMLFileManager;
+import com.shaft.tools.io.*;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.RestValidationsBuilder;
-import io.appium.java_client.android.AndroidDriver;
-import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.AppiumDriver;
 import io.restassured.response.Response;
 import org.openqa.selenium.MutableCapabilities;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.events.EventFiringDecorator;
 
 import java.io.InputStream;
 import java.sql.ResultSet;
 import java.util.List;
-import java.util.function.Function;
 
 @SuppressWarnings("unused")
 public class SHAFT {
@@ -50,15 +45,21 @@ public class SHAFT {
                 helper = factory.getHelper(driverType, mutableCapabilities);
             }
 
+            public WebDriver(org.openqa.selenium.WebDriver driver) {
+                helper = factory.getHelper(driver);
+            }
+
             public void quit() {
-                helper.closeDriver();
-                factory.setHelper(null);
+                if (helper != null)
+                    helper.closeDriver();
+                if (factory != null)
+                    factory.setHelper(null);
                 helper = null;
                 factory = null;
             }
 
-            public ElementActions element() {
-                return new ElementActions(helper);
+            public Actions element() {
+                return new Actions(helper);
             }
 
             public TouchActions touch() {
@@ -71,17 +72,6 @@ public class SHAFT {
 
             public AlertActions alert() {
                 return new AlertActions(helper);
-            }
-
-            /**
-             * Use this method to do any selenium explicit wait if needed. <br>
-             * Please note that most of the used wait methods are implemented in the related classes (browser & element)
-             *
-             * @param conditions Any Selenium explicit wait, also supports <a href="http://appium.io/docs/en/commands/mobile-command/">expected conditions</a>
-             * @return wait actions reference to be used to chain actions
-             */
-            public WaitActions waitUntil(Function<? super org.openqa.selenium.WebDriver, ?> conditions) {
-                return new WaitActions(helper).waitUntil(conditions);
             }
 
             public WizardHelpers.WebDriverAssertions assertThat() {
@@ -97,7 +87,6 @@ public class SHAFT {
              *
              * @return the current Selenium WebDriver instance for custom manipulation
              */
-            @SuppressWarnings("CommentedOutCode")
             public org.openqa.selenium.WebDriver getDriver() {
                 /*
                  * Decorator is not working for appium drivers as per the following issues/articles
@@ -105,29 +94,11 @@ public class SHAFT {
                  * https://github.com/appium/java-client/blob/master/docs/The-event_firing.md#createproxy-api-since-java-client-830
                  * https://github.com/SeleniumHQ/selenium/blob/316f9738a8e2079265a0691954ca8847e68c598d/java/test/org/openqa/selenium/support/events/EventFiringDecoratorTest.java#L422
                  */
-                if (helper.getDriver() instanceof AndroidDriver androidDriver) {
-//                    AndroidDriver decoratedDriver = createProxy(
-//                            AndroidDriver.class,
-//                            new Object[] {androidDriver},
-//                            new Class[] {AndroidDriver.class},
-//                            webDriverListener
-//                    );
-//                    return decoratedDriver;
-//                    return new EventFiringDecorator<>(AndroidDriver.class, listener).decorate(androidDriver);
+                if (helper.getDriver() instanceof AppiumDriver | helper.getDriver() instanceof RemoteWebDriver) {
+                    // remote execution
                     return helper.getDriver();
-                } else if (helper.getDriver() instanceof IOSDriver iosDriver) {
-//                    IOSDriver decoratedDriver = createProxy(
-//                            IOSDriver.class,
-//                            new Object[] {iosDriver},
-//                            new Class[] {IOSDriver.class},
-//                            webDriverListener
-//                    );
-//                    return decoratedDriver;
-//                    return new EventFiringDecorator<>(IOSDriver.class, listener).decorate(iosDriver);
-                    return helper.getDriver();
-//                } else if (driverThreadLocal.get() instanceof RemoteWebDriver remoteWebDriver) {
-//                    driverThreadLocal.set(new EventFiringDecorator<>(RemoteWebDriver.class, new WebDriverListener()).decorate(remoteWebDriver));
                 } else {
+                    // local execution
                     if (!SHAFT.Properties.flags.enableTrueNativeMode()) {
                         return new EventFiringDecorator<>(org.openqa.selenium.WebDriver.class, new WebDriverListener()).decorate(helper.getDriver());
                     } else {
@@ -157,7 +128,7 @@ public class SHAFT {
         private String serviceURI;
 
         public API(String serviceURI) {
-            session = new RestActions(serviceURI);
+            session = new RestActions(serviceURI, this);
         }
 
         public static API getInstance(String serviceURI) {
@@ -193,43 +164,43 @@ public class SHAFT {
         }
 
         public RestValidationsBuilder assertThatResponse() {
-            return com.shaft.validation.Validations.assertThat().response(session.getLastResponse());
+            return com.shaft.validation.Validations.assertThat().response(session.getResponse());
         }
 
         public RestValidationsBuilder verifyThatResponse() {
-            return com.shaft.validation.Validations.verifyThat().response(session.getLastResponse());
+            return com.shaft.validation.Validations.verifyThat().response(session.getResponse());
         }
 
         public Response getResponse() {
-            return session.getLastResponse();
+            return session.getResponse();
         }
 
         public String getResponseBody() {
-            return RestActions.getResponseBody(session.getLastResponse());
+            return RestActions.getResponseBody(session.getResponse());
         }
 
         public int getResponseStatusCode() {
-            return RestActions.getResponseStatusCode(session.getLastResponse());
+            return RestActions.getResponseStatusCode(session.getResponse());
         }
 
         public long getResponseTime() {
-            return RestActions.getResponseTime(session.getLastResponse());
+            return RestActions.getResponseTime(session.getResponse());
         }
 
         public String getResponseJSONValue(String jsonPath) {
-            return RestActions.getResponseJSONValue(session.getLastResponse(), jsonPath);
+            return RestActions.getResponseJSONValue(session.getResponse(), jsonPath);
         }
 
         public List<Object> getResponseJSONValueAsList(String jsonPath) {
-            return RestActions.getResponseJSONValueAsList(session.getLastResponse(), jsonPath);
+            return RestActions.getResponseJSONValueAsList(session.getResponse(), jsonPath);
         }
 
         public String getResponseXMLValue(String xmlPath) {
-            return RestActions.getResponseXMLValue(session.getLastResponse(), xmlPath);
+            return RestActions.getResponseXMLValue(session.getResponse(), xmlPath);
         }
 
         public List<Object> getResponseXMLValueAsList(String xmlPath) {
-            return RestActions.getResponseXMLValueAsList(session.getLastResponse(), xmlPath);
+            return RestActions.getResponseXMLValueAsList(session.getResponse(), xmlPath);
         }
     }
 
@@ -326,6 +297,22 @@ public class SHAFT {
 
             public static ExcelFileManager getInstance(String excelFilePath) {
                 return new ExcelFileManager(excelFilePath);
+            }
+        }
+
+        public static class CSV extends CSVFileManager {
+            /**
+             * Creates a new instance of the test data CSV reader using the target CSV
+             * file path
+             *
+             * @param csvFilePath target test data CSV file path
+             */
+            public CSV(String csvFilePath) {
+                super(csvFilePath);
+            }
+
+            public static CSVFileManager getInstance(String csvFilePath) {
+                return new CSVFileManager(csvFilePath);
             }
         }
 

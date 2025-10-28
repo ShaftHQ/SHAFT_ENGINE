@@ -27,7 +27,7 @@ public class TouchActionsTests {
         driver.get().browser().navigateToURL(testElement);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void afterMethod() {
         driver.get().quit();
     }

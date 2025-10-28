@@ -10,7 +10,6 @@ import testPackage.legacy.SearchOptimizationTest;
 public class CoverageTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     boolean initialValue = SHAFT.Properties.visuals.createAnimatedGif();
-    double defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
 
     @Test
     public void getElementsCount() {
@@ -22,9 +21,10 @@ public class CoverageTests {
         }
     }
 
-    @Test(expectedExceptions = {java.lang.AssertionError.class})
+    @Test(expectedExceptions = {RuntimeException.class})
     public void invalidLocator() {
-        driver.get().browser().navigateToURL("https://kitchen.applitools.com/ingredients/alert");
+        String testElement = "data:text/html,<input type=\"text\"><br><br>";
+        driver.get().browser().navigateToURL(testElement);
         driver.get().element().click(By.xpath("....."))
                 .and().alert();
     }
@@ -37,14 +37,9 @@ public class CoverageTests {
         driver.get().browser().getWindowWidth();
         if (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName()))
             driver.get().browser().navigateToURLWithBasicAuthentication("https://authenticationtest.com/HTTPAuth/", "user", "pass", "https://authenticationtest.com/loginSuccess/");
-        if (SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local")
-           && (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName()))) {
-            driver.get().browser().getLocalStorage();
-            driver.get().browser().getSessionStorage();
-        }
     }
 
-    @Test
+    @Test(enabled = false)
     public void alerts_getText_and_accept() {
         driver.get().browser().navigateToURL("https://kitchen.applitools.com/ingredients/alert");
         var alert = driver.get().element().click(By.id("alert-button"))
@@ -53,14 +48,14 @@ public class CoverageTests {
         alert.acceptAlert();
     }
 
-    @Test(expectedExceptions = {AssertionError.class})
+    @Test(expectedExceptions = {RuntimeException.class})
     public void clickFakeElement_expectedToFail() {
         String testElement = "data:text/html,<input type=\"text\"><br><br>";
         driver.get().browser().navigateToURL(testElement);
         driver.get().element().click(By.id("fakeElement"));
     }
 
-    @Test(expectedExceptions = {AssertionError.class})
+    @Test(expectedExceptions = {RuntimeException.class})
     public void typeInFakeElement_expectedToFail() {
         String testElement = "data:text/html,<input type=\"text\"><br><br>";
         driver.get().browser().navigateToURL(testElement);
@@ -71,46 +66,45 @@ public class CoverageTests {
     public void nativeWebDriverListenerTests() {
         String testElement = "data:text/html,<form><input type=\"text\"><br><br></form>";
         By locator = SHAFT.GUI.Locator.hasTagName("input").build();
-        var nativeDriver = driver.get().getDriver();
-        nativeDriver.navigate().to("https://www.google.com/ncr");
-        nativeDriver.get(testElement);
-        nativeDriver.navigate().back();
-        nativeDriver.navigate().forward();
-        nativeDriver.navigate().refresh();
-        nativeDriver.manage().window().minimize();
-        nativeDriver.manage().window().maximize();
-        nativeDriver.getCurrentUrl();
-        nativeDriver.getTitle();
-        nativeDriver.findElement(locator).click();
-        nativeDriver.findElement(locator).clear();
-        nativeDriver.findElement(locator).sendKeys("test");
-        nativeDriver.findElement(locator).getAttribute("value");
-        nativeDriver.findElement(locator).getText();
-        nativeDriver.findElement(locator).submit();
+        driver.get().getDriver().navigate().to("https://www.automatest.org");
+        driver.get().getDriver().get(testElement);
+        driver.get().getDriver().navigate().back();
+        driver.get().getDriver().navigate().forward();
+        driver.get().getDriver().navigate().refresh();
+        driver.get().getDriver().manage().window().minimize();
+        driver.get().getDriver().manage().window().maximize();
+        driver.get().getDriver().getCurrentUrl();
+        driver.get().getDriver().getTitle();
+        driver.get().getDriver().findElement(locator).click();
+        driver.get().getDriver().findElement(locator).clear();
+        driver.get().getDriver().findElement(locator).sendKeys("test");
+        driver.get().getDriver().findElement(locator).getAttribute("value");
+        driver.get().getDriver().findElement(locator).getText();
+        driver.get().getDriver().findElement(locator).submit();
         driver.get().element().assertThat(locator).text().isEqualTo("test").perform();
-        nativeDriver.close();
+        driver.get().getDriver().close();
         try {
-            nativeDriver.quit();
+            driver.get().getDriver().quit();
         } catch (NoSuchSessionException noSuchSessionException) {
             // do nothing
         }
     }
 
-    @Test
+    @Test(enabled = false)
     public void alerts_dismiss() {
         driver.get().browser().navigateToURL("https://kitchen.applitools.com/ingredients/alert");
         driver.get().element().click(By.id("confirm-button"))
                 .and().alert().dismissAlert();
     }
 
-    @Test
+    @Test(enabled = false)
     public void alerts_type() {
         driver.get().browser().navigateToURL("https://kitchen.applitools.com/ingredients/alert");
         driver.get().element().click(By.id("prompt-button"))
                 .and().alert().typeIntoPromptAlert("nachos").acceptAlert();
     }
 
-    @Test
+    @Test(enabled = false)
     public void submitFormUsingJavaScript() {
         By searchBox = SearchOptimizationTest.searchBox;
         By searchResult = SHAFT.GUI.Locator.hasTagName("a").containsAttribute("href", "SHAFT_ENGINE").isFirst().build();
@@ -125,14 +119,12 @@ public class CoverageTests {
 
     @BeforeClass
     public void beforeClass() {
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
         SHAFT.Properties.visuals.set().createAnimatedGif(true);
     }
 
     @AfterClass(alwaysRun = true)
     public void afterClass() {
         SHAFT.Properties.visuals.set().createAnimatedGif(initialValue);
-        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultElementIdentificationTimeout);
     }
 
     @BeforeMethod

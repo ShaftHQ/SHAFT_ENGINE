@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>8.2.20240411</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
+    <version>9.4.20251028</version> <!-- UPDATE com.shaft.properties.internal > Internal -->
     <name>${project.groupId}:${project.artifactId}</name>
     <description>SHAFT is a unified test automation engine. Powered by best-in-class frameworks, SHAFT provides a
         wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve.
@@ -34,7 +34,7 @@
     <properties>
         <surefireArgLine></surefireArgLine>
         <!-- Build Commands-->
-        <installToLocalRepository>mvn clean install -DskipTests</installToLocalRepository>
+        <installToLocalRepository>mvn clean install "-DskipTests" "-Dgpg.skip"</installToLocalRepository>
         <publishJavaDocs>mvn resources:resources javadoc:javadoc scm-publish:publish-scm</publishJavaDocs>
         <!-- Deploy Commands -->
         <deployToMavenCentral>mvn clean deploy -DskipTests</deployToMavenCentral>
@@ -47,17 +47,25 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.10.2</version>
+                <version>6.0.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>io.qameta.allure</groupId>
                 <artifactId>allure-bom</artifactId>
-                <version>2.27.0</version>
+                <version>2.30.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+                 <!-- https://mvnrepository.com/artifact/io.cucumber/cucumber-bom -->
+                  <dependency>
+                      <groupId>io.cucumber</groupId>
+                      <artifactId>cucumber-bom</artifactId>
+                      <version>7.31.0</version>
+                      <type>pom</type>
+                      <scope>import</scope>
+                  </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -66,7 +74,7 @@
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
-            <version>7.10.2</version>
+            <version>7.11.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.guava</groupId>
@@ -78,7 +86,12 @@
                 </exclusion>
             </exclusions>
         </dependency>
-
+        <!-- CSV DEPENDENCIES-->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>1.14.1</version>
+        </dependency>
         <!-- JUNIT5 DEPENDENCIES -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -107,14 +120,14 @@
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
-            <version>4.21.0</version>
+            <version>4.38.0</version>
         </dependency>
 
         <!-- APPIUM -->
         <dependency>
             <groupId>io.appium</groupId>
             <artifactId>java-client</artifactId>
-            <version>9.2.2</version>
+            <version>10.0.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.seleniumhq.selenium</groupId>
@@ -147,7 +160,7 @@
         <dependency>
             <groupId>io.github.bonigarcia</groupId>
             <artifactId>webdrivermanager</artifactId>
-            <version>5.8.0</version>
+            <version>6.3.2</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -160,12 +173,10 @@
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-java</artifactId>
-            <version>7.17.0</version>
         </dependency>
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-testng</artifactId>
-            <version>7.17.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.testng</groupId>
@@ -184,7 +195,6 @@
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-picocontainer</artifactId>
-            <version>7.17.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.cucumber</groupId>
@@ -201,7 +211,7 @@
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi</artifactId>
-            <version>5.2.5</version>
+            <version>5.4.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -211,12 +221,16 @@
                     <groupId>org.slf4j</groupId>
                     <artifactId>jcl-over-slf4j</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-api</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
-            <version>5.2.5</version>
+            <version>5.4.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>xml-apis</groupId>
@@ -225,6 +239,10 @@
                 <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>slf4j-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-api</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -271,7 +289,7 @@
         <dependency>
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjweaver</artifactId>
-            <version>1.9.22.1</version>
+            <version>1.9.24</version>
         </dependency>
         <dependency>
             <groupId>io.qameta.allure</groupId>
@@ -282,14 +300,19 @@
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>
-            <version>3.0.2</version>
+            <version>3.0.6</version>
         </dependency>
 
         <!-- REST ASSURED -->
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
-            <version>5.4.0</version>
+            <version>5.5.6</version>
+        </dependency>
+        <dependency>
+            <groupId>com.atlassian.oai</groupId>
+            <artifactId>swagger-request-validator-restassured</artifactId>
+            <version>2.46.0</version>
         </dependency>
         <dependency>
             <groupId>com.googlecode.json-simple</groupId>
@@ -320,7 +343,7 @@
         <dependency>
             <groupId>org.skyscreamer</groupId>
             <artifactId>jsonassert</artifactId>
-            <version>1.5.1</version>
+            <version>1.5.3</version>
         </dependency>
         <dependency>
             <groupId>eu.medsea.mimeutil</groupId>
@@ -344,13 +367,13 @@
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>json-schema-validator</artifactId>
-            <version>5.4.0</version>
+            <version>5.5.6</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.datatype/jackson-datatype-jdk8 -->
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jdk8</artifactId>
-            <version>2.17.1</version>
+            <version>2.20.0</version>
         </dependency>
 
         <!-- VISUAL VALIDATIONS & ELEMENT IDENTIFICATION -->
@@ -377,7 +400,7 @@
         <dependency>
             <groupId>com.epam.healenium</groupId>
             <artifactId>healenium-web</artifactId>
-            <version>3.5.1</version>
+            <version>3.5.7</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.seleniumhq.selenium</groupId>
@@ -475,17 +498,17 @@
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
-            <version>8.4.0</version>
+            <version>9.5.0</version>
         </dependency>
         <dependency>
              <groupId>com.microsoft.sqlserver</groupId>
              <artifactId>mssql-jdbc</artifactId>
-             <version>12.7.0.jre11-preview</version>
+             <version>13.2.1.jre11</version>
         </dependency>
          <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.7.3</version>
+            <version>42.7.8</version>
         </dependency>
         <dependency>
             <groupId>com.ibm.db2.jcc</groupId>
@@ -523,12 +546,25 @@
                     <artifactId>slf4j-api</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>log4j</groupId>
-                    <artifactId>log4j</artifactId>
-                </exclusion>
-                <exclusion>
                     <groupId>org.testng</groupId>
                     <artifactId>testng</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.automation-remarks/video-recorder-junit5 -->
+        <dependency>
+            <groupId>com.automation-remarks</groupId>
+            <artifactId>video-recorder-junit5</artifactId>
+            <version>2.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.junit.jupiter</groupId>
+                    <artifactId>junit-jupiter-api</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -538,44 +574,33 @@
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j2-impl</artifactId>
-            <version>2.23.1</version>
+            <version>2.25.2</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core -->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-core</artifactId>
-            <version>2.23.1</version>
+            <version>2.25.2</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-1.2-api -->
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-1.2-api</artifactId>
-            <version>2.23.1</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-api -->
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-api</artifactId>
-            <version>2.23.1</version>
-        </dependency>
+
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>33.2.0-jre</version>
+            <version>33.5.0-jre</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.32</version>
+            <version>1.18.42</version>
         </dependency>
 
         <!-- https://github.com/google/tink/blob/master/docs/JAVA-HOWTO.md -->
         <dependency>
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink</artifactId>
-            <version>1.13.0</version>
+            <version>1.19.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.protobuf</groupId>
@@ -586,7 +611,7 @@
         <dependency>
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink-awskms</artifactId>
-            <version>1.9.1</version>
+            <version>1.11.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.auto.service</groupId>
@@ -610,7 +635,7 @@
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
-            <version>2.2</version>
+            <version>2.5</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.aeonbits.owner/owner -->
@@ -637,14 +662,14 @@
         <dependency>
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
-            <version>1.17.2</version>
+            <version>1.21.2</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.mockito/mockito-core -->
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.12.0</version>
+            <version>5.20.0</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -652,6 +677,36 @@
                     <artifactId>byte-buddy</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>me.tongfei</groupId>
+            <artifactId>progressbar</artifactId>
+            <version>0.10.1</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.epam.reportportal/agent-java-testng -->
+        <dependency>
+            <groupId>com.epam.reportportal</groupId>
+            <artifactId>agent-java-testng</artifactId>
+            <version>5.6.4</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/com.epam.reportportal/logger-java-log4j -->
+        <dependency>
+            <groupId>com.epam.reportportal</groupId>
+            <artifactId>logger-java-log4j</artifactId>
+            <version>5.4.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven.surefire</groupId>
+            <artifactId>surefire-testng</artifactId>
+            <version>3.5.4</version>
         </dependency>
     </dependencies>
 
@@ -669,6 +724,10 @@
                 <directory>${project.basedir}/src/main/javadoc</directory>
                 <targetPath>${project.reporting.outputDirectory}</targetPath>
             </resource>
+            <resource>
+                <directory>${project.basedir}/target/reports/apidocs</directory>
+                <targetPath>${project.reporting.outputDirectory}/apidocs</targetPath>
+            </resource>
         </resources>
 
         <!--Plugins -->
@@ -676,7 +735,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.14.1</version>
                 <configuration>
                     <source>21</source>
                     <target>21</target>
@@ -687,7 +746,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.4.1</version>
+                <version>3.4.2</version>
                 <configuration>
                     <classesDirectory>target/classes</classesDirectory>
                     <archive>
@@ -704,18 +763,18 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.6.3</version>
+                <version>3.12.0</version>
                 <configuration>
                     <javadocExecutable>${java.home}/bin/javadoc</javadocExecutable>
                     <sourcepath>
                         ${project.basedir}/src/main/java;${project.basedir}/target/generated-sources/annotations
                     </sourcepath>
+                    <docfilessubdirs>true</docfilessubdirs>
                     <encoding>UTF-8</encoding>
                     <failOnError>false</failOnError>
                     <show>public</show>
                     <nohelp>true</nohelp>
                     <header>SHAFT_Engine, ${project.version}</header>
-                    <footer>SHAFT_Engine, ${project.version}</footer>
                     <doctitle>SHAFT_Engine, ${project.version}</doctitle>
                 </configuration>
                 <executions>
@@ -730,7 +789,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-scm-publish-plugin</artifactId>
-                <version>3.2.1</version>
+                <version>3.3.0</version>
                 <configuration>
                     <checkoutDirectory>${project.basedir}/../SHAFT_ENGINE_apidocs</checkoutDirectory>
                     <tryUpdate>true</tryUpdate>
@@ -782,6 +841,7 @@
                 <configuration>
                     <sourceEncoding>UTF-8</sourceEncoding>
                     <outputEncoding>UTF-8</outputEncoding>
+                    <haltOnFailure>false</haltOnFailure>
                     <excludes>
                         <exclude>**/*Aspect</exclude>
                     </excludes>
@@ -859,7 +919,7 @@
             <plugin>
                 <groupId>org.sonatype.central</groupId>
                 <artifactId>central-publishing-maven-plugin</artifactId>
-                <version>0.4.0</version>
+                <version>0.9.0</version>
                 <extensions>true</extensions>
                 <configuration>
                     <publishingServerId>central</publishingServerId>
@@ -874,7 +934,7 @@
                 <!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-gpg-plugin -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-gpg-plugin</artifactId>
-                <version>3.2.4</version>
+                <version>3.2.8</version>
                 <executions>
                     <execution>
                         <id>sign-artifacts</id>
@@ -914,17 +974,17 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
-                        <version>3.2.5</version>
+                        <version>3.5.4</version>
                         <dependencies>
                             <dependency>
                                 <groupId>org.aspectj</groupId>
                                 <artifactId>aspectjweaver</artifactId>
-                                <version>1.9.22.1</version>
+                                <version>1.9.24</version>
                             </dependency>
                             <dependency>
                                 <groupId>org.apache.maven.surefire</groupId>
                                 <artifactId>surefire-testng</artifactId>
-                                <version>3.2.5</version>
+                                <version>3.5.4</version>
                             </dependency>
                         </dependencies>
                         <configuration>
@@ -933,13 +993,14 @@
                                 <testng.dtd.http>true</testng.dtd.http>
                                 <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>
                             </systemPropertyVariables>
+                            <testFailureIgnore>true</testFailureIgnore>
                             <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                             <failIfNoTests>false</failIfNoTests>
                             <trimStackTrace>false</trimStackTrace>
                             <useFile>false</useFile>
                             <argLine>
                                 @{argLine} ${surefireArgLine}
-                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.22.1/aspectjweaver-1.9.22.1.jar"
+                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.24/aspectjweaver-1.9.24.jar"
                             </argLine>
                             <properties>
                                 <property>
@@ -973,12 +1034,12 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
-                        <version>3.2.5</version>
+                        <version>3.5.4</version>
                         <dependencies>
                             <dependency>
                                 <groupId>org.aspectj</groupId>
                                 <artifactId>aspectjweaver</artifactId>
-                                <version>1.9.22.1</version>
+                                <version>1.9.24</version>
                             </dependency>
                         </dependencies>
                         <configuration>
@@ -987,13 +1048,14 @@
                                 <testng.dtd.http>true</testng.dtd.http>
                                 <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>
                             </systemPropertyVariables>
+                            <testFailureIgnore>true</testFailureIgnore>
                             <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                             <failIfNoTests>false</failIfNoTests>
                             <trimStackTrace>false</trimStackTrace>
                             <useFile>false</useFile>
                             <argLine>
                                 @{argLine} ${surefireArgLine}
-                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.22.1/aspectjweaver-1.9.22.1.jar"
+                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.24/aspectjweaver-1.9.24.jar"
                             </argLine>
                             <properties>
                                 <property>

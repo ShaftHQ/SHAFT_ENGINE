@@ -2,5 +2,7 @@
   "name": "Mohab Mohie",
   "age": 31,
   "city": "Cairo",
-  "searchQuery": "SHAFT_Engine"
+  "searchQuery": "SHAFT_Engine",
+  "expectedTitle": "DuckDuckGo",
+  "unexpectedInFirstResult": "Nope"
 }

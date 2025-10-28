@@ -10,11 +10,12 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test public class VisualValidationTests {
+public class VisualValidationTests {
     protected static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     String firstRunElementReferenceFilePath;
     By firstRunElement = By.cssSelector("img[alt='SHAFT_Engine']");
 
+    @Test
     public void visualValidation_1stRun(){
         var fileActions = SHAFT.CLI.file();
         firstRunElementReferenceFilePath = ScreenshotHelper.getAiAidedElementIdentificationFolderPath()
@@ -45,7 +46,7 @@ import org.testng.annotations.Test;
         driver.set(new SHAFT.GUI.WebDriver());
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void tear() {
         driver.get().quit();
     }

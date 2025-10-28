@@ -61,6 +61,19 @@ public class ElementSteps {
     }
 
     /**
+     * Presses a specific keyboard key into the target element.
+     *
+     * @param key          the target key that needs to be pressed into the target webElement. Supported keys are defined in the org.openqa.selenium.Keys enum
+     * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
+     * @param locatorValue the value/expression of the desired element locator
+     */
+    @When("I Press {string} into the element found by {string}: {string}")
+//    @عندما("اقوم بكتابة {string} بداخل مربع الكتابة المحدد بإستخدام {string} بقيمة {string}")
+    public void keyPress(String key, String locatorType, String locatorValue) {
+        driver.get().element().type(getLocatorFromTypeAndValue(locatorType, locatorValue), Keys.valueOf(key.toUpperCase()));
+    }
+
+    /**
      * Checks if there is any text in an element, clears it, then types the required string into the target element. Obfuscates the written text in the output report. This action should be used for writing passwords and secure text.
      *
      * @param text         the target text that needs to be typed into the target
@@ -97,20 +110,6 @@ public class ElementSteps {
     @When("I Upload the file {string} to the element found by {string}: {string}")
     public void typeFileLocationForUpload(String absoluteFilePath, String locatorType, String locatorValue) {
         driver.get().element().typeFileLocationForUpload(getLocatorFromTypeAndValue(locatorType, locatorValue), absoluteFilePath);
-    }
-
-    /**
-     * Sends a keypress to the target element. Supported keys are: ENTER, RETURN, TAB.
-     *
-     * @param key          the key that should be pressed
-     * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
-     * @param locatorValue the value/expression of the desired element locator
-     */
-    @SuppressWarnings("SpellCheckingInspection")
-    @When("I Press the {string} key into the element found by {string}: {string}")
-//    @عندما("اقوم بالضغط على زر {string} بداخل عنصر الويب المحدد بإستخدام {string} بقيمة {string}")
-    public void keyPress(String key, String locatorType, String locatorValue) {
-        driver.get().element().keyPress(getLocatorFromTypeAndValue(locatorType, locatorValue), Keys.valueOf(key.toUpperCase()));
     }
 
     /**
@@ -232,50 +231,6 @@ public class ElementSteps {
     @When("I Submit the form found by {string}: {string}")
     public void submitFormUsingJavaScript(String locatorType, String locatorValue) {
         driver.get().element().submitFormUsingJavaScript(getLocatorFromTypeAndValue(locatorType, locatorValue));
-    }
-
-    /**
-     * Waits dynamically for a specific element to achieve the desired
-     * stateOfPresence on the current page. Waits for a specific number of retries
-     * multiplied by the default element identification timeout (in the POM.xml
-     * file)
-     *
-     * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
-     * @param locatorValue the value/expression of the desired element locator
-     */
-    @When("I Wait for the element found by {string}: {string} to be present")
-    public void waitForElementToBePresent(String locatorType, String locatorValue) {
-        driver.get().element().waitToBeReady(getLocatorFromTypeAndValue(locatorType, locatorValue));
-    }
-
-    /**
-     * Waits dynamically for a specific element to achieve the desired
-     * stateOfPresence on the current page. Waits for a specific number of retries
-     * multiplied by the default element identification timeout (in the POM.xml
-     * file)
-     *
-     * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
-     * @param locatorValue the value/expression of the desired element locator
-     */
-    @When("I Wait for the element found by {string}: {string} to be not present")
-    public void waitForElementToBeNotPresent(String locatorType, String locatorValue) {
-        driver.get().element().waitToBeInvisible(getLocatorFromTypeAndValue(locatorType, locatorValue));
-    }
-
-    /**
-     * Waits dynamically for a specific element's text to change from the initial
-     * value to a new unknown value. Waits for a specific number of retries
-     * multiplied by the default element identification timeout (in the POM.xml
-     * file)
-     *
-     * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
-     * @param locatorValue the value/expression of the desired element locator
-     * @param initialValue the initial text value of the target webElement
-     */
-    @When("I Wait for the text inside the element found by {string}: {string} to change from the initial value {string}")
-    public void waitForTextToChange(String locatorType, String locatorValue, String initialValue) {
-        driver.get().element().waitForTextToChange(getLocatorFromTypeAndValue(locatorType, locatorValue), initialValue);
-
     }
 
     @SuppressWarnings("unused")

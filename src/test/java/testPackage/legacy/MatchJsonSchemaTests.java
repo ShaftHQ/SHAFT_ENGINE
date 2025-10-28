@@ -15,7 +15,7 @@ public class MatchJsonSchemaTests {
 
         Response res = DriverFactory.getAPIDriver("http://api.zippopotam.us/")
                 .buildNewRequest("us/90210", RestActions.RequestType.GET)
-                .performRequest();
+                .performRequest().getResponse();
 
 
         Validations.assertThat()

@@ -3,6 +3,7 @@ package com.shaft.gui.browser.internal;
 import com.google.common.net.InternetDomainName;
 import com.shaft.db.DatabaseActions;
 import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.internal.support.JavaScriptHelper;
@@ -11,9 +12,9 @@ import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import lombok.SneakyThrows;
 import org.apache.logging.log4j.Level;
+import org.openqa.selenium.*;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.Point;
-import org.openqa.selenium.*;
 import org.openqa.selenium.bidi.BiDiException;
 import org.openqa.selenium.bidi.browsingcontext.BrowsingContext;
 import org.openqa.selenium.bidi.browsingcontext.ReadinessState;
@@ -28,14 +29,14 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.List;
 import java.util.*;
+import java.util.List;
 
 public class BrowserActionsHelper {
+    public static final int NAVIGATION_TIMEOUT_INTEGER = SHAFT.Properties.timeouts.browserNavigationTimeout();
     private final boolean isSilent;
     private final Boolean HEADLESS_EXECUTION = SHAFT.Properties.web.headlessExecution();
 
-    public static final int NAVIGATION_TIMEOUT_INTEGER = SHAFT.Properties.timeouts.browserNavigationTimeout();
     public BrowserActionsHelper(boolean isSilent) {
         this.isSilent = isSilent;
     }
@@ -65,7 +66,7 @@ public class BrowserActionsHelper {
     }
 
     public void failAction(WebDriver driver, String actionName, String testData,
-                                  Exception... rootCauseException) {
+                           Exception... rootCauseException) {
         String message = reportActionResult(driver, actionName, testData, false, rootCauseException);
         if (rootCauseException != null && rootCauseException.length > 0) {
             FailureReporter.fail(DatabaseActions.class, message, rootCauseException[0]);
@@ -75,8 +76,8 @@ public class BrowserActionsHelper {
     }
 
     private String reportActionResult(WebDriver driver, String actionName, String testData,
-                                             Boolean passFailStatus,
-                                             Exception... rootCauseException) {
+                                      Boolean passFailStatus,
+                                      Exception... rootCauseException) {
         actionName = JavaHelper.convertToSentenceCase(actionName);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
@@ -119,33 +120,20 @@ public class BrowserActionsHelper {
     }
 
     public void confirmThatWebsiteIsNotDown(WebDriver driver, String targetUrl) {
-        if (SHAFT.Properties.flags.forceCheckNavigationWasSuccessful()) {
-            List<String> navigationErrorMessages = Arrays.asList("This site can’t be reached", "Unable to connect",
-                    "Safari Can’t Connect to the Server", "This page can't be displayed", "Invalid URL",
-                    "<head></head><body></body>");
-            //TODO: get page loop outside the foreach loop
-            try {
-                navigationErrorMessages.forEach(errorMessage -> {
+        var navigationErrorMessages = Arrays.asList("This site can’t be reached", "Unable to connect",
+                "Safari Can’t Connect to the Server", "This page can't be displayed", "Invalid URL",
+                "<head></head><body></body>");
+        new SynchronizationManager(driver).fluentWait().withTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.browserNavigationTimeout()))
+                .until(d -> {
+                    JavaScriptWaitManager.waitForLazyLoading(driver);
                     var pageSource = driver.getPageSource();
-                    if (pageSource != null && pageSource.contains(errorMessage)) {
-                        failAction(driver, "Error message: \"" + errorMessage + "\", Target URL: \"" + targetUrl + "\"");
-                    }
+                    navigationErrorMessages.forEach(errorMessage -> {
+                        if (pageSource != null && pageSource.contains(errorMessage)) {
+                            failAction(driver, "Error message: \"" + errorMessage + "\", Target URL: \"" + targetUrl + "\"");
+                        }
+                    });
+                    return true;
                 });
-            } catch (org.openqa.selenium.JavascriptException javascriptException) {
-                // this happens in some cases with local execution on windows
-            /*
-            Caused by: org.openqa.selenium.JavascriptException: javascript error: Cannot read properties of null (reading 'outerHTML')
-            (Session info: chrome=111.0.5563.111)
-            Build info: version: '4.8.2', revision: '826dbfc730'
-            System info: os.name: 'Windows 11', os.arch: 'amd64', os.version: '10.0', java.version: '17.0.3.1'
-            Driver info: org.openqa.selenium.chrome.ChromeDriver
-            Command: [3650f46d33000b7ed76f29f53d7810b6, getPageSource {}]
-            */
-                // try again
-                JavaScriptWaitManager.waitForLazyLoading(driver);
-                confirmThatWebsiteIsNotDown(driver, targetUrl);
-            }
-        }
     }
 
     public void navigateToNewUrl(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
@@ -160,7 +148,7 @@ public class BrowserActionsHelper {
 
         try {
             // upgrading to w3c compliant browsing context for navigation
-            new BrowsingContext(driver, driver.getWindowHandle()).navigate(internalURL, ReadinessState.COMPLETE);
+            new BrowsingContext(driver, driver.getWindowHandle()).navigate(internalURL, ReadinessState.valueOf(SHAFT.Properties.web.readinessState().trim().toUpperCase()));
         } catch (TimeoutException | java.lang.IllegalArgumentException |
                  org.openqa.selenium.bidi.BiDiException illegalArgumentException) {
             // Caused by: java.lang.IllegalArgumentException: WebDriver instance must support BiDi protocol
@@ -169,10 +157,6 @@ public class BrowserActionsHelper {
             driver.navigate().to(internalURL);
         } catch (WebDriverException rootCauseException) {
             failAction(driver, targetUrl, rootCauseException);
-        }
-
-        if (SHAFT.Properties.flags.forceCheckNavigationWasSuccessful() && !targetUrl.contains("\n")) {
-            checkNavigationWasSuccessful(driver, initialURL, targetUrl, targetUrlAfterRedirection);
         }
     }
 
@@ -203,7 +187,7 @@ public class BrowserActionsHelper {
     }
 
     public Dimension attemptMaximizeUsingSeleniumWebDriver(WebDriver driver, String executionAddress,
-                                                                  String targetBrowserName, String targetOperatingSystem) {
+                                                           String targetBrowserName, String targetOperatingSystem) {
         if ((!"local".equals(executionAddress) && !"GoogleChrome".equals(targetBrowserName))
                 || ("local".equals(executionAddress)
                 && !("GoogleChrome".equals(targetBrowserName) && "Mac".equals(targetOperatingSystem)))) {
@@ -211,7 +195,7 @@ public class BrowserActionsHelper {
                 driver.manage().window().maximize();
                 Dimension currentWindowSize = driver.manage().window().getSize();
                 ReportManager.logDiscrete(
-                        "Window size after SWD Maximize: " + currentWindowSize.toString());
+                        "Window size after SWD Maximize: " + currentWindowSize);
                 return currentWindowSize;
             } catch (WebDriverException rootCauseException) {
                 // org.openqa.selenium.WebDriverException: unknown error: failed to change
@@ -234,7 +218,7 @@ public class BrowserActionsHelper {
             driver.manage().window().setPosition(new org.openqa.selenium.Point(0, 0));
             driver.manage().window().setSize(new Dimension(targetWidth, targetHeight));
 
-            ReportManager.logDiscrete("Window size after Toolkit: " + driver.manage().window().getSize().toString());
+            ReportManager.logDiscrete("Window size after Toolkit: " + driver.manage().window().getSize());
             return driver.manage().window().getSize();
         } catch (HeadlessException e) {
             ((JavascriptExecutor) driver).executeScript(JavaScriptHelper.WINDOW_FOCUS.getValue());
@@ -243,18 +227,18 @@ public class BrowserActionsHelper {
                     .replace("$WIDTH", String.valueOf(targetWidth)).replace("$HEIGHT", String.valueOf(targetHeight)));
 
             ReportManager.logDiscrete(
-                    "Window size after JavascriptExecutor: " + driver.manage().window().getSize().toString());
+                    "Window size after JavascriptExecutor: " + driver.manage().window().getSize());
             return driver.manage().window().getSize();
         }
     }
 
     public Dimension attemptMaximizeUsingSeleniumWebDriverManageWindow(WebDriver driver, int width,
-                                                                              int height) {
+                                                                       int height) {
         driver.manage().window().setPosition(new Point(0, 0));
         driver.manage().window().setSize(new Dimension(width, height));
 
         ReportManager.logDiscrete(
-                "Window size after WebDriver.Manage.Window: " + driver.manage().window().getSize().toString());
+                "Window size after WebDriver.Manage.Window: " + driver.manage().window().getSize());
         return driver.manage().window().getSize();
     }
 
@@ -275,7 +259,7 @@ public class BrowserActionsHelper {
         } catch (WebDriverException webDriverException) {
             // unknown error: unhandled inspector error: {"code":-32000,"message":"Failed to generate MHTML"
             // try again but just get the regular page source this time
-            return capturePageSnapshot(driver);
+            return capturePageSnapshot(null);
         } catch (Exception rootCauseException) {
             failAction(driver, serializedPageData, rootCauseException);
             return serializedPageData;

@@ -2,6 +2,7 @@ package testPackage.locator;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.locator.Locator;
+import com.shaft.gui.internal.locator.Role;
 import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -104,20 +105,44 @@ public class LocatorBuilderTest {
     }
 
     @Test
-    public void relativeBy() {
-        By locator = Locator.hasTagName("a").relativeBy().below(Locator.hasTagName("h1").containsText("SHAFT").build());
+    public void byRelation() {
+        By locator = Locator.hasTagName("a").byRelation().below(Locator.hasTagName("h1").containsText("SHAFT").build());
         driver.get().assertThat().element(locator).text().contains("Upgrade Now").perform();
     }
 
     @Test
-    public void axisBy_followingSibling() {
-        By locator = Locator.hasTagName("h1").containsText("SHAFT").axisBy().followingSibling("p").build();
+    public void byAxis_followingSibling() {
+        By locator = Locator.hasTagName("h1").containsText("SHAFT").byAxis().followingSibling("p").build();
         driver.get().assertThat().element(locator).text().contains("Stop reinventing the wheel").perform();
     }
 
     @Test
-    public void axisBy_chain_precedingSibling() {
-        By locator = Locator.hasTagName("h1").containsText("SHAFT").axisBy().followingSibling("p").axisBy().precedingSibling("h1").hasIndex(1).build();
+    public void byAxis_chain_precedingSibling() {
+        By locator = Locator.hasTagName("h1").containsText("SHAFT").byAxis().followingSibling("p").byAxis().precedingSibling("h1").hasIndex(1).build();
         driver.get().assertThat().element(locator).text().isEqualTo("SHAFT: Unified Test Automation Engine").perform();
+    }
+
+    @Test
+    public void byRoleHeading() {
+        By locator = Locator.hasRole(Role.HEADING).and().containsText("SHAFT").build();
+        driver.get().assertThat().element(locator).text().isEqualTo("SHAFT: Unified Test Automation Engine").perform();
+    }
+
+    @Test
+    public void byRoleButton() {
+        By locator = Locator.hasRole(Role.BUTTON).and().containsText("Upgrade").isFirst().build();
+        driver.get().assertThat().element(locator).text().isEqualTo("⚡ Upgrade Now ⚡").perform();
+    }
+
+    @Test
+    public void byRoleLink() {
+        By locator = Locator.hasRole(Role.LINK).and().containsText("Selenium").build();
+        driver.get().assertThat().element(locator).text().isEqualTo("official Selenium ecosystem frameworks").perform();
+    }
+
+    @Test
+    public void byRoleTextbox() {
+        By locator = Locator.hasRole(Role.TEXTBOX).and().byRelation().toRightOf(Locator.hasTagName("label").containsText("# Tests to be automated:").build());
+        driver.get().assertThat().element(locator).attribute("value").isEqualTo("100").perform();
     }
 }

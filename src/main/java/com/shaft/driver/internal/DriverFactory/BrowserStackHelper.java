@@ -7,6 +7,7 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ProgressBarLogger;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.MutableCapabilities;
 
@@ -90,7 +91,8 @@ public class BrowserStackHelper {
         parameters.add(apkFile);
         parameters.add(customID);
         var appUrl = "";
-        try {
+
+        try (ProgressBarLogger ignored = new ProgressBarLogger("Uploading app to BrowserStack...")) {
             appUrl = Objects.requireNonNull(RestActions.getResponseJSONValue(new RestActions(serviceUri).buildNewRequest(appUploadServiceName, RestActions.RequestType.POST)
                             .setParameters(parameters, RestActions.ParametersType.FORM)
                             .setAuthentication(username, password, RequestBuilder.AuthenticationType.BASIC)
@@ -143,6 +145,7 @@ public class BrowserStackHelper {
         browserstackOptions.put("osVersion", osVersion);
         browserstackOptions.put("local", SHAFT.Properties.browserStack.local());
         browserstackOptions.put("appiumVersion", SHAFT.Properties.browserStack.appiumVersion());
+        browserstackOptions.put("seleniumVersion", SHAFT.Properties.browserStack.seleniumVersion());
         browserstackOptions.put("deviceName", SHAFT.Properties.browserStack.deviceName());
 
         var pathItems = System.getProperty("user.dir").split(Pattern.quote(File.separator));
@@ -151,6 +154,9 @@ public class BrowserStackHelper {
         browserstackOptions.put("buildName", pathItems[pathItems.length - 1] + "_" + time.getYear() + time.getMonthValue() + time.getDayOfMonth());
 
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
+
+        browserStackCapabilities.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+
 
         passAction(testData);
         return browserStackCapabilities;
@@ -167,7 +173,6 @@ public class BrowserStackHelper {
         // set properties
         SHAFT.Properties.platform.set().executionAddress(username + ":" + password + "@" + hubUrl);
         SHAFT.Properties.mobile.set().browserName(SHAFT.Properties.web.targetBrowserName());
-//        System.setProperty("browserName", SHAFT.Properties.web.targetBrowserName());
 
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
         var browserVersion = SHAFT.Properties.browserStack.browserVersion();

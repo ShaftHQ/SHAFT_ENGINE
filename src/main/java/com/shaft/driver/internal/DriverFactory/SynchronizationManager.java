@@ -1,10 +1,10 @@
 package com.shaft.driver.internal.DriverFactory;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.Browser;
 import org.openqa.selenium.support.ui.FluentWait;
-import org.openqa.selenium.support.ui.Wait;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -18,11 +18,11 @@ public class SynchronizationManager {
         this.driver = driver;
     }
 
-    public Wait<?> fluentWait() {
+    public FluentWait<WebDriver> fluentWait() {
         return fluentWait(false);
     }
 
-    public Wait<?> fluentWait(boolean isValidToCheckForVisibility) {
+    public FluentWait<WebDriver> fluentWait(boolean isValidToCheckForVisibility) {
         return new FluentWait<>(driver)
                 .withTimeout(Duration.ofSeconds((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout())))
                 .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
@@ -36,6 +36,7 @@ public class SynchronizationManager {
         expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
         expectedExceptions.add(org.openqa.selenium.JavascriptException.class);
         expectedExceptions.add(org.openqa.selenium.ElementClickInterceptedException.class);
+        expectedExceptions.add(MultipleElementsFoundException.class);
 
         if (isValidToCheckForVisibility) {
             expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
@@ -51,7 +52,7 @@ public class SynchronizationManager {
         // to handle failure inside a virtual thread
         expectedExceptions.add(ExecutionException.class);
         expectedExceptions.add(InterruptedException.class);
-        expectedExceptions.add(RuntimeException.class);
+//        expectedExceptions.add(RuntimeException.class);
 
         return expectedExceptions;
     }
