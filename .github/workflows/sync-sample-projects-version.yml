@@ -33,8 +33,9 @@ jobs:
             VERSION="${{ github.event.release.tag_name }}"
             echo "Using release tag version: $VERSION"
           else
-            # Fallback to pom.xml version (get the project version, not modelVersion)
-            VERSION=$(grep -A2 '<artifactId>SHAFT_ENGINE</artifactId>' pom.xml | grep '<version>' | sed 's/.*<version>\(.*\)<\/version>.*/\1/' | tr -d ' ')
+            # Fallback to pom.xml version (extract the project version from the top-level POM)
+            # Use sed to extract version from the first occurrence in the POM header (not from dependencies)
+            VERSION=$(sed -n '/<groupId>io.github.shafthq<\/groupId>/,/<\/properties>/{ /<version>/{ s/.*<version>\(.*\)<\/version>.*/\1/p; q; } }' pom.xml | tr -d ' ')
             echo "Using version from pom.xml: $VERSION"
           fi
 
@@ -66,11 +67,14 @@ jobs:
           for POM_FILE in $POM_FILES; do
             # Check if the file contains shaft_engine.version
             if grep -q 'shaft_engine.version' "$POM_FILE"; then
-              CURRENT_VERSION=$(grep 'shaft_engine.version' "$POM_FILE" | sed 's/.*<shaft_engine.version>\(.*\)<\/shaft_engine.version>.*/\1/' | head -1)
+              CURRENT_VERSION=$(grep 'shaft_engine.version' "$POM_FILE" | sed 's/.*<shaft_engine.version>\(.*\)<\/shaft_engine.version>.*/\1/' | head -1 | tr -d ' ')
 
               if [ "$CURRENT_VERSION" != "$NEW_VERSION" ]; then
                 echo "Updating $POM_FILE from $CURRENT_VERSION to $NEW_VERSION"
-                sed -i "s|<shaft_engine.version>$CURRENT_VERSION</shaft_engine.version>|<shaft_engine.version>$NEW_VERSION</shaft_engine.version>|g" "$POM_FILE"
+                # Escape dots and other special regex characters in versions for safe sed substitution
+                ESCAPED_CURRENT=$(echo "$CURRENT_VERSION" | sed 's/[.]/\\./g')
+                ESCAPED_NEW=$(echo "$NEW_VERSION" | sed 's/[.]/\\./g')
+                sed -i "s|<shaft_engine.version>$ESCAPED_CURRENT</shaft_engine.version>|<shaft_engine.version>$ESCAPED_NEW</shaft_engine.version>|g" "$POM_FILE"
                 CHANGES_MADE=true
                 FILES_UPDATED+=("- $POM_FILE")
               else
@@ -126,7 +130,7 @@ jobs:
             - Ensures all sample projects use the same SHAFT_ENGINE version
 
             ### 📋 Trigger:
-            - ${{ github.event_name == 'release' && format('Triggered by release: {0}', github.event.release.tag_name) || 'Manually triggered workflow' }}
+            - ${{ github.event_name == 'release' && format('Triggered by release: {0}', github.event.release.tag_name) || (github.event.inputs.version != '' && format('Manually triggered workflow with version: {0}', github.event.inputs.version) || 'Manually triggered workflow') }}
 
             Please review and merge if the changes look correct.
           labels: |
