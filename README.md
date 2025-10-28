@@ -78,7 +78,7 @@
 > Recommended for quickly creating new projects with a user-friendly interface.
 
 - The fastest way to create a new SHAFT project with your preferred test runner and platform.
-- Visit the [SHAFT Project Generator](https://shafthq.github.io/SHAFT_ENGINE/resources/) to generate your project in seconds.
+- Visit the [SHAFT Project Generator ➡️](https://shafthq.github.io/docs/Getting_Started/first_steps_5#option-1-interactive-project-generator-recommended) to generate your project in seconds.
 - Choose your test runner (TestNG, JUnit, or Cucumber), select your platform (Web, Mobile, or API), and download a ready-to-use project.
 - Optionally includes GitHub Actions workflow and Dependabot configuration.
 
@@ -88,7 +88,7 @@
 > Recommended for new local sandbox projects using command line.
 
 - The easiest and most straightforward way to create a new project that uses SHAFT.
-- Just [follow the simple steps here ➡️](https://shafthq.github.io/docs/Getting_Started/first_steps_5) to generate your new project with one command (all configurations included).
+- Just [follow the simple steps here ➡️](https://shafthq.github.io/docs/Getting_Started/first_steps_5#option-2-maven-archetype) to generate your new project with one command (all configurations included).
 
 ### Option 3: Start from scratch
 
