@@ -72,8 +72,8 @@ jobs:
               if [ "$CURRENT_VERSION" != "$NEW_VERSION" ]; then
                 echo "Updating $POM_FILE from $CURRENT_VERSION to $NEW_VERSION"
                 # Escape dots and other special regex characters in versions for safe sed substitution
-                ESCAPED_CURRENT=$(echo "$CURRENT_VERSION" | sed 's/[.]/\\./g')
-                ESCAPED_NEW=$(echo "$NEW_VERSION" | sed 's/[.]/\\./g')
+                ESCAPED_CURRENT=$(echo "$CURRENT_VERSION" | sed 's/[.[\^$*+?(){|}-]/\\&/g')
+                ESCAPED_NEW=$(echo "$NEW_VERSION" | sed 's/[.[\^$*+?(){|}-]/\\&/g')
                 sed -i "s|<shaft_engine.version>$ESCAPED_CURRENT</shaft_engine.version>|<shaft_engine.version>$ESCAPED_NEW</shaft_engine.version>|g" "$POM_FILE"
                 CHANGES_MADE=true
                 FILES_UPDATED+=("- $POM_FILE")
