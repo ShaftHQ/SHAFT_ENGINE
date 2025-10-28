@@ -571,24 +571,14 @@
             
             document.getElementById(`step${step}`).classList.remove('active');
             currentStep = step + 1;
-            document.getElementById(`step${currentStep}`).classList.add('active');
             
-            // Check if we're entering step 4 (GitHub Actions)
-            if (currentStep === 4) {
-                // Only show GitHub Actions option for web and api platforms
-                const githubActionsCheckbox = document.getElementById('includeGithubActions');
-                const checkboxContainer = githubActionsCheckbox.parentElement.parentElement;
-                
-                if (selectedPlatform.toLowerCase() === 'mobile') {
-                    // Hide checkbox and uncheck it for mobile
-                    checkboxContainer.style.display = 'none';
-                    githubActionsCheckbox.checked = false;
-                } else {
-                    // Show checkbox for web and api
-                    checkboxContainer.style.display = 'block';
-                    githubActionsCheckbox.checked = true;
-                }
+            // Skip step 4 (GitHub Actions) for mobile platform since there are no valid options
+            if (currentStep === 4 && selectedPlatform.toLowerCase() === 'mobile') {
+                currentStep = 5; // Skip to step 5 (Dependabot)
+                document.getElementById('includeGithubActions').checked = false;
             }
+            
+            document.getElementById(`step${currentStep}`).classList.add('active');
             
             updateProgress();
         }
@@ -596,6 +586,12 @@
         function prevStep(step) {
             document.getElementById(`step${step}`).classList.remove('active');
             currentStep = step - 1;
+            
+            // Skip step 4 (GitHub Actions) when going back from step 5 if mobile platform is selected
+            if (currentStep === 4 && selectedPlatform.toLowerCase() === 'mobile') {
+                currentStep = 3; // Skip back to step 3 (Project Naming)
+            }
+            
             document.getElementById(`step${currentStep}`).classList.add('active');
             
             updateProgress();
