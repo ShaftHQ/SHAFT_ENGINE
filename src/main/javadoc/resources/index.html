@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SHAFT Project Generator</title>
+    <link rel="icon" type="image/png" href="https://github.com/user-attachments/assets/016ebb3c-4090-4f07-a9b3-830fdf4cb696">
     <style>
         * {
             margin: 0;
@@ -390,8 +391,8 @@
             <h2 class="success-title">Project Generated Successfully!</h2>
             <p class="success-text">Your SHAFT project has been generated and the download should start automatically.</p>
             <div class="info-box">
-                📚 Visit <a href="https://shafthq.github.io/" target="_blank">shafthq.github.io</a> to learn more about SHAFT.<br>
-                ⚙️ For advanced integrations (BrowserStack, LambdaTest, Jira, Healenium) or configurations (headless mode, Selenium Grid, element timeout), visit <a href="https://shafthq.github.io/docs/Properties/PropertiesList" target="_blank">Properties List</a>.
+                📚 Learn more about SHAFT at <a href="https://shafthq.github.io/" target="_blank">shafthq.github.io</a><br>
+                ⚙️ For advanced configurations and integrations, check out our <a href="https://shafthq.github.io/docs/Properties/PropertiesList" target="_blank">Properties Guide</a>
             </div>
             <div class="button-group" style="margin-top: 30px;">
                 <button class="btn-primary" onclick="resetGenerator()">Generate Another Project</button>
@@ -425,7 +426,7 @@
                 const runners = await response.json();
                 
                 for (const runner of runners) {
-                    if (runner.type === 'dir') {
+                    if (runner.type === 'dir' && !runner.name.startsWith('.')) {
                         projectData[runner.name] = {};
                         
                         // Fetch projects for this runner
@@ -478,8 +479,18 @@
             const runnerGroup = document.getElementById('runnerGroup');
             runnerGroup.innerHTML = '';
             
+            const validRunners = Object.keys(projectData).filter(runner => 
+                Object.keys(projectData[runner]).length > 0
+            ).sort();
+            
+            // Skip step 1 entirely if no valid runners
+            if (validRunners.length === 0) {
+                runnerGroup.innerHTML = '<p style="text-align: center; color: #718096;">No test runners available.</p>';
+                return;
+            }
+            
             // Populate runner options with sanitized data
-            Object.keys(projectData).sort().forEach(runner => {
+            validRunners.forEach(runner => {
                 const label = document.createElement('label');
                 label.className = 'radio-option';
                 
@@ -514,7 +525,7 @@
             platformGroup.innerHTML = '';
             
             const platforms = projectData[selectedRunner];
-            if (platforms) {
+            if (platforms && Object.keys(platforms).length > 0) {
                 Object.keys(platforms).forEach(platform => {
                     const label = document.createElement('label');
                     label.className = 'radio-option';
@@ -541,6 +552,9 @@
                         updateArtifactId();
                     });
                 });
+            } else {
+                // No valid platforms for this runner
+                platformGroup.innerHTML = '<p style="text-align: center; color: #718096;">No platforms available for this runner.</p>';
             }
         }
 
