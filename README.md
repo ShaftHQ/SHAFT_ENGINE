@@ -78,7 +78,7 @@
 > Recommended for quickly creating new projects with a user-friendly interface.
 
 - The fastest way to create a new SHAFT project with your preferred test runner and platform.
-- Visit the [SHAFT Project Generator](https://shafthq.github.io/SHAFT_ENGINE/project-generator.html) to generate your project in seconds.
+- Visit the [SHAFT Project Generator](https://shafthq.github.io/SHAFT_ENGINE/resources/) to generate your project in seconds.
 - Choose your test runner (TestNG, JUnit, or Cucumber), select your platform (Web, Mobile, or API), and download a ready-to-use project.
 - Optionally includes GitHub Actions workflow and Dependabot configuration.
 
