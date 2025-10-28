@@ -1,0 +1,135 @@
+name: Sync Sample Projects SHAFT Version
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'SHAFT Engine version to sync (leave empty to use latest release)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-versions:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+
+      - name: Determine SHAFT Version
+        id: get-version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            # Manual workflow dispatch with specific version
+            VERSION="${{ github.event.inputs.version }}"
+            echo "Using manually specified version: $VERSION"
+          elif [ "${{ github.event_name }}" == "release" ]; then
+            # Triggered by release event
+            VERSION="${{ github.event.release.tag_name }}"
+            echo "Using release tag version: $VERSION"
+          else
+            # Fallback to pom.xml version
+            VERSION=$(grep -m1 '<version>' pom.xml | sed 's/.*<version>\(.*\)<\/version>.*/\1/' | tr -d ' ')
+            echo "Using version from pom.xml: $VERSION"
+          fi
+
+          echo "NEW_VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Determined SHAFT version: $VERSION"
+
+      - name: Check Current Versions in Examples
+        id: check-current
+        run: |
+          # Get unique versions from example pom.xml files
+          CURRENT_VERSIONS=$(grep -h '<shaft_engine.version>' src/main/resources/examples/*/*/pom.xml | sed 's/.*<shaft_engine.version>\(.*\)<\/shaft_engine.version>.*/\1/' | tr -d ' ' | sort -u | tr '\n' ' ')
+          echo "CURRENT_VERSIONS=$CURRENT_VERSIONS" >> $GITHUB_OUTPUT
+          echo "Current SHAFT versions in examples: $CURRENT_VERSIONS"
+
+      - name: Update Sample Project pom.xml Files
+        id: update-files
+        run: |
+          NEW_VERSION="${{ steps.get-version.outputs.NEW_VERSION }}"
+          CURRENT_VERSIONS="${{ steps.check-current.outputs.CURRENT_VERSIONS }}"
+
+          echo "Updating SHAFT version to: $NEW_VERSION"
+
+          # Find all pom.xml files in examples directory
+          POM_FILES=$(find src/main/resources/examples -name "pom.xml")
+
+          CHANGES_MADE=false
+          FILES_UPDATED=""
+
+          for POM_FILE in $POM_FILES; do
+            # Check if the file contains shaft_engine.version
+            if grep -q 'shaft_engine.version' "$POM_FILE"; then
+              CURRENT_VERSION=$(grep 'shaft_engine.version' "$POM_FILE" | sed 's/.*<shaft_engine.version>\(.*\)<\/shaft_engine.version>.*/\1/' | head -1)
+
+              if [ "$CURRENT_VERSION" != "$NEW_VERSION" ]; then
+                echo "Updating $POM_FILE from $CURRENT_VERSION to $NEW_VERSION"
+                sed -i "s|<shaft_engine.version>$CURRENT_VERSION</shaft_engine.version>|<shaft_engine.version>$NEW_VERSION</shaft_engine.version>|g" "$POM_FILE"
+                CHANGES_MADE=true
+                FILES_UPDATED="$FILES_UPDATED\n- $POM_FILE"
+              else
+                echo "Skipping $POM_FILE - already at version $NEW_VERSION"
+              fi
+            fi
+          done
+
+          if [ "$CHANGES_MADE" = true ]; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "files_updated<<EOF" >> $GITHUB_OUTPUT
+            echo -e "$FILES_UPDATED" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "Changes were made to sample projects"
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+            echo "No changes needed - all examples are already at version $NEW_VERSION"
+          fi
+
+      - name: Create Pull Request
+        if: steps.update-files.outputs.changes == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: |
+            Update sample projects to SHAFT Engine version ${{ steps.get-version.outputs.NEW_VERSION }}
+
+            Automatically updated all example pom.xml files to use SHAFT_ENGINE version ${{ steps.get-version.outputs.NEW_VERSION }}
+          branch: auto-update-sample-projects-version
+          delete-branch: true
+          title: 'Update sample projects to SHAFT Engine ${{ steps.get-version.outputs.NEW_VERSION }}'
+          body: |
+            ## 🤖 Automated Sample Projects Version Sync
+
+            This PR automatically updates all sample project dependencies to use the latest SHAFT_ENGINE version.
+
+            ### Version Update:
+
+            **New SHAFT_ENGINE Version:** `${{ steps.get-version.outputs.NEW_VERSION }}`
+
+            **Previous Versions:** `${{ steps.check-current.outputs.CURRENT_VERSIONS }}`
+
+            ### Files Updated:
+            ${{ steps.update-files.outputs.files_updated }}
+
+            ### 📁 Sample Projects Locations:
+            - `src/main/resources/examples/TestNG/`
+            - `src/main/resources/examples/JUnit/`
+            - `src/main/resources/examples/Cucumber/`
+
+            ### ✅ Changes Made:
+            - Updated `shaft_engine.version` property in all example pom.xml files
+            - Ensures all sample projects use the same SHAFT_ENGINE version
+
+            ### 📋 Trigger:
+            - ${{ github.event_name == 'release' && format('Triggered by release: {0}', github.event.release.tag_name) || 'Manually triggered workflow' }}
+
+            Please review and merge if the changes look correct.
+          labels: |
+            dependencies
+            automated
+            examples
