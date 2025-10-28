@@ -414,21 +414,22 @@ public class OptionsManager {
                 options.addArguments("inPrivate");
             }
         }
-        // optional capabilities and options
+        // Configure download directory from downloadsFolderPath property (always applied)
+        Map<String, Object> chromePreferences = new HashMap<>();
+        chromePreferences.put("download.prompt_for_download", "false");
+        chromePreferences.put("download.default_directory", System.getProperty("user.dir") + File.separatorChar + SHAFT.Properties.paths.downloads().replace("/", File.separator));
+        // Add additional recommended capabilities and options if flag is enabled
         if (SHAFT.Properties.flags.automaticallyAddRecommendedChromeOptions()) {
-            Map<String, Object> chromePreferences = new HashMap<>();
             chromePreferences.put("credentials_enable_service", false);
             chromePreferences.put("profile.password_manager_enabled", false);
             chromePreferences.put("profile.password_manager_leak_detection", false);
             chromePreferences.put("profile.default_content_settings.popups", 0);
-            chromePreferences.put("download.prompt_for_download", "false");
-            chromePreferences.put("download.default_directory", System.getProperty("user.dir") + File.separatorChar + SHAFT.Properties.paths.downloads().replace("/", File.separator));
-            options.setExperimentalOption("prefs", chromePreferences);
             options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
             options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
             options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
             options.setCapability(CapabilityType.ENABLE_DOWNLOADS, true);
         }
+        options.setExperimentalOption("prefs", chromePreferences);
         // Timeouts and page load strategy
         if (DriverFactoryHelper.isNotMobileExecution())
             options.setPageLoadStrategy(this.pageLoadStrategy); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
