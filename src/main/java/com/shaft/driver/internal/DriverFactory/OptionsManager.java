@@ -418,7 +418,7 @@ public class OptionsManager {
         Map<String, Object> chromePreferences = new HashMap<>();
         chromePreferences.put("download.prompt_for_download", "false");
         chromePreferences.put("download.default_directory", System.getProperty("user.dir") + File.separatorChar + SHAFT.Properties.paths.downloads().replace("/", File.separator));
-        // optional capabilities and options
+        // Add additional recommended capabilities and options if flag is enabled
         if (SHAFT.Properties.flags.automaticallyAddRecommendedChromeOptions()) {
             chromePreferences.put("credentials_enable_service", false);
             chromePreferences.put("profile.password_manager_enabled", false);
