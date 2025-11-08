@@ -182,7 +182,7 @@ public class RequestBuilder {
      * @param parameters     a list of key/value pairs that will be sent as parameters with this API call, is nullable, Example: Arrays.asList(Arrays.asList("itemId", "123"), Arrays.asList("contents", XMLContents));
      * @param parametersType FORM, QUERY
      * @return a self-reference to be used to continue building your API request
-     * @deprecated Use setParameters(Map<String, Object>, RestActions.ParametersType) instead.
+     * @deprecated Use setParameters(Map&lt;String, Object&gt;, RestActions.ParametersType) instead.
      * This method will be removed in a future release.
      * Sets the parameters (if any) for the API request that you're currently building. A request usually has only one of the following: urlArguments, parameters+type, or body
      */
@@ -194,7 +194,7 @@ public class RequestBuilder {
     }
 
     /**
-     * Sets API request parameters using a Map<String, Object>.
+     * Sets API request parameters using a Map&lt;String, Object&gt;.
      * Recommended for better readability and usability.
      *
      * @param parameters     A Map where keys represent parameter names, and values represent corresponding values.
