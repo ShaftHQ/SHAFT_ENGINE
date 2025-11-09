@@ -247,6 +247,13 @@
             </exclusions>
         </dependency>
 
+        <!-- AXE Accessibility  -->
+        <dependency>
+            <groupId>com.deque.html.axe-core</groupId>
+            <artifactId>selenium</artifactId>
+            <version>4.11.0</version>
+        </dependency>
+
         <!-- ALLURE REPORTING -->
         <dependency>
             <groupId>io.qameta.allure</groupId>

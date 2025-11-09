@@ -16,6 +16,7 @@ import com.shaft.performance.internal.LightHouseGenerateReport;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.validation.accessibility.AccessibilityActions;
 import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
@@ -994,5 +995,14 @@ public class BrowserActions extends FluentWebDriverAction {
         elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
         return windowHandles;
     }
+
+    /**
+     * Call AccessibilityActions to perform accessibility testing actions
+     */
+    public AccessibilityActions accessibility() {
+        WebDriver rawDriver = driverFactoryHelper.getDriver();
+        return new AccessibilityActions(rawDriver, this);
+    }
+
 
 }
