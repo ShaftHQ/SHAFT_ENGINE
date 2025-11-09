@@ -44,6 +44,12 @@ public class AccessibilityActions {
         return this;
     }
 
+    public AccessibilityHelper.AccessibilityResult analyzeAndReturn(String pageName) {
+        // saveReport flag determines whether a report is actually written
+        return cachedResults.computeIfAbsent(pageName,
+                k -> AccessibilityHelper.analyzePageAccessibilityAndSave(driver.getDriver(), pageName, true));
+    }
+
     public AccessibilityHelper.AccessibilityResult analyzeAndReturn(String pageName, boolean saveReport) {
         // saveReport flag determines whether a report is actually written
         return cachedResults.computeIfAbsent(pageName,
@@ -54,6 +60,12 @@ public class AccessibilityActions {
         // NOTE: always saves report (true) here – could be refactored to accept a saveReport flag if needed
         return cachedResults.computeIfAbsent(pageName,
                 k -> AccessibilityHelper.analyzePageAccessibilityAndSave(driver.getDriver(), pageName, config,true));
+    }
+
+    public AccessibilityHelper.AccessibilityResult analyzeAndReturn(String pageName, AccessibilityHelper.AccessibilityConfig config,boolean saveReport) {
+        // NOTE: always saves report (true) here – could be refactored to accept a saveReport flag if needed
+        return cachedResults.computeIfAbsent(pageName,
+                k -> AccessibilityHelper.analyzePageAccessibilityAndSave(driver.getDriver(), pageName, config,saveReport));
     }
 
     public AccessibilityActions analyzeWithIgnoredRules(String pageName, List<String> ignoredRuleIds) {
@@ -164,12 +176,34 @@ public class AccessibilityActions {
         return this;
     }
 
+    public AccessibilityActions assertAccessibilityScoreAtLeast(String pageName, double minimumPercentage, boolean saveReport) {
+        if (minimumPercentage < 0.0 || minimumPercentage > 100.0) {
+            throw new IllegalArgumentException("Invalid minimumPercentage: " + minimumPercentage
+                    + "%. It must be between 0 and 100.");
+        }
+
+        AccessibilityHelper.AccessibilityResult result = analyzeAndReturn(pageName, saveReport);
+        double score = result.getAccessibilityScore();
+        double roundedScore = Math.round(score * 100.0) / 100.0;
+
+        if (roundedScore < minimumPercentage) {
+            throw new AssertionError("Accessibility score for page '" + pageName
+                    + "' is below the minimum required " + minimumPercentage + "%. Actual: "
+                    + roundedScore + "%");
+        }
+
+        // If it passes, you can log success if needed
+        logger.info("Accessibility score for page '" + pageName + "' is " + roundedScore + "%, meets the minimum requirement of " + minimumPercentage + "%");
+
+        return this;
+    }
+
     public AccessibilityActions assertAccessibilityScoreAtLeast(String pageName, double minimumPercentage, AccessibilityHelper.AccessibilityConfig config) {
         if (minimumPercentage < 0.0 || minimumPercentage > 100.0) {
             throw new IllegalArgumentException("Invalid minimumPercentage: " + minimumPercentage
                     + "%. It must be between 0 and 100.");
         }
-        AccessibilityHelper.AccessibilityResult result = analyzeAndReturn(pageName, config);
+        AccessibilityHelper.AccessibilityResult result = analyzeAndReturn(pageName, config,true);
         double score = result.getAccessibilityScore();
         double roundedScore = Math.round(score * 100.0) / 100.0;
 
@@ -184,6 +218,25 @@ public class AccessibilityActions {
         return this;
     }
 
+    public AccessibilityActions assertAccessibilityScoreAtLeast(String pageName, double minimumPercentage, AccessibilityHelper.AccessibilityConfig config,boolean saveReport) {
+        if (minimumPercentage < 0.0 || minimumPercentage > 100.0) {
+            throw new IllegalArgumentException("Invalid minimumPercentage: " + minimumPercentage
+                    + "%. It must be between 0 and 100.");
+        }
+        AccessibilityHelper.AccessibilityResult result = analyzeAndReturn(pageName, config,saveReport);
+        double score = result.getAccessibilityScore();
+        double roundedScore = Math.round(score * 100.0) / 100.0;
+
+        if (roundedScore < minimumPercentage) {
+            throw new AssertionError("Accessibility score for page '" + pageName
+                    + "' is below the minimum required " + minimumPercentage + "%. Actual: "
+                    + roundedScore + "%");
+        }
+
+        // If it passes, you can log success if needed
+        logger.info("Accessibility score for page '" + pageName + "' is " + roundedScore + "%, meets the minimum requirement of " + minimumPercentage + "%");
+        return this;
+    }
 
     /* ==========================
         HELPER METHODS
