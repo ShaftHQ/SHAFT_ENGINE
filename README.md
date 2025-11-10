@@ -98,7 +98,7 @@
 
 #### Step 1: Initial setup
 
-- Create a new Java/Maven project using the latest version from IntelliJ IDEA, Eclipse or your favourite IDE.
+- Create a new Java/Maven project using the latest version from IntelliJ IDEA, Eclipse, or your favorite IDE.
 - Copy the highlighted contents of
   this [pom.xml](https://github.com/ShaftHQ/using_SHAFT_Engine/blob/main/GUI_Web/pom.xml#L11-L156) file into yours
   inside the ```<project>``` tag.
@@ -335,11 +335,14 @@ Feature: Search functionality
   - SHAFT will create a new folder ```src/main/resources/properties``` and generate some default properties files.
   - SHAFT will run in `minimalistic test run` mode and will self-configure its listeners under the `src/test/resources/META-INF/services` directory.
 > [!NOTE]
-> In case you got the following error message trying to execute your first run![image](https://github.com/user-attachments/assets/6b894234-e365-4fdd-a1d2-abd06ead7e98)
-And you didn't get the option ```Shorten the command line and rerun```.
-  - From Intellij IDEA main menu, go to Help/Edit Custom VM Options
-  - Add the following line and click save ```-Didea.dynamic.classpath=true```
-  - Restart IntelliJ to apply the changes
+> In case you get the following error message when trying to execute your first run:
+> 
+> ![image](https://github.com/user-attachments/assets/6b894234-e365-4fdd-a1d2-abd06ead7e98)
+> 
+> And you don't see the option ```Shorten the command line and rerun```:
+>  - From Intellij IDEA main menu, go to Help/Edit Custom VM Options
+>  - Add the following line and click save ```-Didea.dynamic.classpath=true```
+>  - Restart IntelliJ to apply the changes
 
 > [!TIP]
 > You can visit the [user guide ➡️](https://shafthq.github.io/docs/Properties/PropertiesList) to learn how to configure all SHAFT's properties.
@@ -654,5 +657,11 @@ graph TB
 <table border="0" align="center">
  <tr>
   <td align="center">
-<a href="https://ShaftHQ.github.io/" target="_blank"><img width="400" alt="SHAFT_ENGINE" src="src/main/resources/images/shaft.png"></a>
+<a href="https://ShaftHQ.github.io/" target="_blank">
+<picture>
+  <source srcset="src/main/resources/images/shaft.png" media="(prefers-color-scheme: light)" width="400"/>
+  <source srcset="src/main/resources/images/shaft_white.png" media="(prefers-color-scheme: dark)" width="400"/>
+  <img src="src/main/resources/images/shaft.png" alt="SHAFT_ENGINE" width="400"/>
+</picture>
+</a>
 </td></tr></table>
