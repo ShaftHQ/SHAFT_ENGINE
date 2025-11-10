@@ -62,6 +62,7 @@
 - [🌍 Our success partners](#our-success-partners)
 - [🚀 Features](#features)
 - [👨‍💻 Tech stack](#tech-stack)
+- [🏗️ Architecture](#architecture)
 - [🤝 Support & contributions](#support-and-contributions)
 - [📜 MIT license ➡️](LICENSE)
 
@@ -97,7 +98,7 @@
 
 #### Step 1: Initial setup
 
-- Create a new Java/Maven project using the latest version from IntelliJ IDEA, Eclipse or your favourite IDE.
+- Create a new Java/Maven project using the latest version from IntelliJ IDEA, Eclipse, or your favorite IDE.
 - Copy the highlighted contents of
   this [pom.xml](https://github.com/ShaftHQ/using_SHAFT_Engine/blob/main/GUI_Web/pom.xml#L11-L156) file into yours
   inside the ```<project>``` tag.
@@ -170,14 +171,143 @@ public void afterMethod(){
 
 ##### 2.2. JUnit5
 
+- Create a new Package ```testPackage``` under ```src/test/java```
+- Create a new Java class ```TestClass``` under your newly created `testPackage`.
+- Copy the below imports into your newly created `TestClass` after the line that contains `package testPackage`.
+
+```java
+import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.locator.Locator;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.openqa.selenium.By;
+import org.openqa.selenium.Keys;
 ```
---TODO--
+
+- Copy the below code snippet into the body of your `TestClass` after the line that contains `public class TestClass {`.
+
+```java
+private SHAFT.GUI.WebDriver driver;
+private static SHAFT.TestData.JSON testData;
+
+String targetUrl = "https://duckduckgo.com/";
+
+By logo = By.xpath("//div[contains(@class,'container_fullWidth__1H_L8')]//img");
+By searchBox = Locator.hasAnyTagName().hasAttribute("name", "q").build(); // synonym to By.name("q");
+By firstSearchResult = Locator.hasTagName("article").isFirst().build(); // synonym to By.xpath("(//article)[1]");
+
+@Test
+public void navigateToDuckDuckGoAndAssertBrowserTitleIsDisplayedCorrectly() {
+  driver.browser().navigateToURL(targetUrl)
+          .and().assertThat().title().contains(testData.getTestData("expectedTitle"));
+}
+
+@Test
+public void navigateToDuckDuckGoAndAssertLogoIsDisplayedCorrectly() {
+  driver.browser().navigateToURL(targetUrl)
+          .and().element().assertThat(logo).matchesReferenceImage();
+}
+
+@Test
+public void searchForQueryAndAssert() {
+  driver.browser().navigateToURL(targetUrl)
+          .and().element().type(searchBox, testData.getTestData("searchQuery") + Keys.ENTER)
+          .and().assertThat(firstSearchResult).text().doesNotEqual(testData.getTestData("unexpectedInFirstResult"));
+}
+
+@BeforeAll
+public static void beforeAll() {
+  testData = new SHAFT.TestData.JSON("simpleJSON.json");
+}
+
+@BeforeEach
+public void beforeEach() {
+  driver = new SHAFT.GUI.WebDriver();
+}
+
+@AfterEach
+public void afterEach(){
+  driver.quit();
+}
 ```
 
 ##### 2.3. Cucumber
 
+- Create the following directory structure: ```src/test/java/cucumberTestRunner``` and ```src/test/java/customCucumberSteps```
+- Create a new Java class ```CucumberTests.java``` under `cucumberTestRunner`.
+- Copy the below code into your `CucumberTests.java`:
+
+```java
+package cucumberTestRunner;
+
+import io.cucumber.testng.AbstractTestNGCucumberTests;
+import org.testng.annotations.Listeners;
+
+@Listeners({com.shaft.listeners.TestNGListener.class})
+public class CucumberTests extends AbstractTestNGCucumberTests {
+}
 ```
---TODO--
+
+- Create a new Java class ```StepDefinitions.java``` under `customCucumberSteps`.
+- Copy the below code into your `StepDefinitions.java`:
+
+```java
+package customCucumberSteps;
+
+import com.shaft.driver.SHAFT;
+import io.cucumber.java.en.Given;
+import io.cucumber.java.en.Then;
+import io.cucumber.java.en.When;
+import org.openqa.selenium.By;
+import org.openqa.selenium.Keys;
+
+public class StepDefinitions {
+    private SHAFT.GUI.WebDriver driver;
+    private SHAFT.TestData.JSON testData;
+    
+    @Given("I open the target browser")
+    public void i_open_the_target_browser() {
+        driver = new SHAFT.GUI.WebDriver();
+        testData = new SHAFT.TestData.JSON("simpleJSON.json");
+    }
+    
+    @When("I navigate to {string}")
+    public void i_navigate_to(String url) {
+        driver.browser().navigateToURL(url);
+    }
+    
+    @When("I search for {string}")
+    public void i_search_for(String query) {
+        By searchBox = By.name("q");
+        driver.element().type(searchBox, query + Keys.ENTER);
+    }
+    
+    @Then("I should see the page title contains {string}")
+    public void i_should_see_the_page_title_contains(String expectedTitle) {
+        driver.assertThat().browser().title().contains(expectedTitle).perform();
+    }
+    
+    @Then("I close the browser")
+    public void i_close_the_browser() {
+        driver.quit();
+    }
+}
+```
+
+- Create the following directory: ```src/test/resources/features```
+- Create a new file ```search.feature``` under `features` directory:
+
+```gherkin
+Feature: Search functionality
+
+  Scenario: Verify DuckDuckGo search
+    Given I open the target browser
+    When I navigate to "https://duckduckgo.com/"
+    Then I should see the page title contains "DuckDuckGo"
+    When I search for "SHAFT_Engine"
+    Then I close the browser
 ```
 
 > [!TIP]
@@ -205,11 +335,14 @@ public void afterMethod(){
   - SHAFT will create a new folder ```src/main/resources/properties``` and generate some default properties files.
   - SHAFT will run in `minimalistic test run` mode and will self-configure its listeners under the `src/test/resources/META-INF/services` directory.
 > [!NOTE]
-> In case you got the following error message trying to execute your first run![image](https://github.com/user-attachments/assets/6b894234-e365-4fdd-a1d2-abd06ead7e98)
-And you didn't get the option ```Shorten the command line and rerun```.
-  - From Intellij IDEA main menu, go to Help/Edit Custom VM Options
-  - Add the following line and click save ```-Didea.dynamic.classpath=true```
-  - Restart IntelliJ to apply the changes
+> In case you get the following error message when trying to execute your first run:
+> 
+> ![image](https://github.com/user-attachments/assets/6b894234-e365-4fdd-a1d2-abd06ead7e98)
+> 
+> And you don't see the option ```Shorten the command line and rerun```:
+>  - From Intellij IDEA main menu, go to Help/Edit Custom VM Options
+>  - Add the following line and click save ```-Didea.dynamic.classpath=true```
+>  - Restart IntelliJ to apply the changes
 
 > [!TIP]
 > You can visit the [user guide ➡️](https://shafthq.github.io/docs/Properties/PropertiesList) to learn how to configure all SHAFT's properties.
@@ -239,10 +372,10 @@ folder ```src\main\resources\properties``` and allow SHAFT to regenerate the def
  <tr>
   <td align="center">
    <br/>
-<a href="https://www.browserstack.com/" target="_blank"><img src="https://ml.globenewswire.com/Resource/Download/745e80b7-4736-424e-b44b-850d2dc41940" alt="BrowserStack" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://applitools.com/" target="_blank"><img src="https://www.selenium.dev/images/sponsors/applitools.png" alt="Applitools" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://jb.gg/OpenSourceSupport" target="_blank"><img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg" alt="JetBrains" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.lambdatest.com" target="_blank"><img src="https://www.lambdatest.com/blog/wp-content/uploads/2024/10/LambdaTest-Logo.png" alt="LambdaTest" width="250px" height="50px"></a>
+<a href="https://www.browserstack.com/" target="_blank"><img src="https://ml.globenewswire.com/Resource/Download/745e80b7-4736-424e-b44b-850d2dc41940" alt="BrowserStack" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://applitools.com/" target="_blank"><img src="https://www.selenium.dev/images/sponsors/applitools.png" alt="Applitools" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://jb.gg/OpenSourceSupport" target="_blank"><img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg" alt="JetBrains" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.lambdatest.com" target="_blank"><img src="https://www.lambdatest.com/blog/wp-content/uploads/2024/10/LambdaTest-Logo.png" alt="LambdaTest" width="250" height="50"></a>
 <br/><br/>
   </td></tr></table>
 
@@ -274,7 +407,6 @@ folder ```src\main\resources\properties``` and allow SHAFT to regenerate the def
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.baianat.com/"><img height="50" alt="Baianat" src="https://mir-s3-cdn-cf.behance.net/user/276/f5dc271705011.5b8c47fcee858.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://dxc.com/us/en"><img height="50" alt="DXC Technology" src="https://github.com/user-attachments/assets/84cb59da-d29d-44fa-9012-b10d2cc671ff"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.efghldg.com/en"><img height="50" alt="EFG Holding" src="https://github.com/user-attachments/assets/188f24c2-9e3c-4bcc-a2d6-40c5ab58d5e3"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href=""><img height="50" alt="" src=""></a>
 
   <br/><br/>
   </td></tr></table>
@@ -360,9 +492,9 @@ folder ```src\main\resources\properties``` and allow SHAFT to regenerate the def
  <tr>
   <td align="center">
    <br/>
-<a href="https://www.oracle.com/eg/java/technologies/downloads/" target="_blank"><img src="https://allurereport.org/images/java_ico.png" alt="Java" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://maven.apache.org/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Apache_Maven_logo.svg/340px-Apache_Maven_logo.svg.png" alt="Maven" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.jetbrains.com/idea/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/IntelliJ_IDEA_Icon.svg/1200px-IntelliJ_IDEA_Icon.svg.png" alt="IntelliJ IDEA" height="50px"></a>
+<a href="https://www.oracle.com/eg/java/technologies/downloads/" target="_blank"><img src="https://allurereport.org/images/java_ico.png" alt="Java" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://maven.apache.org/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Apache_Maven_logo.svg/340px-Apache_Maven_logo.svg.png" alt="Maven" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.jetbrains.com/idea/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/IntelliJ_IDEA_Icon.svg/1200px-IntelliJ_IDEA_Icon.svg.png" alt="IntelliJ IDEA" height="50"></a>
   <br/><br/></td></tr></table>
 
 ### Powered by:
@@ -371,24 +503,139 @@ folder ```src\main\resources\properties``` and allow SHAFT to regenerate the def
  <tr>
   <td align="center">
    <br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<a href="https://www.selenium.dev/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Selenium_logo.svg/768px-Selenium_logo.svg.png?20210927154434" alt="Selenium" height="50px"></a>&nbsp;&nbsp;&nbsp;&nbsp;
-      <a href="https://appium.io/" target="_blank"><img src="https://appium.github.io/appium/docs/en/2.0/assets/images/appium-logo-horiz.png" alt="Appium" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/><a href="https://rest-assured.io/" target="_blank"><img src="https://rest-assured.io/img/logo-transparent.png" alt="REST Assured" height="50px"></a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://rest-assured.io/" target="_blank"><img alt="REST Assured" height="50px" src="https://rest-assured.io/img/name-transparent.png"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://opencv.org/" target="_blank"><img src="https://github.com/user-attachments/assets/944f0043-7b76-472a-8fa6-9beee1ac3a2f" alt="OpenCV" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/><a href="https://testng.org/" target="_blank"><img src="https://545767148-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2F-MdBdUMSCcMYTyNwZf80%2Fuploads%2Fgit-blob-7e5b23257dbb5cc3262c56840d5cf9fa85b27dce%2Ftestng.png?alt=media" alt="TestNG" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://junit.org/junit5/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/5/59/JUnit_5_Banner.png" alt="JUnit5" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://cucumber.io/" target="_blank"><img src="https://raw.githubusercontent.com/cucumber/cucumber-ruby/main/docs/img/cucumber-open-logo.png" alt="Cucumber Open" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/><a href="https://allurereport.org/" target="_blank"><img src="https://allurereport.org/svg/logo-report-sign.svg" alt="Allure Reports" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://reportportal.io/" target="_blank"><img src="https://i0.wp.com/blog.nashtechglobal.com/wp-content/uploads/2023/06/MicrosoftTeams-image-72.png" alt="ReportPortal" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/><a href="https://www.selenium.dev/documentation/grid/" target="_blank"><img src="https://media.softwaresim.com/Selenium_Grid_mpxkym-600.webp" alt="Selenium Grid" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://github.com/features/actions" target="_blank"><img src="https://github.githubassets.com/images/modules/site/features/actions-icon-actions.svg" alt="GitHub Actions" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/><a href="https://github.com/dependabot" target="_blank"><img src="https://miro.medium.com/max/929/1*Lqt3yQYXJ-dmVuQEgpYcXQ.png" alt="Dependabot" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://codeql.github.com/" target="_blank"><img src="https://github.gallerycdn.vsassets.io/extensions/github/vscode-codeql/1.7.7/1670939628664/Microsoft.VisualStudio.Services.Icons.Default" alt="CodeQL" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://app.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Codacy-logo-black.svg/2560px-Codacy-logo-black.svg.png" alt="Codacy" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.jacoco.org/jacoco/" target="_blank"><img src="https://www.jacoco.org/images/jacoco.png" alt="JaCoCo" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE" target="_blank"><img src="https://assets-global.website-files.com/5f217a8e6bc2c82a9d803089/6387929c3810ef832471584f_codecov.png" alt="CodeCov" height="50px"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://central.sonatype.com/" target="_blank"><img src="https://central.sonatype.com/sonatype-repository-logo-reverse.svg" alt="sonatype" height="50px"></a>
+<a href="https://www.selenium.dev/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Selenium_logo.svg/768px-Selenium_logo.svg.png?20210927154434" alt="Selenium" height="50"></a>&nbsp;&nbsp;&nbsp;&nbsp;
+      <a href="https://appium.io/" target="_blank"><img src="https://appium.github.io/appium/docs/en/2.0/assets/images/appium-logo-horiz.png" alt="Appium" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/><a href="https://rest-assured.io/" target="_blank"><img src="https://rest-assured.io/img/logo-transparent.png" alt="REST Assured" height="50"></a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://rest-assured.io/" target="_blank"><img alt="REST Assured" height="50" src="https://rest-assured.io/img/name-transparent.png"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://opencv.org/" target="_blank"><img src="https://github.com/user-attachments/assets/944f0043-7b76-472a-8fa6-9beee1ac3a2f" alt="OpenCV" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/><a href="https://testng.org/" target="_blank"><img src="https://545767148-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2F-MdBdUMSCcMYTyNwZf80%2Fuploads%2Fgit-blob-7e5b23257dbb5cc3262c56840d5cf9fa85b27dce%2Ftestng.png?alt=media" alt="TestNG" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://junit.org/junit5/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/5/59/JUnit_5_Banner.png" alt="JUnit5" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://cucumber.io/" target="_blank"><img src="https://raw.githubusercontent.com/cucumber/cucumber-ruby/main/docs/img/cucumber-open-logo.png" alt="Cucumber Open" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/><a href="https://allurereport.org/" target="_blank"><img src="https://allurereport.org/svg/logo-report-sign.svg" alt="Allure Reports" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://reportportal.io/" target="_blank"><img src="https://i0.wp.com/blog.nashtechglobal.com/wp-content/uploads/2023/06/MicrosoftTeams-image-72.png" alt="ReportPortal" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/><a href="https://www.selenium.dev/documentation/grid/" target="_blank"><img src="https://media.softwaresim.com/Selenium_Grid_mpxkym-600.webp" alt="Selenium Grid" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://github.com/features/actions" target="_blank"><img src="https://github.githubassets.com/images/modules/site/features/actions-icon-actions.svg" alt="GitHub Actions" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/><a href="https://github.com/dependabot" target="_blank"><img src="https://miro.medium.com/max/929/1*Lqt3yQYXJ-dmVuQEgpYcXQ.png" alt="Dependabot" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://codeql.github.com/" target="_blank"><img src="https://github.gallerycdn.vsassets.io/extensions/github/vscode-codeql/1.7.7/1670939628664/Microsoft.VisualStudio.Services.Icons.Default" alt="CodeQL" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://app.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Codacy-logo-black.svg/2560px-Codacy-logo-black.svg.png" alt="Codacy" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.jacoco.org/jacoco/" target="_blank"><img src="https://www.jacoco.org/images/jacoco.png" alt="JaCoCo" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE" target="_blank"><img src="https://assets-global.website-files.com/5f217a8e6bc2c82a9d803089/6387929c3810ef832471584f_codecov.png" alt="CodeCov" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://central.sonatype.com/" target="_blank"><img src="https://central.sonatype.com/sonatype-repository-logo-reverse.svg" alt="sonatype" height="50"></a>
   <br/><br/></td></tr></table>
+
+<br/><br/>
+
+<a id="architecture"></a>
+
+## 🏗️ Architecture [⤴](#-table-of-contents)
+
+SHAFT Engine follows a modular architecture designed for scalability, maintainability, and ease of use. The framework is organized into specialized modules, each handling specific aspects of test automation.
+
+```mermaid
+graph TB
+    subgraph "SHAFT Engine - Unified Test Automation"
+        SHAFT[<b>SHAFT</b><br/>Main Entry Point]
+    end
+    
+    subgraph "Core Testing Modules"
+        GUI[<b>GUI Module</b><br/>Web & Mobile Automation]
+        API[<b>API Module</b><br/>REST API Testing]
+        CLI[<b>CLI Module</b><br/>File & Terminal Operations]
+        DB[<b>DB Module</b><br/>Database Testing]
+    end
+    
+    subgraph "GUI Components"
+        WebDriver[WebDriver Manager]
+        Browser[Browser Actions]
+        Element[Element Actions]
+        Touch[Touch Actions]
+        Alert[Alert Actions]
+        Locator[Locator Builder]
+    end
+    
+    subgraph "API Components"
+        RestActions[REST Actions]
+        RequestBuilder[Request Builder]
+    end
+    
+    subgraph "Supporting Modules"
+        TestData[<b>TestData</b><br/>JSON/Excel/CSV/YAML]
+        Validations[<b>Validations</b><br/>Fluent Assertions]
+        Properties[<b>Properties</b><br/>Configuration]
+        Report[<b>Report</b><br/>Logging & Attachments]
+    end
+    
+    subgraph "Test Orchestration"
+        TestNG[TestNG]
+        JUnit[JUnit 5]
+        Cucumber[Cucumber]
+    end
+    
+    subgraph "Reporting & CI/CD"
+        Allure[Allure Reports]
+        GitHub[GitHub Actions]
+        Jenkins[Jenkins/Other CI]
+    end
+    
+    SHAFT --> GUI
+    SHAFT --> API
+    SHAFT --> CLI
+    SHAFT --> DB
+    SHAFT --> TestData
+    SHAFT --> Validations
+    SHAFT --> Properties
+    SHAFT --> Report
+    
+    GUI --> WebDriver
+    WebDriver --> Browser
+    WebDriver --> Element
+    WebDriver --> Touch
+    WebDriver --> Alert
+    WebDriver --> Locator
+    
+    API --> RestActions
+    API --> RequestBuilder
+    
+    TestNG -.->|uses| SHAFT
+    JUnit -.->|uses| SHAFT
+    Cucumber -.->|uses| SHAFT
+    
+    SHAFT -.->|reports to| Allure
+    Allure -.->|integrates| GitHub
+    Allure -.->|integrates| Jenkins
+    
+    classDef coreModule fill:#4a90e2,stroke:#2e5c8a,stroke-width:3px,color:#fff,font-weight:bold
+    classDef testingModule fill:#7b68ee,stroke:#483d8b,stroke-width:2px,color:#fff
+    classDef component fill:#50c878,stroke:#2d7a4a,stroke-width:2px,color:#fff
+    classDef support fill:#ffa500,stroke:#cc8400,stroke-width:2px,color:#fff
+    classDef orchestration fill:#ff6b6b,stroke:#c92a2a,stroke-width:2px,color:#fff
+    classDef reporting fill:#20c997,stroke:#17a078,stroke-width:2px,color:#fff
+    
+    class SHAFT coreModule
+    class GUI,API,CLI,DB testingModule
+    class WebDriver,Browser,Element,Touch,Alert,Locator,RestActions,RequestBuilder component
+    class TestData,Validations,Properties,Report support
+    class TestNG,JUnit,Cucumber orchestration
+    class Allure,GitHub,Jenkins reporting
+```
+
+### Module Overview
+
+#### Core Testing Modules
+- **🌐 GUI Module**: Selenium and Appium-based web and mobile automation with fluent API
+- **🔌 API Module**: REST API testing powered by REST Assured
+- **💻 CLI Module**: Command-line execution and file system operations
+- **🗄️ DB Module**: Database connectivity and SQL operations
+
+#### Supporting Modules
+- **📊 TestData Module**: Multi-format data readers (JSON, Excel, CSV, YAML)
+- **✅ Validations Module**: Fluent assertion builders for all test types
+- **⚙️ Properties Module**: Centralized configuration management
+- **📝 Report Module**: Enhanced logging and attachment capabilities
+
+#### Integration Layer
+- **Test Runners**: Native support for TestNG, JUnit 5, and Cucumber
+- **CI/CD**: Seamless integration with GitHub Actions, Jenkins, and other CI platforms
+- **Reporting**: Built-in Allure Reports integration with rich test evidence
 
 <br/><br/>
 <a id="support-and-contributions"></a>
@@ -410,5 +657,11 @@ folder ```src\main\resources\properties``` and allow SHAFT to regenerate the def
 <table border="0" align="center">
  <tr>
   <td align="center">
-<a href="https://ShaftHQ.github.io/" target="_blank"><img width="400" alt="SHAFT_ENGINE" src="src/main/resources/images/shaft.png"></a>
+<a href="https://ShaftHQ.github.io/" target="_blank">
+<picture>
+  <source srcset="src/main/resources/images/shaft.png" media="(prefers-color-scheme: light)" width="400"/>
+  <source srcset="src/main/resources/images/shaft_white.png" media="(prefers-color-scheme: dark)" width="400"/>
+  <img src="src/main/resources/images/shaft.png" alt="SHAFT_ENGINE" width="400"/>
+</picture>
+</a>
 </td></tr></table>
