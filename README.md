@@ -62,6 +62,7 @@
 - [🌍 Our success partners](#our-success-partners)
 - [🚀 Features](#features)
 - [👨‍💻 Tech stack](#tech-stack)
+- [🏗️ Architecture](#architecture)
 - [🤝 Support & contributions](#support-and-contributions)
 - [📜 MIT license ➡️](LICENSE)
 
@@ -170,14 +171,143 @@ public void afterMethod(){
 
 ##### 2.2. JUnit5
 
+- Create a new Package ```testPackage``` under ```src/test/java```
+- Create a new Java class ```TestClass``` under your newly created `testPackage`.
+- Copy the below imports into your newly created `TestClass` after the line that contains `package testPackage`.
+
+```java
+import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.locator.Locator;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.openqa.selenium.By;
+import org.openqa.selenium.Keys;
 ```
---TODO--
+
+- Copy the below code snippet into the body of your `TestClass` after the line that contains `public class TestClass {`.
+
+```java
+private SHAFT.GUI.WebDriver driver;
+private static SHAFT.TestData.JSON testData;
+
+String targetUrl = "https://duckduckgo.com/";
+
+By logo = By.xpath("//div[contains(@class,'container_fullWidth__1H_L8')]//img");
+By searchBox = Locator.hasAnyTagName().hasAttribute("name", "q").build(); // synonym to By.name("q");
+By firstSearchResult = Locator.hasTagName("article").isFirst().build(); // synonym to By.xpath("(//article)[1]");
+
+@Test
+public void navigateToDuckDuckGoAndAssertBrowserTitleIsDisplayedCorrectly() {
+  driver.browser().navigateToURL(targetUrl)
+          .and().assertThat().title().contains(testData.getTestData("expectedTitle"));
+}
+
+@Test
+public void navigateToDuckDuckGoAndAssertLogoIsDisplayedCorrectly() {
+  driver.browser().navigateToURL(targetUrl)
+          .and().element().assertThat(logo).matchesReferenceImage();
+}
+
+@Test
+public void searchForQueryAndAssert() {
+  driver.browser().navigateToURL(targetUrl)
+          .and().element().type(searchBox, testData.getTestData("searchQuery") + Keys.ENTER)
+          .and().assertThat(firstSearchResult).text().doesNotEqual(testData.getTestData("unexpectedInFirstResult"));
+}
+
+@BeforeAll
+public static void beforeAll() {
+  testData = new SHAFT.TestData.JSON("simpleJSON.json");
+}
+
+@BeforeEach
+public void beforeEach() {
+  driver = new SHAFT.GUI.WebDriver();
+}
+
+@AfterEach
+public void afterEach(){
+  driver.quit();
+}
 ```
 
 ##### 2.3. Cucumber
 
+- Create the following directory structure: ```src/test/java/cucumberTestRunner``` and ```src/test/java/customCucumberSteps```
+- Create a new Java class ```CucumberTests.java``` under `cucumberTestRunner`.
+- Copy the below code into your `CucumberTests.java`:
+
+```java
+package cucumberTestRunner;
+
+import io.cucumber.testng.AbstractTestNGCucumberTests;
+import org.testng.annotations.Listeners;
+
+@Listeners({com.shaft.listeners.TestNGListener.class})
+public class CucumberTests extends AbstractTestNGCucumberTests {
+}
 ```
---TODO--
+
+- Create a new Java class ```StepDefinitions.java``` under `customCucumberSteps`.
+- Copy the below code into your `StepDefinitions.java`:
+
+```java
+package customCucumberSteps;
+
+import com.shaft.driver.SHAFT;
+import io.cucumber.java.en.Given;
+import io.cucumber.java.en.Then;
+import io.cucumber.java.en.When;
+import org.openqa.selenium.By;
+import org.openqa.selenium.Keys;
+
+public class StepDefinitions {
+    private SHAFT.GUI.WebDriver driver;
+    private SHAFT.TestData.JSON testData;
+    
+    @Given("I open the target browser")
+    public void i_open_the_target_browser() {
+        driver = new SHAFT.GUI.WebDriver();
+        testData = new SHAFT.TestData.JSON("simpleJSON.json");
+    }
+    
+    @When("I navigate to {string}")
+    public void i_navigate_to(String url) {
+        driver.browser().navigateToURL(url);
+    }
+    
+    @When("I search for {string}")
+    public void i_search_for(String query) {
+        By searchBox = By.name("q");
+        driver.element().type(searchBox, query + Keys.ENTER);
+    }
+    
+    @Then("I should see the page title contains {string}")
+    public void i_should_see_the_page_title_contains(String expectedTitle) {
+        driver.assertThat().browser().title().contains(expectedTitle).perform();
+    }
+    
+    @Then("I close the browser")
+    public void i_close_the_browser() {
+        driver.quit();
+    }
+}
+```
+
+- Create the following directory: ```src/test/resources/features```
+- Create a new file ```search.feature``` under `features` directory:
+
+```gherkin
+Feature: Search functionality
+
+  Scenario: Verify DuckDuckGo search
+    Given I open the target browser
+    When I navigate to "https://duckduckgo.com/"
+    Then I should see the page title contains "DuckDuckGo"
+    When I search for "SHAFT_Engine"
+    Then I close the browser
 ```
 
 > [!TIP]
@@ -274,7 +404,6 @@ folder ```src\main\resources\properties``` and allow SHAFT to regenerate the def
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.baianat.com/"><img height="50" alt="Baianat" src="https://mir-s3-cdn-cf.behance.net/user/276/f5dc271705011.5b8c47fcee858.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://dxc.com/us/en"><img height="50" alt="DXC Technology" src="https://github.com/user-attachments/assets/84cb59da-d29d-44fa-9012-b10d2cc671ff"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.efghldg.com/en"><img height="50" alt="EFG Holding" src="https://github.com/user-attachments/assets/188f24c2-9e3c-4bcc-a2d6-40c5ab58d5e3"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href=""><img height="50" alt="" src=""></a>
 
   <br/><br/>
   </td></tr></table>
@@ -389,6 +518,121 @@ folder ```src\main\resources\properties``` and allow SHAFT to regenerate the def
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE" target="_blank"><img src="https://assets-global.website-files.com/5f217a8e6bc2c82a9d803089/6387929c3810ef832471584f_codecov.png" alt="CodeCov" height="50px"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://central.sonatype.com/" target="_blank"><img src="https://central.sonatype.com/sonatype-repository-logo-reverse.svg" alt="sonatype" height="50px"></a>
   <br/><br/></td></tr></table>
+
+<br/><br/>
+
+<a id="architecture"></a>
+
+## 🏗️ Architecture [⤴](#-table-of-contents)
+
+SHAFT Engine follows a modular architecture designed for scalability, maintainability, and ease of use. The framework is organized into specialized modules, each handling specific aspects of test automation.
+
+```mermaid
+graph TB
+    subgraph "SHAFT Engine - Unified Test Automation"
+        SHAFT[<b>SHAFT</b><br/>Main Entry Point]
+    end
+    
+    subgraph "Core Testing Modules"
+        GUI[<b>GUI Module</b><br/>Web & Mobile Automation]
+        API[<b>API Module</b><br/>REST API Testing]
+        CLI[<b>CLI Module</b><br/>File & Terminal Operations]
+        DB[<b>DB Module</b><br/>Database Testing]
+    end
+    
+    subgraph "GUI Components"
+        WebDriver[WebDriver Manager]
+        Browser[Browser Actions]
+        Element[Element Actions]
+        Touch[Touch Actions]
+        Alert[Alert Actions]
+        Locator[Locator Builder]
+    end
+    
+    subgraph "API Components"
+        RestActions[REST Actions]
+        RequestBuilder[Request Builder]
+    end
+    
+    subgraph "Supporting Modules"
+        TestData[<b>TestData</b><br/>JSON/Excel/CSV/YAML]
+        Validations[<b>Validations</b><br/>Fluent Assertions]
+        Properties[<b>Properties</b><br/>Configuration]
+        Report[<b>Report</b><br/>Logging & Attachments]
+    end
+    
+    subgraph "Test Orchestration"
+        TestNG[TestNG]
+        JUnit[JUnit 5]
+        Cucumber[Cucumber]
+    end
+    
+    subgraph "Reporting & CI/CD"
+        Allure[Allure Reports]
+        GitHub[GitHub Actions]
+        Jenkins[Jenkins/Other CI]
+    end
+    
+    SHAFT --> GUI
+    SHAFT --> API
+    SHAFT --> CLI
+    SHAFT --> DB
+    SHAFT --> TestData
+    SHAFT --> Validations
+    SHAFT --> Properties
+    SHAFT --> Report
+    
+    GUI --> WebDriver
+    WebDriver --> Browser
+    WebDriver --> Element
+    WebDriver --> Touch
+    WebDriver --> Alert
+    WebDriver --> Locator
+    
+    API --> RestActions
+    API --> RequestBuilder
+    
+    TestNG -.->|uses| SHAFT
+    JUnit -.->|uses| SHAFT
+    Cucumber -.->|uses| SHAFT
+    
+    SHAFT -.->|reports to| Allure
+    Allure -.->|integrates| GitHub
+    Allure -.->|integrates| Jenkins
+    
+    classDef coreModule fill:#4a90e2,stroke:#2e5c8a,stroke-width:3px,color:#fff,font-weight:bold
+    classDef testingModule fill:#7b68ee,stroke:#483d8b,stroke-width:2px,color:#fff
+    classDef component fill:#50c878,stroke:#2d7a4a,stroke-width:2px,color:#fff
+    classDef support fill:#ffa500,stroke:#cc8400,stroke-width:2px,color:#fff
+    classDef orchestration fill:#ff6b6b,stroke:#c92a2a,stroke-width:2px,color:#fff
+    classDef reporting fill:#20c997,stroke:#17a078,stroke-width:2px,color:#fff
+    
+    class SHAFT coreModule
+    class GUI,API,CLI,DB testingModule
+    class WebDriver,Browser,Element,Touch,Alert,Locator,RestActions,RequestBuilder component
+    class TestData,Validations,Properties,Report support
+    class TestNG,JUnit,Cucumber orchestration
+    class Allure,GitHub,Jenkins reporting
+```
+
+### Module Overview
+
+#### Core Testing Modules
+- **🌐 GUI Module**: Selenium and Appium-based web and mobile automation with fluent API
+- **🔌 API Module**: REST API testing powered by REST Assured
+- **💻 CLI Module**: Command-line execution and file system operations
+- **🗄️ DB Module**: Database connectivity and SQL operations
+
+#### Supporting Modules
+- **📊 TestData Module**: Multi-format data readers (JSON, Excel, CSV, YAML)
+- **✅ Validations Module**: Fluent assertion builders for all test types
+- **⚙️ Properties Module**: Centralized configuration management
+- **📝 Report Module**: Enhanced logging and attachment capabilities
+
+#### Integration Layer
+- **Test Runners**: Native support for TestNG, JUnit 5, and Cucumber
+- **CI/CD**: Seamless integration with GitHub Actions, Jenkins, and other CI platforms
+- **Reporting**: Built-in Allure Reports integration with rich test evidence
 
 <br/><br/>
 <a id="support-and-contributions"></a>
