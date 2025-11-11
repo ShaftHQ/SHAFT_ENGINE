@@ -19,6 +19,10 @@ public class WizardHelpers {
         public WebDriverElementValidationsBuilder element(By locator) {
             return com.shaft.validation.Validations.assertThat().element(helper.getDriver(), locator);
         }
+
+        public NativeValidationsBuilder object(boolean object) {
+            return com.shaft.validation.Validations.assertThat().object(object);
+        }
     }
 
     public static class WebDriverVerifications {
@@ -33,6 +37,11 @@ public class WizardHelpers {
 
         public WebDriverElementValidationsBuilder element(By locator) {
             return com.shaft.validation.Validations.verifyThat().element(helper.getDriver(), locator);
+        }
+
+        public NativeValidationsBuilder object(boolean accessible)
+        {
+            return com.shaft.validation.Validations.verifyThat().object(accessible);
         }
     }
 
