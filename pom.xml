@@ -1000,7 +1000,7 @@
                             <useFile>false</useFile>
                             <argLine>
                                 @{argLine} ${surefireArgLine}
-                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.24/aspectjweaver-1.9.24.jar"
+                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.25/aspectjweaver-1.9.24.jar"
                             </argLine>
                             <properties>
                                 <property>
@@ -1055,7 +1055,7 @@
                             <useFile>false</useFile>
                             <argLine>
                                 @{argLine} ${surefireArgLine}
-                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.24/aspectjweaver-1.9.24.jar"
+                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.25/aspectjweaver-1.9.24.jar"
                             </argLine>
                             <properties>
                                 <property>
