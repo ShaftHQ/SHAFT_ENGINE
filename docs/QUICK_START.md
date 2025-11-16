@@ -29,7 +29,7 @@ Get started with SHAFT Engine in minutes! Choose the option that best fits your 
 
 - Create a new Java/Maven project using the latest version from IntelliJ IDEA, Eclipse, or your favorite IDE.
 - Copy the highlighted contents of
-  this [pom.xml](https://github.com/ShaftHQ/using_SHAFT_Engine/blob/main/GUI_Web/pom.xml#L11-L156) file into yours
+  this [pom.xml](https://github.com/ShaftHQ/SHAFT_ENGINE/blob/main/src/main/resources/examples/TestNG/shaft-testng-web/pom.xml#L10-L121) file into yours
   inside the ```<project>``` tag.
 
 ### Step 2: Creating Tests
