@@ -41,7 +41,7 @@ SHAFT_ENGINE is a unified test automation framework built with:
 - **Use method chaining** with `.and()` for fluent, readable test code
 - **Use SHAFT.TestData.JSON** for test data management instead of hardcoding values
 
-# Example: TestNG Test Class
+## Example: TestNG Test Class
 
 ```java
 // Import required SHAFT and TestNG classes
