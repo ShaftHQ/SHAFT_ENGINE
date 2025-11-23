@@ -696,7 +696,7 @@
         <dependency>
             <groupId>com.epam.reportportal</groupId>
             <artifactId>agent-java-testng</artifactId>
-            <version>5.6.4</version>
+            <version>5.6.5</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -1007,7 +1007,7 @@
                             <useFile>false</useFile>
                             <argLine>
                                 @{argLine} ${surefireArgLine}
-                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.24/aspectjweaver-1.9.24.jar"
+                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.25/aspectjweaver-1.9.25.jar"
                             </argLine>
                             <properties>
                                 <property>
@@ -1062,7 +1062,7 @@
                             <useFile>false</useFile>
                             <argLine>
                                 @{argLine} ${surefireArgLine}
-                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.24/aspectjweaver-1.9.24.jar"
+                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.25/aspectjweaver-1.9.25.jar"
                             </argLine>
                             <properties>
                                 <property>
