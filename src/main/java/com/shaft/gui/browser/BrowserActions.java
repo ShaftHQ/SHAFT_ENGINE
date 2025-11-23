@@ -997,7 +997,18 @@ public class BrowserActions extends FluentWebDriverAction {
     }
 
     /**
-     * Call AccessibilityActions to perform accessibility testing actions
+     * Provides access to accessibility testing actions for the current browser session.
+     *
+     * <p>This method returns an {@link AccessibilityActions} instance that can be used
+     * to perform automated accessibility checks and generate reports for the current page.</p>
+     *
+     * <p>Example usage:</p>
+     * <pre>{@code
+     * AccessibilityActions actions = browserActions.accessibility();
+     * actions.analyzePageAccessibility("HomePage");
+     * }</pre>
+     *
+     * @return an {@link AccessibilityActions} object tied to the current browser session
      */
     public AccessibilityActions accessibility() {
         WebDriver rawDriver = driverFactoryHelper.getDriver();
