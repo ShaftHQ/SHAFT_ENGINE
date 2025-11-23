@@ -36,6 +36,13 @@ public class AccessibilityHelper {
     private static final ThreadLocal<SimpleDateFormat> DISPLAY_DATE_FORMAT =
             ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"));
 
+    // DOM stability wait settings
+    private static final int DOM_STABLE_MILLIS = 1500; // Wait until DOM stable
+    private static final int DOM_TIMEOUT_SECONDS = 15; // Maximum wait time
+    private static final int DOM_CHECK_INTERVAL_MILLIS = 500; // Sleep interval between checks
+    private static final int PAGE_LOAD_TIMEOUT_SECONDS = 30;
+
+
     public static class AccessibilityConfig {
         private List<String> tags = Arrays.asList("wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice");
         private String reportsDir = "accessibility-reports/";
@@ -67,7 +74,7 @@ public class AccessibilityHelper {
         if (config == null) throw new IllegalArgumentException("Configuration cannot be null");
 
         try {
-            if (driver == null || driver.getWindowHandle() == null) {
+            if (driver.getWindowHandle() == null) {
                 logger.error("WebDriver is invalid or closed for page: {}", pageName);
                 return;
             }
@@ -80,13 +87,13 @@ public class AccessibilityHelper {
                 logger.info("Driver type: {}", driver.getClass().getSimpleName());
             }
 
-            new WebDriverWait(driver, Duration.ofSeconds(20))
+            new WebDriverWait(driver, Duration.ofSeconds(PAGE_LOAD_TIMEOUT_SECONDS))
                     .until(webDriver -> ((JavascriptExecutor) webDriver)
                             .executeScript("return document.readyState").equals("complete"));
 
             logger.info("Page fully loaded, starting accessibility scan for: {}", pageName);
 
-            waitForDomStability(driver, 1500, 15); // Wait until DOM stable for 1.5s or max 15s
+            waitForDomStability(driver, DOM_STABLE_MILLIS, DOM_TIMEOUT_SECONDS);
 
             AxeBuilder axeBuilder = new AxeBuilder()
                     .withTags(config.getTags())
@@ -138,8 +145,10 @@ public class AccessibilityHelper {
                 Files.writeString(Paths.get(fallbackPath),
                         "Accessibility scan failed for " + pageName + ":\n" + e.getMessage(),
                         StandardCharsets.UTF_8);
-                Allure.addAttachment("Accessibility Report - " + pageName,
-                        "text/plain", new FileInputStream(fallbackPath), ".txt");
+                try (FileInputStream fis = new FileInputStream(fallbackPath)) {
+                    Allure.addAttachment("Accessibility Report - " + pageName,
+                            "text/plain", fis, ".txt");
+                }
             } catch (Exception inner) {
                 logger.error("Also failed to save fallback report: {}", inner.getMessage());
             }
@@ -367,7 +376,7 @@ public class AccessibilityHelper {
             return this;
         }
 
-        public int getPassesCount() {
+        public int getPassCount() {
             return passes != null ? passes.size() : 0;
         }
 
@@ -389,7 +398,7 @@ public class AccessibilityHelper {
             return "AccessibilityResult{" +
                     "pageName='" + pageName + '\'' +
                     ", violationsCount=" + violationsCount +
-                    ", passesCount=" + getPassesCount() +
+                    ", passesCount=" + getPassCount() +
                     ", timestamp='" + timestamp + '\'' +
                     '}';
         }
@@ -563,7 +572,7 @@ public class AccessibilityHelper {
                 Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
                 browserInfo = caps.getBrowserName();
                 browserVersion = caps.getBrowserVersion();
-                platform = caps.getPlatformName().toString();
+                platform = (caps.getPlatformName() != null) ? caps.getPlatformName().toString() : "Unknown";
             } catch (Exception e) {
                 logger.warn("Could not fetch browser capabilities for report metadata: {}", e.getMessage());
             }
@@ -749,7 +758,7 @@ public class AccessibilityHelper {
                 break;
             }
             try {
-                Thread.sleep(500);
+                Thread.sleep(DOM_CHECK_INTERVAL_MILLIS);
             } catch (InterruptedException ignored) {}
         }
     }
