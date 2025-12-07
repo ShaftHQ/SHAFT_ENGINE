@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup Node.js environment
         uses: actions/setup-node@v6
         with:
@@ -49,7 +49,7 @@ jobs:
     needs: [ LambdaTest_NativeAndroid ]
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup Node.js environment
         uses: actions/setup-node@v6
         with:
@@ -90,7 +90,7 @@ jobs:
     needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS ]
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup Node.js environment
         uses: actions/setup-node@v6
         with:
@@ -131,7 +131,7 @@ jobs:
     needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS, LambdaTest_WebApp ]
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup Node.js environment
         uses: actions/setup-node@v6
         with:
