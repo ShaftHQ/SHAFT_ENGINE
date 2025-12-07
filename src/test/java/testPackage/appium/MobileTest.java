@@ -44,7 +44,7 @@ public abstract class MobileTest {
 //        SHAFT.Properties.browserStack.set().deviceName("Google Pixel 7");
 //        SHAFT.Properties.browserStack.set().appName("Android-NativeDemoApp.apk");
 //        SHAFT.Properties.browserStack.set().appRelativeFilePath("");
-//        SHAFT.Properties.browserStack.set().appUrl("bs://e744ef24a081b0d4cb5f9699a5dd69d6a3a2dbce");
+//        SHAFT.Properties.browserStack.set().appUrl("bs://61abe95b5ed5bb6dc169f8df6b7141db120167d3");
         driver.set(new SHAFT.GUI.WebDriver());
     }
 
@@ -83,7 +83,7 @@ public abstract class MobileTest {
 //        SHAFT.Properties.browserStack.set().deviceName("Google Pixel 7");
 //        SHAFT.Properties.browserStack.set().appName("ApiDemos-debug.apk");
 //        SHAFT.Properties.browserStack.set().appRelativeFilePath("");
-//        SHAFT.Properties.browserStack.set().appUrl("bs://e744ef24a081b0d4cb5f9699a5dd69d6a3a2dbce");
+//        SHAFT.Properties.browserStack.set().appUrl("bs://61abe95b5ed5bb6dc169f8df6b7141db120167d3");
         driver.set(new SHAFT.GUI.WebDriver());
     }
 

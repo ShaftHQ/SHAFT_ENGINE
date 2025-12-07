@@ -31,7 +31,7 @@ public final class PropertyFileManager {
 
         java.util.Properties props = System.getProperties();
         props.forEach((key, value) -> {
-            if (String.valueOf(key).toLowerCase().contains("mobile_")) {
+            if (String.valueOf(key).contains("mobile_")) {
                 appiumDesiredCapabilities.put(String.valueOf(key), String.valueOf(value));
             }
         });
@@ -47,11 +47,24 @@ public final class PropertyFileManager {
         MutableCapabilities customDriverOptions = new MutableCapabilities();
         java.util.Properties props = System.getProperties();
         props.forEach((key, value) -> {
-            if (String.valueOf(key).toLowerCase().startsWith("capabilities.") && !String.valueOf(value).isBlank()) {
+            if (String.valueOf(key).startsWith("capabilities.") && !String.valueOf(value).isBlank()) {
                 customDriverOptions.setCapability(String.valueOf(key).split("capabilities.")[1], String.valueOf(value));
             }
         });
         return customDriverOptions;
+    }
+
+    public static HashMap<String, Object> getCustomBrowserstackCapabilities() {
+        HashMap<String, Object> browserstackOptions = new HashMap<>();
+        java.util.Properties props = System.getProperties();
+        props.forEach((key, value) -> {
+            if (String.valueOf(key).startsWith("browserStack.") && !String.valueOf(value).isBlank()) {
+                var parsedKey = String.valueOf(key).split("browserStack.")[1];
+                if (!Objects.equals(parsedKey, "appName") && !Objects.equals(parsedKey, "appUrl") && !Objects.equals(parsedKey, "appRelativeFilePath"))
+                    browserstackOptions.put(parsedKey, String.valueOf(value));
+            }
+        });
+        return browserstackOptions;
     }
 
     private static void readPropertyFiles(String propertiesFolderPath) {

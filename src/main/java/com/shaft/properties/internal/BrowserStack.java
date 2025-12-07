@@ -34,7 +34,7 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     String username();
 
     @Key("browserStack.accessKey")
-    @DefaultValue("7E7PgzBtwk4sWLUcF8Y5")
+    @DefaultValue("")
     String accessKey();
 
     //Below properties are needed for native mobile app testing:
@@ -85,7 +85,7 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     boolean local();
 
     @Key("browserStack.seleniumVersion")
-    @DefaultValue("4.28.0")
+    @DefaultValue("4.38.0")
     String seleniumVersion();
 
     @Key("browserStack.acceptInsecureCerts")
@@ -96,9 +96,10 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     @DefaultValue("false")
     boolean debug();
 
-    @Key("browserStack.enableBiometric")
-    @DefaultValue("false")
-    boolean enableBiometric();
+    //This was removed due to a change with browserstack whereby the user should not attempt to set any attribute that is outside their license scope
+//    @Key("browserStack.enableBiometric")
+//    @DefaultValue("false")
+//    boolean enableBiometric();
 
     @Key("browserStack.networkLogs")
     @DefaultValue("false")
@@ -111,7 +112,7 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     String geoLocation();
 
     @Key("browserStack.appiumVersion")
-    @DefaultValue("2.4.1")
+    @DefaultValue("2.19.0")
     String appiumVersion();
 
     default SetProperty set() {

@@ -5,6 +5,7 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ProgressBarLogger;
@@ -93,11 +94,14 @@ public class BrowserStackHelper {
         var appUrl = "";
 
         try (ProgressBarLogger ignored = new ProgressBarLogger("Uploading app to BrowserStack...")) {
-            appUrl = Objects.requireNonNull(RestActions.getResponseJSONValue(new RestActions(serviceUri).buildNewRequest(appUploadServiceName, RestActions.RequestType.POST)
-                            .setParameters(parameters, RestActions.ParametersType.FORM)
-                            .setAuthentication(username, password, RequestBuilder.AuthenticationType.BASIC)
-                            .performRequest(),
-                    "app_url"));
+            var session = new RestActions(serviceUri);
+            session.buildNewRequest(appUploadServiceName, RestActions.RequestType.POST)
+                    .setParameters(parameters, RestActions.ParametersType.FORM)
+                    .setAuthentication(username, password, RequestBuilder.AuthenticationType.BASIC)
+                    .performRequest();
+            var response = session.getResponse();
+            var tempAppUrl = RestActions.getResponseJSONValue(response, "app_url");
+            appUrl = Objects.requireNonNull(tempAppUrl);
             ReportManager.logDiscrete("BrowserStack app_url: " + appUrl);
         } catch (NullPointerException exception) {
             failAction(testData, exception);
@@ -211,11 +215,13 @@ public class BrowserStackHelper {
         SHAFT.Properties.mobile.set().app(appUrl);
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
         HashMap<String, Object> browserstackOptions = new HashMap<>();
+        browserstackOptions = PropertyFileManager.getCustomBrowserstackCapabilities();
         browserstackOptions.put("appiumVersion", SHAFT.Properties.browserStack.appiumVersion());
         browserstackOptions.put("acceptInsecureCerts", SHAFT.Properties.browserStack.acceptInsecureCerts());
         browserstackOptions.put("debug", SHAFT.Properties.browserStack.debug());
         browserstackOptions.put("interactiveDebugging", SHAFT.Properties.browserStack.debug());
-        browserstackOptions.put("enableBiometric", SHAFT.Properties.browserStack.enableBiometric());
+        //TODO: load browserstack properties dynamically similar to how we handle mobile properties
+//        browserstackOptions.put("enableBiometric", SHAFT.Properties.browserStack.enableBiometric());
         browserstackOptions.put("networkLogs", SHAFT.Properties.browserStack.networkLogs());
 
         var pathItems = System.getProperty("user.dir").split(Pattern.quote(File.separator));
