@@ -43,6 +43,7 @@ SHAFT Engine is proudly sponsored by industry leaders in testing and development
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.baianat.com/"><img height="50" alt="Baianat" src="https://mir-s3-cdn-cf.behance.net/user/276/f5dc271705011.5b8c47fcee858.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://dxc.com/us/en"><img height="50" alt="DXC Technology" src="https://github.com/user-attachments/assets/84cb59da-d29d-44fa-9012-b10d2cc671ff"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.efghldg.com/en"><img height="50" alt="EFG Holding" src="https://github.com/user-attachments/assets/188f24c2-9e3c-4bcc-a2d6-40c5ab58d5e3"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.qoyod.com/en/"><img height="50" alt="QOYOD" src="https://github.com/user-attachments/assets/52ffc117-c912-4d96-a9f0-4d917165fa0e"></a>
 
   <br/><br/>
   </td></tr></table>
