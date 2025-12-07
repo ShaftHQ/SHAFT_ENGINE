@@ -16,6 +16,7 @@ import com.shaft.performance.internal.LightHouseGenerateReport;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.validation.accessibility.AccessibilityActions;
 import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
@@ -128,7 +129,7 @@ public class BrowserActions extends FluentWebDriverAction {
         try {
             pageSource = driverFactoryHelper.getDriver().getPageSource();
             browserActionsHelper.passAction(driverFactoryHelper.getDriver(), pageSource);
-        } catch (org.openqa.selenium.JavascriptException javascriptException) {
+        } catch (JavascriptException javascriptException) {
             //try again
             JavaScriptWaitManager.waitForLazyLoading(driverFactoryHelper.getDriver());
             return getPageSource();
@@ -994,5 +995,25 @@ public class BrowserActions extends FluentWebDriverAction {
         elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
         return windowHandles;
     }
+
+    /**
+     * Provides access to accessibility testing actions for the current browser session.
+     *
+     * <p>This method returns an {@link AccessibilityActions} instance that can be used
+     * to perform automated accessibility checks and generate reports for the current page.</p>
+     *
+     * <p>Example usage:</p>
+     * <pre>{@code
+     * AccessibilityActions actions = browserActions.accessibility();
+     * actions.analyzePageAccessibility("HomePage");
+     * }</pre>
+     *
+     * @return an {@link AccessibilityActions} object tied to the current browser session
+     */
+    public AccessibilityActions accessibility() {
+        WebDriver rawDriver = driverFactoryHelper.getDriver();
+        return new AccessibilityActions(rawDriver, this);
+    }
+
 
 }

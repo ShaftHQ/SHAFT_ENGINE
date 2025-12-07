@@ -58,14 +58,14 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-                 <!-- https://mvnrepository.com/artifact/io.cucumber/cucumber-bom -->
-                  <dependency>
-                      <groupId>io.cucumber</groupId>
-                      <artifactId>cucumber-bom</artifactId>
-                      <version>7.31.0</version>
-                      <type>pom</type>
-                      <scope>import</scope>
-                  </dependency>
+            <!-- https://mvnrepository.com/artifact/io.cucumber/cucumber-bom -->
+            <dependency>
+                <groupId>io.cucumber</groupId>
+                <artifactId>cucumber-bom</artifactId>
+                <version>7.31.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -245,6 +245,13 @@
                     <artifactId>log4j-api</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <!-- AXE Accessibility  -->
+        <dependency>
+            <groupId>com.deque.html.axe-core</groupId>
+            <artifactId>selenium</artifactId>
+            <version>4.11.0</version>
         </dependency>
 
         <!-- ALLURE REPORTING -->
@@ -505,7 +512,7 @@
              <artifactId>mssql-jdbc</artifactId>
              <version>13.3.0.jre11-preview</version>
         </dependency>
-         <dependency>
+        <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>42.7.8</version>
