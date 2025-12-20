@@ -56,7 +56,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: Ubuntu_Database_Allure
           path: "allure-report/*.html"
@@ -92,7 +92,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: Ubuntu_APIs_Allure
           path: "allure-report/*.html"
@@ -132,7 +132,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: Ubuntu_Firefox_Grid_Allure
           path: "allure-report/*.html"
@@ -172,7 +172,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: Ubuntu_Chrome_Grid_Allure
           path: "allure-report/*.html"
@@ -212,7 +212,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: Ubuntu_Edge_Grid_Allure
           path: "allure-report/*.html"
@@ -248,7 +248,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: Android_Native_BrowserStack_Allure
           path: "allure-report/*.html"
@@ -284,7 +284,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: iOS_Web_SAFARI_BrowserStack_Allure
           path: "allure-report/*.html"
@@ -320,7 +320,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: Android_Web_Chrome_BrowserStack_Allure
           path: "allure-report/*.html"
@@ -356,7 +356,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: MacOSX_Safari_BrowserStack_Allure
           path: "allure-report/*.html"
@@ -403,7 +403,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: Ubuntu_Chrome_Cucumber_Grid_Allure
           path: "allure-report/*.html"
@@ -443,7 +443,7 @@ jobs:
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: MacOSX_Safari_Cucumber_BrowserStack_Allure
           path: "allure-report/*.html"
