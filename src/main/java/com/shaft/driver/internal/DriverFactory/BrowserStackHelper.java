@@ -44,13 +44,13 @@ public class BrowserStackHelper {
                 helper.initializeDriver(browserStackOptions);
             } else {
                 // this is the new native app scenario
-                browserStackOptions = setupNativeAppExecution(SHAFT.Properties.browserStack.username(), SHAFT.Properties.browserStack.accessKey(),
+                browserStackOptions = setupNativeAppExecution(SHAFT.Properties.browserStack.userName(), SHAFT.Properties.browserStack.accessKey(),
                         SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), SHAFT.Properties.browserStack.appRelativeFilePath(), SHAFT.Properties.browserStack.appName()).merge(browserStackOptions);
                 helper.initializeDriver(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
             }
         } else {
             // this is the existing version from a native app scenario
-            browserStackOptions = setupNativeAppExecution(SHAFT.Properties.browserStack.username(), SHAFT.Properties.browserStack.accessKey(),
+            browserStackOptions = setupNativeAppExecution(SHAFT.Properties.browserStack.userName(), SHAFT.Properties.browserStack.accessKey(),
                     SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), appUrl).merge(browserStackOptions);
             helper.initializeDriver(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
         }
@@ -135,7 +135,7 @@ public class BrowserStackHelper {
 
     private static MutableCapabilities setupMobileWebExecution() {
         ReportManager.logDiscrete("Setting up BrowserStack configuration for mobile web execution...");
-        String username = SHAFT.Properties.browserStack.username();
+        String username = SHAFT.Properties.browserStack.userName();
         String password = SHAFT.Properties.browserStack.accessKey();
         String os = SHAFT.Properties.platform.targetPlatform();
         String osVersion = SHAFT.Properties.browserStack.osVersion();
@@ -168,7 +168,7 @@ public class BrowserStackHelper {
 
     private static MutableCapabilities setupDesktopWebExecution() {
         ReportManager.logDiscrete("Setting up BrowserStack configuration for desktop web execution...");
-        String username = SHAFT.Properties.browserStack.username();
+        String username = SHAFT.Properties.browserStack.userName();
         String password = SHAFT.Properties.browserStack.accessKey();
         String os = SHAFT.Properties.platform.targetPlatform();
         String osVersion = SHAFT.Properties.browserStack.osVersion();

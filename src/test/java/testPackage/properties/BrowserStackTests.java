@@ -19,7 +19,7 @@ public class BrowserStackTests {
 
     @BeforeClass
     public void beforeClass() {
-        username = SHAFT.Properties.browserStack.username();
+        username = SHAFT.Properties.browserStack.userName();
         accessKey = SHAFT.Properties.browserStack.accessKey();
         platformVersion = SHAFT.Properties.browserStack.platformVersion();
         deviceName = SHAFT.Properties.browserStack.deviceName();
@@ -34,7 +34,7 @@ public class BrowserStackTests {
 
     @Test
     public void test() {
-        SHAFT.Properties.browserStack.set().username(username);
+        SHAFT.Properties.browserStack.set().userName(username);
         SHAFT.Properties.browserStack.set().accessKey(accessKey);
         SHAFT.Properties.browserStack.set().platformVersion(platformVersion);
         SHAFT.Properties.browserStack.set().deviceName(deviceName);

@@ -12,10 +12,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 public final class PropertyFileManager {
 
@@ -59,8 +56,13 @@ public final class PropertyFileManager {
         java.util.Properties props = System.getProperties();
         props.forEach((key, value) -> {
             if (String.valueOf(key).startsWith("browserStack.") && !String.valueOf(value).isBlank()) {
+                Set<String> excludedKeys = Set.of(
+                        "appName",
+                        "appUrl",
+                        "appRelativeFilePath"
+                );
                 var parsedKey = String.valueOf(key).split("browserStack.")[1];
-                if (!Objects.equals(parsedKey, "appName") && !Objects.equals(parsedKey, "appUrl") && !Objects.equals(parsedKey, "appRelativeFilePath"))
+                if (!excludedKeys.contains(parsedKey))
                     browserstackOptions.put(parsedKey, String.valueOf(value));
             }
         });

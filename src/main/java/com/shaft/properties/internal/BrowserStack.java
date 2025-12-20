@@ -29,9 +29,9 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     }
 
     //Below properties are all required
-    @Key("browserStack.username")
+    @Key("browserStack.userName")
     @DefaultValue("mohabmohie1")
-    String username();
+    String userName();
 
     @Key("browserStack.accessKey")
     @DefaultValue("")
@@ -120,8 +120,8 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     }
 
     class SetProperty implements EngineProperties.SetProperty {
-        public SetProperty username(String value) {
-            setProperty("browserStack.username", value);
+        public SetProperty userName(String value) {
+            setProperty("browserStack.userName", value);
             return this;
         }
 
