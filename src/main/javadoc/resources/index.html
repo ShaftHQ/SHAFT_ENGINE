@@ -639,10 +639,10 @@
                     let workflowFileName = '';
                     
                     if (platform === 'web') {
-                        workflowUrl = 'https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/copilot/create-ai-powered-project-generator/src/main/resources/examples/.github/workflows/web.yml';
+                        workflowUrl = 'https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/main/src/main/resources/examples/.github/workflows/web.yml';
                         workflowFileName = 'web.yml';
                     } else if (platform === 'api') {
-                        workflowUrl = 'https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/copilot/create-ai-powered-project-generator/src/main/resources/examples/.github/workflows/api.yml';
+                        workflowUrl = 'https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/main/src/main/resources/examples/.github/workflows/api.yml';
                         workflowFileName = 'api.yml';
                     }
                     
@@ -654,7 +654,7 @@
                 
                 // Add Dependabot config if selected
                 if (includeDependabot) {
-                    const dependabotContent = await fetch('https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/copilot/create-ai-powered-project-generator/src/main/resources/examples/.github/dependabot.yml').then(r => r.text());
+                    const dependabotContent = await fetch('https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/main/src/main/resources/examples/.github/dependabot.yml').then(r => r.text());
                     zip.file(`${artifactId}/.github/dependabot.yml`, dependabotContent);
                 }
                 
