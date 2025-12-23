@@ -556,6 +556,7 @@
                     <groupId>org.testng</groupId>
                     <artifactId>testng</artifactId>
                 </exclusion>
+                <!-- SECURITY: Exclude vulnerable log4j 1.2.17, replaced by log4j-1.2-api bridge -->
                 <exclusion>
                     <groupId>log4j</groupId>
                     <artifactId>log4j</artifactId>
@@ -577,6 +578,7 @@
                     <groupId>org.junit.jupiter</groupId>
                     <artifactId>junit-jupiter-api</artifactId>
                 </exclusion>
+                <!-- SECURITY: Exclude vulnerable log4j 1.2.17, replaced by log4j-1.2-api bridge -->
                 <exclusion>
                     <groupId>log4j</groupId>
                     <artifactId>log4j</artifactId>
