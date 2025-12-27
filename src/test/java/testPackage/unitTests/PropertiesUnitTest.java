@@ -36,22 +36,22 @@ public class PropertiesUnitTest {
 
     @Test(description = "Test Reporting properties - debug mode")
     public void testReportingDebugMode() {
+        // Just verify the property can be retrieved without exception
         boolean debugMode = SHAFT.Properties.reporting.debugMode();
-        // Just verify the property can be retrieved
-        Assert.assertNotNull(debugMode, "Debug mode should not be null");
+        // Primitive boolean is always non-null, so just verify it's retrieved successfully
     }
 
     @Test(description = "Test Reporting properties - always log discreetly")
     public void testReportingAlwaysLogDiscreetly() {
+        // Just verify the property can be retrieved without exception
         boolean alwaysLogDiscreetly = SHAFT.Properties.reporting.alwaysLogDiscreetly();
-        // Just verify the property can be retrieved
-        Assert.assertNotNull(alwaysLogDiscreetly, "Always log discreetly should not be null");
+        // Primitive boolean is always non-null, so just verify it's retrieved successfully
     }
 
     @Test(description = "Test Reporting properties - capture element name")
     public void testReportingCaptureElementName() {
+        // Just verify the property can be retrieved without exception
         boolean captureElementName = SHAFT.Properties.reporting.captureElementName();
-        // Just verify the property can be retrieved
-        Assert.assertNotNull(captureElementName, "Capture element name should not be null");
+        // Primitive boolean is always non-null, so just verify it's retrieved successfully
     }
 }
