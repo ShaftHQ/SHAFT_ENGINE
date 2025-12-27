@@ -40,7 +40,7 @@ public class LocatorBuilderUnitTest {
 
     @Test(description = "Test building locator with partial text")
     public void testLocatorWithPartialText() {
-        By locator = Locator.hasTagName("a").hasPartialText("Click").build();
+        By locator = Locator.hasTagName("a").containsText("Click").build();
         Assert.assertNotNull(locator, "Locator should not be null");
         Assert.assertTrue(locator.toString().contains("Click"), "Locator should contain partial text");
     }

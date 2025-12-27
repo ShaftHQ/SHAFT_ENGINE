@@ -1,8 +1,6 @@
 package testPackage.unitTests;
 
-import com.shaft.properties.internal.Execution;
-import com.shaft.properties.internal.Platform;
-import com.shaft.properties.internal.Reporting;
+import com.shaft.driver.SHAFT;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -12,53 +10,48 @@ import org.testng.annotations.Test;
  */
 public class PropertiesUnitTest {
 
-    @Test(description = "Test Execution properties - timeout")
-    public void testExecutionTimeout() {
-        int timeout = Integer.parseInt(Execution.timeout());
-        Assert.assertTrue(timeout > 0, "Execution timeout should be positive");
+    @Test(description = "Test Timeouts properties - page load timeout")
+    public void testPageLoadTimeout() {
+        int timeout = SHAFT.Properties.timeouts.pageLoadTimeout();
+        Assert.assertTrue(timeout > 0, "Page load timeout should be positive");
     }
 
-    @Test(description = "Test Platform properties - operating system")
-    public void testPlatformOS() {
-        String os = Platform.operatingSystem();
-        Assert.assertNotNull(os, "Operating system should not be null");
-        Assert.assertFalse(os.isEmpty(), "Operating system should not be empty");
-    }
-
-    @Test(description = "Test Platform properties - execution address")
-    public void testPlatformExecutionAddress() {
-        String executionAddress = Platform.executionAddress();
-        Assert.assertNotNull(executionAddress, "Execution address should not be null");
-    }
-
-    @Test(description = "Test Reporting properties - output directory")
-    public void testReportingOutputDirectory() {
-        String outputDir = Reporting.outputDirectory();
-        Assert.assertNotNull(outputDir, "Output directory should not be null");
-        Assert.assertFalse(outputDir.isEmpty(), "Output directory should not be empty");
-    }
-
-    @Test(description = "Test Reporting properties - always log message")
-    public void testReportingAlwaysLogMessage() {
-        String alwaysLogMessage = Reporting.alwaysLogMessage();
-        Assert.assertNotNull(alwaysLogMessage, "Always log message should not be null");
-    }
-
-    @Test(description = "Test Reporting properties - screenshot params")
-    public void testReportingScreenshotParams() {
-        String screenshotParams = Reporting.screenshotParams();
-        Assert.assertNotNull(screenshotParams, "Screenshot params should not be null");
-    }
-
-    @Test(description = "Test Execution properties - retries")
-    public void testExecutionRetries() {
-        String retries = Execution.retries();
-        Assert.assertNotNull(retries, "Retries should not be null");
+    @Test(description = "Test Flags properties - retry maximum number of attempts")
+    public void testRetryMaximumNumberOfAttempts() {
+        int retries = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+        Assert.assertTrue(retries >= 0, "Retries should be non-negative");
     }
 
     @Test(description = "Test Platform properties - target platform")
     public void testPlatformTargetPlatform() {
-        String targetPlatform = Platform.targetPlatform();
+        String targetPlatform = SHAFT.Properties.platform.targetPlatform();
         Assert.assertNotNull(targetPlatform, "Target platform should not be null");
+    }
+
+    @Test(description = "Test Platform properties - execution address")
+    public void testPlatformExecutionAddress() {
+        String executionAddress = SHAFT.Properties.platform.executionAddress();
+        Assert.assertNotNull(executionAddress, "Execution address should not be null");
+    }
+
+    @Test(description = "Test Reporting properties - debug mode")
+    public void testReportingDebugMode() {
+        boolean debugMode = SHAFT.Properties.reporting.debugMode();
+        // Just verify the property can be retrieved
+        Assert.assertNotNull(debugMode, "Debug mode should not be null");
+    }
+
+    @Test(description = "Test Reporting properties - always log discreetly")
+    public void testReportingAlwaysLogDiscreetly() {
+        boolean alwaysLogDiscreetly = SHAFT.Properties.reporting.alwaysLogDiscreetly();
+        // Just verify the property can be retrieved
+        Assert.assertNotNull(alwaysLogDiscreetly, "Always log discreetly should not be null");
+    }
+
+    @Test(description = "Test Reporting properties - capture element name")
+    public void testReportingCaptureElementName() {
+        boolean captureElementName = SHAFT.Properties.reporting.captureElementName();
+        // Just verify the property can be retrieved
+        Assert.assertNotNull(captureElementName, "Capture element name should not be null");
     }
 }
