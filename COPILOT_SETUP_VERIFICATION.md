@@ -93,6 +93,7 @@ All these files follow the patterns specified in the instructions:
 $ file .github/copilot-instructions.md
 .github/copilot-instructions.md: Java source, Unicode text, UTF-8 text
 ```
+*Note: The file command identifies it as "Java source" due to the Java code examples within the markdown file. The file is a valid UTF-8 text/markdown file.*
 
 ### Structure Metrics
 - **Total lines**: 220
@@ -147,4 +148,5 @@ The GitHub Copilot instructions for SHAFT_ENGINE are **properly configured, comp
 **Verified by**: GitHub Copilot Coding Agent  
 **Verification Date**: December 30, 2025  
 **Repository**: ShaftHQ/SHAFT_ENGINE  
-**Branch**: copilot/setup-copilot-instructions
+**Branch**: copilot/setup-copilot-instructions  
+**Commit**: 83c176a9ec3601e15b04af37d9477aef4c6262f0
