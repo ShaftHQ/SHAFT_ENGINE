@@ -89,11 +89,20 @@ All these files follow the patterns specified in the instructions:
 ## Technical Validation
 
 ### File Integrity
+
+File extension and basic validation:
 ```bash
+$ ls -la .github/copilot-instructions.md
+-rw-r--r-- 1 runner runner 8480 Dec 30 20:03 .github/copilot-instructions.md
+
 $ file .github/copilot-instructions.md
 .github/copilot-instructions.md: Java source, Unicode text, UTF-8 text
+
+$ file --mime .github/copilot-instructions.md
+.github/copilot-instructions.md: text/x-java; charset=utf-8
 ```
-*Note: The file command identifies it as "Java source" due to the Java code examples within the markdown file. The file is a valid UTF-8 text/markdown file.*
+
+*Note: The `file` command identifies it as "Java source" / "text/x-java" due to the extensive Java code examples within the markdown file. The file is a valid markdown file (`.md` extension) containing UTF-8 text with embedded Java code blocks for instructional purposes.*
 
 ### Structure Metrics
 - **Total lines**: 220
