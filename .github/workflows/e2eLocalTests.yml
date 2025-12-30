@@ -24,9 +24,6 @@ jobs:
         uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
-      - uses: browser-actions/setup-edge@v1
-        with:
-          edge-version: stable
       - name: Print Edge version
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
       - name: Run tests
@@ -177,9 +174,6 @@ jobs:
         uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
-      - uses: browser-actions/setup-edge@v1
-        with:
-          edge-version: stable
       - name: Print Edge version
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
       - name: Run tests on Windows
