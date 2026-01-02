@@ -30,11 +30,11 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
 
     //Below properties are all required
     @Key("browserStack.userName")
-    @DefaultValue("qdev_t7k8re")
+    @DefaultValue("mostafaagamy_aNA9cE")
     String userName();
 
     @Key("browserStack.accessKey")
-    @DefaultValue("ybmGeVsZFrLgEnExapyz")
+    @DefaultValue("CBNU4Ke25x81G1yQtsRT")
     String accessKey();
 
     //Below properties are needed for native mobile app testing:
