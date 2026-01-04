@@ -589,7 +589,7 @@ public class DriverFactoryHelper {
                 appiumDesiredCapabilities.setCapability("chromedriverExecutable", WebDriverManager.chromedriver().getDownloadedDriverPath());
                 setRemoteDriverInstance(appiumDesiredCapabilities);
             }
-            case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_BROWSER ->
+            case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_BROWSER, APPIUM_FLUTTER ->
                     setRemoteDriverInstance(appiumDesiredCapabilities);
             default ->
                     failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
@@ -663,6 +663,9 @@ public class DriverFactoryHelper {
                     } else {
                         driverType = DriverType.APPIUM_CHROME;
                     }
+                } else if (SHAFT.Properties.mobile.flutterEnabled()) {
+                    // Flutter app execution
+                    driverType = DriverType.APPIUM_FLUTTER;
                 } else {
                     driverType = DriverType.APPIUM_MOBILE_NATIVE;
                 }

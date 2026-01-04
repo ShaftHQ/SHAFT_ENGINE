@@ -62,6 +62,10 @@ public interface Mobile extends EngineProperties<Mobile> {
     @DefaultValue("")
     String appActivity();
 
+    @Key("flutter_enabled")
+    @DefaultValue("false")
+    boolean flutterEnabled();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -128,6 +132,11 @@ public interface Mobile extends EngineProperties<Mobile> {
 
         public SetProperty appActivity(String value) {
             setProperty("mobile_appActivity", value);
+            return this;
+        }
+
+        public SetProperty flutterEnabled(boolean value) {
+            setProperty("flutter_enabled", String.valueOf(value));
             return this;
         }
     }
