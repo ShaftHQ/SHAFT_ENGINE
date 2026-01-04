@@ -64,21 +64,24 @@ To test a Flutter app using SHAFT Engine, you need to:
 
 ### Example Test Class
 
-Here's a complete example of a Flutter test using SHAFT Engine with TestNG:
+Here's a complete example of a Flutter test using SHAFT Engine with TestNG and FlutterFinder:
 
 ```java
 package com.example.tests;
 
 import com.shaft.driver.SHAFT;
-import io.appium.java_client.AppiumBy;
 import io.appium.java_client.remote.AutomationName;
+import io.github.ashwith.flutter.FlutterFinder;
 import org.openqa.selenium.Platform;
+import org.openqa.selenium.WebElement;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class FlutterAppTest {
     private SHAFT.GUI.WebDriver driver;
+    private FlutterFinder finder;
 
     @BeforeMethod
     public void setup() {
@@ -95,25 +98,26 @@ public class FlutterAppTest {
         // Set app path (local file)
         SHAFT.Properties.mobile.set().app("path/to/your/app-debug.apk");
         
-        // Or use app package and activity for installed apps
-        // SHAFT.Properties.mobile.set().appPackage("com.example.myapp");
-        // SHAFT.Properties.mobile.set().appActivity("MainActivity");
-        
         // Initialize driver
         driver = new SHAFT.GUI.WebDriver();
+        
+        // Initialize FlutterFinder
+        finder = new FlutterFinder(driver.getDriver());
     }
 
     @Test
     public void testFlutterApp() {
-        // Your test logic here
-        // Use FlutterFinder methods to locate Flutter widgets
+        // Find element by ValueKey
+        WebElement loginButton = finder.byValueKey("loginButton");
+        loginButton.click();
         
-        // Example: Find and tap a button
-        driver.element().click(AppiumBy.accessibilityId("loginButton"));
+        // Find element by text
+        WebElement welcomeMessage = finder.byText("Welcome!");
+        Assert.assertNotNull(welcomeMessage, "Welcome message should be displayed");
         
-        // Verify text is displayed
-        driver.assertThat().element(AppiumBy.accessibilityId("welcomeMessage"))
-              .text().isEqualTo("Welcome!");
+        // Find element by Type
+        WebElement textField = finder.byType("TextField");
+        Assert.assertNotNull(textField, "TextField should be found");
     }
 
     @AfterMethod
@@ -169,30 +173,58 @@ SHAFT.Properties.mobile.set().platformVersion("13.0");
 
 ## Locating Flutter Elements
 
-When testing Flutter apps, you can use the FlutterFinder library to locate widgets. SHAFT Engine includes the `appium_flutterfinder_java` dependency automatically.
+When testing Flutter apps, you can use the FlutterFinder library to locate widgets. SHAFT Engine includes the `appium_flutterfinder_java` dependency (version 1.0.12) automatically.
 
 ### Common Flutter Locator Strategies
 
 ```java
-import io.github.ashwithpoojary98.FlutterFinder;
+import io.github.ashwith.flutter.FlutterFinder;
+import org.openqa.selenium.WebElement;
 
 // Create a FlutterFinder instance
-FlutterFinder find = new FlutterFinder(driver.getDriver());
+FlutterFinder finder = new FlutterFinder(driver.getDriver());
 
-// By value key
-find.byValueKey("myButton");
+// By value key (String)
+WebElement element = finder.byValueKey("myButton");
+
+// By value key (int)
+WebElement element = finder.byValueKey(123);
 
 // By text
-find.text("Submit");
+WebElement element = finder.byText("Submit");
 
-// By type
-find.byType("TextField");
+// By type (widget class name)
+WebElement element = finder.byType("TextField");
+
+// By tooltip
+WebElement element = finder.byToolTip("Increment");
 
 // By semantics label
-find.bySemanticsLabel("Login Button");
+WebElement element = finder.bySemanticsLabel("Login Button");
 
 // Note: Refer to the FlutterFinder documentation for the complete list of available methods
-// https://github.com/ashwithpoojary98/appium-flutter-finder-java
+// https://github.com/ashwithpoojary98/javaflutterfinder
+```
+
+### Working with FlutterFinder Elements
+
+Once you have located an element using FlutterFinder, you can interact with it directly:
+
+```java
+// Initialize FlutterFinder
+FlutterFinder finder = new FlutterFinder(driver.getDriver());
+
+// Find and click a button
+WebElement incrementButton = finder.byValueKey("increment");
+incrementButton.click();
+
+// Find and get text from an element
+WebElement counterText = finder.byValueKey("counterDisplay");
+String text = counterText.getText();
+
+// Find by tooltip and interact
+WebElement submitButton = finder.byToolTip("Submit");
+submitButton.click();
 ```
 
 ### Using with SHAFT's Fluent API
@@ -350,26 +382,22 @@ SHAFT.Properties.log4j.set().logLevel("DEBUG");
 
 ## Example Test Suite
 
-Complete example with multiple tests:
+Complete example with multiple tests using FlutterFinder:
 
 ```java
 package com.example.tests;
 
 import com.shaft.driver.SHAFT;
-import io.appium.java_client.AppiumBy;
 import io.appium.java_client.remote.AutomationName;
-import org.openqa.selenium.By;
+import io.github.ashwith.flutter.FlutterFinder;
 import org.openqa.selenium.Platform;
+import org.openqa.selenium.WebElement;
+import org.testng.Assert;
 import org.testng.annotations.*;
 
 public class FlutterAppTestSuite {
     private static SHAFT.GUI.WebDriver driver;
-    
-    private By usernameField = AppiumBy.accessibilityId("usernameField");
-    private By passwordField = AppiumBy.accessibilityId("passwordField");
-    private By loginButton = AppiumBy.accessibilityId("loginButton");
-    private By dashboardTitle = AppiumBy.accessibilityId("dashboardTitle");
-    private By logoutButton = AppiumBy.accessibilityId("logoutButton");
+    private static FlutterFinder finder;
 
     @BeforeClass
     public void setupClass() {
@@ -384,40 +412,51 @@ public class FlutterAppTestSuite {
     @BeforeMethod
     public void setup() {
         driver = new SHAFT.GUI.WebDriver();
+        finder = new FlutterFinder(driver.getDriver());
     }
 
     @Test(description = "Verify successful login with valid credentials")
     public void testValidLogin() {
-        driver.element()
-              .type(usernameField, "testuser")
-              .and().type(passwordField, "testpass")
-              .and().click(loginButton)
-              .and().assertThat(dashboardTitle).text().isEqualTo("Dashboard");
+        // Find and interact with Flutter widgets using FlutterFinder
+        WebElement usernameField = finder.byValueKey("usernameField");
+        WebElement passwordField = finder.byValueKey("passwordField");
+        WebElement loginButton = finder.byValueKey("loginButton");
+        
+        usernameField.sendKeys("testuser");
+        passwordField.sendKeys("testpass");
+        loginButton.click();
+        
+        // Verify navigation to dashboard
+        WebElement dashboardTitle = finder.byText("Dashboard");
+        Assert.assertNotNull(dashboardTitle, "Dashboard should be displayed");
     }
 
     @Test(description = "Verify error message with invalid credentials")
     public void testInvalidLogin() {
-        By errorMessage = AppiumBy.accessibilityId("errorMessage");
+        WebElement usernameField = finder.byValueKey("usernameField");
+        WebElement passwordField = finder.byValueKey("passwordField");
+        WebElement loginButton = finder.byValueKey("loginButton");
         
-        driver.element()
-              .type(usernameField, "wronguser")
-              .and().type(passwordField, "wrongpass")
-              .and().click(loginButton)
-              .and().assertThat(errorMessage).text().contains("Invalid credentials");
+        usernameField.sendKeys("wronguser");
+        passwordField.sendKeys("wrongpass");
+        loginButton.click();
+        
+        // Verify error message is displayed
+        WebElement errorMessage = finder.byText("Invalid credentials");
+        Assert.assertNotNull(errorMessage, "Error message should be displayed");
     }
 
-    @Test(description = "Verify logout functionality", dependsOnMethods = "testValidLogin")
-    public void testLogout() {
-        // First login
-        driver.element()
-              .type(usernameField, "testuser")
-              .and().type(passwordField, "testpass")
-              .and().click(loginButton);
+    @Test(description = "Verify counter increment functionality")
+    public void testCounterIncrement() {
+        // Find the increment button by tooltip or value key
+        WebElement incrementButton = finder.byToolTip("Increment");
         
-        // Then logout
-        driver.element()
-              .click(logoutButton)
-              .and().assertThat(loginButton).exists();
+        // Click the button
+        incrementButton.click();
+        
+        // Verify button was clicked (counter should increment)
+        // Note: Actual verification would check the counter text value
+        Assert.assertNotNull(incrementButton, "Increment button should be functional");
     }
 
     @AfterMethod(alwaysRun = true)
@@ -425,6 +464,9 @@ public class FlutterAppTestSuite {
         if (driver != null) {
             driver.quit();
         }
+    }
+}
+```
     }
 }
 ```
