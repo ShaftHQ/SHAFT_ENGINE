@@ -16,6 +16,7 @@ import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.Setting;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.remote.AutomationName;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.qameta.allure.Step;
@@ -666,6 +667,8 @@ public class DriverFactoryHelper {
                 } else if (SHAFT.Properties.mobile.flutterEnabled()) {
                     // Flutter app execution
                     driverType = DriverType.APPIUM_FLUTTER;
+                    // Ensure automationName is set to Flutter
+                    SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER_INTEGRATION);
                 } else {
                     driverType = DriverType.APPIUM_MOBILE_NATIVE;
                 }

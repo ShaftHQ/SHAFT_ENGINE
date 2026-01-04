@@ -87,7 +87,7 @@ public class FlutterAppTest {
         
         // Set platform and automation name
         SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
-        SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER);
+        SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER_INTEGRATION);
         
         // Configure Appium server
         SHAFT.Properties.platform.set().executionAddress("localhost:4723");
@@ -154,7 +154,7 @@ SHAFT.Properties.mobile.set().flutterEnabled(true);
 
 // Platform and automation
 SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
-SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER);
+SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER_INTEGRATION);
 
 // Appium server
 SHAFT.Properties.platform.set().executionAddress("localhost:4723");
@@ -174,7 +174,7 @@ When testing Flutter apps, you can use the FlutterFinder library to locate widge
 ### Common Flutter Locator Strategies
 
 ```java
-import pro.truongsinh.appium_flutter.FlutterFinder;
+import io.github.ashwithpoojary98.FlutterFinder;
 
 // Create a FlutterFinder instance
 FlutterFinder find = new FlutterFinder(driver.getDriver());
@@ -191,11 +191,8 @@ find.byType("TextField");
 // By semantics label
 find.bySemanticsLabel("Login Button");
 
-// Combining finders
-find.ancestor(
-    find.byType("ListView"),
-    find.byValueKey("item_1")
-);
+// Note: Refer to the FlutterFinder documentation for the complete list of available methods
+// https://github.com/ashwithpoojary98/appium-flutter-finder-java
 ```
 
 ### Using with SHAFT's Fluent API
@@ -262,7 +259,7 @@ SHAFT.Properties.browserStack.set().platformVersion("13.0");
 SHAFT.Properties.browserStack.set().deviceName("Google Pixel 7");
 SHAFT.Properties.browserStack.set().appRelativeFilePath("path/to/app.apk");
 SHAFT.Properties.mobile.set().flutterEnabled(true);
-SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER);
+SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER_INTEGRATION);
 ```
 
 ### LambdaTest
@@ -271,7 +268,7 @@ SHAFT.Properties.platform.set().executionAddress("lambdatest");
 SHAFT.Properties.lambdaTest.set().platformVersion("13.0");
 SHAFT.Properties.lambdaTest.set().deviceName("Galaxy S21");
 SHAFT.Properties.mobile.set().flutterEnabled(true);
-SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER);
+SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER_INTEGRATION);
 ```
 
 ## Troubleshooting
@@ -379,7 +376,7 @@ public class FlutterAppTestSuite {
         // Configure Flutter testing
         SHAFT.Properties.mobile.set().flutterEnabled(true);
         SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
-        SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER);
+        SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER_INTEGRATION);
         SHAFT.Properties.platform.set().executionAddress("localhost:4723");
         SHAFT.Properties.mobile.set().app("src/test/resources/apps/flutter-demo.apk");
     }
@@ -437,7 +434,7 @@ public class FlutterAppTestSuite {
 - [Appium Flutter Driver Documentation](https://github.com/appium-userland/appium-flutter-driver)
 - [Flutter Testing Guide](https://flutter.dev/docs/testing)
 - [SHAFT Engine Documentation](https://shafthq.github.io/)
-- [Flutter Finder Java Library](https://github.com/truongsinh/appium-flutter-finder)
+- [Flutter Finder Java Library](https://github.com/ashwithpoojary98/appium-flutter-finder-java) - Package: `io.github.ashwithpoojary98`
 
 ## Support
 
