@@ -664,11 +664,9 @@ public class DriverFactoryHelper {
                     } else {
                         driverType = DriverType.APPIUM_CHROME;
                     }
-                } else if (SHAFT.Properties.mobile.flutterEnabled()) {
-                    // Flutter app execution
+                } else if (AutomationName.FLUTTER_INTEGRATION.equalsIgnoreCase(SHAFT.Properties.mobile.automationName())) {
+                    // Flutter app execution - detected by automationName
                     driverType = DriverType.APPIUM_FLUTTER;
-                    // Ensure automationName is set to Flutter
-                    SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER_INTEGRATION);
                 } else {
                     driverType = DriverType.APPIUM_MOBILE_NATIVE;
                 }

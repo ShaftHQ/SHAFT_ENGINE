@@ -27,11 +27,9 @@ public class FlutterTest {
      */
     @BeforeMethod
     public void setupFlutterDriver() {
-        // Enable Flutter driver
-        SHAFT.Properties.mobile.set().flutterEnabled(true);
-        
         // Common mobile attributes
         SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
+        // Set automation name to FlutterIntegration - this automatically enables Flutter driver
         SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER_INTEGRATION);
         
         // Configure for local Appium server execution

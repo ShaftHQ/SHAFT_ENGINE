@@ -57,10 +57,9 @@ flutter build ios --debug
 
 To test a Flutter app using SHAFT Engine, you need to:
 
-1. Enable Flutter support by setting the `flutter.enabled` property to `true`
-2. Configure the automation name to `Flutter`
-3. Specify the app path or URL
-4. Set up your Appium server connection
+1. Set the automation name to `FlutterIntegration` (this automatically enables Flutter driver support)
+2. Specify the app path or URL
+3. Set up your Appium server connection
 
 ### Example Test Class
 
@@ -85,10 +84,7 @@ public class FlutterAppTest {
 
     @BeforeMethod
     public void setup() {
-        // Enable Flutter driver
-        SHAFT.Properties.mobile.set().flutterEnabled(true);
-        
-        // Set platform and automation name
+        // Set platform and automation name (Flutter driver is automatically enabled)
         SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
         SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER_INTEGRATION);
         
@@ -133,12 +129,11 @@ You can configure Flutter testing using properties file or programmatically:
 
 #### Properties File (custom.properties)
 ```properties
-# Enable Flutter driver
-flutter.enabled=true
-
 # Platform configuration
 targetPlatform=Android
-mobile_automationName=Flutter
+
+# Automation name - setting this to FlutterIntegration automatically enables Flutter driver
+mobile_automationName=FlutterIntegration
 
 # Appium server
 executionAddress=localhost:4723
@@ -153,10 +148,7 @@ mobile_platformVersion=13.0
 
 #### Programmatic Configuration
 ```java
-// Enable Flutter
-SHAFT.Properties.mobile.set().flutterEnabled(true);
-
-// Platform and automation
+// Platform and automation - setting automationName to FLUTTER_INTEGRATION enables Flutter driver
 SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
 SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER_INTEGRATION);
 
@@ -290,7 +282,6 @@ SHAFT.Properties.platform.set().executionAddress("browserstack");
 SHAFT.Properties.browserStack.set().platformVersion("13.0");
 SHAFT.Properties.browserStack.set().deviceName("Google Pixel 7");
 SHAFT.Properties.browserStack.set().appRelativeFilePath("path/to/app.apk");
-SHAFT.Properties.mobile.set().flutterEnabled(true);
 SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER_INTEGRATION);
 ```
 
@@ -299,7 +290,6 @@ SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER_INTEGRATION)
 SHAFT.Properties.platform.set().executionAddress("lambdatest");
 SHAFT.Properties.lambdaTest.set().platformVersion("13.0");
 SHAFT.Properties.lambdaTest.set().deviceName("Galaxy S21");
-SHAFT.Properties.mobile.set().flutterEnabled(true);
 SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER_INTEGRATION);
 ```
 
@@ -401,8 +391,7 @@ public class FlutterAppTestSuite {
 
     @BeforeClass
     public void setupClass() {
-        // Configure Flutter testing
-        SHAFT.Properties.mobile.set().flutterEnabled(true);
+        // Configure Flutter testing (automationName automatically enables Flutter driver)
         SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
         SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER_INTEGRATION);
         SHAFT.Properties.platform.set().executionAddress("localhost:4723");
