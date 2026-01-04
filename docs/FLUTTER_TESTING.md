@@ -73,6 +73,7 @@ import io.appium.java_client.remote.AutomationName;
 import io.github.ashwith.flutter.FlutterFinder;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -97,8 +98,8 @@ public class FlutterAppTest {
         // Initialize driver
         driver = new SHAFT.GUI.WebDriver();
         
-        // Initialize FlutterFinder
-        finder = new FlutterFinder(driver.getDriver());
+        // Initialize FlutterFinder (requires RemoteWebDriver)
+        finder = new FlutterFinder((RemoteWebDriver) driver.getDriver());
     }
 
     @Test
@@ -172,9 +173,10 @@ When testing Flutter apps, you can use the FlutterFinder library to locate widge
 ```java
 import io.github.ashwith.flutter.FlutterFinder;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.remote.RemoteWebDriver;
 
-// Create a FlutterFinder instance
-FlutterFinder finder = new FlutterFinder(driver.getDriver());
+// Create a FlutterFinder instance (requires RemoteWebDriver)
+FlutterFinder finder = new FlutterFinder((RemoteWebDriver) driver.getDriver());
 
 // By value key (String)
 WebElement element = finder.byValueKey("myButton");
@@ -203,8 +205,10 @@ WebElement element = finder.bySemanticsLabel("Login Button");
 Once you have located an element using FlutterFinder, you can interact with it directly:
 
 ```java
-// Initialize FlutterFinder
-FlutterFinder finder = new FlutterFinder(driver.getDriver());
+import org.openqa.selenium.remote.RemoteWebDriver;
+
+// Initialize FlutterFinder (requires RemoteWebDriver)
+FlutterFinder finder = new FlutterFinder((RemoteWebDriver) driver.getDriver());
 
 // Find and click a button
 WebElement incrementButton = finder.byValueKey("increment");
@@ -382,6 +386,7 @@ import io.appium.java_client.remote.AutomationName;
 import io.github.ashwith.flutter.FlutterFinder;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.testng.Assert;
 import org.testng.annotations.*;
 
@@ -401,7 +406,8 @@ public class FlutterAppTestSuite {
     @BeforeMethod
     public void setup() {
         driver = new SHAFT.GUI.WebDriver();
-        finder = new FlutterFinder(driver.getDriver());
+        // Initialize FlutterFinder with RemoteWebDriver
+        finder = new FlutterFinder((RemoteWebDriver) driver.getDriver());
     }
 
     @Test(description = "Verify successful login with valid credentials")

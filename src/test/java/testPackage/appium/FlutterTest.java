@@ -5,6 +5,7 @@ import io.appium.java_client.remote.AutomationName;
 import io.github.ashwith.flutter.FlutterFinder;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -44,8 +45,8 @@ public class FlutterTest {
         // Initialize the driver
         driver.set(new SHAFT.GUI.WebDriver());
         
-        // Initialize FlutterFinder
-        finder = new FlutterFinder(driver.get().getDriver());
+        // Initialize FlutterFinder - cast to RemoteWebDriver as required by FlutterFinder
+        finder = new FlutterFinder((RemoteWebDriver) driver.get().getDriver());
     }
 
     /**
