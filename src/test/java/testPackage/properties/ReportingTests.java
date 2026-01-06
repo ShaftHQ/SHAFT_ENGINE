@@ -12,6 +12,7 @@ public class ReportingTests {
     boolean openLighthouseReportWhileExecution;
     boolean openExecutionSummaryReportAfterExecution;
     boolean disableLogging;
+    boolean attachFullLog;
 
     @BeforeClass
     public void beforeClass() {
@@ -22,6 +23,7 @@ public class ReportingTests {
         openLighthouseReportWhileExecution = SHAFT.Properties.reporting.openLighthouseReportWhileExecution();
         openExecutionSummaryReportAfterExecution = SHAFT.Properties.reporting.openExecutionSummaryReportAfterExecution();
         disableLogging = SHAFT.Properties.reporting.disableLogging();
+        attachFullLog = SHAFT.Properties.reporting.attachFullLog();
 
     }
 
@@ -34,5 +36,6 @@ public class ReportingTests {
         SHAFT.Properties.reporting.set().openLighthouseReportWhileExecution(openLighthouseReportWhileExecution);
         SHAFT.Properties.reporting.set().openExecutionSummaryReportAfterExecution(openExecutionSummaryReportAfterExecution);
         SHAFT.Properties.reporting.set().disableLogging(disableLogging);
+        SHAFT.Properties.reporting.set().attachFullLog(attachFullLog);
     }
 }

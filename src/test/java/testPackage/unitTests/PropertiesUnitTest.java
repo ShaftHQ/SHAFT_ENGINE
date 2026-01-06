@@ -54,4 +54,25 @@ public class PropertiesUnitTest {
         boolean captureElementName = SHAFT.Properties.reporting.captureElementName();
         // Primitive boolean is always non-null, so just verify it's retrieved successfully
     }
+
+    @Test(description = "Test Reporting properties - attach full log (should default to false)")
+    public void testReportingAttachFullLog() {
+        // Verify the property can be retrieved and defaults to false
+        boolean attachFullLog = SHAFT.Properties.reporting.attachFullLog();
+        Assert.assertFalse(attachFullLog, "attachFullLog should default to false for better performance");
+    }
+
+    @Test(description = "Test Reporting properties - attach full log setter")
+    public void testReportingAttachFullLogSetter() {
+        // Test that the setter works correctly
+        boolean originalValue = SHAFT.Properties.reporting.attachFullLog();
+        
+        // Set to true
+        SHAFT.Properties.reporting.set().attachFullLog(true);
+        Assert.assertTrue(SHAFT.Properties.reporting.attachFullLog(), "attachFullLog should be true after setting");
+        
+        // Set back to original value
+        SHAFT.Properties.reporting.set().attachFullLog(originalValue);
+        Assert.assertEquals(SHAFT.Properties.reporting.attachFullLog(), originalValue, "attachFullLog should be reset to original value");
+    }
 }
