@@ -127,21 +127,21 @@ public class FileUploadDownloadTest extends MobileTest {
     @Test(groups = {"NativeAndroidDemo"}, enabled = false)
     public void demonstrateFileUploadUsagePattern() throws IOException {
         // Step 1: Prepare the file to upload
-        String imageFilePath = "src/test/resources/testDataFiles/sample_image.jpg";
-        File imageFile = new File(imageFilePath);
+        String testFilePath = "src/test/resources/testDataFiles/sample_upload.txt";
+        File testFile = new File(testFilePath);
         
         // For demo purposes, create a placeholder if it doesn't exist
-        if (!imageFile.exists()) {
-            if (!imageFile.getParentFile().exists()) {
-                Files.createDirectories(imageFile.getParentFile().toPath());
+        if (!testFile.exists()) {
+            if (!testFile.getParentFile().exists()) {
+                Files.createDirectories(testFile.getParentFile().toPath());
             }
-            Files.writeString(imageFile.toPath(), "Placeholder for image file");
+            Files.writeString(testFile.toPath(), "This is a sample test file for upload demonstration");
         }
         
         // Step 2: Upload file to device
-        String deviceImagePath = "/sdcard/Pictures/profile_picture.jpg";
+        String deviceFilePath = "/sdcard/Download/sample_upload.txt";
         driver.get().touch()
-                .pushFile(deviceImagePath, imageFile);
+                .pushFile(deviceFilePath, testFile);
         
         // Step 3: In a real test, you would now interact with your app to:
         // - Open file picker

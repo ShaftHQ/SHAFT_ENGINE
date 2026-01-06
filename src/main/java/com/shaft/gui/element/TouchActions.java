@@ -251,7 +251,7 @@ public class TouchActions extends FluentWebDriverAction {
         try {
             File localFile = new File(localFilePath);
             if (!localFile.exists()) {
-                throw new IOException("Local file not found: " + localFilePath);
+                throw new IOException("Local file not found: " + localFile.getAbsolutePath());
             }
             
             byte[] fileContent = Files.readAllBytes(localFile.toPath());
@@ -265,7 +265,7 @@ public class TouchActions extends FluentWebDriverAction {
                 return this;
             }
             
-            String testData = "Device Path: \"" + deviceFilePath + "\", Local File: \"" + localFilePath + "\"";
+            String testData = "Device Path: \"" + deviceFilePath + "\", Local File: \"" + localFile.getAbsolutePath() + "\"";
             elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
         } catch (Exception rootCauseException) {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null, rootCauseException);
