@@ -49,6 +49,10 @@ public interface Reporting extends EngineProperties<Reporting> {
     @DefaultValue("true")
     boolean disableLogging();
 
+    @Key("attachFullLog")
+    @DefaultValue("false")
+    boolean attachFullLog();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -92,6 +96,11 @@ public interface Reporting extends EngineProperties<Reporting> {
 
         public SetProperty disableLogging(boolean value) {
             setProperty("disableLogging", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty attachFullLog(boolean value) {
+            setProperty("attachFullLog", String.valueOf(value));
             return this;
         }
 

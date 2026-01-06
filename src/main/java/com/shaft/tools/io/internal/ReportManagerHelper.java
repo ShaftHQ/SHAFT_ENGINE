@@ -304,7 +304,7 @@ public class ReportManagerHelper {
     }
 
     public static void attachEngineLog(String executionEndTimestamp) {
-        if (SHAFT.Properties.reporting == null || !SHAFT.Properties.reporting.disableLogging()) {
+        if (SHAFT.Properties.reporting != null && SHAFT.Properties.reporting.attachFullLog()) {
             String engineLogCreated = "Successfully created attachment '" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
                     + "Execution log" + "'";
             var initialLoggingState = ReportManagerHelper.getDiscreteLogging();
