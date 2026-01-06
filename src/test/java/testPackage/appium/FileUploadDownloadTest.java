@@ -1,7 +1,6 @@
 package testPackage.appium;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.cli.FileActions;
 import org.testng.annotations.Test;
 
 import java.io.File;
