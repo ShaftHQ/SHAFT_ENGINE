@@ -352,7 +352,7 @@ public class TouchActions extends FluentWebDriverAction {
             
             Files.write(localFile.toPath(), fileContent);
             
-            String testData = "Device Path: \"" + deviceFilePath + "\", Local File: \"" + localFilePath + "\"";
+            String testData = "Device Path: \"" + deviceFilePath + "\", Local File: \"" + localFile.getAbsolutePath() + "\"";
             elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
         } catch (Exception rootCauseException) {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null, rootCauseException);
