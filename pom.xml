@@ -158,6 +158,13 @@
             </exclusions>
         </dependency>
 
+        <!-- APPIUM FLUTTER FINDER -->
+        <dependency>
+            <groupId>io.github.ashwithpoojary98</groupId>
+            <artifactId>appium_flutterfinder_java</artifactId>
+            <version>1.0.12</version>
+        </dependency>
+
         <!-- WEBDRIVER MANAGER -->
         <dependency>
             <groupId>io.github.bonigarcia</groupId>

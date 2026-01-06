@@ -16,6 +16,7 @@ import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.Setting;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.remote.AutomationName;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.qameta.allure.Step;
@@ -589,7 +590,7 @@ public class DriverFactoryHelper {
                 appiumDesiredCapabilities.setCapability("chromedriverExecutable", WebDriverManager.chromedriver().getDownloadedDriverPath());
                 setRemoteDriverInstance(appiumDesiredCapabilities);
             }
-            case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_BROWSER ->
+            case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_BROWSER, APPIUM_FLUTTER ->
                     setRemoteDriverInstance(appiumDesiredCapabilities);
             default ->
                     failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
@@ -663,6 +664,9 @@ public class DriverFactoryHelper {
                     } else {
                         driverType = DriverType.APPIUM_CHROME;
                     }
+                } else if (AutomationName.FLUTTER_INTEGRATION.equalsIgnoreCase(SHAFT.Properties.mobile.automationName())) {
+                    // Flutter app execution - detected by automationName
+                    driverType = DriverType.APPIUM_FLUTTER;
                 } else {
                     driverType = DriverType.APPIUM_MOBILE_NATIVE;
                 }
