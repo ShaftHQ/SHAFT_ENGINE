@@ -18,6 +18,9 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.*;
 import org.openqa.selenium.remote.RemoteWebDriver;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
@@ -224,6 +227,136 @@ public class TouchActions extends FluentWebDriverAction {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
         }
         elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+        return this;
+    }
+
+    /**
+     * Uploads a file to the device or simulator/emulator. This is particularly useful for BrowserStack
+     * and other cloud-based mobile testing platforms that require files to be uploaded to the device
+     * before they can be used in tests (e.g., for file upload scenarios, camera roll testing, etc.).
+     * <p>
+     * For Android: Uploads the file to the device's external storage or specified path.
+     * For iOS: Uploads the file to the app's sandbox container.
+     * <p>
+     * Note: The file path on the device and the actual behavior may vary depending on the platform
+     * and testing environment (local Appium vs BrowserStack vs other cloud providers).
+     *
+     * @param deviceFilePath the absolute path where the file should be stored on the device.
+     *                       For Android example: "/sdcard/Download/sample.pdf" or "@com.example.app:id/files/sample.pdf"
+     *                       For iOS example: "@com.example.app/Documents/sample.pdf"
+     * @param localFilePath  the absolute or relative path to the file on the local machine that should be uploaded
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions pushFile(String deviceFilePath, String localFilePath) {
+        try {
+            File localFile = new File(localFilePath);
+            if (!localFile.exists()) {
+                throw new IOException("Local file not found: " + localFile.getAbsolutePath());
+            }
+            
+            byte[] fileContent = Files.readAllBytes(localFile.toPath());
+            
+            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+                androidDriver.pushFile(deviceFilePath, fileContent);
+            } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+                iosDriver.pushFile(deviceFilePath, fileContent);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
+                return this;
+            }
+            
+            String testData = "Device Path: \"" + deviceFilePath + "\", Local File: \"" + localFile.getAbsolutePath() + "\"";
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Uploads a file to the device or simulator/emulator using a File object. This is particularly useful for BrowserStack
+     * and other cloud-based mobile testing platforms that require files to be uploaded to the device
+     * before they can be used in tests (e.g., for file upload scenarios, camera roll testing, etc.).
+     * <p>
+     * For Android: Uploads the file to the device's external storage or specified path.
+     * For iOS: Uploads the file to the app's sandbox container.
+     * <p>
+     * Note: The file path on the device and the actual behavior may vary depending on the platform
+     * and testing environment (local Appium vs BrowserStack vs other cloud providers).
+     *
+     * @param deviceFilePath the absolute path where the file should be stored on the device.
+     *                       For Android example: "/sdcard/Download/sample.pdf" or "@com.example.app:id/files/sample.pdf"
+     *                       For iOS example: "@com.example.app/Documents/sample.pdf"
+     * @param localFile      the File object representing the file on the local machine that should be uploaded
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions pushFile(String deviceFilePath, File localFile) {
+        try {
+            if (!localFile.exists()) {
+                throw new IOException("Local file not found: " + localFile.getAbsolutePath());
+            }
+            
+            byte[] fileContent = Files.readAllBytes(localFile.toPath());
+            
+            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+                androidDriver.pushFile(deviceFilePath, fileContent);
+            } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+                iosDriver.pushFile(deviceFilePath, fileContent);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
+                return this;
+            }
+            
+            String testData = "Device Path: \"" + deviceFilePath + "\", Local File: \"" + localFile.getAbsolutePath() + "\"";
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Downloads a file from the device or simulator/emulator to the local machine. This is useful for
+     * retrieving files that were generated or modified during test execution on mobile devices.
+     * <p>
+     * For Android: Downloads the file from the device's file system.
+     * For iOS: Downloads the file from the app's sandbox container.
+     * <p>
+     * Note: The file path on the device and the actual behavior may vary depending on the platform
+     * and testing environment (local Appium vs BrowserStack vs other cloud providers).
+     *
+     * @param deviceFilePath    the absolute path to the file on the device that should be downloaded.
+     *                          For Android example: "/sdcard/Download/sample.pdf"
+     *                          For iOS example: "@com.example.app/Documents/sample.pdf"
+     * @param localFilePath     the absolute or relative path where the downloaded file should be saved on the local machine
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions pullFile(String deviceFilePath, String localFilePath) {
+        try {
+            byte[] fileContent;
+            
+            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+                fileContent = androidDriver.pullFile(deviceFilePath);
+            } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+                fileContent = iosDriver.pullFile(deviceFilePath);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
+                return this;
+            }
+            
+            File localFile = new File(localFilePath);
+            File parentDir = localFile.getParentFile();
+            if (parentDir != null && !parentDir.exists()) {
+                Files.createDirectories(parentDir.toPath());
+            }
+            
+            Files.write(localFile.toPath(), fileContent);
+            
+            String testData = "Device Path: \"" + deviceFilePath + "\", Local File: \"" + localFile.getAbsolutePath() + "\"";
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null, rootCauseException);
+        }
         return this;
     }
 
