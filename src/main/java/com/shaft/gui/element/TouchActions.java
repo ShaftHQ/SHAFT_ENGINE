@@ -347,7 +347,7 @@ public class TouchActions extends FluentWebDriverAction {
             File localFile = new File(localFilePath);
             File parentDir = localFile.getParentFile();
             if (parentDir != null && !parentDir.exists()) {
-                parentDir.mkdirs();
+                Files.createDirectories(parentDir.toPath());
             }
             
             Files.write(localFile.toPath(), fileContent);

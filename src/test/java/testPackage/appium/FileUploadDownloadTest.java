@@ -27,7 +27,7 @@ public class FileUploadDownloadTest extends MobileTest {
         
         // Ensure parent directory exists
         if (!localFile.getParentFile().exists()) {
-            localFile.getParentFile().mkdirs();
+            Files.createDirectories(localFile.getParentFile().toPath());
         }
         
         // Create sample content
@@ -46,18 +46,18 @@ public class FileUploadDownloadTest extends MobileTest {
 
     /**
      * Test to validate pushFile method with File object parameter.
-     * This test creates a sample PDF-like file, uploads it to the device,
+     * This test creates a sample text file, uploads it to the device,
      * and demonstrates the usage of the pushFile method with File object.
      */
     @Test(groups = {"NativeAndroidDemo"}, enabled = false)
     public void testPushFileWithFileObject() throws IOException {
         // Create a sample file to upload
-        Path tempFile = Files.createTempFile("test_upload_", ".pdf");
-        Files.writeString(tempFile, "This is a sample PDF content for testing.");
+        Path tempFile = Files.createTempFile("test_upload_", ".txt");
+        Files.writeString(tempFile, "This is a sample text content for testing file upload.");
         File localFile = tempFile.toFile();
         
         // Upload file to device using pushFile with File object
-        String devicePath = "/sdcard/Download/sample_document.pdf";
+        String devicePath = "/sdcard/Download/sample_document.txt";
         driver.get().touch()
                 .pushFile(devicePath, localFile);
         
@@ -81,7 +81,7 @@ public class FileUploadDownloadTest extends MobileTest {
         
         // Ensure parent directory exists
         if (!uploadFile.getParentFile().exists()) {
-            uploadFile.getParentFile().mkdirs();
+            Files.createDirectories(uploadFile.getParentFile().toPath());
         }
         
         // Create sample content
@@ -133,7 +133,7 @@ public class FileUploadDownloadTest extends MobileTest {
         // For demo purposes, create a placeholder if it doesn't exist
         if (!imageFile.exists()) {
             if (!imageFile.getParentFile().exists()) {
-                imageFile.getParentFile().mkdirs();
+                Files.createDirectories(imageFile.getParentFile().toPath());
             }
             Files.writeString(imageFile.toPath(), "Placeholder for image file");
         }
