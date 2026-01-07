@@ -42,37 +42,9 @@ public class DriverFactoryComprehensiveTests {
 
     @BeforeMethod
     public void setUp() {
-        // Ensure previous static mocks are closed before creating new ones
-        if (mockedPropertiesHelper != null) {
-            try {
-                mockedPropertiesHelper.close();
-            } catch (Exception ignored) {
-            }
-        }
-        if (mockedReportManager != null) {
-            try {
-                mockedReportManager.close();
-            } catch (Exception ignored) {
-            }
-        }
-        if (mockedFailureReporter != null) {
-            try {
-                mockedFailureReporter.close();
-            } catch (Exception ignored) {
-            }
-        }
-        if (mockedRecordManager != null) {
-            try {
-                mockedRecordManager.close();
-            } catch (Exception ignored) {
-            }
-        }
-        if (mockedReporter != null) {
-            try {
-                mockedReporter.close();
-            } catch (Exception ignored) {
-            }
-        }
+        // Close any existing static mocks before creating new ones to avoid registration conflicts
+        closeStaticMocks();
+        
         // Initialize mocks
         driverFactoryHelper = new DriverFactoryHelper();
         mockWebDriver = Mockito.mock(WebDriver.class);
@@ -86,49 +58,54 @@ public class DriverFactoryComprehensiveTests {
         mockedReporter = Mockito.mockStatic(Reporter.class);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() {
-        // Close all static mocks
-        if (mockedPropertiesHelper != null) mockedPropertiesHelper.close();
-        if (mockedReportManager != null) mockedReportManager.close();
-        if (mockedFailureReporter != null) mockedFailureReporter.close();
-        if (mockedRecordManager != null) mockedRecordManager.close();
-        if (mockedReporter != null) mockedReporter.close();
+        // Close all static mocks - alwaysRun ensures cleanup even on test failure
+        closeStaticMocks();
     }
-
-    @AfterClass
-    public void afterClass() {
-        // Safety net: ensure all static mocks are closed after all tests
-        if (mockedPropertiesHelper != null) {
+    
+    private void closeStaticMocks() {
+        if (mockedReporter != null) {
             try {
-                mockedPropertiesHelper.close();
-            } catch (Exception ignored) {
-            }
-        }
-        if (mockedReportManager != null) {
-            try {
-                mockedReportManager.close();
-            } catch (Exception ignored) {
-            }
-        }
-        if (mockedFailureReporter != null) {
-            try {
-                mockedFailureReporter.close();
+                mockedReporter.close();
+                mockedReporter = null;
             } catch (Exception ignored) {
             }
         }
         if (mockedRecordManager != null) {
             try {
                 mockedRecordManager.close();
+                mockedRecordManager = null;
             } catch (Exception ignored) {
             }
         }
-        if (mockedReporter != null) {
+        if (mockedFailureReporter != null) {
             try {
-                mockedReporter.close();
+                mockedFailureReporter.close();
+                mockedFailureReporter = null;
             } catch (Exception ignored) {
             }
         }
+        if (mockedReportManager != null) {
+            try {
+                mockedReportManager.close();
+                mockedReportManager = null;
+            } catch (Exception ignored) {
+            }
+        }
+        if (mockedPropertiesHelper != null) {
+            try {
+                mockedPropertiesHelper.close();
+                mockedPropertiesHelper = null;
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void afterClass() {
+        // Safety net: ensure all static mocks are closed after all tests
+        closeStaticMocks();
     }
 
     @Test
