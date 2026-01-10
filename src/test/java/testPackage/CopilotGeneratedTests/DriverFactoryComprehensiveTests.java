@@ -64,6 +64,12 @@ public class DriverFactoryComprehensiveTests {
         closeStaticMocks();
     }
     
+    @AfterClass(alwaysRun = true)
+    public void tearDownClass() {
+        // Final cleanup at class level to ensure no leaks between test retries
+        closeStaticMocks();
+    }
+    
     private void closeStaticMocks() {
         if (mockedReporter != null) {
             try {
