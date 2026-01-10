@@ -72,13 +72,9 @@ public class AccessibilityTest {
 
     @Test(description = "Analyze and return result with default config without saving report")
     public void testAnalyzeAndReturnDefault() {
-        try {
-            var result = driver.browser().accessibility().analyzeAndReturn("ReturnedResultPage",false);
-            SHAFT.Report.log("Page: " + result.getPageName());
-            SHAFT.Report.log("Violations Count: " + result.getViolationsCount());
-        } catch (RuntimeException e) {
-            SHAFT.Report.log("Expected runtime exception caught: " + e.getMessage());
-        }
+        var result = driver.browser().accessibility().analyzeAndReturn("ReturnedResultPage",false);
+        SHAFT.Report.log("Page: " + result.getPageName());
+        SHAFT.Report.log("Violations Count: " + result.getViolationsCount());
     }
 
     @Test(description = "Analyze and return result with custom config (expected failure)")
@@ -96,8 +92,8 @@ public class AccessibilityTest {
 
             SHAFT.Report.log("Page: " + result.getPageName());
             SHAFT.Report.log("Violations Count: " + result.getViolationsCount());
-        } catch (RuntimeException | AssertionError e) {
-            SHAFT.Report.log("Expected exception caught: " + e.getMessage());
+        } catch (AssertionError e) {
+            SHAFT.Report.log("Expected failure caught: " + e.getMessage());
         }
     }
 
@@ -106,41 +102,29 @@ public class AccessibilityTest {
        ========================== */
     @Test(description = "Accessibility score above threshold should pass")
     public void testAccessibilityScorePass() {
-        try {
-            // Assert that the page is at least 95% accessible
-            driver.browser().accessibility()
-                    .assertAccessibilityScoreAtLeast("samplePage", 95.0);
-        } catch (RuntimeException e) {
-            SHAFT.Report.log("Expected runtime exception caught: " + e.getMessage());
-        }
+        // Assert that the page is at least 95% accessible
+        driver.browser().accessibility()
+                .assertAccessibilityScoreAtLeast("samplePage", 95.0);
     }
 
     @Test(description = "Accessibility score below threshold should fail")
     public void testAccessibilityScoreFail() {
-        try {
-            // Assert that the page is at least 15% accessible
-            driver.browser().accessibility()
-                        .assertAccessibilityScoreAtLeast("lowScorePage", 100);
-        } catch (RuntimeException | AssertionError e) {
-            SHAFT.Report.log("Expected exception caught: " + e.getMessage());
-        }
+        // Assert that the page is at least 15% accessible
+        driver.browser().accessibility()
+                    .assertAccessibilityScoreAtLeast("lowScorePage", 100);
     }
 
     @Test(description = "Accessibility score with custom config")
     public void testAccessibilityWithCustomConfig() {
-        try {
-            // Assert with config that the page is at least 10% accessible
-            AccessibilityHelper.AccessibilityConfig customConfig = new AccessibilityHelper.AccessibilityConfig()
-                    .setTags(List.of("wcag2aa", "best-practice"))
-                    .setIncludePasses(true)
-                    .setContext("body");
+        // Assert with config that the page is at least 10% accessible
+        AccessibilityHelper.AccessibilityConfig customConfig = new AccessibilityHelper.AccessibilityConfig()
+                .setTags(List.of("wcag2aa", "best-practice"))
+                .setIncludePasses(true)
+                .setContext("body");
 
-            // Assert that the accessibility score is at least 85%
-            driver.browser().accessibility()
-                    .assertAccessibilityScoreAtLeast("customConfigPage",100.00, customConfig);
-        } catch (RuntimeException | AssertionError e) {
-            SHAFT.Report.log("Expected exception caught: " + e.getMessage());
-        }
+        // Assert that the accessibility score is at least 85%
+        driver.browser().accessibility()
+                .assertAccessibilityScoreAtLeast("customConfigPage",100.00, customConfig);
     }
 
 
