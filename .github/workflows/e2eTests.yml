@@ -65,6 +65,15 @@ jobs:
         with:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
+      - name: Check Test Results
+        if: always()
+        run: |
+          if [ -d "target/surefire-reports" ]; then
+            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
+              echo "Tests failed! Failing the workflow."
+              exit 1
+            fi
+          fi
   Ubuntu_APIs:
     runs-on: ubuntu-latest
     steps:
@@ -101,6 +110,15 @@ jobs:
         with:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
+      - name: Check Test Results
+        if: always()
+        run: |
+          if [ -d "target/surefire-reports" ]; then
+            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
+              echo "Tests failed! Failing the workflow."
+              exit 1
+            fi
+          fi
   Ubuntu_Firefox_Grid:
     runs-on: ubuntu-latest
     steps:
@@ -141,6 +159,15 @@ jobs:
         with:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
+      - name: Check Test Results
+        if: always()
+        run: |
+          if [ -d "target/surefire-reports" ]; then
+            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
+              echo "Tests failed! Failing the workflow."
+              exit 1
+            fi
+          fi
   Ubuntu_Chrome_Grid:
     runs-on: ubuntu-latest
     steps:
@@ -221,6 +248,15 @@ jobs:
         with:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
+      - name: Check Test Results
+        if: always()
+        run: |
+          if [ -d "target/surefire-reports" ]; then
+            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
+              echo "Tests failed! Failing the workflow."
+              exit 1
+            fi
+          fi
   Android_Native_BrowserStack:
     runs-on: ubuntu-latest
     steps:
@@ -257,6 +293,15 @@ jobs:
         with:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
+      - name: Check Test Results
+        if: always()
+        run: |
+          if [ -d "target/surefire-reports" ]; then
+            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
+              echo "Tests failed! Failing the workflow."
+              exit 1
+            fi
+          fi
   iOS_Web_SAFARI_BrowserStack:
     runs-on: ubuntu-latest
     steps:
@@ -293,6 +338,15 @@ jobs:
         with:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
+      - name: Check Test Results
+        if: always()
+        run: |
+          if [ -d "target/surefire-reports" ]; then
+            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
+              echo "Tests failed! Failing the workflow."
+              exit 1
+            fi
+          fi
   Android_Web_Chrome_BrowserStack:
     runs-on: ubuntu-latest
     steps:
@@ -329,6 +383,15 @@ jobs:
         with:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
+      - name: Check Test Results
+        if: always()
+        run: |
+          if [ -d "target/surefire-reports" ]; then
+            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
+              echo "Tests failed! Failing the workflow."
+              exit 1
+            fi
+          fi
   MacOSX_Safari_BrowserStack:
     runs-on: ubuntu-latest
     steps:
@@ -365,6 +428,15 @@ jobs:
         with:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
+      - name: Check Test Results
+        if: always()
+        run: |
+          if [ -d "target/surefire-reports" ]; then
+            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
+              echo "Tests failed! Failing the workflow."
+              exit 1
+            fi
+          fi
   Ubuntu_Chrome_Cucumber_Grid:
     runs-on: ubuntu-latest
     steps:
@@ -412,6 +484,15 @@ jobs:
         with:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
+      - name: Check Test Results
+        if: always()
+        run: |
+          if [ -d "target/surefire-reports" ]; then
+            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
+              echo "Tests failed! Failing the workflow."
+              exit 1
+            fi
+          fi
   MacOSX_Safari_Cucumber_BrowserStack:
     runs-on: ubuntu-latest
     steps:
@@ -452,3 +533,12 @@ jobs:
         with:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
         if: always()
+      - name: Check Test Results
+        if: always()
+        run: |
+          if [ -d "target/surefire-reports" ]; then
+            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
+              echo "Tests failed! Failing the workflow."
+              exit 1
+            fi
+          fi
