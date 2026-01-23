@@ -25,6 +25,7 @@ jobs:
         with:
           maven-version: 3.9.5
       - name: Print Edge version
+        continue-on-error: true
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
       - name: Run tests
         continue-on-error: true
@@ -43,6 +44,7 @@ jobs:
           name: Windows_Edge_Local_Allure
           path: "allure-report/*.html"
       - name: Test Summary
+        continue-on-error: true
         uses: test-summary/action@v2
         with:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
@@ -79,6 +81,7 @@ jobs:
           name: MacOSX_Safari_Local_Allure
           path: "allure-report/*.html"
       - name: Test Summary
+        continue-on-error: true
         uses: test-summary/action@v2
         with:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
@@ -115,6 +118,7 @@ jobs:
           name: Windows_Chrome_Local_Allure
           path: "allure-report/*.html"
       - name: Test Summary
+        continue-on-error: true
         uses: test-summary/action@v2
         with:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
@@ -151,6 +155,7 @@ jobs:
           name: MacOSX_Chrome_Local_Allure
           path: "allure-report/*.html"
       - name: Test Summary
+        continue-on-error: true
         uses: test-summary/action@v2
         with:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
@@ -175,6 +180,7 @@ jobs:
         with:
           maven-version: 3.9.5
       - name: Print Edge version
+        continue-on-error: true
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
       - name: Run tests on Windows
         if: runner.os == 'Windows'
@@ -194,6 +200,7 @@ jobs:
           name: Windows_Edge_Cucumber_Local_Allure
           path: "allure-report/*.html"
       - name: Test Summary
+        continue-on-error: true
         uses: test-summary/action@v2
         with:
           paths: "target/surefire-reports/junitreports/TEST-*.xml"
