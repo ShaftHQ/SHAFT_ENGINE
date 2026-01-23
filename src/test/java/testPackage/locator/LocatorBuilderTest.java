@@ -15,7 +15,7 @@ public class LocatorBuilderTest {
     @BeforeMethod
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL("https://shafthq.github.io/");
+        driver.get().browser().navigateToURL("https://shaftengine.netlify.app/");
     }
 
     @AfterMethod(alwaysRun = true)
@@ -89,31 +89,31 @@ public class LocatorBuilderTest {
     @Test
     public void hasIndex() {
         By locator = Locator.hasTagName("p").hasIndex(1).build();
-        driver.get().assertThat().element(locator).text().contains("Stop reinventing the wheel").perform();
+        driver.get().assertThat().element(locator).text().contains("Write once, test everywhere").perform();
     }
 
     @Test
     public void isFirst() {
         By locator = Locator.hasTagName("p").isFirst().build();
-        driver.get().assertThat().element(locator).text().contains("Stop reinventing the wheel").perform();
+        driver.get().assertThat().element(locator).text().contains("Write once, test everywhere").perform();
     }
 
     @Test
     public void isLast() {
         By locator = Locator.hasTagName("p").isLast().build();
-        driver.get().assertThat().element(locator).text().contains("What are you waiting for?").perform();
+        driver.get().assertThat().element(locator).text().contains("Ready to transform your test automation?").perform();
     }
 
     @Test
     public void byRelation() {
         By locator = Locator.hasTagName("a").byRelation().below(Locator.hasTagName("h1").containsText("SHAFT").build());
-        driver.get().assertThat().element(locator).text().contains("Upgrade Now").perform();
+        driver.get().assertThat().element(locator).text().contains("Get Started Free").perform();
     }
 
     @Test
     public void byAxis_followingSibling() {
         By locator = Locator.hasTagName("h1").containsText("SHAFT").byAxis().followingSibling("p").build();
-        driver.get().assertThat().element(locator).text().contains("Stop reinventing the wheel").perform();
+        driver.get().assertThat().element(locator).text().contains("Write once, test everywhere").perform();
     }
 
     @Test
@@ -130,8 +130,8 @@ public class LocatorBuilderTest {
 
     @Test
     public void byRoleButton() {
-        By locator = Locator.hasRole(Role.BUTTON).and().containsText("Upgrade").isFirst().build();
-        driver.get().assertThat().element(locator).text().isEqualTo("⚡ Upgrade Now ⚡").perform();
+        By locator = Locator.hasRole(Role.BUTTON).and().containsText("Get Started").isFirst().build();
+        driver.get().assertThat().element(locator).text().isEqualTo("Get Started Free ⚡").perform();
     }
 
     @Test
