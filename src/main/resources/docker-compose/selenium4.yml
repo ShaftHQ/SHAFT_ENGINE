@@ -5,7 +5,7 @@
 # To stop the execution, hit Ctrl+C, and then `docker compose -f selenium4.yml down --remove-orphans`
 services:
   chrome:
-    image: selenium/node-chrome:4.39.0-20251212
+    image: selenium/node-chrome:4.40.0-20260120
     shm_size: 2gb
     depends_on:
       - selenium-hub
@@ -16,7 +16,7 @@ services:
       - SE_NODE_SESSION_TIMEOUT=1800
 
   edge:
-    image: selenium/node-edge:4.39.0-20251212
+    image: selenium/node-edge:4.40.0-20260120
     shm_size: 2gb
     depends_on:
       - selenium-hub
@@ -27,7 +27,7 @@ services:
       - SE_NODE_SESSION_TIMEOUT=1800
 
   firefox:
-    image: selenium/node-firefox:4.39.0-20251212
+    image: selenium/node-firefox:4.40.0-20260120
     shm_size: 2gb
     depends_on:
       - selenium-hub
@@ -38,7 +38,7 @@ services:
       - SE_NODE_SESSION_TIMEOUT=1800
 
   selenium-hub:
-    image: selenium/hub:4.39.0-20251212
+    image: selenium/hub:4.40.0-20260120
     container_name: selenium-hub
     ports:
       - "4442:4442"
