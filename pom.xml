@@ -64,7 +64,7 @@
             <dependency>
                 <groupId>io.cucumber</groupId>
                 <artifactId>cucumber-bom</artifactId>
-                <version>7.34.1</version>
+                <version>7.34.2</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -260,7 +260,7 @@
         <dependency>
             <groupId>com.deque.html.axe-core</groupId>
             <artifactId>selenium</artifactId>
-            <version>4.11.0</version>
+            <version>4.11.1</version>
         </dependency>
 
         <!-- ALLURE REPORTING -->
@@ -514,7 +514,7 @@
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
-            <version>9.5.0</version>
+            <version>9.6.0</version>
         </dependency>
         <dependency>
              <groupId>com.microsoft.sqlserver</groupId>
@@ -768,7 +768,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.1</version>
+                <version>3.15.0</version>
                 <configuration>
                     <source>21</source>
                     <target>21</target>
