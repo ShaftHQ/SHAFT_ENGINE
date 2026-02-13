@@ -1,5 +1,6 @@
 package testPackage.unitTests;
 
+import com.shaft.validation.Validations;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -22,7 +23,9 @@ public class ValidationHelperUnitTest {
     @Test(description = "Test string contains validation")
     public void testStringContains() {
         String text = "Welcome to SHAFT Engine";
-        Assert.assertTrue(text.contains("SHAFT"), "Text should contain SHAFT");
+        // Using SHAFT Engine validation - this will show formatted error message when it fails
+        // Note: This test is designed to fail to demonstrate the formatted error message
+        Validations.assertThat().object(text).doesNotContain("SHAFT").perform();
     }
 
     @Test(description = "Test string not empty validation")
