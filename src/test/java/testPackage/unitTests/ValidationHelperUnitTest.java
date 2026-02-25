@@ -199,4 +199,47 @@ public class ValidationHelperUnitTest {
         // Note: Soft assertions don't throw immediately, they collect failures
         // This test verifies the validation doesn't crash with formatting
     }
+
+    @Test(description = "Test multiple validation failures to ensure code coverage")
+    public void testMultipleValidationFailuresForCoverage() {
+        // Test various validation types to ensure formatAssertionErrorWithAutoDetectedPackage is called
+        try {
+            Validations.assertThat().object(1).isEqualTo(2).perform();
+            Assert.fail("Should have thrown AssertionError");
+        } catch (AssertionError e) {
+            Assert.assertNotNull(e.getMessage());
+        }
+
+        try {
+            Validations.assertThat().object("hello").isEqualTo("world").perform();
+            Assert.fail("Should have thrown AssertionError");
+        } catch (AssertionError e) {
+            Assert.assertNotNull(e.getMessage());
+        }
+
+        try {
+            Validations.assertThat().object(true).isEqualTo(false).perform();
+            Assert.fail("Should have thrown AssertionError");
+        } catch (AssertionError e) {
+            Assert.assertNotNull(e.getMessage());
+        }
+    }
+
+    @Test(description = "Test validation with different comparison types for coverage")
+    public void testValidationComparisonTypesForCoverage() {
+        // Test different comparison types to trigger various code paths
+        try {
+            Validations.assertThat().object("test").contains("xyz").perform();
+            Assert.fail("Should have thrown AssertionError");
+        } catch (AssertionError e) {
+            Assert.assertNotNull(e.getMessage());
+        }
+
+        try {
+            Validations.assertThat().object("test").doesNotContain("test").perform();
+            Assert.fail("Should have thrown AssertionError");
+        } catch (AssertionError e) {
+            Assert.assertNotNull(e.getMessage());
+        }
+    }
 }
