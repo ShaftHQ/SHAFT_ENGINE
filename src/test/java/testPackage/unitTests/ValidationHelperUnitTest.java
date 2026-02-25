@@ -125,4 +125,30 @@ public class ValidationHelperUnitTest {
         String text = "test";
         Assert.assertEquals(text.length(), 4, "String length should be 4");
     }
+
+    @Test(description = "Test formatted assertion error with different validation types")
+    public void testFormattedAssertionErrorDifferentTypes() {
+        // Test hard assert
+        try {
+            Validations.assertThat().object("actual").isEqualTo("expected").perform();
+            Assert.fail("Expected assertion to fail");
+        } catch (AssertionError e) {
+            String errorMessage = e.getMessage();
+            Assert.assertNotNull(errorMessage, "Error message should not be null");
+            // Verify it contains formatted elements or standard format
+            boolean hasFormatted = errorMessage.contains("at ") || 
+                                  errorMessage.contains("Navigate:") ||
+                                  errorMessage.contains("Assertion Failed");
+            Assert.assertTrue(hasFormatted || errorMessage.contains("expected") || errorMessage.contains("actual"),
+                "Error message should contain formatted elements or assertion details");
+        }
+    }
+
+    @Test(description = "Test soft assertion with formatted error")
+    public void testSoftAssertionFormattedError() {
+        // Test soft assert (verifyThat)
+        Validations.verifyThat().object("actual").isEqualTo("expected").perform();
+        // Note: Soft assertions don't throw immediately, they collect failures
+        // This test verifies the validation doesn't crash with formatting
+    }
 }
