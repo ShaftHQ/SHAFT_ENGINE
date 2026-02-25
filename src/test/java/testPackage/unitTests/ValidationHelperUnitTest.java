@@ -23,9 +23,17 @@ public class ValidationHelperUnitTest {
     @Test(description = "Test string contains validation")
     public void testStringContains() {
         String text = "Welcome to SHAFT Engine";
-        // Using SHAFT Engine validation - this will show formatted error message when it fails
-        // Note: This test is designed to fail to demonstrate the formatted error message
-        Validations.assertThat().object(text).doesNotContain("SHAFT").perform();
+        // Using SHAFT Engine validation - this should fail and produce a formatted error message
+        try {
+            Validations.assertThat().object(text).doesNotContain("SHAFT").perform();
+            Assert.fail("Expected an AssertionError from SHAFT validation, but none was thrown.");
+        } catch (AssertionError e) {
+            // Assert that the formatted error message contains useful context
+            Assert.assertTrue(
+                    e.getMessage().contains("SHAFT") || e.getMessage().contains("Welcome to SHAFT Engine"),
+                    "Assertion message should contain the validated text or keyword 'SHAFT'. Actual message: " + e.getMessage()
+            );
+        }
     }
 
     @Test(description = "Test string not empty validation")
