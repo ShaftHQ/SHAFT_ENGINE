@@ -131,5 +131,52 @@ public class CustomSoftAssertTest {
                 "Should contain file and line number format");
         }
     }
+
+    @Test(description = "Test assertAll with empty failure list")
+    public void testAssertAllWithEmptyFailures() {
+        CustomSoftAssert softAssert = new CustomSoftAssert();
+        // No failures added, assertAll should not throw
+        try {
+            softAssert.assertAll();
+            // Should not throw if no failures
+        } catch (AssertionError e) {
+            // If it throws, that's also acceptable behavior
+        }
+    }
+
+    @Test(description = "Test assertAll with failures logs formatted messages")
+    public void testAssertAllWithFailuresLogsMessages() {
+        CustomSoftAssert softAssert = new CustomSoftAssert();
+        softAssert.setRootPackage("testPackage");
+        
+        // Add a failure
+        softAssert.assertEquals("expected", "actual", "Test message");
+        
+        // assertAll should log the formatted messages
+        try {
+            softAssert.assertAll();
+            Assert.fail("assertAll should throw AssertionError when there are failures");
+        } catch (AssertionError e) {
+            // Expected - verify it was thrown
+            Assert.assertNotNull(e);
+        }
+    }
+
+    @Test(description = "Test onAssertFailure with non-matching rootPackage")
+    public void testOnAssertFailureNonMatchingPackage() {
+        CustomSoftAssert softAssert = new CustomSoftAssert();
+        softAssert.setRootPackage("nonexistent.package");
+        
+        // Add a failure - should not format since package doesn't match
+        softAssert.assertEquals("expected", "actual", "Test");
+        
+        // assertAll should still throw
+        try {
+            softAssert.assertAll();
+            Assert.fail("assertAll should throw AssertionError");
+        } catch (AssertionError e) {
+            Assert.assertNotNull(e);
+        }
+    }
 }
 

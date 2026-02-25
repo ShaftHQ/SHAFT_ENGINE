@@ -126,9 +126,9 @@ public class ValidationHelperUnitTest {
         Assert.assertEquals(text.length(), 4, "String length should be 4");
     }
 
-    @Test(description = "Test formatted assertion error with different validation types")
-    public void testFormattedAssertionErrorDifferentTypes() {
-        // Test hard assert
+    @Test(description = "Test formatted assertion error with hard assert - different values")
+    public void testFormattedAssertionErrorHardAssert() {
+        // Test hard assert with different values to trigger formatting
         try {
             Validations.assertThat().object("actual").isEqualTo("expected").perform();
             Assert.fail("Expected assertion to fail");
@@ -140,13 +140,61 @@ public class ValidationHelperUnitTest {
                                   errorMessage.contains("Navigate:") ||
                                   errorMessage.contains("Assertion Failed");
             Assert.assertTrue(hasFormatted || errorMessage.contains("expected") || errorMessage.contains("actual"),
-                "Error message should contain formatted elements or assertion details");
+                "Error message should contain formatted elements or assertion details. Actual: " + errorMessage);
+        }
+    }
+
+    @Test(description = "Test formatted assertion error with contains validation")
+    public void testFormattedAssertionErrorContains() {
+        // Test contains validation that will fail
+        try {
+            Validations.assertThat().object("test").contains("nonexistent").perform();
+            Assert.fail("Expected assertion to fail");
+        } catch (AssertionError e) {
+            String errorMessage = e.getMessage();
+            Assert.assertNotNull(errorMessage, "Error message should not be null");
+        }
+    }
+
+    @Test(description = "Test formatted assertion error with doesNotEqual validation")
+    public void testFormattedAssertionErrorDoesNotEqual() {
+        // Test doesNotEqual validation that will fail when values are equal
+        try {
+            Validations.assertThat().object("same").doesNotEqual("same").perform();
+            Assert.fail("Expected assertion to fail");
+        } catch (AssertionError e) {
+            String errorMessage = e.getMessage();
+            Assert.assertNotNull(errorMessage, "Error message should not be null");
+        }
+    }
+
+    @Test(description = "Test formatted assertion error with isNull validation")
+    public void testFormattedAssertionErrorIsNull() {
+        // Test isNull validation that will fail when value is not null
+        try {
+            Validations.assertThat().object("not null").isNull().perform();
+            Assert.fail("Expected assertion to fail");
+        } catch (AssertionError e) {
+            String errorMessage = e.getMessage();
+            Assert.assertNotNull(errorMessage, "Error message should not be null");
+        }
+    }
+
+    @Test(description = "Test formatted assertion error with isNotNull validation")
+    public void testFormattedAssertionErrorIsNotNull() {
+        // Test isNotNull validation that will fail when value is null
+        try {
+            Validations.assertThat().object(null).isNotNull().perform();
+            Assert.fail("Expected assertion to fail");
+        } catch (AssertionError e) {
+            String errorMessage = e.getMessage();
+            Assert.assertNotNull(errorMessage, "Error message should not be null");
         }
     }
 
     @Test(description = "Test soft assertion with formatted error")
     public void testSoftAssertionFormattedError() {
-        // Test soft assert (verifyThat)
+        // Test soft assert (verifyThat) - this will collect failures
         Validations.verifyThat().object("actual").isEqualTo("expected").perform();
         // Note: Soft assertions don't throw immediately, they collect failures
         // This test verifies the validation doesn't crash with formatting
