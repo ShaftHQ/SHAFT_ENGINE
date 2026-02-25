@@ -28,11 +28,20 @@ public class ValidationHelperUnitTest {
             Validations.assertThat().object(text).doesNotContain("SHAFT").perform();
             Assert.fail("Expected an AssertionError from SHAFT validation, but none was thrown.");
         } catch (AssertionError e) {
+            String errorMessage = e.getMessage();
             // Assert that the formatted error message contains useful context
             Assert.assertTrue(
-                    e.getMessage().contains("SHAFT") || e.getMessage().contains("Welcome to SHAFT Engine"),
-                    "Assertion message should contain the validated text or keyword 'SHAFT'. Actual message: " + e.getMessage()
+                    errorMessage.contains("SHAFT") || errorMessage.contains("Welcome to SHAFT Engine"),
+                    "Assertion message should contain the validated text or keyword 'SHAFT'. Actual message: " + errorMessage
             );
+            // Verify the formatted message contains clickable stack trace format
+            // Format: at package.Class.method(File.java:lineNumber)
+            boolean hasClickableStackTrace = errorMessage.contains("at ") && 
+                                            errorMessage.contains("(") && 
+                                            errorMessage.contains(":") &&
+                                            errorMessage.contains(")");
+            Assert.assertTrue(hasClickableStackTrace || errorMessage.contains("Navigate:"),
+                "Error message should contain clickable stack trace format (at package.Class.method(File.java:lineNumber)). Actual: " + errorMessage);
         }
     }
 

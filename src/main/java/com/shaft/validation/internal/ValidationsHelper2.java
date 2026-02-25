@@ -55,8 +55,11 @@ public class ValidationsHelper2 {
         
         StackTraceElement[] stackTrace = error.getStackTrace();
         // Framework packages to skip when looking for test code
-        String[] frameworkPackages = {"org.testng", "java.", "jdk.", "com.shaft.validation.internal", 
-                                      "com.shaft.tools", "com.shaft.driver", "com.shaft.gui"};
+        String[] frameworkPackages = {"org.testng", "java.", "jdk.", "com.shaft.validation.internal",
+                                      "com.shaft.validation", "com.shaft.tools", "com.shaft.driver", "com.shaft.gui"};
+        
+        // Generic top-level domains to avoid as fallback patterns
+        String[] genericTlds = {"com", "org", "net", "java", "jdk"};
         
         // Find the first stack trace element that is from test code (not framework code)
         for (StackTraceElement element : stackTrace) {
@@ -81,8 +84,20 @@ public class ValidationsHelper2 {
                     if (formatted != null) {
                         return formatted;
                     }
-                    // If exact package doesn't work, try with common patterns
-                    String[] commonPatterns = {packageName.split("\\.")[0], "tests", "test"};
+                    // If exact package doesn't work, try with common patterns (but avoid generic TLDs)
+                    String firstPackageSegment = packageName.split("\\.")[0];
+                    String[] commonPatterns = {"tests", "test"};
+                    // Only add first segment if it's not a generic TLD
+                    boolean isGenericTld = false;
+                    for (String tld : genericTlds) {
+                        if (firstPackageSegment.equals(tld)) {
+                            isGenericTld = true;
+                            break;
+                        }
+                    }
+                    if (!isGenericTld) {
+                        commonPatterns = new String[]{firstPackageSegment, "tests", "test"};
+                    }
                     for (String pattern : commonPatterns) {
                         formatted = CustomSoftAssert.formatFailureWithStackTrace(error, pattern);
                         if (formatted != null) {
