@@ -3,12 +3,13 @@ package com.shaft.tools.io.internal;
 import com.shaft.tools.internal.support.HTMLHelper;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class CheckpointCounter {
-    private static final HashMap<Integer, ArrayList<?>> checkpoints = new HashMap<>();
-    private static int passedCheckpoints = 0;
-    private static int failedCheckpoints = 0;
+    private static final ConcurrentHashMap<Integer, ArrayList<?>> checkpoints = new ConcurrentHashMap<>();
+    private static final AtomicInteger passedCheckpoints = new AtomicInteger(0);
+    private static final AtomicInteger failedCheckpoints = new AtomicInteger(0);
 
     public static void increment(CheckpointType type, String message, CheckpointStatus status) {
         ArrayList<String> entry = new ArrayList<>();
@@ -18,9 +19,9 @@ public class CheckpointCounter {
         checkpoints.put(checkpoints.size() + 1, entry);
 
         if (status == CheckpointStatus.PASS) {
-            passedCheckpoints++;
+            passedCheckpoints.incrementAndGet();
         } else {
-            failedCheckpoints++;
+            failedCheckpoints.incrementAndGet();
         }
     }
 
@@ -31,10 +32,10 @@ public class CheckpointCounter {
         ReportManagerHelper.attach("HTML",
                 "Checkpoints Report",
                 HTMLHelper.CHECKPOINT_COUNTER.getValue()
-                        .replace("${CHECKPOINTS_PASSED_PERCENTAGE}", String.valueOf(passedCheckpoints * 360d / checkpoints.size()))
+                        .replace("${CHECKPOINTS_PASSED_PERCENTAGE}", String.valueOf(passedCheckpoints.get() * 360d / checkpoints.size()))
                         .replace("${CHECKPOINTS_TOTAL}", String.valueOf(checkpoints.size()))
-                        .replace("${CHECKPOINTS_PASSED}", String.valueOf(passedCheckpoints))
-                        .replace("${CHECKPOINTS_FAILED}", String.valueOf(failedCheckpoints))
+                        .replace("${CHECKPOINTS_PASSED}", String.valueOf(passedCheckpoints.get()))
+                        .replace("${CHECKPOINTS_FAILED}", String.valueOf(failedCheckpoints.get()))
                         .replace("${CHECKPOINTS_DETAILS}", detailsBuilder));
     }
 }

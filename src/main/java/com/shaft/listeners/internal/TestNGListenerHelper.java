@@ -20,13 +20,14 @@ import org.testng.xml.XmlTest;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 public class TestNGListenerHelper {
 
-    private static final ArrayList<ITestResult> beforeMethods = new ArrayList<>();
-    private static final ArrayList<ITestResult> afterMethods = new ArrayList<>();
+    private static final List<ITestResult> beforeMethods = Collections.synchronizedList(new ArrayList<>());
+    private static final List<ITestResult> afterMethods = Collections.synchronizedList(new ArrayList<>());
     private static final ThreadLocal<String> testName = new ThreadLocal<>();
 
     public static void setTotalNumberOfTests(ISuite testSuite) {
@@ -49,13 +50,11 @@ public class TestNGListenerHelper {
     }
 
     private static void attachBeforeConfigurationMethods() {
-        if (!beforeMethods.isEmpty()) {
-            if (beforeMethods.size() > 1) {
-                TestNGListenerHelper.attachTestArtifacts(beforeMethods.getLast());
-            } else {
-                TestNGListenerHelper.attachTestArtifacts(beforeMethods.getFirst());
+        synchronized (beforeMethods) {
+            if (!beforeMethods.isEmpty()) {
+                TestNGListenerHelper.attachTestArtifacts(beforeMethods.get(beforeMethods.size() > 1 ? beforeMethods.size() - 1 : 0));
+                beforeMethods.clear();
             }
-            beforeMethods.clear();
         }
     }
 
@@ -70,13 +69,11 @@ public class TestNGListenerHelper {
     }
 
     private static void attachAfterConfigurationMethods() {
-        if (!afterMethods.isEmpty()) {
-            if (afterMethods.size() > 1) {
-                TestNGListenerHelper.attachTestArtifacts(afterMethods.getLast());
-            } else {
-                TestNGListenerHelper.attachTestArtifacts(afterMethods.getFirst());
+        synchronized (afterMethods) {
+            if (!afterMethods.isEmpty()) {
+                TestNGListenerHelper.attachTestArtifacts(afterMethods.get(afterMethods.size() > 1 ? afterMethods.size() - 1 : 0));
+                afterMethods.clear();
             }
-            afterMethods.clear();
         }
     }
 

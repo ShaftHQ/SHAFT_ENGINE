@@ -27,6 +27,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -37,9 +38,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         IExecutionListener, ISuiteListener, IInvokedMethodListener, ITestListener, IResultListener2 {
 
     public static final Supplier<ITestNGService> REPORT_PORTAL_SERVICE = new MemoizingSupplier<>(() -> new TestNGService(ReportPortal.builder().build()));
-    private static final List<ITestNGMethod> passedTests = new ArrayList<>();
-    private static final List<ITestNGMethod> failedTests = new ArrayList<>();
-    private static final List<ITestNGMethod> skippedTests = new ArrayList<>();
+    private static final List<ITestNGMethod> passedTests = Collections.synchronizedList(new ArrayList<>());
+    private static final List<ITestNGMethod> failedTests = Collections.synchronizedList(new ArrayList<>());
+    private static final List<ITestNGMethod> skippedTests = Collections.synchronizedList(new ArrayList<>());
     // ReportPortal
     private static final AtomicInteger REPORT_PORTAL_INSTANCES = new AtomicInteger(0);
     @Getter

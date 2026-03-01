@@ -438,8 +438,8 @@ public class ValidationsHelper2 {
                 Allure.getLifecycle().updateStep(stepResult -> FailureReporter.fail(failureMessage));
             } else {
                 // soft assert
-                ValidationsHelper.verificationFailuresList.add(failureMessage);
-                ValidationsHelper.verificationError = new AssertionError(String.join("\nAND ", ValidationsHelper.verificationFailuresList));
+                ValidationsHelper.verificationFailuresList.get().add(failureMessage);
+                ValidationsHelper.verificationError.set(new AssertionError(String.join("\nAND ", ValidationsHelper.verificationFailuresList.get())));
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
                 Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(failureMessage));
             }

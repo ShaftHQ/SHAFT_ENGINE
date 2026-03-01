@@ -8,14 +8,15 @@ import lombok.Getter;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ExecutionSummaryReport {
-    private static final HashMap<Integer, ArrayList<?>> casesDetails = new HashMap<>();
-    private static final HashMap<Integer, ArrayList<?>> validations = new HashMap<>();
+    private static final ConcurrentHashMap<Integer, ArrayList<?>> casesDetails = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Integer, ArrayList<?>> validations = new ConcurrentHashMap<>();
     private static final String SHAFT_LOGO_URL = "https://github.com/ShaftHQ/SHAFT_ENGINE/raw/main/src/main/resources/images/shaft.png";
-    private static int passedValidations = 0;
-    private static int failedValidations = 0;
+    private static final AtomicInteger passedValidations = new AtomicInteger(0);
+    private static final AtomicInteger failedValidations = new AtomicInteger(0);
 
     public static void casesDetailsIncrement(String tmsLink, String caseSuite, String caseName, String caseDescription, String errorMessage, String status, String issue) {
         ArrayList<String> entry = new ArrayList<>();
@@ -37,9 +38,9 @@ public class ExecutionSummaryReport {
         validations.put(validations.size() + 1, entry);
 
         if (status == CheckpointStatus.PASS) {
-            passedValidations++;
+            passedValidations.incrementAndGet();
         } else {
-            failedValidations++;
+            failedValidations.incrementAndGet();
         }
     }
 
@@ -72,8 +73,8 @@ public class ExecutionSummaryReport {
                 .replace("${CASES_PASSED}", String.valueOf(passed))
                 .replace("${CASES_FAILED}", String.valueOf(failed))
                 .replace("${CASES_SKIPPED}", String.valueOf(skipped))
-                .replace("${VALIDATION_PASSED}", String.valueOf(passedValidations))
-                .replace("${VALIDATION_FAILED}", String.valueOf(failedValidations))
+                .replace("${VALIDATION_PASSED}", String.valueOf(passedValidations.get()))
+                .replace("${VALIDATION_FAILED}", String.valueOf(failedValidations.get()))
                 .replace("${TOTAL_ISSUES}", String.valueOf(ReportManagerHelper.getIssueCounter()))
                 .replace("${NO_OPEN_ISSUES_FAILED}", String.valueOf(ReportManagerHelper.getFailedTestsWithoutOpenIssuesCounter()))
                 .replace("${OPEN_ISSUES_PASSED}", String.valueOf(ReportManagerHelper.getOpenIssuesForPassedTestsCounter()))
@@ -94,8 +95,8 @@ public class ExecutionSummaryReport {
         }
         if (!validations.isEmpty()) {
             report = report
-                    .replace("${VALIDATION_PASSED_PERCENTAGE_PIE}", String.valueOf(passedValidations * 360d / validations.size()))
-                    .replace("${VALIDATION_PASSED_PERCENTAGE}", String.valueOf(new DecimalFormat("0.00").format((float) passedValidations * 100 / validations.size())))
+                    .replace("${VALIDATION_PASSED_PERCENTAGE_PIE}", String.valueOf(passedValidations.get() * 360d / validations.size()))
+                    .replace("${VALIDATION_PASSED_PERCENTAGE}", String.valueOf(new DecimalFormat("0.00").format((float) passedValidations.get() * 100 / validations.size())))
                     .replace("${VALIDATION_TOTAL}", String.valueOf(validations.size()));
         } else {
             report = report

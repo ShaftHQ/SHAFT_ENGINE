@@ -58,11 +58,11 @@ public class DriverFactoryHelper {
     private static final long remoteServerInstanceCreationTimeout = TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.remoteServerInstanceCreationTimeout()); // seconds
     private static final int appiumServerPreparationPollingInterval = 1; // seconds
     // TODO: implement pass and fail actions to enable initial factory method screenshot and append it to animated GIF
-    private static String TARGET_HUB_URL;
+    private static volatile String TARGET_HUB_URL;
     @Getter(AccessLevel.PUBLIC)
-    private static String targetBrowserName = "";
+    private static volatile String targetBrowserName = "";
     @Getter(AccessLevel.PUBLIC)
-    private static boolean killSwitch = false;
+    private static volatile boolean killSwitch = false;
     private final OptionsManager optionsManager = new OptionsManager();
     @Setter
     @Getter

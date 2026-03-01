@@ -12,6 +12,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import static io.restassured.RestAssured.config;
@@ -20,7 +21,7 @@ import static io.restassured.RestAssured.config;
 @SuppressWarnings("unused")
 public class RequestBuilder {
     @Getter
-    private static final Map<String, List<Double>> performanceData = new HashMap<>();
+    private static final Map<String, List<Double>> performanceData = new ConcurrentHashMap<>();
     private RestActions session;
     private Map<String, String> sessionHeaders;
     private Map<String, Object> sessionCookies;
@@ -384,8 +385,8 @@ public class RequestBuilder {
         return endpoint.replaceAll("/\\d+", "").replaceAll("/$", "");
     }
 
-    private synchronized void logResponseTime(String endpoint, double responseTime) {
-        performanceData.computeIfAbsent(endpoint, k -> new ArrayList<>()).add(responseTime);
+    private void logResponseTime(String endpoint, double responseTime) {
+        performanceData.computeIfAbsent(endpoint, k -> Collections.synchronizedList(new ArrayList<>())).add(responseTime);
     }
 
     private String prepareRequestURLWithParameters() {

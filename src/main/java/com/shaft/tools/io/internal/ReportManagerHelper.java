@@ -37,24 +37,24 @@ public class ReportManagerHelper {
     private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
     private static final String REPORT_MANAGER_PREFIX = "[ReportManager] ";
     private static final String SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE = "SHAFT Engine Logs";
-    private static String issuesLog = "";
-    private static int issueCounter = 1;
-    private static boolean discreteLogging = false;
+    private static volatile String issuesLog = "";
+    private static volatile int issueCounter = 1;
+    private static volatile boolean discreteLogging = false;
     @Getter
-    private static int totalNumberOfTests = 0;
-    private static int testCasesCounter = 0;
-    private static boolean debugMode = false;
-    private static int openIssuesForFailedTestsCounter = 0;
+    private static volatile int totalNumberOfTests = 0;
+    private static volatile int testCasesCounter = 0;
+    private static volatile boolean debugMode = false;
+    private static volatile int openIssuesForFailedTestsCounter = 0;
     @Getter
-    private static int openIssuesForPassedTestsCounter = 0;
+    private static volatile int openIssuesForPassedTestsCounter = 0;
     @Getter
-    private static int failedTestsWithoutOpenIssuesCounter = 0;
+    private static volatile int failedTestsWithoutOpenIssuesCounter = 0;
     // TODO: refactor to regular class that can be instantiated within the test
-    private static List<List<String>> listOfOpenIssuesForFailedTests = new ArrayList<>();
-    private static List<List<String>> listOfOpenIssuesForPassedTests = new ArrayList<>();
-    private static List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
-    private static String featureName = "";
-    private static Logger logger;
+    private static volatile List<List<String>> listOfOpenIssuesForFailedTests = new ArrayList<>();
+    private static volatile List<List<String>> listOfOpenIssuesForPassedTests = new ArrayList<>();
+    private static volatile List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
+    private static volatile String featureName = "";
+    private static volatile Logger logger;
 
     private ReportManagerHelper() {
         throw new IllegalStateException("Utility class");
