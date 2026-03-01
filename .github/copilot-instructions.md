@@ -33,6 +33,96 @@ SHAFT_ENGINE is a unified test automation framework built with:
 - Add JavaDocs for all public methods and classes
 - Follow existing code formatting and style patterns in the repository
 
+#### Code Quality Examples
+
+**Example 1 – ThreadLocal for thread-safe parallel driver management:**
+```java
+// Correct: each thread gets its own driver instance
+public class BrowserActionsTests {
+    private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
+
+    @BeforeMethod
+    public void beforeMethod() {
+        driver.set(new SHAFT.GUI.WebDriver());
+        driver.get().browser().navigateToURL("https://shafthq.github.io/");
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void afterMethod() {
+        driver.get().quit();
+    }
+}
+```
+
+**Example 2 – Reusable abstract base class to avoid driver lifecycle duplication:**
+```java
+// Abstract base: driver init/teardown defined once, reused across test classes
+public abstract class Tests {
+    protected static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
+
+    @BeforeMethod
+    public void init() {
+        driver.set(new SHAFT.GUI.WebDriver());
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void tear() {
+        driver.get().quit();
+    }
+}
+
+// Subclass just extends and focuses on test logic
+public class TestClass extends Tests {
+    SHAFT.TestData.JSON testData;
+
+    @BeforeClass
+    public void beforeClass() {
+        testData = new SHAFT.TestData.JSON("simpleJSON.json");
+    }
+
+    @Test
+    public void navigateToDuckDuckGoAndAssertBrowserTitleIsDisplayedCorrectly() {
+        driver.get().browser().navigateToURL("https://duckduckgo.com/")
+              .and().assertThat().browser().title().contains(testData.getTestData("expectedTitle"));
+    }
+}
+```
+
+**Example 3 – Use Lombok `@Data` and Jackson annotations for clean data objects:**
+```java
+// Correct: use @Data + @JsonProperty for clean, boilerplate-free response models
+@Data
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class BodyObject {
+    @JsonProperty("key1")
+    private String key1 = null;
+
+    @JsonProperty("key2")
+    private String key2 = null;
+
+    @JsonProperty("key3")
+    private String key3 = null;
+
+    @JsonProperty("key4")
+    private int key4;
+}
+```
+
+**Example 4 – Always use `alwaysRun = true` on teardown methods to guarantee cleanup:**
+```java
+// Ensures driver.quit() runs even when a test fails
+@AfterMethod(alwaysRun = true)
+public void afterMethod() {
+    driver.get().quit();
+}
+
+// Same pattern for class-scoped driver
+@AfterClass(alwaysRun = true)
+public void tear() {
+    driver.get().quit();
+}
+```
+
 ### SHAFT-Specific Patterns
 - **For browser title assertions, always use:**
   `driver.assertThat().browser().title().contains("expectedTitle");`
@@ -142,6 +232,222 @@ public class TestClass {
         .and().assertThat(result).isVisible()
         .and().assertThat(result).text().contains("Success");
   ```
+
+### Coding Patterns
+Follow the architectural patterns already established in the SHAFT codebase:
+
+**Example 1 – Fluent API / method chaining with `.and()` for readable multi-step tests:**
+```java
+// Correct: chain actions across element, browser, and assertions in one expression
+driver.get().element()
+    .type(By.id("et_pb_contact_name_0"), "TEST_NAME")
+    .type(By.id("et_pb_contact_email_0"), "email@email.email")
+    .captureScreenshot(By.id("et_pb_contact_message_0"))
+    .and().browser().captureScreenshot()
+    .and().element().assertThat(By.id("et_pb_contact_email_0"))
+        .text().isEqualTo("email@email.email").perform();
+```
+
+**Example 2 – Builder pattern via `RequestBuilder` for REST API calls (legacy `RestActions` API):**
+```java
+// Note: for new code, prefer SHAFT.API (see Example 5). RestActions is shown here for
+// compatibility with legacy test code and for static utility methods (getResponseJSONValue, etc.)
+Response response = RestActions.buildNewRequest("https://jsonplaceholder.typicode.com/", "posts", RestActions.RequestType.GET)
+    .setTargetStatusCode(200)
+    .performRequest()
+    .getResponse();
+
+// Retrieve a specific JSON value
+String title = RestActions.getResponseJSONValue(response, "$.title");
+
+// Validate a nested field using SHAFT Validations
+Validations.assertThat()
+    .response(response)
+    .extractedJsonValue("$.userId")
+    .isEqualTo("1")
+    .perform();
+```
+
+**Example 3 – Page Object Model (POM) for reusable page-level actions and locators:**
+```java
+// poms/GoogleSearch.java
+public class GoogleSearch {
+    WebDriver driver;
+
+    @Getter
+    static By searchBox_textField = By.xpath("//*[@id='lst-ib' or @class='lst' or @name='q']");
+    String url = "https://www.google.com/ncr";
+
+    public GoogleSearch(WebDriver driver) {
+        this.driver = driver;
+    }
+
+    public void navigateToURL() {
+        new BrowserActions(driver).navigateToURL(url);
+    }
+
+    public void assertPageIsOpen() {
+        Validations.assertThat()
+            .element(driver, googleLogo_image)
+            .exists()
+            .perform();
+    }
+}
+```
+
+**Example 4 – Cucumber step definitions using SHAFT driver:**
+```java
+// customCucumberSteps/steps.java
+public class steps {
+    private SHAFT.GUI.WebDriver driver;
+
+    @Given("I open the target browser")
+    public void i_open_the_target_browser() {
+        driver = new SHAFT.GUI.WebDriver();
+    }
+
+    @When("I navigate to {string}")
+    public void i_navigate_to(String pageName) {
+        if (pageName.equals("Google Home")) {
+            driver.browser().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
+        }
+    }
+
+    @Then("I assert that the {string} attribute of the browser, equals {string}")
+    public void iAssertThatTheAttributeOfTheBrowserEquals(String browserAttribute, String expectedValue) {
+        driver.assertThat().browser()
+            .attribute(browserAttribute)
+            .isEqualTo(expectedValue)
+            .withCustomReportMessage("Browser [" + browserAttribute + "] should equal [" + expectedValue + "]")
+            .perform();
+    }
+}
+```
+
+**Example 5 – Use `SHAFT.API` instance methods for a full REST session:**
+```java
+// Correct: use SHAFT.API for session-scoped REST interactions
+SHAFT.API apiDriver = new SHAFT.API("https://jsonplaceholder.typicode.com");
+
+Response users = apiDriver.get("/users")
+    .setTargetStatusCode(200)
+    .performRequest()
+    .getResponse();
+
+// Extract and validate a value from the response list
+String userId = RestActions.getResponseJSONValueFromList(users, "$", "id", "name", "Chelsey Dietrich");
+Validations.assertThat().object(userId).isEqualTo("5").perform();
+```
+
+### Class Scopes
+Follow these access modifier and class structure rules observed throughout the SHAFT framework:
+
+**Example 1 – Nested static classes as user-facing facades (SHAFT.java pattern):**
+```java
+// SHAFT.java: nested static classes expose a clean, namespaced public API
+public class SHAFT {
+    public static class GUI {
+        public static class WebDriver {           // SHAFT.GUI.WebDriver
+            public WebDriver() { /* ... */ }
+            public WebDriver(DriverFactory.DriverType driverType) { /* ... */ }
+            public Actions element() { return new Actions(helper); }
+            public BrowserActions browser() { return new BrowserActions(helper); }
+            public WizardHelpers.WebDriverAssertions assertThat() { /* ... */ }
+            public void quit() { /* ... */ }
+        }
+        public static class Locator extends com.shaft.gui.internal.locator.Locator { }
+    }
+    public static class API { /* ... */ }        // SHAFT.API
+    public static class CLI { /* ... */ }        // SHAFT.CLI
+    public static class DB extends DatabaseActions { }
+    public static class Validations { /* ... */ }
+    public static class TestData { /* ... */ }
+    public static class Report { /* ... */ }
+}
+```
+
+**Example 2 – Utility classes with `private` constructor to prevent instantiation:**
+```java
+// Validations.java: static-only utility; throw IllegalStateException to block instantiation
+public class Validations {
+    private Validations() {
+        throw new IllegalStateException("Utility class");
+    }
+
+    public static ValidationsBuilder assertThat() {
+        return new ValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT);
+    }
+
+    public static ValidationsBuilder verifyThat() {
+        return new ValidationsBuilder(ValidationEnums.ValidationCategory.SOFT_ASSERT);
+    }
+}
+```
+
+**Example 3 – Inner non-static class for contextual sub-actions (Async inner class):**
+```java
+// Inside SHAFT.GUI.WebDriver: non-static inner class gives access to parent's helper
+public class WebDriver {
+    DriverFactoryHelper helper;
+
+    public Async async() {
+        return new Async();
+    }
+
+    // Inner class: scoped to its enclosing WebDriver instance
+    public class Async {
+        public AsyncElementActions element() {
+            return new AsyncElementActions(helper);  // accesses outer helper
+        }
+    }
+}
+```
+
+**Example 4 – Enums with constructor parameters for typed constants:**
+```java
+// DatabaseActions.java
+public enum DatabaseType {
+    MY_SQL, SQL_SERVER, POSTGRES_SQL, ORACLE, IBM_DB2, H2, MONGO_DB
+}
+
+// ValidationEnums.java
+public enum ValidationType {
+    POSITIVE(true), NEGATIVE(false);
+    private final boolean value;
+    ValidationType(boolean value) { this.value = value; }
+    public boolean getValue() { return value; }
+}
+
+// RestActions.java
+public enum RequestType { GET, POST, PATCH, DELETE, PUT }
+public enum ParametersType { FORM, QUERY }
+```
+
+**Example 5 – Factory method (`getInstance`) for controlled instantiation:**
+```java
+// FileActions.java: factory method controls instance configuration
+public class FileActions {
+    private boolean internalInstance = false;
+
+    // Default public factory method
+    public static FileActions getInstance() {
+        return getInstance(false);
+    }
+
+    // Overloaded factory method with configuration flag
+    public static FileActions getInstance(boolean internalInstance) {
+        var instance = new FileActions();
+        instance.internalInstance = internalInstance;
+        return instance;
+    }
+}
+
+// SHAFT.API: static factory alternative alongside constructor
+public class API {
+    public API(String serviceURI) { /* ... */ }
+    public static API getInstance(String serviceURI) { return new API(serviceURI); }
+}
+```
 
 ## Security Best Practices
 - Never hardcode credentials, API keys, or sensitive data
