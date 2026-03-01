@@ -100,8 +100,9 @@ public class IssueReporter {
         newIssue.add(className);
         newIssue.add(methodName);
         synchronized (listOfOpenIssues) {
-            newIssue.add(listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(0));
-            newIssue.add(listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(1));
+            List<String> lastIssue = listOfOpenIssues.get(listOfOpenIssues.size() - 1);
+            newIssue.add(lastIssue.get(0));
+            newIssue.add(lastIssue.get(1));
         }
         listOfOpenIssuesForPassedTests.add(newIssue);
     }

@@ -28,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 
@@ -38,11 +39,11 @@ public class ReportManagerHelper {
     private static final String REPORT_MANAGER_PREFIX = "[ReportManager] ";
     private static final String SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE = "SHAFT Engine Logs";
     private static volatile String issuesLog = "";
-    private static volatile int issueCounter = 1;
+    private static final AtomicInteger issueCounter = new AtomicInteger(1);
     private static volatile boolean discreteLogging = false;
     @Getter
     private static volatile int totalNumberOfTests = 0;
-    private static volatile int testCasesCounter = 0;
+    private static final AtomicInteger testCasesCounter = new AtomicInteger(0);
     private static volatile boolean debugMode = false;
     private static volatile int openIssuesForFailedTestsCounter = 0;
     @Getter
@@ -50,9 +51,9 @@ public class ReportManagerHelper {
     @Getter
     private static volatile int failedTestsWithoutOpenIssuesCounter = 0;
     // TODO: refactor to regular class that can be instantiated within the test
-    private static volatile List<List<String>> listOfOpenIssuesForFailedTests = new ArrayList<>();
-    private static volatile List<List<String>> listOfOpenIssuesForPassedTests = new ArrayList<>();
-    private static volatile List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
+    private static List<List<String>> listOfOpenIssuesForFailedTests = Collections.synchronizedList(new ArrayList<>());
+    private static List<List<String>> listOfOpenIssuesForPassedTests = Collections.synchronizedList(new ArrayList<>());
+    private static List<List<String>> listOfNewIssuesForFailedTests = Collections.synchronizedList(new ArrayList<>());
     private static volatile String featureName = "";
     private static volatile Logger logger;
 
@@ -85,7 +86,7 @@ public class ReportManagerHelper {
     }
 
     public static int getIssueCounter() {
-        return (issueCounter - 1);
+        return (issueCounter.get() - 1);
     }
 
     public static int getOpenIssuesForFailedTestsCounters() {
@@ -94,16 +95,16 @@ public class ReportManagerHelper {
 
     public static void logIssue(String issue) {
         if (issuesLog.trim().isEmpty()) {
-            issuesLog += issueCounter + ", " + issue.trim();
+            issuesLog += issueCounter.get() + ", " + issue.trim();
         } else {
-            issuesLog += System.lineSeparator() + issueCounter + ", " + issue.trim();
+            issuesLog += System.lineSeparator() + issueCounter.get() + ", " + issue.trim();
         }
-        issueCounter++;
+        issueCounter.incrementAndGet();
     }
 
     public static String prepareIssuesLog() {
         if (!listOfNewIssuesForFailedTests.isEmpty()) {
-            listOfNewIssuesForFailedTests.forEach(issue -> logIssue("Test Method '" + issue.getFirst() + "." + issue.get(1)
+            listOfNewIssuesForFailedTests.forEach(issue -> logIssue("Test Method '" + issue.get(0) + "." + issue.get(1)
                     + "' failed. Please investigate and open a new Issue if needed.\n"));
         }
         if (!listOfOpenIssuesForPassedTests.isEmpty()) {
@@ -132,7 +133,7 @@ public class ReportManagerHelper {
         }
 
         if (!issuesLog.trim().isEmpty()) {
-            return "Issue Summary: Total Issues = " + (issueCounter - 1) + ", New issues for Failed Tests = "
+            return "Issue Summary: Total Issues = " + (issueCounter.get() - 1) + ", New issues for Failed Tests = "
                     + failedTestsWithoutOpenIssuesCounter + ", Open issues for Passed Tests = "
                     + openIssuesForPassedTestsCounter + ", Open issues for Failed Tests = "
                     + openIssuesForFailedTestsCounter + ". Kindly check the attached Issue details.";
@@ -203,13 +204,13 @@ public class ReportManagerHelper {
 
     public static void logTestInformation(String className, String testMethodName,
                                           String testDescription) {
-        testCasesCounter++;
+        int currentCount = testCasesCounter.incrementAndGet();
         StringBuilder reportMessage = new StringBuilder();
 
         if (totalNumberOfTests > 0) {
             reportMessage.append("Starting Execution: ");
             reportMessage.append("'");
-            reportMessage.append(testCasesCounter);
+            reportMessage.append(currentCount);
             reportMessage.append(" out of ");
             reportMessage.append(totalNumberOfTests);
             reportMessage.append("' test cases in the current suite");
@@ -227,8 +228,8 @@ public class ReportManagerHelper {
     }
 
     public static void logScenarioInformation(String keyword, String name, String steps) {
-        testCasesCounter++;
-        createImportantReportEntry("Starting Execution: \"" + testCasesCounter + " out of " + totalNumberOfTests
+        int currentCount = testCasesCounter.incrementAndGet();
+        createImportantReportEntry("Starting Execution: \"" + currentCount + " out of " + totalNumberOfTests
                 + "\" scenarios in the \"" + featureName + "\" feature"
                 + System.lineSeparator() + keyword + " Name: \"" + name
                 + "\"" + System.lineSeparator() + keyword + " Steps:" + System.lineSeparator() + steps);
