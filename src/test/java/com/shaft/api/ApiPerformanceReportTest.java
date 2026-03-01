@@ -73,28 +73,25 @@ public class ApiPerformanceReportTest {
 
     @BeforeMethod(onlyForGroups = {"reqres"})
     public void setupRegress() {
-        api.set(new SHAFT.API("https://reqres.in/"));
+        api.set(new SHAFT.API("https://jsonplaceholder.typicode.com/"));
     }
 
     @Test(groups = {"reqres"})
     public void testGetUsers() {
-        api.get().addHeader("x-api-key", "reqres-free-v1");
-        List<List<Object>> parameters = List.of(Arrays.asList("page", "2"));
-        api.get().get("api/users")
+        List<List<Object>> parameters = List.of(Arrays.asList("_page", "2"));
+        api.get().get("users")
                 .setParameters(parameters, RestActions.ParametersType.QUERY)
                 .perform();
     }
 
     @Test(groups = {"reqres"})
     public void testGetUser() {
-        api.get().addHeader("x-api-key", "reqres-free-v1");
-        api.get().get("api/users/2").perform();
+        api.get().get("users/2").perform();
     }
 
     @Test(groups = {"reqres"})
     public void testCreateUser() {
-        api.get().addHeader("x-api-key", "reqres-free-v1");
-        api.get().post("api/users")
+        api.get().post("users")
                 .setContentType("application/json")
                 .setRequestBody("{\n" +
                         "  \"name\": \"morpheus\",\n" +
@@ -104,35 +101,30 @@ public class ApiPerformanceReportTest {
     }
 
     @Test(groups = {"reqres"})
-    public void testRegisterUser() {
-        api.get().addHeader("x-api-key", "reqres-free-v1");
-        api.get().post("api/register")
+    public void testCreateEmployee() {
+        api.get().post("users")
                 .setContentType("application/json")
                 .setRequestBody("{\n" +
-                        "    \"email\": \"eve.holt@reqres.in\",\n" +
-                        "    \"password\": \"pistol\"\n" +
+                        "    \"name\": \"eve.holt\",\n" +
+                        "    \"job\": \"developer\"\n" +
                         "}")
                 .perform();
     }
 
     @Test(groups = {"reqres"})
-    public void testLoginUser() {
-        api.get().addHeader("x-api-key", "reqres-free-v1");
-        api.get().post("api/login")
+    public void testCreateQATester() {
+        api.get().post("users")
                 .setContentType("application/json")
                 .setRequestBody("{\n" +
-                        "    \"email\": \"eve.holt@reqres.in\",\n" +
-                        "    \"password\": \"cityslicka\"\n" +
+                        "    \"name\": \"eve.holt\",\n" +
+                        "    \"job\": \"tester\"\n" +
                         "}")
                 .perform();
     }
 
     @Test(groups = {"reqres"})
-    public void testDelayedResponse() {
-        api.get().addHeader("x-api-key", "reqres-free-v1");
-        List<List<Object>> parameters = List.of(Arrays.asList("delay", "3"));
-        api.get().get("api/users")
-                .setParameters(parameters, RestActions.ParametersType.QUERY)
+    public void testGetAllUsers() {
+        api.get().get("users")
                 .perform();
     }
 

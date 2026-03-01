@@ -59,11 +59,9 @@ public class BasicAPITests {
     public void apiTest4() {
         Map<String, Object> formParameters = Map.of("name", "SHAFT",
                 "job", "Automation Engineer");
-        api = new SHAFT.API("https://reqres.in/api/");
-        api.addHeader("x-api-key","reqres-free-v1");
-        api.post("users")
+        api = new SHAFT.API("https://httpbin.org/");
+        api.post("post")
                 .setParameters(formParameters, RestActions.ParametersType.FORM)
-                .setTargetStatusCode(201)
                 .perform();
     }
 
