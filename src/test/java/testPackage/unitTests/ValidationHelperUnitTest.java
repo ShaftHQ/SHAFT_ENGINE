@@ -1,7 +1,9 @@
 package testPackage.unitTests;
 
 import com.shaft.validation.Validations;
+import com.shaft.validation.internal.ValidationsHelper;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
@@ -36,12 +38,15 @@ public class ValidationHelperUnitTest {
             );
             // Verify the formatted message contains clickable stack trace format
             // Format: at package.Class.method(File.java:lineNumber)
-            boolean hasClickableStackTrace = errorMessage.contains("at ") && 
-                                            errorMessage.contains("(") && 
-                                            errorMessage.contains(":") &&
-                                            errorMessage.contains(")");
-            Assert.assertTrue(hasClickableStackTrace || errorMessage.contains("Navigate:"),
-                "Error message should contain clickable stack trace format (at package.Class.method(File.java:lineNumber)). Actual: " + errorMessage);
+            // Use stricter pattern matching to ensure the stack trace is properly formatted
+            String[] messageLines = errorMessage.split("\\R");
+            boolean hasClickableStackTrace = java.util.Arrays.stream(messageLines)
+                    .anyMatch(line ->
+                            line.trim().startsWith("at ")
+                                    && line.matches("^\\s*at .+\\(.*\\.java:\\d+\\)\\s*$"));
+            Assert.assertTrue(
+                    hasClickableStackTrace,
+                    "Error message should contain clickable stack trace format (at package.Class.method(File.java:lineNumber)). Actual: " + errorMessage);
         }
     }
 
@@ -192,12 +197,25 @@ public class ValidationHelperUnitTest {
         }
     }
 
+    @AfterMethod
+    public void resetVerificationState() {
+        // Reset verification state after each test to prevent test interference
+        ValidationsHelper.resetVerificationStateAfterFailing();
+    }
+
     @Test(description = "Test soft assertion with formatted error")
     public void testSoftAssertionFormattedError() {
         // Test soft assert (verifyThat) - this will collect failures
         Validations.verifyThat().object("actual").isEqualTo("expected").perform();
         // Note: Soft assertions don't throw immediately, they collect failures
         // This test verifies the validation doesn't crash with formatting
+        
+        // Verify that a verification error was stored
+        AssertionError verificationError = ValidationsHelper.getVerificationErrorToForceFail();
+        Assert.assertNotNull(verificationError, "Verification error should be stored for soft assertion failure");
+        
+        // Reset state after verification
+        ValidationsHelper.resetVerificationStateAfterFailing();
     }
 
     @Test(description = "Test multiple validation failures to ensure code coverage")

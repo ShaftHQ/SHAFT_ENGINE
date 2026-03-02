@@ -1,6 +1,6 @@
 package testPackage.unitTests;
 
-import com.shaft.validation.constants.CustomSoftAssert;
+import com.shaft.validation.internal.CustomSoftAssert;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -18,10 +18,15 @@ public class CustomSoftAssertTest {
         Assert.assertNotNull(formatted, "Formatted message should not be null for matching package");
         Assert.assertTrue(formatted.contains("Test error message"), 
             "Should contain original error message");
-        Assert.assertTrue(formatted.contains("at "), 
-            "Should contain stack trace format");
-        Assert.assertTrue(formatted.contains("(") && formatted.contains(":"), 
-            "Should contain clickable stack trace format");
+        
+        // Use stricter pattern matching to ensure the stack trace is properly formatted
+        String[] messageLines = formatted.split("\\R");
+        boolean hasClickableStackTrace = java.util.Arrays.stream(messageLines)
+                .anyMatch(line ->
+                        line.trim().startsWith("at ")
+                                && line.matches("^\\s*at .+\\(.*\\.java:\\d+\\)\\s*$"));
+        Assert.assertTrue(hasClickableStackTrace,
+            "Should contain clickable stack trace format (at package.Class.method(File.java:lineNumber)). Actual: " + formatted);
     }
 
     @Test(description = "Test formatFailureWithStackTrace with non-matching package")
@@ -125,10 +130,14 @@ public class CustomSoftAssertTest {
         
         if (formatted != null) {
             // Verify it contains the standard format: at package.Class.method(File.java:lineNumber)
-            Assert.assertTrue(formatted.contains("at "), 
-                "Should contain 'at ' prefix for standard stack trace format");
-            Assert.assertTrue(formatted.contains("(") && formatted.contains(":"), 
-                "Should contain file and line number format");
+            // Use stricter pattern matching
+            String[] messageLines = formatted.split("\\R");
+            boolean hasClickableStackTrace = java.util.Arrays.stream(messageLines)
+                    .anyMatch(line ->
+                            line.trim().startsWith("at ")
+                                    && line.matches("^\\s*at .+\\(.*\\.java:\\d+\\)\\s*$"));
+            Assert.assertTrue(hasClickableStackTrace,
+                "Should contain clickable stack trace format (at package.Class.method(File.java:lineNumber)). Actual: " + formatted);
         }
     }
 
@@ -136,12 +145,8 @@ public class CustomSoftAssertTest {
     public void testAssertAllWithEmptyFailures() {
         CustomSoftAssert softAssert = new CustomSoftAssert();
         // No failures added, assertAll should not throw
-        try {
-            softAssert.assertAll();
-            // Should not throw if no failures
-        } catch (AssertionError e) {
-            // If it throws, that's also acceptable behavior
-        }
+        softAssert.assertAll();
+        // If we reach here, the test passes - assertAll did not throw
     }
 
     @Test(description = "Test assertAll with failures logs formatted messages")

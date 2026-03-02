@@ -1,4 +1,4 @@
-package com.shaft.validation.constants;
+package com.shaft.validation.internal;
 
 import com.shaft.tools.io.ReportManager;
 import org.testng.asserts.IAssert;
@@ -7,6 +7,10 @@ import org.testng.asserts.SoftAssert;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Enhanced SoftAssert implementation that provides clickable stack traces for failed assertions.
+ * This improves the developer experience when debugging test failures in IDEs and CI logs.
+ */
 public class CustomSoftAssert extends SoftAssert {
     // List to store failure details
     private final List<String> failureMessages = new ArrayList<>();
@@ -55,6 +59,7 @@ public class CustomSoftAssert extends SoftAssert {
      * Gets the formatted failure message with clickable stack trace for a given AssertionError.
      * This method can be used independently to format stack traces.
      * Uses standard Java stack trace format: at package.Class.method(File.java:lineNumber)
+     * The stack trace line starts with "at " on its own line for maximum IDE/CI clickability.
      *
      * @param ex The AssertionError to format
      * @param rootPackage The root package name to filter stack trace elements (e.g., "testPackage", "tests", "com.shaft")
@@ -74,13 +79,13 @@ public class CustomSoftAssert extends SoftAssert {
                 int lineNumber = element.getLineNumber();
 
                 // Use standard Java stack trace format: at package.Class.method(File.java:lineNumber)
-                // This format is recognized by IDEs and CI tools for clickable links
+                // The "at " prefix must be on its own line for maximum IDE/CI clickability
                 String stackTraceLine = String.format("at %s.%s(%s:%d)",
                         className, methodName, fileName != null ? fileName : "Unknown", lineNumber);
 
                 return "❌ Assertion Failed at Line: " + lineNumber +
                         "\n🔍 Details: " + ex.getMessage() +
-                        "\n📍 Navigate: " + stackTraceLine;
+                        "\n📍 Navigate:\n" + stackTraceLine;
             }
         }
         return null;

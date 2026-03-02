@@ -16,7 +16,6 @@ import com.shaft.tools.io.internal.ExecutionSummaryReport;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
-import com.shaft.validation.constants.CustomSoftAssert;
 import io.qameta.allure.Allure;
 import io.qameta.allure.model.Parameter;
 import org.apache.logging.log4j.Level;
