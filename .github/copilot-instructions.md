@@ -21,8 +21,7 @@ SHAFT_ENGINE is a unified test automation framework built with:
 ## Development Workflow
 
 ### Required Before Each Commit
-- **Compile** the project to catch any build errors: `mvn compile -Dgpg.skip`
-- **Build** without running tests to validate the full build: `mvn clean install -DskipTests -Dgpg.skip`
+- **Build** without running tests to validate compilation and packaging: `mvn clean install -DskipTests -Dgpg.skip`
 - **Run affected tests** to validate your change: `mvn test -Dtest=TestClassName`
 
 ### Full Command Reference
@@ -34,11 +33,10 @@ SHAFT_ENGINE is a unified test automation framework built with:
 
 ### Validation Checklist
 Before submitting a pull request, ensure:
-1. ✅ `mvn compile -Dgpg.skip` succeeds with no errors
-2. ✅ `mvn clean install -DskipTests -Dgpg.skip` completes successfully
-3. ✅ Affected tests pass with `mvn test -Dtest=<TestClassName>`
-4. ✅ New or modified `public` methods/classes have JavaDoc comments
-5. ✅ No hardcoded credentials or sensitive data in code or test data files
+1. ✅ `mvn clean install -DskipTests -Dgpg.skip` completes successfully (compiles and packages)
+2. ✅ Affected tests pass with `mvn test -Dtest=YourTestClassName` (replace with the actual class name)
+3. ✅ New or modified `public` methods/classes have JavaDoc comments
+4. ✅ No hardcoded credentials or sensitive data in code or test data files
 
 ## General Guidelines
 

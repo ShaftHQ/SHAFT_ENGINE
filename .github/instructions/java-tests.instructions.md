@@ -4,7 +4,8 @@ applyTo: "src/test/java/**/*.java"
 
 ## Java Test File Requirements
 
-When writing or editing test files under `src/test/java/`, follow these SHAFT-specific rules:
+When writing or editing test files under `src/test/java/`, follow these SHAFT-specific rules.
+These examples use **TestNG** (the primary framework). For JUnit5, adapt annotations: use `@BeforeAll`/`@BeforeEach`/`@AfterEach` instead of `@BeforeClass`/`@BeforeMethod`/`@AfterMethod`.
 
 ### Test Class Structure
 - Use `@BeforeClass` to initialize `SHAFT.TestData.JSON` (load once per class)
