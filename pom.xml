@@ -676,7 +676,7 @@
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty-shaded</artifactId>
-            <version>1.75.0</version>
+            <version>1.79.0</version>
         </dependency>
 
         <!--YAML -->
