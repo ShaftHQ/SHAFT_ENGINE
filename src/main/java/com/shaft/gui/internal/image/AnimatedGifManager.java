@@ -29,9 +29,9 @@ public class AnimatedGifManager {
     private static final ThreadLocal<ImageWriteParam> imageWriteParam = new ThreadLocal<>();
     private static final ThreadLocal<IIOMetadata> imageMetaData = new ThreadLocal<>();
     private static final int GIF_SIZE = 1280;
-    private static String gifRelativePathWithFileName = "";
-    private static ThreadLocal<ImageOutputStream> gifOutputStream = new ThreadLocal<>();
-    private static ThreadLocal<AnimatedGifManager> gifManager = new ThreadLocal<>();
+    private static final ThreadLocal<ImageOutputStream> gifOutputStream = new ThreadLocal<>();
+    private static final ThreadLocal<AnimatedGifManager> gifManager = new ThreadLocal<>();
+    private static final ThreadLocal<String> gifRelativePathWithFileName = ThreadLocal.withInitial(() -> "");
 
     /**
      * Creates a new GifSequenceWriter
@@ -47,20 +47,20 @@ public class AnimatedGifManager {
 
     public static String attachAnimatedGif() {
         // stop and attach
-        if (SHAFT.Properties.visuals.createAnimatedGif() && !"".equals(gifRelativePathWithFileName)) {
+        if (SHAFT.Properties.visuals.createAnimatedGif() && !gifRelativePathWithFileName.get().isEmpty()) {
             try {
-                ReportManagerHelper.attach("Animated Gif", String.valueOf(System.currentTimeMillis()), new FileInputStream(gifRelativePathWithFileName));
-                if (!gifWriter.equals(new ThreadLocal<>())) {
+                ReportManagerHelper.attach("Animated Gif", String.valueOf(System.currentTimeMillis()), new FileInputStream(gifRelativePathWithFileName.get()));
+                if (gifWriter.get() != null) {
                     gifManager.get().close();
                 }
-                if (!gifOutputStream.equals(new ThreadLocal<>())) {
+                if (gifOutputStream.get() != null) {
                     gifOutputStream.get().close();
                 }
 
-                gifOutputStream = new ThreadLocal<>();
-                gifManager = new ThreadLocal<>();
-                String gifRelativePath = gifRelativePathWithFileName;
-                gifRelativePathWithFileName = "";
+                gifOutputStream.remove();
+                gifManager.remove();
+                String gifRelativePath = gifRelativePathWithFileName.get();
+                gifRelativePathWithFileName.set("");
                 return gifRelativePath;
             } catch (FileNotFoundException e) {
                 // this happens when the gif fails to start, maybe the browser window was
@@ -75,7 +75,7 @@ public class AnimatedGifManager {
     public static void startOrAppendToAnimatedGif(byte[] screenshot) {
         // ensure that animatedGif is started, else force start it
         if (SHAFT.Properties.visuals.createAnimatedGif()) {
-            if (gifRelativePathWithFileName.isEmpty()) {
+            if (gifRelativePathWithFileName.get().isEmpty()) {
                 startAnimatedGif(screenshot);
             } else {
                 appendToAnimatedGif(screenshot);
@@ -107,7 +107,7 @@ public class AnimatedGifManager {
         if (SHAFT.Properties.visuals.createAnimatedGif() && screenshot != null) {
             try {
                 String gifFileName = FileSystems.getDefault().getSeparator() + System.currentTimeMillis() + ".gif";
-                gifRelativePathWithFileName = SHAFT.Properties.paths.allureResults() + "/screenshots/" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + gifFileName;
+                gifRelativePathWithFileName.set(SHAFT.Properties.paths.allureResults() + "/screenshots/" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + gifFileName);
 
                 // grab the output image type from the first image in the sequence
                 BufferedImage firstImage = ImageIO.read(new ByteArrayInputStream(screenshot));
@@ -116,8 +116,8 @@ public class AnimatedGifManager {
                 firstImage = Scalr.resize(firstImage, Scalr.Method.BALANCED, GIF_SIZE);
 
                 // create a new BufferedOutputStream
-                FileActions.getInstance(true).createFile(gifRelativePathWithFileName.replace(gifFileName, ""), gifFileName);
-                gifOutputStream.set(new FileImageOutputStream(new File(gifRelativePathWithFileName)));
+                FileActions.getInstance(true).createFile(gifRelativePathWithFileName.get().replace(gifFileName, ""), gifFileName);
+                gifOutputStream.set(new FileImageOutputStream(new File(gifRelativePathWithFileName.get())));
 
                 // create a gif sequence with the type of the first image, 500 milliseconds
                 // between frames, which loops infinitely

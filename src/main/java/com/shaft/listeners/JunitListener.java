@@ -14,17 +14,18 @@ import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.launcher.*;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 public class JunitListener implements LauncherSessionListener {
-    private static final List<TestIdentifier> passedTests = new ArrayList<>();
-    private static final List<TestIdentifier> failedTests = new ArrayList<>();
-    private static final List<TestIdentifier> skippedTests = new ArrayList<>();
+    private static final List<TestIdentifier> passedTests = Collections.synchronizedList(new ArrayList<>());
+    private static final List<TestIdentifier> failedTests = Collections.synchronizedList(new ArrayList<>());
+    private static final List<TestIdentifier> skippedTests = Collections.synchronizedList(new ArrayList<>());
     private static long executionStartTime;
     private static boolean isEngineReady = false;
     @Getter
-    private static Boolean isLastFinishedTestOK = true;
+    private static volatile Boolean isLastFinishedTestOK = true;
 
     @Override
     public void launcherSessionOpened(LauncherSession session) {

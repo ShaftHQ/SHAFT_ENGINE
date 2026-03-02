@@ -27,9 +27,9 @@ public class ValidationsHelper {
     static final ThreadLocal<ArrayList<String>> optionalCustomLogMessage = new ThreadLocal<>();
     private static final Boolean discreetLoggingState = SHAFT.Properties.reporting.alwaysLogDiscreetly();
     private static final String WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().trim();
-    protected static List<String> verificationFailuresList = new ArrayList<>();
-    protected static AssertionError verificationError = null;
-    private static By lastUsedElementLocator = null;
+    protected static final ThreadLocal<List<String>> verificationFailuresList = ThreadLocal.withInitial(ArrayList::new);
+    protected static final ThreadLocal<AssertionError> verificationError = new ThreadLocal<>();
+    private static final ThreadLocal<By> lastUsedElementLocator = new ThreadLocal<>();
     private final ElementActionsHelper elementActionsHelper;
 
     ValidationsHelper() {
@@ -37,12 +37,12 @@ public class ValidationsHelper {
     }
 
     public static AssertionError getVerificationErrorToForceFail() {
-        return verificationError;
+        return verificationError.get();
     }
 
     public static void resetVerificationStateAfterFailing() {
-        verificationFailuresList = new ArrayList<>();
-        verificationError = null;
+        verificationFailuresList.set(new ArrayList<>());
+        verificationError.remove();
     }
 
     private static void reportValidationState(WebDriver driver, ValidationCategory validationCategory, String expectedValue, String actualValue,
@@ -93,10 +93,10 @@ public class ValidationsHelper {
         }
         if (driver != null) {
             // create a screenshot attachment if needed for webdriver
-            attachments.add(new ScreenshotManager().takeScreenshot(driver, lastUsedElementLocator,
+            attachments.add(new ScreenshotManager().takeScreenshot(driver, lastUsedElementLocator.get(),
                     validationMethodName, validationState.getValue()));
             // reset lastUsed variables
-            lastUsedElementLocator = null;
+            lastUsedElementLocator.set(null);
             //}
         }
         if (driver != null && !WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Never")) {
@@ -144,8 +144,8 @@ public class ValidationsHelper {
             case SOFT_ASSERT -> {
                 // set test state in case of failure
                 if (!validationState.getValue()) {
-                    verificationFailuresList.add(message.toString());
-                    verificationError = new AssertionError(String.join("\nAND ", verificationFailuresList));
+                    verificationFailuresList.get().add(message.toString());
+                    verificationError.set(new AssertionError(String.join("\nAND ", verificationFailuresList.get())));
                 }
             }
             default -> {

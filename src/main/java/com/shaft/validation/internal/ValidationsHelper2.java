@@ -515,9 +515,9 @@ public class ValidationsHelper2 {
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
                 Allure.getLifecycle().updateStep(stepResult -> FailureReporter.fail(finalFailureMessage));
             } else {
-                // soft assert - use formatted message
-                ValidationsHelper.verificationFailuresList.add(finalFailureMessage);
-                ValidationsHelper.verificationError = new AssertionError(String.join("\nAND ", ValidationsHelper.verificationFailuresList));
+                // soft assert
+                ValidationsHelper.verificationFailuresList.get().add(failureMessage);
+                ValidationsHelper.verificationError.set(new AssertionError(String.join("\nAND ", ValidationsHelper.verificationFailuresList.get())));
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
                 Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(finalFailureMessage));
             }

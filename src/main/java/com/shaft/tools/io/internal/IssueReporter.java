@@ -9,18 +9,20 @@ import org.testng.internal.ConstructorOrMethod;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class IssueReporter {
-    private static final List<List<String>> listOfOpenIssues = new ArrayList<>();
-    private static final List<List<String>> listOfOpenIssuesForFailedTests = new ArrayList<>();
-    private static final List<List<String>> listOfOpenIssuesForPassedTests = new ArrayList<>();
-    private static final List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
-    private static int openIssuesForFailedTestsCounter = 0;
-    private static int openIssuesForPassedTestsCounter = 0;
-    private static int newIssuesForFailedTestsCounter = 0;
+    private static final List<List<String>> listOfOpenIssues = Collections.synchronizedList(new ArrayList<>());
+    private static final List<List<String>> listOfOpenIssuesForFailedTests = Collections.synchronizedList(new ArrayList<>());
+    private static final List<List<String>> listOfOpenIssuesForPassedTests = Collections.synchronizedList(new ArrayList<>());
+    private static final List<List<String>> listOfNewIssuesForFailedTests = Collections.synchronizedList(new ArrayList<>());
+    private static final AtomicInteger openIssuesForFailedTestsCounter = new AtomicInteger(0);
+    private static final AtomicInteger openIssuesForPassedTestsCounter = new AtomicInteger(0);
+    private static final AtomicInteger newIssuesForFailedTestsCounter = new AtomicInteger(0);
 
     public static void updateTestStatusInCaseOfVerificationFailure(ITestResult testResult) {
         if (testResult != null && ValidationsHelper.getVerificationErrorToForceFail() != null) {
@@ -71,22 +73,19 @@ public class IssueReporter {
         if (previouslyOpenedIssues < listOfOpenIssues.size()) {
             if (Boolean.TRUE.equals(executionStatus)) {
                 // flag already opened issue for closure
-                openIssuesForPassedTestsCounter++;
-                ReportManagerHelper.setOpenIssuesForPassedTestsCounter(openIssuesForPassedTestsCounter);
+                ReportManagerHelper.setOpenIssuesForPassedTestsCounter(openIssuesForPassedTestsCounter.incrementAndGet());
                 addNewIssue(className, methodName, listOfOpenIssuesForPassedTests);
                 ReportManagerHelper.setListOfOpenIssuesForPassedTests(listOfOpenIssuesForPassedTests);
             } else {
                 // confirm already opened issue
-                openIssuesForFailedTestsCounter++;
-                ReportManagerHelper.setOpenIssuesForFailedTestsCounter(openIssuesForFailedTestsCounter);
+                ReportManagerHelper.setOpenIssuesForFailedTestsCounter(openIssuesForFailedTestsCounter.incrementAndGet());
                 addNewIssue(className, methodName, listOfOpenIssuesForFailedTests);
                 ReportManagerHelper.setListOfOpenIssuesForFailedTests(listOfOpenIssuesForFailedTests);
             }
         } else {
             if (Boolean.FALSE.equals(executionStatus)) {
                 // log new issue
-                newIssuesForFailedTestsCounter++;
-                ReportManagerHelper.setFailedTestsWithoutOpenIssuesCounter(newIssuesForFailedTestsCounter);
+                ReportManagerHelper.setFailedTestsWithoutOpenIssuesCounter(newIssuesForFailedTestsCounter.incrementAndGet());
                 List<String> newIssue = new ArrayList<>();
                 newIssue.add(className);
                 newIssue.add(methodName);
@@ -100,8 +99,11 @@ public class IssueReporter {
         List<String> newIssue = new ArrayList<>();
         newIssue.add(className);
         newIssue.add(methodName);
-        newIssue.add(listOfOpenIssues.getLast().get(0));
-        newIssue.add(listOfOpenIssues.getLast().get(1));
+        synchronized (listOfOpenIssues) {
+            List<String> lastIssue = listOfOpenIssues.get(listOfOpenIssues.size() - 1);
+            newIssue.add(lastIssue.get(0));
+            newIssue.add(lastIssue.get(1));
+        }
         listOfOpenIssuesForPassedTests.add(newIssue);
     }
 }

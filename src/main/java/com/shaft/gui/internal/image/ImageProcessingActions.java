@@ -42,6 +42,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings("SpellCheckingInspection")
 public class ImageProcessingActions {
@@ -362,21 +363,18 @@ public class ImageProcessingActions {
         return foundLocation;
     }
 
-    private static final HashMap<String, String> locatorHashMapping = new HashMap<>();
+    private static final ConcurrentHashMap<String, String> locatorHashMapping = new ConcurrentHashMap<>();
 
     public static String formatElementLocatorToImagePath(By elementLocator) {
         String elementFileName = ReportManagerHelper.getCallingClassFullName() + "_" + JavaHelper.formatLocatorToString(elementLocator);
-        if (locatorHashMapping.containsKey(elementFileName)) {
-            return locatorHashMapping.get(elementFileName);
-        } else {
-            String hashedFileName = elementFileName.replaceAll("[\\[\\]\\'\\/:]", "").replaceAll("[\\W\\s]", "_").replaceAll("_{2}", "_")
+        return locatorHashMapping.computeIfAbsent(elementFileName, key -> {
+            String hashedFileName = key.replaceAll("[\\[\\]\\'\\/:]", "").replaceAll("[\\W\\s]", "_").replaceAll("_{2}", "_")
                     .replaceAll("_{2}", "_").replaceAll("contains", "_contains").replaceAll("_$", "");
             // https://github.com/ShaftHQ/SHAFT_ENGINE/issues/1604
-            hashedFileName = Hashing.sha256().hashString(elementFileName, StandardCharsets.UTF_8).toString();
-            ReportManager.log("Element Locator: " + elementLocator + " was formatted to: " + elementFileName, Level.INFO);
-            locatorHashMapping.put(elementFileName, hashedFileName);
+            hashedFileName = Hashing.sha256().hashString(key, StandardCharsets.UTF_8).toString();
+            ReportManager.log("Element Locator: " + elementLocator + " was formatted to: " + key, Level.INFO);
             return hashedFileName;
-        }
+        });
     }
 
     public static byte[] getReferenceImage(By elementLocator) {
