@@ -12,15 +12,31 @@ SHAFT_ENGINE is a unified test automation framework built with:
 - **Project Structure**:
   - `src/main/java/com/shaft/` - Core framework code
   - `src/test/java/` - Test examples and validation tests
+  - `src/test/resources/testDataFiles/` - JSON test data files
+  - `src/main/resources/` - Framework configuration and Docker compose files
   - `docs/` - Documentation
   - `.github/workflows/` - CI/CD pipelines
+  - `.github/instructions/` - Path-specific Copilot instructions (java-tests, framework-source)
 
-## Build & Test Commands
+## Development Workflow
+
+### Required Before Each Commit
+- **Build** without running tests to validate compilation and packaging: `mvn clean install -DskipTests -Dgpg.skip`
+- **Run affected tests** to validate your change: `mvn test -Dtest=TestClassName`
+
+### Full Command Reference
 - **Build**: `mvn clean install -DskipTests -Dgpg.skip`
-- **Run Tests**: `mvn test`
+- **Run All Tests**: `mvn test`
 - **Run Specific Tests**: `mvn test -Dtest=TestClassName`
 - **Generate JavaDocs**: `mvn javadoc:javadoc`
 - **Code Analysis**: CodeQL runs automatically on PRs
+
+### Validation Checklist
+Before submitting a pull request, ensure:
+1. ✅ `mvn clean install -DskipTests -Dgpg.skip` completes successfully (compiles and packages)
+2. ✅ Affected tests pass with `mvn test -Dtest=YourTestClassName` (replace with the actual class name)
+3. ✅ New or modified `public` methods/classes have JavaDoc comments
+4. ✅ No hardcoded credentials or sensitive data in code or test data files
 
 ## General Guidelines
 
