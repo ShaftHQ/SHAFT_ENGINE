@@ -131,6 +131,10 @@ public class SHAFT {
             session = new RestActions(serviceURI, this);
         }
 
+        public API(RestActions existingSession) {
+            session = existingSession;
+        }
+
         public static API getInstance(String serviceURI) {
             return new API(serviceURI);
         }

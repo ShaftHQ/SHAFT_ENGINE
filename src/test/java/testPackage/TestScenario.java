@@ -14,6 +14,6 @@ public abstract class TestScenario {
 
     @AfterClass(alwaysRun = true)
     public void tear() {
-        driver.get().quit();
+        if (driver.get() != null) driver.get().quit();
     }
 }
