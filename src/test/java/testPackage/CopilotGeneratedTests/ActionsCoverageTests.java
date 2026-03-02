@@ -11,8 +11,8 @@ import java.util.Objects;
 
 public class ActionsCoverageTests extends Tests {
     String testUrl = "https://duckduckgo.com/";
-    By logo = By.xpath("//div[contains(@class,'container_fullWidth__1H_L8')]//img");
-    By searchBox = Locator.hasAnyTagName().hasAttribute("id", "searchbox_input").build();
+    By logo = Locator.hasTagName("img").hasAttribute("alt", "DuckDuckGo Logo").isFirst().build();
+    By searchBox = Locator.hasAnyTagName().hasAttribute("name", "q").build();
 
     @BeforeMethod
     public void internalSetup() {
