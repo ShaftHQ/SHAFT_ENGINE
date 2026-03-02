@@ -293,6 +293,37 @@ public enum JavaScriptHelper {
     DOCUMENT_READY_STATE("return document.readyState;"),
     JQUERY_ACTIVE_STATE("return jQuery.active;"),
     ANGULAR_READY_STATE("return angular.element(document).injector().get('$http').pendingRequests.length;"),
+    ANGULAR2_READY_STATE("""
+            try {
+              if (typeof window.getAllAngularTestabilities !== 'undefined') {
+                return window.getAllAngularTestabilities().some(function(t) { return !t.isStable(); }) ? 1 : 0;
+              }
+            } catch(e) {}
+            return 0;"""),
+    ACTIVE_NETWORK_REQUESTS_COUNT("""
+            if (!window._shaftNetworkTracker) {
+              window._shaftNetworkTracker = true;
+              window._shaftNetworkRequests = 0;
+              var origOpen = window.XMLHttpRequest.prototype.open;
+              window.XMLHttpRequest.prototype.open = function() {
+                window._shaftNetworkRequests++;
+                this.addEventListener('loadend', function() {
+                  window._shaftNetworkRequests = Math.max(0, window._shaftNetworkRequests - 1);
+                });
+                return origOpen.apply(this, arguments);
+              };
+              if (window.fetch) {
+                var origFetch = window.fetch;
+                window.fetch = function() {
+                  window._shaftNetworkRequests++;
+                  return origFetch.apply(this, arguments).then(
+                    function(r) { window._shaftNetworkRequests = Math.max(0, window._shaftNetworkRequests - 1); return r; },
+                    function(e) { window._shaftNetworkRequests = Math.max(0, window._shaftNetworkRequests - 1); throw e; }
+                  );
+                };
+              }
+            }
+            return window._shaftNetworkRequests || 0;"""),
     INJECT_INPUT_TO_UPLOAD_FILE_VIA_DROP_ACTION("""
             for (var b = arguments[0], k = arguments[1], l = arguments[2], c = b.ownerDocument, m = 0;;) {
                 var e = b.getBoundingClientRect(),

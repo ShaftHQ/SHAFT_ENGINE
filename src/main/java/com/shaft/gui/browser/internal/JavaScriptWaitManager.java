@@ -42,11 +42,18 @@ public class JavaScriptWaitManager {
     }
 
     private static void waitUntilNoActiveNetworkFetchRequests(WebDriver driver) {
-        //Wait for active requests to be zero
+        //Wait for active requests to be zero using native XHR/fetch interceptors
         new SynchronizationManager(driver).fluentWait().until(f -> {
             if (f instanceof JavascriptExecutor javascriptExecutor) {
-                var returnedValue = javascriptExecutor.executeScript("return window.performance.getEntriesByType('resource').filter(r => r.responseEnd === '0' && (r.initiatorType === 'xmlhttprequest' || r.initiatorType === 'fetch')).length");
-                return (Integer.parseInt(String.valueOf(returnedValue)) == 0);
+                try {
+                    var returnedValue = javascriptExecutor.executeScript(JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue());
+                    return Long.parseLong(String.valueOf(returnedValue)) == 0;
+                } catch (Exception exception) {
+                    // force return in case of unexpected exception
+                    // e.g. org.openqa.selenium.JavascriptException if the script cannot execute
+                    ReportManagerHelper.logDiscrete(exception);
+                    return true;
+                }
             }
             return true;
         });
@@ -86,11 +93,18 @@ public class JavaScriptWaitManager {
         new SynchronizationManager(driver).fluentWait().until(f -> {
             if (f instanceof JavascriptExecutor javascriptExecutor) {
                 try {
+                    // Try AngularJS (1.x) first
                     return Long.parseLong(String.valueOf(javascriptExecutor.executeScript(JavaScriptHelper.ANGULAR_READY_STATE.getValue()))) == 0;
                 } catch (Exception exception) {
-                    // force return in case of unexpected exception
+                    // AngularJS not found on this page; try Angular 2+
                     // org.openqa.selenium.JavascriptException: javascript error: angular is not defined
-                    return true;
+                    try {
+                        // Try Angular 2+ if AngularJS is not available on the page
+                        return Long.parseLong(String.valueOf(javascriptExecutor.executeScript(JavaScriptHelper.ANGULAR2_READY_STATE.getValue()))) == 0;
+                    } catch (Exception angularException) {
+                        // force return if Angular is not present on this page
+                        return true;
+                    }
                 }
             }
             return true;
