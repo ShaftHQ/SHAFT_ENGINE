@@ -24,7 +24,7 @@ public class TestClass extends Tests {
     }
 
     @Test
-    public void navigateToDuckDuckGoAndAssertLogoIsDisplayedCorrectly() {
+    public void navigateToDuckDuckGoAndAssertLogoIsVisible() {
         driver.get().browser().navigateToURL(targetUrl)
                 .and().element().assertThat(logo).isVisible();
     }
