@@ -377,7 +377,12 @@ public class RequestBuilder {
         }
 
         session.setLastResponse(response);
-        return session.getDriver();
+        SHAFT.API driver = session.getDriver();
+        if (driver == null) {
+            driver = new SHAFT.API(session);
+            session.setDriver(driver);
+        }
+        return driver;
     }
 
     private String normalizeEndpoint(String endpoint) {

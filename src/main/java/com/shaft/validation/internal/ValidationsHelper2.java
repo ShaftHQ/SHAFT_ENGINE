@@ -39,6 +39,77 @@ public class ValidationsHelper2 {
         this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
     }
 
+    /**
+     * Automatically formats an AssertionError by detecting the package from the stack trace.
+     * This method extracts the package from the first stack trace element that is not from
+     * framework packages (org.testng, java, com.shaft.validation.internal, etc.)
+     *
+     * @param error the AssertionError to format
+     * @return formatted error message, or null if formatting fails
+     */
+    private static String formatAssertionErrorWithAutoDetectedPackage(AssertionError error) {
+        if (error == null) {
+            return null;
+        }
+        
+        StackTraceElement[] stackTrace = error.getStackTrace();
+        // Framework packages to skip when looking for test code
+        String[] frameworkPackages = {"org.testng", "java.", "jdk.", "com.shaft.validation.internal",
+                                      "com.shaft.validation", "com.shaft.tools", "com.shaft.driver", "com.shaft.gui"};
+        
+        // Generic top-level domains to avoid as fallback patterns
+        String[] genericTlds = {"com", "org", "net", "java", "jdk"};
+        
+        // Find the first stack trace element that is from test code (not framework code)
+        for (StackTraceElement element : stackTrace) {
+            String className = element.getClassName();
+            
+            // Skip framework packages
+            boolean isFrameworkPackage = false;
+            for (String frameworkPkg : frameworkPackages) {
+                if (className.startsWith(frameworkPkg)) {
+                    isFrameworkPackage = true;
+                    break;
+                }
+            }
+            
+            if (!isFrameworkPackage && element.getLineNumber() > 0) {
+                // Extract package from class name (everything before the last dot)
+                int lastDotIndex = className.lastIndexOf('.');
+                if (lastDotIndex > 0) {
+                    String packageName = className.substring(0, lastDotIndex);
+                    // Try formatting with the detected package
+                    String formatted = CustomSoftAssert.formatFailureWithStackTrace(error, packageName);
+                    if (formatted != null) {
+                        return formatted;
+                    }
+                    // If exact package doesn't work, try with common patterns (but avoid generic TLDs)
+                    String firstPackageSegment = packageName.split("\\.")[0];
+                    String[] commonPatterns = {"tests", "test"};
+                    // Only add first segment if it's not a generic TLD
+                    boolean isGenericTld = false;
+                    for (String tld : genericTlds) {
+                        if (firstPackageSegment.equals(tld)) {
+                            isGenericTld = true;
+                            break;
+                        }
+                    }
+                    if (!isGenericTld) {
+                        commonPatterns = new String[]{firstPackageSegment, "tests", "test"};
+                    }
+                    for (String pattern : commonPatterns) {
+                        formatted = CustomSoftAssert.formatFailureWithStackTrace(error, pattern);
+                        if (formatted != null) {
+                            return formatted;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return null;
+    }
+
     protected void validateEquals(Object expected, Object actual,
                                   ValidationEnums.ValidationComparisonType comparisonType, ValidationEnums.ValidationType validationType) {
         // read actual value based on desired attribute
@@ -433,15 +504,22 @@ public class ValidationsHelper2 {
         ReportManager.logDiscrete("Expected \"" + expected + "\", and actual \"" + actual + "\"");
         if (!validationState) {
             String failureMessage = this.validationCategoryString.replace("erify", "erificat") + "ion failed; expected " + expected + ", but found " + actual;
+            // Format failure message using CustomSoftAssert for enhanced stack trace reporting
+            AssertionError assertionError = new AssertionError(failureMessage);
+            // Automatically extract package pattern from stack trace
+            String enhancedFailureMessage = formatAssertionErrorWithAutoDetectedPackage(assertionError);
+            // Use enhanced message if available, otherwise fall back to original
+            String finalFailureMessage = (enhancedFailureMessage != null) ? enhancedFailureMessage : failureMessage;
+            
             if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
-                Allure.getLifecycle().updateStep(stepResult -> FailureReporter.fail(failureMessage));
+                Allure.getLifecycle().updateStep(stepResult -> FailureReporter.fail(finalFailureMessage));
             } else {
                 // soft assert
                 ValidationsHelper.verificationFailuresList.get().add(failureMessage);
                 ValidationsHelper.verificationError.set(new AssertionError(String.join("\nAND ", ValidationsHelper.verificationFailuresList.get())));
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
-                Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(failureMessage));
+                Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(finalFailureMessage));
             }
         } else {
             ExecutionSummaryReport.validationsIncrement(CheckpointStatus.PASS);

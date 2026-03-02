@@ -48,6 +48,6 @@ public class VisualValidationTests {
 
     @AfterClass(alwaysRun = true)
     public void tear() {
-        driver.get().quit();
+        if (driver.get() != null) driver.get().quit();
     }
 }

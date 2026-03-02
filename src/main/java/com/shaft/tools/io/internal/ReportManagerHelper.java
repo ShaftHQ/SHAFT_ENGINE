@@ -364,12 +364,11 @@ public class ReportManagerHelper {
 
     public static String getTestClassName() {
         var result = Reporter.getCurrentTestResult();
-        return result != null ? result.getMethod().getTestClass().getName() : "";
-//        return Reporter.getCurrentTestResult().getMethod().getTestClass().getName();
+        return (result != null && result.getMethod() != null) ? result.getMethod().getTestClass().getName() : "";
     }
 
     public static String getTestMethodName() {
-        if (Reporter.getCurrentTestResult() != null) {
+        if (Reporter.getCurrentTestResult() != null && Reporter.getCurrentTestResult().getMethod() != null) {
             return Reporter.getCurrentTestResult().getMethod().getMethodName();
         } else if (CucumberFeatureListener.getLastStartedScenarioName() != null){
             // this happens in case of native cucumber execution without TestNG Test Runner

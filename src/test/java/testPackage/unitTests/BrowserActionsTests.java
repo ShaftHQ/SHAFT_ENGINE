@@ -29,10 +29,10 @@ public class BrowserActionsTests {
     @Test
     public void navigateForward() {
         driver.get().browser().navigateToURL("https://duckduckgo.com/?");
-        driver.get().browser().navigateToURL("https://shafthq.github.io/");
+        driver.get().browser().navigateToURL("https://shaftengine.netlify.app/");
         driver.get().browser().navigateBack();
         driver.get().browser().navigateForward();
-        driver.get().assertThat().browser().url().contains("shafthq").perform();
+        driver.get().assertThat().browser().url().contains("shaftengine").perform();
     }
 
     @Test

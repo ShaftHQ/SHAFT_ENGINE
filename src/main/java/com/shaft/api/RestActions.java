@@ -781,6 +781,10 @@ public class RestActions {
         return driver;
     }
 
+    void setDriver(SHAFT.API driver) {
+        this.driver = driver;
+    }
+
     /**
      * Perform Graphql Request using Query - WITHOUT Header.
      *

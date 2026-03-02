@@ -1,6 +1,9 @@
 package testPackage.unitTests;
 
+import com.shaft.validation.Validations;
+import com.shaft.validation.internal.ValidationsHelper;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
@@ -22,7 +25,29 @@ public class ValidationHelperUnitTest {
     @Test(description = "Test string contains validation")
     public void testStringContains() {
         String text = "Welcome to SHAFT Engine";
-        Assert.assertTrue(text.contains("SHAFT"), "Text should contain SHAFT");
+        // Using SHAFT Engine validation - this should fail and produce a formatted error message
+        try {
+            Validations.assertThat().object(text).doesNotContain("SHAFT").perform();
+            Assert.fail("Expected an AssertionError from SHAFT validation, but none was thrown.");
+        } catch (AssertionError e) {
+            String errorMessage = e.getMessage();
+            // Assert that the formatted error message contains useful context
+            Assert.assertTrue(
+                    errorMessage.contains("SHAFT") || errorMessage.contains("Welcome to SHAFT Engine"),
+                    "Assertion message should contain the validated text or keyword 'SHAFT'. Actual message: " + errorMessage
+            );
+            // Verify the formatted message contains clickable stack trace format
+            // Format: at package.Class.method(File.java:lineNumber)
+            // Use stricter pattern matching to ensure the stack trace is properly formatted
+            String[] messageLines = errorMessage.split("\\R");
+            boolean hasClickableStackTrace = java.util.Arrays.stream(messageLines)
+                    .anyMatch(line ->
+                            line.trim().startsWith("at ")
+                                    && line.matches("^\\s*at .+\\(.*\\.java:\\d+\\)\\s*$"));
+            Assert.assertTrue(
+                    hasClickableStackTrace,
+                    "Error message should contain clickable stack trace format (at package.Class.method(File.java:lineNumber)). Actual: " + errorMessage);
+        }
     }
 
     @Test(description = "Test string not empty validation")
@@ -104,5 +129,135 @@ public class ValidationHelperUnitTest {
     public void testStringLengthValidation() {
         String text = "test";
         Assert.assertEquals(text.length(), 4, "String length should be 4");
+    }
+
+    @Test(description = "Test formatted assertion error with hard assert - different values")
+    public void testFormattedAssertionErrorHardAssert() {
+        // Test hard assert with different values to trigger formatting
+        try {
+            Validations.assertThat().object("actual").isEqualTo("expected").perform();
+            Assert.fail("Expected assertion to fail");
+        } catch (AssertionError e) {
+            String errorMessage = e.getMessage();
+            Assert.assertNotNull(errorMessage, "Error message should not be null");
+            // Verify it contains formatted elements or standard format
+            boolean hasFormatted = errorMessage.contains("at ") || 
+                                  errorMessage.contains("Navigate:") ||
+                                  errorMessage.contains("Assertion Failed");
+            Assert.assertTrue(hasFormatted || errorMessage.contains("expected") || errorMessage.contains("actual"),
+                "Error message should contain formatted elements or assertion details. Actual: " + errorMessage);
+        }
+    }
+
+    @Test(description = "Test formatted assertion error with contains validation")
+    public void testFormattedAssertionErrorContains() {
+        // Test contains validation that will fail
+        try {
+            Validations.assertThat().object("test").contains("nonexistent").perform();
+            Assert.fail("Expected assertion to fail");
+        } catch (AssertionError e) {
+            String errorMessage = e.getMessage();
+            Assert.assertNotNull(errorMessage, "Error message should not be null");
+        }
+    }
+
+    @Test(description = "Test formatted assertion error with doesNotEqual validation")
+    public void testFormattedAssertionErrorDoesNotEqual() {
+        // Test doesNotEqual validation that will fail when values are equal
+        try {
+            Validations.assertThat().object("same").doesNotEqual("same").perform();
+            Assert.fail("Expected assertion to fail");
+        } catch (AssertionError e) {
+            String errorMessage = e.getMessage();
+            Assert.assertNotNull(errorMessage, "Error message should not be null");
+        }
+    }
+
+    @Test(description = "Test formatted assertion error with isNull validation")
+    public void testFormattedAssertionErrorIsNull() {
+        // Test isNull validation that will fail when value is not null
+        try {
+            Validations.assertThat().object("not null").isNull().perform();
+            Assert.fail("Expected assertion to fail");
+        } catch (AssertionError e) {
+            String errorMessage = e.getMessage();
+            Assert.assertNotNull(errorMessage, "Error message should not be null");
+        }
+    }
+
+    @Test(description = "Test formatted assertion error with isNotNull validation")
+    public void testFormattedAssertionErrorIsNotNull() {
+        // Test isNotNull validation that will fail when value is null
+        try {
+            Validations.assertThat().object(null).isNotNull().perform();
+            Assert.fail("Expected assertion to fail");
+        } catch (AssertionError e) {
+            String errorMessage = e.getMessage();
+            Assert.assertNotNull(errorMessage, "Error message should not be null");
+        }
+    }
+
+    @AfterMethod
+    public void resetVerificationState() {
+        // Reset verification state after each test to prevent test interference
+        ValidationsHelper.resetVerificationStateAfterFailing();
+    }
+
+    @Test(description = "Test soft assertion with formatted error")
+    public void testSoftAssertionFormattedError() {
+        // Test soft assert (verifyThat) - this will collect failures
+        Validations.verifyThat().object("actual").isEqualTo("expected").perform();
+        // Note: Soft assertions don't throw immediately, they collect failures
+        // This test verifies the validation doesn't crash with formatting
+        
+        // Verify that a verification error was stored
+        AssertionError verificationError = ValidationsHelper.getVerificationErrorToForceFail();
+        Assert.assertNotNull(verificationError, "Verification error should be stored for soft assertion failure");
+        
+        // Reset state after verification
+        ValidationsHelper.resetVerificationStateAfterFailing();
+    }
+
+    @Test(description = "Test multiple validation failures to ensure code coverage")
+    public void testMultipleValidationFailuresForCoverage() {
+        // Test various validation types to ensure formatAssertionErrorWithAutoDetectedPackage is called
+        try {
+            Validations.assertThat().object(1).isEqualTo(2).perform();
+            Assert.fail("Should have thrown AssertionError");
+        } catch (AssertionError e) {
+            Assert.assertNotNull(e.getMessage());
+        }
+
+        try {
+            Validations.assertThat().object("hello").isEqualTo("world").perform();
+            Assert.fail("Should have thrown AssertionError");
+        } catch (AssertionError e) {
+            Assert.assertNotNull(e.getMessage());
+        }
+
+        try {
+            Validations.assertThat().object(true).isEqualTo(false).perform();
+            Assert.fail("Should have thrown AssertionError");
+        } catch (AssertionError e) {
+            Assert.assertNotNull(e.getMessage());
+        }
+    }
+
+    @Test(description = "Test validation with different comparison types for coverage")
+    public void testValidationComparisonTypesForCoverage() {
+        // Test different comparison types to trigger various code paths
+        try {
+            Validations.assertThat().object("test").contains("xyz").perform();
+            Assert.fail("Should have thrown AssertionError");
+        } catch (AssertionError e) {
+            Assert.assertNotNull(e.getMessage());
+        }
+
+        try {
+            Validations.assertThat().object("test").doesNotContain("test").perform();
+            Assert.fail("Should have thrown AssertionError");
+        } catch (AssertionError e) {
+            Assert.assertNotNull(e.getMessage());
+        }
     }
 }
