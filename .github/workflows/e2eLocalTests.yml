@@ -37,12 +37,16 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        shell: bash
+        run: mv allure-report/AllureReport.html allure-report/Windows_Edge_Local_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: Windows_Edge_Local_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/Windows_Edge_Local_Allure.html"
+          archive: false
       - name: Test Summary
         continue-on-error: true
         uses: test-summary/action@v2
@@ -74,12 +78,15 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        run: mv allure-report/AllureReport.html allure-report/MacOSX_Safari_Local_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: MacOSX_Safari_Local_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/MacOSX_Safari_Local_Allure.html"
+          archive: false
       - name: Test Summary
         continue-on-error: true
         uses: test-summary/action@v2
@@ -111,12 +118,16 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        shell: bash
+        run: mv allure-report/AllureReport.html allure-report/Windows_Chrome_Local_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: Windows_Chrome_Local_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/Windows_Chrome_Local_Allure.html"
+          archive: false
       - name: Test Summary
         continue-on-error: true
         uses: test-summary/action@v2
@@ -148,12 +159,15 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        run: mv allure-report/AllureReport.html allure-report/MacOSX_Chrome_Local_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: MacOSX_Chrome_Local_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/MacOSX_Chrome_Local_Allure.html"
+          archive: false
       - name: Test Summary
         continue-on-error: true
         uses: test-summary/action@v2
@@ -193,12 +207,16 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        shell: bash
+        run: mv allure-report/AllureReport.html allure-report/Windows_Edge_Cucumber_Local_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: Windows_Edge_Cucumber_Local_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/Windows_Edge_Cucumber_Local_Allure.html"
+          archive: false
       - name: Test Summary
         continue-on-error: true
         uses: test-summary/action@v2

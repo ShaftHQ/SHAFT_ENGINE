@@ -54,12 +54,15 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        run: mv allure-report/AllureReport.html allure-report/Ubuntu_Database_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: Ubuntu_Database_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/Ubuntu_Database_Allure.html"
+          archive: false
       - name: Test Summary
         uses: test-summary/action@v2
         with:
@@ -99,12 +102,15 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        run: mv allure-report/AllureReport.html allure-report/Ubuntu_APIs_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: Ubuntu_APIs_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/Ubuntu_APIs_Allure.html"
+          archive: false
       - name: Test Summary
         uses: test-summary/action@v2
         with:
@@ -148,12 +154,15 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        run: mv allure-report/AllureReport.html allure-report/Ubuntu_Firefox_Grid_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: Ubuntu_Firefox_Grid_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/Ubuntu_Firefox_Grid_Allure.html"
+          archive: false
       - name: Test Summary
         uses: test-summary/action@v2
         with:
@@ -197,12 +206,15 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        run: mv allure-report/AllureReport.html allure-report/Ubuntu_Chrome_Grid_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: Ubuntu_Chrome_Grid_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/Ubuntu_Chrome_Grid_Allure.html"
+          archive: false
       - name: Test Summary
         uses: test-summary/action@v2
         with:
@@ -237,12 +249,15 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        run: mv allure-report/AllureReport.html allure-report/Ubuntu_Edge_Grid_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: Ubuntu_Edge_Grid_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/Ubuntu_Edge_Grid_Allure.html"
+          archive: false
       - name: Test Summary
         uses: test-summary/action@v2
         with:
@@ -282,12 +297,15 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        run: mv allure-report/AllureReport.html allure-report/Android_Native_BrowserStack_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: Android_Native_BrowserStack_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/Android_Native_BrowserStack_Allure.html"
+          archive: false
       - name: Test Summary
         uses: test-summary/action@v2
         with:
@@ -327,12 +345,15 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        run: mv allure-report/AllureReport.html allure-report/iOS_Web_SAFARI_BrowserStack_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: iOS_Web_SAFARI_BrowserStack_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/iOS_Web_SAFARI_BrowserStack_Allure.html"
+          archive: false
       - name: Test Summary
         uses: test-summary/action@v2
         with:
@@ -372,12 +393,15 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        run: mv allure-report/AllureReport.html allure-report/Android_Web_Chrome_BrowserStack_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: Android_Web_Chrome_BrowserStack_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/Android_Web_Chrome_BrowserStack_Allure.html"
+          archive: false
       - name: Test Summary
         uses: test-summary/action@v2
         with:
@@ -417,12 +441,15 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        run: mv allure-report/AllureReport.html allure-report/MacOSX_Safari_BrowserStack_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: MacOSX_Safari_BrowserStack_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/MacOSX_Safari_BrowserStack_Allure.html"
+          archive: false
       - name: Test Summary
         uses: test-summary/action@v2
         with:
@@ -473,12 +500,15 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        run: mv allure-report/AllureReport.html allure-report/Ubuntu_Chrome_Cucumber_Grid_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: Ubuntu_Chrome_Cucumber_Grid_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/Ubuntu_Chrome_Cucumber_Grid_Allure.html"
+          archive: false
       - name: Test Summary
         uses: test-summary/action@v2
         with:
@@ -522,12 +552,15 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        run: mv allure-report/AllureReport.html allure-report/MacOSX_Safari_Cucumber_BrowserStack_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: MacOSX_Safari_Cucumber_BrowserStack_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/MacOSX_Safari_Cucumber_BrowserStack_Allure.html"
+          archive: false
       - name: Test Summary
         uses: test-summary/action@v2
         with:

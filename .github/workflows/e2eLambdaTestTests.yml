@@ -33,12 +33,15 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        run: mv allure-report/AllureReport.html allure-report/LambdaTest_NativeAndroid_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: LambdaTest_NativeAndroid_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/LambdaTest_NativeAndroid_Allure.html"
+          archive: false
       - name: Test Summary
         uses: test-summary/action@v2
         with:
@@ -74,12 +77,15 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        run: mv allure-report/AllureReport.html allure-report/LambdaTest_NativeIOS_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: LambdaTest_NativeIOS_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/LambdaTest_NativeIOS_Allure.html"
+          archive: false
       - name: Test Summary
         uses: test-summary/action@v2
         with:
@@ -115,12 +121,15 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        run: mv allure-report/AllureReport.html allure-report/LambdaTestWebApp_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: LambdaTestWebApp_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/LambdaTestWebApp_Allure.html"
+          archive: false
       - name: Test Summary
         uses: test-summary/action@v2
         with:
@@ -156,12 +165,15 @@ jobs:
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+      - name: Rename Allure Report for Direct Upload
+        if: always()
+        run: mv allure-report/AllureReport.html allure-report/LambdaTestDesktopWeb_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: LambdaTestDesktopWeb_Allure
-          path: "allure-report/*.html"
+          path: "allure-report/LambdaTestDesktopWeb_Allure.html"
+          archive: false
       - name: Test Summary
         uses: test-summary/action@v2
         with:
