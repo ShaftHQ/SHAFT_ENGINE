@@ -595,6 +595,14 @@
             </exclusions>
         </dependency>
 
+        <!-- SECURITY: Override transitive org.json:json pulled in by video-recorder to fix DoS vulnerability (GHSA-4jq3-4rqq-j57h, CVE-2023-5072) -->
+        <!-- https://mvnrepository.com/artifact/org.json/json -->
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20251224</version>
+        </dependency>
+
         <!-- TRANSITIVE LOGGING -->
         <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-slf4j2-impl -->
         <dependency>
@@ -662,6 +670,13 @@
                     <artifactId>auto-service-annotations</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <!-- SECURITY: Override transitive io.grpc:grpc-netty-shaded pulled in by tink-gcpkms to fix MadeYouReset HTTP/2 DDoS vulnerability (CVE-2025-55163) -->
+        <!-- https://mvnrepository.com/artifact/io.grpc/grpc-netty-shaded -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+            <version>1.75.0</version>
         </dependency>
 
         <!--YAML -->
@@ -770,10 +785,17 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.15.0</version>
                 <configuration>
-                    <source>21</source>
-                    <target>21</target>
+                    <source>25</source>
+                    <target>25</target>
                     <encoding>UTF-8</encoding>
                     <meminitial>4096m</meminitial>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.42</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>
