@@ -368,7 +368,10 @@ public class ImageProcessingActions {
     public static String formatElementLocatorToImagePath(By elementLocator) {
         String elementFileName = ReportManagerHelper.getCallingClassFullName() + "_" + JavaHelper.formatLocatorToString(elementLocator);
         return locatorHashMapping.computeIfAbsent(elementFileName, key -> {
-            String hashedFileName = Hashing.sha256().hashString(key, StandardCharsets.UTF_8).toString();
+            String hashedFileName = key.replaceAll("[\\[\\]\\'\\/:]", "").replaceAll("[\\W\\s]", "_").replaceAll("_{2}", "_")
+                    .replaceAll("_{2}", "_").replaceAll("contains", "_contains").replaceAll("_$", "");
+            // https://github.com/ShaftHQ/SHAFT_ENGINE/issues/1604
+            hashedFileName = Hashing.sha256().hashString(key, StandardCharsets.UTF_8).toString();
             ReportManager.log("Element Locator: " + elementLocator + " was formatted to: " + key, Level.INFO);
             return hashedFileName;
         });
