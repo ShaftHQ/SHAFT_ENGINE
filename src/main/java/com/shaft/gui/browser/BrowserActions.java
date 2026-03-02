@@ -295,6 +295,10 @@ public class BrowserActions extends FluentWebDriverAction {
         forceStopCurrentNavigation();
         String initialURL = null;
         try {
+            if (driverFactoryHelper.getDriver() == null) {
+                browserActionsHelper.failAction(null, modifiedTargetUrl, new NullPointerException("WebDriver instance is null; driver initialization may have failed."));
+                return this;
+            }
             initialURL = driverFactoryHelper.getDriver().getCurrentUrl();
         } catch (UnsupportedCommandException exception) {
             ReportManager.logDiscrete("Failed to get current URL, attempting to navigate to target URL.", Level.WARN);
