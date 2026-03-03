@@ -40,7 +40,7 @@ jobs:
       - name: Rename Allure Report for Direct Upload
         if: always()
         shell: bash
-        run: mv allure-report/AllureReport.html allure-report/Windows_Edge_Local_Allure.html 2>/dev/null || true
+        run: mv allure-report/*AllureReport.html allure-report/Windows_Edge_Local_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
@@ -80,7 +80,7 @@ jobs:
           verbose: true
       - name: Rename Allure Report for Direct Upload
         if: always()
-        run: mv allure-report/AllureReport.html allure-report/MacOSX_Safari_Local_Allure.html 2>/dev/null || true
+        run: mv allure-report/*AllureReport.html allure-report/MacOSX_Safari_Local_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
@@ -121,7 +121,7 @@ jobs:
       - name: Rename Allure Report for Direct Upload
         if: always()
         shell: bash
-        run: mv allure-report/AllureReport.html allure-report/Windows_Chrome_Local_Allure.html 2>/dev/null || true
+        run: mv allure-report/*AllureReport.html allure-report/Windows_Chrome_Local_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
@@ -161,7 +161,7 @@ jobs:
           verbose: true
       - name: Rename Allure Report for Direct Upload
         if: always()
-        run: mv allure-report/AllureReport.html allure-report/MacOSX_Chrome_Local_Allure.html 2>/dev/null || true
+        run: mv allure-report/*AllureReport.html allure-report/MacOSX_Chrome_Local_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
@@ -210,7 +210,7 @@ jobs:
       - name: Rename Allure Report for Direct Upload
         if: always()
         shell: bash
-        run: mv allure-report/AllureReport.html allure-report/Windows_Edge_Cucumber_Local_Allure.html 2>/dev/null || true
+        run: mv allure-report/*AllureReport.html allure-report/Windows_Edge_Cucumber_Local_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
