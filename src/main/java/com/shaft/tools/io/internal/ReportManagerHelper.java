@@ -285,9 +285,7 @@ public class ReportManagerHelper {
      * @param attachmentContent the content of this attachment
      */
     public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
-        if (!attachmentContent.trim().isEmpty()) {
-            createAttachment(attachmentType, attachmentName, new ByteArrayInputStream(attachmentContent.getBytes()));
-        }
+        createAttachment(attachmentType, attachmentName, new ByteArrayInputStream(attachmentContent.getBytes()));
     }
 
     /**
@@ -728,10 +726,8 @@ public class ReportManagerHelper {
             attachments.forEach(attachment -> {
                 if (attachment != null && !attachment.isEmpty() && attachment.get(2)!=null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
                         && !attachment.get(2).getClass().toString().contains("StringInputStream")) {
-                    if (!attachment.get(2).toString().isEmpty()) {
-                        attach(attachment.get(0).toString(), attachment.get(1).toString(),
-                                attachment.get(2).toString());
-                    }
+                    attach(attachment.get(0).toString(), attachment.get(1).toString(),
+                            attachment.get(2).toString());
                 } else if (attachment != null && !attachment.isEmpty()) {
                     if (attachment.get(2) instanceof byte[]) {
                         attach(attachment.get(0).toString(), attachment.get(1).toString(), new ByteArrayInputStream((byte[]) attachment.get(2)));
