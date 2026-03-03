@@ -372,7 +372,7 @@ public class AssertionSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @Then("I Assert that the element found by {string}: {string}, exactly matches with the expected reference image using AI (OpenCV)")
+    @Then("I Assert that the element found by {string}: {string}, exactly matches with the expected reference image using AI \\(OpenCV\\)")
     public void assertElementMatchesOpenCV(String locatorType, String locatorValue) {
         driver.get().assertThat()
                 .element(ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
@@ -388,7 +388,7 @@ public class AssertionSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @Then("I Assert that the element found by {string}: {string}, does not exactly match with the expected reference image using AI (OpenCV)")
+    @Then("I Assert that the element found by {string}: {string}, does not exactly match with the expected reference image using AI \\(OpenCV\\)")
     public void assertElementDoesNotMatchOpenCV(String locatorType, String locatorValue) {
         driver.get().assertThat()
                 .element(ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
@@ -404,7 +404,7 @@ public class AssertionSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @Then("I Assert that the element found by {string}: {string}, exactly matches with the expected reference image using AI (Applitools Eyes)")
+    @Then("I Assert that the element found by {string}: {string}, exactly matches with the expected reference image using AI \\(Applitools Eyes\\)")
     public void assertElementMatchesExactEyes(String locatorType, String locatorValue) {
         driver.get().assertThat()
                 .element(ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
@@ -420,7 +420,7 @@ public class AssertionSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @Then("I Assert that the element found by {string}: {string}, does not exactly match with the expected reference image using AI (Applitools Eyes)")
+    @Then("I Assert that the element found by {string}: {string}, does not exactly match with the expected reference image using AI \\(Applitools Eyes\\)")
     public void assertElementDoesNotMatchExactEyes(String locatorType, String locatorValue) {
         driver.get().assertThat()
                 .element(ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
@@ -436,7 +436,7 @@ public class AssertionSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @Then("I Assert that the element found by {string}: {string}, strictly matches with the expected reference image using AI (Applitools Eyes)")
+    @Then("I Assert that the element found by {string}: {string}, strictly matches with the expected reference image using AI \\(Applitools Eyes\\)")
     public void assertElementMatchesStrictEyes(String locatorType, String locatorValue) {
         driver.get().assertThat()
                 .element(ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
@@ -452,7 +452,7 @@ public class AssertionSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @Then("I Assert that the element found by {string}: {string}, does not strictly match with the expected reference image using AI (Applitools Eyes)")
+    @Then("I Assert that the element found by {string}: {string}, does not strictly match with the expected reference image using AI \\(Applitools Eyes\\)")
     public void assertElementDoesNotMatchStrictEyes(String locatorType, String locatorValue) {
         driver.get().assertThat()
                 .element(ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
@@ -468,7 +468,7 @@ public class AssertionSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @Then("I Assert that the element found by {string}: {string}, matches the content of the expected reference image using AI (Applitools Eyes)")
+    @Then("I Assert that the element found by {string}: {string}, matches the content of the expected reference image using AI \\(Applitools Eyes\\)")
     public void assertElementMatchesContentEyes(String locatorType, String locatorValue) {
         driver.get().assertThat()
                 .element(ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
@@ -484,7 +484,7 @@ public class AssertionSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @Then("I Assert that the element found by {string}: {string}, does not match the content of the expected reference image using AI (Applitools Eyes)")
+    @Then("I Assert that the element found by {string}: {string}, does not match the content of the expected reference image using AI \\(Applitools Eyes\\)")
     public void assertElementDoesNotMatchContentEyes(String locatorType, String locatorValue) {
         driver.get().assertThat()
                 .element(ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
@@ -500,7 +500,7 @@ public class AssertionSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @Then("I Assert that the element found by {string}: {string}, matches the layout of the expected reference image using AI (Applitools Eyes)")
+    @Then("I Assert that the element found by {string}: {string}, matches the layout of the expected reference image using AI \\(Applitools Eyes\\)")
     public void assertElementMatchesLayoutEyes(String locatorType, String locatorValue) {
         driver.get().assertThat()
                 .element(ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
@@ -516,7 +516,7 @@ public class AssertionSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @Then("I Assert that the element found by {string}: {string}, does not match the layout of the expected reference image using AI (Applitools Eyes)")
+    @Then("I Assert that the element found by {string}: {string}, does not match the layout of the expected reference image using AI \\(Applitools Eyes\\)")
     public void assertElementDoesNotMatchLayoutEyes(String locatorType, String locatorValue) {
         driver.get().assertThat()
                 .element(ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))

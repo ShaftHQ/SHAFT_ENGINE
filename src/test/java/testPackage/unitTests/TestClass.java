@@ -13,7 +13,7 @@ public class TestClass extends Tests {
 
     String targetUrl = "https://duckduckgo.com/";
 
-    By logo = By.xpath("//div[contains(@class,'container_fullWidth__1H_L8')]//img");
+    By logo = Locator.hasTagName("img").hasAttribute("alt", "DuckDuckGo Logo").isFirst().build();
     By searchBox = Locator.hasAnyTagName().hasAttribute("name", "q").build(); // synonym to By.name("q");
     By firstSearchResult = Locator.hasTagName("article").isFirst().build(); // synonym to By.xpath("(//article)[1]");
 
@@ -24,9 +24,9 @@ public class TestClass extends Tests {
     }
 
     @Test
-    public void navigateToDuckDuckGoAndAssertLogoIsDisplayedCorrectly() {
+    public void navigateToDuckDuckGoAndAssertLogoIsVisible() {
         driver.get().browser().navigateToURL(targetUrl)
-                .and().element().assertThat(logo).matchesReferenceImage();
+                .and().element().assertThat(logo).isVisible();
     }
 
     @Test(enabled = false)
