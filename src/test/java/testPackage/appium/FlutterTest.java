@@ -26,7 +26,7 @@ public class FlutterTest {
      * Setup method to configure and initialize the Flutter driver.
      * This sets up the necessary properties for Flutter app automation.
      */
-    @BeforeMethod
+    @BeforeMethod(onlyForGroups = {"flutter"})
     public void setupFlutterDriver() {
         // Common mobile attributes
         SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());

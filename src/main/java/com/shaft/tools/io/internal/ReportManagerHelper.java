@@ -480,7 +480,7 @@ public class ReportManagerHelper {
         return augmentedText.toString();
     }
 
-    private static String createSeparator(@SuppressWarnings("SameParameterValue") char ch) {
+    private static String createSeparator(char ch) {
         return String.valueOf(ch).repeat(144);
     }
 
@@ -493,16 +493,16 @@ public class ReportManagerHelper {
         setDiscreteLogging(false); // force log even if discrete logging was turned on
 
         var color = switch (loglevel.name()) {
-            case "WARN" -> "\033[1;33m"; //yellow
-            case "ERROR" -> "\033[1;31m"; //red
-            default -> "\033[0;7m"; //white
+            case "WARN" -> "\033[1;33m"; //bold yellow
+            case "ERROR" -> "\033[1;31m"; //bold red
+            default -> "\033[1;36m"; //bold cyan
         };
 
         String log = System.lineSeparator() +
                 color +
-                createSeparator('-') +
+                createSeparator('═') +
                 addSpacing(logText.trim()) +
-                createSeparator('-') +
+                createSeparator('═') +
                 System.lineSeparator() +
                 "\033[0m";
 
