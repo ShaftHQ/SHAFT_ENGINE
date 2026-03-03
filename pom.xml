@@ -785,6 +785,17 @@
                 <targetPath>${project.reporting.outputDirectory}/apidocs</targetPath>
             </resource>
         </resources>
+        <testResources>
+            <testResource>
+                <directory>${project.basedir}/src/test/resources</directory>
+                <excludes>
+                    <!-- Exclude binary app files: JaCoCo treats APK/IPA as ZIP archives
+                         and fails with "invalid extra field length" when analyzing them -->
+                    <exclude>testDataFiles/apps/*.apk</exclude>
+                    <exclude>testDataFiles/apps/*.ipa</exclude>
+                </excludes>
+            </testResource>
+        </testResources>
 
         <!--Plugins -->
         <plugins>
@@ -907,6 +918,7 @@
                     <haltOnFailure>false</haltOnFailure>
                     <excludes>
                         <exclude>**/*Aspect</exclude>
+                        <exclude>testDataFiles/**</exclude>
                     </excludes>
                 </configuration>
                 <executions>
@@ -931,6 +943,9 @@
                         <configuration>
                             <dataFile>target/jacoco.exec</dataFile>
                             <outputDirectory>target/jacoco</outputDirectory>
+                            <excludes>
+                                <exclude>testDataFiles/**</exclude>
+                            </excludes>
                         </configuration>
                     </execution>
                     <execution>
