@@ -15,11 +15,8 @@ public interface LambdaTest extends EngineProperties<LambdaTest> {
     //You must set the "mobile_automationName" property under "MobileCapabilities.properties" or programmatically
 
     private static void setProperty(String key, String value) {
-        var updatedProps = new java.util.Properties();
-        updatedProps.setProperty(key, value);
-        Properties.lambdaTest = ConfigFactory.create(LambdaTest.class, updatedProps);
-        // temporarily set the system property to support hybrid read/write mode
-        System.setProperty(key, value);
+        ThreadLocalPropertiesManager.setProperty(key, value);
+        Properties.lambdaTestOverride.set(ConfigFactory.create(LambdaTest.class, ThreadLocalPropertiesManager.getOverrides()));
         ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
 

@@ -14,11 +14,8 @@ import org.aeonbits.owner.ConfigFactory;
 public interface Mobile extends EngineProperties<Mobile> {
 
     private static void setProperty(String key, String value) {
-        var updatedProps = new java.util.Properties();
-        updatedProps.setProperty(key, value);
-        Properties.mobile = ConfigFactory.create(Mobile.class, updatedProps);
-        // temporarily set the system property to support hybrid read/write mode
-        System.setProperty(key, value);
+        ThreadLocalPropertiesManager.setProperty(key, value);
+        Properties.mobileOverride.set(ConfigFactory.create(Mobile.class, ThreadLocalPropertiesManager.getOverrides()));
         ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
 

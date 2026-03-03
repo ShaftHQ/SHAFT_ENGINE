@@ -767,7 +767,7 @@ public class RestActions {
     }
 
     private static void initializeSystemProperties() {
-        if (SHAFT.Properties.timeouts == null)
+        if (!com.shaft.properties.internal.Properties.isInitialized())
             DriverFactory.reloadProperties();
         HTTP_SOCKET_TIMEOUT = SHAFT.Properties.timeouts.apiSocketTimeout();
         // timeout between two consecutive data packets in seconds

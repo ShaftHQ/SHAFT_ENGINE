@@ -34,7 +34,7 @@ public class ScreenshotHelper {
     public static String getAiAidedElementIdentificationFolderPath() {
         if (AI_AIDED_ELEMENT_IDENTIFICATION_FOLDER_PATH.isEmpty()) {
             // fixes https://github.com/ShaftHQ/SHAFT_ENGINE/issues/808 by respecting OS/Platform information for mobile native
-            if (Properties.paths == null)
+            if (!com.shaft.properties.internal.Properties.isInitialized())
                 PropertiesHelper.initialize();
             AI_AIDED_ELEMENT_IDENTIFICATION_FOLDER_PATH = Properties.paths.dynamicObjectRepository()
                     + Properties.platform.targetPlatform() + "/";

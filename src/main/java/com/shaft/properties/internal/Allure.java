@@ -8,11 +8,8 @@ import org.aeonbits.owner.ConfigFactory;
 @Sources({"system:properties", "file:src/main/resources/properties/Allure.properties", "file:src/main/resources/properties/default/Allure.properties", "classpath:Allure.properties"})
 public interface Allure extends EngineProperties<Allure> {
     private static void setProperty(String key, String value) {
-        var updatedProps = new java.util.Properties();
-        updatedProps.setProperty(key, value);
-        Properties.allure = ConfigFactory.create(Allure.class, updatedProps);
-        // temporarily set the system property to support hybrid read/write mode
-        System.setProperty(key, value);
+        ThreadLocalPropertiesManager.setProperty(key, value);
+        Properties.allureOverride.set(ConfigFactory.create(Allure.class, ThreadLocalPropertiesManager.getOverrides()));
         if (!key.equals("disableLogging"))
             ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }

@@ -41,34 +41,36 @@ public class PropertiesHelper {
     private static void loadProperties() {
         //read custom property files (if any) into system properties
         PropertyFileManager.readCustomPropertyFiles();
-        //load property objects
-        Properties.paths = ConfigFactory.create(Paths.class); //reload paths in case the user changed something
-        Properties.platform = ConfigFactory.create(Platform.class);
-        Properties.web = ConfigFactory.create(Web.class);
-        Properties.mobile = ConfigFactory.create(Mobile.class);
-        Properties.browserStack = ConfigFactory.create(BrowserStack.class);
+        // Clear any stale per-thread overrides from before the load (e.g., during re-initialization).
+        Properties.clearForCurrentThread();
+        //load base property objects - these are the global defaults inherited by all test threads.
+        Properties.basePaths = ConfigFactory.create(Paths.class); //reload paths in case the user changed something
+        Properties.basePlatform = ConfigFactory.create(Platform.class);
+        Properties.baseWeb = ConfigFactory.create(Web.class);
+        Properties.baseMobile = ConfigFactory.create(Mobile.class);
+        Properties.baseBrowserStack = ConfigFactory.create(BrowserStack.class);
         Properties.internal = ConfigFactory.create(Internal.class);
-        Properties.flags = ConfigFactory.create(Flags.class);
+        Properties.baseFlags = ConfigFactory.create(Flags.class);
         Properties.cucumber = ConfigFactory.create(Cucumber.class);
-        Properties.healenium = ConfigFactory.create(Healenium.class);
-        Properties.jira = ConfigFactory.create(Jira.class);
-        Properties.pattern = ConfigFactory.create(Pattern.class);
-        Properties.reporting = ConfigFactory.create(Reporting.class);
-        Properties.allure = ConfigFactory.create(Allure.class);
-        Properties.tinkey = ConfigFactory.create(Tinkey.class);
+        Properties.baseHealenium = ConfigFactory.create(Healenium.class);
+        Properties.baseJira = ConfigFactory.create(Jira.class);
+        Properties.basePattern = ConfigFactory.create(Pattern.class);
+        Properties.baseReporting = ConfigFactory.create(Reporting.class);
+        Properties.baseAllure = ConfigFactory.create(Allure.class);
+        Properties.baseTinkey = ConfigFactory.create(Tinkey.class);
         Properties.testNG = ConfigFactory.create(TestNG.class);
         Properties.log4j = ConfigFactory.create(Log4j.class);
-        Properties.visuals = ConfigFactory.create(Visuals.class);
-        Properties.timeouts = ConfigFactory.create(Timeouts.class);
-        Properties.performance = ConfigFactory.create(Performance.class);
-        Properties.lambdaTest = ConfigFactory.create(LambdaTest.class);
-        Properties.api = ConfigFactory.create(API.class, System.getProperties());
-
+        Properties.baseVisuals = ConfigFactory.create(Visuals.class);
+        Properties.baseTimeouts = ConfigFactory.create(Timeouts.class);
+        Properties.basePerformance = ConfigFactory.create(Performance.class);
+        Properties.baseLambdaTest = ConfigFactory.create(LambdaTest.class);
+        Properties.baseApi = ConfigFactory.create(API.class, System.getProperties());
+        Properties.initialized = true;
     }
 
     public static void setKeySystemProperties() {
         //load paths as the default properties path is needed for the next step
-        Properties.paths = ConfigFactory.create(Paths.class);
+        Properties.basePaths = ConfigFactory.create(Paths.class);
         //set key system properties that are needed for the framework to function
         System.setProperty("rp.properties.path", SHAFT.Properties.paths.properties());
         System.setProperty("webdriver.http.factory", "jdk-http-client");

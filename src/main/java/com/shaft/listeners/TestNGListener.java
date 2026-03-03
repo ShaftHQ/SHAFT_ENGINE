@@ -10,6 +10,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.listeners.internal.*;
 import com.shaft.properties.internal.PropertiesHelper;
+import com.shaft.properties.internal.Properties;
 import com.shaft.tools.internal.FirestoreRestClient;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.ReportManager;
@@ -43,6 +44,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     private static final List<ITestNGMethod> skippedTests = Collections.synchronizedList(new ArrayList<>());
     // ReportPortal
     private static final AtomicInteger REPORT_PORTAL_INSTANCES = new AtomicInteger(0);
+    /** Tracks the test class currently active on each thread to detect class boundaries. */
+    private static final ThreadLocal<Class<?>> activeTestClass = new ThreadLocal<>();
     @Getter
     private static ITestResult iTestResult;
     private static long executionStartTime;
@@ -239,6 +242,16 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         }
         if (elapsedTime >= SHAFT.Properties.testNG.testSuiteTimeout() * 60000) {
             throw new SkipException("Skipping method as the test suite has exceeded the defined timeout of " + SHAFT.Properties.testNG.testSuiteTimeout() + " minutes.");
+        }
+        // Clear per-thread property overrides only when a new test class begins its lifecycle
+        // on a pooled thread.  Checking for class identity change prevents incorrectly clearing
+        // overrides set by an earlier @BeforeClass method on the same class.
+        if (method.isConfigurationMethod() && method.getTestMethod().isBeforeClassConfiguration()) {
+            Class<?> incomingClass = method.getTestMethod().getRealClass();
+            if (!incomingClass.equals(activeTestClass.get())) {
+                Properties.clearForCurrentThread();
+                activeTestClass.set(incomingClass);
+            }
         }
         xmlTest = method.getTestMethod().getXmlTest();
         JiraHelper.prepareTestResultAttributes(method, iTestResult);
