@@ -51,7 +51,7 @@ jobs:
         continue-on-error: true
         uses: test-summary/action@v2
         with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+          paths: "target/surefire-reports/TEST-*.xml"
         if: always()
   MacOSX_Safari_Local:
     runs-on: macos-latest
@@ -91,7 +91,7 @@ jobs:
         continue-on-error: true
         uses: test-summary/action@v2
         with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+          paths: "target/surefire-reports/TEST-*.xml"
         if: always()
   Windows_Chrome_Local:
     runs-on: windows-latest
@@ -132,7 +132,7 @@ jobs:
         continue-on-error: true
         uses: test-summary/action@v2
         with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+          paths: "target/surefire-reports/TEST-*.xml"
         if: always()
   MacOSX_Chrome_Local:
     runs-on: macos-latest
@@ -172,7 +172,7 @@ jobs:
         continue-on-error: true
         uses: test-summary/action@v2
         with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+          paths: "target/surefire-reports/TEST-*.xml"
         if: always()
   Windows_Edge_Cucumber_Local:
     runs-on: windows-latest
@@ -221,5 +221,5 @@ jobs:
         continue-on-error: true
         uses: test-summary/action@v2
         with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+          paths: "target/surefire-reports/TEST-*.xml"
         if: always()
