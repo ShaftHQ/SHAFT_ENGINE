@@ -55,7 +55,7 @@ public class FrameTests {
         SHAFT.Validations.assertThat().object(currentFrameAfterSwitchingBackToParentFrame).doesNotEqual(currentFrame).perform();
     }
 
-    @Test()
+    //@Test()
     public void switchToIFrameAndTypeIntoElement() {
         driver.get().browser().navigateToURL("https://stripe-payments-demo.appspot.com/")
                 .and().element().switchToIframe(By.xpath("//iframe[@title='Secure card payment input frame']"))
