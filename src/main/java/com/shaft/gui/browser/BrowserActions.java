@@ -43,6 +43,9 @@ import java.util.regex.Pattern;
 
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class BrowserActions extends FluentWebDriverAction {
+    // Matches embedded credentials in URLs (e.g. protocol://user:password@host); compiled once for reuse
+    private static final Pattern EMBEDDED_PASSWORD_PATTERN = Pattern.compile(":\\/\\/.*:(.*)@");
+
     public BrowserActions() {
         initialize();
     }
@@ -278,8 +281,7 @@ public class BrowserActions extends FluentWebDriverAction {
 
         String modifiedTargetUrlForLogging = modifiedTargetUrl;
         //obfuscate embedded passwords
-        Pattern pattern = Pattern.compile(":\\/\\/.*:(.*)@");
-        Matcher matcher = pattern.matcher(modifiedTargetUrl);
+        Matcher matcher = EMBEDDED_PASSWORD_PATTERN.matcher(modifiedTargetUrl);
         if (matcher.find()) {
             modifiedTargetUrlForLogging = modifiedTargetUrl.replaceAll(matcher.group(1), "•".repeat(matcher.group(1).length()));
         }

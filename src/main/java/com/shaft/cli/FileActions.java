@@ -729,7 +729,7 @@ public class FileActions {
         if (parentMethod.getClassName().contains("shaft")) {
             ReportManager.logDiscrete(message);
         } else {
-            if (!attachments.equals(new ArrayList<>())) {
+            if (!attachments.isEmpty()) {
                 ReportManagerHelper.log(message, attachments);
             } else {
                 ReportManager.log(message);

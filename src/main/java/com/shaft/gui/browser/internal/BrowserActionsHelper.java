@@ -110,7 +110,7 @@ public class BrowserActionsHelper {
             if (driver != null && !message.equals("Capture page snapshot.")) {
                 attachments.add(new ScreenshotManager().takeScreenshot(driver, null, actionName, passFailStatus));
                 ReportManagerHelper.log(message, attachments);
-            } else if (!attachments.equals(new ArrayList<>())) {
+            } else if (!attachments.isEmpty()) {
                 ReportManagerHelper.log(message, attachments);
             } else {
                 ReportManager.log(message);
