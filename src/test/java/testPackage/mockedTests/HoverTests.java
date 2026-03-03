@@ -54,11 +54,16 @@ public class HoverTests {
 
     @BeforeMethod
     public void beforeClass() {
-        driver.set(new SHAFT.GUI.WebDriver());
+        if (SHAFT.Properties.platform.executionAddress().equals("local")
+                && !SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
+            driver.set(new SHAFT.GUI.WebDriver());
+        }
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterClass() {
-        driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+        }
     }
 }
