@@ -50,7 +50,7 @@ public class AccessibilityTest {
                     .assertNoCriticalViolations("CustomConfigPage")
                     .assertIsAccessible();
         } catch (AssertionError e) {
-            SHAFT.Report.log("Expected failure caught: " + e.getMessage());
+            SHAFT.Report.log("Expected failure caught [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
         }
     }
 
@@ -66,7 +66,7 @@ public class AccessibilityTest {
                 .analyzeWithIgnoredRules("PageWithIgnoredRules", ignoredRules)
                 .assertNoCriticalViolations("PageWithIgnoredRules");
         } catch (AssertionError e) {
-            SHAFT.Report.log("Expected failure caught: " + e.getMessage());
+            SHAFT.Report.log("Expected failure caught [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
         }
     }
 
@@ -77,7 +77,7 @@ public class AccessibilityTest {
             SHAFT.Report.log("Page: " + result.getPageName());
             SHAFT.Report.log("Violations Count: " + result.getViolationsCount());
         } catch (RuntimeException e) {
-            SHAFT.Report.log("Expected failure caught: " + e.getMessage());
+            SHAFT.Report.log("Expected failure caught [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
         }
     }
 
@@ -97,7 +97,7 @@ public class AccessibilityTest {
             SHAFT.Report.log("Page: " + result.getPageName());
             SHAFT.Report.log("Violations Count: " + result.getViolationsCount());
         } catch (AssertionError | RuntimeException e) {
-            SHAFT.Report.log("Expected failure caught: " + e.getMessage());
+            SHAFT.Report.log("Expected failure caught [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
         }
     }
 
@@ -118,7 +118,7 @@ public class AccessibilityTest {
             driver.get().browser().accessibility()
                         .assertAccessibilityScoreAtLeast("lowScorePage", 100);
         } catch (AssertionError | RuntimeException e) {
-            SHAFT.Report.log("Expected failure caught: " + e.getMessage());
+            SHAFT.Report.log("Expected failure caught [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
         }
     }
 
@@ -135,7 +135,7 @@ public class AccessibilityTest {
             driver.get().browser().accessibility()
                     .assertAccessibilityScoreAtLeast("customConfigPage",100.00, customConfig);
         } catch (AssertionError | RuntimeException e) {
-            SHAFT.Report.log("Expected failure caught: " + e.getMessage());
+            SHAFT.Report.log("Expected failure caught [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
         }
     }
 
@@ -152,7 +152,7 @@ public class AccessibilityTest {
                     .analyzePage("AssertCriticalPage")
                     .assertNoCriticalViolations("AssertCriticalPage");
         } catch (AssertionError e) {
-            SHAFT.Report.log("Expected failure caught: " + e.getMessage());
+            SHAFT.Report.log("Expected failure caught [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
         }
     }
 
@@ -164,7 +164,7 @@ public class AccessibilityTest {
                     .analyzePage("VerifyCriticalPage")
                     .verifyNoCriticalViolations("VerifyCriticalPage");
         } catch (AssertionError e) {
-            SHAFT.Report.log("Expected failure caught: " + e.getMessage());
+            SHAFT.Report.log("Expected failure caught [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
         }
     }
 
@@ -175,7 +175,7 @@ public class AccessibilityTest {
                     .accessibility()
                     .assertIsAccessible();
         } catch (AssertionError e) {
-            SHAFT.Report.log("Expected failure caught: " + e.getMessage());
+            SHAFT.Report.log("Expected failure caught [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
         }
     }
 
@@ -187,7 +187,7 @@ public class AccessibilityTest {
                     .accessibility()
                     .verifyIsAccessible();
         } catch (AssertionError e) {
-            SHAFT.Report.log("Expected failure caught: " + e.getMessage());
+            SHAFT.Report.log("Expected failure caught [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
         }
     }
 
@@ -199,7 +199,7 @@ public class AccessibilityTest {
                     .analyzePage("ImpactPage")
                     .assertNoViolationsByImpact("ImpactPage", "critical", "serious");
         } catch (AssertionError e) {
-            SHAFT.Report.log("Expected failure caught: " + e.getMessage());
+            SHAFT.Report.log("Expected failure caught [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
         }
     }
 
@@ -211,7 +211,7 @@ public class AccessibilityTest {
                     .analyzePage("FailIfViolationsPage")
                     .failIfViolationsExist("FailIfViolationsPage");
         } catch (AssertionError e) {
-            SHAFT.Report.log("Expected failure caught: " + e.getMessage());
+            SHAFT.Report.log("Expected failure caught [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
         }
     }
 

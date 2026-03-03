@@ -36,13 +36,13 @@ public class VisualValidationTests {
     }
 
     @BeforeMethod
-    public void navigate(){
+    public void beforeMethod(){
         driver.set(new SHAFT.GUI.WebDriver());
         driver.get().browser().navigateToURL("https://shafthq.github.io/");
     }
 
     @AfterMethod(alwaysRun = true)
-    public void tearDown() {
+    public void afterMethod() {
         if (driver.get() != null) driver.get().quit();
     }
 }
