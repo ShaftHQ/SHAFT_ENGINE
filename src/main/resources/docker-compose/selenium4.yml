@@ -13,7 +13,7 @@ services:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_NODE_GRID_URL=http://localhost:4444
       - SE_NODE_CONNECTION_LIMIT_PER_SESSION=1000
-      - SE_NODE_SESSION_TIMEOUT=1800
+      - SE_NODE_SESSION_TIMEOUT=7200
 
   edge:
     image: selenium/node-edge:4.41.0-20260222
@@ -24,7 +24,7 @@ services:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_NODE_GRID_URL=http://localhost:4444
       - SE_NODE_CONNECTION_LIMIT_PER_SESSION=1000
-      - SE_NODE_SESSION_TIMEOUT=1800
+      - SE_NODE_SESSION_TIMEOUT=7200
 
   firefox:
     image: selenium/node-firefox:4.41.0-20260222
@@ -35,7 +35,7 @@ services:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_NODE_GRID_URL=http://localhost:4444
       - SE_NODE_CONNECTION_LIMIT_PER_SESSION=1000
-      - SE_NODE_SESSION_TIMEOUT=1800
+      - SE_NODE_SESSION_TIMEOUT=7200
 
   selenium-hub:
     image: selenium/hub:4.41.0-20260222
