@@ -19,6 +19,11 @@ import java.util.regex.Pattern;
 @SuppressWarnings("unused")
 public class JavaHelper {
 
+    // Matches any non-alphanumeric character; compiled once and reused in removeSpecialCharacters()
+    private static final Pattern NON_ALPHANUMERIC_PATTERN = Pattern.compile("[^a-z0-9]", Pattern.CASE_INSENSITIVE);
+    // Tokenises camelCase/PascalCase text into words; compiled once and reused in convertToSentenceCase()
+    private static final Pattern WORD_FINDER_PATTERN = Pattern.compile("(([A-Z]*[a-z]*)|([A-Z]))");
+
     private JavaHelper() {
         throw new IllegalStateException("Utility class");
     }
@@ -52,11 +57,11 @@ public class JavaHelper {
         StringBuilder cleanString = new StringBuilder();
         if (text != null) {
             for (int i = 0; i < text.length(); i++) {
-                var character = String.valueOf(text.toCharArray()[i]);
-                if (Pattern.compile("[^a-z0-9]", Pattern.CASE_INSENSITIVE).matcher(character).find()) {
+                char c = text.charAt(i);
+                if (NON_ALPHANUMERIC_PATTERN.matcher(String.valueOf(c)).find()) {
                     cleanString.append("_");
                 } else {
-                    cleanString.append(character);
+                    cleanString.append(c);
                 }
             }
         }
@@ -218,8 +223,7 @@ public class JavaHelper {
     }
 
     public static String convertToSentenceCase(String text) {
-        Pattern WORD_FINDER = Pattern.compile("(([A-Z]*[a-z]*)|([A-Z]))");
-        Matcher matcher = WORD_FINDER.matcher(text);
+        Matcher matcher = WORD_FINDER_PATTERN.matcher(text);
         List<String> words = new ArrayList<>();
         while (matcher.find()) {
             words.add(matcher.group(0));

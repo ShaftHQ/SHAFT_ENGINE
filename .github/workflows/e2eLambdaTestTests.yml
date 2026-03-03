@@ -35,7 +35,7 @@ jobs:
           verbose: true
       - name: Rename Allure Report for Direct Upload
         if: always()
-        run: mv allure-report/AllureReport.html allure-report/LambdaTest_NativeAndroid_Allure.html 2>/dev/null || true
+        run: mv allure-report/*AllureReport.html allure-report/LambdaTest_NativeAndroid_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
@@ -79,7 +79,7 @@ jobs:
           verbose: true
       - name: Rename Allure Report for Direct Upload
         if: always()
-        run: mv allure-report/AllureReport.html allure-report/LambdaTest_NativeIOS_Allure.html 2>/dev/null || true
+        run: mv allure-report/*AllureReport.html allure-report/LambdaTest_NativeIOS_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
@@ -123,7 +123,7 @@ jobs:
           verbose: true
       - name: Rename Allure Report for Direct Upload
         if: always()
-        run: mv allure-report/AllureReport.html allure-report/LambdaTestWebApp_Allure.html 2>/dev/null || true
+        run: mv allure-report/*AllureReport.html allure-report/LambdaTestWebApp_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
@@ -167,7 +167,7 @@ jobs:
           verbose: true
       - name: Rename Allure Report for Direct Upload
         if: always()
-        run: mv allure-report/AllureReport.html allure-report/LambdaTestDesktopWeb_Allure.html 2>/dev/null || true
+        run: mv allure-report/*AllureReport.html allure-report/LambdaTestDesktopWeb_Allure.html 2>/dev/null || true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v7
