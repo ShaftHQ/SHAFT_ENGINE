@@ -51,7 +51,7 @@ jobs:
         if: always()
         uses: test-summary/action@v2
         with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+          paths: "target/surefire-reports/TEST-*.xml"
 
       - name: Cleanup
         if: always()

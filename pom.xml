@@ -710,7 +710,7 @@
         <dependency>
             <groupId>org.jacoco</groupId>
             <artifactId>jacoco-maven-plugin</artifactId>
-            <version>0.8.10</version>
+            <version>0.8.14</version>
             <type>maven-plugin</type>
         </dependency>
 
@@ -900,7 +900,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.10</version>
+                <version>0.8.14</version>
                 <configuration>
                     <sourceEncoding>UTF-8</sourceEncoding>
                     <outputEncoding>UTF-8</outputEncoding>

@@ -45,8 +45,9 @@ jobs:
       - name: Test Summary
         uses: test-summary/action@v2
         with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+          paths: "target/surefire-reports/TEST-*.xml"
         if: always()
+        continue-on-error: true
   LambdaTest_NativeIOS:
     runs-on: ubuntu-latest
     needs: [ LambdaTest_NativeAndroid ]
@@ -89,8 +90,9 @@ jobs:
       - name: Test Summary
         uses: test-summary/action@v2
         with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+          paths: "target/surefire-reports/TEST-*.xml"
         if: always()
+        continue-on-error: true
   LambdaTest_WebApp:
     runs-on: ubuntu-latest
     needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS ]
@@ -133,8 +135,9 @@ jobs:
       - name: Test Summary
         uses: test-summary/action@v2
         with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+          paths: "target/surefire-reports/TEST-*.xml"
         if: always()
+        continue-on-error: true
   LambdaTest_DesktopWeb:
     runs-on: ubuntu-latest
     needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS, LambdaTest_WebApp ]
@@ -177,5 +180,6 @@ jobs:
       - name: Test Summary
         uses: test-summary/action@v2
         with:
-          paths: "target/surefire-reports/junitreports/TEST-*.xml"
+          paths: "target/surefire-reports/TEST-*.xml"
         if: always()
+        continue-on-error: true
