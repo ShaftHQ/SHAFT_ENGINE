@@ -12,10 +12,14 @@ import java.util.List;
 public class HoverTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
+    private static boolean isLocalNonSafari() {
+        return SHAFT.Properties.platform.executionAddress().equals("local")
+                && !SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName());
+    }
+
     @Test
     public void basicHoverTest() {
-        if (SHAFT.Properties.platform.executionAddress().equals("local")
-                && !SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
+        if (isLocalNonSafari()) {
             driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "hoverDemo.html")
                     .and().element().hover(By.className("dropbtn"))
                     .and().assertThat(SHAFT.GUI.Locator.hasTagName("a").and().hasText("Link 3").build()).isVisible().perform();
@@ -24,8 +28,7 @@ public class HoverTests {
 
     @Test
     public void basicHoverAndClickTest() {
-        if (SHAFT.Properties.platform.executionAddress().equals("local")
-                && !SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
+        if (isLocalNonSafari()) {
             driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "hoverDemo.html")
                     .and().element().hoverAndClick(List.of(By.className("dropbtn")), SHAFT.GUI.Locator.hasTagName("a").and().hasText("Link 3").build())
                     .and().assertThat(SHAFT.GUI.Locator.hasTagName("a").and().hasText("Link 3").build()).isVisible().perform();
@@ -34,8 +37,7 @@ public class HoverTests {
 
     @Test
     public void hoverOutsideViewPortTest() {
-        if (SHAFT.Properties.platform.executionAddress().equals("local")
-                && !SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
+        if (isLocalNonSafari()) {
             driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "hoverDemo_outsideViewPort.html")
                     .and().element().hover(By.className("dropbtn"))
                     .and().assertThat(SHAFT.GUI.Locator.hasTagName("a").and().hasText("Link 3").build()).isVisible().perform();
@@ -44,8 +46,7 @@ public class HoverTests {
 
     @Test
     public void hoverOutsideViewPortHorizontallyTest() {
-        if (SHAFT.Properties.platform.executionAddress().equals("local")
-                && !SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
+        if (isLocalNonSafari()) {
             driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "hoverDemo_outsideViewPort_Horizontal.html")
                     .and().element().hover(By.className("dropbtn"))
                     .and().assertThat(SHAFT.GUI.Locator.hasTagName("a").and().hasText("Link 3").build()).isVisible().perform();
@@ -54,8 +55,7 @@ public class HoverTests {
 
     @BeforeMethod
     public void beforeClass() {
-        if (SHAFT.Properties.platform.executionAddress().equals("local")
-                && !SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
+        if (isLocalNonSafari()) {
             driver.set(new SHAFT.GUI.WebDriver());
         }
     }
