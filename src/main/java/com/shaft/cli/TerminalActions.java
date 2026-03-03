@@ -179,7 +179,7 @@ public class TerminalActions {
             attachments.add(actualValueAttachment);
         }
 
-        if (!attachments.equals(new ArrayList<>())) {
+        if (!attachments.isEmpty()) {
             ReportManagerHelper.log(message, attachments);
         } else {
             ReportManager.log(message);

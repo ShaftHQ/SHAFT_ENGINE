@@ -577,7 +577,7 @@ public class ElementActionsHelper {
             List<Object> actualValueAttachment = Arrays.asList("Element Action Test Data - " + actionName, "Actual Value", testData);
             attachments.add(actualValueAttachment);
         }
-        if (screenshots != null && !screenshots.equals(new ArrayList<>())) {
+        if (screenshots != null && !screenshots.isEmpty()) {
             // screenshot taken before action (in case of click)
             attachments.addAll(screenshots);
         } else if (driver != null) {
@@ -629,7 +629,7 @@ public class ElementActionsHelper {
             message += rootCause;
         }
         if (!isSilent || actionName.equals("identifyUniqueElement")) {
-            if (attachments != null && !attachments.equals(new ArrayList<>())) {
+            if (attachments != null && !attachments.isEmpty()) {
                 ReportManagerHelper.log(message, attachments);
             } else {
                 ReportManager.log(message);
