@@ -603,6 +603,14 @@
             <version>20251224</version>
         </dependency>
 
+        <!-- SECURITY: Override transitive org.mozilla:rhino pulled in by json-schema-core to fix related security issue -->
+        <!-- https://mvnrepository.com/artifact/org.mozilla/rhino -->
+        <dependency>
+            <groupId>org.mozilla</groupId>
+            <artifactId>rhino</artifactId>
+            <version>1.9.1</version>
+        </dependency>
+
         <!-- TRANSITIVE LOGGING -->
         <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-slf4j2-impl -->
         <dependency>
