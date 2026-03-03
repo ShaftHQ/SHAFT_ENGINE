@@ -43,7 +43,7 @@ public class DriverFactory {
     }
 
     public static boolean reloadProperties() {
-        if (SHAFT.Properties.platform == null) {
+        if (!com.shaft.properties.internal.Properties.isInitialized()) {
             System.out.println("Execution Listeners are not loaded properly... Self-Healing... Initializing minimalistic test run...");
             var runType = TestNGListener.identifyRunType();
             if (runType.equals(ProjectStructureManager.RunType.CUCUMBER)) {

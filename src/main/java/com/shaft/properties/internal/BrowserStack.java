@@ -20,11 +20,8 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     //You must set the "mobile_automationName" property under "MobileCapabilities.properties" or programmatically
 
     private static void setProperty(String key, String value) {
-        var updatedProps = new java.util.Properties();
-        updatedProps.setProperty(key, value);
-        Properties.browserStack = ConfigFactory.create(BrowserStack.class, updatedProps);
-        // temporarily set the system property to support hybrid read/write mode
-        System.setProperty(key, value);
+        ThreadLocalPropertiesManager.setProperty(key, value);
+        Properties.browserStackOverride.set(ConfigFactory.create(BrowserStack.class, ThreadLocalPropertiesManager.getOverrides()));
         ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
 

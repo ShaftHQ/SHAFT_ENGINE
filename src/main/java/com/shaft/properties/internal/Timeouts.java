@@ -8,11 +8,8 @@ import org.aeonbits.owner.ConfigFactory;
 @Sources({"system:properties", "file:src/main/resources/properties/Timeouts.properties", "file:src/main/resources/properties/default/Timeouts.properties", "classpath:Timeouts.properties"})
 public interface Timeouts extends EngineProperties<Timeouts> {
     private static void setProperty(String key, String value) {
-        var updatedProps = new java.util.Properties();
-        updatedProps.setProperty(key, value);
-        Properties.timeouts = ConfigFactory.create(Timeouts.class, updatedProps);
-        // temporarily set the system property to support hybrid read/write mode
-        System.setProperty(key, value);
+        ThreadLocalPropertiesManager.setProperty(key, value);
+        Properties.timeoutsOverride.set(ConfigFactory.create(Timeouts.class, ThreadLocalPropertiesManager.getOverrides()));
         ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
 

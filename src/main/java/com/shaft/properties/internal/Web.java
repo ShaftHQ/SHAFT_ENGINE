@@ -8,11 +8,8 @@ import org.aeonbits.owner.ConfigFactory;
 @Sources({"system:properties", "file:src/main/resources/properties/WebCapabilities.properties", "file:src/main/resources/properties/default/WebCapabilities.properties", "classpath:WebCapabilities.properties"})
 public interface Web extends EngineProperties<Web> {
     private static void setProperty(String key, String value) {
-        var updatedProps = new java.util.Properties();
-        updatedProps.setProperty(key, value);
-        Properties.web = ConfigFactory.create(Web.class, updatedProps);
-        // temporarily set the system property to support hybrid read/write mode
-        System.setProperty(key, value);
+        ThreadLocalPropertiesManager.setProperty(key, value);
+        Properties.webOverride.set(ConfigFactory.create(Web.class, ThreadLocalPropertiesManager.getOverrides()));
         ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
 

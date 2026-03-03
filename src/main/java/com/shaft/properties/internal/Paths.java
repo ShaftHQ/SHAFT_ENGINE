@@ -12,11 +12,8 @@ import org.aeonbits.owner.ConfigFactory;
 })
 public interface Paths extends EngineProperties<Paths> {
     private static void setProperty(String key, String value) {
-        var updatedProps = new java.util.Properties();
-        updatedProps.setProperty(key, value);
-        Properties.paths = ConfigFactory.create(Paths.class, updatedProps);
-        // temporarily set the system property to support hybrid read/write mode
-        System.setProperty(key, value);
+        ThreadLocalPropertiesManager.setProperty(key, value);
+        Properties.pathsOverride.set(ConfigFactory.create(Paths.class, ThreadLocalPropertiesManager.getOverrides()));
         ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
 

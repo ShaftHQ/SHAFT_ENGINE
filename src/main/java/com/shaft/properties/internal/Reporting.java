@@ -8,11 +8,8 @@ import org.aeonbits.owner.ConfigFactory;
 @Sources({"system:properties", "file:src/main/resources/properties/Reporting.properties", "file:src/main/resources/properties/default/Reporting.properties", "classpath:Reporting.properties"})
 public interface Reporting extends EngineProperties<Reporting> {
     private static void setProperty(String key, String value) {
-        var updatedProps = new java.util.Properties();
-        updatedProps.setProperty(key, value);
-        Properties.reporting = ConfigFactory.create(Reporting.class, updatedProps);
-        // temporarily set the system property to support hybrid read/write mode
-        System.setProperty(key, value);
+        ThreadLocalPropertiesManager.setProperty(key, value);
+        Properties.reportingOverride.set(ConfigFactory.create(Reporting.class, ThreadLocalPropertiesManager.getOverrides()));
         if (!key.equals("disableLogging"))
             ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }

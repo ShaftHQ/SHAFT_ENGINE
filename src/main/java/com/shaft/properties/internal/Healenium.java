@@ -8,11 +8,8 @@ import org.aeonbits.owner.ConfigFactory;
 @Sources({"system:properties", "file:src/main/resources/properties/healenium.properties", "file:src/main/resources/properties/default/healenium.properties", "classpath:healenium.properties",})
 public interface Healenium extends EngineProperties<Healenium> {
     private static void setProperty(String key, String value) {
-        var updatedProps = new java.util.Properties();
-        updatedProps.setProperty(key, value);
-        Properties.healenium = ConfigFactory.create(Healenium.class, updatedProps);
-        // temporarily set the system property to support hybrid read/write mode
-        System.setProperty(key, value);
+        ThreadLocalPropertiesManager.setProperty(key, value);
+        Properties.healeniumOverride.set(ConfigFactory.create(Healenium.class, ThreadLocalPropertiesManager.getOverrides()));
         ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
 

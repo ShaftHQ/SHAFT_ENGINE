@@ -1,8 +1,13 @@
 package testPackage.unitTests;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.Properties;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Unit tests for SHAFT Properties classes
@@ -66,13 +71,78 @@ public class PropertiesUnitTest {
     public void testReportingAttachFullLogSetter() {
         // Test that the setter works correctly
         boolean originalValue = SHAFT.Properties.reporting.attachFullLog();
-        
+
         // Set to true
         SHAFT.Properties.reporting.set().attachFullLog(true);
         Assert.assertTrue(SHAFT.Properties.reporting.attachFullLog(), "attachFullLog should be true after setting");
-        
+
         // Set back to original value
         SHAFT.Properties.reporting.set().attachFullLog(originalValue);
         Assert.assertEquals(SHAFT.Properties.reporting.attachFullLog(), originalValue, "attachFullLog should be reset to original value");
     }
+
+    @Test(description = "Thread isolation: property set in one thread must not affect another thread")
+    public void testPropertiesAreIsolatedPerThread() throws InterruptedException {
+        // Record the global default browser
+        String globalDefault = SHAFT.Properties.web.targetBrowserName();
+
+        CountDownLatch threadASet = new CountDownLatch(1);
+        CountDownLatch threadBRead = new CountDownLatch(1);
+        AtomicReference<String> threadBObservedValue = new AtomicReference<>();
+        AtomicBoolean threadAError = new AtomicBoolean(false);
+
+        // Thread A: set targetBrowserName to a sentinel value
+        Thread threadA = Thread.ofPlatform().start(() -> {
+            try {
+                SHAFT.Properties.web.set().targetBrowserName("firefox-thread-isolation-test");
+                threadASet.countDown();   // signal Thread B that the property has been set
+                threadBRead.await();      // wait until Thread B has read the value
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                threadAError.set(true);
+            } finally {
+                // clean up thread-local state for Thread A
+                Properties.clearForCurrentThread();
+            }
+        });
+
+        // Thread B: read targetBrowserName – should NOT see Thread A's override
+        Thread threadB = Thread.ofPlatform().start(() -> {
+            try {
+                threadASet.await(); // wait until Thread A has set its override
+                threadBObservedValue.set(SHAFT.Properties.web.targetBrowserName());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                threadBRead.countDown(); // signal Thread A that we are done reading
+            }
+        });
+
+        threadA.join(5000);
+        threadB.join(5000);
+
+        Assert.assertFalse(threadAError.get(), "Thread A encountered an error");
+        Assert.assertEquals(
+                threadBObservedValue.get(),
+                globalDefault,
+                "Thread B should see the global default, not Thread A's thread-local override");
+    }
+
+    @Test(description = "Thread isolation: clearForCurrentThread restores base config values")
+    public void testClearForCurrentThreadRestoresDefaults() {
+        String originalBrowser = SHAFT.Properties.web.targetBrowserName();
+
+        // Override in the current thread
+        SHAFT.Properties.web.set().targetBrowserName("chrome-restore-test");
+        Assert.assertEquals(SHAFT.Properties.web.targetBrowserName(), "chrome-restore-test",
+                "Override should be active after set()");
+
+        // Clear thread-local overrides
+        Properties.clearForCurrentThread();
+
+        // After clearing, the value should revert to the globally-initialised base
+        Assert.assertEquals(SHAFT.Properties.web.targetBrowserName(), originalBrowser,
+                "Value should revert to base config after clearForCurrentThread()");
+    }
 }
+

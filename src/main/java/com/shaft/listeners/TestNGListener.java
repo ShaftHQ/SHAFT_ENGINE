@@ -10,6 +10,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.listeners.internal.*;
 import com.shaft.properties.internal.PropertiesHelper;
+import com.shaft.properties.internal.Properties;
 import com.shaft.tools.internal.FirestoreRestClient;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.ReportManager;
@@ -239,6 +240,11 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         }
         if (elapsedTime >= SHAFT.Properties.testNG.testSuiteTimeout() * 60000) {
             throw new SkipException("Skipping method as the test suite has exceeded the defined timeout of " + SHAFT.Properties.testNG.testSuiteTimeout() + " minutes.");
+        }
+        // Clear per-thread property overrides at the start of each @BeforeClass lifecycle so that
+        // a pooled thread that previously ran another test class does not leak those overrides.
+        if (method.isConfigurationMethod() && method.getTestMethod().isBeforeClassConfiguration()) {
+            Properties.clearForCurrentThread();
         }
         xmlTest = method.getTestMethod().getXmlTest();
         JiraHelper.prepareTestResultAttributes(method, iTestResult);
