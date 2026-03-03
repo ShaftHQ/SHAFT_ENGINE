@@ -121,6 +121,8 @@ public class PropertiesUnitTest {
         threadA.join(5000);
         threadB.join(5000);
 
+        Assert.assertFalse(threadA.isAlive(), "Thread A did not complete within the expected timeout");
+        Assert.assertFalse(threadB.isAlive(), "Thread B did not complete within the expected timeout");
         Assert.assertFalse(threadAError.get(), "Thread A encountered an error");
         Assert.assertEquals(
                 threadBObservedValue.get(),

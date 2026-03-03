@@ -24,8 +24,10 @@ import java.lang.reflect.Proxy;
 public class Properties {
 
     // -------------------------------------------------------------------------
-    // Base configs – set once during framework initialisation by PropertiesHelper.
+    // Base configs – set once during framework initialization by PropertiesHelper.
     // -------------------------------------------------------------------------
+    /** Set to {@code true} only after {@code loadProperties()} completes successfully. */
+    static volatile boolean initialized = false;
     static BrowserStack baseBrowserStack;
     static Platform basePlatform;
     static Healenium baseHealenium;
@@ -99,7 +101,7 @@ public class Properties {
     /**
      * Creates a dynamic proxy for the given config interface that dispatches every
      * method call to the current thread's override instance (if present) or the
-     * globally-initialised base instance.  This makes the public static field
+     * globally-initialized base instance.  This makes the public static field
      * behave as a thread-local value while keeping the familiar field-access API.
      *
      * @param <T>          the config interface type
@@ -134,15 +136,20 @@ public class Properties {
     }
 
     /**
-     * Returns {@code true} if the framework property system has been fully initialised
+     * Returns {@code true} if the framework property system has been fully initialized
      * (i.e. {@link PropertiesHelper#initialize()} or equivalent has been called).
      * Use this instead of {@code Properties.xxx == null} null-checks because the public
      * fields are now always-non-null proxy objects.
+     * <p>
+     * Uses a dedicated volatile flag rather than a single base-field null check so that
+     * partial initialization (an exception partway through {@code loadProperties()}) cannot
+     * produce a false positive.
+     * </p>
      *
-     * @return {@code true} once base configs have been loaded
+     * @return {@code true} once base configs have been fully loaded
      */
     public static boolean isInitialized() {
-        return basePlatform != null;
+        return initialized;
     }
 
     /**

@@ -41,9 +41,9 @@ public class PropertiesHelper {
     private static void loadProperties() {
         //read custom property files (if any) into system properties
         PropertyFileManager.readCustomPropertyFiles();
-        // Clear any stale per-thread overrides from before the load (e.g., during re-initialisation).
+        // Clear any stale per-thread overrides from before the load (e.g., during re-initialization).
         Properties.clearForCurrentThread();
-        //load base property objects – these are the global defaults inherited by all test threads.
+        //load base property objects - these are the global defaults inherited by all test threads.
         Properties.basePaths = ConfigFactory.create(Paths.class); //reload paths in case the user changed something
         Properties.basePlatform = ConfigFactory.create(Platform.class);
         Properties.baseWeb = ConfigFactory.create(Web.class);
@@ -65,6 +65,7 @@ public class PropertiesHelper {
         Properties.basePerformance = ConfigFactory.create(Performance.class);
         Properties.baseLambdaTest = ConfigFactory.create(LambdaTest.class);
         Properties.baseApi = ConfigFactory.create(API.class, System.getProperties());
+        Properties.initialized = true;
     }
 
     public static void setKeySystemProperties() {
