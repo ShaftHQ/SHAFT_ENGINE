@@ -85,7 +85,7 @@ Get up and running in under 5 minutes!
 ### Option 1: Project Generator 🎉 (Recommended)
 The fastest way to create a new SHAFT project with an interactive UI.
 
-👉 **[Launch Project Generator](https://shafthq.github.io/docs/Getting_Started/first_steps_5#option-1-interactive-project-generator-recommended)**
+👉 **[Launch Project Generator](https://shaftengine.netlify.app/docs/Getting_Started/first_steps_5#option-1-interactive-project-generator-recommended)**
 
 Choose your test runner (TestNG/JUnit/Cucumber), platform (Web/Mobile/API), and download a ready-to-use project.
 
@@ -181,13 +181,13 @@ public class QuickStartTest {
 &nbsp;&nbsp;&nbsp;&nbsp;
 <a href="https://jb.gg/OpenSourceSupport" target="_blank"><img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg" alt="JetBrains" height="50"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;
-<a href="https://www.lambdatest.com" target="_blank"><img src="https://www.lambdatest.com/blog/wp-content/uploads/2024/10/LambdaTest-Logo.png" alt="LambdaTest" width="250" height="50"></a>
+<a href="https://www.lambdatest.com" target="_blank"><img src="https://assets.testmuai.com/resources/images/logos/logo.svg" alt="LambdaTest (TestMu AI)" width="250" height="50"></a>
 
 ### 🏢 Trusted By Leading Organizations
 
-<a href="https://www.vodafone.com/careers/professional-career-areas/shared-services"><img height="45" alt="Vodafone" src="https://www.vodafone.com/_ipx/w_768,q_75/https%3A%2F%2Fimages.ctfassets.net%2Fq7ob9vms4z5k%2F2u767jo6qLM730dcOVs1lN%2F110f5535a8a0505e3b0aef0934a4a07c%2FVOIS.png?url=https%3A%2F%2Fimages.ctfassets.net%2Fq7ob9vms4z5k%2F2u767jo6qLM730dcOVs1lN%2F110f5535a8a0505e3b0aef0934a4a07c%2FVOIS.png&w=768&q=75"></a>
+<a href="https://www.vodafone.com/careers/professional-career-areas/shared-services"><img height="45" alt="Vodafone" src="https://cdn.cookielaw.org/logos/a018e2cd-22cc-44d6-bd04-a7629b563be5/01928bed-547e-7b46-9d41-f5fe2fd4d6be/d9b809b0-e840-41aa-946e-6d57a5612479/vois-logo.png"></a>
 &nbsp;&nbsp;
-<a href="https://www.getgroup.com/"><img height="45" alt="GET Group" src="https://media.licdn.com/dms/image/C510BAQFS-mP8SeyOyg/company-logo_200_200/0/1630600086112/get_group_logo?e=2147483647&v=beta&t=mhfpG9gfW0JC4afaWYeHWWrA5AgMOv6g9bP3FnsN40o"></a>
+<a href="https://www.getgroup.com/">GET Group</a>
 &nbsp;&nbsp;
 <a href="https://www.momah.gov.sa/en"><img height="45" alt="MOMRA" src="https://momah.gov.sa/themes/custom/momrah/assets/images/mh-logo-full.png"></a>
 &nbsp;&nbsp;
@@ -195,7 +195,7 @@ public class QuickStartTest {
 &nbsp;&nbsp;
 <a href="https://www.euronetworldwide.com/"><img height="45" alt="Euronet" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Euronet_Worldwide_logo.svg/1920px-Euronet_Worldwide_logo.svg.png"></a>
 &nbsp;&nbsp;
-<a href="https://www.incorta.com/"><img height="45" alt="Incorta" src="https://media-exp1.licdn.com/dms/image/C560BAQHUWHhKl0xrCA/company-logo_200_200/0/1660913597037?e=2147483647&v=beta&t=CiDPUEvlIBqztN5gCre-pQ5f7M-03_02IQgJtL18wG8"></a>
+<a href="https://www.incorta.com/"><img height="45" alt="Incorta" src="https://cdn.prod.website-files.com/67b7abfbb037e687d0a415ec/67d4cf48fdf9dba83bb5595a_Incorta-Logo.svg"></a>
 &nbsp;&nbsp;
 <a href="https://dxc.com/us/en"><img height="45" alt="DXC Technology" src="https://github.com/user-attachments/assets/84cb59da-d29d-44fa-9012-b10d2cc671ff"></a>
 
@@ -211,7 +211,7 @@ public class QuickStartTest {
 
 | Resource | Description |
 |----------|-------------|
-| 📖 **[User Guide](https://shafthq.github.io/)** | Comprehensive documentation and tutorials |
+| 📖 **[User Guide](https://shaftengine.netlify.app/)** | Comprehensive documentation and tutorials |
 | 🏗️ **[Architecture](docs/ARCHITECTURE.md)** | Framework design and module overview |
 | 🛠️ **[Tech Stack](docs/TECH_STACK.md)** | Technologies powering SHAFT |
 | 📊 **[User Analytics](docs/USER_ANALYTICS.md)** | Global adoption and growth metrics |
