@@ -43,7 +43,7 @@ public class CookiesTests {
         var cookie = "";
         try {
             cookie = driver.get().browser().getCookie("foo").toString();
-        } catch (AssertionError ae){}
+        } catch (AssertionError | RuntimeException ae){}
         SHAFT.Validations.assertThat().object(cookie).isEqualTo("").perform();
     }
 

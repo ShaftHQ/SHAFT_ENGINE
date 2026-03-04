@@ -39,6 +39,6 @@ public class MultipleElementsFailureTest {
 
     @AfterMethod(alwaysRun = true)
     void afterMethod() {
-        driver.get().quit();
+        if (driver.get() != null) driver.get().quit();
     }
 }

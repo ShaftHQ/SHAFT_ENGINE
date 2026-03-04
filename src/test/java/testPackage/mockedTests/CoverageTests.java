@@ -75,6 +75,7 @@ public class CoverageTests {
         driver.get().getDriver().manage().window().maximize();
         driver.get().getDriver().getCurrentUrl();
         driver.get().getDriver().getTitle();
+        driver.get().getDriver().get(testElement);
         driver.get().getDriver().findElement(locator).click();
         driver.get().getDriver().findElement(locator).clear();
         driver.get().getDriver().findElement(locator).sendKeys("test");

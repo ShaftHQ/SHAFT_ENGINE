@@ -5,8 +5,7 @@ import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotHelper;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -37,17 +36,13 @@ public class VisualValidationTests {
     }
 
     @BeforeMethod
-    public void navigate(){
+    public void beforeMethod(){
+        driver.set(new SHAFT.GUI.WebDriver());
         driver.get().browser().navigateToURL("https://shafthq.github.io/");
     }
 
-    @BeforeClass
-    public void init() {
-        driver.set(new SHAFT.GUI.WebDriver());
-    }
-
-    @AfterClass(alwaysRun = true)
-    public void tear() {
+    @AfterMethod(alwaysRun = true)
+    public void afterMethod() {
         if (driver.get() != null) driver.get().quit();
     }
 }
