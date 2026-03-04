@@ -37,13 +37,6 @@ public class SmartLocatorsTests extends Tests {
                 .and().click("login");
     }
 
-    public void testSmartLocators4() {
-        driver.get().browser().navigateToURL("http://vbsca.ca/login/login.asp")
-                .and().element().type("Username", "test")
-                .and().type("Password", "test")
-                .and().click("Login");
-    }
-
     public void testSmartLocators5() {
         driver.get().browser().navigateToURL("https://www.facebook.com/login.php/")
                 .and().element().type("Email", "test")

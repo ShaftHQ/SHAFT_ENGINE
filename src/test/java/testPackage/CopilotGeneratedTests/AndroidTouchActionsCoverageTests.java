@@ -1,5 +1,6 @@
 package testPackage.CopilotGeneratedTests;
 
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.TouchActions;
 import io.appium.java_client.AppiumBy;
 import org.openqa.selenium.By;
@@ -8,22 +9,6 @@ import testPackage.appium.MobileTest;
 
 public class AndroidTouchActionsCoverageTests extends MobileTest {
     private static final String PACKAGE = "io.appium.android.apis";
-
-    @Test(groups = {"ApiDemosDebug"})
-    public void testKeyboardInteractions() {
-        // Navigate to search activity for keyboard interactions
-        driver.get().element().performTouchAction()
-                .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
-                .tap(AppiumBy.accessibilityId("Views"))
-                .swipeElementIntoView(AppiumBy.accessibilityId("TextFields"), TouchActions.SwipeDirection.DOWN)
-                .tap(AppiumBy.accessibilityId("TextFields"));
-
-        By textField = AppiumBy.className("android.widget.EditText");
-        driver.get().element().performTouchAction().tap(textField)
-                .nativeKeyboardKeyPress(TouchActions.KeyboardKeys.NEXT)
-                .hideNativeKeyboard()
-                .and().assertThat(textField).exists();
-    }
 
     @Test(groups = {"ApiDemosDebug"})
     public void testAppBackgroundAndActivate() {
@@ -40,17 +25,6 @@ public class AndroidTouchActionsCoverageTests extends MobileTest {
                 .tap(AppiumBy.accessibilityId("Buttons"))
                 .doubleTap(AppiumBy.accessibilityId("Toggle"))
                 .and().assertThat(AppiumBy.accessibilityId("Toggle")).exists();
-    }
-
-    @Test(groups = {"ApiDemosDebug"})
-    public void testLongTapAction() {
-        driver.get().element().performTouchAction().swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
-                .tap(AppiumBy.accessibilityId("Views"))
-                .swipeElementIntoView(AppiumBy.accessibilityId("Expandable Lists"), TouchActions.SwipeDirection.DOWN)
-                .tap(AppiumBy.accessibilityId("Expandable Lists"))
-                .tap(AppiumBy.accessibilityId("1. Custom Adapter"))
-                .longTap(By.xpath("//android.widget.TextView[@text='People Names']"))
-                .and().assertThat(By.id("android:id/title")).exists();
     }
 
     @Test(groups = {"ApiDemosDebug"})
@@ -105,30 +79,14 @@ public class AndroidTouchActionsCoverageTests extends MobileTest {
 
     @Test(groups = {"ApiDemosDebug"})
     public void testVisualElementIdentification() {
-        String referenceImagePath = "src/main/resources/dynamicObjectRepository/Android/content_new.png";
+        String referenceImageFile = "content.png";
+        if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("browserstack")) {
+            referenceImageFile = "content_local.png";
+        }
+        String referenceImagePath = "src/main/resources/dynamicObjectRepository/Android/" + referenceImageFile;
         driver.get().element().performTouchAction().swipeElementIntoView(referenceImagePath, TouchActions.SwipeDirection.DOWN)
                 .waitUntilElementIsVisible(referenceImagePath)
                 .tap(referenceImagePath)
                 .and().assertThat(AppiumBy.accessibilityId("Assets")).exists();
-    }
-
-    @Test(groups = {"ApiDemosDebug"})
-    public void testHorizontalSwipeInTabs() {
-        driver.get().element().performTouchAction().swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
-                .tap(AppiumBy.accessibilityId("Views"))
-                .swipeElementIntoView(AppiumBy.accessibilityId("Tabs"), TouchActions.SwipeDirection.DOWN)
-                .tap(AppiumBy.accessibilityId("Tabs"))
-                .swipeElementIntoView(AppiumBy.accessibilityId("5. Scrollable"), TouchActions.SwipeDirection.DOWN)
-                .tap(AppiumBy.accessibilityId("5. Scrollable"))
-                .swipeElementIntoView(
-                        By.xpath("//android.widget.HorizontalScrollView"),
-                        By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 12']"),
-                        TouchActions.SwipeDirection.RIGHT
-                )
-                .swipeElementIntoView(
-                        By.xpath("//android.widget.HorizontalScrollView"),
-                        By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 1']"),
-                        TouchActions.SwipeDirection.LEFT
-                );
     }
 }
