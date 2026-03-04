@@ -48,12 +48,14 @@ jobs:
         continue-on-error: true
         run: mvn -e test "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
       - name: Upload coverage to Codecov
+        if: always()
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+          disable_search: true
       - name: Rename Allure Report for Direct Upload
         if: always()
         run: mv allure-report/*AllureReport.html allure-report/Ubuntu_Database_Allure.html 2>/dev/null || true
@@ -97,12 +99,14 @@ jobs:
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*API.*], %regex[.*Api.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*]"
       - name: Upload coverage to Codecov
+        if: always()
         uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+          disable_search: true
       - name: Rename Allure Report for Direct Upload
         if: always()
         run: mv allure-report/*AllureReport.html allure-report/Ubuntu_APIs_Allure.html 2>/dev/null || true
@@ -150,12 +154,14 @@ jobs:
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
+        if: always()
         uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+          disable_search: true
       - name: Rename Allure Report for Direct Upload
         if: always()
         run: mv allure-report/*AllureReport.html allure-report/Ubuntu_Firefox_Grid_Allure.html 2>/dev/null || true
@@ -203,12 +209,14 @@ jobs:
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
+        if: always()
         uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+          disable_search: true
       - name: Rename Allure Report for Direct Upload
         if: always()
         run: mv allure-report/*AllureReport.html allure-report/Ubuntu_Chrome_Grid_Allure.html 2>/dev/null || true
@@ -256,12 +264,14 @@ jobs:
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Upload coverage to Codecov
+        if: always()
         uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+          disable_search: true
       - name: Rename Allure Report for Direct Upload
         if: always()
         run: mv allure-report/*AllureReport.html allure-report/Ubuntu_Edge_Grid_Allure.html 2>/dev/null || true
@@ -305,12 +315,14 @@ jobs:
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
       - name: Upload coverage to Codecov
+        if: always()
         uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+          disable_search: true
       - name: Rename Allure Report for Direct Upload
         if: always()
         run: mv allure-report/*AllureReport.html allure-report/Android_Native_BrowserStack_Allure.html 2>/dev/null || true
@@ -354,12 +366,14 @@ jobs:
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=iOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-DbrowserName=safari" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
       - name: Upload coverage to Codecov
+        if: always()
         uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+          disable_search: true
       - name: Rename Allure Report for Direct Upload
         if: always()
         run: mv allure-report/*AllureReport.html allure-report/iOS_Web_SAFARI_BrowserStack_Allure.html 2>/dev/null || true
@@ -403,12 +417,14 @@ jobs:
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-DbrowserName=chrome" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
       - name: Upload coverage to Codecov
+        if: always()
         uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+          disable_search: true
       - name: Rename Allure Report for Direct Upload
         if: always()
         run: mv allure-report/*AllureReport.html allure-report/Android_Web_Chrome_BrowserStack_Allure.html 2>/dev/null || true
@@ -452,12 +468,14 @@ jobs:
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*]"
       - name: Upload coverage to Codecov
+        if: always()
         uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+          disable_search: true
       - name: Rename Allure Report for Direct Upload
         if: always()
         run: mv allure-report/*AllureReport.html allure-report/MacOSX_Safari_BrowserStack_Allure.html 2>/dev/null || true
@@ -512,12 +530,14 @@ jobs:
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
       - name: Upload coverage to Codecov
+        if: always()
         uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+          disable_search: true
       - name: Rename Allure Report for Direct Upload
         if: always()
         run: mv allure-report/*AllureReport.html allure-report/Ubuntu_Chrome_Cucumber_Grid_Allure.html 2>/dev/null || true
@@ -565,12 +585,14 @@ jobs:
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*CucumberTests.*]"
       - name: Upload coverage to Codecov
+        if: always()
         uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+          disable_search: true
       - name: Rename Allure Report for Direct Upload
         if: always()
         run: mv allure-report/*AllureReport.html allure-report/MacOSX_Safari_Cucumber_BrowserStack_Allure.html 2>/dev/null || true

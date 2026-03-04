@@ -27,12 +27,14 @@ jobs:
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobAPK*.*]"
       - name: Upload coverage to Codecov
+        if: always()
         uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+          disable_search: true
       - name: Rename Allure Report for Direct Upload
         if: always()
         run: mv allure-report/*AllureReport.html allure-report/LambdaTest_NativeAndroid_Allure.html 2>/dev/null || true
@@ -72,12 +74,14 @@ jobs:
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobIPA*.*]"
       - name: Upload coverage to Codecov
+        if: always()
         uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+          disable_search: true
       - name: Rename Allure Report for Direct Upload
         if: always()
         run: mv allure-report/*AllureReport.html allure-report/LambdaTest_NativeIOS_Allure.html 2>/dev/null || true
@@ -117,12 +121,14 @@ jobs:
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTWebApp*.*]"
       - name: Upload coverage to Codecov
+        if: always()
         uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+          disable_search: true
       - name: Rename Allure Report for Direct Upload
         if: always()
         run: mv allure-report/*AllureReport.html allure-report/LambdaTestWebApp_Allure.html 2>/dev/null || true
@@ -162,12 +168,14 @@ jobs:
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTDesktopWeb*.*]"
       - name: Upload coverage to Codecov
+        if: always()
         uses:  codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           files: ./target/jacoco/jacoco.xml
           verbose: true
+          disable_search: true
       - name: Rename Allure Report for Direct Upload
         if: always()
         run: mv allure-report/*AllureReport.html allure-report/LambdaTestDesktopWeb_Allure.html 2>/dev/null || true
