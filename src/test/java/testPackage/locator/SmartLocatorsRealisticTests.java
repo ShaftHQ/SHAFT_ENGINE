@@ -13,7 +13,7 @@ public class SmartLocatorsRealisticTests extends TestScenario {
 
     @Test
     public void login() {
-        driver.get().browser().navigateToURL("https://qa-practice.netlify.app/auth_ecommerce")
+        driver.browser().navigateToURL("https://qa-practice.netlify.app/auth_ecommerce")
                 .and().element().type("Email", "admin@admin.com")
                 .and().type("Password", "admin123")
                 .and().click("Submit")
@@ -22,20 +22,20 @@ public class SmartLocatorsRealisticTests extends TestScenario {
 
     @Test(dependsOnMethods = "login")
     public void addProductToCart() {
-        driver.get().element()
+        driver.element()
                 .click("Huawei Mate 20 Lite, 64GB, Black")
                 .and().assertThat(By.cssSelector(".cart-total-price")).text().isEqualTo("$236.12");
     }
 
     @Test(dependsOnMethods = {"login", "addProductToCart"})
     public void proceedToCheckout() {
-        driver.get().element().click("PROCEED TO CHECKOUT")
+        driver.element().click("PROCEED TO CHECKOUT")
                 .and().assertThat(By.cssSelector("#shipping-address>h2")).text().isEqualTo("Shipping Details");
     }
 
     @Test(dependsOnMethods = {"login", "addProductToCart", "proceedToCheckout"})
     public void fillShippingDetails() {
-        driver.get().element().type("Phone number", "00201000000000")
+        driver.element().type("Phone number", "00201000000000")
                 .and().type("Street", "101 dummy street")
                 .and().type("City", "Cairo")
                 .and().select(By.id("countries_dropdown_menu"), "Egypt")
