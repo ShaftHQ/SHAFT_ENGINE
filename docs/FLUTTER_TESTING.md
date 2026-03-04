@@ -470,7 +470,7 @@ public class FlutterAppTestSuite {
 
 - [Appium Flutter Driver Documentation](https://github.com/appium-userland/appium-flutter-driver)
 - [Flutter Testing Guide](https://flutter.dev/docs/testing)
-- [SHAFT Engine Documentation](https://shafthq.github.io/)
+- [SHAFT Engine Documentation](https://shaftengine.netlify.app/)
 - [Flutter Finder Java Library](https://github.com/ashwithpoojary98/appium-flutter-finder-java) - Package: `io.github.ashwithpoojary98`
 
 ## Support
@@ -478,4 +478,4 @@ public class FlutterAppTestSuite {
 For issues or questions:
 - Open an issue on [GitHub](https://github.com/ShaftHQ/SHAFT_ENGINE/issues)
 - Join our [Slack community](https://join.slack.com/t/shaft-engine/shared_invite/zt-oii5i2gg-0ZGnih_Y34NjK7QqDn01Dw)
-- Check our [documentation](https://shafthq.github.io/)
+- Check our [documentation](https://shaftengine.netlify.app/)

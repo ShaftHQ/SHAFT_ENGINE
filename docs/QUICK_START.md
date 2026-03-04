@@ -8,7 +8,7 @@ Get started with SHAFT Engine in minutes! Choose the option that best fits your 
 > Recommended for quickly creating new projects with a user-friendly interface.
 
 - The fastest way to create a new SHAFT project with your preferred test runner and platform.
-- Visit the [SHAFT Project Generator ➡️](https://shafthq.github.io/docs/Getting_Started/first_steps_5#option-1-interactive-project-generator-recommended) to generate your project in seconds.
+- Visit the [SHAFT Project Generator ➡️](https://shaftengine.netlify.app/docs/Getting_Started/first_steps_5#option-1-interactive-project-generator-recommended) to generate your project in seconds.
 - Choose your test runner (TestNG, JUnit, or Cucumber), select your platform (Web, Mobile, or API), and download a ready-to-use project.
 - Optionally includes GitHub Actions workflow and Dependabot configuration.
 
@@ -18,7 +18,7 @@ Get started with SHAFT Engine in minutes! Choose the option that best fits your 
 > Recommended for new local sandbox projects using command line.
 
 - The easiest and most straightforward way to create a new project that uses SHAFT.
-- Just [follow the simple steps here ➡️](https://shafthq.github.io/docs/Getting_Started/first_steps_5#option-2-maven-archetype) to generate your new project with one command (all configurations included).
+- Just [follow the simple steps here ➡️](https://shaftengine.netlify.app/docs/Getting_Started/first_steps_5#option-2-maven-archetype) to generate your new project with one command (all configurations included).
 
 ## Option 3: Start from Scratch
 
@@ -274,7 +274,7 @@ Feature: Search functionality
 >  - Restart IntelliJ to apply the changes
 
 > [!TIP]
-> You can visit the [user guide ➡️](https://shafthq.github.io/docs/Properties/PropertiesList) to learn how to configure all SHAFT's properties.
+> You can visit the [user guide ➡️](https://shaftengine.netlify.app/docs/Properties/PropertiesList) to learn how to configure all SHAFT's properties.
 - On all following test runs:
   - After the run is complete, the Allure execution report will open automatically in your default web browser.
 - <b>Join</b> our ![GitHub Repo stars](https://img.shields.io/github/stars/shafthq/shaft_engine?logoColor=black&style=social) to get notified by email when a new release is pushed out.
