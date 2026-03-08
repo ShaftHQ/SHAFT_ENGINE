@@ -82,7 +82,7 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     boolean local();
 
     @Key("browserStack.seleniumVersion")
-    @DefaultValue("4.38.0")
+    @DefaultValue("4.41.0")
     String seleniumVersion();
 
     @Key("browserStack.acceptInsecureCerts")
