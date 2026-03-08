@@ -17,6 +17,7 @@ import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.*;
 import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.remote.RemoteWebElement;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,6 +28,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.Arrays.asList;
 
@@ -656,20 +658,17 @@ public class TouchActions extends FluentWebDriverAction {
         var scrollParameters = new HashMap<>();
 
         if (scrollableElementLocator != null) {
-            //scrolling inside an element
-            Rectangle elementRectangle = ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), scrollableElementLocator).get(1)).getRect();
-            scrollParameters.putAll(ImmutableMap.of(
-                    "height", elementRectangle.getHeight() * 90 / 100
-            ));
-            //percent 0.5 works for UP/DOWN, optimized to 0.8 to scroll faster and introduced delay 1000ms after every scroll action to increase stability
-            switch (swipeDirection) {
-                case UP, DOWN ->
-                        scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getY()));
-                case RIGHT ->
-                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", elementRectangle.getX(), "top", elementRectangle.getY()));
-                case LEFT ->
-                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth(), "left", elementRectangle.getX() + (elementRectangle.getWidth() * 50 / 100), "top", elementRectangle.getY()));
-            }
+            // Scrolling inside a specific element.
+            // In Appium 3.x, passing elementId is required for reliable mobile:scrollGesture behaviour.
+            // The bounding-box approach (left/top/width/height) causes scrollGesture to return false
+            // immediately for many view types (ListView, ScrollView) in Appium 3.x even when more
+            // content exists; using elementId lets UIAutomator2 compute the bounds directly and
+            // return the correct boolean.
+            var scrollableElement = (WebElement) elementActionsHelper.identifyUniqueElement(
+                    driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
+            scrollParameters.put("elementId", ((RemoteWebElement) scrollableElement).getId());
+            // percent: how far to scroll per gesture (0.8 = 80 % of the scrollable area)
+            scrollParameters.put("percent", swipeDirection == SwipeDirection.RIGHT || swipeDirection == SwipeDirection.LEFT ? 1.0 : 0.8);
         } else {
             //scrolling inside the screen
             scrollParameters.putAll(ImmutableMap.of(
@@ -684,40 +683,57 @@ public class TouchActions extends FluentWebDriverAction {
                 case LEFT -> scrollParameters.putAll(ImmutableMap.of("left", screenSize.getWidth() - 100, "top", 0));
             }
         }
-        scrollParameters.putAll(ImmutableMap.of(
-                "direction", swipeDirection.toString()
-        ));
+        // direction is case-insensitive per Appium spec; lowercase ensures compatibility with both
+        // Appium 2.x and 3.x as well as any strict JSON schema validators on the BrowserStack side
+        scrollParameters.put("direction", swipeDirection.toString().toLowerCase());
         return scrollParameters;
     }
 
     private boolean performW3cCompliantScroll(HashMap<Object, Object> scrollParameters) {
-        boolean canScrollMore = true;
         if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
-            canScrollMore = Boolean.parseBoolean(String.valueOf(androidDriver.executeScript("mobile: scrollGesture", scrollParameters)));
+            Object result = androidDriver.executeScript("mobile: scrollGesture", scrollParameters);
+            // In Appium 3.x, some scroll-view types return null instead of a boolean; treat null as
+            // "scroll may have occurred – keep trying" to avoid a premature end-of-list conclusion.
+            if (result == null) return true;
+            if (result instanceof Boolean b) return b;
+            return Boolean.parseBoolean(String.valueOf(result));
         } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
             //http://appium.github.io/appium-xcuitest-driver/4.16/execute-methods/#mobile-scroll
             var ret = iosDriver.executeScript("mobile: scroll", scrollParameters);
-            canScrollMore = ret == null || (Boolean) ret;
+            return ret == null || (Boolean) ret;
         }
-        return canScrollMore;
+        return true;
     }
 
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
         var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, targetElementLocator);
-        AtomicBoolean canScrollMore = new AtomicBoolean(true);
+        // Count consecutive "cannot scroll more" responses before declaring end-of-list.
+        // A tolerance of 3 handles Appium 3.x drivers that may transiently return false/null
+        // even when more content exists (known regression with certain Android view types).
+        AtomicInteger consecutiveEndScrolls = new AtomicInteger(0);
 
         new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
             // for the animated GIF:
             elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
 
-            var elementExistsOnViewPort = !driverFactoryHelper.getDriver().findElements(targetElementLocator).isEmpty();
-            if (elementExistsOnViewPort)
+            if (targetElementLocator != null && !driverFactoryHelper.getDriver().findElements(targetElementLocator).isEmpty())
                 return true;
-            canScrollMore.set(performW3cCompliantScroll(scrollParameters));
-            elementExistsOnViewPort = !driverFactoryHelper.getDriver().findElements(targetElementLocator).isEmpty();
-            if (!canScrollMore.get() && !elementExistsOnViewPort)
-                throw new RuntimeException("Element not found after scrolling to the end of the page.");
-            return elementExistsOnViewPort;
+
+            boolean canScrollMore = performW3cCompliantScroll(scrollParameters);
+
+            if (targetElementLocator != null && !driverFactoryHelper.getDriver().findElements(targetElementLocator).isEmpty())
+                return true;
+
+            if (!canScrollMore) {
+                // Only throw after 3 consecutive "false" responses with the element still absent.
+                // This prevents a single premature false (Appium 3.x regression) from aborting the
+                // scroll loop before the target element has been reached.
+                if (consecutiveEndScrolls.incrementAndGet() >= 3)
+                    throw new RuntimeException("Element not found after scrolling to the end of the page.");
+            } else {
+                consecutiveEndScrolls.set(0);
+            }
+            return false;
         });
         ReportManager.logDiscrete("Element found on screen.");
         return true;

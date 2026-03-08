@@ -109,7 +109,7 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     String geoLocation();
 
     @Key("browserStack.appiumVersion")
-    @DefaultValue("2.19.0")
+    @DefaultValue("3.1.0")
     String appiumVersion();
 
     default SetProperty set() {
