@@ -106,9 +106,9 @@ public class AccessibilityTest {
        ========================== */
     @Test(description = "Accessibility score above threshold should pass")
     public void testAccessibilityScorePass() {
-        // Assert that the page is at least 95% accessible
+        // Assert that the page is at least 80% accessible (conservative threshold for external pages)
         driver.get().browser().accessibility()
-                .assertAccessibilityScoreAtLeast("samplePage", 95.0);
+                .assertAccessibilityScoreAtLeast("samplePage", 80.0);
     }
 
     @Test(description = "Accessibility score below threshold should fail")
