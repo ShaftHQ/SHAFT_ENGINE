@@ -136,7 +136,7 @@ public interface LambdaTest extends EngineProperties<LambdaTest> {
     boolean networkLogs();
 
     @Key("LambdaTest.appiumVersion")
-    @DefaultValue("2.0.0")
+    @DefaultValue("3.0.2")
     String appiumVersion();
 
     @Key("LambdaTest.autoGrantPermissions")
