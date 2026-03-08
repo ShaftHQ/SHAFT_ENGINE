@@ -17,14 +17,11 @@ public class AndroidBasicInteractionsTests extends MobileTest {
     public void wizard_scrollInExpandableLists_verticalScrolling_insideScreen() {
         ((AndroidDriver) driver.get().getDriver()).runAppInBackground(Duration.ofSeconds(5));
         driver.get().element().performTouchAction()
-                .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView("Views")
                 .tap(AppiumBy.accessibilityId("Views"))
-                .swipeElementIntoView(AppiumBy.accessibilityId("Expandable Lists"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView("Expandable Lists")
                 .tap(AppiumBy.accessibilityId("Expandable Lists"))
-                .swipeElementIntoView(AppiumBy.accessibilityId("3. Simple Adapter"), TouchActions.SwipeDirection.DOWN)
-//                .swipeElementIntoView(AppiumBy.accessibilityId("3. Simple Adapter"), TouchActions.SwipeDirection.DOWN);
-//        shaftDriver.verifyThat().element(AppiumBy.accessibilityId("3. Simple Adapter")).matchesReferenceImage().perform();
-//        shaftDriver.element().performTouchAction()
+                .swipeElementIntoView("3. Simple Adapter")
                 .tap(AppiumBy.accessibilityId("3. Simple Adapter"))
                 .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 18']"), TouchActions.SwipeDirection.DOWN)
                 .tap(By.xpath("//android.widget.TextView[@text='Group 18']"))
@@ -37,11 +34,11 @@ public class AndroidBasicInteractionsTests extends MobileTest {
     @Test(groups = {"ApiDemosDebug"})
     public void scrollInExpandableLists_verticalScrolling_insideScreen() {
         driver.get().touch()
-                .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView("Views")
                 .tap(AppiumBy.accessibilityId("Views"))
-                .swipeElementIntoView(AppiumBy.accessibilityId("Expandable Lists"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView("Expandable Lists")
                 .tap(AppiumBy.accessibilityId("Expandable Lists"))
-                .swipeElementIntoView(AppiumBy.accessibilityId("3. Simple Adapter"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView("3. Simple Adapter")
                 .tap(AppiumBy.accessibilityId("3. Simple Adapter"))
                 .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 18']"), TouchActions.SwipeDirection.DOWN)
                 .tap(By.xpath("//android.widget.TextView[@text='Group 18']"))
