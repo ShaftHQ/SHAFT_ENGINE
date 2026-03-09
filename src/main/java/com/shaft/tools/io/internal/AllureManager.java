@@ -15,6 +15,19 @@ import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Internal utility class that manages the Allure reporting lifecycle for SHAFT test runs.
+ * Responsibilities include downloading and extracting the Allure binary, initialising the
+ * results directory, overriding Allure plugin configuration (custom logo / title), generating
+ * the single-file HTML report, and optionally producing a ZIP archive.
+ *
+ * <p>This class is not intended for direct use in test code. It is invoked automatically by the
+ * SHAFT framework listeners at suite start and finish.
+ *
+ * <p>Thread safety: all public methods are {@code static} and intended to be called from a
+ * single thread (the test runner thread). The Allure binary path and result directory fields
+ * are mutable class-level state and should not be accessed concurrently.
+ */
 public class AllureManager {
     private static final String allureExtractionLocation = System.getProperty("user.home") + File.separator + ".m2"
             + File.separator + "repository" + File.separator + "allure" + File.separator;
@@ -25,6 +38,23 @@ public class AllureManager {
     private static String allureBinaryPath = "";
     private static String allureOutPutDirectory = "";
 
+    /**
+     * Initialises the Allure reporting environment before a test suite begins.
+     * This method:
+     * <ol>
+     *   <li>Resolves the Allure results folder path from SHAFT properties.</li>
+     *   <li>Optionally cleans the report and results directories.</li>
+     *   <li>Downloads and extracts the Allure CLI binary if not already cached in {@code ~/.m2}.</li>
+     *   <li>Overrides the Allure plugin configuration with the custom logo and title.</li>
+     *   <li>Writes convenience shell/batch scripts to the project root for manual report generation.</li>
+     *   <li>Writes the current JVM system properties to {@code environment.xml} in the results directory.</li>
+     * </ol>
+     *
+     * <p>Example (called automatically by SHAFT listeners):
+     * <pre>{@code
+     * AllureManager.initializeAllureReportingEnvironment();
+     * }</pre>
+     */
     public static void initializeAllureReportingEnvironment() {
         ReportManager.logDiscrete("Initializing Allure Reporting Environment...");
         /*
@@ -40,6 +70,18 @@ public class AllureManager {
         writeEnvironmentVariablesToAllureResultsDirectory();
     }
 
+    /**
+     * Generates the Allure HTML report and opens it in the default browser when
+     * {@code SHAFT.Properties.allure.automaticallyOpen()} is {@code true}.
+     * The generated report is copied to the {@code allure-report} directory, renamed
+     * (optionally with a timestamp when {@code accumulateReports} is enabled), and the
+     * intermediate output directory is deleted.
+     *
+     * <p>Example (called automatically by SHAFT listeners after suite completion):
+     * <pre>{@code
+     * AllureManager.openAllureReportAfterExecution();
+     * }</pre>
+     */
     public static void openAllureReportAfterExecution() {
         writeAllureReport();
         copyAndOpenAllure();
@@ -71,6 +113,19 @@ public class AllureManager {
         }
     }
 
+    /**
+     * Generates a self-contained ZIP archive of the Allure report when
+     * {@code SHAFT.Properties.allure.generateArchive()} is {@code true}.
+     * The archive is written to the project directory with a timestamped filename
+     * (e.g. {@code generatedReport_2024-01-15_10-30-00-000.zip}).
+     *
+     * <p>This method is a no-op when archive generation is disabled in properties.
+     *
+     * <p>Example (called automatically by SHAFT listeners):
+     * <pre>{@code
+     * AllureManager.generateAllureReportArchive();
+     * }</pre>
+     */
     public static void generateAllureReportArchive() {
         if (Boolean.TRUE.equals(SHAFT.Properties.allure.generateArchive())) {
             ReportManager.logDiscrete("Generating Allure Report Archive...");

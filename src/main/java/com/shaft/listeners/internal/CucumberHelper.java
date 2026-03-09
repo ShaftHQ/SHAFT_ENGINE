@@ -10,10 +10,30 @@ import org.testng.xml.XmlSuite;
 
 import java.util.List;
 
+/**
+ * Internal helper class providing shared setup and teardown logic for Cucumber-based
+ * test runs managed by the SHAFT framework.
+ *
+ * <p>This class is not intended for direct use in test code; it is invoked by
+ * SHAFT's Cucumber listeners.
+ */
 public class CucumberHelper {
     static long executionStartTime;
     static long executionEndTime;
 
+    /**
+     * Utility class — do not instantiate.
+     */
+    private CucumberHelper() {
+        throw new IllegalStateException("Utility class");
+    }
+
+    /**
+     * Applies SHAFT Cucumber property values as parameters on each TestNG suite so that
+     * the Cucumber runner can pick them up at execution time.
+     *
+     * @param suites the list of TestNG {@link org.testng.xml.XmlSuite} objects to configure
+     */
     public static void configureCucumberProperties(List<XmlSuite> suites) {
         suites.forEach(suite -> {
             // override test suite parameters adding cucumber options
@@ -34,6 +54,10 @@ public class CucumberHelper {
         });
     }
 
+    /**
+     * Initialises the SHAFT engine for a Cucumber run: records the execution start time,
+     * triggers engine setup, and configures legacy {@code cucumber.options} system property.
+     */
     public static void engineSetup() {
         executionStartTime = System.currentTimeMillis();
         TestNGListener.engineSetup(ProjectStructureManager.RunType.CUCUMBER);
@@ -50,6 +74,11 @@ public class CucumberHelper {
         );
     }
 
+    /**
+     * Performs SHAFT engine teardown at the end of a native Cucumber run (i.e. when there is
+     * no active TestNG {@link org.testng.Reporter} result). Attaches logs, generates the
+     * Allure report archive, and reports results to Jira.
+     */
     public static void shaftTearDown() {
         if (Reporter.getCurrentTestResult() == null) {
             executionEndTime = System.currentTimeMillis();

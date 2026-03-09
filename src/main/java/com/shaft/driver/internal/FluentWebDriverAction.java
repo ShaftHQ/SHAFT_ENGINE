@@ -76,6 +76,19 @@ public class FluentWebDriverAction {
         return new BrowserActions(driverFactoryHelper);
     }
 
+    /**
+     * Returns this instance to allow fluent (method-chaining) syntax between successive actions.
+     * Using {@code .and()} improves readability by making multi-step test sequences read like
+     * natural language.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.element().type(searchBox, "query")
+     *       .and().browser().captureScreenshot();
+     * }</pre>
+     *
+     * @return this {@code FluentWebDriverAction} instance, enabling continued method chaining
+     */
     public FluentWebDriverAction and() {
         return this;
     }

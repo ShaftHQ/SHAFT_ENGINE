@@ -29,6 +29,36 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Internal helper that drives WCAG-based accessibility analysis using the
+ * <a href="https://github.com/dequelabs/axe-core">axe-core</a> engine via
+ * {@link com.deque.html.axecore.selenium.AxeBuilder}.
+ *
+ * <p>The class exposes static methods that run an axe scan against a live
+ * {@link WebDriver} session, persist the results as JSON and an interactive HTML
+ * report, and attach the report to the current Allure test run as an attachment.
+ *
+ * <p>Typical usage:
+ * <pre>{@code
+ * // Quick fire-and-forget scan with default configuration
+ * AccessibilityHelper.analyzePageAccessibility(driver, "HomePage");
+ *
+ * // Scan and obtain a structured result object for in-test assertions
+ * AccessibilityResult result = AccessibilityHelper.analyzePageAccessibilityAndSave(
+ *         driver, "CheckoutPage", true);
+ * System.out.println("Accessibility score: " + result.getAccessibilityScore() + "%");
+ * }</pre>
+ *
+ * <p><strong>Thread safety:</strong> {@link #DATE_FORMAT} and
+ * {@link #DISPLAY_DATE_FORMAT} are {@link ThreadLocal} instances, so formatting
+ * operations are safe to call from parallel test threads. However, concurrent scans
+ * of the same {@code pageName} within the same second may produce file-name collisions
+ * in the shared reports directory; use distinct page names or unique report directories
+ * when running parallel scans on the same page.
+ *
+ * @see AccessibilityConfig
+ * @see AccessibilityResult
+ */
 public class AccessibilityHelper {
     private static final Logger logger = LogManager.getLogger(AccessibilityHelper.class);
     private static final ThreadLocal<SimpleDateFormat> DATE_FORMAT =
@@ -42,31 +72,166 @@ public class AccessibilityHelper {
     private static final int DOM_CHECK_INTERVAL_MILLIS = 500; // Sleep interval between checks
     private static final int PAGE_LOAD_TIMEOUT_SECONDS = 30;
 
+    /**
+     * This is a utility class and cannot be instantiated.
+     *
+     * @throws IllegalStateException always
+     */
+    private AccessibilityHelper() {
+        throw new IllegalStateException("Utility class");
+    }
 
+    /**
+     * Mutable configuration bean for an accessibility scan with fluent-builder setters.
+     *
+     * <p>All setters follow a fluent (builder) pattern and return {@code this},
+     * allowing convenient one-liner configuration:
+     * <pre>{@code
+     * AccessibilityConfig config = new AccessibilityConfig()
+     *         .setTags(List.of("wcag21aa"))
+     *         .setContext("main")
+     *         .setReportsDir("target/a11y-reports/")
+     *         .setIncludePasses(false);
+     * AccessibilityHelper.analyzePageAccessibility(driver, "Home", config);
+     * }</pre>
+     *
+     * <p>Default values:
+     * <ul>
+     *   <li>{@code tags} – {@code ["wcag2a","wcag2aa","wcag21a","wcag21aa","best-practice"]}</li>
+     *   <li>{@code reportsDir} – {@code "accessibility-reports/"}</li>
+     *   <li>{@code includePasses} – {@code true}</li>
+     *   <li>{@code context} – {@code "body, header, main, footer"}</li>
+     * </ul>
+     */
     public static class AccessibilityConfig {
-        private List<String> tags = Arrays.asList("wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice");
+        private List<String> tags = new ArrayList<>(List.of("wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"));
         private String reportsDir = "accessibility-reports/";
         private boolean includePasses = true;
         private String context = "body, header, main, footer";
 
-        public List<String> getTags() { return tags; }
-        public AccessibilityConfig setTags(List<String> tags) { this.tags = tags; return this; }
+        /**
+         * Creates a new {@code AccessibilityConfig} with default settings.
+         * Use the fluent setters to customise the configuration after construction.
+         */
+        public AccessibilityConfig() {
+        }
 
+        /**
+         * Returns the axe-core WCAG tag filters applied during the scan.
+         *
+         * @return mutable list of axe rule-set tag identifiers (e.g. {@code "wcag21aa"})
+         */
+        public List<String> getTags() { return tags; }
+
+        /**
+         * Replaces the axe-core tag filters for this scan.
+         *
+         * <pre>{@code config.setTags(List.of("wcag21aa", "best-practice")); }</pre>
+         *
+         * @param tags non-null list of axe rule-set tag identifiers
+         * @return this instance for method chaining
+         * @throws NullPointerException if {@code tags} is {@code null}
+         */
+        public AccessibilityConfig setTags(List<String> tags) {
+            this.tags = Objects.requireNonNull(tags, "tags must not be null");
+            return this;
+        }
+
+        /**
+         * Returns the file-system directory where JSON and HTML reports will be written.
+         *
+         * @return directory path string (includes trailing {@code /})
+         */
         public String getReportsDir() { return reportsDir; }
+
+        /**
+         * Sets the output directory for generated accessibility reports.
+         *
+         * <pre>{@code config.setReportsDir("target/accessibility/"); }</pre>
+         *
+         * @param reportsDir path to the output directory; created automatically if absent
+         * @return this instance for method chaining
+         */
         public AccessibilityConfig setReportsDir(String reportsDir) { this.reportsDir = reportsDir; return this; }
 
+        /**
+         * Returns whether passing rules are included in the generated report.
+         *
+         * @return {@code true} if passing rules appear in the report; {@code false} otherwise
+         */
         public boolean isIncludePasses() { return includePasses; }
+
+        /**
+         * Controls whether passing axe rules are written into the report.
+         *
+         * <pre>{@code config.setIncludePasses(false); // omit passes for a leaner report }</pre>
+         *
+         * @param includePasses {@code true} to include passing rules; {@code false} to suppress them
+         * @return this instance for method chaining
+         */
         public AccessibilityConfig setIncludePasses(boolean includePasses) { this.includePasses = includePasses; return this; }
 
+        /**
+         * Returns the CSS selector string used to scope the axe scan to specific page regions.
+         *
+         * @return CSS selector string (e.g. {@code "body, header, main, footer"})
+         */
         public String getContext() { return context; }
+
+        /**
+         * Restricts the axe scan to the DOM subtrees matched by the given CSS selector.
+         *
+         * <pre>{@code config.setContext("#content, nav"); }</pre>
+         *
+         * @param context CSS selector identifying the elements to include in the scan
+         * @return this instance for method chaining
+         */
         public AccessibilityConfig setContext(String context) { this.context = context; return this; }
     }
 
 
+    /**
+     * Runs a WCAG accessibility scan against the currently loaded page using the
+     * default {@link AccessibilityConfig} and writes both a JSON data file and an
+     * interactive HTML report to disk.  The HTML report is also attached to the
+     * current Allure test step automatically.
+     *
+     * <pre>{@code
+     * AccessibilityHelper.analyzePageAccessibility(driver, "HomePage");
+     * }</pre>
+     *
+     * @param driver   active {@link WebDriver} instance pointing at the page to scan;
+     *                 must not be {@code null}
+     * @param pageName human-readable label used in the report file name and Allure
+     *                 attachment title; must not be blank
+     */
     public static void analyzePageAccessibility(WebDriver driver, String pageName) {
         analyzePageAccessibility(driver, pageName, new AccessibilityConfig());
     }
 
+    /**
+     * Runs a WCAG accessibility scan using the supplied {@link AccessibilityConfig}
+     * and writes both a JSON data file and an interactive HTML report to disk.
+     * The HTML report is also attached to the current Allure test step automatically.
+     *
+     * <p>The method blocks until {@code document.readyState === "complete"} and the
+     * DOM has been stable for {@value #DOM_STABLE_MILLIS} ms before invoking axe.
+     *
+     * <pre>{@code
+     * AccessibilityConfig config = new AccessibilityConfig()
+     *         .setTags(List.of("wcag21aa"))
+     *         .setReportsDir("target/a11y/");
+     * AccessibilityHelper.analyzePageAccessibility(driver, "CheckoutPage", config);
+     * }</pre>
+     *
+     * @param driver   active {@link WebDriver} instance pointing at the page to scan;
+     *                 must not be {@code null}
+     * @param pageName human-readable label used in the report file name and Allure
+     *                 attachment title; must not be blank
+     * @param config   scan configuration; must not be {@code null}
+     * @throws IllegalArgumentException if {@code driver}, {@code pageName}, or
+     *                                  {@code config} fails validation
+     */
     public static void analyzePageAccessibility(WebDriver driver, String pageName, AccessibilityConfig config) {
 
         if (driver == null) throw new IllegalArgumentException("WebDriver cannot be null");
@@ -156,12 +321,39 @@ public class AccessibilityHelper {
 
     }
 
+    /**
+     * Convenience overload that runs an accessibility scan scoped to a specific CSS
+     * context selector using default settings for all other configuration values.
+     *
+     * <pre>{@code
+     * AccessibilityHelper.analyzePageAccessibility(driver, "Checkout", "#checkout-form");
+     * }</pre>
+     *
+     * @param driver   active {@link WebDriver} instance; must not be {@code null}
+     * @param pageName label used for the report file name and Allure attachment title
+     * @param context  CSS selector restricting the scan scope (e.g. {@code "main, footer"})
+     */
     public static void analyzePageAccessibility(WebDriver driver, String pageName, String context) {
         AccessibilityConfig config = new AccessibilityConfig();
         config.setContext(context);
         analyzePageAccessibility(driver, pageName, config);
     }
 
+    /**
+     * Determines whether the currently loaded page has any axe-detected WCAG violations
+     * using the default rule set.
+     *
+     * <pre>{@code
+     * if (AccessibilityHelper.hasCriticalViolations(driver, "SearchResults")) {
+     *     throw new AssertionError("Accessibility violations detected");
+     * }
+     * }</pre>
+     *
+     * @param driver   active {@link WebDriver} instance; must not be {@code null}
+     * @param pageName label used for log and error messages
+     * @return {@code true} if at least one axe violation was found; {@code false} otherwise
+     * @throws RuntimeException if the axe analysis itself fails
+     */
     public static boolean hasCriticalViolations(WebDriver driver, String pageName) {
         try {
             Results results = new AxeBuilder().analyze(driver);
@@ -172,6 +364,23 @@ public class AccessibilityHelper {
         }
     }
 
+    /**
+     * Returns a breakdown of axe violations grouped by their WCAG conformance level
+     * (e.g. {@code "WCAG 2.1 AA"}, {@code "Best Practice"}).
+     *
+     * <p>The map value represents the total number of <em>affected elements</em>
+     * (nodes), not the number of distinct rules.
+     *
+     * <pre>{@code
+     * Map<String, Integer> counts = AccessibilityHelper.getViolationsByType(driver);
+     * counts.forEach((type, count) ->
+     *         System.out.printf("%s: %d affected element(s)%n", type, count));
+     * }</pre>
+     *
+     * @param driver active {@link WebDriver} instance; must not be {@code null}
+     * @return map of WCAG level label to affected-element count; never {@code null}
+     * @throws RuntimeException if the axe analysis fails
+     */
     public static Map<String, Integer> getViolationsByType(WebDriver driver) {
         try {
             Results results = new AxeBuilder().analyze(driver);
@@ -186,6 +395,19 @@ public class AccessibilityHelper {
         }
     }
 
+    /**
+     * Performs a quick axe accessibility check and returns whether the page has
+     * zero violations.
+     *
+     * <pre>{@code
+     * assertTrue(AccessibilityHelper.isAccessible(driver),
+     *         "Page should have no accessibility violations");
+     * }</pre>
+     *
+     * @param driver active {@link WebDriver} instance; must not be {@code null}
+     * @return {@code true} if no axe violations were found; {@code false} if at least
+     *         one violation exists or if the analysis could not be completed
+     */
     public static boolean isAccessible(WebDriver driver) {
         try {
             Results results = new AxeBuilder().analyze(driver);
@@ -196,10 +418,54 @@ public class AccessibilityHelper {
         }
     }
 
+    /**
+     * Runs an accessibility scan with default configuration, optionally persisting
+     * reports to disk, and returns a structured {@link AccessibilityResult}.
+     *
+     * <pre>{@code
+     * AccessibilityResult result =
+     *         AccessibilityHelper.analyzePageAccessibilityAndSave(driver, "Checkout", true);
+     * assertFalse(result.hasViolations(), "No accessibility violations expected");
+     * }</pre>
+     *
+     * @param driver     active {@link WebDriver} instance; must not be {@code null}
+     * @param pageName   label for the report and Allure attachment; must not be blank
+     * @param saveReport {@code true} to write JSON/HTML reports and attach them to Allure
+     * @return an {@link AccessibilityResult} containing violation details and score
+     * @throws RuntimeException if the axe analysis fails
+     */
     public static AccessibilityResult analyzePageAccessibilityAndSave(WebDriver driver, String pageName, boolean saveReport) {
         return analyzePageAccessibilityAndSave(driver, pageName, new AccessibilityConfig(), saveReport);
     }
 
+    /**
+     * Full-control overload: runs an accessibility scan with the supplied
+     * {@link AccessibilityConfig}, optionally saves reports, and returns a
+     * structured {@link AccessibilityResult} suitable for programmatic assertions.
+     *
+     * <p>The accessibility score is calculated as:
+     * <pre>{@code score = (passesCount / (passesCount + violationsCount)) * 100 }</pre>
+     * Incomplete checks are excluded from the score calculation.
+     *
+     * <pre>{@code
+     * AccessibilityConfig config = new AccessibilityConfig()
+     *         .setTags(List.of("wcag21aa"))
+     *         .setContext("#content");
+     * AccessibilityResult result =
+     *         AccessibilityHelper.analyzePageAccessibilityAndSave(driver, "Home", config, true);
+     * System.out.printf("Score: %.1f%% (%d violation(s))%n",
+     *         result.getAccessibilityScore(), result.getViolationsCount());
+     * }</pre>
+     *
+     * @param driver     active {@link WebDriver} instance; must not be {@code null}
+     * @param pageName   label for the report and Allure attachment; must not be blank
+     * @param config     scan configuration; a default instance is used when {@code null}
+     * @param saveReport {@code true} to write JSON/HTML reports and attach them to Allure
+     * @return an {@link AccessibilityResult} containing violation details and score
+     * @throws IllegalArgumentException if the supplied context selector matches no
+     *                                  elements on the page
+     * @throws RuntimeException         if the axe analysis fails for any other reason
+     */
     public static AccessibilityResult analyzePageAccessibilityAndSave(WebDriver driver, String pageName, AccessibilityConfig config, boolean saveReport) {
         if (driver == null) throw new IllegalArgumentException("WebDriver cannot be null");
         if (pageName == null || pageName.trim().isEmpty()) throw new IllegalArgumentException("Page name cannot be empty");
@@ -313,6 +579,21 @@ public class AccessibilityHelper {
     }
 
 
+    /**
+     * Value object returned by
+     * {@link AccessibilityHelper#analyzePageAccessibilityAndSave(WebDriver, String, boolean)}
+     * and its overloads, carrying the aggregated outcome of a single axe accessibility scan.
+     *
+     * <p>Instances are constructed internally by {@code AccessibilityHelper} and exposed
+     * to test code for programmatic assertions:
+     * <pre>{@code
+     * AccessibilityResult result =
+     *         AccessibilityHelper.analyzePageAccessibilityAndSave(driver, "Home", true);
+     * assertFalse(result.hasViolations(), "Expected no WCAG violations");
+     * System.out.printf("Score: %.1f%% – %d violation(s)%n",
+     *         result.getAccessibilityScore(), result.getViolationsCount());
+     * }</pre>
+     */
     public static class AccessibilityResult {
         private String pageName;
         private List<Rule> violations;
@@ -322,44 +603,107 @@ public class AccessibilityHelper {
         private int passCount;
         private double accessibilityScore;
 
+        /**
+         * Creates a new empty {@code AccessibilityResult}.
+         * Instances are normally produced by {@link AccessibilityHelper} and should not
+         * be constructed directly in test code.
+         */
+        public AccessibilityResult() {
+        }
+
         // getters and setters
+        /**
+         * Returns the overall accessibility score as a percentage in the range
+         * {@code [0.0, 100.0]}.
+         *
+         * <p>The score is {@code (passes / (passes + violations)) × 100}.
+         * A score of {@code 100.0} means no violations were detected.
+         *
+         * @return accessibility score percentage; {@code 0.0} when no checks were run
+         */
         public double getAccessibilityScore() {
             return accessibilityScore;
         }
 
+        /**
+         * Returns the page name supplied when the scan was initiated.
+         *
+         * @return page label; never {@code null}
+         */
         public String getPageName() {
             return pageName;
         }
 
+        /**
+         * Sets the page name for this result.
+         *
+         * @param pageName human-readable label for the scanned page
+         * @return this instance for method chaining
+         */
         public AccessibilityResult setPageName(String pageName) {
             this.pageName = pageName;
             return this;
         }
 
+        /**
+         * Returns the list of axe {@link Rule} objects representing detected violations.
+         *
+         * @return list of violations; may be {@code null} if not yet populated
+         */
         public List<Rule> getViolations() {
             return violations;
         }
 
+        /**
+         * Sets the violations list and synchronises {@link #violationsCount} accordingly.
+         *
+         * @param violations list of axe {@link Rule} violations; may be {@code null}
+         * @return this instance for method chaining
+         */
         public AccessibilityResult setViolations(List<Rule> violations) {
             this.violations = violations;
             this.violationsCount = violations != null ? violations.size() : 0;
             return this;
         }
 
+        /**
+         * Returns the total number of axe violations found during the scan.
+         *
+         * @return non-negative violation count
+         */
         public int getViolationsCount() {
             return violationsCount;
         }
 
+        /**
+         * Explicitly sets the violations count.  Prefer {@link #setViolations(List)}
+         * which derives this value automatically from the list size.
+         *
+         * @param violationsCount non-negative count of violations
+         * @return this instance for method chaining
+         */
         public AccessibilityResult setViolationsCount(int violationsCount) {
             this.violationsCount = violationsCount;
             return this;
         }
 
+        /**
+         * Sets the number of rules that the scanned page passed.
+         *
+         * @param passCount non-negative count of passing rules
+         * @return this instance for method chaining
+         */
         public AccessibilityResult setPassesCount(int passCount) {
             this.passCount = passCount;
             return this;
         }
 
+        /**
+         * Sets the pre-computed accessibility score for this result.
+         *
+         * @param score accessibility score in the range {@code [0.0, 100.0]}
+         * @return this instance for method chaining
+         */
         public AccessibilityResult setScore(double score) {
             this.accessibilityScore = score;
             return this;
@@ -367,28 +711,67 @@ public class AccessibilityHelper {
 
 
         // --- New passes field ---
+        /**
+         * Returns the list of axe {@link Rule} objects that the page passed.
+         *
+         * @return list of passing rules; may be {@code null} if not yet populated
+         */
         public List<Rule> getPasses() {
             return passes;
         }
 
+        /**
+         * Sets the list of passing axe rules for this result.
+         *
+         * @param passes list of axe {@link Rule} objects that passed; may be {@code null}
+         * @return this instance for method chaining
+         */
         public AccessibilityResult setPasses(List<Rule> passes) {
             this.passes = passes;
             return this;
         }
 
+        /**
+         * Returns the number of axe rules the page passed.
+         * If the {@link #passes} list has been populated it is derived from that list;
+         * otherwise the count stored by {@link #setPassesCount(int)} is returned.
+         *
+         * @return non-negative pass count
+         */
         public int getPassCount() {
-            return passes != null ? passes.size() : 0;
+            return passes != null ? passes.size() : passCount;
         }
 
+        /**
+         * Returns the ISO-8601 timestamp captured when the scan completed.
+         *
+         * @return timestamp string (e.g. {@code "2024-06-01T14:30:00.123456789"}); may be
+         *         {@code null} if not yet set
+         */
         public String getTimestamp() {
             return timestamp;
         }
 
+        /**
+         * Sets the scan timestamp.
+         *
+         * @param timestamp ISO-8601 date-time string representing when the scan completed
+         * @return this instance for method chaining
+         */
         public AccessibilityResult setTimestamp(String timestamp) {
             this.timestamp = timestamp;
             return this;
         }
 
+        /**
+         * Returns {@code true} when at least one WCAG violation was detected.
+         *
+         * <pre>{@code
+         * assertFalse(result.hasViolations(), "Page should be violation-free");
+         * }</pre>
+         *
+         * @return {@code true} if {@link #getViolationsCount()} {@code > 0}
+         */
         public boolean hasViolations() {
             return violationsCount > 0;
         }
@@ -496,6 +879,21 @@ public class AccessibilityHelper {
         }
     }
 
+    /**
+     * Attaches the most recently generated HTML accessibility report for the given
+     * page to the current Allure test step.
+     *
+     * <p>The method looks for the latest report file matching
+     * {@code AccessibilityReport_<pageName>*} inside the default
+     * {@code "accessibility-reports/"} directory.
+     *
+     * <pre>{@code
+     * AccessibilityHelper.attachReportToAllure("HomePage");
+     * }</pre>
+     *
+     * @param pageName label used to locate the report file; must match the value
+     *                 passed when the report was originally generated
+     */
     public static void attachReportToAllure(String pageName) {
         try {
             Path report = getLatestReportPath(pageName);
@@ -513,6 +911,27 @@ public class AccessibilityHelper {
         }
     }
 
+    /**
+     * Generates a filtered HTML report containing only the violations present in
+     * the supplied {@link AccessibilityResult} and attaches it to the current
+     * Allure test step.
+     *
+     * <p>This is useful when a full report already exists but you want a focused
+     * attachment highlighting only the failing rules.
+     *
+     * <pre>{@code
+     * AccessibilityResult result =
+     *         AccessibilityHelper.analyzePageAccessibilityAndSave(driver, "Cart", true);
+     * if (result.hasViolations()) {
+     *     AccessibilityHelper.attachFilteredReportToAllure("Cart", result, driver);
+     * }
+     * }</pre>
+     *
+     * @param pageName label used in the Allure attachment title and report file name
+     * @param result   {@link AccessibilityResult} whose violations will be rendered
+     * @param driver   active {@link WebDriver} instance used to read browser metadata
+     *                 for the report header
+     */
     public static void attachFilteredReportToAllure(String pageName, AccessibilityResult result, WebDriver driver) {
         try {
             String filteredReportPath = "allure-results/accessibility/FilteredReport_" + pageName + ".html";
@@ -528,10 +947,32 @@ public class AccessibilityHelper {
         }
     }
 
+    /**
+     * Generates a minimal HTML accessibility report that lists only the violations
+     * contained in the supplied {@link AccessibilityResult} and writes it to the
+     * given file path.
+     *
+     * <p>The output is suitable for attaching directly to an Allure report via
+     * {@link #attachFilteredReportToAllure(String, AccessibilityResult, WebDriver)}.
+     *
+     * <pre>{@code
+     * AccessibilityHelper.generateFilteredHTMLReport(
+     *         result, "Checkout", "target/a11y/filtered.html", driver);
+     * }</pre>
+     *
+     * @param result     {@link AccessibilityResult} providing the violation data
+     * @param pageName   page label rendered in the report heading
+     * @param reportPath file-system path where the HTML file will be written
+     * @param driver     active {@link WebDriver} used to read browser metadata for
+     *                   the report header
+     * @throws IOException   if the report file cannot be created or written
+     * @throws JSONException if serialising the violation data fails
+     */
     public static void generateFilteredHTMLReport(AccessibilityResult result, String pageName, String reportPath, WebDriver driver) throws IOException, JSONException {
+        List<Rule> violations = result.getViolations() != null ? result.getViolations() : Collections.emptyList();
         JSONObject json = new JSONObject();
-        json.put("violations", convertRules(result.getViolations(), "Violation"));
-        json.put("totalViolations", result.getViolationsCount());
+        json.put("violations", convertRules(violations, "Violation"));
+        json.put("totalViolations", violations.size());
         json.put("totalIncomplete", 0);
         json.put("totalPassed", 0);
         json.put("totalInapplicable", 0);
@@ -540,6 +981,22 @@ public class AccessibilityHelper {
         generateEnhancedHTMLReport(json, pageName, reportPath, config,driver);
     }
 
+    /**
+     * Finds the most recently modified HTML report file for the given page inside
+     * the {@code "accessibility-reports/"} directory.
+     *
+     * <pre>{@code
+     * Path latestReport = AccessibilityHelper.getLatestReportPath("HomePage");
+     * if (latestReport != null) {
+     *     System.out.println("Latest report: " + latestReport);
+     * }
+     * }</pre>
+     *
+     * @param pageName label used to filter report files by their name prefix
+     * @return the {@link Path} of the newest matching report, or {@code null} if
+     *         the reports directory does not exist or contains no matching files
+     * @throws IOException if reading the directory listing fails
+     */
     public static Path getLatestReportPath(String pageName) throws IOException {
         Path reportsDir = Paths.get("accessibility-reports");
         if (!Files.exists(reportsDir)) return null;

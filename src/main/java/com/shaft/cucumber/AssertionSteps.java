@@ -6,10 +6,28 @@ import io.cucumber.java.en.Then;
 
 import java.util.Objects;
 
+/**
+ * Provides Cucumber step definitions for browser-level assertions in SHAFT-powered test suites.
+ * Steps delegate to SHAFT's fluent assertion API and are designed to be used within
+ * {@code @Then} Gherkin steps.
+ *
+ * <p>Example Gherkin usage:
+ * <pre>{@code
+ * Then I Assert that the "Title" attribute of the browser, equals "Home Page"
+ * }</pre>
+ */
 @SuppressWarnings("SpellCheckingInspection")
 public class AssertionSteps {
     private final ThreadLocal<SHAFT.GUI.WebDriver> driver;
 
+    /**
+     * Creates a new {@code AssertionSteps} instance with the supplied thread-local driver.
+     * If {@code driver} is {@code null}, a new empty {@link ThreadLocal} is created to avoid
+     * {@link NullPointerException} during step execution.
+     *
+     * @param driver a {@link ThreadLocal} holding the {@link SHAFT.GUI.WebDriver} instance
+     *               shared across Cucumber steps in the current scenario thread
+     */
     public AssertionSteps(ThreadLocal<SHAFT.GUI.WebDriver> driver) {
         this.driver = Objects.requireNonNullElseGet(driver, ThreadLocal::new);
     }

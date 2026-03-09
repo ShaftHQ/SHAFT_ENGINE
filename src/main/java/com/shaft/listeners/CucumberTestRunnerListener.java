@@ -22,6 +22,7 @@ import java.util.UUID;
 
 @SuppressWarnings("unused")
 public class CucumberTestRunnerListener extends AllureCucumber7Jvm {
+    /** The name of the most recently started Cucumber scenario, used for report labelling. */
     private static String lastStartedScenarioName;
 
     @Override

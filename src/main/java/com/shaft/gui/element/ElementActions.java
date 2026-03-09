@@ -476,10 +476,26 @@ public class ElementActions extends FluentWebDriverAction {
         return currentFrame;
     }
 
+    /**
+     * Types the provided text into the target element, replacing any existing value.
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name, etc.)
+     * @param text           one or more {@link CharSequence} values (including {@link org.openqa.selenium.Keys})
+     *                       to be typed into the target webElement
+     * @return a self-reference to be used to chain actions
+     */
     public Actions type(By elementLocator, CharSequence... text) {
         return new Actions(driverFactoryHelper).type(elementLocator, text);
     }
 
+    /**
+     * Clears the value of the target element.
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name, etc.)
+     * @return a self-reference to be used to chain actions
+     */
     public Actions clear(By elementLocator) {
         return new Actions(driverFactoryHelper).clear(elementLocator);
     }
