@@ -6,9 +6,20 @@ import io.cucumber.java.en.When;
 
 import java.util.Objects;
 
+/**
+ * Cucumber step definitions for browser-level actions such as navigation, window management,
+ * and browser lifecycle operations.
+ */
 public class BrowserSteps {
     private final ThreadLocal<SHAFT.GUI.WebDriver> driver;
 
+    /**
+     * Constructs a new {@code BrowserSteps} instance, injecting a shared {@code ThreadLocal}
+     * WebDriver container from the Cucumber IoC context.
+     *
+     * @param driver a {@code ThreadLocal} wrapping a {@link SHAFT.GUI.WebDriver} instance;
+     *               a new empty {@code ThreadLocal} is used if {@code null} is supplied
+     */
     public BrowserSteps(ThreadLocal<SHAFT.GUI.WebDriver> driver) {
         this.driver = Objects.requireNonNullElseGet(driver, ThreadLocal::new);
     }
@@ -62,21 +73,36 @@ public class BrowserSteps {
         driver.get().browser().navigateForward();
     }
 
+    /**
+     * Maximizes the current browser window to fill the screen.
+     */
     @When("I Maximize the current window")
     public void maximizeWindow() {
         driver.get().browser().maximizeWindow();
     }
 
+    /**
+     * Resizes the current browser window to the specified dimensions.
+     *
+     * @param width  the desired window width in pixels
+     * @param height the desired window height in pixels
+     */
     @When("I Resize the current window size to {int} width * {int} height")
     public void setWindowSize(int width, int height) {
         driver.get().browser().setWindowSize(width, height);
     }
 
+    /**
+     * Switches the current browser window to full-screen mode.
+     */
     @When("I Full Screen the current window")
     public void fullScreenWindow() {
         driver.get().browser().fullScreenWindow();
     }
 
+    /**
+     * Refreshes the currently loaded page in the browser.
+     */
     @When("I Refresh the current window")
     public void refreshCurrentPage() {
         driver.get().browser().refreshCurrentPage();
