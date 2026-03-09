@@ -31,8 +31,8 @@ import static com.shaft.validation.accessibility.AccessibilityHelper.attachRepor
  * }</pre>
  *
  * <p>Analysis results are cached in a {@link java.util.concurrent.ConcurrentHashMap}
- * keyed by a composite of page name, {@code AccessibilityConfig} instance identity
- * (via {@code System.identityHashCode}), and the {@code saveReport} flag.
+ * keyed by a composite of page name, {@code AccessibilityConfig} identity via
+ * {@code config.hashCode()}, and the {@code saveReport} flag.
  * Successive calls with the <em>same config instance</em> and the same page name will
  * reuse the cached result. Note that two separately constructed {@code AccessibilityConfig}
  * objects with identical settings will produce different cache keys because

@@ -50,8 +50,11 @@ import java.util.stream.Collectors;
  * }</pre>
  *
  * <p><strong>Thread safety:</strong> {@link #DATE_FORMAT} and
- * {@link #DISPLAY_DATE_FORMAT} are {@link ThreadLocal} instances so the class is
- * safe to use from parallel test threads without external synchronisation.
+ * {@link #DISPLAY_DATE_FORMAT} are {@link ThreadLocal} instances, so formatting
+ * operations are safe to call from parallel test threads. However, concurrent scans
+ * of the same {@code pageName} within the same second may produce file-name collisions
+ * in the shared reports directory; use distinct page names or unique report directories
+ * when running parallel scans on the same page.
  *
  * @see AccessibilityConfig
  * @see AccessibilityResult
@@ -729,13 +732,14 @@ public class AccessibilityHelper {
         }
 
         /**
-         * Returns the number of axe rules the page passed, derived from the
-         * {@link #passes} list size.
+         * Returns the number of axe rules the page passed.
+         * If the {@link #passes} list has been populated it is derived from that list;
+         * otherwise the count stored by {@link #setPassesCount(int)} is returned.
          *
-         * @return non-negative pass count; {@code 0} when {@code passes} is {@code null}
+         * @return non-negative pass count
          */
         public int getPassCount() {
-            return passes != null ? passes.size() : 0;
+            return passes != null ? passes.size() : passCount;
         }
 
         /**
@@ -967,7 +971,7 @@ public class AccessibilityHelper {
     public static void generateFilteredHTMLReport(AccessibilityResult result, String pageName, String reportPath, WebDriver driver) throws IOException, JSONException {
         JSONObject json = new JSONObject();
         json.put("violations", convertRules(result.getViolations(), "Violation"));
-        json.put("totalViolations", result.getViolationsCount());
+        json.put("totalViolations", result.getViolations().size());
         json.put("totalIncomplete", 0);
         json.put("totalPassed", 0);
         json.put("totalInapplicable", 0);
