@@ -19,7 +19,14 @@ import static org.mockito.Mockito.*;
 /**
  * Mocked unit tests for ElementActions class to increase code coverage.
  * These tests use Mockito to mock WebDriver and WebElement interactions.
+ *
+ * <p>{@code singleThreaded = true} prevents Mockito parallel-test contamination:
+ * when TestNG runs test methods in parallel on different threads, concurrent
+ * {@code MockitoAnnotations.openMocks(this)} calls on the same instance can
+ * interleave stubbing state and produce {@code WrongTypeOfReturnValue} errors.
+ * Forcing single-threaded execution eliminates that race condition.
  */
+@Test(singleThreaded = true)
 public class ElementActionsMockedTests {
     
     @Mock
@@ -46,7 +53,7 @@ public class ElementActionsMockedTests {
         when(mockElement.getTagName()).thenReturn("input");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void afterMethod() throws Exception {
         if (closeable != null) {
             closeable.close();

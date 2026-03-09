@@ -35,6 +35,8 @@ import static java.util.Arrays.asList;
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class TouchActions extends FluentWebDriverAction {
     private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 5;
+    /** Maximum scroll gestures to perform when searching for a reference image (image-based scroll). */
+    private static final int MAX_IMAGE_SCROLL_ATTEMPTS = 15;
     private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = SHAFT.Properties.reporting.captureElementName();
 
     public TouchActions() {
@@ -565,36 +567,54 @@ public class TouchActions extends FluentWebDriverAction {
     }
 
     /**
-     * Attempts to scroll element into view using androidUIAutomator
+     * Attempts to scroll element into view using W3C-compliant actions, finding the target element
+     * by its visible text or content description (accessibility label).
      *
-     * @param targetText element text to be used to swipe it into view
+     * <p>This method avoids {@code AppiumBy.androidUIAutomator} {@code driver.findElement()} calls,
+     * which trigger an infinite-recursion {@code StackOverflowError} via Selenium's
+     * {@code ElementLocation$ElementFinder$1} fallback when used with Appium 3.x on BrowserStack.
+     * Using a standard XPath locator with {@code driver.findElements()} (plural) sidesteps the
+     * registration of the problematic fallback finder.
+     *
+     * @param targetText element text or content description to scroll into view
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(String targetText) {
-        driverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
-                + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
-        return this;
+        By textLocator = buildTextXpathLocator(targetText);
+        return swipeElementIntoView(null, textLocator, SwipeDirection.DOWN);
     }
 
     /**
-     * Attempts to scroll element into view using androidUIAutomator
+     * Attempts to scroll element into view using W3C-compliant actions, finding the target element
+     * by its visible text or content description (accessibility label).
      *
-     * @param targetText element text to be used to swipe it into view
+     * <p>Uses a standard XPath locator to avoid the {@code AppiumBy} {@code findElement} recursion
+     * that occurs with Appium 3.x (see {@link #swipeElementIntoView(String)}).
+     *
+     * @param targetText element text or content description to scroll into view
      * @param movement   SwipeMovement.VERTICAL or HORIZONTAL
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(String targetText, SwipeMovement movement) {
-        switch (movement) {
-            case VERTICAL:
-                driverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
-                        + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
-                break;
-            case HORIZONTAL:
-                driverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector()).setAsHorizontalList().scrollIntoView("
-                        + "new UiSelector().textContains(\"" + targetText + "\"));"));
-                break;
-        }
-        return this;
+        By textLocator = buildTextXpathLocator(targetText);
+        SwipeDirection direction = (movement == SwipeMovement.HORIZONTAL) ? SwipeDirection.RIGHT : SwipeDirection.DOWN;
+        return swipeElementIntoView(null, textLocator, direction);
+    }
+
+    /**
+     * Builds an XPath {@link By} locator that matches elements by {@code @text} or
+     * {@code @content-desc} attribute, handling texts that contain single quotes by
+     * delegating to XPath {@code concat()}.
+     *
+     * @param text the literal text to search for
+     * @return a {@link By} XPath locator
+     */
+    private By buildTextXpathLocator(String text) {
+        String xpathValue = text.contains("'")
+                // XPath cannot escape single quotes inside single-quoted strings; use concat()
+                ? "concat('" + text.replace("'", "', \"'\", '") + "')"
+                : "'" + text + "'";
+        return By.xpath("//*[@text=" + xpathValue + " or @content-desc=" + xpathValue + "]");
     }
 
     /**
@@ -626,7 +646,31 @@ public class TouchActions extends FluentWebDriverAction {
             // element is already on screen
             ReportManager.logDiscrete("Element found on screen.");
         } else {
-            attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, null);
+            // Scroll progressively, re-checking the reference image after each scroll.
+            // This replaces the previous approach of delegating to attemptW3cCompliantActionsScroll
+            // with a null targetElementLocator, which could not re-check the image after scrolling
+            // and would throw prematurely when mobile:scrollGesture returned false.
+            var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, null);
+            int consecutiveFalse = 0;
+            for (int i = 0; i < MAX_IMAGE_SCROLL_ATTEMPTS; i++) {
+                elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
+                boolean canScrollMore = performW3cCompliantScroll(scrollParameters);
+                // Re-check whether the image has appeared after the scroll
+                visualIdentificationObjects = elementActionsHelper.waitForElementPresence(driverFactoryHelper.getDriver(), targetElementImage);
+                coordinates = (List<Integer>) visualIdentificationObjects.get(2);
+                if (!Collections.emptyList().equals(coordinates)) {
+                    ReportManager.logDiscrete("Element found on screen after scrolling.");
+                    return visualIdentificationObjects;
+                }
+                if (!canScrollMore) {
+                    if (++consecutiveFalse >= 3) {
+                        ReportManager.logDiscrete("End of scrollable area reached without finding image.");
+                        break;
+                    }
+                } else {
+                    consecutiveFalse = 0;
+                }
+            }
         }
         return visualIdentificationObjects;
     }
@@ -725,6 +769,9 @@ public class TouchActions extends FluentWebDriverAction {
                 return true;
 
             if (!canScrollMore) {
+                // When targetElementLocator is null (image-based scroll), the caller re-checks
+                // the image after each scroll – return true here to stop the fluentWait loop.
+                if (targetElementLocator == null) return true;
                 // Only throw after 3 consecutive "false" responses with the element still absent.
                 // This prevents a single premature false (Appium 3.x regression) from aborting the
                 // scroll loop before the target element has been reached.
