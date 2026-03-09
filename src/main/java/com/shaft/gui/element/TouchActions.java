@@ -569,9 +569,8 @@ public class TouchActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(String targetText) {
-        String escapedText = targetText.replace("\"", "\\\"");
-        safeFindElements(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
-                + ".scrollIntoView(new UiSelector().textContains(\"" + escapedText + "\"))"));
+        driverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+                + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
         return this;
     }
 
@@ -583,15 +582,14 @@ public class TouchActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(String targetText, SwipeMovement movement) {
-        String escapedText = targetText.replace("\"", "\\\"");
         switch (movement) {
             case VERTICAL:
-                safeFindElements(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
-                        + ".scrollIntoView(new UiSelector().textContains(\"" + escapedText + "\"))"));
+                driverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+                        + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
                 break;
             case HORIZONTAL:
-                safeFindElements(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector()).setAsHorizontalList().scrollIntoView("
-                        + "new UiSelector().textContains(\"" + escapedText + "\"));"));
+                driverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector()).setAsHorizontalList().scrollIntoView("
+                        + "new UiSelector().textContains(\"" + targetText + "\"));"));
                 break;
         }
         return this;
@@ -705,13 +703,6 @@ public class TouchActions extends FluentWebDriverAction {
     }
 
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
-        // If no target locator, just perform a single scroll (used by image-based identification)
-        if (targetElementLocator == null) {
-            var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, null);
-            performW3cCompliantScroll(scrollParameters);
-            return true;
-        }
-
         var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, targetElementLocator);
         AtomicBoolean canScrollMore = new AtomicBoolean(true);
 
@@ -719,40 +710,17 @@ public class TouchActions extends FluentWebDriverAction {
             // for the animated GIF:
             elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
 
-            var elementExistsOnViewPort = !safeFindElements(targetElementLocator).isEmpty();
+            var elementExistsOnViewPort = !driverFactoryHelper.getDriver().findElements(targetElementLocator).isEmpty();
             if (elementExistsOnViewPort)
                 return true;
             canScrollMore.set(performW3cCompliantScroll(scrollParameters));
-            elementExistsOnViewPort = !safeFindElements(targetElementLocator).isEmpty();
+            elementExistsOnViewPort = !driverFactoryHelper.getDriver().findElements(targetElementLocator).isEmpty();
             if (!canScrollMore.get() && !elementExistsOnViewPort)
                 throw new RuntimeException("Element not found after scrolling to the end of the page.");
             return elementExistsOnViewPort;
         });
         ReportManager.logDiscrete("Element found on screen.");
         return true;
-    }
-
-    /**
-     * Wraps {@code driver.findElements(by)} to safely handle the StackOverflowError
-     * caused by an infinite recursion in Selenium 4.41.0's {@code ElementLocation} when
-     * used with {@code AppiumBy} locators and Appium java-client 10.x.
-     * <p>
-     * The recursion occurs because {@code AppiumBy.findElements(SearchContext)} delegates
-     * back to {@code SearchContext.findElements(By)}, creating a cycle via
-     * {@code ElementLocation$ElementFinder$1}. If the Appium server returns an
-     * {@code InvalidArgumentException} for an unrecognized locator strategy, the
-     * {@code ElementLocation} fallback triggers this recursive loop.
-     *
-     * @param locator the {@link By} locator to search with
-     * @return the list of found elements, or an empty list if a StackOverflowError occurs
-     */
-    private List<WebElement> safeFindElements(By locator) {
-        try {
-            return driverFactoryHelper.getDriver().findElements(locator);
-        } catch (StackOverflowError e) {
-            // Selenium 4.41.0 + AppiumBy infinite recursion in ElementLocation$ElementFinder
-            return Collections.emptyList();
-        }
     }
 
     private void attemptPinchToZoomIn() {

@@ -46,7 +46,7 @@ public class ElementActionsMockedTests {
         when(mockElement.getTagName()).thenReturn("input");
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterMethod
     public void afterMethod() throws Exception {
         if (closeable != null) {
             closeable.close();
