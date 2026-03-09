@@ -174,12 +174,16 @@ public class ElementActionsHelper {
                             var elementName = JavaHelper.
                                     formatLocatorToString(elementLocator);
                             try {
-                                var accessibleName = targetElement[0].getAccessibleName();
-                                if (
-                                        accessibleName != null && !accessibleName.
-                                                isBlank()) {
-                                    elementName =
-                                            accessibleName;
+                                // getAccessibleName() triggers GET .../computedlabel which is
+                                // unsupported by Appium native sessions (returns 404)
+                                if (!DriverFactoryHelper.isMobileNativeExecution()) {
+                                    var accessibleName = targetElement[0].getAccessibleName();
+                                    if (
+                                            accessibleName != null && !accessibleName.
+                                                    isBlank()) {
+                                        elementName =
+                                                accessibleName;
+                                    }
                                 }
                             } catch (Throwable throwable) {
                                 //happens on some elements that show unhandled inspector error
@@ -335,9 +339,13 @@ public class ElementActionsHelper {
     public String getElementName(WebDriver driver, By elementLocator) {
         if (SHAFT.Properties.reporting.captureElementName()) {
             try {
-                var accessibleName = ((WebElement) identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getAccessibleName();
-                if (accessibleName != null && !accessibleName.isBlank()) {
-                    return accessibleName;
+                // getAccessibleName() triggers GET .../computedlabel which is
+                // unsupported by Appium native sessions (returns 404)
+                if (!DriverFactoryHelper.isMobileNativeExecution()) {
+                    var accessibleName = ((WebElement) identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getAccessibleName();
+                    if (accessibleName != null && !accessibleName.isBlank()) {
+                        return accessibleName;
+                    }
                 }
             } catch (Throwable throwable) {
                 var rootCause = Throwables.getRootCause(throwable).getClass();
@@ -500,9 +508,13 @@ public class ElementActionsHelper {
         String elementName = elementLocator != null ? JavaHelper.formatLocatorToString(elementLocator) : "";
         if (elementLocator != null && (rootCauseException.length >= 1 && Throwables.getRootCause(rootCauseException[0]).getClass() != MultipleElementsFoundException.class && Throwables.getRootCause(rootCauseException[0]).getClass() != NoSuchElementException.class && Throwables.getRootCause(rootCauseException[0]).getClass() != InvalidSelectorException.class)) {
             try {
-                var accessibleName = ((WebElement) this.identifyUniqueElement(driver, elementLocator).get(1)).getAccessibleName();
-                if (accessibleName != null && !accessibleName.isBlank()) {
-                    elementName = accessibleName;
+                // getAccessibleName() triggers GET .../computedlabel which is
+                // unsupported by Appium native sessions (returns 404)
+                if (!DriverFactoryHelper.isMobileNativeExecution()) {
+                    var accessibleName = ((WebElement) this.identifyUniqueElement(driver, elementLocator).get(1)).getAccessibleName();
+                    if (accessibleName != null && !accessibleName.isBlank()) {
+                        elementName = accessibleName;
+                    }
                 }
             } catch (WebDriverException e) {
                 //happens on some elements that show unhandled inspector error
