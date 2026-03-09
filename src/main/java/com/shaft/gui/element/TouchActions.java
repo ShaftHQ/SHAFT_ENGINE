@@ -705,6 +705,13 @@ public class TouchActions extends FluentWebDriverAction {
     }
 
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
+        // If no target locator, just perform a single scroll (used by image-based identification)
+        if (targetElementLocator == null) {
+            var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, null);
+            performW3cCompliantScroll(scrollParameters);
+            return true;
+        }
+
         var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, targetElementLocator);
         AtomicBoolean canScrollMore = new AtomicBoolean(true);
 
