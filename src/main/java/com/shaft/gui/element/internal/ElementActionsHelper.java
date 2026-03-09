@@ -637,7 +637,9 @@ public class ElementActionsHelper {
         List<List<Object>> attachments = createReportAttachments(driver, actionName, testData, elementLocator, screenshots, passFailStatus, rootCauseException);
 
         if (message.contains("Failed") && rootCauseException != null && rootCauseException.length > 0) {
-            String rootCause = " Root cause: \"" + Throwables.getRootCause(rootCauseException[0]).getClass().getName() + ": " + Throwables.getRootCause(rootCauseException[0]).getLocalizedMessage().split("\n")[0] + "\"";
+            var rootCauseThrowable = Throwables.getRootCause(rootCauseException[0]);
+            var rootCauseMessage = rootCauseThrowable.getLocalizedMessage();
+            String rootCause = " Root cause: \"" + rootCauseThrowable.getClass().getName() + ": " + (rootCauseMessage != null ? rootCauseMessage.split("\n")[0] : "No message") + "\"";
             message += rootCause;
         }
         if (!isSilent || actionName.equals("identifyUniqueElement")) {
