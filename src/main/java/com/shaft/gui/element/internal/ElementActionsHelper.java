@@ -176,7 +176,6 @@ public class ElementActionsHelper {
                             try {
                                 // getAccessibleName() triggers GET .../computedlabel which is
                                 // unsupported by Appium native sessions (returns 404).
-                                // Skip it for mobile native and fall back to the locator string.
                                 if (!DriverFactoryHelper.isMobileNativeExecution()) {
                                     var accessibleName = targetElement[0].getAccessibleName();
                                     if (

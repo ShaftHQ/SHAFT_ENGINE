@@ -378,14 +378,17 @@ public class Actions extends ElementActions {
                             executeClearBasedOnClearMode(foundElements.get().getFirst(), "backspace");
                     }
                     case DRAG_AND_DROP -> {
-                        // Use findElements (plural) for the destination to avoid registering
-                        // Selenium's ElementFinder$1 fallback, which causes StackOverflowError
-                        // on retry when used with AppiumBy locators on Appium 3.x.
-                        List<WebElement> destElements = d.findElements((By) data);
-                        if (destElements.isEmpty())
-                            throw new org.openqa.selenium.NoSuchElementException("Destination element not found: " + data);
+                        // Wrap in try-catch for StackOverflowError caused by Selenium 4.41.0
+                        // ElementLocation infinite recursion with AppiumBy locators
+                        WebElement destElement;
+                        try {
+                            destElement = d.findElement((By) data);
+                        } catch (StackOverflowError soe) {
+                            throw new org.openqa.selenium.NoSuchElementException(
+                                    "Destination element not found (StackOverflowError in Selenium ElementLocation): " + data);
+                        }
                         new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
-                                .dragAndDrop(foundElements.get().getFirst(), destElements.get(0)).perform();
+                                .dragAndDrop(foundElements.get().getFirst(), destElement).perform();
                     }
                     case DRAG_AND_DROP_BY_OFFSET ->
                             new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)

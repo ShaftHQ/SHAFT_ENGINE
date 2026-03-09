@@ -109,10 +109,7 @@ public class CucumberFeatureListenerTest {
         Mockito.when(event.getText()).thenReturn("Some text");
         var method = CucumberFeatureListener.class.getDeclaredMethod("handleWriteEvent", WriteEvent.class);
         method.setAccessible(true);
-        // Not invoked: the real lifecycle writes to Allure FS; SHAFT's afterInvocation would then fail
-        // with AllureResultsWriteException when it tries to attach its own test log. Reflection is used
-        // here only to assert the method signature is accessible, consistent with the other tests above.
-//        method.invoke(listener, event);
+        method.invoke(listener, event);
     }
 
     @Test

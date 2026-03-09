@@ -26,13 +26,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.Arrays.asList;
 
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class TouchActions extends FluentWebDriverAction {
     private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 5;
-    private static final int MAX_IMAGE_SCROLL_ATTEMPTS = 15;
     private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = SHAFT.Properties.reporting.captureElementName();
 
     public TouchActions() {
@@ -570,7 +570,7 @@ public class TouchActions extends FluentWebDriverAction {
      */
     public TouchActions swipeElementIntoView(String targetText) {
         String escapedText = targetText.replace("\"", "\\\"");
-        driverFactoryHelper.getDriver().findElements(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+        safeFindElements(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
                 + ".scrollIntoView(new UiSelector().textContains(\"" + escapedText + "\"))"));
         return this;
     }
@@ -586,11 +586,11 @@ public class TouchActions extends FluentWebDriverAction {
         String escapedText = targetText.replace("\"", "\\\"");
         switch (movement) {
             case VERTICAL:
-                driverFactoryHelper.getDriver().findElements(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+                safeFindElements(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
                         + ".scrollIntoView(new UiSelector().textContains(\"" + escapedText + "\"))"));
                 break;
             case HORIZONTAL:
-                driverFactoryHelper.getDriver().findElements(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector()).setAsHorizontalList().scrollIntoView("
+                safeFindElements(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector()).setAsHorizontalList().scrollIntoView("
                         + "new UiSelector().textContains(\"" + escapedText + "\"));"));
                 break;
         }
@@ -626,18 +626,7 @@ public class TouchActions extends FluentWebDriverAction {
             // element is already on screen
             ReportManager.logDiscrete("Element found on screen.");
         } else {
-            var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, null);
-            for (int i = 0; i < MAX_IMAGE_SCROLL_ATTEMPTS; i++) {
-                elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
-                performW3cCompliantScroll(scrollParameters);
-                // Re-check whether the image has appeared after the scroll
-                visualIdentificationObjects = elementActionsHelper.waitForElementPresence(driverFactoryHelper.getDriver(), targetElementImage);
-                coordinates = (List<Integer>) visualIdentificationObjects.get(2);
-                if (!Collections.emptyList().equals(coordinates)) {
-                    ReportManager.logDiscrete("Element found on screen after scrolling.");
-                    return visualIdentificationObjects;
-                }
-            }
+            attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, null);
         }
         return visualIdentificationObjects;
     }
@@ -664,115 +653,99 @@ public class TouchActions extends FluentWebDriverAction {
         logMessage += ".";
         ReportManager.logDiscrete(logMessage);
 
-        var params = new HashMap<Object, Object>();
+        Dimension screenSize = driverFactoryHelper.getDriver().manage().window().getSize();
+
+        var scrollParameters = new HashMap<>();
 
         if (scrollableElementLocator != null) {
-            // Scrolling inside a specific element – compute swipe coordinates from element bounds.
-            Rectangle rect = ((WebElement) elementActionsHelper.identifyUniqueElement(
-                    driverFactoryHelper.getDriver(), scrollableElementLocator).get(1)).getRect();
-            int midX = rect.getX() + rect.getWidth() / 2;
-            int midY = rect.getY() + rect.getHeight() / 2;
-            int vMargin = rect.getHeight() / 4;
-            int hMargin = rect.getWidth() / 4;
+            //scrolling inside an element
+            Rectangle elementRectangle = ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), scrollableElementLocator).get(1)).getRect();
+            scrollParameters.putAll(ImmutableMap.of(
+                    "height", elementRectangle.getHeight() * 90 / 100
+            ));
+            //percent 0.5 works for UP/DOWN, optimized to 0.8 to scroll faster and introduced delay 1000ms after every scroll action to increase stability
             switch (swipeDirection) {
-                // DOWN = reveal content below = finger moves from bottom to top
-                case DOWN -> {
-                    params.put("startX", midX);
-                    params.put("startY", rect.getY() + rect.getHeight() - vMargin);
-                    params.put("endX", midX);
-                    params.put("endY", rect.getY() + vMargin);
-                }
-                // UP = reveal content above = finger moves from top to bottom
-                case UP -> {
-                    params.put("startX", midX);
-                    params.put("startY", rect.getY() + vMargin);
-                    params.put("endX", midX);
-                    params.put("endY", rect.getY() + rect.getHeight() - vMargin);
-                }
-                // RIGHT = reveal content to the right = finger moves from right to left
-                case RIGHT -> {
-                    params.put("startX", rect.getX() + rect.getWidth() - hMargin);
-                    params.put("startY", midY);
-                    params.put("endX", rect.getX() + hMargin);
-                    params.put("endY", midY);
-                }
-                // LEFT = reveal content to the left = finger moves from left to right
-                case LEFT -> {
-                    params.put("startX", rect.getX() + hMargin);
-                    params.put("startY", midY);
-                    params.put("endX", rect.getX() + rect.getWidth() - hMargin);
-                    params.put("endY", midY);
-                }
+                case UP, DOWN ->
+                        scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getY()));
+                case RIGHT ->
+                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", elementRectangle.getX(), "top", elementRectangle.getY()));
+                case LEFT ->
+                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth(), "left", elementRectangle.getX() + (elementRectangle.getWidth() * 50 / 100), "top", elementRectangle.getY()));
             }
         } else {
-            // Scrolling the full screen
-            Dimension screenSize = driverFactoryHelper.getDriver().manage().window().getSize();
-            int midX = screenSize.getWidth() / 2;
-            int midY = screenSize.getHeight() / 2;
+            //scrolling inside the screen
+            scrollParameters.putAll(ImmutableMap.of(
+                    "width", screenSize.getWidth(), "height", screenSize.getHeight() * 90 / 100,
+                    "percent", 0.8
+            ));
             switch (swipeDirection) {
-                case DOWN -> {
-                    params.put("startX", midX);
-                    params.put("startY", (int)(screenSize.getHeight() * 0.8));
-                    params.put("endX", midX);
-                    params.put("endY", (int)(screenSize.getHeight() * 0.2));
-                }
-                case UP -> {
-                    params.put("startX", midX);
-                    params.put("startY", (int)(screenSize.getHeight() * 0.2));
-                    params.put("endX", midX);
-                    params.put("endY", (int)(screenSize.getHeight() * 0.8));
-                }
-                case RIGHT -> {
-                    params.put("startX", (int)(screenSize.getWidth() * 0.8));
-                    params.put("startY", midY);
-                    params.put("endX", (int)(screenSize.getWidth() * 0.2));
-                    params.put("endY", midY);
-                }
-                case LEFT -> {
-                    params.put("startX", (int)(screenSize.getWidth() * 0.2));
-                    params.put("startY", midY);
-                    params.put("endX", (int)(screenSize.getWidth() * 0.8));
-                    params.put("endY", midY);
-                }
+                case UP -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", screenSize.getHeight() - 100));
+                case DOWN -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", 100));
+                // expected issues with RIGHT and LEFT
+                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("left", 100, "top", 0));
+                case LEFT -> scrollParameters.putAll(ImmutableMap.of("left", screenSize.getWidth() - 100, "top", 0));
             }
         }
-        return params;
+        scrollParameters.putAll(ImmutableMap.of(
+                "direction", swipeDirection.toString()
+        ));
+        return scrollParameters;
     }
 
-    private void performW3cCompliantScroll(HashMap<Object, Object> scrollParameters) {
-        // Use W3C PointerInput touch actions for the swipe gesture.
-        // This approach is reliable across all Appium versions (2.x and 3.x) on both Android and iOS,
-        // and does not depend on mobile:scrollGesture's boolean return value or direction semantics.
-        int startX = (int) scrollParameters.get("startX");
-        int startY = (int) scrollParameters.get("startY");
-        int endX   = (int) scrollParameters.get("endX");
-        int endY   = (int) scrollParameters.get("endY");
-
-        PointerInput touch = new PointerInput(PointerInput.Kind.TOUCH, "touch");
-        Sequence swipe = new Sequence(touch, 0);
-        swipe.addAction(touch.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), startX, startY));
-        swipe.addAction(touch.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
-        swipe.addAction(touch.createPointerMove(Duration.ofMillis(600), PointerInput.Origin.viewport(), endX, endY));
-        swipe.addAction(touch.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
-        ((AppiumDriver) driverFactoryHelper.getDriver()).perform(Collections.singletonList(swipe));
+    private boolean performW3cCompliantScroll(HashMap<Object, Object> scrollParameters) {
+        boolean canScrollMore = true;
+        if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+            canScrollMore = Boolean.parseBoolean(String.valueOf(androidDriver.executeScript("mobile: scrollGesture", scrollParameters)));
+        } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+            //http://appium.github.io/appium-xcuitest-driver/4.16/execute-methods/#mobile-scroll
+            var ret = iosDriver.executeScript("mobile: scroll", scrollParameters);
+            canScrollMore = ret == null || (Boolean) ret;
+        }
+        return canScrollMore;
     }
 
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
         var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, targetElementLocator);
+        AtomicBoolean canScrollMore = new AtomicBoolean(true);
 
         new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
             // for the animated GIF:
             elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
 
-            if (targetElementLocator != null && !driverFactoryHelper.getDriver().findElements(targetElementLocator).isEmpty())
+            var elementExistsOnViewPort = !safeFindElements(targetElementLocator).isEmpty();
+            if (elementExistsOnViewPort)
                 return true;
-
-            performW3cCompliantScroll(scrollParameters);
-
-            return targetElementLocator != null && !driverFactoryHelper.getDriver().findElements(targetElementLocator).isEmpty();
+            canScrollMore.set(performW3cCompliantScroll(scrollParameters));
+            elementExistsOnViewPort = !safeFindElements(targetElementLocator).isEmpty();
+            if (!canScrollMore.get() && !elementExistsOnViewPort)
+                throw new RuntimeException("Element not found after scrolling to the end of the page.");
+            return elementExistsOnViewPort;
         });
         ReportManager.logDiscrete("Element found on screen.");
         return true;
+    }
+
+    /**
+     * Wraps {@code driver.findElements(by)} to safely handle the StackOverflowError
+     * caused by an infinite recursion in Selenium 4.41.0's {@code ElementLocation} when
+     * used with {@code AppiumBy} locators and Appium java-client 10.x.
+     * <p>
+     * The recursion occurs because {@code AppiumBy.findElements(SearchContext)} delegates
+     * back to {@code SearchContext.findElements(By)}, creating a cycle via
+     * {@code ElementLocation$ElementFinder$1}. If the Appium server returns an
+     * {@code InvalidArgumentException} for an unrecognized locator strategy, the
+     * {@code ElementLocation} fallback triggers this recursive loop.
+     *
+     * @param locator the {@link By} locator to search with
+     * @return the list of found elements, or an empty list if a StackOverflowError occurs
+     */
+    private List<WebElement> safeFindElements(By locator) {
+        try {
+            return driverFactoryHelper.getDriver().findElements(locator);
+        } catch (StackOverflowError e) {
+            // Selenium 4.41.0 + AppiumBy infinite recursion in ElementLocation$ElementFinder
+            return Collections.emptyList();
+        }
     }
 
     private void attemptPinchToZoomIn() {
