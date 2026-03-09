@@ -13,6 +13,17 @@ import java.util.Calendar;
 import java.util.LinkedHashMap;
 import java.util.function.BiConsumer;
 
+/**
+ * Internal utility class responsible for attaching test artifacts (screenshots, recordings,
+ * GIFs, data files, page snapshots, etc.) to the Allure report and optionally to ReportPortal.
+ *
+ * <p>Attachment routing is driven by the {@code attachmentType} / {@code attachmentName} strings
+ * using a {@link java.util.LinkedHashMap} of named handlers registered in the static initialiser.
+ * New content types can be supported by adding entries to {@code attachmentHandlers}.
+ *
+ * <p>This class is not intended for direct use in test code; it is invoked by
+ * {@link com.shaft.tools.io.internal.ReportManagerHelper}.
+ */
 public class AttachmentReporter {
     private static final LinkedHashMap<String, BiConsumer<String, ByteArrayOutputStream>> attachmentHandlers = new LinkedHashMap<>();
 
@@ -98,6 +109,33 @@ public class AttachmentReporter {
         }
     }
 
+    /**
+     * Attaches the given content to the Allure report (and ReportPortal if enabled),
+     * automatically selecting the correct MIME type and file extension based on the
+     * attachment type and name strings.
+     *
+     * <p>The {@code attachmentType} string is matched (case-insensitively) against known keywords
+     * such as {@code "screenshot"}, {@code "gif"}, {@code "json"}, {@code "xml"}, etc.
+     * For unrecognised types the {@code "default"} handler is used, which attaches the raw bytes
+     * without a declared MIME type.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * AttachmentReporter.attachBasedOnFileType(
+     *     "screenshot",
+     *     "Home page screenshot",
+     *     screenshotOutputStream,
+     *     "Screenshot after login"
+     * );
+     * }</pre>
+     *
+     * @param attachmentType        a string describing the content category (e.g. {@code "screenshot"},
+     *                              {@code "json"}, {@code "page snapshot"})
+     * @param attachmentName        the file or data name, also inspected for type inference
+     *                              (e.g. {@code "response.xml"})
+     * @param attachmentContent     the raw content to attach as a {@link java.io.ByteArrayOutputStream}
+     * @param attachmentDescription the human-readable label shown in the Allure report attachment panel
+     */
     public static void attachBasedOnFileType(String attachmentType, String attachmentName,
                                              ByteArrayOutputStream attachmentContent, String attachmentDescription) {
         // Get the appropriate handler based on the attachment type, or use the default handler(resilient in case any changes were to be made to getAttachmentCase)

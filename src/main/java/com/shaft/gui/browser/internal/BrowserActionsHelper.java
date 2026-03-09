@@ -32,39 +32,136 @@ import java.time.Duration;
 import java.util.*;
 import java.util.List;
 
+/**
+ * Internal helper class for browser actions within the SHAFT framework.
+ * Provides utility methods for navigating URLs, reporting pass/fail results,
+ * maximizing browser windows, capturing page snapshots, and formatting URLs
+ * for basic authentication.
+ *
+ * <p>Instances are typically created per action with a {@code isSilent} flag
+ * that suppresses Allure report entries when set to {@code true}.
+ *
+ * <p>Example usage:
+ * <pre>{@code
+ * BrowserActionsHelper helper = new BrowserActionsHelper(false);
+ * helper.navigateToNewUrl(driver, currentUrl, "https://example.com", "");
+ * }</pre>
+ */
 public class BrowserActionsHelper {
+    /**
+     * The navigation timeout in seconds, sourced from {@code SHAFT.Properties.timeouts.browserNavigationTimeout()}.
+     * Used as the maximum wait duration for URL-change conditions.
+     */
     public static final int NAVIGATION_TIMEOUT_INTEGER = SHAFT.Properties.timeouts.browserNavigationTimeout();
     private final boolean isSilent;
     private final Boolean HEADLESS_EXECUTION = SHAFT.Properties.web.headlessExecution();
 
+    /**
+     * Creates a new {@code BrowserActionsHelper}.
+     *
+     * @param isSilent when {@code true}, action results are not written to the Allure report;
+     *                 useful for internal/utility navigations that should not appear in test output
+     */
     public BrowserActionsHelper(boolean isSilent) {
         this.isSilent = isSilent;
     }
 
+    /**
+     * Reports a successful browser action without a WebDriver instance.
+     * The action name is derived from the caller's method name.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * passAction("https://example.com");
+     * }</pre>
+     *
+     * @param testData descriptive data associated with the action (e.g. the URL navigated to)
+     */
     public void passAction(String testData) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         passAction(null, actionName, testData);
     }
 
+    /**
+     * Reports a successful browser action, attaching a screenshot when a driver is provided.
+     * The action name is derived from the caller's method name.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * passAction(driver, "Page title was correct");
+     * }</pre>
+     *
+     * @param driver   the active {@link WebDriver} instance used to capture a screenshot, or {@code null}
+     * @param testData descriptive data associated with the action
+     */
     public void passAction(WebDriver driver, String testData) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         passAction(driver, actionName, testData);
     }
 
+    /**
+     * Reports a successful browser action with an explicit action name.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * passAction(driver, "navigateToURL", "https://example.com");
+     * }</pre>
+     *
+     * @param driver     the active {@link WebDriver} instance used to capture a screenshot, or {@code null}
+     * @param actionName the display name of the action as it should appear in the report
+     * @param testData   descriptive data associated with the action
+     */
     public void passAction(WebDriver driver, String actionName, String testData) {
         reportActionResult(driver, actionName, testData, true);
     }
 
+    /**
+     * Reports a failed browser action without a WebDriver instance or test data.
+     * The action name is derived from the caller's method name.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * failAction(rootCauseException);
+     * }</pre>
+     *
+     * @param rootCauseException optional root-cause exception(s) to include in the report
+     */
     public void failAction(Exception... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(null, actionName, "", rootCauseException);
     }
 
+    /**
+     * Reports a failed browser action, capturing a screenshot when a driver is provided.
+     * The action name is derived from the caller's method name.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * failAction(driver, "Navigation failed", rootCauseException);
+     * }</pre>
+     *
+     * @param driver             the active {@link WebDriver} instance used to capture a screenshot, or {@code null}
+     * @param testData           descriptive data associated with the failure
+     * @param rootCauseException optional root-cause exception(s) to include in the report
+     */
     public void failAction(WebDriver driver, String testData, Exception... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(driver, actionName, testData, rootCauseException);
     }
 
+    /**
+     * Reports a failed browser action with an explicit action name, then throws a test failure.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * failAction(driver, "navigateToURL", "https://example.com", rootCauseException);
+     * }</pre>
+     *
+     * @param driver             the active {@link WebDriver} instance used to capture a screenshot, or {@code null}
+     * @param actionName         the display name of the action as it should appear in the report
+     * @param testData           descriptive data associated with the failure
+     * @param rootCauseException optional root-cause exception(s) to include in the report
+     */
     public void failAction(WebDriver driver, String actionName, String testData,
                            Exception... rootCauseException) {
         String message = reportActionResult(driver, actionName, testData, false, rootCauseException);
@@ -119,6 +216,19 @@ public class BrowserActionsHelper {
         return message;
     }
 
+    /**
+     * Verifies that the page currently loaded in the browser is not a network-error page.
+     * Waits up to {@link #NAVIGATION_TIMEOUT_INTEGER} seconds using a fluent wait, checking
+     * well-known browser error message strings (e.g. "This site can't be reached").
+     *
+     * <p>Example:
+     * <pre>{@code
+     * helper.confirmThatWebsiteIsNotDown(driver, "https://example.com");
+     * }</pre>
+     *
+     * @param driver    the active {@link WebDriver} instance
+     * @param targetUrl the URL that was navigated to, used in the failure message if an error page is detected
+     */
     public void confirmThatWebsiteIsNotDown(WebDriver driver, String targetUrl) {
         var navigationErrorMessages = Arrays.asList("This site can’t be reached", "Unable to connect",
                 "Safari Can’t Connect to the Server", "This page can't be displayed", "Invalid URL",
@@ -136,6 +246,22 @@ public class BrowserActionsHelper {
                 });
     }
 
+    /**
+     * Navigates the browser to a new URL. Handles local file paths by prepending the {@code file://} scheme,
+     * and prefers the W3C BiDi {@link BrowsingContext} API for navigation when available. Falls back to
+     * the classic {@link WebDriver#navigate()} API for non-BiDi drivers or on timeout.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * helper.navigateToNewUrl(driver, "about:blank", "https://example.com", "https://example.com/home");
+     * }</pre>
+     *
+     * @param driver                    the active {@link WebDriver} instance
+     * @param initialURL                the URL the browser was at before navigation (used for wait conditions)
+     * @param targetUrl                 the URL to navigate to
+     * @param targetUrlAfterRedirection the expected final URL after any server-side redirects;
+     *                                  pass the same value as {@code targetUrl} if no redirect is expected
+     */
     public void navigateToNewUrl(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
         var internalURL = targetUrl;
         try {
@@ -160,6 +286,22 @@ public class BrowserActionsHelper {
         }
     }
 
+    /**
+     * Waits until the browser URL reflects a successful navigation away from the initial URL,
+     * and optionally waits until it contains the expected target URL.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * helper.checkNavigationWasSuccessful(driver, "about:blank", "https://example.com", "https://example.com/home");
+     * }</pre>
+     *
+     * @param driver                    the active {@link WebDriver} instance
+     * @param initialURL                the URL before navigation began
+     * @param targetUrl                 the URL that was requested
+     * @param targetUrlAfterRedirection the expected final URL after any server-side redirect;
+     *                                  when different from {@code targetUrl}, the method also waits
+     *                                  for the URL to contain this value
+     */
     public void checkNavigationWasSuccessful(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
         if (!targetUrl.equals(targetUrlAfterRedirection)) {
             waitUntilUrlIsNot(driver, initialURL);
@@ -170,6 +312,18 @@ public class BrowserActionsHelper {
         }
     }
 
+    /**
+     * Waits until the browser URL is no longer equal to the given initial URL.
+     * Times out after {@link #NAVIGATION_TIMEOUT_INTEGER} seconds, failing the test if the URL does not change.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * helper.waitUntilUrlIsNot(driver, "about:blank");
+     * }</pre>
+     *
+     * @param driver     the active {@link WebDriver} instance
+     * @param initialURL the URL that the browser should navigate away from
+     */
     public void waitUntilUrlIsNot(WebDriver driver, String initialURL) {
         try {
             (new WebDriverWait(driver, Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER))).until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
@@ -186,6 +340,23 @@ public class BrowserActionsHelper {
         }
     }
 
+    /**
+     * Attempts to maximize the browser window using the Selenium WebDriver
+     * {@link org.openqa.selenium.WebDriver.Window#maximize()} method.
+     * This is the preferred approach for most browser/OS combinations, but is skipped for
+     * Chrome on macOS in local execution (known limitation).
+     *
+     * <p>Example:
+     * <pre>{@code
+     * Dimension size = helper.attemptMaximizeUsingSeleniumWebDriver(driver, "local", "GoogleChrome", "Windows");
+     * }</pre>
+     *
+     * @param driver                 the active {@link WebDriver} instance
+     * @param executionAddress       the grid/cloud address, or {@code "local"} for local execution
+     * @param targetBrowserName      the browser name (e.g. {@code "GoogleChrome"})
+     * @param targetOperatingSystem  the OS name (e.g. {@code "Windows"}, {@code "Mac"})
+     * @return the window {@link Dimension} after the maximize attempt
+     */
     public Dimension attemptMaximizeUsingSeleniumWebDriver(WebDriver driver, String executionAddress,
                                                            String targetBrowserName, String targetOperatingSystem) {
         if ((!"local".equals(executionAddress) && !"GoogleChrome".equals(targetBrowserName))
@@ -206,6 +377,22 @@ public class BrowserActionsHelper {
         return driver.manage().window().getSize();
     }
 
+    /**
+     * Attempts to maximize the browser window by reading the physical screen dimensions from
+     * {@link java.awt.Toolkit} and resizing the window accordingly. Falls back to JavaScript
+     * execution when running in a headless environment where {@code Toolkit} throws
+     * {@link java.awt.HeadlessException}.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * Dimension size = helper.attemptMaximizeUsingToolkitAndJavascript(driver, 1920, 1080);
+     * }</pre>
+     *
+     * @param driver the active {@link WebDriver} instance
+     * @param width  the fallback width to use when the screen size cannot be determined
+     * @param height the fallback height to use when the screen size cannot be determined
+     * @return the window {@link Dimension} after the resize attempt
+     */
     public Dimension attemptMaximizeUsingToolkitAndJavascript(WebDriver driver, int width, int height) {
         int targetWidth = width;
         int targetHeight = height;
@@ -232,6 +419,20 @@ public class BrowserActionsHelper {
         }
     }
 
+    /**
+     * Maximizes the browser window by explicitly setting its position to {@code (0, 0)} and
+     * its size to the provided dimensions using the {@link org.openqa.selenium.WebDriver.Window} API.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * Dimension size = helper.attemptMaximizeUsingSeleniumWebDriverManageWindow(driver, 1920, 1080);
+     * }</pre>
+     *
+     * @param driver the active {@link WebDriver} instance
+     * @param width  the desired window width in pixels
+     * @param height the desired window height in pixels
+     * @return the window {@link Dimension} after the resize
+     */
     public Dimension attemptMaximizeUsingSeleniumWebDriverManageWindow(WebDriver driver, int width,
                                                                        int height) {
         driver.manage().window().setPosition(new Point(0, 0));
@@ -242,6 +443,20 @@ public class BrowserActionsHelper {
         return driver.manage().window().getSize();
     }
 
+    /**
+     * Captures a snapshot of the current page. For Chromium-based browsers the Chrome DevTools
+     * Protocol {@code Page.captureSnapshot} command is used to produce a full MHTML snapshot;
+     * for all other browsers the standard {@link WebDriver#getPageSource()} is used as a fallback.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * String snapshot = helper.capturePageSnapshot(driver);
+     * }</pre>
+     *
+     * @param driver the active {@link WebDriver} instance, or {@code null} to fall back directly
+     *               to a page-source capture
+     * @return the serialised page data as a {@link String} (MHTML or HTML source)
+     */
     public String capturePageSnapshot(WebDriver driver) {
         var serializedPageData = "";
         try {
@@ -267,6 +482,22 @@ public class BrowserActionsHelper {
     }
 
 
+    /**
+     * Embeds Basic-Authentication credentials into a URL so that the browser submits them
+     * automatically on navigation without requiring an interactive prompt.
+     * Credentials are percent-encoded via {@link java.net.URLEncoder} to handle special characters.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * String authUrl = helper.formatUrlForBasicAuthentication("admin", "p@ssw0rd", "https://example.com/secure");
+     * // returns "https://admin:p%40ssw0rd@example.com/secure"
+     * }</pre>
+     *
+     * @param username  the username for Basic Authentication
+     * @param password  the password for Basic Authentication
+     * @param targetUrl the target URL (must start with {@code http://} or {@code https://})
+     * @return the URL with embedded Basic-Auth credentials
+     */
     @SneakyThrows
     public String formatUrlForBasicAuthentication(String username, String password, String targetUrl) {
         if (targetUrl.startsWith("https://")) {
@@ -276,6 +507,20 @@ public class BrowserActionsHelper {
         }
     }
 
+    /**
+     * Extracts the registrable (top-private) domain name from a full URL.
+     * Uses the <a href="https://guava.dev/releases/snapshot/api/docs/com/google/common/net/InternetDomainName.html">
+     * Guava {@code InternetDomainName}</a> class to determine the public suffix and top-level domain.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * String domain = helper.getDomainNameFromUrl("https://www.example.co.uk/page");
+     * // returns "example.co.uk"
+     * }</pre>
+     *
+     * @param url the full URL string to extract the domain from
+     * @return the registrable domain name (e.g. {@code "example.co.uk"})
+     */
     @SneakyThrows
     public String getDomainNameFromUrl(String url) {
         // https://www.baeldung.com/java-domain-name-from-url#using-the-internetdomainname-class-from-guava-library

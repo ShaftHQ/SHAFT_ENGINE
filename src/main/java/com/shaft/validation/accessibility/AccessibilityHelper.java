@@ -69,6 +69,11 @@ public class AccessibilityHelper {
     private static final int DOM_CHECK_INTERVAL_MILLIS = 500; // Sleep interval between checks
     private static final int PAGE_LOAD_TIMEOUT_SECONDS = 30;
 
+    /** Utility class — do not instantiate. */
+    private AccessibilityHelper() {
+        throw new IllegalStateException("Utility class");
+    }
+
 
     /**
      * Immutable-style configuration bean for an accessibility scan.
@@ -97,6 +102,13 @@ public class AccessibilityHelper {
         private String reportsDir = "accessibility-reports/";
         private boolean includePasses = true;
         private String context = "body, header, main, footer";
+
+        /**
+         * Creates a new {@code AccessibilityConfig} with default settings.
+         * Use the fluent setters to customise the configuration after construction.
+         */
+        public AccessibilityConfig() {
+        }
 
         /**
          * Returns the axe-core WCAG tag filters applied during the scan.
@@ -580,6 +592,14 @@ public class AccessibilityHelper {
         private String timestamp;
         private int passCount;
         private double accessibilityScore;
+
+        /**
+         * Creates a new empty {@code AccessibilityResult}.
+         * Instances are normally produced by {@link AccessibilityHelper} and should not
+         * be constructed directly in test code.
+         */
+        public AccessibilityResult() {
+        }
 
         // getters and setters
         /**

@@ -4,6 +4,26 @@ import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
+/**
+ * Configuration properties interface for BrowserStack cloud execution in the SHAFT framework.
+ * Covers all capabilities required for both desktop-web and native-mobile testing via BrowserStack's
+ * Automate and App Automate platforms.
+ *
+ * <p>Refer to the BrowserStack capability builders for the full list of supported options:
+ * <ul>
+ *   <li>Mobile Native: <a href="https://www.browserstack.com/app-automate/capabilities?tag=w3c">App Automate Capabilities</a></li>
+ *   <li>Web: <a href="https://www.browserstack.com/automate/capabilities?tag=selenium-4">Automate Capabilities</a></li>
+ * </ul>
+ *
+ * <p>Use {@link #set()} to override values programmatically:
+ * <pre>{@code
+ * SHAFT.Properties.browserStack.set()
+ *     .userName("myUser")
+ *     .accessKey("myKey")
+ *     .osVersion("11")
+ *     .browserVersion("latest");
+ * }</pre>
+ */
 @SuppressWarnings({"SpellCheckingInspection", "unused"})
 @Sources({"system:properties",
         "file:src/main/resources/properties/browserStack.properties",
