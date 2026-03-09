@@ -128,6 +128,12 @@ public interface Allure extends EngineProperties<Allure> {
     class SetProperty implements EngineProperties.SetProperty {
 
         /**
+         * Creates a new {@code SetProperty} instance.
+         */
+        public SetProperty() {
+        }
+
+        /**
          * Overrides the {@code allure.automaticallyOpen} property at runtime.
          *
          * @param value {@code true} to open the report automatically after execution

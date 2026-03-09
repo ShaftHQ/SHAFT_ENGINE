@@ -28,8 +28,19 @@ import org.aeonbits.owner.Config.LoadPolicy;
 @HotReload(type = HotReloadType.ASYNC)
 @LoadPolicy(Config.LoadType.MERGE)
 public interface EngineProperties<T> extends Config {
+    /**
+     * Returns a fluent {@link SetProperty} builder that allows programmatic override
+     * of individual configuration properties at runtime.
+     *
+     * @return a new {@link SetProperty} instance for chaining property overrides
+     */
     SetProperty set();
 
+    /**
+     * Marker interface implemented by every concrete fluent property-override builder.
+     * Concrete implementations expose typed setter methods that update the underlying
+     * property source and return {@code this} to support method chaining.
+     */
     interface SetProperty {
     }
 }

@@ -68,6 +68,13 @@ public interface API extends EngineProperties<API> {
      * }</pre>
      */
     class SetProperty implements EngineProperties.SetProperty {
+
+        /**
+         * Creates a new {@code SetProperty} instance.
+         */
+        public SetProperty() {
+        }
+
         /**
          * Overrides the {@code swagger.validation.enabled} property at runtime.
          *
