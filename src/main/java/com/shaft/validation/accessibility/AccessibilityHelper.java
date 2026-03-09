@@ -73,12 +73,12 @@ public class AccessibilityHelper {
     private static final int PAGE_LOAD_TIMEOUT_SECONDS = 30;
 
     /**
-     * Creates a new {@code AccessibilityHelper} instance.
-     * All functionality is exposed via static methods; this constructor exists only
-     * to satisfy JavaDoc tooling requirements and for any subclasses that may extend
-     * this class.
+     * This is a utility class and cannot be instantiated.
+     *
+     * @throws IllegalStateException always
      */
-    public AccessibilityHelper() {
+    private AccessibilityHelper() {
+        throw new IllegalStateException("Utility class");
     }
 
     /**
@@ -104,7 +104,7 @@ public class AccessibilityHelper {
      * </ul>
      */
     public static class AccessibilityConfig {
-        private List<String> tags = Arrays.asList("wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice");
+        private List<String> tags = new ArrayList<>(List.of("wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"));
         private String reportsDir = "accessibility-reports/";
         private boolean includePasses = true;
         private String context = "body, header, main, footer";
@@ -969,9 +969,10 @@ public class AccessibilityHelper {
      * @throws JSONException if serialising the violation data fails
      */
     public static void generateFilteredHTMLReport(AccessibilityResult result, String pageName, String reportPath, WebDriver driver) throws IOException, JSONException {
+        List<Rule> violations = result.getViolations() != null ? result.getViolations() : Collections.emptyList();
         JSONObject json = new JSONObject();
-        json.put("violations", convertRules(result.getViolations(), "Violation"));
-        json.put("totalViolations", result.getViolations().size());
+        json.put("violations", convertRules(violations, "Violation"));
+        json.put("totalViolations", violations.size());
         json.put("totalIncomplete", 0);
         json.put("totalPassed", 0);
         json.put("totalInapplicable", 0);

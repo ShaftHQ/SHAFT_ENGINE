@@ -27,6 +27,15 @@ import java.util.function.BiConsumer;
 public class AttachmentReporter {
     private static final LinkedHashMap<String, BiConsumer<String, ByteArrayOutputStream>> attachmentHandlers = new LinkedHashMap<>();
 
+    /**
+     * This is a utility class and cannot be instantiated.
+     *
+     * @throws IllegalStateException always
+     */
+    private AttachmentReporter() {
+        throw new IllegalStateException("Utility class");
+    }
+
     static {
         attachmentHandlers.put("screenshot", AttachmentReporter::handleScreenshot);
         attachmentHandlers.put("recording", AttachmentReporter::handleRecording);
