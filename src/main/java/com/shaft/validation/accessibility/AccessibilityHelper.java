@@ -69,14 +69,17 @@ public class AccessibilityHelper {
     private static final int DOM_CHECK_INTERVAL_MILLIS = 500; // Sleep interval between checks
     private static final int PAGE_LOAD_TIMEOUT_SECONDS = 30;
 
-    /** Utility class — do not instantiate. */
-    private AccessibilityHelper() {
-        throw new IllegalStateException("Utility class");
+    /**
+     * Creates a new {@code AccessibilityHelper} instance.
+     * All functionality is exposed via static methods; this constructor exists only
+     * to satisfy JavaDoc tooling requirements and for any subclasses that may extend
+     * this class.
+     */
+    public AccessibilityHelper() {
     }
 
-
     /**
-     * Immutable-style configuration bean for an accessibility scan.
+     * Mutable configuration bean for an accessibility scan with fluent-builder setters.
      *
      * <p>All setters follow a fluent (builder) pattern and return {@code this},
      * allowing convenient one-liner configuration:
@@ -124,8 +127,12 @@ public class AccessibilityHelper {
          *
          * @param tags non-null list of axe rule-set tag identifiers
          * @return this instance for method chaining
+         * @throws NullPointerException if {@code tags} is {@code null}
          */
-        public AccessibilityConfig setTags(List<String> tags) { this.tags = tags; return this; }
+        public AccessibilityConfig setTags(List<String> tags) {
+            this.tags = Objects.requireNonNull(tags, "tags must not be null");
+            return this;
+        }
 
         /**
          * Returns the file-system directory where JSON and HTML reports will be written.

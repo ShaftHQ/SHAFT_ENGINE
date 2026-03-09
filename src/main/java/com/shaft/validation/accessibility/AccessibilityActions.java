@@ -30,10 +30,13 @@ import static com.shaft.validation.accessibility.AccessibilityHelper.attachRepor
  *       .backToBrowser();
  * }</pre>
  *
- * <p>Analysis results are cached in a thread-local-safe {@link java.util.concurrent.ConcurrentHashMap}
- * keyed by a composite of page name, configuration hash, and the {@code saveReport} flag.
- * Successive calls with the same arguments therefore reuse the already-computed result
- * instead of re-running the axe analysis.
+ * <p>Analysis results are cached in a {@link java.util.concurrent.ConcurrentHashMap}
+ * keyed by a composite of page name, {@code AccessibilityConfig} instance identity
+ * (via {@code System.identityHashCode}), and the {@code saveReport} flag.
+ * Successive calls with the <em>same config instance</em> and the same page name will
+ * reuse the cached result. Note that two separately constructed {@code AccessibilityConfig}
+ * objects with identical settings will produce different cache keys because
+ * {@code AccessibilityConfig} does not override {@code equals}/{@code hashCode}.
  *
  * <p><b>Thread safety:</b> Each {@code AccessibilityActions} instance is tied to a single
  * {@link com.shaft.driver.SHAFT.GUI.WebDriver} instance and must not be shared across threads.
@@ -108,7 +111,7 @@ public class AccessibilityActions {
      * <p>Example:
      * <pre>{@code
      * AccessibilityHelper.AccessibilityConfig config = new AccessibilityHelper.AccessibilityConfig()
-     *         .withTags(List.of("wcag2a", "wcag2aa"));
+     *         .setTags(List.of("wcag2a", "wcag2aa"));
      * driver.accessibility().analyzePage("Checkout", config);
      * }</pre>
      *
@@ -174,7 +177,7 @@ public class AccessibilityActions {
      * <p>Example:
      * <pre>{@code
      * AccessibilityHelper.AccessibilityConfig config = new AccessibilityHelper.AccessibilityConfig()
-     *         .withTags(List.of("best-practice"));
+     *         .setTags(List.of("best-practice"));
      * AccessibilityHelper.AccessibilityResult result =
      *         driver.accessibility().analyzeAndReturn("CartPage", config);
      * }</pre>
@@ -198,7 +201,7 @@ public class AccessibilityActions {
      * <p>Example:
      * <pre>{@code
      * AccessibilityHelper.AccessibilityConfig config = new AccessibilityHelper.AccessibilityConfig()
-     *         .withTags(List.of("wcag2a"));
+     *         .setTags(List.of("wcag2a"));
      * AccessibilityHelper.AccessibilityResult result =
      *         driver.accessibility().analyzeAndReturn("LoginPage", config, false);
      * }</pre>
@@ -495,7 +498,7 @@ public class AccessibilityActions {
      * <p>Example:
      * <pre>{@code
      * AccessibilityHelper.AccessibilityConfig config = new AccessibilityHelper.AccessibilityConfig()
-     *         .withTags(List.of("wcag2a"));
+     *         .setTags(List.of("wcag2a"));
      * driver.accessibility()
      *       .assertAccessibilityScoreAtLeast("ProfilePage", 95.0, config);
      * }</pre>
@@ -524,7 +527,7 @@ public class AccessibilityActions {
      * <p>Example:
      * <pre>{@code
      * AccessibilityHelper.AccessibilityConfig config = new AccessibilityHelper.AccessibilityConfig()
-     *         .withTags(List.of("wcag2aa"));
+     *         .setTags(List.of("wcag2aa"));
      * driver.accessibility()
      *       .assertAccessibilityScoreAtLeast("SettingsPage", 80.0, config, true);
      * }</pre>
