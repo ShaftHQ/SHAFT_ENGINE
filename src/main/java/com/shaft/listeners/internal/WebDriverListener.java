@@ -1,6 +1,7 @@
 package com.shaft.listeners.internal;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
@@ -172,6 +173,11 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     private String getElementName(WebElement element) {
+        // getAccessibleName() triggers GET .../computedlabel which is
+        // unsupported by Appium native sessions (returns 404).
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            return "element";
+        }
         var accessibleName = element.getAccessibleName();
         if ("".equals(accessibleName)) {
             return "element";
