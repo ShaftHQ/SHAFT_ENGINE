@@ -17,7 +17,6 @@ import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.*;
 import org.openqa.selenium.remote.RemoteWebDriver;
-import org.openqa.selenium.remote.RemoteWebElement;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,15 +26,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.Arrays.asList;
 
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class TouchActions extends FluentWebDriverAction {
     private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 5;
-    /** Maximum scroll gestures to perform when searching for a reference image (image-based scroll). */
     private static final int MAX_IMAGE_SCROLL_ATTEMPTS = 15;
     private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = SHAFT.Properties.reporting.captureElementName();
 
@@ -567,54 +563,38 @@ public class TouchActions extends FluentWebDriverAction {
     }
 
     /**
-     * Attempts to scroll element into view using W3C-compliant actions, finding the target element
-     * by its visible text or content description (accessibility label).
+     * Attempts to scroll element into view using androidUIAutomator
      *
-     * <p>This method avoids {@code AppiumBy.androidUIAutomator} {@code driver.findElement()} calls,
-     * which trigger an infinite-recursion {@code StackOverflowError} via Selenium's
-     * {@code ElementLocation$ElementFinder$1} fallback when used with Appium 3.x on BrowserStack.
-     * Using a standard XPath locator with {@code driver.findElements()} (plural) sidesteps the
-     * registration of the problematic fallback finder.
-     *
-     * @param targetText element text or content description to scroll into view
+     * @param targetText element text to be used to swipe it into view
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(String targetText) {
-        By textLocator = buildTextXpathLocator(targetText);
-        return swipeElementIntoView(null, textLocator, SwipeDirection.DOWN);
+        String escapedText = targetText.replace("\"", "\\\"");
+        driverFactoryHelper.getDriver().findElements(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+                + ".scrollIntoView(new UiSelector().textContains(\"" + escapedText + "\"))"));
+        return this;
     }
 
     /**
-     * Attempts to scroll element into view using W3C-compliant actions, finding the target element
-     * by its visible text or content description (accessibility label).
+     * Attempts to scroll element into view using androidUIAutomator
      *
-     * <p>Uses a standard XPath locator to avoid the {@code AppiumBy} {@code findElement} recursion
-     * that occurs with Appium 3.x (see {@link #swipeElementIntoView(String)}).
-     *
-     * @param targetText element text or content description to scroll into view
+     * @param targetText element text to be used to swipe it into view
      * @param movement   SwipeMovement.VERTICAL or HORIZONTAL
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(String targetText, SwipeMovement movement) {
-        By textLocator = buildTextXpathLocator(targetText);
-        SwipeDirection direction = (movement == SwipeMovement.HORIZONTAL) ? SwipeDirection.RIGHT : SwipeDirection.DOWN;
-        return swipeElementIntoView(null, textLocator, direction);
-    }
-
-    /**
-     * Builds an XPath {@link By} locator that matches elements by {@code @text} or
-     * {@code @content-desc} attribute, handling texts that contain single quotes by
-     * delegating to XPath {@code concat()}.
-     *
-     * @param text the literal text to search for
-     * @return a {@link By} XPath locator
-     */
-    private By buildTextXpathLocator(String text) {
-        String xpathValue = text.contains("'")
-                // XPath cannot escape single quotes inside single-quoted strings; use concat()
-                ? "concat('" + text.replace("'", "', \"'\", '") + "')"
-                : "'" + text + "'";
-        return By.xpath("//*[@text=" + xpathValue + " or @content-desc=" + xpathValue + "]");
+        String escapedText = targetText.replace("\"", "\\\"");
+        switch (movement) {
+            case VERTICAL:
+                driverFactoryHelper.getDriver().findElements(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+                        + ".scrollIntoView(new UiSelector().textContains(\"" + escapedText + "\"))"));
+                break;
+            case HORIZONTAL:
+                driverFactoryHelper.getDriver().findElements(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector()).setAsHorizontalList().scrollIntoView("
+                        + "new UiSelector().textContains(\"" + escapedText + "\"));"));
+                break;
+        }
+        return this;
     }
 
     /**
@@ -646,29 +626,16 @@ public class TouchActions extends FluentWebDriverAction {
             // element is already on screen
             ReportManager.logDiscrete("Element found on screen.");
         } else {
-            // Scroll progressively, re-checking the reference image after each scroll.
-            // This replaces the previous approach of delegating to attemptW3cCompliantActionsScroll
-            // with a null targetElementLocator, which could not re-check the image after scrolling
-            // and would throw prematurely when mobile:scrollGesture returned false.
             var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, null);
-            int consecutiveFalse = 0;
             for (int i = 0; i < MAX_IMAGE_SCROLL_ATTEMPTS; i++) {
                 elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
-                boolean canScrollMore = performW3cCompliantScroll(scrollParameters);
+                performW3cCompliantScroll(scrollParameters);
                 // Re-check whether the image has appeared after the scroll
                 visualIdentificationObjects = elementActionsHelper.waitForElementPresence(driverFactoryHelper.getDriver(), targetElementImage);
                 coordinates = (List<Integer>) visualIdentificationObjects.get(2);
                 if (!Collections.emptyList().equals(coordinates)) {
                     ReportManager.logDiscrete("Element found on screen after scrolling.");
                     return visualIdentificationObjects;
-                }
-                if (!canScrollMore) {
-                    if (++consecutiveFalse >= 3) {
-                        ReportManager.logDiscrete("End of scrollable area reached without finding image.");
-                        break;
-                    }
-                } else {
-                    consecutiveFalse = 0;
                 }
             }
         }
@@ -697,64 +664,101 @@ public class TouchActions extends FluentWebDriverAction {
         logMessage += ".";
         ReportManager.logDiscrete(logMessage);
 
-        Dimension screenSize = driverFactoryHelper.getDriver().manage().window().getSize();
-
-        var scrollParameters = new HashMap<>();
+        var params = new HashMap<Object, Object>();
 
         if (scrollableElementLocator != null) {
-            // Scrolling inside a specific element.
-            // In Appium 3.x, passing elementId is required for reliable mobile:scrollGesture behaviour.
-            // The bounding-box approach (left/top/width/height) causes scrollGesture to return false
-            // immediately for many view types (ListView, ScrollView) in Appium 3.x even when more
-            // content exists; using elementId lets UIAutomator2 compute the bounds directly and
-            // return the correct boolean.
-            var scrollableElement = (WebElement) elementActionsHelper.identifyUniqueElement(
-                    driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
-            scrollParameters.put("elementId", ((RemoteWebElement) scrollableElement).getId());
-            // percent: how far to scroll per gesture (0.8 = 80 % of the scrollable area)
-            scrollParameters.put("percent", swipeDirection == SwipeDirection.RIGHT || swipeDirection == SwipeDirection.LEFT ? 1.0 : 0.8);
-        } else {
-            //scrolling inside the screen
-            scrollParameters.putAll(ImmutableMap.of(
-                    "width", screenSize.getWidth(), "height", screenSize.getHeight() * 90 / 100,
-                    "percent", 0.8
-            ));
+            // Scrolling inside a specific element – compute swipe coordinates from element bounds.
+            Rectangle rect = ((WebElement) elementActionsHelper.identifyUniqueElement(
+                    driverFactoryHelper.getDriver(), scrollableElementLocator).get(1)).getRect();
+            int midX = rect.getX() + rect.getWidth() / 2;
+            int midY = rect.getY() + rect.getHeight() / 2;
+            int vMargin = rect.getHeight() / 4;
+            int hMargin = rect.getWidth() / 4;
             switch (swipeDirection) {
-                case UP -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", screenSize.getHeight() - 100));
-                case DOWN -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", 100));
-                // expected issues with RIGHT and LEFT
-                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("left", 100, "top", 0));
-                case LEFT -> scrollParameters.putAll(ImmutableMap.of("left", screenSize.getWidth() - 100, "top", 0));
+                // DOWN = reveal content below = finger moves from bottom to top
+                case DOWN -> {
+                    params.put("startX", midX);
+                    params.put("startY", rect.getY() + rect.getHeight() - vMargin);
+                    params.put("endX", midX);
+                    params.put("endY", rect.getY() + vMargin);
+                }
+                // UP = reveal content above = finger moves from top to bottom
+                case UP -> {
+                    params.put("startX", midX);
+                    params.put("startY", rect.getY() + vMargin);
+                    params.put("endX", midX);
+                    params.put("endY", rect.getY() + rect.getHeight() - vMargin);
+                }
+                // RIGHT = reveal content to the right = finger moves from right to left
+                case RIGHT -> {
+                    params.put("startX", rect.getX() + rect.getWidth() - hMargin);
+                    params.put("startY", midY);
+                    params.put("endX", rect.getX() + hMargin);
+                    params.put("endY", midY);
+                }
+                // LEFT = reveal content to the left = finger moves from left to right
+                case LEFT -> {
+                    params.put("startX", rect.getX() + hMargin);
+                    params.put("startY", midY);
+                    params.put("endX", rect.getX() + rect.getWidth() - hMargin);
+                    params.put("endY", midY);
+                }
+            }
+        } else {
+            // Scrolling the full screen
+            Dimension screenSize = driverFactoryHelper.getDriver().manage().window().getSize();
+            int midX = screenSize.getWidth() / 2;
+            int midY = screenSize.getHeight() / 2;
+            switch (swipeDirection) {
+                case DOWN -> {
+                    params.put("startX", midX);
+                    params.put("startY", (int)(screenSize.getHeight() * 0.8));
+                    params.put("endX", midX);
+                    params.put("endY", (int)(screenSize.getHeight() * 0.2));
+                }
+                case UP -> {
+                    params.put("startX", midX);
+                    params.put("startY", (int)(screenSize.getHeight() * 0.2));
+                    params.put("endX", midX);
+                    params.put("endY", (int)(screenSize.getHeight() * 0.8));
+                }
+                case RIGHT -> {
+                    params.put("startX", (int)(screenSize.getWidth() * 0.8));
+                    params.put("startY", midY);
+                    params.put("endX", (int)(screenSize.getWidth() * 0.2));
+                    params.put("endY", midY);
+                }
+                case LEFT -> {
+                    params.put("startX", (int)(screenSize.getWidth() * 0.2));
+                    params.put("startY", midY);
+                    params.put("endX", (int)(screenSize.getWidth() * 0.8));
+                    params.put("endY", midY);
+                }
             }
         }
-        // direction is case-insensitive per Appium spec; lowercase ensures compatibility with both
-        // Appium 2.x and 3.x as well as any strict JSON schema validators on the BrowserStack side
-        scrollParameters.put("direction", swipeDirection.toString().toLowerCase());
-        return scrollParameters;
+        return params;
     }
 
-    private boolean performW3cCompliantScroll(HashMap<Object, Object> scrollParameters) {
-        if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
-            Object result = androidDriver.executeScript("mobile: scrollGesture", scrollParameters);
-            // In Appium 3.x, some scroll-view types return null instead of a boolean; treat null as
-            // "scroll may have occurred – keep trying" to avoid a premature end-of-list conclusion.
-            if (result == null) return true;
-            if (result instanceof Boolean b) return b;
-            return Boolean.parseBoolean(String.valueOf(result));
-        } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
-            //http://appium.github.io/appium-xcuitest-driver/4.16/execute-methods/#mobile-scroll
-            var ret = iosDriver.executeScript("mobile: scroll", scrollParameters);
-            return ret == null || (Boolean) ret;
-        }
-        return true;
+    private void performW3cCompliantScroll(HashMap<Object, Object> scrollParameters) {
+        // Use W3C PointerInput touch actions for the swipe gesture.
+        // This approach is reliable across all Appium versions (2.x and 3.x) on both Android and iOS,
+        // and does not depend on mobile:scrollGesture's boolean return value or direction semantics.
+        int startX = (int) scrollParameters.get("startX");
+        int startY = (int) scrollParameters.get("startY");
+        int endX   = (int) scrollParameters.get("endX");
+        int endY   = (int) scrollParameters.get("endY");
+
+        PointerInput touch = new PointerInput(PointerInput.Kind.TOUCH, "touch");
+        Sequence swipe = new Sequence(touch, 0);
+        swipe.addAction(touch.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), startX, startY));
+        swipe.addAction(touch.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+        swipe.addAction(touch.createPointerMove(Duration.ofMillis(600), PointerInput.Origin.viewport(), endX, endY));
+        swipe.addAction(touch.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+        ((AppiumDriver) driverFactoryHelper.getDriver()).perform(Collections.singletonList(swipe));
     }
 
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
         var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, targetElementLocator);
-        // Count consecutive "cannot scroll more" responses before declaring end-of-list.
-        // A tolerance of 3 handles Appium 3.x drivers that may transiently return false/null
-        // even when more content exists (known regression with certain Android view types).
-        AtomicInteger consecutiveEndScrolls = new AtomicInteger(0);
 
         new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
             // for the animated GIF:
@@ -763,24 +767,9 @@ public class TouchActions extends FluentWebDriverAction {
             if (targetElementLocator != null && !driverFactoryHelper.getDriver().findElements(targetElementLocator).isEmpty())
                 return true;
 
-            boolean canScrollMore = performW3cCompliantScroll(scrollParameters);
+            performW3cCompliantScroll(scrollParameters);
 
-            if (targetElementLocator != null && !driverFactoryHelper.getDriver().findElements(targetElementLocator).isEmpty())
-                return true;
-
-            if (!canScrollMore) {
-                // When targetElementLocator is null (image-based scroll), the caller re-checks
-                // the image after each scroll – return true here to stop the fluentWait loop.
-                if (targetElementLocator == null) return true;
-                // Only throw after 3 consecutive "false" responses with the element still absent.
-                // This prevents a single premature false (Appium 3.x regression) from aborting the
-                // scroll loop before the target element has been reached.
-                if (consecutiveEndScrolls.incrementAndGet() >= 3)
-                    throw new RuntimeException("Element not found after scrolling to the end of the page.");
-            } else {
-                consecutiveEndScrolls.set(0);
-            }
-            return false;
+            return targetElementLocator != null && !driverFactoryHelper.getDriver().findElements(targetElementLocator).isEmpty();
         });
         ReportManager.logDiscrete("Element found on screen.");
         return true;
