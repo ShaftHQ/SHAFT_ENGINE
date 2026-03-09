@@ -41,23 +41,58 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Provides a fluent API for performing browser-level actions such as navigation, window management,
+ * cookie handling, network interception, and accessibility validation. Instances are typically
+ * obtained via {@code driver.browser()} on a {@link com.shaft.driver.SHAFT.GUI.WebDriver} instance.
+ *
+ * <p>Example usage:
+ * <pre>{@code
+ * SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver();
+ * driver.browser()
+ *       .navigateToURL("https://example.com")
+ *       .and().maximizeWindow();
+ * }</pre>
+ */
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class BrowserActions extends FluentWebDriverAction {
     // Matches embedded credentials in URLs (e.g. protocol://user:password@host); compiled once for reuse
     private static final Pattern EMBEDDED_PASSWORD_PATTERN = Pattern.compile(":\\/\\/.*:(.*)@");
 
+    /**
+     * Creates a new {@code BrowserActions} instance and initializes the underlying driver
+     * using the framework's default driver factory configuration.
+     */
     public BrowserActions() {
         initialize();
     }
 
+    /**
+     * Creates a new {@code BrowserActions} instance wrapping the provided {@link WebDriver}.
+     *
+     * @param driver the {@link WebDriver} instance to use for browser actions
+     */
     public BrowserActions(WebDriver driver) {
         initialize(driver);
     }
 
+    /**
+     * Creates a new {@code BrowserActions} instance wrapping the provided {@link WebDriver},
+     * with control over whether reporting output is suppressed.
+     *
+     * @param driver   the {@link WebDriver} instance to use for browser actions
+     * @param isSilent when {@code true}, step reporting is suppressed for this instance
+     */
     public BrowserActions(WebDriver driver, boolean isSilent) {
         initialize(driver, isSilent);
     }
 
+    /**
+     * Creates a new {@code BrowserActions} instance backed by an existing {@link DriverFactoryHelper}.
+     * Use this constructor when integrating with the internal driver lifecycle management.
+     *
+     * @param helper the {@link DriverFactoryHelper} that manages the underlying driver instance
+     */
     public BrowserActions(DriverFactoryHelper helper) {
         initialize(helper);
     }
@@ -67,10 +102,32 @@ public class BrowserActions extends FluentWebDriverAction {
         return this;
     }
 
+    /**
+     * Opens a hard-assertion builder scoped to the current browser state. Any assertion failure
+     * immediately stops the test.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().assertThat().title().contains("Dashboard");
+     * }</pre>
+     *
+     * @return a {@link WebDriverBrowserValidationsBuilder} for chaining browser assertions
+     */
     public WebDriverBrowserValidationsBuilder assertThat() {
         return new WizardHelpers.WebDriverAssertions(driverFactoryHelper).browser();
     }
 
+    /**
+     * Opens a soft-assertion (verification) builder scoped to the current browser state.
+     * Failures are collected and reported at the end of the test rather than stopping it immediately.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().verifyThat().title().contains("Dashboard");
+     * }</pre>
+     *
+     * @return a {@link WebDriverBrowserValidationsBuilder} for chaining browser verifications
+     */
     public WebDriverBrowserValidationsBuilder verifyThat() {
         return new WizardHelpers.WebDriverVerifications(driverFactoryHelper).browser();
     }
@@ -232,6 +289,19 @@ public class BrowserActions extends FluentWebDriverAction {
         return navigateToURL(targetUrl, targetUrl);
     }
 
+    /**
+     * Navigates to the specified URL by opening it in a new browser tab or a new browser window,
+     * depending on the provided {@link WindowType}. The driver focus switches to the newly opened context.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().navigateToURL("https://example.com", WindowType.TAB);
+     * }</pre>
+     *
+     * @param targetUrl  a string representing the URL to navigate to
+     * @param windowType the type of new context to open — either {@link WindowType#TAB} or {@link WindowType#WINDOW}
+     * @return a self-reference to be used to chain actions
+     */
     public BrowserActions navigateToURL(String targetUrl, WindowType windowType) {
         var handleBeforeNavigation = driverFactoryHelper.getDriver().getWindowHandle();
         try {
@@ -376,6 +446,7 @@ public class BrowserActions extends FluentWebDriverAction {
      *                                     url that should be present after
      *                                     redirection, this string is used to confirm successful
      *                                     navigation
+     * @return a self-reference to be used to chain actions
      */
     @SuppressWarnings("UnusedReturnValue")
     public BrowserActions navigateToURLWithBasicAuthentication(String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
@@ -567,11 +638,44 @@ public class BrowserActions extends FluentWebDriverAction {
         return this;
     }
 
+    /**
+     * Intercepts outgoing HTTP requests matching the given predicate and replaces the actual
+     * network response with the provided {@link HttpResponse}. Only supported for drivers that
+     * implement {@link org.openqa.selenium.devtools.HasDevTools}.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * HttpResponse mocked = new HttpResponse();
+     * mocked.setStatus(200);
+     * driver.browser().mock(req -> req.getUri().contains("/api/user"), mocked);
+     * }</pre>
+     *
+     * @param requestPredicate a {@link Predicate} that identifies which requests should be intercepted
+     * @param mockedResponse   the {@link HttpResponse} to return instead of the real network response
+     * @return a self-reference to be used to chain actions
+     */
     @Step("Mock HTTP Request")
     public BrowserActions mock(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse) {
         return internalIntercept(requestPredicate, mockedResponse);
     }
 
+    /**
+     * Intercepts outgoing HTTP requests matching the given predicate and substitutes the real
+     * network response with the provided {@link HttpResponse}. Functionally equivalent to
+     * {@link #mock(Predicate, HttpResponse)} but semantically named for interception use-cases.
+     * Only supported for drivers that implement {@link org.openqa.selenium.devtools.HasDevTools}.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * HttpResponse stubbed = new HttpResponse();
+     * stubbed.setStatus(503);
+     * driver.browser().intercept(req -> req.getUri().contains("/api/search"), stubbed);
+     * }</pre>
+     *
+     * @param requestPredicate a {@link Predicate} that identifies which requests should be intercepted
+     * @param mockedResponse   the {@link HttpResponse} to return instead of the real network response
+     * @return a self-reference to be used to chain actions
+     */
     @Step("Intercept HTTP Request")
     public BrowserActions intercept(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse) {
         return internalIntercept(requestPredicate, mockedResponse);
@@ -775,10 +879,33 @@ public class BrowserActions extends FluentWebDriverAction {
         return this;
     }
 
+    /**
+     * Generates a Google Lighthouse performance report for the currently open page.
+     * The report is attached to the Allure test report for review after the test run.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().navigateToURL("https://example.com")
+     *       .and().generateLightHouseReport();
+     * }</pre>
+     */
     public void generateLightHouseReport() {
         new LightHouseGenerateReport(driverFactoryHelper.getDriver()).generateLightHouseReport();
     }
 
+    /**
+     * Waits for the page to finish lazy-loading by polling JavaScript readiness conditions.
+     * Use this after actions that trigger dynamic content loading (e.g., infinite scrolling
+     * or deferred script execution).
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().navigateToURL("https://example.com")
+     *       .and().waitForLazyLoading();
+     * }</pre>
+     *
+     * @return a self-reference to be used to chain actions
+     */
     public BrowserActions waitForLazyLoading() {
         JavaScriptWaitManager.waitForLazyLoading(driverFactoryHelper.getDriver());
         return this;

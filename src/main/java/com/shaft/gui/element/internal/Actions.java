@@ -53,21 +53,65 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Function;
 
+/**
+ * Provides a fluent API for performing low-level UI interactions on web and mobile elements.
+ *
+ * <p>This class extends {@link ElementActions} and adds concrete implementations for common
+ * gestures such as clicking, typing, dragging, file uploading, and clipboard operations.
+ * It integrates with SHAFT's reporting pipeline to attach screenshots and structured step
+ * information to Allure reports automatically.
+ *
+ * <p>Actions instances are created internally by {@code SHAFT.GUI.WebDriver} and are not
+ * intended to be constructed directly by test authors. Use the driver-level factory methods
+ * instead:
+ *
+ * <pre>{@code
+ * SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver();
+ * driver.element().click(By.id("submit"));
+ * }</pre>
+ *
+ * <p><b>Thread safety:</b> Each {@code Actions} instance is tied to a single {@link WebDriver}
+ * session. For parallel test execution, wrap driver instances in a {@link ThreadLocal}.
+ */
 public class Actions extends ElementActions {
     private static final Duration defaultPauseDuration = Duration.ofMillis(500);
 
+    /**
+     * Creates a new {@code Actions} instance using the driver managed by the current thread's
+     * active {@link com.shaft.driver.internal.DriverFactory.DriverFactoryHelper}.
+     */
     public Actions() {
         super();
     }
 
+    /**
+     * Creates a new {@code Actions} instance wrapping the given {@link WebDriver}.
+     *
+     * @param driver the WebDriver session to use for all element interactions
+     */
     public Actions(WebDriver driver) {
         super(driver);
     }
 
+    /**
+     * Creates a new {@code Actions} instance wrapping the given {@link WebDriver},
+     * with optional suppression of standard reporting output.
+     *
+     * @param driver   the WebDriver session to use for all element interactions
+     * @param isSilent {@code true} to suppress log and report entries for each action;
+     *                 {@code false} for normal reporting
+     */
     public Actions(WebDriver driver, boolean isSilent) {
         super(driver, isSilent);
     }
 
+    /**
+     * Creates a new {@code Actions} instance backed by the given
+     * {@link DriverFactoryHelper}, which provides access to driver configuration,
+     * synchronization settings, and screenshot utilities.
+     *
+     * @param helper the helper that owns the underlying WebDriver session
+     */
     public Actions(DriverFactoryHelper helper) {
         super(helper);
     }
@@ -119,6 +163,20 @@ public class Actions extends ElementActions {
         return this;
     }
 
+    /**
+     * Clicks a clickable element resolved by its visible label or accessible name.
+     *
+     * <p>This is a {@link Beta} smart-locator overload: SHAFT resolves the element
+     * automatically using {@link SmartLocators#clickableField(String)}, so no explicit
+     * {@link By} locator is required.
+     *
+     * <pre>{@code
+     * driver.element().click("Submit");
+     * }</pre>
+     *
+     * @param elementName the visible text, label, or accessible name of the target element
+     * @return this {@code Actions} instance for fluent chaining
+     */
     @Beta
     @Step("Click")
     public Actions click(@NonNull String elementName) {
@@ -133,6 +191,22 @@ public class Actions extends ElementActions {
         return this;
     }
 
+    /**
+     * Types the given text into an input field resolved by its visible label or placeholder.
+     *
+     * <p>This is a {@link Beta} smart-locator overload: SHAFT resolves the element
+     * automatically using {@link SmartLocators#inputField(String)}, so no explicit
+     * {@link By} locator is required. The field is cleared (according to the configured
+     * clear-before-typing mode) before the text is entered.
+     *
+     * <pre>{@code
+     * driver.element().type("Search", "SHAFT Engine");
+     * }</pre>
+     *
+     * @param elementName the visible label or placeholder of the target input field
+     * @param text        the character sequence(s) to type; supports {@link Keys} chords
+     * @return this {@code Actions} instance for fluent chaining
+     */
     @Beta
     @Step("Type")
     public Actions type(@NonNull String elementName, @NonNull CharSequence... text) {
@@ -161,6 +235,21 @@ public class Actions extends ElementActions {
         return this;
     }
 
+    /**
+     * Uploads a file by simulating a drag-and-drop gesture onto the target drop zone.
+     *
+     * <p>An invisible {@code <input type="file">} element is injected via JavaScript into the
+     * drop zone. The file path is then sent to that injected input, which triggers the browser's
+     * native file-upload mechanism without requiring the OS file-picker dialog.
+     *
+     * <pre>{@code
+     * driver.element().dropFileToUpload(By.id("dropZone"), "src/test/resources/files/document.pdf");
+     * }</pre>
+     *
+     * @param locator  the locator for the drop-zone element that accepts file drops
+     * @param filePath the path to the local file to upload (relative or absolute)
+     * @return this {@code Actions} instance for fluent chaining
+     */
     @Step("Drop file to upload")
     public Actions dropFileToUpload(@NonNull By locator, @NonNull String filePath) {
         performAction(ActionType.DROP_FILE_TO_UPLOAD, locator, filePath);
@@ -181,18 +270,70 @@ public class Actions extends ElementActions {
         return this;
     }
 
+    /**
+     * Returns a {@link GetElementInformation} builder that exposes read-only element
+     * property accessors such as text, attributes, CSS values, and visibility state.
+     *
+     * <pre>{@code
+     * String value = driver.element().get().text(By.id("username"));
+     * }</pre>
+     *
+     * @return a new {@link GetElementInformation} instance scoped to this driver session
+     */
     public GetElementInformation get() {
         return new GetElementInformation();
     }
 
+    /**
+     * Returns a {@link ClipboardAction} builder that exposes clipboard operations
+     * (copy, cut, paste, delete) for a target element.
+     *
+     * <pre>{@code
+     * driver.element().clipboard().copyAll(By.id("textField"));
+     * }</pre>
+     *
+     * @return a new {@link ClipboardAction} instance scoped to this driver session
+     */
     public ClipboardAction clipboard() {
         return new ClipboardAction(this);
     }
 
+    /**
+     * Waits until the given condition returns {@code true}, using the framework's default
+     * element-identification timeout multiplied by ten seconds.
+     *
+     * <p>Delegates to {@link #waitUntil(Function, Duration)} with a computed timeout derived
+     * from {@code SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()}.
+     *
+     * <pre>{@code
+     * driver.element().waitUntil(ExpectedConditions.titleContains("Dashboard"));
+     * }</pre>
+     *
+     * @param isTrue a WebDriver condition lambda; must return a truthy value when satisfied
+     * @return this {@code Actions} instance for fluent chaining
+     */
     public Actions waitUntil(@NonNull Function<? super WebDriver, ?> isTrue) {
         return waitUntil(isTrue, Duration.ofSeconds((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()) * 10));
     }
 
+    /**
+     * Waits until the given condition returns {@code true} within the specified timeout.
+     *
+     * <p>Uses a fluent wait backed by the current driver session. If the condition is not
+     * satisfied before {@code timeout} elapses, a {@link TimeoutException} is caught and
+     * the step is marked as broken in the Allure report.
+     *
+     * <pre>{@code
+     * driver.element().waitUntil(
+     *     ExpectedConditions.visibilityOfElementLocated(By.id("modal")),
+     *     Duration.ofSeconds(30)
+     * );
+     * }</pre>
+     *
+     * @param isTrue  a WebDriver condition lambda; must return a truthy value when satisfied
+     * @param timeout the maximum time to wait before failing
+     * @return this {@code Actions} instance for fluent chaining
+     */
     @Step("Wait until")
     public Actions waitUntil(@NonNull Function<? super WebDriver, ?> isTrue, @NonNull Duration timeout) {
         String output = "";
@@ -754,61 +895,173 @@ public class Actions extends ElementActions {
 
     protected enum ActionType {HOVER, CLICK, JAVASCRIPT_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, JAVASCRIPT_SET_VALUE, CLEAR, DRAG_AND_DROP, GET_ATTRIBUTE, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, DRAG_AND_DROP_BY_OFFSET, GET_SELECTED_TEXT, CLICK_AND_HOLD, DOUBLE_CLICK, GET_IS_SELECTED, CLIPBOARD_DELETE, CLIPBOARD_COPY, CLIPBOARD_CUT, CLIPBOARD_PASTE, DROP_FILE_TO_UPLOAD}
 
+    /**
+     * Provides read-only accessors for querying properties, attributes, and state of a
+     * located web element.
+     *
+     * <p>Obtain an instance via {@link Actions#get()}:
+     *
+     * <pre>{@code
+     * String title = driver.element().get().attribute(By.id("header"), "title");
+     * boolean visible = driver.element().get().isDisplayed(By.id("banner"));
+     * }</pre>
+     */
     public class GetElementInformation {
+        /**
+         * Creates a new {@code GetElementInformation} instance scoped to the enclosing
+         * {@link Actions} session.
+         */
         protected GetElementInformation() {
         }
 
+        /**
+         * Returns the value of the named HTML attribute from the located element.
+         *
+         * <pre>{@code
+         * String href = driver.element().get().attribute(By.cssSelector("a.logo"), "href");
+         * }</pre>
+         *
+         * @param locator       the locator for the target element
+         * @param attributeName the name of the HTML attribute to read
+         * @return the attribute value, or {@code null} if the attribute is absent
+         */
         @Step("Get Attribute")
         public String attribute(@NonNull By locator, @NonNull String attributeName) {
             return performAction(ActionType.GET_ATTRIBUTE, locator, attributeName);
         }
 
+        /**
+         * Returns the value of the named DOM attribute from the located element.
+         *
+         * <p>Unlike {@link #attribute(By, String)}, this method reads the live DOM attribute
+         * value rather than the initial HTML attribute value.
+         *
+         * @param locator       the locator for the target element
+         * @param attributeName the name of the DOM attribute to read
+         * @return the DOM attribute value, or {@code null} if the attribute is absent
+         */
         @Step("Get DOM attribute")
         public String domAttribute(@NonNull By locator, @NonNull String attributeName) {
             return performAction(ActionType.GET_DOM_ATTRIBUTE, locator, attributeName);
         }
 
+        /**
+         * Returns the value of the named DOM property from the located element.
+         *
+         * <p>DOM properties reflect the current JavaScript object state (e.g., {@code value}
+         * for an input) rather than the original HTML attribute.
+         *
+         * @param locator      the locator for the target element
+         * @param propertyName the name of the DOM property to read (e.g., {@code "value"})
+         * @return the property value as a string, or {@code null} if the property is absent
+         */
         @Step("Get DOM property")
         public String domProperty(@NonNull By locator, @NonNull String propertyName) {
             return performAction(ActionType.GET_DOM_PROPERTY, locator, propertyName);
         }
 
+        /**
+         * Returns the accessible name of the located element as computed by the browser's
+         * accessibility tree.
+         *
+         * @param locator the locator for the target element
+         * @return the accessible name string, or an empty string if none is defined
+         */
         @Step("Get name")
         public String name(@NonNull By locator) {
             return performAction(ActionType.GET_NAME, locator, null);
         }
 
+        /**
+         * Returns the visible inner text of the located element.
+         *
+         * <p>Falls back to the {@code textContent} DOM property and then the {@code value}
+         * DOM property if the element's visible text is blank (e.g., for inputs).
+         *
+         * @param locator the locator for the target element
+         * @return the trimmed visible text; never {@code null} (returns an empty string if
+         *         no text is found)
+         */
         @Step("Get text")
         public String text(@NonNull By locator) {
             return performAction(ActionType.GET_TEXT, locator, null);
         }
 
+        /**
+         * Returns the combined text of all currently selected {@code <option>} elements
+         * inside a {@code <select>} element.
+         *
+         * @param locator the locator for the {@code <select>} element
+         * @return the concatenated text of all selected options
+         */
         @Step("Get selected text")
         public String selectedText(@NonNull By locator) {
             return performAction(ActionType.GET_SELECTED_TEXT, locator, null);
         }
 
+        /**
+         * Returns the computed CSS value of the named property for the located element.
+         *
+         * <pre>{@code
+         * String color = driver.element().get().cssValue(By.id("title"), "color");
+         * }</pre>
+         *
+         * @param locator      the locator for the target element
+         * @param propertyName the CSS property name (e.g., {@code "background-color"})
+         * @return the computed CSS value as a string
+         */
         @Step("Get CSS value")
         public String cssValue(@NonNull By locator, @NonNull String propertyName) {
             return performAction(ActionType.GET_CSS_VALUE, locator, propertyName);
         }
 
+        /**
+         * Returns {@code true} if the located element is currently displayed on the page.
+         *
+         * @param locator the locator for the target element
+         * @return {@code true} if the element is visible; {@code false} otherwise
+         */
         @Step("Get is displayed")
         public boolean isDisplayed(@NonNull By locator) {
             return Boolean.parseBoolean(performAction(ActionType.GET_IS_DISPLAYED, locator, null));
         }
 
+        /**
+         * Returns {@code true} if the located element is currently enabled (i.e., interactive).
+         *
+         * @param locator the locator for the target element
+         * @return {@code true} if the element is enabled; {@code false} if it is disabled
+         */
         @Step("Get is enabled")
         public boolean isEnabled(@NonNull By locator) {
             return Boolean.parseBoolean(performAction(ActionType.GET_IS_ENABLED, locator, null));
         }
 
+        /**
+         * Returns {@code true} if the located element (e.g., a checkbox or radio button)
+         * is currently selected.
+         *
+         * @param locator the locator for the target element
+         * @return {@code true} if the element is selected; {@code false} otherwise
+         */
         @Step("Get is selected")
         public boolean isSelected(@NonNull By locator) {
             return Boolean.parseBoolean(performAction(ActionType.GET_IS_SELECTED, locator, null));
         }
     }
 
+    /**
+     * Provides keyboard-shortcut-based clipboard operations for a target element.
+     *
+     * <p>Each method selects all text in the element first (Ctrl+A) before performing the
+     * requested clipboard operation, then moves focus away (Arrow Right). Obtain an instance
+     * via {@link Actions#clipboard()}:
+     *
+     * <pre>{@code
+     * driver.element().clipboard().copyAll(By.id("sourceField"))
+     *       .and().clipboard().paste(By.id("destinationField"));
+     * }</pre>
+     */
     public class ClipboardAction {
         private final Actions actions;
 
@@ -816,28 +1069,73 @@ public class Actions extends ElementActions {
             actions = null;
         }
 
+        /**
+         * Creates a {@code ClipboardAction} associated with the given {@link Actions} instance
+         * so that chained calls can continue on the same {@code Actions} object.
+         *
+         * @param actions the enclosing {@link Actions} instance to return from each operation
+         */
         protected ClipboardAction(Actions actions) {
             this.actions = actions;
         }
 
+        /**
+         * Selects all text inside the located element and deletes it (Ctrl+A, Backspace).
+         *
+         * <pre>{@code
+         * driver.element().clipboard().deleteAll(By.id("notes"));
+         * }</pre>
+         *
+         * @param locator the locator for the target element whose text should be deleted
+         * @return the parent {@link Actions} instance for fluent chaining
+         */
         @Step("Delete text")
         public Actions deleteAll(@NonNull By locator) {
             performAction(ActionType.CLIPBOARD_DELETE, locator, null);
             return this.actions;
         }
 
+        /**
+         * Selects all text inside the located element and copies it to the system clipboard
+         * (Ctrl+A, Ctrl+C).
+         *
+         * <pre>{@code
+         * driver.element().clipboard().copyAll(By.id("output"));
+         * }</pre>
+         *
+         * @param locator the locator for the target element whose text should be copied
+         * @return the parent {@link Actions} instance for fluent chaining
+         */
         @Step("Copy text to clipboard")
         public Actions copyAll(@NonNull By locator) {
             performAction(ActionType.CLIPBOARD_COPY, locator, null);
             return this.actions;
         }
 
+        /**
+         * Selects all text inside the located element, cuts it to the system clipboard
+         * (Ctrl+A, Ctrl+X), and leaves the field empty.
+         *
+         * @param locator the locator for the target element whose text should be cut
+         * @return the parent {@link Actions} instance for fluent chaining
+         */
         @Step("Cut text to clipboard")
         public Actions cutAll(@NonNull By locator) {
             performAction(ActionType.CLIPBOARD_CUT, locator, null);
             return this.actions;
         }
 
+        /**
+         * Pastes the current system clipboard contents into the located element (Ctrl+V).
+         *
+         * <pre>{@code
+         * driver.element().clipboard().copyAll(By.id("source"))
+         *       .and().clipboard().paste(By.id("destination"));
+         * }</pre>
+         *
+         * @param locator the locator for the target element that should receive the paste
+         * @return the parent {@link Actions} instance for fluent chaining
+         */
         @Step("Paste from clipboard")
         public Actions paste(@NonNull By locator) {
             performAction(ActionType.CLIPBOARD_PASTE, locator, null);

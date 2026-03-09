@@ -21,6 +21,24 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Iterator;
 
+/**
+ * Manages the creation, frame-appending, and finalisation of animated GIF files that visualise
+ * test execution steps in the SHAFT framework.
+ *
+ * <p>Each test thread gets its own GIF writer state through {@link ThreadLocal} fields, making
+ * this class safe for parallel test execution. A new GIF is started automatically when the first
+ * screenshot is captured; subsequent screenshots are appended as additional frames.
+ *
+ * <p>GIF creation is controlled by the {@code SHAFT.Properties.visuals.createAnimatedGif()} flag.
+ * When disabled, all methods in this class are effectively no-ops.
+ *
+ * <p>Example (managed automatically by the SHAFT framework):
+ * <pre>{@code
+ * AnimatedGifManager.startOrAppendToAnimatedGif(screenshotBytes);
+ * // ... test steps ...
+ * String gifPath = AnimatedGifManager.attachAnimatedGif();
+ * }</pre>
+ */
 @SuppressWarnings("ConstantValue")
 public class AnimatedGifManager {
     protected static final Boolean DETAILED_GIF = true;
@@ -45,6 +63,20 @@ public class AnimatedGifManager {
         initialize(outputStream, imageType, timeBetweenFramesMS);
     }
 
+    /**
+     * Finalises and attaches the current thread's animated GIF to the Allure report, then
+     * resets the thread-local GIF state so a new GIF can be started for the next test.
+     *
+     * <p>This method is a no-op when {@code SHAFT.Properties.visuals.createAnimatedGif()}
+     * is {@code false} or when no GIF has been started for the current thread.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * String gifPath = AnimatedGifManager.attachAnimatedGif();
+     * }</pre>
+     *
+     * @return the relative file-system path of the attached GIF, or an empty string if nothing was attached
+     */
     public static String attachAnimatedGif() {
         // stop and attach
         if (SHAFT.Properties.visuals.createAnimatedGif() && !gifRelativePathWithFileName.get().isEmpty()) {
@@ -72,6 +104,22 @@ public class AnimatedGifManager {
         return "";
     }
 
+    /**
+     * Appends a screenshot frame to the current thread's animated GIF, or starts a new GIF
+     * if one has not yet been created for the current thread.
+     *
+     * <p>This method is a no-op when {@code SHAFT.Properties.visuals.createAnimatedGif()}
+     * is {@code false}.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * byte[] screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+     * AnimatedGifManager.startOrAppendToAnimatedGif(screenshot);
+     * }</pre>
+     *
+     * @param screenshot the raw PNG screenshot bytes to append as the next GIF frame;
+     *                   if {@code null} the call is silently ignored
+     */
     public static void startOrAppendToAnimatedGif(byte[] screenshot) {
         // ensure that animatedGif is started, else force start it
         if (SHAFT.Properties.visuals.createAnimatedGif()) {
@@ -183,6 +231,18 @@ public class AnimatedGifManager {
         return (node);
     }
 
+    /**
+     * Writes the given image as the next frame in the GIF sequence using the current thread's
+     * {@link ImageWriter} and metadata.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * gifManager.writeToSequence(bufferedImage);
+     * }</pre>
+     *
+     * @param img the image frame to write to the GIF sequence
+     * @throws IOException if an I/O error occurs while writing the frame
+     */
     protected void writeToSequence(RenderedImage img) throws IOException {
         gifWriter.get().writeToSequence(new IIOImage(img, null, imageMetaData.get()), imageWriteParam.get());
     }

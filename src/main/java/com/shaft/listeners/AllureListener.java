@@ -10,6 +10,27 @@ import io.qameta.allure.model.StepResult;
 import io.qameta.allure.model.TestResult;
 import io.qameta.allure.model.TestResultContainer;
 
+/**
+ * Allure lifecycle listener that integrates SHAFT's TestNG support with the Allure reporting engine.
+ *
+ * <p>This listener is registered automatically and hooks into all four Allure lifecycle interfaces:
+ * {@link StepLifecycleListener}, {@link FixtureLifecycleListener}, {@link TestLifecycleListener},
+ * and {@link ContainerLifecycleListener}. Most callbacks delegate to the corresponding
+ * Allure default implementation; the two exceptions below contain SHAFT-specific behaviour:
+ * <ul>
+ *   <li>{@link #afterStepStop(StepResult)} — updates TestNG configuration method metadata after
+ *       each step completes</li>
+ *   <li>{@link #beforeFixtureStop(FixtureResult)} — attaches configuration-method artefacts to
+ *       the Allure report before a fixture (setup/teardown) finishes</li>
+ * </ul>
+ *
+ * <p><b>Example — automatic registration via SPI:</b>
+ * <pre>{@code
+ * // Listed in META-INF/services/io.qameta.allure.listener.LifecycleListener
+ * // No manual registration required.
+ * com.shaft.listeners.AllureListener
+ * }</pre>
+ */
 public class AllureListener implements StepLifecycleListener, FixtureLifecycleListener, TestLifecycleListener,
         ContainerLifecycleListener {
 
@@ -43,7 +64,13 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
         StepLifecycleListener.super.beforeStepStop(result);
     }
 
-    //After each step Stop inside the methods
+    /**
+     * Invoked after each Allure step stops. If a TestNG {@link org.testng.ITestResult} is available
+     * for the current thread, delegates to {@link TestNGListenerHelper#updateConfigurationMethods}
+     * to keep configuration-method metadata in sync with the Allure step model.
+     *
+     * @param result the {@link StepResult} representing the step that has just stopped
+     */
     @Override
     public void afterStepStop(StepResult result) {
         var iTestResult = TestNGListener.getITestResult();
@@ -124,7 +151,13 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
         FixtureLifecycleListener.super.afterFixtureUpdate(result);
     }
 
-    //Before The Configuration 'SetUp' "and probably 'TearDown' too" stops
+    /**
+     * Invoked before each Allure fixture (TestNG {@code @BeforeXxx}/{@code @AfterXxx} method) stops.
+     * Calls {@link TestNGListenerHelper#attachConfigurationMethods()} to attach any pending
+     * configuration-method artefacts to the Allure report before the fixture result is finalised.
+     *
+     * @param result the {@link FixtureResult} representing the fixture that is about to stop
+     */
     @Override
     public void beforeFixtureStop(FixtureResult result) {
         TestNGListenerHelper.attachConfigurationMethods();

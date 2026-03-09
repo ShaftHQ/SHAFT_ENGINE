@@ -10,11 +10,44 @@ import java.util.DoubleSummaryStatistics;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Utility class for generating HTML-based API performance execution reports.
+ * Aggregates per-endpoint response-time statistics (count, min, max, average) collected during
+ * a test run and writes a self-contained HTML report file to the path configured by
+ * {@code SHAFT.Properties.paths.performanceReportPath()}.
+ *
+ * <p>Report generation is guarded by the {@code SHAFT.Properties.performance.isEnablePerformanceReport()}
+ * flag and is skipped when that flag is {@code false}.
+ *
+ * <p>This class is not intended for direct use in test code; it is invoked by the SHAFT
+ * API performance-tracking infrastructure.
+ */
 public class ApiPerformanceExecutionReport {
 
     // Fetch properties from the Reporting interface
 
-    // Method to calculate performance data and pass it to PHTMLHelper
+    /**
+     * Calculates per-endpoint performance statistics from the supplied data and writes a
+     * timestamped HTML report to the configured performance report directory.
+     *
+     * <p>The method is a no-op when
+     * {@code SHAFT.Properties.performance.isEnablePerformanceReport()} returns {@code false}.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * Map<String, List<Double>> data = new HashMap<>();
+     * data.put("/api/users", Arrays.asList(120.5, 98.3, 135.0));
+     * long start = System.currentTimeMillis();
+     * // ... run tests ...
+     * long end = System.currentTimeMillis();
+     * ApiPerformanceExecutionReport.generatePerformanceReport(data, start, end);
+     * }</pre>
+     *
+     * @param performanceData a map where each key is an API endpoint path and each value is a
+     *                        list of individual response times in milliseconds
+     * @param startTime       the epoch-millisecond timestamp when the test suite began
+     * @param endTime         the epoch-millisecond timestamp when the test suite finished
+     */
     public static void generatePerformanceReport(Map<String, List<Double>> performanceData, long startTime, long endTime) {
         // Check if performance report generation is enabled
         if (!SHAFT.Properties.performance.isEnablePerformanceReport()) {

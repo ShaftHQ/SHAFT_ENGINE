@@ -64,8 +64,10 @@ public class CucumberFeatureListener extends AllureCucumber7Jvm {
 
     private static final String TXT_EXTENSION = ".txt";
     private static final String TEXT_PLAIN = "text/plain";
+    /** The name of the most recently started Cucumber scenario, used for report labelling. */
     @Getter
     private static String lastStartedScenarioName;
+    /** {@code true} if the last finished step passed; {@code false} otherwise. */
     @Getter
     private static Boolean isLastFinishedStepOK;
     private final AllureLifecycle lifecycle;
