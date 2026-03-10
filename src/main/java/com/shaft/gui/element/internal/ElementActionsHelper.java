@@ -44,45 +44,44 @@ public class ElementActionsHelper {
     }
 
     /**
-     * Safely calls {@code driver.findElements(locator)}, bypassing the infinite recursion
+     * Safely calls {@code driver.findElements(locator)}, handling the infinite recursion
      * between Selenium 4.41.0's {@code ElementLocation} and Appium java-client 10.0.0's
      * {@code AppiumBy.findElements(SearchContext)}.
      *
-     * <p>When the locator is an {@code AppiumBy} and the driver is an {@code AppiumDriver},
-     * the find elements command is sent directly via {@code AppiumDriver.execute()},
-     * bypassing {@code ElementLocation} entirely. This avoids the recursion caused when
-     * {@code ElementLocation}'s REMOTE finder throws {@code InvalidArgumentException} for
-     * non-W3C locator strategies (e.g., "accessibility id"), triggering the CONTEXT fallback
-     * which calls {@code AppiumBy.findElements(context)} → {@code context.findElements(by)}
-     * → back to {@code ElementLocation} in an infinite loop.
+     * <p>The normal {@code driver.findElements()} path is attempted first. If a
+     * {@code StackOverflowError} occurs (caused by Appium 3.x returning
+     * {@code InvalidArgumentException} for non-W3C locator strategies, triggering
+     * {@code ElementLocation} ↔ {@code AppiumBy} infinite recursion), the method
+     * falls back to sending the find command directly via {@code AppiumDriver.execute()}.
      *
      * @param driver  the WebDriver instance
      * @param locator the element locator
      * @return the list of found elements, or an empty list if none found or an error occurs
      */
     public static List<WebElement> safeFindElements(WebDriver driver, By locator) {
-        if (locator instanceof AppiumBy && driver instanceof AppiumDriver appiumDriver) {
-            try {
-                var params = ((By.Remotable) locator).getRemoteParameters();
-                var response = appiumDriver.execute(
-                        DriverCommand.FIND_ELEMENTS,
-                        Map.of("using", params.using(), "value", String.valueOf(params.value())));
-                @SuppressWarnings("unchecked")
-                List<WebElement> result = (List<WebElement>) response.getValue();
-                return result != null ? result : Collections.emptyList();
-            } catch (WebDriverException e) {
-                return Collections.emptyList();
-            }
-        }
         try {
             return driver.findElements(locator);
         } catch (StackOverflowError e) {
+            // Fallback for Selenium 4.41.0 + Appium 3.x recursion bug
+            if (locator instanceof AppiumBy && driver instanceof AppiumDriver appiumDriver) {
+                try {
+                    var params = ((By.Remotable) locator).getRemoteParameters();
+                    var response = appiumDriver.execute(
+                            DriverCommand.FIND_ELEMENTS,
+                            Map.of("using", params.using(), "value", String.valueOf(params.value())));
+                    @SuppressWarnings("unchecked")
+                    List<WebElement> result = (List<WebElement>) response.getValue();
+                    return result != null ? result : Collections.emptyList();
+                } catch (WebDriverException ex) {
+                    return Collections.emptyList();
+                }
+            }
             return Collections.emptyList();
         }
     }
 
     /**
-     * Safely calls {@code driver.findElement(locator)}, bypassing the infinite recursion
+     * Safely calls {@code driver.findElement(locator)}, handling the infinite recursion
      * between Selenium 4.41.0's {@code ElementLocation} and Appium java-client 10.0.0's
      * {@code AppiumBy.findElements(SearchContext)}.
      *
@@ -93,26 +92,27 @@ public class ElementActionsHelper {
      * @see #safeFindElements(WebDriver, By) for details on the recursion issue
      */
     public static WebElement safeFindElement(WebDriver driver, By locator) {
-        if (locator instanceof AppiumBy && driver instanceof AppiumDriver appiumDriver) {
-            try {
-                var params = ((By.Remotable) locator).getRemoteParameters();
-                var response = appiumDriver.execute(
-                        DriverCommand.FIND_ELEMENT,
-                        Map.of("using", params.using(), "value", String.valueOf(params.value())));
-                WebElement element = (WebElement) response.getValue();
-                if (element == null) {
-                    throw new NoSuchElementException("Cannot locate an element using " + locator);
-                }
-                return element;
-            } catch (NoSuchElementException e) {
-                throw e;
-            } catch (WebDriverException e) {
-                throw new NoSuchElementException("Cannot locate an element using " + locator, e);
-            }
-        }
         try {
             return driver.findElement(locator);
         } catch (StackOverflowError e) {
+            // Fallback for Selenium 4.41.0 + Appium 3.x recursion bug
+            if (locator instanceof AppiumBy && driver instanceof AppiumDriver appiumDriver) {
+                try {
+                    var params = ((By.Remotable) locator).getRemoteParameters();
+                    var response = appiumDriver.execute(
+                            DriverCommand.FIND_ELEMENT,
+                            Map.of("using", params.using(), "value", String.valueOf(params.value())));
+                    WebElement element = (WebElement) response.getValue();
+                    if (element == null) {
+                        throw new NoSuchElementException("Cannot locate an element using " + locator);
+                    }
+                    return element;
+                } catch (NoSuchElementException ex) {
+                    throw ex;
+                } catch (WebDriverException ex) {
+                    throw new NoSuchElementException("Cannot locate an element using " + locator, ex);
+                }
+            }
             throw new NoSuchElementException("Element not found due to locator incompatibility (StackOverflowError): " + locator, e);
         }
     }
