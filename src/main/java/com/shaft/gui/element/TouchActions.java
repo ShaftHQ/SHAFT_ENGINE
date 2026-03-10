@@ -7,6 +7,7 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
+import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
@@ -663,12 +664,10 @@ public class TouchActions extends FluentWebDriverAction {
             ));
             //percent 0.5 works for UP/DOWN, optimized to 0.8 to scroll faster and introduced delay 1000ms after every scroll action to increase stability
             switch (swipeDirection) {
-                case UP ->
-                        scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getHeight() - 100));
-                case DOWN ->
-                        scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", 100));
+                case UP, DOWN ->
+                        scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getY()));
                 case RIGHT ->
-                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", 100, "top", elementRectangle.getY()));
+                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", elementRectangle.getX(), "top", elementRectangle.getY()));
                 case LEFT ->
                         scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth(), "left", elementRectangle.getX() + (elementRectangle.getWidth() * 50 / 100), "top", elementRectangle.getY()));
             }
@@ -695,7 +694,8 @@ public class TouchActions extends FluentWebDriverAction {
     private boolean performW3cCompliantScroll(HashMap<Object, Object> scrollParameters) {
         boolean canScrollMore = true;
         if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
-            canScrollMore = Boolean.parseBoolean(String.valueOf(androidDriver.executeScript("mobile: scrollGesture", scrollParameters)));
+            var ret = androidDriver.executeScript("mobile: scrollGesture", scrollParameters);
+            canScrollMore = ret == null || Boolean.parseBoolean(String.valueOf(ret));
         } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
             //http://appium.github.io/appium-xcuitest-driver/4.16/execute-methods/#mobile-scroll
             var ret = iosDriver.executeScript("mobile: scroll", scrollParameters);
@@ -712,11 +712,11 @@ public class TouchActions extends FluentWebDriverAction {
             // for the animated GIF:
             elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
 
-            var elementExistsOnViewPort = !driverFactoryHelper.getDriver().findElements(targetElementLocator).isEmpty();
+            var elementExistsOnViewPort = !ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator).isEmpty();
             if (elementExistsOnViewPort)
                 return true;
             canScrollMore.set(performW3cCompliantScroll(scrollParameters));
-            elementExistsOnViewPort = !driverFactoryHelper.getDriver().findElements(targetElementLocator).isEmpty();
+            elementExistsOnViewPort = !ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator).isEmpty();
             if (!canScrollMore.get() && !elementExistsOnViewPort)
                 throw new RuntimeException("Element not found after scrolling to the end of the page.");
             return elementExistsOnViewPort;

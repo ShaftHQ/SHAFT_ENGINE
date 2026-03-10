@@ -520,7 +520,7 @@ public class Actions extends ElementActions {
                     }
                     case DRAG_AND_DROP -> new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
                                     .dragAndDrop(foundElements.get().getFirst(),
-                                            d.findElement((By) data)).perform();
+                                            ElementActionsHelper.safeFindElement(d, (By) data)).perform();
                     case DRAG_AND_DROP_BY_OFFSET ->
                             new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
                                     .dragAndDropBy(foundElements.get().getFirst(),
@@ -671,7 +671,7 @@ public class Actions extends ElementActions {
                     .findElements(locator);
         } else {
             //normal case, just find the elements
-            foundElements = driverFactoryHelper.getDriver().findElements(locator);
+            foundElements = ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), locator);
         }
         return foundElements;
     }

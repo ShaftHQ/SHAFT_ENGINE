@@ -17,12 +17,15 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.ValidationsHelper;
+import io.appium.java_client.AppiumBy;
+import io.appium.java_client.AppiumDriver;
 import lombok.Getter;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.interactions.Locatable;
+import org.openqa.selenium.remote.DriverCommand;
 import org.openqa.selenium.support.locators.RelativeLocator;
 import org.testng.Assert;
 
@@ -38,6 +41,80 @@ public class ElementActionsHelper {
 
     public ElementActionsHelper(boolean isSilent) {
         this.isSilent = isSilent;
+    }
+
+    /**
+     * Safely calls {@code driver.findElements(locator)}, handling the infinite recursion
+     * between Selenium 4.41.0's {@code ElementLocation} and Appium java-client 10.0.0's
+     * {@code AppiumBy.findElements(SearchContext)}.
+     *
+     * <p>The normal {@code driver.findElements()} path is attempted first. If a
+     * {@code StackOverflowError} occurs (caused by Appium 3.x returning
+     * {@code InvalidArgumentException} for non-W3C locator strategies, triggering
+     * {@code ElementLocation} ↔ {@code AppiumBy} infinite recursion), the method
+     * falls back to sending the find command directly via {@code AppiumDriver.execute()}.
+     *
+     * @param driver  the WebDriver instance
+     * @param locator the element locator
+     * @return the list of found elements, or an empty list if none found or an error occurs
+     */
+    public static List<WebElement> safeFindElements(WebDriver driver, By locator) {
+        try {
+            return driver.findElements(locator);
+        } catch (StackOverflowError e) {
+            // Fallback for Selenium 4.41.0 + Appium 3.x recursion bug
+            if (locator instanceof AppiumBy && driver instanceof AppiumDriver appiumDriver) {
+                try {
+                    var params = ((By.Remotable) locator).getRemoteParameters();
+                    var response = appiumDriver.execute(
+                            DriverCommand.FIND_ELEMENTS,
+                            Map.of("using", params.using(), "value", String.valueOf(params.value())));
+                    @SuppressWarnings("unchecked")
+                    List<WebElement> result = (List<WebElement>) response.getValue();
+                    return result != null ? result : Collections.emptyList();
+                } catch (WebDriverException ex) {
+                    return Collections.emptyList();
+                }
+            }
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Safely calls {@code driver.findElement(locator)}, handling the infinite recursion
+     * between Selenium 4.41.0's {@code ElementLocation} and Appium java-client 10.0.0's
+     * {@code AppiumBy.findElements(SearchContext)}.
+     *
+     * @param driver  the WebDriver instance
+     * @param locator the element locator
+     * @return the found element
+     * @throws NoSuchElementException if the element cannot be found
+     * @see #safeFindElements(WebDriver, By) for details on the recursion issue
+     */
+    public static WebElement safeFindElement(WebDriver driver, By locator) {
+        try {
+            return driver.findElement(locator);
+        } catch (StackOverflowError e) {
+            // Fallback for Selenium 4.41.0 + Appium 3.x recursion bug
+            if (locator instanceof AppiumBy && driver instanceof AppiumDriver appiumDriver) {
+                try {
+                    var params = ((By.Remotable) locator).getRemoteParameters();
+                    var response = appiumDriver.execute(
+                            DriverCommand.FIND_ELEMENT,
+                            Map.of("using", params.using(), "value", String.valueOf(params.value())));
+                    WebElement element = (WebElement) response.getValue();
+                    if (element == null) {
+                        throw new NoSuchElementException("Cannot locate an element using " + locator);
+                    }
+                    return element;
+                } catch (NoSuchElementException ex) {
+                    throw ex;
+                } catch (WebDriverException ex) {
+                    throw new NoSuchElementException("Cannot locate an element using " + locator, ex);
+                }
+            }
+            throw new NoSuchElementException("Element not found due to locator incompatibility (StackOverflowError): " + locator, e);
+        }
     }
 
     public List<Object> waitForElementPresence(WebDriver driver, String elementReferenceScreenshot) {
@@ -102,11 +179,11 @@ public class ElementActionsHelper {
                             try {
                                 targetElement[0] = driver.switchTo().frame(driver.findElement(LocatorBuilder.getIFrameLocator().get())).findElement(elementLocator);
                             } catch (NoSuchElementException exception) {
-                                targetElement[0] = driver.findElement(elementLocator);
+                                targetElement[0] = safeFindElement(driver, elementLocator);
                             }
                         } else {
                             try {
-                                targetElement[0] = driver.findElement(elementLocator);
+                                targetElement[0] = safeFindElement(driver, elementLocator);
                             } catch (InvalidSelectorException invalidSelectorException) {
                                 //break and fail immediately if invalid selector
                                 reportActionResult(driver, null, null, null, null, null, false);
@@ -156,7 +233,7 @@ public class ElementActionsHelper {
                                     .findElements(cssSelector)
                                     .size());
                         } else {
-                            elementInformation.setNumberOfFoundElements(driver.findElements(elementLocator).size());
+                            elementInformation.setNumberOfFoundElements(safeFindElements(driver, elementLocator).size());
                         }
 
                         // BLOCK #5 :: GETTING INNER HTML AND OUTER HTML
@@ -174,12 +251,16 @@ public class ElementActionsHelper {
                             var elementName = JavaHelper.
                                     formatLocatorToString(elementLocator);
                             try {
-                                var accessibleName = targetElement[0].getAccessibleName();
-                                if (
-                                        accessibleName != null && !accessibleName.
-                                                isBlank()) {
-                                    elementName =
-                                            accessibleName;
+                                // getAccessibleName() triggers GET .../computedlabel which is
+                                // unsupported by Appium native sessions (returns 404)
+                                if (!DriverFactoryHelper.isMobileNativeExecution()) {
+                                    var accessibleName = targetElement[0].getAccessibleName();
+                                    if (
+                                            accessibleName != null && !accessibleName.
+                                                    isBlank()) {
+                                        elementName =
+                                                accessibleName;
+                                    }
                                 }
                             } catch (Throwable throwable) {
                                 //happens on some elements that show unhandled inspector error
@@ -224,10 +305,10 @@ public class ElementActionsHelper {
         var elementInformation = new ArrayList<>();
         try {
             boolean elementFound = new SynchronizationManager(driver).fluentWait().until(f -> {
-                if (!driver.findElements(elementLocator).isEmpty()) {
+                if (!safeFindElements(driver, elementLocator).isEmpty()) {
                     ReportManagerHelper.logDiscrete("Element found.", Level.DEBUG);
-                    elementInformation.add(driver.findElements(elementLocator).size());
-                    elementInformation.add(driver.findElement(elementLocator));
+                    elementInformation.add(safeFindElements(driver, elementLocator).size());
+                    elementInformation.add(safeFindElement(driver, elementLocator));
                     return true;
                 }
                 try {
@@ -260,7 +341,7 @@ public class ElementActionsHelper {
         if (!DriverFactoryHelper.isMobileNativeExecution()) {
             try {
                 new SynchronizationManager(driver).fluentWait(false)
-                        .until(f -> driver.findElement(elementLocator).isDisplayed() && driver.findElement(elementLocator).isEnabled());
+                        .until(f -> safeFindElement(driver, elementLocator).isDisplayed() && safeFindElement(driver, elementLocator).isEnabled());
 
                 return new SynchronizationManager(driver).fluentWait(true)
                         .until(f -> {
@@ -282,7 +363,7 @@ public class ElementActionsHelper {
     public boolean waitForElementTextToBeNot(WebDriver driver, By elementLocator, String textShouldNotBe) {
         try {
             new SynchronizationManager(driver).fluentWait()
-                    .until(f -> !driver.findElement(elementLocator).getText().equals(textShouldNotBe));
+                    .until(f -> !safeFindElement(driver, elementLocator).getText().equals(textShouldNotBe));
         } catch (org.openqa.selenium.TimeoutException e) {
             ReportManagerHelper.logDiscrete(e);
             return false;
@@ -335,9 +416,13 @@ public class ElementActionsHelper {
     public String getElementName(WebDriver driver, By elementLocator) {
         if (SHAFT.Properties.reporting.captureElementName()) {
             try {
-                var accessibleName = ((WebElement) identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getAccessibleName();
-                if (accessibleName != null && !accessibleName.isBlank()) {
-                    return accessibleName;
+                // getAccessibleName() triggers GET .../computedlabel which is
+                // unsupported by Appium native sessions (returns 404)
+                if (!DriverFactoryHelper.isMobileNativeExecution()) {
+                    var accessibleName = ((WebElement) identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getAccessibleName();
+                    if (accessibleName != null && !accessibleName.isBlank()) {
+                        return accessibleName;
+                    }
                 }
             } catch (Throwable throwable) {
                 var rootCause = Throwables.getRootCause(throwable).getClass();
@@ -500,9 +585,13 @@ public class ElementActionsHelper {
         String elementName = elementLocator != null ? JavaHelper.formatLocatorToString(elementLocator) : "";
         if (elementLocator != null && (rootCauseException.length >= 1 && Throwables.getRootCause(rootCauseException[0]).getClass() != MultipleElementsFoundException.class && Throwables.getRootCause(rootCauseException[0]).getClass() != NoSuchElementException.class && Throwables.getRootCause(rootCauseException[0]).getClass() != InvalidSelectorException.class)) {
             try {
-                var accessibleName = ((WebElement) this.identifyUniqueElement(driver, elementLocator).get(1)).getAccessibleName();
-                if (accessibleName != null && !accessibleName.isBlank()) {
-                    elementName = accessibleName;
+                // getAccessibleName() triggers GET .../computedlabel which is
+                // unsupported by Appium native sessions (returns 404)
+                if (!DriverFactoryHelper.isMobileNativeExecution()) {
+                    var accessibleName = ((WebElement) this.identifyUniqueElement(driver, elementLocator).get(1)).getAccessibleName();
+                    if (accessibleName != null && !accessibleName.isBlank()) {
+                        elementName = accessibleName;
+                    }
                 }
             } catch (WebDriverException e) {
                 //happens on some elements that show unhandled inspector error
@@ -625,7 +714,9 @@ public class ElementActionsHelper {
         List<List<Object>> attachments = createReportAttachments(driver, actionName, testData, elementLocator, screenshots, passFailStatus, rootCauseException);
 
         if (message.contains("Failed") && rootCauseException != null && rootCauseException.length > 0) {
-            String rootCause = " Root cause: \"" + Throwables.getRootCause(rootCauseException[0]).getClass().getName() + ": " + Throwables.getRootCause(rootCauseException[0]).getLocalizedMessage().split("\n")[0] + "\"";
+            var rootCauseThrowable = Throwables.getRootCause(rootCauseException[0]);
+            var rootCauseMessage = rootCauseThrowable.getLocalizedMessage();
+            String rootCause = " Root cause: \"" + rootCauseThrowable.getClass().getName() + ": " + (rootCauseMessage != null ? rootCauseMessage.split("\n")[0] : "No message") + "\"";
             message += rootCause;
         }
         if (!isSilent || actionName.equals("identifyUniqueElement")) {
