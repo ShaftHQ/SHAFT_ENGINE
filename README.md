@@ -216,6 +216,14 @@ public class QuickStartTest {
 | 🛠️ **[Tech Stack](docs/TECH_STACK.md)** | Technologies powering SHAFT |
 | 📊 **[User Analytics](docs/USER_ANALYTICS.md)** | Global adoption and growth metrics |
 
+### 🤖 AI-Powered Code Exploration
+
+<a href="https://codewiki.google/github.com/shafthq/shaft_engine" target="_blank"><img src="https://assets.codewiki.google/favicon.ico" alt="Google Code Wiki" width="64"/></a>
+
+**[Explore SHAFT Engine on Google Code Wiki →](https://codewiki.google/github.com/shafthq/shaft_engine)**
+
+Browse, search, and understand the SHAFT Engine codebase using [**Google Code Wiki**](https://codewiki.google/github.com/shafthq/shaft_engine) — Google's AI-powered code exploration tool. Ask questions about the code, navigate complex implementations, and get intelligent explanations of framework internals, all powered by Google AI.
+
 </div>
 
 ---
