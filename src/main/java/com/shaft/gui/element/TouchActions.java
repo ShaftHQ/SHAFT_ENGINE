@@ -694,7 +694,8 @@ public class TouchActions extends FluentWebDriverAction {
     private boolean performW3cCompliantScroll(HashMap<Object, Object> scrollParameters) {
         boolean canScrollMore = true;
         if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
-            canScrollMore = Boolean.parseBoolean(String.valueOf(androidDriver.executeScript("mobile: scrollGesture", scrollParameters)));
+            var ret = androidDriver.executeScript("mobile: scrollGesture", scrollParameters);
+            canScrollMore = ret == null || Boolean.parseBoolean(String.valueOf(ret));
         } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
             //http://appium.github.io/appium-xcuitest-driver/4.16/execute-methods/#mobile-scroll
             var ret = iosDriver.executeScript("mobile: scroll", scrollParameters);
