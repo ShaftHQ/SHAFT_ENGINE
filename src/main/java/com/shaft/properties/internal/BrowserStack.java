@@ -185,7 +185,7 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
      * @return the Selenium version string
      */
     @Key("browserStack.seleniumVersion")
-    @DefaultValue("4.41.0")
+    @DefaultValue("4.40.0")
     String seleniumVersion();
 
     /**
