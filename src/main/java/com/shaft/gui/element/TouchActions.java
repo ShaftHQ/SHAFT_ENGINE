@@ -7,6 +7,7 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
+import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
@@ -710,11 +711,11 @@ public class TouchActions extends FluentWebDriverAction {
             // for the animated GIF:
             elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
 
-            var elementExistsOnViewPort = !driverFactoryHelper.getDriver().findElements(targetElementLocator).isEmpty();
+            var elementExistsOnViewPort = !ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator).isEmpty();
             if (elementExistsOnViewPort)
                 return true;
             canScrollMore.set(performW3cCompliantScroll(scrollParameters));
-            elementExistsOnViewPort = !driverFactoryHelper.getDriver().findElements(targetElementLocator).isEmpty();
+            elementExistsOnViewPort = !ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator).isEmpty();
             if (!canScrollMore.get() && !elementExistsOnViewPort)
                 throw new RuntimeException("Element not found after scrolling to the end of the page.");
             return elementExistsOnViewPort;
