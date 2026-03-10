@@ -36,14 +36,14 @@ public class ElementActionsMockedTests {
         closeable = MockitoAnnotations.openMocks(this);
         testLocator = By.id("testElement");
         
-        // Setup basic mock behaviors
-        when(mockDriver.findElement(any(By.class))).thenReturn(mockElement);
-        when(mockDriver.findElements(any(By.class))).thenReturn(Arrays.asList(mockElement, mockElement));
-        when(mockElement.isDisplayed()).thenReturn(true);
-        when(mockElement.isEnabled()).thenReturn(true);
-        when(mockElement.getText()).thenReturn("Test Text");
-        when(mockElement.getAttribute(anyString())).thenReturn("test-value");
-        when(mockElement.getTagName()).thenReturn("input");
+        // Setup basic mock behaviors using doReturn to avoid thread-safety issues in parallel execution
+        doReturn(mockElement).when(mockDriver).findElement(any(By.class));
+        doReturn(Arrays.asList(mockElement, mockElement)).when(mockDriver).findElements(any(By.class));
+        doReturn(true).when(mockElement).isDisplayed();
+        doReturn(true).when(mockElement).isEnabled();
+        doReturn("Test Text").when(mockElement).getText();
+        doReturn("test-value").when(mockElement).getAttribute(anyString());
+        doReturn("input").when(mockElement).getTagName();
     }
 
     @AfterMethod

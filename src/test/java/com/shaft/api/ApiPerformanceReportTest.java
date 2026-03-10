@@ -129,39 +129,39 @@ public class ApiPerformanceReportTest {
                 .perform();
     }
 
-    @BeforeMethod(onlyForGroups = {"fakerestapi"})
-    public void setupFakerestapi() {
-        api.set(new SHAFT.API("https://fakerestapi.azurewebsites.net/api/v1/"));
+    @BeforeMethod(onlyForGroups = {"jsonplaceholder"})
+    public void setupJsonPlaceholder() {
+        api.set(new SHAFT.API("https://jsonplaceholder.typicode.com/"));
     }
 
-    @Test(groups = {"fakerestapi"})
-    public void testGetActivities() {
-        api.get().get("Activities/1").perform();
+    @Test(groups = {"jsonplaceholder"})
+    public void testGetPost() {
+        api.get().get("posts/1").perform();
     }
 
-    @Test(groups = {"fakerestapi"})
-    public void testGetActivity() {
-        api.get().get("Activities/1").perform();
+    @Test(groups = {"jsonplaceholder"})
+    public void testGetAnotherPost() {
+        api.get().get("posts/2").perform();
     }
 
-    @Test(groups = {"fakerestapi"})
-    public void testGetAuthors() {
-        api.get().get("Authors").perform();
+    @Test(groups = {"jsonplaceholder"})
+    public void testGetAllJsonPlaceholderUsers() {
+        api.get().get("users").perform();
     }
 
-    @Test(groups = {"fakerestapi"})
-    public void testGetAuthor() {
-        api.get().get("Authors/1").perform();
+    @Test(groups = {"jsonplaceholder"})
+    public void testGetSingleUser() {
+        api.get().get("users/1").perform();
     }
 
-    @Test(groups = {"fakerestapi"})
-    public void testGetAuthorBook() {
-        api.get().get("Authors/authors/books/1").perform();
+    @Test(groups = {"jsonplaceholder"})
+    public void testGetUserPosts() {
+        api.get().get("posts?userId=1").perform();
     }
 
-    @Test(groups = {"fakerestapi"})
-    public void testGetBooks() {
-        api.get().get("Books").perform();
+    @Test(groups = {"jsonplaceholder"})
+    public void testGetAlbums() {
+        api.get().get("albums").perform();
     }
 
     @BeforeMethod(onlyForGroups = {"demoblaze"})

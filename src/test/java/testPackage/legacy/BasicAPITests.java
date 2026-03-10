@@ -12,8 +12,8 @@ public class BasicAPITests {
 
     @Test
     public void apiTest() {
-        api = new SHAFT.API("https://fakerestapi.azurewebsites.net");
-        api.get("/api/v1/Authors")
+        api = new SHAFT.API("https://jsonplaceholder.typicode.com");
+        api.get("/users")
                 .performRequest();
     }
 
