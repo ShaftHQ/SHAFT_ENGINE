@@ -79,9 +79,9 @@ public class AndroidTouchActionsTests extends MobileTest {
     @Test(groups = {"ApiDemosDebug"})
     public void swipeListByOffsetAndAssertListIsStillVisible() {
         driver.get().touch()
-                .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView("Views")
                 .tap(AppiumBy.accessibilityId("Views"))
-                .swipeElementIntoView(AppiumBy.accessibilityId("Expandable Lists"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView("Expandable Lists")
                 .tap(AppiumBy.accessibilityId("Expandable Lists"))
                 .tap(AppiumBy.accessibilityId("3. Simple Adapter"))
                 .tap(By.xpath("//android.widget.TextView[@text='Group 1']"))
@@ -99,9 +99,9 @@ public class AndroidTouchActionsTests extends MobileTest {
     @Test(groups = {"ApiDemosDebug"})
     public void swipeElementIntoViewByTextAndAssertTargetIsVisible() {
         driver.get().touch()
-                .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView("Views")
                 .tap(AppiumBy.accessibilityId("Views"))
-                .swipeElementIntoView(AppiumBy.accessibilityId("Expandable Lists"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView("Expandable Lists")
                 .tap(AppiumBy.accessibilityId("Expandable Lists"))
                 .tap(AppiumBy.accessibilityId("3. Simple Adapter"))
                 .tap(By.xpath("//android.widget.TextView[@text='Group 1']"))
@@ -120,9 +120,9 @@ public class AndroidTouchActionsTests extends MobileTest {
     @Test(groups = {"ApiDemosDebug"})
     public void swipeElementIntoViewByTextWithVerticalMovementAndAssertTargetIsVisible() {
         driver.get().touch()
-                .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView("Views")
                 .tap(AppiumBy.accessibilityId("Views"))
-                .swipeElementIntoView(AppiumBy.accessibilityId("Expandable Lists"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView("Expandable Lists")
                 .tap(AppiumBy.accessibilityId("Expandable Lists"))
                 .tap(AppiumBy.accessibilityId("3. Simple Adapter"))
                 .tap(By.xpath("//android.widget.TextView[@text='Group 1']"))
@@ -141,11 +141,11 @@ public class AndroidTouchActionsTests extends MobileTest {
     @Test(groups = {"ApiDemosDebug"})
     public void swipeElementIntoViewByTextWithHorizontalMovementAndAssertTargetIsVisible() {
         driver.get().touch()
-                .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView("Views")
                 .tap(AppiumBy.accessibilityId("Views"))
-                .swipeElementIntoView(AppiumBy.accessibilityId("Tabs"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView("Tabs")
                 .tap(AppiumBy.accessibilityId("Tabs"))
-                .swipeElementIntoView(AppiumBy.accessibilityId("5. Scrollable"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView("5. Scrollable")
                 .tap(AppiumBy.accessibilityId("5. Scrollable"))
                 .swipeElementIntoView("TAB 12", TouchActions.SwipeMovement.HORIZONTAL);
         driver.get().assertThat()
@@ -177,9 +177,9 @@ public class AndroidTouchActionsTests extends MobileTest {
     @Test(groups = {"ApiDemosDebug"})
     public void pinchToZoomInAndOutOnWebViewAndAssertWebViewIsStillVisible() {
         driver.get().touch()
-                .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView("Views")
                 .tap(AppiumBy.accessibilityId("Views"))
-                .swipeElementIntoView(AppiumBy.accessibilityId("WebView"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView("WebView")
                 .tap(AppiumBy.accessibilityId("WebView"))
                 .pinchToZoom(TouchActions.ZoomDirection.IN)
                 .pinchToZoom(TouchActions.ZoomDirection.OUT);

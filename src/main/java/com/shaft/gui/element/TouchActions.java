@@ -18,6 +18,7 @@ import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.*;
 import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.remote.RemoteWebElement;
 
 import java.io.File;
 import java.io.IOException;
@@ -659,18 +660,28 @@ public class TouchActions extends FluentWebDriverAction {
 
         if (scrollableElementLocator != null) {
             //scrolling inside an element
-            Rectangle elementRectangle = ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), scrollableElementLocator).get(1)).getRect();
-            scrollParameters.putAll(ImmutableMap.of(
-                    "height", elementRectangle.getHeight() * 90 / 100
-            ));
-            //percent 0.5 works for UP/DOWN, optimized to 0.8 to scroll faster and introduced delay 1000ms after every scroll action to increase stability
-            switch (swipeDirection) {
-                case UP, DOWN ->
-                        scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getY()));
-                case RIGHT ->
-                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", elementRectangle.getX(), "top", elementRectangle.getY()));
-                case LEFT ->
-                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth(), "left", elementRectangle.getX() + (elementRectangle.getWidth() * 50 / 100), "top", elementRectangle.getY()));
+            WebElement scrollableElement = (WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
+            if (driverFactoryHelper.getDriver() instanceof AndroidDriver) {
+                // Appium 3.x UIAutomator2: pass elementId instead of bounding-box coordinates.
+                // The bounding-box approach (left/top/width/height) does not work reliably with
+                // ListView/RecyclerView/ScrollView on UIAutomator2 6.x — it returns null/false
+                // even when more content is available. elementId lets UIAutomator2 compute bounds
+                // from the live native element reference and report canScrollMore correctly.
+                scrollParameters.putAll(ImmutableMap.of(
+                        "elementId", ((RemoteWebElement) scrollableElement).getId(),
+                        "percent", 0.8
+                ));
+            } else {
+                //percent 0.5 works for UP/DOWN, optimized to 0.8 to scroll faster
+                Rectangle elementRectangle = scrollableElement.getRect();
+                switch (swipeDirection) {
+                    case UP, DOWN ->
+                            scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getY()));
+                    case RIGHT ->
+                            scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", elementRectangle.getX(), "top", elementRectangle.getY()));
+                    case LEFT ->
+                            scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth(), "left", elementRectangle.getX() + (elementRectangle.getWidth() * 50 / 100), "top", elementRectangle.getY()));
+                }
             }
         } else {
             //scrolling inside the screen
@@ -687,7 +698,7 @@ public class TouchActions extends FluentWebDriverAction {
             }
         }
         scrollParameters.putAll(ImmutableMap.of(
-                "direction", swipeDirection.toString()
+                "direction", swipeDirection.toString().toLowerCase()
         ));
         return scrollParameters;
     }
@@ -708,6 +719,7 @@ public class TouchActions extends FluentWebDriverAction {
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
         var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, targetElementLocator);
         AtomicBoolean canScrollMore = new AtomicBoolean(true);
+        // AtomicInteger is required to allow mutation inside the lambda (Java lambdas capture effectively-final variables).
         AtomicInteger scrollAttempts = new AtomicInteger(0);
 
         new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
@@ -726,9 +738,12 @@ public class TouchActions extends FluentWebDriverAction {
             canScrollMore.set(performW3cCompliantScroll(scrollParameters));
             int attempts = scrollAttempts.incrementAndGet();
             elementExistsOnViewPort = !ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator).isEmpty();
-            boolean reachedScrollLimit = !canScrollMore.get() || attempts >= DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT;
-            if (reachedScrollLimit && !elementExistsOnViewPort)
-                throw new RuntimeException("Element not found after scrolling to the end of the page.");
+            boolean endOfContent = !canScrollMore.get();
+            boolean attemptsExhausted = attempts >= DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT;
+            if ((endOfContent || attemptsExhausted) && !elementExistsOnViewPort) {
+                String reason = endOfContent ? "end of scrollable content" : "maximum scroll attempts (" + DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT + ") reached";
+                throw new RuntimeException("Element not found after scrolling reached " + reason + ".");
+            }
             return elementExistsOnViewPort;
         });
         ReportManager.logDiscrete("Element found on screen.");
