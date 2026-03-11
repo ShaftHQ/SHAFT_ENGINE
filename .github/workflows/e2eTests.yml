@@ -314,7 +314,7 @@ jobs:
       - name: Run tests
         id: run_tests_android
         continue-on-error: true
-        timeout-minutes: 20
+        timeout-minutes: 40
         run: mvn -e test "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
       - name: Generate Allure Report
         if: always()
