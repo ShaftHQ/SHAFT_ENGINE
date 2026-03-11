@@ -43,3 +43,15 @@ import org.testng.annotations.*;
 ### Naming
 - Class names: `PascalCase` ending in `Test` or `Tests` (e.g., `BrowserActionsTests`)
 - Test method names: `camelCase`, describe the full scenario (e.g., `navigateToPageAndAssertTitleIsCorrect`)
+
+### ⛔ Mandatory Pre-Commit Rules (No Exceptions)
+> **You MUST NEVER commit untested code. There are no exceptions to these rules.**
+
+Before committing **any** test code change, you **must**:
+
+1. **Compile**: Run `mvn clean install -DskipTests -Dgpg.skip` and confirm it succeeds
+2. **Run Tests**: Execute `mvn test -Dtest=TestClassName` for all new or modified test classes and confirm they pass
+3. **Capture Evidence**: Take screenshots of test execution results to provide proof that tests were executed and passed
+4. **Review Code**: Review test code for correctness, completeness, and adherence to SHAFT test patterns
+
+Every new feature, bug fix, or code modification **must** have corresponding tests. No code may be committed without verified, passing tests.

@@ -33,3 +33,14 @@ When writing or editing framework source files under `src/main/java/`, follow th
 - Throw specific, descriptive exceptions; never swallow exceptions silently
 - Log meaningful messages before re-throwing or handling exceptions
 - Use SHAFT's internal logging utilities (not `System.out.println`)
+
+### ⛔ Mandatory Pre-Commit Rules (No Exceptions)
+> **You MUST NEVER commit untested framework code. There are no exceptions to these rules.**
+
+Before committing **any** framework source change, you **must**:
+
+1. **Compile**: Run `mvn clean install -DskipTests -Dgpg.skip` and confirm it succeeds
+2. **Write Tests**: Create or update tests under `src/test/java/` that cover your changes — every new or modified feature requires test coverage
+3. **Run Tests**: Execute `mvn test -Dtest=TestClassName` for all affected tests and confirm they pass
+4. **Capture Evidence**: Take screenshots of test results to provide proof that tests were executed and passed
+5. **Review Code**: Review your changes for correctness, JavaDoc completeness, backward compatibility, and adherence to SHAFT patterns
