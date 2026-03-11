@@ -28,12 +28,13 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.Arrays.asList;
 
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class TouchActions extends FluentWebDriverAction {
-    private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 5;
+    private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 10;
     private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = SHAFT.Properties.reporting.captureElementName();
 
     public TouchActions() {
@@ -707,17 +708,26 @@ public class TouchActions extends FluentWebDriverAction {
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
         var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, targetElementLocator);
         AtomicBoolean canScrollMore = new AtomicBoolean(true);
+        AtomicInteger scrollAttempts = new AtomicInteger(0);
 
         new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
             // for the animated GIF:
             elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
 
+            if (targetElementLocator == null) {
+                // null target: caller wants a blind scroll without a specific target element.
+                // Perform a single gesture and return immediately (used by image-based swipe methods).
+                performW3cCompliantScroll(scrollParameters);
+                return true;
+            }
             var elementExistsOnViewPort = !ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator).isEmpty();
             if (elementExistsOnViewPort)
                 return true;
             canScrollMore.set(performW3cCompliantScroll(scrollParameters));
+            int attempts = scrollAttempts.incrementAndGet();
             elementExistsOnViewPort = !ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator).isEmpty();
-            if (!canScrollMore.get() && !elementExistsOnViewPort)
+            boolean reachedScrollLimit = !canScrollMore.get() || attempts >= DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT;
+            if (reachedScrollLimit && !elementExistsOnViewPort)
                 throw new RuntimeException("Element not found after scrolling to the end of the page.");
             return elementExistsOnViewPort;
         });
