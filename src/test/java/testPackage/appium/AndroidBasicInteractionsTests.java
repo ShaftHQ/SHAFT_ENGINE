@@ -119,7 +119,7 @@ public class AndroidBasicInteractionsTests extends MobileTest {
     public void testSendKeys() {
         String SEARCH_ACTIVITY = ".app.SearchInvoke";
 
-        ((AndroidDriver) driver.get().getDriver()).executeScript("mobile: startActivity", ImmutableMap.of("appPackage", PACKAGE, "appActivity", SEARCH_ACTIVITY));
+        ((AndroidDriver) driver.get().getDriver()).executeScript("mobile: startActivity", ImmutableMap.of("intent", PACKAGE + "/" + SEARCH_ACTIVITY));
 
         driver.get().element().type(By.id("txt_query_prefill"), "Hello world!")
                 .and().touch().tap(By.id("btn_start_search"))
@@ -131,7 +131,7 @@ public class AndroidBasicInteractionsTests extends MobileTest {
         // Open the "Alert Dialog" activity of the android app
         String ALERT_DIALOG_ACTIVITY = ".app.AlertDialogSamples";
 
-        ((AndroidDriver) driver.get().getDriver()).executeScript("mobile: startActivity", ImmutableMap.of("appPackage", PACKAGE, "appActivity", ALERT_DIALOG_ACTIVITY));
+        ((AndroidDriver) driver.get().getDriver()).executeScript("mobile: startActivity", ImmutableMap.of("intent", PACKAGE + "/" + ALERT_DIALOG_ACTIVITY));
 
         // Click button that opens a dialog
         driver.get().element().touch().tap(By.id("io.appium.android.apis:id/two_buttons"));
