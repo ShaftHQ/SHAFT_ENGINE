@@ -611,16 +611,23 @@ public class DriverFactoryHelper {
     /**
      * Takes a viewport screenshot after the driver session is established and attaches it
      * to the Allure report as evidence that the browser or native app was launched successfully.
-     * Retries up to 10 times with a 3-second interval if the initial screenshot appears mostly blank,
-     * allowing time for the app or browser to fully render its initial screen (e.g. on BrowserStack
-     * where there is a short delay between session creation and UI render).
-     * Failures are logged discretely so they never mask the primary driver-creation outcome.
+     * For mobile native sessions, waits up to 30 seconds for the page source to indicate that
+     * the app's UI has finished rendering (page source longer than a minimal threshold) before
+     * capturing the screenshot, then retries the screenshot itself up to 3 times if it appears
+     * mostly blank. Failures are logged discretely so they never mask the primary
+     * driver-creation outcome.
      */
     private void attachLaunchScreenshot() {
         try {
+            // For mobile native, wait until the app UI is loaded (non-trivial page source)
+            // before taking the screenshot. This avoids blank screenshots when the
+            // Appium session is established faster than the app's first activity renders.
+            if (isMobileNativeExecution()) {
+                waitForAppUI();
+            }
             byte[] screenshot = null;
-            int maxAttempts = 10;
-            int retryDelayMs = 3000;
+            int maxAttempts = 3;
+            int retryDelayMs = 2000;
             for (int attempt = 0; attempt < maxAttempts; attempt++) {
                 screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
                 if (!isScreenshotMostlyBlank(screenshot)) {
@@ -640,6 +647,33 @@ public class DriverFactoryHelper {
             }
         } catch (Exception e) {
             ReportManager.logDiscrete("Could not capture launch screenshot [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Waits up to 30 seconds for the app's UI to finish rendering by polling the page source.
+     * The page source for a fully-loaded native activity is significantly longer than the
+     * minimal XML returned while the app is still initializing. Polling stops as soon as
+     * the source exceeds the threshold or the timeout elapses.
+     */
+    private void waitForAppUI() {
+        int maxWaitMs = 30_000;
+        int pollIntervalMs = 1_000;
+        int minPageSourceLength = 500; // chars — a blank/loading activity is well below this
+        long deadline = System.currentTimeMillis() + maxWaitMs;
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                String source = driver.getPageSource();
+                if (source != null && source.length() >= minPageSourceLength) {
+                    return; // app UI is ready
+                }
+                Thread.sleep(pollIntervalMs);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                return;
+            } catch (Exception ignored) {
+                // getPageSource() may fail transiently; just keep polling
+            }
         }
     }
 
