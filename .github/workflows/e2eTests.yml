@@ -298,7 +298,6 @@ jobs:
           fi
   Android_Native_BrowserStack:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
@@ -314,7 +313,22 @@ jobs:
           maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
+        timeout-minutes: 20
         run: mvn -e test "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
+      - name: Generate Allure Report
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ ! -f "allure-report/AllureReport.html" ] && [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
+            ALLURE_BINARY=$(find ~/.m2/repository/allure -maxdepth 3 -name allure -not -name "*.bat" -type f 2>/dev/null | head -1)
+            if [ -n "$ALLURE_BINARY" ]; then
+              chmod +x "$ALLURE_BINARY"
+              "$ALLURE_BINARY" generate --single-file --clean allure-results -o allure-report
+              if [ -f "allure-report/index.html" ]; then
+                mv allure-report/index.html allure-report/AllureReport.html
+              fi
+            fi
+          fi
       - name: Upload coverage to Codecov
         if: always()
         uses:  codecov/codecov-action@v5
