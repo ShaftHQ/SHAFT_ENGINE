@@ -39,6 +39,7 @@ import org.openqa.selenium.remote.http.ConnectionFailedException;
 import org.openqa.selenium.safari.SafariDriver;
 import org.testng.Reporter;
 
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -47,6 +48,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import javax.imageio.ImageIO;
 
 public class DriverFactoryHelper {
     private static final String WEB_DRIVER_MANAGER_MESSAGE = "Identifying OS/Driver combination. Please note that if a new browser/driver executable will be downloaded it may take some time depending on your connection...";
@@ -607,16 +609,70 @@ public class DriverFactoryHelper {
     }
 
     /**
-     * Takes a viewport screenshot immediately after the driver session is established and attaches it
+     * Takes a viewport screenshot after the driver session is established and attaches it
      * to the Allure report as evidence that the browser or native app was launched successfully.
+     * Retries up to 10 times with a 3-second interval if the initial screenshot appears mostly blank,
+     * allowing time for the app or browser to fully render its initial screen (e.g. on BrowserStack
+     * where there is a short delay between session creation and UI render).
      * Failures are logged discretely so they never mask the primary driver-creation outcome.
      */
     private void attachLaunchScreenshot() {
         try {
-            byte[] screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-            ReportManagerHelper.attach("screenshot", "App Launch Screenshot", new ByteArrayInputStream(screenshot));
+            byte[] screenshot = null;
+            int maxAttempts = 10;
+            int retryDelayMs = 3000;
+            for (int attempt = 0; attempt < maxAttempts; attempt++) {
+                screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                if (!isScreenshotMostlyBlank(screenshot)) {
+                    break;
+                }
+                if (attempt < maxAttempts - 1) {
+                    try {
+                        Thread.sleep(retryDelayMs);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+            if (screenshot != null) {
+                ReportManagerHelper.attach("screenshot", "App Launch Screenshot", new ByteArrayInputStream(screenshot));
+            }
         } catch (Exception e) {
             ReportManager.logDiscrete("Could not capture launch screenshot [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Returns true if the screenshot appears to be mostly blank (very few unique pixel colors),
+     * indicating that the app or browser has not yet rendered its content. Uses pixel sampling on a
+     * grid for efficiency, stopping as soon as enough color variety is found.
+     *
+     * @param pngBytes the raw PNG bytes of the screenshot
+     * @return true if the sampled grid contains 5 or fewer unique pixel colors (blank/loading screen)
+     */
+    private boolean isScreenshotMostlyBlank(byte[] pngBytes) {
+        try {
+            BufferedImage img = ImageIO.read(new ByteArrayInputStream(pngBytes));
+            if (img == null) return true;
+            int width = img.getWidth();
+            int height = img.getHeight();
+            // Sample every ~5% of the smaller dimension to keep this fast
+            int step = Math.max(1, Math.min(width, height) / 20);
+            java.util.Set<Integer> uniqueColors = new java.util.HashSet<>();
+            for (int x = 0; x < width; x += step) {
+                for (int y = 0; y < height; y += step) {
+                    // Mask off the alpha channel — compare only RGB
+                    uniqueColors.add(img.getRGB(x, y) & 0xFFFFFF);
+                    if (uniqueColors.size() > 5) {
+                        return false; // enough color variety: app has rendered content
+                    }
+                }
+            }
+            // 5 or fewer unique colors in the sampled grid → blank/loading screen
+            return true;
+        } catch (Exception e) {
+            return false; // if we can't analyze, assume it has content
         }
     }
 

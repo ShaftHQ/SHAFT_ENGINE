@@ -240,12 +240,12 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
 
     /**
      * Appium version to use on BrowserStack App Automate for mobile native testing.
-     * <p>Property key: {@code browserStack.appiumVersion} — default: {@code "3.1.0"}
+     * <p>Property key: {@code browserStack.appiumVersion} — default: {@code "2.19.0"}
      *
      * @return the Appium version string
      */
     @Key("browserStack.appiumVersion")
-    @DefaultValue("3.1.0")
+    @DefaultValue("2.19.0")
     String appiumVersion();
 
     default SetProperty set() {
