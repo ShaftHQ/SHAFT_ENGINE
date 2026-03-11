@@ -312,6 +312,7 @@ jobs:
         with:
           maven-version: 3.9.5
       - name: Run tests
+        id: run_tests_android
         continue-on-error: true
         timeout-minutes: 20
         run: mvn -e test "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
@@ -356,6 +357,10 @@ jobs:
       - name: Check Test Results
         if: always()
         run: |
+          if [ "${{ steps.run_tests_android.outcome }}" != "success" ]; then
+            echo "Test step failed or timed out (outcome: ${{ steps.run_tests_android.outcome }}). Failing the job."
+            exit 1
+          fi
           if [ -d "target/surefire-reports" ]; then
             if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
               echo "Tests failed! Failing the workflow."

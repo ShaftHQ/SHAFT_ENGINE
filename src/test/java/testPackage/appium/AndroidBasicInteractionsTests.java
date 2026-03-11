@@ -54,9 +54,9 @@ public class AndroidBasicInteractionsTests extends MobileTest {
                 .tap(AppiumBy.accessibilityId("Views"))
                 .swipeElementIntoView("Splitting Touches across Views")
                 .tap(AppiumBy.accessibilityId("Splitting Touches across Views"))
-                .swipeElementIntoView(By.id("io.appium.android.apis:id/list2"), "Blue")
+                .swipeElementIntoView("Blue")
                 .tap(By.xpath("//android.widget.ListView[2]/android.widget.TextView[@text='Blue']"))
-                .swipeElementIntoView(By.id("io.appium.android.apis:id/list2"), "Abbaye de Belloc")
+                .swipeElementIntoView("Abbaye de Belloc")
                 .tap(By.xpath("//android.widget.ListView[2]/android.widget.TextView[@text='Abbaye de Belloc']"))
                 .assertThat(By.xpath("//android.widget.ListView[1]/android.widget.TextView[@text='Abbaye de Belloc']")).exists();
 
@@ -69,9 +69,9 @@ public class AndroidBasicInteractionsTests extends MobileTest {
                 .tap(AppiumBy.accessibilityId("Views"))
                 .swipeElementIntoView("Splitting Touches across Views")
                 .tap(AppiumBy.accessibilityId("Splitting Touches across Views"))
-                .swipeElementIntoView(By.id("io.appium.android.apis:id/list1"), "Blue")
+                .swipeElementIntoView("Blue")
                 .tap(By.xpath("//android.widget.ListView[1]/android.widget.TextView[@text='Blue']"))
-                .swipeElementIntoView(By.id("io.appium.android.apis:id/list1"), "Abbaye de Belloc")
+                .swipeElementIntoView("Abbaye de Belloc")
                 .assertThat(By.xpath("//android.widget.ListView[1]/android.widget.TextView[@text='Abbaye de Belloc']")).exists();
     }
 

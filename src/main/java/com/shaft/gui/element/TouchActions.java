@@ -591,7 +591,7 @@ public class TouchActions extends FluentWebDriverAction {
                         + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
                 break;
             case HORIZONTAL:
-                driverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector()).setAsHorizontalList().scrollIntoView("
+                driverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true)).setAsHorizontalList().scrollIntoView("
                         + "new UiSelector().textContains(\"" + targetText + "\"));"));
                 break;
         }
