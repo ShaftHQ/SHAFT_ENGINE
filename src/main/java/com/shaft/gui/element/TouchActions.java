@@ -572,7 +572,7 @@ public class TouchActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(String targetText) {
-        driverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+        ElementActionsHelper.safeFindElement(driverFactoryHelper.getDriver(), AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
                 + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
         return this;
     }
@@ -587,11 +587,11 @@ public class TouchActions extends FluentWebDriverAction {
     public TouchActions swipeElementIntoView(String targetText, SwipeMovement movement) {
         switch (movement) {
             case VERTICAL:
-                driverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+                ElementActionsHelper.safeFindElement(driverFactoryHelper.getDriver(), AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
                         + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
                 break;
             case HORIZONTAL:
-                driverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true)).setAsHorizontalList().scrollIntoView("
+                ElementActionsHelper.safeFindElement(driverFactoryHelper.getDriver(), AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true)).setAsHorizontalList().scrollIntoView("
                         + "new UiSelector().textContains(\"" + targetText + "\"));"));
                 break;
         }
@@ -622,7 +622,7 @@ public class TouchActions extends FluentWebDriverAction {
     public TouchActions swipeElementIntoView(By scrollableElementLocator, String targetText) {
         try {
             String uiScrollableSelector = buildUiScrollableSelectorFrom(scrollableElementLocator);
-            driverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator(
+            ElementActionsHelper.safeFindElement(driverFactoryHelper.getDriver(), AppiumBy.androidUIAutomator(
                     "new UiScrollable(" + uiScrollableSelector + ")"
                             + ".scrollIntoView(new UiSelector().textContains(\"" + escapeUiAutomatorString(targetText) + "\"))"));
             elementActionsHelper.passAction(driverFactoryHelper.getDriver(), scrollableElementLocator,
