@@ -20,9 +20,18 @@ SHAFT_ENGINE is a unified test automation framework built with:
 
 ## Development Workflow
 
-### Required Before Each Commit
-- **Build** without running tests to validate compilation and packaging: `mvn clean install -DskipTests -Dgpg.skip`
-- **Run affected tests** to validate your change: `mvn test -Dtest=TestClassName`
+### ⛔ Mandatory Pre-Commit Rules (No Exceptions)
+> **You MUST NEVER commit untested code. There are no exceptions to these rules.**
+
+Before **every** commit, you **must** complete **all** of the following steps in order:
+
+1. **Compile**: Run `mvn clean install -DskipTests -Dgpg.skip` and confirm it succeeds. Do not proceed if compilation fails.
+2. **Write Tests**: For any newly developed code, you **must** create corresponding tests **before** committing. Every new feature, bug fix, or code modification requires test coverage.
+3. **Run Tests**: Execute tests for all fixed, newly added, or modified code using `mvn test -Dtest=TestClassName` and confirm they pass. Do not commit if any test fails.
+4. **Capture Evidence**: Take screenshots of test results (pass/fail output) to provide evidence that tests were executed and passed.
+5. **Review Code**: Review your own code changes for correctness, maintainability, and adherence to SHAFT patterns before committing.
+
+**Failure to follow any of these steps is unacceptable. No code may be committed without compilation, tests, and verification.**
 
 ### Full Command Reference
 - **Build**: `mvn clean install -DskipTests -Dgpg.skip`
@@ -34,9 +43,12 @@ SHAFT_ENGINE is a unified test automation framework built with:
 ### Validation Checklist
 Before submitting a pull request, ensure:
 1. ✅ `mvn clean install -DskipTests -Dgpg.skip` completes successfully (compiles and packages)
-2. ✅ Affected tests pass with `mvn test -Dtest=YourTestClassName` (replace with the actual class name)
-3. ✅ New or modified `public` methods/classes have JavaDoc comments
-4. ✅ No hardcoded credentials or sensitive data in code or test data files
+2. ✅ Tests exist for all new or modified code (no untested code is committed)
+3. ✅ All affected tests pass with `mvn test -Dtest=YourTestClassName` (replace with the actual class name)
+4. ✅ Screenshots of test results are captured as evidence
+5. ✅ Code has been reviewed for correctness and adherence to SHAFT patterns
+6. ✅ New or modified `public` methods/classes have JavaDoc comments
+7. ✅ No hardcoded credentials or sensitive data in code or test data files
 
 ## General Guidelines
 
@@ -473,6 +485,9 @@ public class API {
 - All code changes undergo security scanning via CodeQL
 
 ## Testing Guidelines
+- **You MUST create tests for every new feature, bug fix, or code modification**
+- **You MUST run all affected tests and confirm they pass before committing**
+- **You MUST capture screenshots of test results** as evidence that tests were executed and passed
 - Write tests that validate your changes
 - Follow existing test patterns in `src/test/java/`
 - Ensure tests are independent and can run in parallel
@@ -480,6 +495,9 @@ public class API {
 - Use meaningful test names that describe what is being tested
 
 ## Common Anti-Patterns to Avoid
+- ❌ **Don't commit untested code — EVER** (always write and run tests first)
+- ❌ **Don't commit code that doesn't compile** (always run `mvn clean install -DskipTests -Dgpg.skip` first)
+- ❌ **Don't skip test execution** before committing (always run `mvn test -Dtest=TestClassName` and capture screenshots)
 - ❌ Don't mix different assertion libraries (use SHAFT assertions)
 - ❌ Don't skip cleanup in `@AfterMethod` or equivalent
 - ❌ Don't hardcode wait times (SHAFT handles synchronization)
@@ -524,6 +542,9 @@ public class API {
 - Use Copilot to suggest locators, assertions, and test data access
 - Always review generated code for correctness and maintainability
 - Validate that generated code follows SHAFT patterns
+- **Always compile generated code** with `mvn clean install -DskipTests -Dgpg.skip` before committing
+- **Always create tests for generated code** — untested code must never be committed
+- **Always run tests** with `mvn test -Dtest=TestClassName` and capture screenshots of results before committing
 - Test generated code thoroughly before committing
 
 ## Refactoring Guidelines
@@ -539,4 +560,4 @@ public class API {
 - Review README.md and CONTRIBUTING.md for contribution guidelines
 
 ---
-**Note**: These instructions are designed to help GitHub Copilot coding agent generate high-quality, maintainable code that follows SHAFT framework best practices. Always review and test generated code before committing.
+**Note**: These instructions are designed to help GitHub Copilot coding agent generate high-quality, maintainable code that follows SHAFT framework best practices. **You MUST NEVER commit untested code.** Always compile, create tests, run tests (with screenshots), and review code before every commit — no exceptions.
