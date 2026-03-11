@@ -599,6 +599,78 @@ public class TouchActions extends FluentWebDriverAction {
     }
 
     /**
+     * Attempts to scroll a specific container element to show the target text using AndroidUIAutomator.
+     * This is the recommended approach for Android when scrolling within a named container element
+     * (e.g., a ListView or RecyclerView identified by resource-id). UIAutomator handles activity
+     * transitions and list-loading timing automatically, avoiding blank-screen issues caused by
+     * starting a W3C scroll gesture before the list content has finished rendering.
+     *
+     * <p>The container is matched using its locator:
+     * <ul>
+     *   <li>{@code By.id("package:id/listName")} → {@code new UiSelector().resourceId("package:id/listName")}</li>
+     *   <li>{@code By.className("android.widget.ListView")} → {@code new UiSelector().className("android.widget.ListView")}</li>
+     *   <li>Any other locator → {@code new UiSelector().scrollable(true)} (first scrollable container)</li>
+     * </ul>
+     *
+     * <p><b>Note:</b> The container selector is derived from the locator's {@code toString()} representation,
+     * which follows the format {@code "By.id: value"} or {@code "By.className: value"} in Selenium 4.x.
+     *
+     * @param scrollableElementLocator the locator of the scrollable container ({@code By.id} recommended)
+     * @param targetText               text of the element to scroll into view
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeElementIntoView(By scrollableElementLocator, String targetText) {
+        try {
+            String uiScrollableSelector = buildUiScrollableSelectorFrom(scrollableElementLocator);
+            driverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator(
+                    "new UiScrollable(" + uiScrollableSelector + ")"
+                            + ".scrollIntoView(new UiSelector().textContains(\"" + escapeUiAutomatorString(targetText) + "\"))"));
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), scrollableElementLocator,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), targetText, null, null);
+        } catch (Throwable throwable) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), scrollableElementLocator, throwable);
+        }
+        return this;
+    }
+
+    /**
+     * Builds a UIAutomator {@code UiSelector} string from a Selenium {@link By} locator.
+     * Used to identify the scrollable container when constructing UIAutomator scroll commands.
+     *
+     * <p><b>Note:</b> Relies on {@link By#toString()} returning {@code "By.id: value"} or
+     * {@code "By.className: value"}, which is the standard format in Selenium 4.x. If Selenium
+     * changes this format in a future version, unknown locator types will silently fall back to the
+     * first scrollable element ({@code new UiSelector().scrollable(true)}).
+     *
+     * @param locator the Selenium locator for the scrollable container
+     * @return a UIAutomator {@code UiSelector} constructor string (never {@code null})
+     */
+    private String buildUiScrollableSelectorFrom(By locator) {
+        String byStr = locator.toString();
+        if (byStr.startsWith("By.id: ")) {
+            String value = escapeUiAutomatorString(byStr.substring("By.id: ".length()));
+            return "new UiSelector().resourceId(\"" + value + "\")";
+        } else if (byStr.startsWith("By.className: ")) {
+            String value = escapeUiAutomatorString(byStr.substring("By.className: ".length()));
+            return "new UiSelector().className(\"" + value + "\")";
+        }
+        // Default: first scrollable element on the screen
+        return "new UiSelector().scrollable(true)";
+    }
+
+    /**
+     * Escapes backslashes and double quotes in a string so it is safe to embed inside a
+     * UIAutomator selector expression (e.g., inside {@code .textContains("...")} or
+     * {@code .resourceId("...")}).
+     *
+     * @param value the raw string value to escape
+     * @return the escaped string
+     */
+    private String escapeUiAutomatorString(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    /**
      * Rotate between portrait and landscape modes
      *
      * @param orientation ScreenOrientation.LANDSCAPE or PORTRAIT
