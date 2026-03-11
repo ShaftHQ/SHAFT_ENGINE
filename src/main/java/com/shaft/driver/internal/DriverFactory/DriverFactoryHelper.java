@@ -39,6 +39,7 @@ import org.openqa.selenium.remote.http.ConnectionFailedException;
 import org.openqa.selenium.safari.SafariDriver;
 import org.testng.Reporter;
 
+import java.io.ByteArrayInputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -361,6 +362,7 @@ public class DriverFactoryHelper {
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
             }
             ReportManager.log(initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".");
+            attachLaunchScreenshot();
         } catch (Exception exception) {
             String message = exception.getMessage();
             if (message.contains("cannot create default profile directory")) {
@@ -475,6 +477,7 @@ public class DriverFactoryHelper {
 //            driver =ThreadGuard.protect(remoteWebDriver));
             setDriver(remoteWebDriver);
             ReportManager.log("Successfully Opened " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".");
+            attachLaunchScreenshot();
         } catch (WebDriverManagerException exception) {
             failAction("Failed to create new Dockerized Browser Session, are you sure Docker is available on your machine?", exception);
         }
@@ -600,6 +603,21 @@ public class DriverFactoryHelper {
             driverName = driverName.replace("Mobile", Properties.platform.targetPlatform());
         }
         ReportManager.log("Successfully Opened \"" + JavaHelper.convertToSentenceCase(driverName) + "\".");
+        attachLaunchScreenshot();
+    }
+
+    /**
+     * Takes a viewport screenshot immediately after the driver session is established and attaches it
+     * to the Allure report as evidence that the browser or native app was launched successfully.
+     * Failures are logged discretely so they never mask the primary driver-creation outcome.
+     */
+    private void attachLaunchScreenshot() {
+        try {
+            byte[] screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+            ReportManagerHelper.attach("screenshot", "App Launch Screenshot", new ByteArrayInputStream(screenshot));
+        } catch (Exception e) {
+            ReportManager.logDiscrete("Could not capture launch screenshot [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
+        }
     }
 
     private void attachWebDriverLogs() {
