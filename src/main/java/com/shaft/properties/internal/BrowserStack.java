@@ -299,6 +299,37 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     boolean browserstackAutomation();
 
     /**
+     * JSON array defining multiple platform entries for parallel testing across different
+     * devices or browsers on BrowserStack. When set to a non-empty value, this overrides
+     * the single-platform configuration derived from {@link #deviceName()}, {@link #osVersion()},
+     * {@link #browserVersion()}, etc.
+     *
+     * <p>Each entry in the JSON array is a map of platform attributes. For mobile native:
+     * <pre>{@code
+     * [
+     *   {"deviceName": "Samsung Galaxy S22", "osVersion": "12.0", "platformName": "android"},
+     *   {"deviceName": "Google Pixel 6", "osVersion": "12.0", "platformName": "android"}
+     * ]
+     * }</pre>
+     *
+     * <p>For desktop web:
+     * <pre>{@code
+     * [
+     *   {"os": "Windows", "osVersion": "10", "browserName": "Chrome", "browserVersion": "latest"},
+     *   {"os": "OS X", "osVersion": "Monterey", "browserName": "Safari", "browserVersion": "latest"}
+     * ]
+     * }</pre>
+     *
+     * <p>Property key: {@code browserStack.platformsList} — default: {@code ""}
+     *
+     * @return a JSON array string of platform entries, or empty to use single-platform configuration
+     * @see <a href="https://www.browserstack.com/docs/automate/selenium/sdk-params#platforms">BrowserStack SDK Platforms</a>
+     */
+    @Key("browserStack.platformsList")
+    @DefaultValue("")
+    String platformsList();
+
+    /**
      * Path to a custom {@code browserstack.yml} file to use instead of auto-generating one
      * from SHAFT properties. When set to a non-empty value, the specified file is copied to
      * the project root as {@code browserstack.yml} and all SHAFT BrowserStack properties are
@@ -577,6 +608,24 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
          */
         public SetProperty browserstackAutomation(boolean value) {
             setProperty("browserStack.browserstackAutomation", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code browserStack.platformsList} property at runtime.
+         * Accepts a JSON array string of platform entries for multi-device parallel testing.
+         *
+         * <p>Example:
+         * <pre>{@code
+         * .platformsList("[{\"deviceName\":\"Samsung Galaxy S22\",\"osVersion\":\"12.0\",\"platformName\":\"android\"},"
+         *     + "{\"deviceName\":\"Google Pixel 6\",\"osVersion\":\"12.0\",\"platformName\":\"android\"}]")
+         * }</pre>
+         *
+         * @param value JSON array string of platform entries, or empty to use single-platform config
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty platformsList(String value) {
+            setProperty("browserStack.platformsList", value);
             return this;
         }
 
