@@ -105,6 +105,66 @@ public class ThreadLocalPropertiesTest {
                 "swagger.validation.enabled should be true after thread-local set");
     }
 
+    @Test(description = "getProperty returns thread-local override when set")
+    public void testGetPropertyReturnsThreadLocalOverride() {
+        String key = "shaft.test.getProperty.override";
+        String systemValue = "systemValue";
+        String threadLocalValue = "threadLocalValue";
+
+        System.setProperty(key, systemValue);
+        try {
+            ThreadLocalPropertiesManager.setProperty(key, threadLocalValue);
+            Assert.assertEquals(ThreadLocalPropertiesManager.getProperty(key), threadLocalValue,
+                    "getProperty should return thread-local override when set");
+        } finally {
+            System.clearProperty(key);
+        }
+    }
+
+    @Test(description = "getProperty falls back to system property when no thread-local override exists")
+    public void testGetPropertyFallsBackToSystem() {
+        String key = "shaft.test.getProperty.fallback";
+        String systemValue = "fromSystem";
+
+        System.setProperty(key, systemValue);
+        try {
+            Assert.assertEquals(ThreadLocalPropertiesManager.getProperty(key), systemValue,
+                    "getProperty should fall back to system property when no thread-local override exists");
+        } finally {
+            System.clearProperty(key);
+        }
+    }
+
+    @Test(description = "getProperty returns null when neither thread-local nor system property is set")
+    public void testGetPropertyReturnsNullWhenUnset() {
+        String key = "shaft.test.getProperty.unset." + System.nanoTime();
+        Assert.assertNull(ThreadLocalPropertiesManager.getProperty(key),
+                "getProperty should return null when neither thread-local nor system property is set");
+    }
+
+    @Test(description = "getProperty thread-local override does not leak to other threads")
+    public void testGetPropertyThreadIsolation() throws InterruptedException {
+        String key = "shaft.test.getProperty.isolation";
+        String threadLocalValue = "onlyForThisThread";
+
+        ThreadLocalPropertiesManager.setProperty(key, threadLocalValue);
+
+        // Verify current thread sees the override
+        Assert.assertEquals(ThreadLocalPropertiesManager.getProperty(key), threadLocalValue,
+                "Current thread should see its own thread-local override");
+
+        // Verify another thread does NOT see the override
+        final String[] otherThreadValue = {null};
+        Thread otherThread = new Thread(() -> {
+            otherThreadValue[0] = ThreadLocalPropertiesManager.getProperty(key);
+        });
+        otherThread.start();
+        otherThread.join(5000);
+
+        Assert.assertNull(otherThreadValue[0],
+                "Other thread should NOT see the current thread's thread-local override");
+    }
+
     @Test(description = "Thread-local mobile_ properties do not leak to other threads")
     public void testMobilePropertiesThreadIsolation() throws InterruptedException {
         String testAppUrl = "https://example.com/thread-isolation-test.apk";

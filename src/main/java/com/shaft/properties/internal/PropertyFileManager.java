@@ -26,11 +26,9 @@ public final class PropertyFileManager {
     public static Map<String, String> getAppiumDesiredCapabilities() {
         Map<String, String> appiumDesiredCapabilities = new HashMap<>();
 
-        // Collect mobile_ properties from system properties first (lower priority)
-        collectMobileProperties(System.getProperties(), appiumDesiredCapabilities);
-        // Override with thread-local properties set via SHAFT.Properties.mobile.set()
-        // These have higher priority and may include values like app URL from BrowserStack upload
-        collectMobileProperties(ThreadLocalPropertiesManager.getOverrides(), appiumDesiredCapabilities);
+        // Collect mobile_ properties from the effective (system + thread-local) view.
+        // Thread-local overrides take precedence over system properties.
+        collectMobileProperties(ThreadLocalPropertiesManager.getEffectiveProperties(), appiumDesiredCapabilities);
 
         var app = appiumDesiredCapabilities.get("mobile_app");
         if (app != null && !app.isEmpty() &&
@@ -113,11 +111,10 @@ public final class PropertyFileManager {
     private static void loadPropertiesFileIntoSystemProperties(java.util.Properties properties, File propertyFile) {
         try {
             properties.load(new FileInputStream(propertyFile));
-            // load properties from the properties file
-            properties.putAll(System.getProperties());
-            // override properties file with system properties
+            // merge: effective properties (system + thread-local) override file-based properties
+            properties.putAll(ThreadLocalPropertiesManager.getEffectiveProperties());
+            // write merged result back to system properties so that ConfigFactory picks them up
             System.getProperties().putAll(properties);
-            // reset system properties
         } catch (IOException e) {
             ReportManagerHelper.logDiscrete(e);
         }

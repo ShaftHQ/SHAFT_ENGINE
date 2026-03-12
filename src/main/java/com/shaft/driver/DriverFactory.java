@@ -34,7 +34,6 @@ public class DriverFactory {
         // it's null in case of Cucumber native feature file execution
         if (TestNGListener.getXmlTest() != null) {
             var allParameters = TestNGListener.getXmlTest().getAllParameters();
-            System.getProperties().putAll(allParameters);
             allParameters.forEach(ThreadLocalPropertiesManager::setProperty);
             var testName = TestNGListenerHelper.getTestName().toLowerCase();
             if (testName.contains("firefox")
