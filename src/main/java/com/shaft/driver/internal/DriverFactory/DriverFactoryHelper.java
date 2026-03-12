@@ -646,7 +646,6 @@ public class DriverFactoryHelper {
     }
 
     private void attachWebDriverLogs() {
-        // TODO: capture logs and record video in case of retrying failed test
         if (SHAFT.Properties.reporting.captureWebDriverLogs()) {
             try {
                 var driverLogs = driver.manage().logs();

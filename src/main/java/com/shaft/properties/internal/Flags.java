@@ -21,6 +21,10 @@ public interface Flags extends EngineProperties<Flags> {
     @DefaultValue("0")
     int retryMaximumNumberOfAttempts();
 
+    @Key("forceCaptureSupportingEvidenceOnRetry")
+    @DefaultValue("true")
+    boolean forceCaptureSupportingEvidenceOnRetry();
+
     @Key("autoMaximizeBrowserWindow")
     @DefaultValue("true")
     boolean autoMaximizeBrowserWindow();
@@ -126,6 +130,11 @@ public interface Flags extends EngineProperties<Flags> {
 
         public SetProperty retryMaximumNumberOfAttempts(int value) {
             setProperty("retryMaximumNumberOfAttempts", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty forceCaptureSupportingEvidenceOnRetry(boolean value) {
+            setProperty("forceCaptureSupportingEvidenceOnRetry", String.valueOf(value));
             return this;
         }
 
