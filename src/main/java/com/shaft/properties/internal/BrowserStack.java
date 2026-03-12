@@ -298,6 +298,23 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     @DefaultValue("true")
     boolean browserstackAutomation();
 
+    /**
+     * Path to a custom {@code browserstack.yml} file to use instead of auto-generating one
+     * from SHAFT properties. When set to a non-empty value, the specified file is copied to
+     * the project root as {@code browserstack.yml} and all SHAFT BrowserStack properties are
+     * ignored by the SDK YAML generator.
+     *
+     * <p>This allows advanced users to maintain full control over the SDK configuration by
+     * providing their own YAML file, bypassing SHAFT's property-to-YAML mapping entirely.
+     *
+     * <p>Property key: {@code browserStack.customBrowserStackYmlPath} — default: {@code ""}
+     *
+     * @return the path to the custom YAML file, or empty to auto-generate from SHAFT properties
+     */
+    @Key("browserStack.customBrowserStackYmlPath")
+    @DefaultValue("")
+    String customBrowserStackYmlPath();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -560,6 +577,19 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
          */
         public SetProperty browserstackAutomation(boolean value) {
             setProperty("browserStack.browserstackAutomation", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code browserStack.customBrowserStackYmlPath} property at runtime.
+         * When set to a non-empty path, the specified file is used as-is instead of
+         * auto-generating a {@code browserstack.yml} from SHAFT properties.
+         *
+         * @param value path to the custom {@code browserstack.yml} file, or empty to auto-generate
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty customBrowserStackYmlPath(String value) {
+            setProperty("browserStack.customBrowserStackYmlPath", value);
             return this;
         }
 

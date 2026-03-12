@@ -39,19 +39,67 @@ public class BrowserStackSdkHelper {
      * Generates a {@code browserstack.yml} configuration file in the project root directory
      * by mapping SHAFT's BrowserStack properties to the SDK's expected YAML format.
      *
+     * <p>If the {@code browserStack.customBrowserStackYmlPath} property is set to a non-empty
+     * value, the specified file is copied to the project root as {@code browserstack.yml} and
+     * SHAFT's property-to-YAML mapping is skipped entirely. This allows users to provide their
+     * own SDK configuration file and override SHAFT's properties.
+     *
      * <p>The generated file includes authentication credentials, platform configuration,
      * build/project naming, and optional settings like local testing, debugging, and
      * geo-location.
      *
-     * @return the absolute path to the generated {@code browserstack.yml} file
-     * @throws IllegalStateException if the file cannot be written
+     * @return the absolute path to the {@code browserstack.yml} file (generated or copied)
+     * @throws IllegalStateException if the file cannot be written or the custom file is not found
      */
     public static String generateBrowserStackYml() {
+        var customYmlPath = SHAFT.Properties.browserStack.customBrowserStackYmlPath();
+        if (customYmlPath != null && !customYmlPath.isEmpty()) {
+            return useCustomBrowserStackYml(customYmlPath);
+        }
         ReportManager.logDiscrete("Generating browserstack.yml from SHAFT properties...");
         var config = buildConfiguration();
         var yamlPath = writeYamlFile(config);
         ReportManager.logDiscrete("Generated browserstack.yml at: " + yamlPath);
         return yamlPath;
+    }
+
+    /**
+     * Copies a user-provided {@code browserstack.yml} file to the project root directory,
+     * overriding any SHAFT-generated configuration. The user's file is used as-is by the
+     * BrowserStack SDK.
+     *
+     * @param customYmlPath the path to the custom YAML file (absolute or relative to project root)
+     * @return the absolute path to the copied {@code browserstack.yml} file in the project root
+     * @throws IllegalStateException if the custom file does not exist or cannot be copied
+     */
+    private static String useCustomBrowserStackYml(String customYmlPath) {
+        var sourceFile = new File(customYmlPath);
+        if (!sourceFile.isAbsolute()) {
+            sourceFile = new File(System.getProperty("user.dir"), customYmlPath);
+        }
+        if (!sourceFile.exists()) {
+            throw new IllegalStateException("Custom browserstack.yml not found at: " + sourceFile.getAbsolutePath());
+        }
+
+        var targetPath = System.getProperty("user.dir") + File.separator + "browserstack.yml";
+        var targetFile = new File(targetPath);
+
+        // If source is already at the target location, no copy needed
+        if (sourceFile.getAbsolutePath().equals(targetFile.getAbsolutePath())) {
+            ReportManager.logDiscrete("Using custom browserstack.yml at project root: " + targetPath);
+            return targetPath;
+        }
+
+        try {
+            java.nio.file.Files.copy(sourceFile.toPath(), targetFile.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to copy custom browserstack.yml from: "
+                    + sourceFile.getAbsolutePath() + " to: " + targetPath, e);
+        }
+
+        ReportManager.logDiscrete("Using custom browserstack.yml from: " + sourceFile.getAbsolutePath());
+        return targetPath;
     }
 
     /**

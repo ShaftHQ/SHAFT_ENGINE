@@ -201,6 +201,68 @@ public class BrowserStackSdkTests {
         SHAFT.Validations.assertThat().object(SHAFT.Properties.browserStack.browserstackAutomation())
                 .isEqualTo(false).perform();
         SHAFT.Properties.browserStack.set().browserstackAutomation(true);
+
+        // Test customBrowserStackYmlPath
+        SHAFT.Properties.browserStack.set().customBrowserStackYmlPath("custom/path.yml");
+        SHAFT.Validations.assertThat().object(SHAFT.Properties.browserStack.customBrowserStackYmlPath())
+                .isEqualTo("custom/path.yml").perform();
+        SHAFT.Properties.browserStack.set().customBrowserStackYmlPath("");
+    }
+
+    @Test
+    public void generateBrowserStackYmlUsesCustomFileWhenConfigured() throws IOException {
+        // Create a custom browserstack.yml in a temp location
+        var customDir = new File(System.getProperty("user.dir"), "target");
+        var customFile = new File(customDir, "custom-browserstack.yml");
+        try (var writer = new java.io.FileWriter(customFile)) {
+            writer.write("userName: customUser\naccessKey: customKey\nbuildName: custom-build\n");
+        }
+
+        SHAFT.Properties.browserStack.set().customBrowserStackYmlPath(customFile.getAbsolutePath());
+        generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
+
+        // Should use custom file contents instead of generating from properties
+        var config = loadYaml(generatedYamlPath);
+        SHAFT.Validations.assertThat().object(config.get("userName"))
+                .isEqualTo("customUser").perform();
+        SHAFT.Validations.assertThat().object(config.get("accessKey"))
+                .isEqualTo("customKey").perform();
+        SHAFT.Validations.assertThat().object(config.get("buildName"))
+                .isEqualTo("custom-build").perform();
+
+        // Reset
+        SHAFT.Properties.browserStack.set().customBrowserStackYmlPath("");
+        customFile.delete();
+    }
+
+    @Test
+    public void generateBrowserStackYmlUsesCustomFileWithRelativePath() throws IOException {
+        // Create a custom browserstack.yml in target dir using relative path
+        var customFile = new File(System.getProperty("user.dir"), "target/relative-browserstack.yml");
+        try (var writer = new java.io.FileWriter(customFile)) {
+            writer.write("userName: relativeUser\naccessKey: relativeKey\n");
+        }
+
+        SHAFT.Properties.browserStack.set().customBrowserStackYmlPath("target/relative-browserstack.yml");
+        generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
+
+        var config = loadYaml(generatedYamlPath);
+        SHAFT.Validations.assertThat().object(config.get("userName"))
+                .isEqualTo("relativeUser").perform();
+
+        // Reset
+        SHAFT.Properties.browserStack.set().customBrowserStackYmlPath("");
+        customFile.delete();
+    }
+
+    @Test(expectedExceptions = IllegalStateException.class)
+    public void generateBrowserStackYmlThrowsWhenCustomFileNotFound() {
+        SHAFT.Properties.browserStack.set().customBrowserStackYmlPath("/nonexistent/path/browserstack.yml");
+        try {
+            BrowserStackSdkHelper.generateBrowserStackYml();
+        } finally {
+            SHAFT.Properties.browserStack.set().customBrowserStackYmlPath("");
+        }
     }
 
     @SuppressWarnings("unchecked")
