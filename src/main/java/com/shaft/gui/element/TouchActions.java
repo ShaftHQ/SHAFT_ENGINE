@@ -570,7 +570,7 @@ public class TouchActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(String targetText) {
-        driverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+        ElementActionsHelper.safeFindElement(driverFactoryHelper.getDriver(), AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
                 + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
         return this;
     }
@@ -585,11 +585,11 @@ public class TouchActions extends FluentWebDriverAction {
     public TouchActions swipeElementIntoView(String targetText, SwipeMovement movement) {
         switch (movement) {
             case VERTICAL:
-                driverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+                ElementActionsHelper.safeFindElement(driverFactoryHelper.getDriver(), AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
                         + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
                 break;
             case HORIZONTAL:
-                driverFactoryHelper.getDriver().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector()).setAsHorizontalList().scrollIntoView("
+                ElementActionsHelper.safeFindElement(driverFactoryHelper.getDriver(), AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true)).setAsHorizontalList().scrollIntoView("
                         + "new UiSelector().textContains(\"" + targetText + "\"));"));
                 break;
         }
