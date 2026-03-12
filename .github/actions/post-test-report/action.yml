@@ -57,22 +57,25 @@ runs:
       if: always()
       shell: bash
       run: |
+        # Helper function to extract a numeric field from allure summary JSON
+        extract_field() {
+          local field="$1"
+          local file="$2"
+          grep -o "\"$field\" *: *[0-9]*" "$file" | head -1 | grep -o '[0-9]*'
+        }
+
         mkdir -p test-summary-data
         SUMMARY_FILE="test-summary-data/${{ inputs.job-name }}.txt"
-        if [ -f "allure-report-check/widgets/summary.json" ]; then
-          FAILED=$(grep -o '"failed" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
-          TOTAL=$(grep -o '"total" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
-          PASSED=$(grep -o '"passed" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
-          BROKEN=$(grep -o '"broken" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
-          SKIPPED=$(grep -o '"skipped" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
-          DURATION=$(grep -o '"duration" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
+        ALLURE_SUMMARY="allure-report-check/widgets/summary.json"
+
+        if [ -f "$ALLURE_SUMMARY" ]; then
           echo "job=${{ inputs.job-name }}" > "$SUMMARY_FILE"
-          echo "total=${TOTAL:-0}" >> "$SUMMARY_FILE"
-          echo "passed=${PASSED:-0}" >> "$SUMMARY_FILE"
-          echo "failed=${FAILED:-0}" >> "$SUMMARY_FILE"
-          echo "broken=${BROKEN:-0}" >> "$SUMMARY_FILE"
-          echo "skipped=${SKIPPED:-0}" >> "$SUMMARY_FILE"
-          echo "duration=${DURATION:-0}" >> "$SUMMARY_FILE"
+          echo "total=$(extract_field total "$ALLURE_SUMMARY")" >> "$SUMMARY_FILE"
+          echo "passed=$(extract_field passed "$ALLURE_SUMMARY")" >> "$SUMMARY_FILE"
+          echo "failed=$(extract_field failed "$ALLURE_SUMMARY")" >> "$SUMMARY_FILE"
+          echo "broken=$(extract_field broken "$ALLURE_SUMMARY")" >> "$SUMMARY_FILE"
+          echo "skipped=$(extract_field skipped "$ALLURE_SUMMARY")" >> "$SUMMARY_FILE"
+          echo "duration=$(extract_field duration "$ALLURE_SUMMARY")" >> "$SUMMARY_FILE"
         else
           echo "job=${{ inputs.job-name }}" > "$SUMMARY_FILE"
           echo "total=0" >> "$SUMMARY_FILE"
@@ -93,14 +96,23 @@ runs:
       if: always()
       shell: bash
       run: |
+        # Helper function to extract a numeric field from allure summary JSON
+        extract_field() {
+          local field="$1"
+          local file="$2"
+          grep -o "\"$field\" *: *[0-9]*" "$file" | head -1 | grep -o '[0-9]*'
+        }
+
         echo "=== Checking test results using Allure report data ==="
+        ALLURE_SUMMARY="allure-report-check/widgets/summary.json"
+
         # Primary check: Use Allure report summary (the main reference)
-        if [ -f "allure-report-check/widgets/summary.json" ]; then
-          FAILED=$(grep -o '"failed" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
-          TOTAL=$(grep -o '"total" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
-          PASSED=$(grep -o '"passed" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
-          BROKEN=$(grep -o '"broken" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
-          SKIPPED=$(grep -o '"skipped" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
+        if [ -f "$ALLURE_SUMMARY" ]; then
+          FAILED=$(extract_field failed "$ALLURE_SUMMARY")
+          TOTAL=$(extract_field total "$ALLURE_SUMMARY")
+          PASSED=$(extract_field passed "$ALLURE_SUMMARY")
+          BROKEN=$(extract_field broken "$ALLURE_SUMMARY")
+          SKIPPED=$(extract_field skipped "$ALLURE_SUMMARY")
           FAILED=${FAILED:-0}
           TOTAL=${TOTAL:-0}
           PASSED=${PASSED:-0}
