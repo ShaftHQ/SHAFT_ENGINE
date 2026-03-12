@@ -53,6 +53,42 @@ runs:
       uses: test-summary/action@v2
       with:
         paths: "target/surefire-reports/TEST-*.xml"
+    - name: Extract and Upload Test Summary Data
+      if: always()
+      shell: bash
+      run: |
+        mkdir -p test-summary-data
+        SUMMARY_FILE="test-summary-data/${{ inputs.job-name }}.txt"
+        if [ -f "allure-report-check/widgets/summary.json" ]; then
+          FAILED=$(grep -o '"failed" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
+          TOTAL=$(grep -o '"total" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
+          PASSED=$(grep -o '"passed" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
+          BROKEN=$(grep -o '"broken" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
+          SKIPPED=$(grep -o '"skipped" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
+          DURATION=$(grep -o '"duration" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
+          echo "job=${{ inputs.job-name }}" > "$SUMMARY_FILE"
+          echo "total=${TOTAL:-0}" >> "$SUMMARY_FILE"
+          echo "passed=${PASSED:-0}" >> "$SUMMARY_FILE"
+          echo "failed=${FAILED:-0}" >> "$SUMMARY_FILE"
+          echo "broken=${BROKEN:-0}" >> "$SUMMARY_FILE"
+          echo "skipped=${SKIPPED:-0}" >> "$SUMMARY_FILE"
+          echo "duration=${DURATION:-0}" >> "$SUMMARY_FILE"
+        else
+          echo "job=${{ inputs.job-name }}" > "$SUMMARY_FILE"
+          echo "total=0" >> "$SUMMARY_FILE"
+          echo "passed=0" >> "$SUMMARY_FILE"
+          echo "failed=0" >> "$SUMMARY_FILE"
+          echo "broken=0" >> "$SUMMARY_FILE"
+          echo "skipped=0" >> "$SUMMARY_FILE"
+          echo "duration=0" >> "$SUMMARY_FILE"
+        fi
+        cat "$SUMMARY_FILE"
+    - name: Upload Test Summary Data
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: test-summary-${{ inputs.job-name }}
+        path: "test-summary-data/${{ inputs.job-name }}.txt"
     - name: Check Test Results via Allure Report
       if: always()
       shell: bash

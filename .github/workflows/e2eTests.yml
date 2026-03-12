@@ -42,7 +42,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report
@@ -59,7 +59,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*API.*], %regex[.*Api.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*API.*], %regex[.*Api.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*], %regex[.*CLIWizard.*], %regex[.*properties.Mobile.*], %regex[.*MobileEmulation.*]"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report
@@ -96,7 +96,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=3" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=${{ matrix.browser }}" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=${{ matrix.browser }}" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report
@@ -131,7 +131,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=3" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=iOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-DbrowserName=safari" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=iOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-DbrowserName=safari" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report
@@ -148,7 +148,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=3" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-DbrowserName=chrome" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-DbrowserName=chrome" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report
@@ -165,7 +165,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=3" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*]"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report
@@ -188,7 +188,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=3" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report
@@ -207,10 +207,111 @@ jobs:
           node-version: '16'
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=3" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report
         with:
           job-name: MacOSX_Safari_Cucumber_BrowserStack
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Workflow_Summary:
+    if: always()
+    needs: [Ubuntu_Database, Ubuntu_APIs, Ubuntu_Browser_Grid, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack, MacOSX_Safari_BrowserStack, Ubuntu_Chrome_Cucumber_Grid, MacOSX_Safari_Cucumber_BrowserStack]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all test summary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-summary-*
+          path: test-summaries
+          merge-multiple: false
+      - name: Consolidate Test Results
+        run: |
+          echo "## 🧪 Consolidated Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          GRAND_TOTAL=0
+          GRAND_PASSED=0
+          GRAND_FAILED=0
+          GRAND_BROKEN=0
+          GRAND_SKIPPED=0
+          GRAND_DURATION=0
+          HAS_FAILURES=false
+
+          echo "| Job | Total | ✅ Passed | ❌ Failed | 🔧 Broken | ⏭️ Skipped | ⏱️ Duration |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|-------|-----------|-----------|-----------|------------|------------|" >> $GITHUB_STEP_SUMMARY
+
+          for summary_dir in test-summaries/test-summary-*/; do
+            if [ -d "$summary_dir" ]; then
+              for file in "$summary_dir"*.txt; do
+                if [ -f "$file" ]; then
+                  JOB=$(grep '^job=' "$file" | cut -d= -f2)
+                  TOTAL=$(grep '^total=' "$file" | cut -d= -f2)
+                  PASSED=$(grep '^passed=' "$file" | cut -d= -f2)
+                  FAILED=$(grep '^failed=' "$file" | cut -d= -f2)
+                  BROKEN=$(grep '^broken=' "$file" | cut -d= -f2)
+                  SKIPPED=$(grep '^skipped=' "$file" | cut -d= -f2)
+                  DURATION=$(grep '^duration=' "$file" | cut -d= -f2)
+
+                  TOTAL=${TOTAL:-0}
+                  PASSED=${PASSED:-0}
+                  FAILED=${FAILED:-0}
+                  BROKEN=${BROKEN:-0}
+                  SKIPPED=${SKIPPED:-0}
+                  DURATION=${DURATION:-0}
+
+                  # Convert duration from ms to human readable
+                  if [ "$DURATION" -gt 0 ] 2>/dev/null; then
+                    DURATION_SEC=$((DURATION / 1000))
+                    DURATION_MIN=$((DURATION_SEC / 60))
+                    DURATION_REM=$((DURATION_SEC % 60))
+                    DURATION_STR="${DURATION_MIN}m ${DURATION_REM}s"
+                  else
+                    DURATION_STR="N/A"
+                  fi
+
+                  # Add status emoji based on failures
+                  if [ "$FAILED" -gt 0 ]; then
+                    JOB_STATUS="❌ $JOB"
+                    HAS_FAILURES=true
+                  elif [ "$TOTAL" -eq 0 ]; then
+                    JOB_STATUS="⚠️ $JOB"
+                  else
+                    JOB_STATUS="✅ $JOB"
+                  fi
+
+                  echo "| $JOB_STATUS | $TOTAL | $PASSED | $FAILED | $BROKEN | $SKIPPED | $DURATION_STR |" >> $GITHUB_STEP_SUMMARY
+
+                  GRAND_TOTAL=$((GRAND_TOTAL + TOTAL))
+                  GRAND_PASSED=$((GRAND_PASSED + PASSED))
+                  GRAND_FAILED=$((GRAND_FAILED + FAILED))
+                  GRAND_BROKEN=$((GRAND_BROKEN + BROKEN))
+                  GRAND_SKIPPED=$((GRAND_SKIPPED + SKIPPED))
+                  GRAND_DURATION=$((GRAND_DURATION + DURATION))
+                fi
+              done
+            fi
+          done
+
+          # Grand total duration
+          if [ "$GRAND_DURATION" -gt 0 ] 2>/dev/null; then
+            GD_SEC=$((GRAND_DURATION / 1000))
+            GD_MIN=$((GD_SEC / 60))
+            GD_REM=$((GD_SEC % 60))
+            GD_STR="${GD_MIN}m ${GD_REM}s"
+          else
+            GD_STR="N/A"
+          fi
+
+          echo "| **🏁 TOTAL** | **$GRAND_TOTAL** | **$GRAND_PASSED** | **$GRAND_FAILED** | **$GRAND_BROKEN** | **$GRAND_SKIPPED** | **$GD_STR** |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Overall status
+          if [ "$HAS_FAILURES" = true ]; then
+            echo "### ❌ Some tests failed. Check individual job reports for details." >> $GITHUB_STEP_SUMMARY
+          elif [ "$GRAND_TOTAL" -eq 0 ]; then
+            echo "### ⚠️ No test results found. Check workflow configuration." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ All tests passed!" >> $GITHUB_STEP_SUMMARY
+          fi
