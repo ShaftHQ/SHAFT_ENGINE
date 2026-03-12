@@ -23,12 +23,18 @@ public class BrowserStackHelper {
     private static final String appUploadServiceName = "app-automate/upload";
 
     /**
-     * Creates a new Selenium WebDriver instance using BrowserStack, use this to test Native Mobile apps over BrowserStack
+     * Creates a new Selenium WebDriver instance using BrowserStack, use this to test Native Mobile apps over BrowserStack.
+     * Before creating the driver, this method generates a {@code browserstack.yml} configuration
+     * file from SHAFT's properties. When the BrowserStack SDK Java agent is active, the SDK
+     * uses this file to intercept and manage the BrowserStack session.
      *
      * @param browserStackOptions custom browserstack options to be merged with the default in the browserStack.properties file
      * @return a new Selenium WebDriver instance using BrowserStack
      */
     public static DriverFactoryHelper getBrowserStackDriver(MutableCapabilities browserStackOptions) {
+        // Generate browserstack.yml from SHAFT properties for SDK integration
+        BrowserStackSdkHelper.generateBrowserStackYml();
+
         String appUrl = SHAFT.Properties.browserStack.appUrl();
         var helper = new DriverFactoryHelper();
         if ("".equals(appUrl)) {

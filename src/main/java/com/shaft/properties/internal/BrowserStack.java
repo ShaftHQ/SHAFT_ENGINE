@@ -248,6 +248,55 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     @DefaultValue("3.1.0")
     String appiumVersion();
 
+    //BrowserStack SDK configuration properties
+
+    /**
+     * Custom build name for BrowserStack dashboard reporting. When empty, a name is
+     * auto-generated from the project directory and current timestamp.
+     * <p>Property key: {@code browserStack.buildName} — default: {@code ""}
+     *
+     * @return the build name string, or empty for auto-generation
+     */
+    @Key("browserStack.buildName")
+    @DefaultValue("")
+    String buildName();
+
+    /**
+     * Custom project name for BrowserStack dashboard reporting. When empty, the current
+     * test class name is used.
+     * <p>Property key: {@code browserStack.projectName} — default: {@code ""}
+     *
+     * @return the project name string, or empty for auto-detection
+     */
+    @Key("browserStack.projectName")
+    @DefaultValue("")
+    String projectName();
+
+    /**
+     * Number of parallel test threads to run per platform on BrowserStack. Used by the
+     * BrowserStack SDK for parallelization. When set to 0 or less, parallelization is
+     * not configured in the SDK YAML.
+     * <p>Property key: {@code browserStack.parallelsPerPlatform} — default: {@code 1}
+     *
+     * @return the number of parallel threads per platform
+     */
+    @Key("browserStack.parallelsPerPlatform")
+    @DefaultValue("1")
+    int parallelsPerPlatform();
+
+    /**
+     * Whether BrowserStack Automation is enabled in the SDK configuration. When set to
+     * {@code true}, the SDK intercepts WebDriver creation and routes tests to BrowserStack.
+     * When {@code false}, the SDK only provides integrations (e.g., Observability, Percy)
+     * without redirecting WebDriver sessions.
+     * <p>Property key: {@code browserStack.browserstackAutomation} — default: {@code true}
+     *
+     * @return {@code true} to enable BrowserStack Automation via SDK; {@code false} otherwise
+     */
+    @Key("browserStack.browserstackAutomation")
+    @DefaultValue("true")
+    boolean browserstackAutomation();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -466,6 +515,50 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
          */
         public SetProperty geoLocation(String value) {
             setProperty("browserStack.geoLocation", value);
+            return this;
+        }
+
+        /**
+         * Overrides the {@code browserStack.buildName} property at runtime.
+         *
+         * @param value custom build name for BrowserStack dashboard reporting
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty buildName(String value) {
+            setProperty("browserStack.buildName", value);
+            return this;
+        }
+
+        /**
+         * Overrides the {@code browserStack.projectName} property at runtime.
+         *
+         * @param value custom project name for BrowserStack dashboard reporting
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty projectName(String value) {
+            setProperty("browserStack.projectName", value);
+            return this;
+        }
+
+        /**
+         * Overrides the {@code browserStack.parallelsPerPlatform} property at runtime.
+         *
+         * @param value the number of parallel threads per platform
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty parallelsPerPlatform(int value) {
+            setProperty("browserStack.parallelsPerPlatform", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code browserStack.browserstackAutomation} property at runtime.
+         *
+         * @param value {@code true} to enable BrowserStack Automation via SDK
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty browserstackAutomation(boolean value) {
+            setProperty("browserStack.browserstackAutomation", String.valueOf(value));
             return this;
         }
 
