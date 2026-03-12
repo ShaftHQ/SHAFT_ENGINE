@@ -109,6 +109,8 @@ public class RetryEvidenceCaptureTest {
 
         Assert.assertEquals(SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot(), "Always",
                 "Screenshots should be set to Always after retry");
+        Assert.assertEquals(SHAFT.Properties.visuals.whenToTakePageSourceSnapshot(), "FailuresOnly",
+                "Page source snapshot should be set to FailuresOnly after retry");
     }
 
     @Test(description = "RetryAnalyzer should NOT enable evidence capture when flag is false")
@@ -135,6 +137,9 @@ public class RetryEvidenceCaptureTest {
     @Test(description = "RetryAnalyzer should not retry when max attempts exceeded")
     public void testRetryAnalyzerRespectsMaxAttempts() {
         SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(1);
+        SHAFT.Properties.flags.set().forceCaptureSupportingEvidenceOnRetry(true);
+        SHAFT.Properties.visuals.set().videoParamsRecordVideo(false);
+        SHAFT.Properties.visuals.set().createAnimatedGif(false);
 
         ITestResult mockResult = mock(ITestResult.class);
         var mockMethod = mock(org.testng.ITestNGMethod.class);
@@ -143,9 +148,18 @@ public class RetryEvidenceCaptureTest {
 
         RetryAnalyzer analyzer = new RetryAnalyzer();
         boolean firstRetry = analyzer.retry(mockResult);
+
+        // Reset evidence settings to verify second call doesn't change them
+        SHAFT.Properties.visuals.set().videoParamsRecordVideo(false);
+        SHAFT.Properties.visuals.set().createAnimatedGif(false);
+
         boolean secondRetry = analyzer.retry(mockResult);
 
         Assert.assertTrue(firstRetry, "First retry should be allowed");
         Assert.assertFalse(secondRetry, "Second retry should not be allowed when max is 1");
+        Assert.assertFalse(SHAFT.Properties.visuals.videoParamsRecordVideo(),
+                "Video recording should not be enabled when retry is rejected");
+        Assert.assertFalse(SHAFT.Properties.visuals.createAnimatedGif(),
+                "Animated GIF should not be enabled when retry is rejected");
     }
 }
