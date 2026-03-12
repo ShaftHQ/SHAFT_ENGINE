@@ -13,8 +13,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import static org.testng.Assert.*;
-
 /**
  * Tests for the BrowserStack SDK YAML generation utility.
  * Validates that SHAFT's BrowserStack properties are correctly mapped
@@ -46,8 +44,10 @@ public class BrowserStackSdkTests {
         generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
         var config = loadYaml(generatedYamlPath);
 
-        assertEquals(config.get("userName"), SHAFT.Properties.browserStack.userName());
-        assertEquals(config.get("accessKey"), SHAFT.Properties.browserStack.accessKey());
+        SHAFT.Validations.assertThat().object(config.get("userName"))
+                .isEqualTo(SHAFT.Properties.browserStack.userName()).perform();
+        SHAFT.Validations.assertThat().object(config.get("accessKey"))
+                .isEqualTo(SHAFT.Properties.browserStack.accessKey()).perform();
     }
 
     @Test
@@ -55,8 +55,10 @@ public class BrowserStackSdkTests {
         generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
         var expectedPath = System.getProperty("user.dir") + File.separator + "browserstack.yml";
 
-        assertEquals(generatedYamlPath, expectedPath);
-        assertTrue(new File(generatedYamlPath).exists());
+        SHAFT.Validations.assertThat().object(generatedYamlPath)
+                .isEqualTo(expectedPath).perform();
+        SHAFT.Validations.assertThat().object(new File(generatedYamlPath).exists())
+                .isEqualTo(true).perform();
     }
 
     @Test
@@ -64,9 +66,9 @@ public class BrowserStackSdkTests {
         generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
         var config = loadYaml(generatedYamlPath);
 
-        assertNotNull(config.get("buildName"));
-        assertNotNull(config.get("projectName"));
-        assertNotNull(config.get("buildIdentifier"));
+        SHAFT.Validations.assertThat().object(config.get("buildName")).isNotNull().perform();
+        SHAFT.Validations.assertThat().object(config.get("projectName")).isNotNull().perform();
+        SHAFT.Validations.assertThat().object(config.get("buildIdentifier")).isNotNull().perform();
     }
 
     @Test
@@ -74,11 +76,16 @@ public class BrowserStackSdkTests {
         generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
         var config = loadYaml(generatedYamlPath);
 
-        assertEquals(config.get("browserstackLocal"), SHAFT.Properties.browserStack.local());
-        assertEquals(config.get("debug"), SHAFT.Properties.browserStack.debug());
-        assertEquals(config.get("networkLogs"), SHAFT.Properties.browserStack.networkLogs());
-        assertEquals(config.get("acceptInsecureCerts"), SHAFT.Properties.browserStack.acceptInsecureCerts());
-        assertEquals(config.get("browserstackAutomation"), SHAFT.Properties.browserStack.browserstackAutomation());
+        SHAFT.Validations.assertThat().object(config.get("browserstackLocal"))
+                .isEqualTo(SHAFT.Properties.browserStack.local()).perform();
+        SHAFT.Validations.assertThat().object(config.get("debug"))
+                .isEqualTo(SHAFT.Properties.browserStack.debug()).perform();
+        SHAFT.Validations.assertThat().object(config.get("networkLogs"))
+                .isEqualTo(SHAFT.Properties.browserStack.networkLogs()).perform();
+        SHAFT.Validations.assertThat().object(config.get("acceptInsecureCerts"))
+                .isEqualTo(SHAFT.Properties.browserStack.acceptInsecureCerts()).perform();
+        SHAFT.Validations.assertThat().object(config.get("browserstackAutomation"))
+                .isEqualTo(SHAFT.Properties.browserStack.browserstackAutomation()).perform();
     }
 
     @Test
@@ -87,7 +94,8 @@ public class BrowserStackSdkTests {
         generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
         var config = loadYaml(generatedYamlPath);
 
-        assertEquals(config.get("buildName"), "custom-build-name");
+        SHAFT.Validations.assertThat().object(config.get("buildName"))
+                .isEqualTo("custom-build-name").perform();
         // Reset
         SHAFT.Properties.browserStack.set().buildName("");
     }
@@ -98,7 +106,8 @@ public class BrowserStackSdkTests {
         generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
         var config = loadYaml(generatedYamlPath);
 
-        assertEquals(config.get("projectName"), "custom-project-name");
+        SHAFT.Validations.assertThat().object(config.get("projectName"))
+                .isEqualTo("custom-project-name").perform();
         // Reset
         SHAFT.Properties.browserStack.set().projectName("");
     }
@@ -108,7 +117,8 @@ public class BrowserStackSdkTests {
         generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
         var config = loadYaml(generatedYamlPath);
 
-        assertEquals(config.get("seleniumVersion"), SHAFT.Properties.browserStack.seleniumVersion());
+        SHAFT.Validations.assertThat().object(config.get("seleniumVersion"))
+                .isEqualTo(SHAFT.Properties.browserStack.seleniumVersion()).perform();
     }
 
     @Test
@@ -117,7 +127,8 @@ public class BrowserStackSdkTests {
         generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
         var config = loadYaml(generatedYamlPath);
 
-        assertEquals(config.get("parallelsPerPlatform"), 5);
+        SHAFT.Validations.assertThat().object(config.get("parallelsPerPlatform"))
+                .isEqualTo(5).perform();
         // Reset
         SHAFT.Properties.browserStack.set().parallelsPerPlatform(1);
     }
@@ -129,10 +140,12 @@ public class BrowserStackSdkTests {
         generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
         var config = loadYaml(generatedYamlPath);
 
-        assertTrue(config.containsKey("platforms"));
+        SHAFT.Validations.assertThat().object(config.containsKey("platforms"))
+                .isEqualTo(true).perform();
         var platforms = (List<Map<String, Object>>) config.get("platforms");
-        assertNotNull(platforms);
-        assertFalse(platforms.isEmpty());
+        SHAFT.Validations.assertThat().object(platforms).isNotNull().perform();
+        SHAFT.Validations.assertThat().object(platforms.isEmpty())
+                .isEqualTo(false).perform();
     }
 
     @Test
@@ -140,11 +153,15 @@ public class BrowserStackSdkTests {
         generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
         var config = loadYaml(generatedYamlPath);
 
-        assertNotNull(config);
-        assertTrue(config.containsKey("userName"));
-        assertTrue(config.containsKey("accessKey"));
-        assertTrue(config.containsKey("buildName"));
-        assertTrue(config.containsKey("browserstackAutomation"));
+        SHAFT.Validations.assertThat().object(config).isNotNull().perform();
+        SHAFT.Validations.assertThat().object(config.containsKey("userName"))
+                .isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(config.containsKey("accessKey"))
+                .isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(config.containsKey("buildName"))
+                .isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(config.containsKey("browserstackAutomation"))
+                .isEqualTo(true).perform();
     }
 
     @Test
@@ -153,7 +170,8 @@ public class BrowserStackSdkTests {
         generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
         var config = loadYaml(generatedYamlPath);
 
-        assertEquals(config.get("app"), "bs://test-app-url");
+        SHAFT.Validations.assertThat().object(config.get("app"))
+                .isEqualTo("bs://test-app-url").perform();
         // Reset
         SHAFT.Properties.browserStack.set().appUrl("");
     }
@@ -162,22 +180,26 @@ public class BrowserStackSdkTests {
     public void newBrowserStackPropertiesAreReadableAndSettable() {
         // Test buildName
         SHAFT.Properties.browserStack.set().buildName("test-build");
-        assertEquals(SHAFT.Properties.browserStack.buildName(), "test-build");
+        SHAFT.Validations.assertThat().object(SHAFT.Properties.browserStack.buildName())
+                .isEqualTo("test-build").perform();
         SHAFT.Properties.browserStack.set().buildName("");
 
         // Test projectName
         SHAFT.Properties.browserStack.set().projectName("test-project");
-        assertEquals(SHAFT.Properties.browserStack.projectName(), "test-project");
+        SHAFT.Validations.assertThat().object(SHAFT.Properties.browserStack.projectName())
+                .isEqualTo("test-project").perform();
         SHAFT.Properties.browserStack.set().projectName("");
 
         // Test parallelsPerPlatform
         SHAFT.Properties.browserStack.set().parallelsPerPlatform(3);
-        assertEquals(SHAFT.Properties.browserStack.parallelsPerPlatform(), 3);
+        SHAFT.Validations.assertThat().number(SHAFT.Properties.browserStack.parallelsPerPlatform())
+                .isEqualTo(3).perform();
         SHAFT.Properties.browserStack.set().parallelsPerPlatform(1);
 
         // Test browserstackAutomation
         SHAFT.Properties.browserStack.set().browserstackAutomation(false);
-        assertFalse(SHAFT.Properties.browserStack.browserstackAutomation());
+        SHAFT.Validations.assertThat().object(SHAFT.Properties.browserStack.browserstackAutomation())
+                .isEqualTo(false).perform();
         SHAFT.Properties.browserStack.set().browserstackAutomation(true);
     }
 
@@ -186,8 +208,7 @@ public class BrowserStackSdkTests {
         try (var reader = new FileReader(path)) {
             return new Yaml().load(reader);
         } catch (IOException e) {
-            fail("Failed to read generated browserstack.yml: " + e.getMessage());
-            return null;
+            throw new IllegalStateException("Failed to read generated browserstack.yml: " + e.getMessage(), e);
         }
     }
 }

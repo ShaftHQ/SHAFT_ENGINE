@@ -10,6 +10,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -181,8 +182,7 @@ public class BrowserStackSdkHelper {
             return customBuildName;
         }
         var pathItems = System.getProperty("user.dir").split(Pattern.quote(File.separator));
-        var time = LocalDateTime.now();
-        return pathItems[pathItems.length - 1] + "_" + time.getYear() + time.getMonthValue() + time.getDayOfMonth();
+        return pathItems[pathItems.length - 1] + "_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
     }
 
     /**
