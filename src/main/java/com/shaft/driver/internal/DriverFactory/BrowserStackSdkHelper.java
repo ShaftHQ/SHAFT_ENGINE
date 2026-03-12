@@ -14,6 +14,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Pattern;
 
+import org.json.JSONArray;
+
 /**
  * Utility class for generating a {@code browserstack.yml} configuration file from SHAFT's
  * BrowserStack property system. This enables integration with the BrowserStack SDK, which
@@ -116,10 +118,15 @@ public class BrowserStackSdkHelper {
         config.put("userName", SHAFT.Properties.browserStack.userName());
         config.put("accessKey", SHAFT.Properties.browserStack.accessKey());
 
-        // Platform configuration
-        var platform = buildPlatformEntry();
-        if (!platform.isEmpty()) {
-            config.put("platforms", Collections.singletonList(platform));
+        // Platform configuration — multi-platform takes precedence over single-platform
+        var platformsList = parsePlatformsList();
+        if (platformsList != null && !platformsList.isEmpty()) {
+            config.put("platforms", platformsList);
+        } else {
+            var platform = buildPlatformEntry();
+            if (!platform.isEmpty()) {
+                config.put("platforms", Collections.singletonList(platform));
+            }
         }
 
         // Build and project naming
@@ -157,6 +164,52 @@ public class BrowserStackSdkHelper {
         addAppConfiguration(config);
 
         return config;
+    }
+
+    /**
+     * Parses the {@code browserStack.platformsList} property as a JSON array of platform entries.
+     * Each entry in the array becomes a platform map in the BrowserStack SDK YAML configuration,
+     * enabling parallel test execution across multiple devices or browsers.
+     *
+     * <p>Expected JSON format:
+     * <pre>{@code
+     * [
+     *   {"deviceName": "Samsung Galaxy S22", "osVersion": "12.0", "platformName": "android"},
+     *   {"deviceName": "Google Pixel 6", "osVersion": "12.0", "platformName": "android"}
+     * ]
+     * }</pre>
+     *
+     * @return a list of platform maps parsed from the JSON, or {@code null} if the property is empty
+     *         or the JSON is invalid
+     */
+    private static List<Map<String, Object>> parsePlatformsList() {
+        var platformsJson = SHAFT.Properties.browserStack.platformsList();
+        if (platformsJson == null || platformsJson.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            var jsonArray = new JSONArray(platformsJson.trim());
+            var platforms = new ArrayList<Map<String, Object>>();
+            for (int i = 0; i < jsonArray.length(); i++) {
+                var jsonObj = jsonArray.getJSONObject(i);
+                var platformMap = new LinkedHashMap<String, Object>();
+                @SuppressWarnings("unchecked")
+                Iterator<String> keys = jsonObj.keys();
+                while (keys.hasNext()) {
+                    var key = keys.next();
+                    platformMap.put(key, jsonObj.get(key));
+                }
+                if (!platformMap.isEmpty()) {
+                    platforms.add(platformMap);
+                }
+            }
+            return platforms.isEmpty() ? null : platforms;
+        } catch (Exception e) {
+            ReportManager.logDiscrete("Warning: Failed to parse browserStack.platformsList JSON: " + e.getMessage()
+                    + ". Falling back to single-platform configuration.");
+            return null;
+        }
     }
 
     /**

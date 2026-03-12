@@ -265,6 +265,143 @@ public class BrowserStackSdkTests {
         }
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    public void generateBrowserStackYmlWithMultipleMobilePlatforms() {
+        var platformsJson = "[" +
+                "{\"deviceName\":\"Samsung Galaxy S22\",\"osVersion\":\"12.0\",\"platformName\":\"android\"}," +
+                "{\"deviceName\":\"Google Pixel 6\",\"osVersion\":\"12.0\",\"platformName\":\"android\"}," +
+                "{\"deviceName\":\"Samsung Galaxy S21\",\"osVersion\":\"11.0\",\"platformName\":\"android\"}" +
+                "]";
+        SHAFT.Properties.browserStack.set().platformsList(platformsJson);
+
+        generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
+        var config = loadYaml(generatedYamlPath);
+
+        SHAFT.Validations.assertThat().object(config.containsKey("platforms"))
+                .isEqualTo(true).perform();
+        var platforms = (List<Map<String, Object>>) config.get("platforms");
+        SHAFT.Validations.assertThat().object(platforms).isNotNull().perform();
+        SHAFT.Validations.assertThat().number(platforms.size()).isEqualTo(3).perform();
+
+        // Verify first platform entry
+        SHAFT.Validations.assertThat().object(platforms.get(0).get("deviceName"))
+                .isEqualTo("Samsung Galaxy S22").perform();
+        SHAFT.Validations.assertThat().object(platforms.get(0).get("osVersion"))
+                .isEqualTo("12.0").perform();
+        SHAFT.Validations.assertThat().object(platforms.get(0).get("platformName"))
+                .isEqualTo("android").perform();
+
+        // Verify third platform entry
+        SHAFT.Validations.assertThat().object(platforms.get(2).get("deviceName"))
+                .isEqualTo("Samsung Galaxy S21").perform();
+
+        // Reset
+        SHAFT.Properties.browserStack.set().platformsList("");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void generateBrowserStackYmlWithMultipleDesktopPlatforms() {
+        var platformsJson = "[" +
+                "{\"os\":\"Windows\",\"osVersion\":\"10\",\"browserName\":\"Chrome\",\"browserVersion\":\"latest\"}," +
+                "{\"os\":\"OS X\",\"osVersion\":\"Monterey\",\"browserName\":\"Safari\",\"browserVersion\":\"latest\"}" +
+                "]";
+        SHAFT.Properties.browserStack.set().platformsList(platformsJson);
+
+        generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
+        var config = loadYaml(generatedYamlPath);
+
+        var platforms = (List<Map<String, Object>>) config.get("platforms");
+        SHAFT.Validations.assertThat().number(platforms.size()).isEqualTo(2).perform();
+
+        // Verify desktop platform entries
+        SHAFT.Validations.assertThat().object(platforms.get(0).get("os"))
+                .isEqualTo("Windows").perform();
+        SHAFT.Validations.assertThat().object(platforms.get(0).get("browserName"))
+                .isEqualTo("Chrome").perform();
+        SHAFT.Validations.assertThat().object(platforms.get(1).get("os"))
+                .isEqualTo("OS X").perform();
+        SHAFT.Validations.assertThat().object(platforms.get(1).get("browserName"))
+                .isEqualTo("Safari").perform();
+
+        // Reset
+        SHAFT.Properties.browserStack.set().platformsList("");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void generateBrowserStackYmlFallsBackToSinglePlatformWhenPlatformsListIsEmpty() {
+        // Ensure platformsList is empty (default)
+        SHAFT.Properties.browserStack.set().platformsList("");
+
+        generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
+        var config = loadYaml(generatedYamlPath);
+
+        // Should still have a platforms entry from single-platform config
+        SHAFT.Validations.assertThat().object(config.containsKey("platforms"))
+                .isEqualTo(true).perform();
+        var platforms = (List<Map<String, Object>>) config.get("platforms");
+        SHAFT.Validations.assertThat().number(platforms.size()).isEqualTo(1).perform();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void generateBrowserStackYmlFallsBackToSinglePlatformWhenPlatformsListIsInvalidJson() {
+        SHAFT.Properties.browserStack.set().platformsList("not valid json");
+
+        generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
+        var config = loadYaml(generatedYamlPath);
+
+        // Should fall back to single-platform config
+        SHAFT.Validations.assertThat().object(config.containsKey("platforms"))
+                .isEqualTo(true).perform();
+        var platforms = (List<Map<String, Object>>) config.get("platforms");
+        SHAFT.Validations.assertThat().number(platforms.size()).isEqualTo(1).perform();
+
+        // Reset
+        SHAFT.Properties.browserStack.set().platformsList("");
+    }
+
+    @Test
+    public void platformsListPropertyIsReadableAndSettable() {
+        var platformsJson = "[{\"deviceName\":\"Samsung Galaxy S22\",\"osVersion\":\"12.0\"}]";
+        SHAFT.Properties.browserStack.set().platformsList(platformsJson);
+        SHAFT.Validations.assertThat().object(SHAFT.Properties.browserStack.platformsList())
+                .isEqualTo(platformsJson).perform();
+
+        // Reset
+        SHAFT.Properties.browserStack.set().platformsList("");
+        SHAFT.Validations.assertThat().object(SHAFT.Properties.browserStack.platformsList())
+                .isEqualTo("").perform();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void generateBrowserStackYmlWithMultiplePlatformsAndParallels() {
+        var platformsJson = "[" +
+                "{\"deviceName\":\"Samsung Galaxy S22\",\"osVersion\":\"12.0\",\"platformName\":\"android\"}," +
+                "{\"deviceName\":\"Google Pixel 6\",\"osVersion\":\"12.0\",\"platformName\":\"android\"}" +
+                "]";
+        SHAFT.Properties.browserStack.set().platformsList(platformsJson);
+        SHAFT.Properties.browserStack.set().parallelsPerPlatform(3);
+
+        generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
+        var config = loadYaml(generatedYamlPath);
+
+        // Verify multiple platforms
+        var platforms = (List<Map<String, Object>>) config.get("platforms");
+        SHAFT.Validations.assertThat().number(platforms.size()).isEqualTo(2).perform();
+
+        // Verify parallelsPerPlatform is also present
+        SHAFT.Validations.assertThat().object(config.get("parallelsPerPlatform"))
+                .isEqualTo(3).perform();
+
+        // Reset
+        SHAFT.Properties.browserStack.set().platformsList("");
+        SHAFT.Properties.browserStack.set().parallelsPerPlatform(1);
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> loadYaml(String path) {
         try (var reader = new FileReader(path)) {
