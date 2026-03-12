@@ -64,7 +64,7 @@ public class PropertiesHelper {
         Properties.baseTimeouts = ConfigFactory.create(Timeouts.class);
         Properties.basePerformance = ConfigFactory.create(Performance.class);
         Properties.baseLambdaTest = ConfigFactory.create(LambdaTest.class);
-        Properties.baseApi = ConfigFactory.create(API.class, System.getProperties());
+        Properties.baseApi = ConfigFactory.create(API.class);
         Properties.initialized = true;
     }
 

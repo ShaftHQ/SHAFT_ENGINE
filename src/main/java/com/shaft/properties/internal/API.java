@@ -1,6 +1,7 @@
 package com.shaft.properties.internal;
 
 import com.shaft.tools.io.ReportManager;
+import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
 /**
@@ -13,6 +14,12 @@ import org.aeonbits.owner.ConfigFactory;
  * SHAFT.Properties.api.set().swaggerValidationEnabled(true).swaggerValidationUrl("https://petstore.swagger.io/v2/swagger.json");
  * }</pre>
  */
+@SuppressWarnings("unused")
+@Sources({"system:properties",
+        "file:src/main/resources/properties/api.properties",
+        "file:src/main/resources/properties/default/api.properties",
+        "classpath:api.properties",
+})
 public interface API extends EngineProperties<API> {
     private static void setProperty(String key, String value) {
         ThreadLocalPropertiesManager.setProperty(key, value);
