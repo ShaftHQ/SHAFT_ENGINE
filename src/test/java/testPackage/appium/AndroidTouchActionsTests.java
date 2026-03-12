@@ -11,6 +11,7 @@ import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -219,7 +220,7 @@ public class AndroidTouchActionsTests extends MobileTest {
         String deviceFilePath = "/sdcard/Download/shaft_test.txt";
         String localDownloadPath = "target/shaft_pulled.txt";
         Path tempFile = Files.createTempFile("shaft_push_", ".txt");
-        Files.writeString(tempFile, testContent);
+        Files.writeString(tempFile, testContent, StandardCharsets.UTF_8);
         try {
             driver.get().touch()
                     .pushFile(deviceFilePath, tempFile.toString())
@@ -231,7 +232,7 @@ public class AndroidTouchActionsTests extends MobileTest {
                     .withCustomReportMessage("Pulled file should exist at: " + localDownloadPath)
                     .perform();
             SHAFT.Validations.assertThat()
-                    .object(Files.readString(downloadedFile.toPath()))
+                    .object(Files.readString(downloadedFile.toPath(), StandardCharsets.UTF_8))
                     .isEqualTo(testContent)
                     .withCustomReportMessage("Pulled file content should match the pushed content")
                     .perform();
@@ -252,7 +253,7 @@ public class AndroidTouchActionsTests extends MobileTest {
         String deviceFilePath = "/sdcard/Download/shaft_file_obj.txt";
         String localDownloadPath = "target/shaft_file_obj_pulled.txt";
         Path tempFile = Files.createTempFile("shaft_push_file_", ".txt");
-        Files.writeString(tempFile, testContent);
+        Files.writeString(tempFile, testContent, StandardCharsets.UTF_8);
         try {
             driver.get().touch()
                     .pushFile(deviceFilePath, tempFile.toFile())
@@ -264,7 +265,7 @@ public class AndroidTouchActionsTests extends MobileTest {
                     .withCustomReportMessage("Pulled file should exist at: " + localDownloadPath)
                     .perform();
             SHAFT.Validations.assertThat()
-                    .object(Files.readString(downloadedFile.toPath()))
+                    .object(Files.readString(downloadedFile.toPath(), StandardCharsets.UTF_8))
                     .isEqualTo(testContent)
                     .withCustomReportMessage("Pulled file content should match the pushed File object content")
                     .perform();

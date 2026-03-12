@@ -39,11 +39,13 @@ import org.openqa.selenium.remote.http.ConnectionFailedException;
 import org.openqa.selenium.safari.SafariDriver;
 import org.testng.Reporter;
 
+import java.io.ByteArrayInputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -360,7 +362,13 @@ public class DriverFactoryHelper {
                 default ->
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
             }
-            ReportManager.log(initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".");
+            String successMessage = initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".";
+            List<Object> launchScreenshot = captureLaunchScreenshot();
+            if (launchScreenshot != null) {
+                ReportManagerHelper.log(successMessage, List.of(launchScreenshot));
+            } else {
+                ReportManager.log(successMessage);
+            }
         } catch (Exception exception) {
             String message = exception.getMessage();
             if (message.contains("cannot create default profile directory")) {
@@ -474,7 +482,13 @@ public class DriverFactoryHelper {
             remoteWebDriver.setFileDetector(new LocalFileDetector());
 //            driver =ThreadGuard.protect(remoteWebDriver));
             setDriver(remoteWebDriver);
-            ReportManager.log("Successfully Opened " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".");
+            String successMessageDockerized = "Successfully Opened " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".";
+            List<Object> launchScreenshotDockerized = captureLaunchScreenshot();
+            if (launchScreenshotDockerized != null) {
+                ReportManagerHelper.log(successMessageDockerized, List.of(launchScreenshotDockerized));
+            } else {
+                ReportManager.log(successMessageDockerized);
+            }
         } catch (WebDriverManagerException exception) {
             failAction("Failed to create new Dockerized Browser Session, are you sure Docker is available on your machine?", exception);
         }
@@ -599,7 +613,36 @@ public class DriverFactoryHelper {
         if (driverName.contains("MobileApp")) {
             driverName = driverName.replace("Mobile", Properties.platform.targetPlatform());
         }
-        ReportManager.log("Successfully Opened \"" + JavaHelper.convertToSentenceCase(driverName) + "\".");
+        String successMessageRemote = "Successfully Opened \"" + JavaHelper.convertToSentenceCase(driverName) + "\".";
+        List<Object> launchScreenshotRemote = captureLaunchScreenshot();
+        if (launchScreenshotRemote != null) {
+            ReportManagerHelper.log(successMessageRemote, List.of(launchScreenshotRemote));
+        } else {
+            ReportManager.log(successMessageRemote);
+        }
+    }
+
+    /**
+     * Captures a viewport screenshot after the driver session is established.
+     * Returns the screenshot in the standard attachment-list format used by
+     * {@link ReportManagerHelper#log(String, List)} so that it can be nested
+     * directly inside the "Successfully Opened" Allure step rather than
+     * appearing as a separate top-level step.
+     * Returns {@code null} when no screenshot could be taken (e.g. remote server error).
+     * Failures are logged discretely so they never mask the primary driver-creation outcome.
+     *
+     * @return attachment list {@code [type, name, InputStream]}, or {@code null} on failure
+     */
+    private List<Object> captureLaunchScreenshot() {
+        try {
+            byte[] screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+            if (screenshot != null && screenshot.length > 0) {
+                return Arrays.asList("Screenshot", "App Launch Screenshot", new ByteArrayInputStream(screenshot));
+            }
+        } catch (Exception e) {
+            ReportManager.logDiscrete("Could not capture launch screenshot [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
+        }
+        return null;
     }
 
     private void attachWebDriverLogs() {
