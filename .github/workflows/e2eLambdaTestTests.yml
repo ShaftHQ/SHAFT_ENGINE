@@ -9,185 +9,76 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v6
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
         with:
           node-version: '16'
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobAPK*.*]"
-      - name: Upload coverage to Codecov
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTMobAPK*.*]"
+      - name: Post-Test Report and Check
         if: always()
-        uses:  codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        run: mv allure-report/*AllureReport.html allure-report/LambdaTest_NativeAndroid_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/LambdaTest_NativeAndroid_Allure.html"
-          archive: false
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
-        continue-on-error: true
+          job-name: LambdaTest_NativeAndroid
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
   LambdaTest_NativeIOS:
     runs-on: ubuntu-latest
     needs: [ LambdaTest_NativeAndroid ]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v6
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
         with:
           node-version: '16'
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTMobIPA*.*]"
-      - name: Upload coverage to Codecov
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTMobIPA*.*]"
+      - name: Post-Test Report and Check
         if: always()
-        uses:  codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        run: mv allure-report/*AllureReport.html allure-report/LambdaTest_NativeIOS_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/LambdaTest_NativeIOS_Allure.html"
-          archive: false
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
-        continue-on-error: true
+          job-name: LambdaTest_NativeIOS
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
   LambdaTest_WebApp:
     runs-on: ubuntu-latest
     needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS ]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v6
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
         with:
           node-version: '16'
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTWebApp*.*]"
-      - name: Upload coverage to Codecov
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTWebApp*.*]"
+      - name: Post-Test Report and Check
         if: always()
-        uses:  codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        run: mv allure-report/*AllureReport.html allure-report/LambdaTestWebApp_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/LambdaTestWebApp_Allure.html"
-          archive: false
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
-        continue-on-error: true
+          job-name: LambdaTest_WebApp
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
   LambdaTest_DesktopWeb:
     runs-on: ubuntu-latest
     needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS, LambdaTest_WebApp ]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v6
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
         with:
           node-version: '16'
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Test_LTDesktopWeb*.*]"
-      - name: Upload coverage to Codecov
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTDesktopWeb*.*]"
+      - name: Post-Test Report and Check
         if: always()
-        uses:  codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        run: mv allure-report/*AllureReport.html allure-report/LambdaTestDesktopWeb_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/LambdaTestDesktopWeb_Allure.html"
-          archive: false
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
-        continue-on-error: true
+          job-name: LambdaTest_DesktopWeb
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}

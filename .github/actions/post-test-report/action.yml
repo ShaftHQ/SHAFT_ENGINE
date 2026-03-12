@@ -1,0 +1,91 @@
+name: 'Post-Test Report and Check'
+description: 'Uploads coverage, generates Allure report artifacts, creates test summary, and checks test results using Allure data'
+inputs:
+  job-name:
+    description: 'Name of the job (used for naming the Allure report artifact)'
+    required: true
+  codecov-token:
+    description: 'Codecov upload token'
+    required: false
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - name: Upload coverage to Codecov
+      if: always()
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ inputs.codecov-token }}
+        fail_ci_if_error: false
+        files: ./target/jacoco/jacoco.xml
+        verbose: true
+        disable_search: true
+    - name: Generate Allure Report for Verification
+      if: always()
+      shell: bash
+      run: |
+        ALLURE_BINARY=$(find ~/.m2/repository/allure -maxdepth 3 -name allure -not -name "*.bat" -type f 2>/dev/null | head -1)
+        if [ -n "$ALLURE_BINARY" ] && [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
+          chmod +x "$ALLURE_BINARY"
+          # Generate full report to get widgets/summary.json for verification
+          "$ALLURE_BINARY" generate allure-results -o allure-report-check --clean 2>/dev/null || true
+          # Generate single-file report if SHAFT didn't already create one
+          if ! ls allure-report/*AllureReport.html 1>/dev/null 2>&1; then
+            "$ALLURE_BINARY" generate --single-file --clean allure-results -o allure-report 2>/dev/null || true
+            if [ -f "allure-report/index.html" ]; then
+              mv allure-report/index.html allure-report/AllureReport.html
+            fi
+          fi
+        fi
+    - name: Rename Allure Report for Upload
+      if: always()
+      shell: bash
+      run: mv allure-report/*AllureReport.html "allure-report/${{ inputs.job-name }}_Allure.html" 2>/dev/null || true
+    - name: Upload Allure Report as Pipeline Artifact
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        path: "allure-report/${{ inputs.job-name }}_Allure.html"
+        archive: false
+    - name: Test Summary
+      if: always()
+      continue-on-error: true
+      uses: test-summary/action@v2
+      with:
+        paths: "target/surefire-reports/TEST-*.xml"
+    - name: Check Test Results via Allure Report
+      if: always()
+      shell: bash
+      run: |
+        echo "=== Checking test results using Allure report data ==="
+        # Primary check: Use Allure report summary (the main reference)
+        if [ -f "allure-report-check/widgets/summary.json" ]; then
+          FAILED=$(grep -o '"failed" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
+          TOTAL=$(grep -o '"total" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
+          PASSED=$(grep -o '"passed" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
+          BROKEN=$(grep -o '"broken" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
+          SKIPPED=$(grep -o '"skipped" *: *[0-9]*' allure-report-check/widgets/summary.json | head -1 | grep -o '[0-9]*')
+          FAILED=${FAILED:-0}
+          TOTAL=${TOTAL:-0}
+          PASSED=${PASSED:-0}
+          BROKEN=${BROKEN:-0}
+          SKIPPED=${SKIPPED:-0}
+          echo "Allure Report Summary: Total=$TOTAL, Passed=$PASSED, Failed=$FAILED, Broken=$BROKEN, Skipped=$SKIPPED"
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "::warning::No tests were executed. Check test configuration."
+          fi
+          if [ "$FAILED" -gt 0 ]; then
+            echo "::error::Allure report shows $FAILED failed test(s) out of $TOTAL total. Check the Allure report artifact for details."
+            exit 1
+          fi
+          echo "All tests passed according to Allure report."
+        else
+          echo "::warning::Allure report summary not found. Falling back to surefire reports."
+          # Fallback: Check surefire reports if allure data is unavailable
+          if [ -d "target/surefire-reports" ]; then
+            if grep -rq "failures=\"[1-9]" target/surefire-reports/ || grep -rq "errors=\"[1-9]" target/surefire-reports/; then
+              echo "::error::Surefire reports indicate test failures. Failing the job."
+              exit 1
+            fi
+          fi
+        fi
