@@ -200,9 +200,7 @@ public class OptionsManager {
             var fileActions = FileActions.getInstance(true);
 
             // create config file if it doesn't exist
-            if (!fileActions.doesFileExist(folderPath, fileName, 1)) {
-                fileActions.createFile(folderPath, fileName);
-            }
+            fileActions.createFile(folderPath, fileName);
 
             // read config file
             String config = fileActions.readFile(folderPath, fileName);
