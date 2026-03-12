@@ -87,6 +87,9 @@ jobs:
     if: always()
     needs: [LambdaTest_NativeAndroid, LambdaTest_NativeIOS, LambdaTest_WebApp, LambdaTest_DesktopWeb]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6

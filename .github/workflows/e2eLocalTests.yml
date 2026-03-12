@@ -106,6 +106,9 @@ jobs:
     if: always()
     needs: [Windows_Edge_Local, MacOSX_Safari_Local, Windows_Chrome_Local, MacOSX_Chrome_Local, Windows_Edge_Cucumber_Local]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
