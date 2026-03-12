@@ -17,6 +17,8 @@ import java.util.Map;
  */
 public class ThreadLocalPropertiesTest {
 
+    private static final long THREAD_JOIN_TIMEOUT_MS = 5000;
+
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
         // Clear thread-local overrides after each test to avoid cross-test contamination
@@ -159,7 +161,7 @@ public class ThreadLocalPropertiesTest {
             otherThreadValue[0] = ThreadLocalPropertiesManager.getProperty(key);
         });
         otherThread.start();
-        otherThread.join(5000);
+        otherThread.join(THREAD_JOIN_TIMEOUT_MS);
 
         Assert.assertNull(otherThreadValue[0],
                 "Other thread should NOT see the current thread's thread-local override");
@@ -183,7 +185,7 @@ public class ThreadLocalPropertiesTest {
             otherThreadCaps[0] = PropertyFileManager.getAppiumDesiredCapabilities();
         });
         otherThread.start();
-        otherThread.join(5000);
+        otherThread.join(THREAD_JOIN_TIMEOUT_MS);
 
         String otherThreadApp = otherThreadCaps[0] != null ? otherThreadCaps[0].get("mobile_app") : null;
         Assert.assertNotEquals(otherThreadApp, testAppUrl,
