@@ -4,6 +4,7 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.ReportManager;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.SystemUtils;
@@ -296,7 +297,7 @@ public class AllureManager {
     private static void writeEnvironmentVariablesToAllureResultsDirectory() {
         // reads all environment variables and then formats and writes them to be read
         // by the Allure report
-        var props = System.getProperties();
+        var props = ThreadLocalPropertiesManager.getEffectiveProperties();
         var propertiesFileBuilder = new StringBuilder();
         propertiesFileBuilder.append("<environment>");
         // read properties from any explicit properties files

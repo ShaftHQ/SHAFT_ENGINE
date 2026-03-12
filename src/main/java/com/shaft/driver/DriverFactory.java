@@ -9,6 +9,7 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.LambdaTestHelper;
 import com.shaft.listeners.TestNGListener;
 import com.shaft.listeners.internal.TestNGListenerHelper;
+import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import lombok.Getter;
 import lombok.Setter;
@@ -32,7 +33,9 @@ public class DriverFactory {
         reloadProperties();
         // it's null in case of Cucumber native feature file execution
         if (TestNGListener.getXmlTest() != null) {
-            System.getProperties().putAll(TestNGListener.getXmlTest().getAllParameters());
+            var allParameters = TestNGListener.getXmlTest().getAllParameters();
+            System.getProperties().putAll(allParameters);
+            allParameters.forEach(ThreadLocalPropertiesManager::setProperty);
             var testName = TestNGListenerHelper.getTestName().toLowerCase();
             if (testName.contains("firefox")
                     || testName.contains("chrome")

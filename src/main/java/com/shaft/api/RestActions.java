@@ -1000,7 +1000,7 @@ public class RestActions {
 
         RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders, sessionConfig, appendDefaultContentCharsetToContentTypeIfUndefined);
 
-        boolean isSwaggerValidationEnabled = Boolean.parseBoolean(System.getProperty("swagger.validation.enabled", "false"));
+        boolean isSwaggerValidationEnabled = SHAFT.Properties.api.swaggerValidationEnabled();
 
         if (isSwaggerValidationEnabled) {
             String swaggerUrl = SHAFT.Properties.api.swaggerValidationUrl();

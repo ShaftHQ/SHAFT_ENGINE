@@ -45,6 +45,24 @@ public final class ThreadLocalPropertiesManager {
     }
 
     /**
+     * Returns a merged view of system properties and thread-local overrides for the
+     * current thread.  Thread-local overrides take precedence over system properties.
+     * <p>
+     * This method should be used wherever code previously called
+     * {@code System.getProperties()} to look up SHAFT configuration values, so that
+     * per-thread overrides set via the {@code SHAFT.Properties} API are visible.
+     *
+     * @return a new {@link java.util.Properties} instance containing all system
+     *         properties with thread-local overrides applied on top
+     */
+    public static java.util.Properties getEffectiveProperties() {
+        java.util.Properties merged = new java.util.Properties();
+        merged.putAll(System.getProperties());
+        merged.putAll(threadLocalOverrides.get());
+        return merged;
+    }
+
+    /**
      * Clears all thread-local property overrides for the current thread.
      * Should be called at the start of each new test class lifecycle (before
      * {@code @BeforeClass} runs) to prevent stale overrides from a previously

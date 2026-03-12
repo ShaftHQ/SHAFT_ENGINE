@@ -50,7 +50,7 @@ public final class PropertyFileManager {
 
     public static MutableCapabilities getCustomWebDriverDesiredCapabilities() {
         MutableCapabilities customDriverOptions = new MutableCapabilities();
-        java.util.Properties props = System.getProperties();
+        java.util.Properties props = ThreadLocalPropertiesManager.getEffectiveProperties();
         props.forEach((key, value) -> {
             if (String.valueOf(key).startsWith("capabilities.") && !String.valueOf(value).isBlank()) {
                 customDriverOptions.setCapability(String.valueOf(key).split("capabilities.")[1], String.valueOf(value));
@@ -61,7 +61,7 @@ public final class PropertyFileManager {
 
     public static HashMap<String, Object> getCustomBrowserstackCapabilities() {
         HashMap<String, Object> browserstackOptions = new HashMap<>();
-        java.util.Properties props = System.getProperties();
+        java.util.Properties props = ThreadLocalPropertiesManager.getEffectiveProperties();
         props.forEach((key, value) -> {
             if (String.valueOf(key).startsWith("browserStack.") && !String.valueOf(value).isBlank()) {
                 Set<String> excludedKeys = Set.of(
