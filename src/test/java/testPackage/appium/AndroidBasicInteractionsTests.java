@@ -13,6 +13,15 @@ import java.time.Duration;
 public class AndroidBasicInteractionsTests extends MobileTest {
     private final String PACKAGE = "io.appium.android.apis";
 
+    /**
+     * Diagnostic test: just launches the ApiDemos app and verifies the home screen is visible.
+     * This test is used to confirm the app is actually starting and rendering on BrowserStack.
+     */
+    @Test(groups = {"ApiDemosDebug"})
+    public void testAppLaunch() {
+        driver.get().assertThat().element(By.xpath("//android.widget.TextView[@text='API Demos']")).exists().perform();
+    }
+
     @Test(groups = {"ApiDemosDebug"})
     public void wizard_scrollInExpandableLists_verticalScrolling_insideScreen() {
         ((AndroidDriver) driver.get().getDriver()).runAppInBackground(Duration.ofSeconds(5));
