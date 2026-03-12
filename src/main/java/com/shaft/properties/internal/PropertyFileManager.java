@@ -26,26 +26,26 @@ public final class PropertyFileManager {
     public static Map<String, String> getAppiumDesiredCapabilities() {
         Map<String, String> appiumDesiredCapabilities = new HashMap<>();
 
-        // First, read from system properties
-        java.util.Properties props = System.getProperties();
-        props.forEach((key, value) -> {
-            if (String.valueOf(key).contains("mobile_")) {
-                appiumDesiredCapabilities.put(String.valueOf(key), String.valueOf(value));
-            }
-        });
-        // Then, override with thread-local properties set via SHAFT.Properties.mobile.set()
+        // Collect mobile_ properties from system properties first (lower priority)
+        collectMobileProperties(System.getProperties(), appiumDesiredCapabilities);
+        // Override with thread-local properties set via SHAFT.Properties.mobile.set()
         // These have higher priority and may include values like app URL from BrowserStack upload
-        ThreadLocalPropertiesManager.getOverrides().forEach((key, value) -> {
-            if (String.valueOf(key).contains("mobile_")) {
-                appiumDesiredCapabilities.put(String.valueOf(key), String.valueOf(value));
-            }
-        });
+        collectMobileProperties(ThreadLocalPropertiesManager.getOverrides(), appiumDesiredCapabilities);
+
         var app = appiumDesiredCapabilities.get("mobile_app");
         if (app != null && !app.isEmpty() &&
                 (app.startsWith("src\\") || app.startsWith("src/"))) {
             appiumDesiredCapabilities.put("mobile_app", FileActions.getInstance(true).getAbsolutePath(app));
         }
         return appiumDesiredCapabilities;
+    }
+
+    private static void collectMobileProperties(java.util.Properties source, Map<String, String> target) {
+        source.forEach((key, value) -> {
+            if (String.valueOf(key).contains("mobile_")) {
+                target.put(String.valueOf(key), String.valueOf(value));
+            }
+        });
     }
 
     public static MutableCapabilities getCustomWebDriverDesiredCapabilities() {

@@ -48,8 +48,8 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     //Below properties are all required
     /**
      * BrowserStack account username used for authentication.
-     * <p>Property key: {@code browserStack.userName}. No default is provided by the framework;
-     * supply this value via a properties file or system property.
+     * <p>Property key: {@code browserStack.userName}. The default value is the project's shared test account;
+     * override via a properties file or system property for your own account.
      *
      * @return the BrowserStack username string
      */
@@ -59,7 +59,8 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
 
     /**
      * BrowserStack access key used for authentication alongside {@link #userName()}.
-     * <p>Property key: {@code browserStack.accessKey} — default: the project's shared test key
+     * <p>Property key: {@code browserStack.accessKey} — default: the project's shared test account key.
+     * Override via a properties file or system property for your own account.
      *
      * @return the BrowserStack access key string
      */

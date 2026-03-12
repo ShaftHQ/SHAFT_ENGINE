@@ -19,7 +19,7 @@ public class AndroidBasicInteractionsTests extends MobileTest {
      */
     @Test(groups = {"ApiDemosDebug"})
     public void testAppLaunch() {
-        driver.get().assertThat().element(AppiumBy.accessibilityId("API Demos")).exists().perform();
+        driver.get().assertThat().element(By.xpath("//android.widget.TextView[@text='API Demos']")).exists().perform();
     }
 
 
