@@ -249,6 +249,72 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     @DefaultValue("3.1.0")
     String appiumVersion();
 
+    //BrowserStack SDK configuration properties
+
+    /**
+     * Custom build name for BrowserStack dashboard reporting. When empty, a name is
+     * auto-generated from the project directory and current timestamp.
+     * <p>Property key: {@code browserStack.buildName} — default: {@code ""}
+     *
+     * @return the build name string, or empty for auto-generation
+     */
+    @Key("browserStack.buildName")
+    @DefaultValue("")
+    String buildName();
+
+    /**
+     * Custom project name for BrowserStack dashboard reporting. When empty, the current
+     * test class name is used.
+     * <p>Property key: {@code browserStack.projectName} — default: {@code ""}
+     *
+     * @return the project name string, or empty for auto-detection
+     */
+    @Key("browserStack.projectName")
+    @DefaultValue("")
+    String projectName();
+
+    /**
+     * Number of parallel test threads to run per platform on BrowserStack. Used by the
+     * BrowserStack SDK for parallelization. When set to 0 or less, parallelization is
+     * not configured in the SDK YAML.
+     * <p>Property key: {@code browserStack.parallelsPerPlatform} — default: {@code 1}
+     *
+     * @return the number of parallel threads per platform
+     */
+    @Key("browserStack.parallelsPerPlatform")
+    @DefaultValue("1")
+    int parallelsPerPlatform();
+
+    /**
+     * Whether BrowserStack Automation is enabled in the SDK configuration. When set to
+     * {@code true}, the SDK intercepts WebDriver creation and routes tests to BrowserStack.
+     * When {@code false}, the SDK only provides integrations (e.g., Observability, Percy)
+     * without redirecting WebDriver sessions.
+     * <p>Property key: {@code browserStack.browserstackAutomation} — default: {@code true}
+     *
+     * @return {@code true} to enable BrowserStack Automation via SDK; {@code false} otherwise
+     */
+    @Key("browserStack.browserstackAutomation")
+    @DefaultValue("true")
+    boolean browserstackAutomation();
+
+    /**
+     * Path to a custom {@code browserstack.yml} file to use instead of auto-generating one
+     * from SHAFT properties. When set to a non-empty value, the specified file is copied to
+     * the project root as {@code browserstack.yml} and all SHAFT BrowserStack properties are
+     * ignored by the SDK YAML generator.
+     *
+     * <p>This allows advanced users to maintain full control over the SDK configuration by
+     * providing their own YAML file, bypassing SHAFT's property-to-YAML mapping entirely.
+     *
+     * <p>Property key: {@code browserStack.customBrowserStackYmlPath} — default: {@code ""}
+     *
+     * @return the path to the custom YAML file, or empty to auto-generate from SHAFT properties
+     */
+    @Key("browserStack.customBrowserStackYmlPath")
+    @DefaultValue("")
+    String customBrowserStackYmlPath();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -467,6 +533,63 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
          */
         public SetProperty geoLocation(String value) {
             setProperty("browserStack.geoLocation", value);
+            return this;
+        }
+
+        /**
+         * Overrides the {@code browserStack.buildName} property at runtime.
+         *
+         * @param value custom build name for BrowserStack dashboard reporting
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty buildName(String value) {
+            setProperty("browserStack.buildName", value);
+            return this;
+        }
+
+        /**
+         * Overrides the {@code browserStack.projectName} property at runtime.
+         *
+         * @param value custom project name for BrowserStack dashboard reporting
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty projectName(String value) {
+            setProperty("browserStack.projectName", value);
+            return this;
+        }
+
+        /**
+         * Overrides the {@code browserStack.parallelsPerPlatform} property at runtime.
+         *
+         * @param value the number of parallel threads per platform
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty parallelsPerPlatform(int value) {
+            setProperty("browserStack.parallelsPerPlatform", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code browserStack.browserstackAutomation} property at runtime.
+         *
+         * @param value {@code true} to enable BrowserStack Automation via SDK
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty browserstackAutomation(boolean value) {
+            setProperty("browserStack.browserstackAutomation", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code browserStack.customBrowserStackYmlPath} property at runtime.
+         * When set to a non-empty path, the specified file is used as-is instead of
+         * auto-generating a {@code browserstack.yml} from SHAFT properties.
+         *
+         * @param value path to the custom {@code browserstack.yml} file, or empty to auto-generate
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty customBrowserStackYmlPath(String value) {
+            setProperty("browserStack.customBrowserStackYmlPath", value);
             return this;
         }
 

@@ -31,3 +31,5 @@ OpenLHReport.js
 /src/test/resources/testDataFiles/allure-results/
 /src/test/resources/META-INF/services/
 /.idea/
+browserstack.yml
+/log/
