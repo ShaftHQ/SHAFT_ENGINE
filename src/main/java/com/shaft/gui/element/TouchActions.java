@@ -18,7 +18,6 @@ import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.*;
 import org.openqa.selenium.remote.RemoteWebDriver;
-import org.openqa.selenium.remote.RemoteWebElement;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,13 +28,12 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.Arrays.asList;
 
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class TouchActions extends FluentWebDriverAction {
-    private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 10;
+    private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 5;
     private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = SHAFT.Properties.reporting.captureElementName();
 
     public TouchActions() {
@@ -599,78 +597,6 @@ public class TouchActions extends FluentWebDriverAction {
     }
 
     /**
-     * Attempts to scroll a specific container element to show the target text using AndroidUIAutomator.
-     * This is the recommended approach for Android when scrolling within a named container element
-     * (e.g., a ListView or RecyclerView identified by resource-id). UIAutomator handles activity
-     * transitions and list-loading timing automatically, avoiding blank-screen issues caused by
-     * starting a W3C scroll gesture before the list content has finished rendering.
-     *
-     * <p>The container is matched using its locator:
-     * <ul>
-     *   <li>{@code By.id("package:id/listName")} → {@code new UiSelector().resourceId("package:id/listName")}</li>
-     *   <li>{@code By.className("android.widget.ListView")} → {@code new UiSelector().className("android.widget.ListView")}</li>
-     *   <li>Any other locator → {@code new UiSelector().scrollable(true)} (first scrollable container)</li>
-     * </ul>
-     *
-     * <p><b>Note:</b> The container selector is derived from the locator's {@code toString()} representation,
-     * which follows the format {@code "By.id: value"} or {@code "By.className: value"} in Selenium 4.x.
-     *
-     * @param scrollableElementLocator the locator of the scrollable container ({@code By.id} recommended)
-     * @param targetText               text of the element to scroll into view
-     * @return a self-reference to be used to chain actions
-     */
-    public TouchActions swipeElementIntoView(By scrollableElementLocator, String targetText) {
-        try {
-            String uiScrollableSelector = buildUiScrollableSelectorFrom(scrollableElementLocator);
-            ElementActionsHelper.safeFindElement(driverFactoryHelper.getDriver(), AppiumBy.androidUIAutomator(
-                    "new UiScrollable(" + uiScrollableSelector + ")"
-                            + ".scrollIntoView(new UiSelector().textContains(\"" + escapeUiAutomatorString(targetText) + "\"))"));
-            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), scrollableElementLocator,
-                    Thread.currentThread().getStackTrace()[1].getMethodName(), targetText, null, null);
-        } catch (Throwable throwable) {
-            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), scrollableElementLocator, throwable);
-        }
-        return this;
-    }
-
-    /**
-     * Builds a UIAutomator {@code UiSelector} string from a Selenium {@link By} locator.
-     * Used to identify the scrollable container when constructing UIAutomator scroll commands.
-     *
-     * <p><b>Note:</b> Relies on {@link By#toString()} returning {@code "By.id: value"} or
-     * {@code "By.className: value"}, which is the standard format in Selenium 4.x. If Selenium
-     * changes this format in a future version, unknown locator types will silently fall back to the
-     * first scrollable element ({@code new UiSelector().scrollable(true)}).
-     *
-     * @param locator the Selenium locator for the scrollable container
-     * @return a UIAutomator {@code UiSelector} constructor string (never {@code null})
-     */
-    private String buildUiScrollableSelectorFrom(By locator) {
-        String byStr = locator.toString();
-        if (byStr.startsWith("By.id: ")) {
-            String value = escapeUiAutomatorString(byStr.substring("By.id: ".length()));
-            return "new UiSelector().resourceId(\"" + value + "\")";
-        } else if (byStr.startsWith("By.className: ")) {
-            String value = escapeUiAutomatorString(byStr.substring("By.className: ".length()));
-            return "new UiSelector().className(\"" + value + "\")";
-        }
-        // Default: first scrollable element on the screen
-        return "new UiSelector().scrollable(true)";
-    }
-
-    /**
-     * Escapes backslashes and double quotes in a string so it is safe to embed inside a
-     * UIAutomator selector expression (e.g., inside {@code .textContains("...")} or
-     * {@code .resourceId("...")}).
-     *
-     * @param value the raw string value to escape
-     * @return the escaped string
-     */
-    private String escapeUiAutomatorString(String value) {
-        return value.replace("\\", "\\\\").replace("\"", "\\\"");
-    }
-
-    /**
      * Rotate between portrait and landscape modes
      *
      * @param orientation ScreenOrientation.LANDSCAPE or PORTRAIT
@@ -732,28 +658,18 @@ public class TouchActions extends FluentWebDriverAction {
 
         if (scrollableElementLocator != null) {
             //scrolling inside an element
-            WebElement scrollableElement = (WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
-            if (driverFactoryHelper.getDriver() instanceof AndroidDriver) {
-                // Appium 3.x UIAutomator2: pass elementId instead of bounding-box coordinates.
-                // The bounding-box approach (left/top/width/height) does not work reliably with
-                // ListView/RecyclerView/ScrollView on UIAutomator2 6.x — it returns null/false
-                // even when more content is available. elementId lets UIAutomator2 compute bounds
-                // from the live native element reference and report canScrollMore correctly.
-                scrollParameters.putAll(ImmutableMap.of(
-                        "elementId", ((RemoteWebElement) scrollableElement).getId(),
-                        "percent", 0.8
-                ));
-            } else {
-                //percent 0.5 works for UP/DOWN, optimized to 0.8 to scroll faster
-                Rectangle elementRectangle = scrollableElement.getRect();
-                switch (swipeDirection) {
-                    case UP, DOWN ->
-                            scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getY()));
-                    case RIGHT ->
-                            scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", elementRectangle.getX(), "top", elementRectangle.getY()));
-                    case LEFT ->
-                            scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth(), "left", elementRectangle.getX() + (elementRectangle.getWidth() * 50 / 100), "top", elementRectangle.getY()));
-                }
+            Rectangle elementRectangle = ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), scrollableElementLocator).get(1)).getRect();
+            scrollParameters.putAll(ImmutableMap.of(
+                    "height", elementRectangle.getHeight() * 90 / 100
+            ));
+            //percent 0.5 works for UP/DOWN, optimized to 0.8 to scroll faster and introduced delay 1000ms after every scroll action to increase stability
+            switch (swipeDirection) {
+                case UP, DOWN ->
+                        scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getY()));
+                case RIGHT ->
+                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", elementRectangle.getX(), "top", elementRectangle.getY()));
+                case LEFT ->
+                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth(), "left", elementRectangle.getX() + (elementRectangle.getWidth() * 50 / 100), "top", elementRectangle.getY()));
             }
         } else {
             //scrolling inside the screen
@@ -770,7 +686,7 @@ public class TouchActions extends FluentWebDriverAction {
             }
         }
         scrollParameters.putAll(ImmutableMap.of(
-                "direction", swipeDirection.toString().toLowerCase()
+                "direction", swipeDirection.toString()
         ));
         return scrollParameters;
     }
@@ -791,31 +707,18 @@ public class TouchActions extends FluentWebDriverAction {
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
         var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, targetElementLocator);
         AtomicBoolean canScrollMore = new AtomicBoolean(true);
-        // AtomicInteger is required to allow mutation inside the lambda (Java lambdas capture effectively-final variables).
-        AtomicInteger scrollAttempts = new AtomicInteger(0);
 
         new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
             // for the animated GIF:
             elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
 
-            if (targetElementLocator == null) {
-                // null target: caller wants a blind scroll without a specific target element.
-                // Perform a single gesture and return immediately (used by image-based swipe methods).
-                performW3cCompliantScroll(scrollParameters);
-                return true;
-            }
             var elementExistsOnViewPort = !ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator).isEmpty();
             if (elementExistsOnViewPort)
                 return true;
             canScrollMore.set(performW3cCompliantScroll(scrollParameters));
-            int attempts = scrollAttempts.incrementAndGet();
             elementExistsOnViewPort = !ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator).isEmpty();
-            boolean endOfContent = !canScrollMore.get();
-            boolean attemptsExhausted = attempts >= DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT;
-            if ((endOfContent || attemptsExhausted) && !elementExistsOnViewPort) {
-                String reason = endOfContent ? "end of scrollable content" : "maximum scroll attempts (" + DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT + ") reached";
-                throw new RuntimeException("Element not found after scrolling reached " + reason + ".");
-            }
+            if (!canScrollMore.get() && !elementExistsOnViewPort)
+                throw new RuntimeException("Element not found after scrolling to the end of the page.");
             return elementExistsOnViewPort;
         });
         ReportManager.logDiscrete("Element found on screen.");
