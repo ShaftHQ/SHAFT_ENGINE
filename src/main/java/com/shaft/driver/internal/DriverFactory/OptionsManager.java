@@ -37,6 +37,8 @@ import java.util.Map;
 @Setter
 public class OptionsManager {
 
+    private static final Object SE_CONFIG_LOCK = new Object();
+
     private ChromeOptions chOptions;
     private FirefoxOptions ffOptions;
     private SafariOptions sfOptions;
@@ -191,10 +193,7 @@ public class OptionsManager {
         }
     }
 
-    private static final Object SE_CONFIG_LOCK = new Object();
-
     private void setSeleniumManagerOptions(MutableCapabilities options) {
-        // Set browser version capabilities outside the lock — these are per-instance and thread-safe
         if (SHAFT.Properties.web.forceBrowserDownload()) {
             if (options instanceof ChromeOptions chromeOptions) {
                 chromeOptions.setBrowserVersion("stable");
@@ -203,16 +202,13 @@ public class OptionsManager {
             }
         }
 
-        // Synchronize only the shared file I/O for se-config.toml
         synchronized (SE_CONFIG_LOCK) {
             String folderPath = System.getProperty("user.home") + File.separatorChar + ".cache" + File.separatorChar + "selenium" + File.separatorChar;
             String fileName = "se-config.toml";
             var fileActions = FileActions.getInstance(true);
 
             // create config file if it doesn't exist
-            if (!fileActions.doesFileExist(folderPath, fileName, 1)) {
-                fileActions.createFile(folderPath, fileName);
-            }
+            fileActions.createFile(folderPath, fileName);
 
             // read config file
             String config = fileActions.readFile(folderPath, fileName);
@@ -230,7 +226,7 @@ public class OptionsManager {
             } else {
                 if (config.contains("force-browser-download"))
                     fileActions.writeToFile(folderPath, fileName
-                            , config.replaceAll("force-browser-download.+\\Be", ""));
+                            , config.replaceAll("(?m)^force-browser-download\\s*=.*?(\\r?\\n|$)", ""));
             }
 
             //reload config file
@@ -249,7 +245,7 @@ public class OptionsManager {
             } else {
                 if (config.contains("proxy"))
                     fileActions.writeToFile(folderPath, fileName
-                            , config.replaceAll("proxy.+\\B", ""));
+                            , config.replaceAll("(?m)^proxy\\s*=.*?(\\r?\\n|$)", ""));
             }
         }
     }
