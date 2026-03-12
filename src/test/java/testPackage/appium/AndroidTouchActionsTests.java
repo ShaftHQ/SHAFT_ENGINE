@@ -232,7 +232,7 @@ public class AndroidTouchActionsTests extends MobileTest {
                     .withCustomReportMessage("Pulled file should exist at: " + localDownloadPath)
                     .perform();
             SHAFT.Validations.assertThat()
-                    .object(Files.readString(downloadedFile.toPath(), StandardCharsets.UTF_8))
+                    .object(new String(Files.readAllBytes(downloadedFile.toPath()), StandardCharsets.UTF_8))
                     .isEqualTo(testContent)
                     .withCustomReportMessage("Pulled file content should match the pushed content")
                     .perform();
@@ -265,7 +265,7 @@ public class AndroidTouchActionsTests extends MobileTest {
                     .withCustomReportMessage("Pulled file should exist at: " + localDownloadPath)
                     .perform();
             SHAFT.Validations.assertThat()
-                    .object(Files.readString(downloadedFile.toPath(), StandardCharsets.UTF_8))
+                    .object(new String(Files.readAllBytes(downloadedFile.toPath()), StandardCharsets.UTF_8))
                     .isEqualTo(testContent)
                     .withCustomReportMessage("Pulled file content should match the pushed File object content")
                     .perform();

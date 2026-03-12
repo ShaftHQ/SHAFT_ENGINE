@@ -28,11 +28,11 @@ public class BrowserActionsTests {
 
     @Test
     public void navigateForward() {
-        driver.get().browser().navigateToURL("https://duckduckgo.com/?");
-        driver.get().browser().navigateToURL("https://shaftengine.netlify.app/");
+        driver.get().browser().navigateToURL("https://www.selenium.dev/selenium/web/xhtmlTest.html");
+        driver.get().browser().navigateToURL("https://www.selenium.dev/selenium/web/simpleTest.html");
         driver.get().browser().navigateBack();
         driver.get().browser().navigateForward();
-        driver.get().assertThat().browser().url().contains("shaftengine").perform();
+        driver.get().assertThat().browser().url().contains("simpleTest").perform();
     }
 
     @Test
