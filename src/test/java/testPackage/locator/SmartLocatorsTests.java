@@ -31,7 +31,7 @@ public class SmartLocatorsTests extends Tests {
     }
 
     public void testSmartLocators3() {
-        driver.get().browser().navigateToURL("http://testphp.vulnweb.com/login.php")
+        driver.get().browser().navigateToURL("https://www.selenium.dev/selenium/web/login.html")
                 .and().element().type("Username", "test")
                 .and().type("Password", "test")
                 .and().click("login");

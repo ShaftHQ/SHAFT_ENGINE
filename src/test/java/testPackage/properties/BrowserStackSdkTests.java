@@ -18,6 +18,7 @@ import java.util.Map;
  * Validates that SHAFT's BrowserStack properties are correctly mapped
  * to the {@code browserstack.yml} format expected by the BrowserStack SDK.
  */
+@Test(singleThreaded = true)
 public class BrowserStackSdkTests {
 
     private String generatedYamlPath;

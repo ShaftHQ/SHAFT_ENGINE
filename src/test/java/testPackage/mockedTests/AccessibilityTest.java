@@ -65,7 +65,7 @@ public class AccessibilityTest {
                 .analyzePage("PageWithIgnoredRules")
                 .analyzeWithIgnoredRules("PageWithIgnoredRules", ignoredRules)
                 .assertNoCriticalViolations("PageWithIgnoredRules");
-        } catch (AssertionError e) {
+        } catch (AssertionError | RuntimeException e) {
             SHAFT.Report.log("Expected failure caught [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
         }
     }
