@@ -26,8 +26,16 @@ public final class PropertyFileManager {
     public static Map<String, String> getAppiumDesiredCapabilities() {
         Map<String, String> appiumDesiredCapabilities = new HashMap<>();
 
+        // First, read from system properties
         java.util.Properties props = System.getProperties();
         props.forEach((key, value) -> {
+            if (String.valueOf(key).contains("mobile_")) {
+                appiumDesiredCapabilities.put(String.valueOf(key), String.valueOf(value));
+            }
+        });
+        // Then, override with thread-local properties set via SHAFT.Properties.mobile.set()
+        // These have higher priority and may include values like app URL from BrowserStack upload
+        ThreadLocalPropertiesManager.getOverrides().forEach((key, value) -> {
             if (String.valueOf(key).contains("mobile_")) {
                 appiumDesiredCapabilities.put(String.valueOf(key), String.valueOf(value));
             }
