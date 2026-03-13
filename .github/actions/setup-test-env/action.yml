@@ -1,0 +1,33 @@
+name: 'Setup Test Environment'
+description: 'Sets up JDK, Maven, and optionally Node.js for SHAFT test execution'
+inputs:
+  java-version:
+    description: 'Java version to install'
+    required: false
+    default: '25'
+  maven-version:
+    description: 'Maven version to install'
+    required: false
+    default: '3.9.5'
+  node-version:
+    description: 'Node.js version to install (set to empty string to skip)'
+    required: false
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js environment
+      if: inputs.node-version != ''
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node-version }}
+    - name: Set up JDK ${{ inputs.java-version }}
+      uses: actions/setup-java@v5
+      with:
+        java-version: ${{ inputs.java-version }}
+        distribution: 'zulu'
+        cache: 'maven'
+    - name: Set up Maven
+      uses: stCarolas/setup-maven@v5
+      with:
+        maven-version: ${{ inputs.maven-version }}
