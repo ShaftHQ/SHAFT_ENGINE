@@ -38,602 +38,192 @@ jobs:
         env:
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
-      - name: Upload coverage to Codecov
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
+      - name: Post-Test Report and Check
         if: always()
-        uses: codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        run: mv allure-report/*AllureReport.html allure-report/Ubuntu_Database_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/Ubuntu_Database_Allure.html"
-          archive: false
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
-        continue-on-error: true
-      - name: Check Test Results
-        if: always()
-        run: |
-          if [ -d "target/surefire-reports" ]; then
-            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
-              echo "Tests failed! Failing the workflow."
-              exit 1
-            fi
-          fi
+          job-name: Ubuntu_Database
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
   Ubuntu_APIs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*API.*], %regex[.*Api.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*]"
-      - name: Upload coverage to Codecov
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*API.*], %regex[.*Api.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*], %regex[.*CLIWizard.*], %regex[.*properties.Mobile.*], %regex[.*MobileEmulation.*]"
+      - name: Post-Test Report and Check
         if: always()
-        uses:  codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        run: mv allure-report/*AllureReport.html allure-report/Ubuntu_APIs_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/Ubuntu_APIs_Allure.html"
-          archive: false
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
-        continue-on-error: true
-      - name: Check Test Results
-        if: always()
-        run: |
-          if [ -d "target/surefire-reports" ]; then
-            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
-              echo "Tests failed! Failing the workflow."
-              exit 1
-            fi
-          fi
-  Ubuntu_Firefox_Grid:
+          job-name: Ubuntu_APIs
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Ubuntu_Browser_Grid:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: firefox
+            scale_chrome: 0
+            scale_edge: 0
+            scale_firefox: 10
+          - browser: chrome
+            scale_chrome: 10
+            scale_edge: 0
+            scale_firefox: 0
+          - browser: MicrosoftEdge
+            scale_chrome: 0
+            scale_edge: 10
+            scale_firefox: 0
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
       - name: Set up Native Selenium Grid
-        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=0 --scale firefox=10 -d
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
+        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=${{ matrix.scale_chrome }} --scale edge=${{ matrix.scale_edge }} --scale firefox=${{ matrix.scale_firefox }} -d
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
       - name: Check running containers
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=3" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
-      - name: Upload coverage to Codecov
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=${{ matrix.browser }}" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+      - name: Post-Test Report and Check
         if: always()
-        uses:  codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        run: mv allure-report/*AllureReport.html allure-report/Ubuntu_Firefox_Grid_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/Ubuntu_Firefox_Grid_Allure.html"
-          archive: false
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
-        continue-on-error: true
-      - name: Check Test Results
-        if: always()
-        run: |
-          if [ -d "target/surefire-reports" ]; then
-            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
-              echo "Tests failed! Failing the workflow."
-              exit 1
-            fi
-          fi
-  Ubuntu_Chrome_Grid:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v6
-      - name: Set up Native Selenium Grid
-        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=10 --scale edge=0 --scale firefox=0 -d
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
-      - name: Check running containers
-        run: docker ps
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=3" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
-      - name: Upload coverage to Codecov
-        if: always()
-        uses:  codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        run: mv allure-report/*AllureReport.html allure-report/Ubuntu_Chrome_Grid_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/Ubuntu_Chrome_Grid_Allure.html"
-          archive: false
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
-        continue-on-error: true
-      - name: Check Test Results
-        if: always()
-        run: |
-          if [ -d "target/surefire-reports" ]; then
-            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
-              echo "Tests failed! Failing the workflow."
-              exit 1
-            fi
-          fi
-  Ubuntu_Edge_Grid:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v6
-      - name: Set up Native Selenium Grid
-        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=10 --scale firefox=0 -d
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
-      - name: Check running containers
-        run: docker ps
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=3" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
-      - name: Upload coverage to Codecov
-        if: always()
-        uses:  codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        run: mv allure-report/*AllureReport.html allure-report/Ubuntu_Edge_Grid_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/Ubuntu_Edge_Grid_Allure.html"
-          archive: false
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
-        continue-on-error: true
-      - name: Check Test Results
-        if: always()
-        run: |
-          if [ -d "target/surefire-reports" ]; then
-            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
-              echo "Tests failed! Failing the workflow."
-              exit 1
-            fi
-          fi
+          job-name: Ubuntu_${{ matrix.browser }}_Grid
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
   Android_Native_BrowserStack:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
       - name: Run tests
-        id: run_tests_android
         continue-on-error: true
         timeout-minutes: 40
         run: mvn -e test "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
-      - name: Generate Allure Report
+      - name: Post-Test Report and Check
         if: always()
-        continue-on-error: true
-        run: |
-          if [ ! -f "allure-report/AllureReport.html" ] && [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
-            ALLURE_BINARY=$(find ~/.m2/repository/allure -maxdepth 3 -name allure -not -name "*.bat" -type f 2>/dev/null | head -1)
-            if [ -n "$ALLURE_BINARY" ]; then
-              chmod +x "$ALLURE_BINARY"
-              "$ALLURE_BINARY" generate --single-file --clean allure-results -o allure-report
-              if [ -f "allure-report/index.html" ]; then
-                mv allure-report/index.html allure-report/AllureReport.html
-              fi
-            fi
-          fi
-      - name: Upload coverage to Codecov
-        if: always()
-        uses:  codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        run: mv allure-report/*AllureReport.html allure-report/Android_Native_BrowserStack_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/Android_Native_BrowserStack_Allure.html"
-          archive: false
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
-        continue-on-error: true
-      - name: Check Test Results
-        if: always()
-        run: |
-          if [ "${{ steps.run_tests_android.outcome }}" != "success" ]; then
-            echo "Test step failed or timed out (outcome: ${{ steps.run_tests_android.outcome }}). Failing the job."
-            exit 1
-          fi
-          if [ -d "target/surefire-reports" ]; then
-            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
-              echo "Tests failed! Failing the workflow."
-              exit 1
-            fi
-          fi
+          job-name: Android_Native_BrowserStack
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
   iOS_Web_SAFARI_BrowserStack:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=3" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=iOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-DbrowserName=safari" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
-      - name: Upload coverage to Codecov
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=iOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-DbrowserName=safari" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
+      - name: Post-Test Report and Check
         if: always()
-        uses:  codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        run: mv allure-report/*AllureReport.html allure-report/iOS_Web_SAFARI_BrowserStack_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/iOS_Web_SAFARI_BrowserStack_Allure.html"
-          archive: false
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
-        continue-on-error: true
-      - name: Check Test Results
-        if: always()
-        run: |
-          if [ -d "target/surefire-reports" ]; then
-            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
-              echo "Tests failed! Failing the workflow."
-              exit 1
-            fi
-          fi
+          job-name: iOS_Web_SAFARI_BrowserStack
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
   Android_Web_Chrome_BrowserStack:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=3" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-DbrowserName=chrome" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
-      - name: Upload coverage to Codecov
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-DbrowserName=chrome" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
+      - name: Post-Test Report and Check
         if: always()
-        uses:  codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        run: mv allure-report/*AllureReport.html allure-report/Android_Web_Chrome_BrowserStack_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/Android_Web_Chrome_BrowserStack_Allure.html"
-          archive: false
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
-        continue-on-error: true
-      - name: Check Test Results
-        if: always()
-        run: |
-          if [ -d "target/surefire-reports" ]; then
-            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
-              echo "Tests failed! Failing the workflow."
-              exit 1
-            fi
-          fi
+          job-name: Android_Web_Chrome_BrowserStack
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
   MacOSX_Safari_BrowserStack:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=3" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*]"
-      - name: Upload coverage to Codecov
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*]"
+      - name: Post-Test Report and Check
         if: always()
-        uses:  codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        run: mv allure-report/*AllureReport.html allure-report/MacOSX_Safari_BrowserStack_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/MacOSX_Safari_BrowserStack_Allure.html"
-          archive: false
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
-        continue-on-error: true
-      - name: Check Test Results
-        if: always()
-        run: |
-          if [ -d "target/surefire-reports" ]; then
-            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
-              echo "Tests failed! Failing the workflow."
-              exit 1
-            fi
-          fi
+          job-name: MacOSX_Safari_BrowserStack
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
   Ubuntu_Chrome_Cucumber_Grid:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v6
+      - name: Set up Native Selenium Grid
+        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=10 --scale edge=0 --scale firefox=0 -d
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
         with:
           node-version: '16'
-      - name: Set up Native Selenium Grid
-        if: runner.os == 'Linux'
-        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=10 --scale edge=0 --scale firefox=0 -d
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
       - name: Check running containers
-        if: runner.os == 'Linux'
         run: docker ps
-      - name: Run tests on Linux/MacOS
-        if: runner.os != 'Windows'
+      - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=3" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
-      - name: Upload coverage to Codecov
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
+      - name: Post-Test Report and Check
         if: always()
-        uses:  codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        run: mv allure-report/*AllureReport.html allure-report/Ubuntu_Chrome_Cucumber_Grid_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/Ubuntu_Chrome_Cucumber_Grid_Allure.html"
-          archive: false
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
-        continue-on-error: true
-      - name: Check Test Results
-        if: always()
-        run: |
-          if [ -d "target/surefire-reports" ]; then
-            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
-              echo "Tests failed! Failing the workflow."
-              exit 1
-            fi
-          fi
+          job-name: Ubuntu_Chrome_Cucumber_Grid
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
   MacOSX_Safari_Cucumber_BrowserStack:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v6
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
         with:
           node-version: '16'
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=3" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*CucumberTests.*]"
-      - name: Upload coverage to Codecov
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
+      - name: Post-Test Report and Check
         if: always()
-        uses:  codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        run: mv allure-report/*AllureReport.html allure-report/MacOSX_Safari_Cucumber_BrowserStack_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/MacOSX_Safari_Cucumber_BrowserStack_Allure.html"
-          archive: false
-      - name: Test Summary
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
-        continue-on-error: true
-      - name: Check Test Results
-        if: always()
-        run: |
-          if [ -d "target/surefire-reports" ]; then
-            if grep -r "failures=\"[1-9]" target/surefire-reports/ || grep -r "errors=\"[1-9]" target/surefire-reports/; then
-              echo "Tests failed! Failing the workflow."
-              exit 1
-            fi
-          fi
+          job-name: MacOSX_Safari_Cucumber_BrowserStack
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Workflow_Summary:
+    if: always()
+    needs: [Ubuntu_Database, Ubuntu_APIs, Ubuntu_Browser_Grid, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack, MacOSX_Safari_BrowserStack, Ubuntu_Chrome_Cucumber_Grid, MacOSX_Safari_Cucumber_BrowserStack]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Consolidate Test Results
+        uses: ./.github/actions/consolidate-test-results

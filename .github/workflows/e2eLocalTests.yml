@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*], !%regex[.*CLI.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*api.*],!%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*obile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*], !%regex[.*Flutter.*]"
+  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*], !%regex[.*CLI.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*obile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*], !%regex[.*Flutter.*]"
 
 jobs:
   Windows_Edge_Local:
@@ -14,222 +14,103 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
       - name: Print Edge version
         continue-on-error: true
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*DatabaseActions.*], !%regex[.*CLI.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*api.*],!%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*obile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*], !%regex[.*Flutter.*]"
-      - name: Upload coverage to Codecov
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+      - name: Post-Test Report and Check
         if: always()
-        uses: codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        shell: bash
-        run: mv allure-report/*AllureReport.html allure-report/Windows_Edge_Local_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/Windows_Edge_Local_Allure.html"
-          archive: false
-      - name: Test Summary
-        continue-on-error: true
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
+          job-name: Windows_Edge_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
   MacOSX_Safari_Local:
     runs-on: macos-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
-      - name: Upload coverage to Codecov
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+      - name: Post-Test Report and Check
         if: always()
-        uses: codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        run: mv allure-report/*AllureReport.html allure-report/MacOSX_Safari_Local_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/MacOSX_Safari_Local_Allure.html"
-          archive: false
-      - name: Test Summary
-        continue-on-error: true
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
+          job-name: MacOSX_Safari_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
   Windows_Chrome_Local:
     runs-on: windows-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*DatabaseActions.*], !%regex[.*CLI.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*api.*],!%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*obile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*], !%regex[.*Flutter.*]"
-      - name: Upload coverage to Codecov
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+      - name: Post-Test Report and Check
         if: always()
-        uses:  codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        shell: bash
-        run: mv allure-report/*AllureReport.html allure-report/Windows_Chrome_Local_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/Windows_Chrome_Local_Allure.html"
-          archive: false
-      - name: Test Summary
-        continue-on-error: true
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
+          job-name: Windows_Chrome_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
   MacOSX_Chrome_Local:
     runs-on: macos-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
-      - name: Upload coverage to Codecov
+      - name: Post-Test Report and Check
         if: always()
-        uses:  codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        run: mv allure-report/*AllureReport.html allure-report/MacOSX_Chrome_Local_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/MacOSX_Chrome_Local_Allure.html"
-          archive: false
-      - name: Test Summary
-        continue-on-error: true
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
+          job-name: MacOSX_Chrome_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
   Windows_Edge_Cucumber_Local:
     runs-on: windows-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v6
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
         with:
           node-version: '16'
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          cache: 'maven'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.5
       - name: Print Edge version
         continue-on-error: true
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
-      - name: Run tests on Windows
-        if: runner.os == 'Windows'
+      - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" -DexecutionAddress="local" -DtargetOperatingSystem="WINDOWS" -DmaximumPerformanceMode="2" -DtargetBrowserName="MicrosoftEdge" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*CucumberTests.*]"
-      - name: Upload coverage to Codecov
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DmaximumPerformanceMode=2" "-DtargetBrowserName=MicrosoftEdge" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
+      - name: Post-Test Report and Check
         if: always()
-        uses: codecov/codecov-action@v5
+        uses: ./.github/actions/post-test-report
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./target/jacoco/jacoco.xml
-          verbose: true
-          disable_search: true
-      - name: Rename Allure Report for Direct Upload
-        if: always()
-        shell: bash
-        run: mv allure-report/*AllureReport.html allure-report/Windows_Edge_Cucumber_Local_Allure.html 2>/dev/null || true
-      - name: Upload Allure Report as Pipeline Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: "allure-report/Windows_Edge_Cucumber_Local_Allure.html"
-          archive: false
-      - name: Test Summary
-        continue-on-error: true
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
-        if: always()
+          job-name: Windows_Edge_Cucumber_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Workflow_Summary:
+    if: always()
+    needs: [Windows_Edge_Local, MacOSX_Safari_Local, Windows_Chrome_Local, MacOSX_Chrome_Local, Windows_Edge_Cucumber_Local]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Consolidate Test Results
+        uses: ./.github/actions/consolidate-test-results
