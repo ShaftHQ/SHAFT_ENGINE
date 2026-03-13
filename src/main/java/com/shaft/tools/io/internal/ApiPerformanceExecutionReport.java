@@ -4,8 +4,10 @@ import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.support.PerformanceReportHTMLHelper;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.DoubleSummaryStatistics;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +25,8 @@ import java.util.Map;
  * API performance-tracking infrastructure.
  */
 public class ApiPerformanceExecutionReport {
+    private static final DateTimeFormatter READABLE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter FILENAME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSSS-a").withZone(ZoneId.systemDefault());
 
     // Fetch properties from the Reporting interface
 
@@ -95,7 +99,7 @@ public class ApiPerformanceExecutionReport {
 
     // Helper method to format the timestamp into a readable date
     private static String formatTimestamp(long timestamp) {
-        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(timestamp));
+        return READABLE_FORMATTER.format(Instant.ofEpochMilli(timestamp));
     }
 
     // Helper method to format the execution time into minutes and seconds
@@ -107,6 +111,6 @@ public class ApiPerformanceExecutionReport {
 
     // Method to generate a timestamp for the report filename
     private static String getTimestamp() {
-        return new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa").format(new Date());
+        return FILENAME_FORMATTER.format(ZonedDateTime.now());
     }
 }

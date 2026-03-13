@@ -26,31 +26,32 @@ import org.testng.Reporter;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 
 //@Getter
 @SuppressWarnings("unused")
 public class ReportManagerHelper {
-    private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
+    private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSSS a");
     private static final String REPORT_MANAGER_PREFIX = "[ReportManager] ";
     private static final String SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE = "SHAFT Engine Logs";
-    private static volatile String issuesLog = "";
+    private static final AtomicReference<String> issuesLog = new AtomicReference<>("");
     private static final AtomicInteger issueCounter = new AtomicInteger(1);
     private static volatile boolean discreteLogging = false;
     @Getter
     private static volatile int totalNumberOfTests = 0;
     private static final AtomicInteger testCasesCounter = new AtomicInteger(0);
     private static volatile boolean debugMode = false;
-    private static volatile int openIssuesForFailedTestsCounter = 0;
-    @Getter
-    private static volatile int openIssuesForPassedTestsCounter = 0;
-    @Getter
-    private static volatile int failedTestsWithoutOpenIssuesCounter = 0;
+    private static final AtomicInteger openIssuesForFailedTestsCounter = new AtomicInteger(0);
+    private static final AtomicInteger openIssuesForPassedTestsCounter = new AtomicInteger(0);
+    private static final AtomicInteger failedTestsWithoutOpenIssuesCounter = new AtomicInteger(0);
+    private static final StackWalker STACK_WALKER = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
     // TODO: refactor to regular class that can be instantiated within the test
     private static List<List<String>> listOfOpenIssuesForFailedTests = Collections.synchronizedList(new ArrayList<>());
     private static List<List<String>> listOfOpenIssuesForPassedTests = Collections.synchronizedList(new ArrayList<>());
@@ -63,15 +64,23 @@ public class ReportManagerHelper {
     }
 
     public static void setOpenIssuesForFailedTestsCounter(int openIssuesForFailedTestsCounter) {
-        ReportManagerHelper.openIssuesForFailedTestsCounter = openIssuesForFailedTestsCounter;
+        ReportManagerHelper.openIssuesForFailedTestsCounter.set(openIssuesForFailedTestsCounter);
     }
 
     public static void setOpenIssuesForPassedTestsCounter(int openIssuesForPassedTestsCounter) {
-        ReportManagerHelper.openIssuesForPassedTestsCounter = openIssuesForPassedTestsCounter;
+        ReportManagerHelper.openIssuesForPassedTestsCounter.set(openIssuesForPassedTestsCounter);
     }
 
     public static void setFailedTestsWithoutOpenIssuesCounter(int failedTestsWithoutOpenIssuesCounter) {
-        ReportManagerHelper.failedTestsWithoutOpenIssuesCounter = failedTestsWithoutOpenIssuesCounter;
+        ReportManagerHelper.failedTestsWithoutOpenIssuesCounter.set(failedTestsWithoutOpenIssuesCounter);
+    }
+
+    public static int getOpenIssuesForPassedTestsCounter() {
+        return openIssuesForPassedTestsCounter.get();
+    }
+
+    public static int getFailedTestsWithoutOpenIssuesCounter() {
+        return failedTestsWithoutOpenIssuesCounter.get();
     }
 
     public static void setListOfOpenIssuesForFailedTests(List<List<String>> listOfOpenIssuesForFailedTests) {
@@ -91,15 +100,14 @@ public class ReportManagerHelper {
     }
 
     public static int getOpenIssuesForFailedTestsCounters() {
-        return openIssuesForFailedTestsCounter;
+        return openIssuesForFailedTestsCounter.get();
     }
 
     public static void logIssue(String issue) {
-        if (issuesLog.trim().isEmpty()) {
-            issuesLog += issueCounter.get() + ", " + issue.trim();
-        } else {
-            issuesLog += System.lineSeparator() + issueCounter.get() + ", " + issue.trim();
-        }
+        String entry = issueCounter.get() + ", " + issue.trim();
+        issuesLog.accumulateAndGet(entry, (current, newEntry) ->
+                current.trim().isEmpty() ? newEntry : current + System.lineSeparator() + newEntry);
+        issueCounter.incrementAndGet();
         issueCounter.incrementAndGet();
     }
 
@@ -133,11 +141,11 @@ public class ReportManagerHelper {
             });
         }
 
-        if (!issuesLog.trim().isEmpty()) {
+        if (!issuesLog.get().trim().isEmpty()) {
             return "Issue Summary: Total Issues = " + (issueCounter.get() - 1) + ", New issues for Failed Tests = "
-                    + failedTestsWithoutOpenIssuesCounter + ", Open issues for Passed Tests = "
-                    + openIssuesForPassedTestsCounter + ", Open issues for Failed Tests = "
-                    + openIssuesForFailedTestsCounter + ". Kindly check the attached Issue details.";
+                    + failedTestsWithoutOpenIssuesCounter.get() + ", Open issues for Passed Tests = "
+                    + openIssuesForPassedTestsCounter.get() + ", Open issues for Failed Tests = "
+                    + openIssuesForFailedTestsCounter.get() + ". Kindly check the attached Issue details.";
         } else {
             return "";
         }
@@ -327,11 +335,11 @@ public class ReportManagerHelper {
 
     public static void attachIssuesLog(String executionEndTimestamp) {
         String issueSummary = prepareIssuesLog();
-        if (!issuesLog.trim().isEmpty()) {
+        if (!issuesLog.get().trim().isEmpty()) {
             log(issueSummary,
                     Collections.singletonList(
                             Arrays.asList(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Issues log CSV: " + executionEndTimestamp,
-                                    new ByteArrayInputStream(issuesLog.trim().getBytes()))));
+                                    new ByteArrayInputStream(issuesLog.get().trim().getBytes()))));
         }
     }
 
@@ -430,7 +438,7 @@ public class ReportManagerHelper {
 
     public static void createLogEntry(String logText, Level loglevel) {
         if (SHAFT.Properties.reporting != null && !SHAFT.Properties.reporting.disableLogging()) {
-            String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
+            String timestamp = TIMESTAMP_FORMATTER.format(ZonedDateTime.now());
             if (logText == null) {
                 logText = "null";
             }
@@ -445,7 +453,7 @@ public class ReportManagerHelper {
 
     private static void createLogEntry(String logText, boolean addToConsoleLog) {
         if (!SHAFT.Properties.reporting.disableLogging()) {
-            String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
+            String timestamp = TIMESTAMP_FORMATTER.format(ZonedDateTime.now());
             if (logText == null) {
                 logText = "null";
             }
@@ -603,7 +611,7 @@ public class ReportManagerHelper {
                 && !attachmentType.toLowerCase().contains("screenshot")
                 && !attachmentType.toLowerCase().contains("recording") && !attachmentType.toLowerCase().contains("gif")
                 && !attachmentType.toLowerCase().contains("engine logs")) {
-            String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
+            String timestamp = TIMESTAMP_FORMATTER.format(ZonedDateTime.now());
 
             String theString;
             var br = new BufferedReader(
@@ -621,8 +629,9 @@ public class ReportManagerHelper {
     }
 
     public static boolean isInternalStep() {
-        var callingMethodName = (new Throwable()).getStackTrace()[2].toString();
-        return callingMethodName.contains("shaft");
+        return STACK_WALKER.walk(frames -> frames.skip(2).findFirst()
+                .map(frame -> frame.getClassName().contains("shaft"))
+                .orElse(false));
     }
 
     /**

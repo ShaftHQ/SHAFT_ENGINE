@@ -1,18 +1,19 @@
 package com.shaft.tools.internal.support;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class PerformanceReportHTMLHelper {
     // Add the SHAFT logo URL as a constant
     private static final String SHAFT_LOGO_URL = "https://github.com/ShaftHQ/SHAFT_ENGINE/raw/main/src/main/resources/images/shaft.png";
+    private static final DateTimeFormatter REPORT_CREATION_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     // Method to generate the final HTML report with responsive layout and pagination
     public static String buildHtml(String startTime, String endTime, String executionTime, String performanceTableRows) {
         StringBuilder html = new StringBuilder();
 
         // Get the current time as the report creation time
-        String reportCreationTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+        String reportCreationTime = REPORT_CREATION_FORMATTER.format(ZonedDateTime.now());
 
         // Build the HTML report
         html.append("<html><head><title>Performance Report</title>");

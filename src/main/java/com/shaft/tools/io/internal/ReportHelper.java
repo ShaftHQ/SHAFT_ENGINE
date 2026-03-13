@@ -5,20 +5,22 @@ import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 
 import java.io.File;
-import java.text.SimpleDateFormat;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
 public class ReportHelper {
+    private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+
     public static void attachEngineLog() {
-        String executionEndTimestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
+        String executionEndTimestamp = TIMESTAMP_FORMATTER.format(ZonedDateTime.now());
         ReportManagerHelper.attachEngineLog(executionEndTimestamp);
     }
 
     public static void attachIssuesLog() {
-        String executionEndTimestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
+        String executionEndTimestamp = TIMESTAMP_FORMATTER.format(ZonedDateTime.now());
         ReportManagerHelper.attachIssuesLog(executionEndTimestamp);
     }
 

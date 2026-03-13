@@ -19,14 +19,15 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
 public class ScreenshotManager {
     private static final String VALIDATION_ACTION_REGEX = "(.*validation.*)|(.*verify.*)|(.*assert.*)";
+    private static final DateTimeFormatter ATTACHMENT_FILENAME_FORMATTER = DateTimeFormatter.ofPattern("HH-mm-ss-SSS_ddMMyyyy");
     private final ElementActionsHelper elementActionsHelper;
 
     public ScreenshotManager() {
@@ -77,7 +78,7 @@ public class ScreenshotManager {
     }
 
     public String generateAttachmentFileName(String actionName) {
-        return actionName + "_" + new SimpleDateFormat("HH-mm-ss-SSS_ddMMyyyy").format(new Date());
+        return actionName + "_" + ATTACHMENT_FILENAME_FORMATTER.format(ZonedDateTime.now());
     }
 
     public List<Object> prepareImageForReport(byte[] image, String actionName) {
