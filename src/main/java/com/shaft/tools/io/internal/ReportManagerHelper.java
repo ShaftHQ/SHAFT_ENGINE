@@ -108,7 +108,6 @@ public class ReportManagerHelper {
         issuesLog.accumulateAndGet(entry, (current, newEntry) ->
                 current.trim().isEmpty() ? newEntry : current + System.lineSeparator() + newEntry);
         issueCounter.incrementAndGet();
-        issueCounter.incrementAndGet();
     }
 
     public static String prepareIssuesLog() {
