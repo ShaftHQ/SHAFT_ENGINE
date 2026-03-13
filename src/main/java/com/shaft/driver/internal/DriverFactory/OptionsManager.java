@@ -37,6 +37,8 @@ import java.util.Map;
 @Setter
 public class OptionsManager {
 
+    private static final Object SE_CONFIG_LOCK = new Object();
+
     private ChromeOptions chOptions;
     private FirefoxOptions ffOptions;
     private SafariOptions sfOptions;
@@ -191,58 +193,61 @@ public class OptionsManager {
         }
     }
 
-    private synchronized void setSeleniumManagerOptions(MutableCapabilities options) {
-        String folderPath = System.getProperty("user.home") + File.separatorChar + ".cache" + File.separatorChar + "selenium" + File.separatorChar;
-        String fileName = "se-config.toml";
-        var fileActions = FileActions.getInstance(true);
-
-        // create config file if it doesn't exist
-        if (!fileActions.doesFileExist(folderPath, fileName, 1)) {
-            fileActions.createFile(folderPath, fileName);
-        }
-
-        // read config file
-        String config = fileActions.readFile(folderPath, fileName);
-
-        // handle force browser download property
-        String forceBrowserDownloadProperty = "force-browser-download = true";
+    private void setSeleniumManagerOptions(MutableCapabilities options) {
+        // mutate per-thread capabilities outside the shared lock to reduce contention
         if (SHAFT.Properties.web.forceBrowserDownload()) {
             if (options instanceof ChromeOptions chromeOptions) {
                 chromeOptions.setBrowserVersion("stable");
             } else if (options instanceof FirefoxOptions firefoxOptions) {
                 firefoxOptions.setBrowserVersion("stable");
             }
-
-            if (!config.contains(forceBrowserDownloadProperty))
-                if (config.isBlank()) {
-                    fileActions.writeToFile(folderPath, fileName, forceBrowserDownloadProperty);
-                } else {
-                    fileActions.writeToFile(folderPath, fileName
-                            , config + System.lineSeparator() + forceBrowserDownloadProperty);
-                }
-        } else {
-            if (config.contains("force-browser-download"))
-                fileActions.writeToFile(folderPath, fileName
-                        , config.replaceAll("force-browser-download.+\\Be", ""));
         }
 
-        //reload config file
-        config = fileActions.readFile(folderPath, fileName);
+        synchronized (SE_CONFIG_LOCK) {
+            String folderPath = System.getProperty("user.home") + File.separatorChar + ".cache" + File.separatorChar + "selenium" + File.separatorChar;
+            String fileName = "se-config.toml";
+            var fileActions = FileActions.getInstance(true);
 
-        // handle proxy property
-        String proxyProperty = "proxy = \"" + SHAFT.Properties.platform.proxy() + "\"";
-        if (!SHAFT.Properties.platform.proxy().isEmpty()) {
-            if (!config.contains(proxyProperty))
-                if (config.isBlank()) {
-                    fileActions.writeToFile(folderPath, fileName, proxyProperty);
-                } else {
+            // create config file if it doesn't exist
+            fileActions.createFile(folderPath, fileName);
+
+            // read config file
+            String config = fileActions.readFile(folderPath, fileName);
+
+            // handle force browser download property
+            String forceBrowserDownloadProperty = "force-browser-download = true";
+            if (SHAFT.Properties.web.forceBrowserDownload()) {
+                if (!config.contains(forceBrowserDownloadProperty))
+                    if (config.isBlank()) {
+                        fileActions.writeToFile(folderPath, fileName, forceBrowserDownloadProperty);
+                    } else {
+                        fileActions.writeToFile(folderPath, fileName
+                                , config + System.lineSeparator() + forceBrowserDownloadProperty);
+                    }
+            } else {
+                if (config.contains("force-browser-download"))
                     fileActions.writeToFile(folderPath, fileName
-                            , config + System.lineSeparator() + proxyProperty);
-                }
-        } else {
-            if (config.contains("proxy"))
-                fileActions.writeToFile(folderPath, fileName
-                        , config.replaceAll("proxy.+\\B", ""));
+                            , config.replaceAll("(?m)^force-browser-download\\s*=.*?(\\r?\\n|$)", ""));
+            }
+
+            //reload config file
+            config = fileActions.readFile(folderPath, fileName);
+
+            // handle proxy property
+            String proxyProperty = "proxy = \"" + SHAFT.Properties.platform.proxy() + "\"";
+            if (!SHAFT.Properties.platform.proxy().isEmpty()) {
+                if (!config.contains(proxyProperty))
+                    if (config.isBlank()) {
+                        fileActions.writeToFile(folderPath, fileName, proxyProperty);
+                    } else {
+                        fileActions.writeToFile(folderPath, fileName
+                                , config + System.lineSeparator() + proxyProperty);
+                    }
+            } else {
+                if (config.contains("proxy"))
+                    fileActions.writeToFile(folderPath, fileName
+                            , config.replaceAll("(?m)^proxy\\s*=.*?(\\r?\\n|$)", ""));
+            }
         }
     }
 
