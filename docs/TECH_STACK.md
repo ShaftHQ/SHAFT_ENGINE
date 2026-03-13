@@ -5,9 +5,9 @@
 <table border="0" align="center">
  <tr>
   <td align="center"><br/>
-<a href="https://www.oracle.com/eg/java/technologies/downloads/" target="_blank"><img src="https://dev.java/assets/images/java-logo-vert-blk.png" alt="Java" height="50"></a>
+<a href="https://www.oracle.com/eg/java/technologies/downloads/" target="_blank"><img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/java/java-original-wordmark.svg" alt="Java" height="50"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://maven.apache.org/" target="_blank"><img src="https://maven.apache.org/images/maven-logo-black-on-white.png" alt="Maven" height="50"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://jb.gg/OpenSourceSupport" target="_blank"><img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.svg" alt="Powered by JetBrains" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://jb.gg/OpenSourceSupport" target="_blank"><img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg" alt="Powered by JetBrains" height="50"></a>
   <br/><br/></td>
  </tr>
 </table>
@@ -17,7 +17,7 @@
 <table border="0" align="center">
  <tr>
   <td align="center"><br/>
-<a href="https://www.selenium.dev/" target="_blank"><img src="https://www.selenium.dev/images/selenium_logo_square_green.png" alt="Selenium" height="50"></a>
+<a href="https://www.selenium.dev/" target="_blank"><img src="https://www.selenium.dev/images/selenium_4_logo.png" alt="Selenium" height="50"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://appium.io/" target="_blank"><img src="https://appium.io/docs/en/latest/assets/images/appium-logo-horiz.png" alt="Appium" height="50"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://rest-assured.io/" target="_blank"><img src="https://rest-assured.io/img/logo-transparent.png" alt="REST Assured" height="50"><img src="https://rest-assured.io/img/name-transparent.png" alt="" height="50"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://opencv.org/" target="_blank"><img src="https://github.com/user-attachments/assets/944f0043-7b76-472a-8fa6-9beee1ac3a2f" alt="OpenCV" height="50"></a>
@@ -33,7 +33,7 @@
  <tr>
   <td align="center">
 <a href="https://allurereport.org/" target="_blank"><img src="https://allurereport.org/svg/logo-report-sign.svg" alt="Allure Reports" height="50"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://reportportal.io/" target="_blank"><img src="https://avatars.githubusercontent.com/u/38317040?s=200" alt="ReportPortal" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://reportportal.io/" target="_blank"><img src="https://images.ctfassets.net/1n1nntnzoxp4/1g6b56w2LaPeHk4XUo3vqP/45dfb8b10e6fafba913d0f012793e44e/reportportal.svg" alt="ReportPortal" height="50"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.selenium.dev/documentation/grid/" target="_blank"><img src="https://media.softwaresim.com/Selenium_Grid_mpxkym-600.webp" alt="Selenium Grid" height="50"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://github.com/features/actions" target="_blank"><img src="https://github.githubassets.com/images/modules/site/features/actions-icon-actions.svg" alt="GitHub Actions" height="50"></a>
   <br/><br/></td>
@@ -41,11 +41,11 @@
  <tr>
   <td align="center">
 <a href="https://github.com/dependabot" target="_blank"><img src="https://avatars.githubusercontent.com/u/27347476?s=200" alt="Dependabot" height="50"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://codeql.github.com/" target="_blank"><img src="https://avatars.githubusercontent.com/u/52878612?s=200" alt="CodeQL" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://codeql.github.com/" target="_blank"><img src="https://github.gallerycdn.vsassets.io/extensions/github/vscode-codeql/1.7.7/1670939628664/Microsoft.VisualStudio.Services.Icons.Default" alt="CodeQL" height="50"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://app.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard" target="_blank"><img src="https://avatars.githubusercontent.com/u/11225111?s=200" alt="Codacy" height="50"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.jacoco.org/jacoco/" target="_blank"><img src="https://www.jacoco.org/images/jacoco.png" alt="JaCoCo" height="50"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE" target="_blank"><img src="https://avatars.githubusercontent.com/u/8226205?s=200" alt="Codecov" height="50"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://central.sonatype.com/" target="_blank"><img src="https://avatars.githubusercontent.com/u/1750273?s=200" alt="Sonatype" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://central.sonatype.com/" target="_blank"><img src="https://central.sonatype.com/maven-central-logo.svg" alt="Maven Central" height="50"></a>
   <br/><br/></td>
  </tr>
 </table>
