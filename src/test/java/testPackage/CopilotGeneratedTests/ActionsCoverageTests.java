@@ -1,7 +1,6 @@
 package testPackage.CopilotGeneratedTests;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.internal.locator.Locator;
 import org.openqa.selenium.By;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -10,9 +9,11 @@ import testPackage.Tests;
 import java.util.Objects;
 
 public class ActionsCoverageTests extends Tests {
-    String testUrl = "https://duckduckgo.com/";
-    By logo = Locator.hasTagName("img").hasAttribute("alt", "DuckDuckGo Logo").isFirst().build();
-    By searchBox = Locator.hasAnyTagName().hasAttribute("name", "q").build();
+    String testUrl = "data:text/html,<html><head><title>Test Page</title></head><body>"
+            + "<img id='logo' alt='Test Logo' width='100' height='100' style='display:block;background:blue;'/>"
+            + "<br/><input type='text' name='q' id='search'/></body></html>";
+    By logo = By.id("logo");
+    By searchBox = By.id("search");
 
     @BeforeMethod
     public void internalSetup() {
@@ -139,15 +140,15 @@ public class ActionsCoverageTests extends Tests {
     }
 
     @Test
-    public void testWaitUntilTitleContainsDuckDuckGo() {
-        driver.get().element().waitUntil(d -> Objects.requireNonNull(d.getTitle()).contains("DuckDuckGo"));
-        driver.get().assertThat().browser().title().contains("DuckDuckGo");
+    public void testWaitUntilTitleContainsTestPage() {
+        driver.get().element().waitUntil(d -> Objects.requireNonNull(d.getTitle()).contains("Test Page"));
+        driver.get().assertThat().browser().title().contains("Test Page");
     }
 
     @Test
     public void testWaitUntilWithTimeout() {
-        driver.get().element().waitUntil(d -> Objects.requireNonNull(d.getTitle()).contains("DuckDuckGo"), java.time.Duration.ofSeconds(5));
-        driver.get().assertThat().browser().title().contains("DuckDuckGo");
+        driver.get().element().waitUntil(d -> Objects.requireNonNull(d.getTitle()).contains("Test Page"), java.time.Duration.ofSeconds(5));
+        driver.get().assertThat().browser().title().contains("Test Page");
     }
 
     @Test(expectedExceptions = RuntimeException.class)

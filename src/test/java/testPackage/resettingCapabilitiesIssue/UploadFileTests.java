@@ -1,7 +1,6 @@
 package testPackage.resettingCapabilitiesIssue;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -15,10 +14,10 @@ public class UploadFileTests {
     @Test
     public void uploadFile_visibleUploadInput() {
         if (SHAFT.Properties.platform.executionAddress().equals("local")) {
-            driver.get().browser().navigateToURL("https://demo.guru99.com/test/upload/");
-            driver.get().element().typeFileLocationForUpload(By.id("uploadfile_0"), "src/main/resources/images/shaft.png");
-            driver.get().element().click(By.id("terms")).click(By.id("submitbutton"));
-            Validations.assertThat().element(driver.get().getDriver(), By.id("res")).attribute("Text").contains("1 file").perform();
+            driver.get().browser().navigateToURL("https://the-internet.herokuapp.com/upload");
+            driver.get().element().typeFileLocationForUpload(By.cssSelector("input[id='file-upload']"), "src/main/resources/images/shaft.png");
+            driver.get().element().click(By.id("file-submit"));
+            driver.get().assertThat().element(By.tagName("h3")).text().contains("File Uploaded!");
         }
     }
 
@@ -26,13 +25,13 @@ public class UploadFileTests {
     @Test
     public void uploadFile_invisibleUploadInput() {
         if (SHAFT.Properties.platform.executionAddress().equals("local")) {
-            driver.get().browser().navigateToURL("https://demo.guru99.com/test/upload/");
+            driver.get().browser().navigateToURL("https://the-internet.herokuapp.com/upload");
             WebDriver nativeDriver = driver.get().getDriver();
-            ((JavascriptExecutor) nativeDriver).executeScript("arguments[0].setAttribute('hidden', 'true')", nativeDriver.findElement(By.id("uploadfile_0")));
+            ((JavascriptExecutor) nativeDriver).executeScript("arguments[0].setAttribute('hidden', 'true')", nativeDriver.findElement(By.cssSelector("input[id='file-upload']")));
 
-            driver.get().element().typeFileLocationForUpload(By.id("uploadfile_0"), "src/main/resources/images/shaft.png");
-            driver.get().element().click(By.id("terms")).click(By.id("submitbutton"));
-            Validations.assertThat().element(driver.get().getDriver(), By.id("res")).attribute("Text").contains("1 file").perform();
+            driver.get().element().typeFileLocationForUpload(By.cssSelector("input[id='file-upload']"), "src/main/resources/images/shaft.png");
+            driver.get().element().click(By.id("file-submit"));
+            driver.get().assertThat().element(By.tagName("h3")).text().contains("File Uploaded!");
         }
     }
 
