@@ -175,8 +175,6 @@ public class QuickStartTest {
 
 ### 💎 Sponsors
 
-<a href="https://jb.gg/OpenSourceSupport" target="_blank"><img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg" alt="JetBrains" height="50"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;
 <a href="https://www.browserstack.com/" target="_blank"><img src="https://ml.globenewswire.com/Resource/Download/745e80b7-4736-424e-b44b-850d2dc41940" alt="BrowserStack" height="50"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;
 <a href="https://www.lambdatest.com" target="_blank"><img src="https://assets.testmuai.com/resources/images/logos/logo.svg" alt="LambdaTest (TestMu AI)" width="250" height="50"></a>
