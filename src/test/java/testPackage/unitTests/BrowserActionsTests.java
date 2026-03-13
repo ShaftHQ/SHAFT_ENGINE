@@ -20,10 +20,10 @@ public class BrowserActionsTests {
 
     @Test
     public void navigateBack() {
-        driver.get().browser().navigateToURL("https://duckduckgo.com/?");
-        driver.get().browser().navigateToURL("https://shafthq.github.io/");
+        driver.get().browser().navigateToURL("https://www.selenium.dev/selenium/web/xhtmlTest.html");
+        driver.get().browser().navigateToURL("https://www.selenium.dev/selenium/web/simpleTest.html");
         driver.get().browser().navigateBack();
-        driver.get().assertThat().browser().url().contains("duckduckgo").perform();
+        driver.get().assertThat().browser().url().contains("xhtmlTest").perform();
     }
 
     @Test
@@ -88,7 +88,7 @@ public class BrowserActionsTests {
     @BeforeMethod
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL("https://shafthq.github.io/");
+        driver.get().browser().navigateToURL("https://shaftengine.netlify.app/");
     }
 
     @AfterMethod(alwaysRun = true)
