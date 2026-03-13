@@ -66,7 +66,7 @@ public class CoverageTests {
     public void nativeWebDriverListenerTests() {
         String testElement = "data:text/html,<form><input type=\"text\"><br><br></form>";
         By locator = SHAFT.GUI.Locator.hasTagName("input").build();
-        driver.get().getDriver().navigate().to("https://www.automatest.org");
+        driver.get().getDriver().navigate().to("https://www.selenium.dev/selenium/web/xhtmlTest.html");
         driver.get().getDriver().get(testElement);
         driver.get().getDriver().navigate().back();
         driver.get().getDriver().navigate().forward();
