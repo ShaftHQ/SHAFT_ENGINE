@@ -33,6 +33,23 @@ public final class ThreadLocalPropertiesManager {
     }
 
     /**
+     * Returns the effective value for the given property key by checking the
+     * current thread's overrides first and falling back to the corresponding
+     * system property.  This is the single-key equivalent of
+     * {@link #getEffectiveProperties()} and should be used in place of
+     * {@code System.getProperty(key)} wherever SHAFT configuration values
+     * are read, so that per-thread overrides are honoured.
+     *
+     * @param key the property key
+     * @return the thread-local value if set, otherwise the system property value,
+     *         or {@code null} if neither is set
+     */
+    public static String getProperty(String key) {
+        String value = threadLocalOverrides.get().getProperty(key);
+        return value != null ? value : System.getProperty(key);
+    }
+
+    /**
      * Returns the live thread-local overrides map for the current thread.
      * This map is passed to {@code ConfigFactory.create()} as the highest-priority
      * property source so that any overrides set by the current thread take precedence

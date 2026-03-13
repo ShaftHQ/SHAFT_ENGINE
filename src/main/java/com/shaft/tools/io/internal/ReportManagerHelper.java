@@ -7,6 +7,7 @@ import com.shaft.listeners.CucumberFeatureListener;
 import com.shaft.listeners.JunitListener;
 import com.shaft.listeners.internal.JunitListenerHelper;
 import com.shaft.properties.internal.PropertyFileManager;
+import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import io.qameta.allure.Allure;
@@ -169,8 +170,8 @@ public class ReportManagerHelper {
 
     private static void initializeLogger() {
         // delete previous run execution log
-        if (System.getProperty("appender.file.fileName") != null)
-            FileActions.getInstance(true).deleteFile(System.getProperty("appender.file.fileName"));
+        if (ThreadLocalPropertiesManager.getProperty("appender.file.fileName") != null)
+            FileActions.getInstance(true).deleteFile(ThreadLocalPropertiesManager.getProperty("appender.file.fileName"));
         // initialize log4j, used by some transitive dependencies
         BasicConfigurator.configure();
         // initialize log4j2
@@ -313,8 +314,8 @@ public class ReportManagerHelper {
             createLogEntry(engineLogCreated, true);
             byte[] engineLog = new byte[0];
             try {
-                engineLog = FileActions.getInstance(true).readFileAsByteArray(System.getProperty("appender.file.fileName"));
-                FileActions.getInstance(true).deleteFile(System.getProperty("appender.file.fileName"));
+                engineLog = FileActions.getInstance(true).readFileAsByteArray(ThreadLocalPropertiesManager.getProperty("appender.file.fileName"));
+                FileActions.getInstance(true).deleteFile(ThreadLocalPropertiesManager.getProperty("appender.file.fileName"));
             } catch (Exception throwable) {
                 logDiscrete(throwable);
             }

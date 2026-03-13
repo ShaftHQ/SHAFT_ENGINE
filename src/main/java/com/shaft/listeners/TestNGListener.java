@@ -11,6 +11,7 @@ import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.listeners.internal.*;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.properties.internal.Properties;
+import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.internal.FirestoreRestClient;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.ReportManager;
@@ -121,7 +122,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
             System.out.println(warning);
             ReportManagerHelper.logDiscrete(warning, Level.WARN);
         }
-        TestNGListener.isReportPortalEnabled = Boolean.parseBoolean(System.getProperty("rp.enable").trim());
+        String rpEnableValue = ThreadLocalPropertiesManager.getProperty("rp.enable");
+        TestNGListener.isReportPortalEnabled = rpEnableValue != null && Boolean.parseBoolean(rpEnableValue.trim());
         if (TestNGListener.isReportPortalEnabled) {
             String info = "Initializing ReportPortal Reporting Environment.";
             ReportManagerHelper.logDiscrete(info, Level.INFO);
