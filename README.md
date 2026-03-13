@@ -177,7 +177,8 @@ mvn archetype:generate \
 <dependency>
     <groupId>io.github.shafthq</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>LATEST</version>
+    <!-- Get the latest version from Maven Central ↓ -->
+    <version><!-- SEE BADGE BELOW --></version>
 </dependency>
 ```
 </details>
@@ -187,12 +188,13 @@ mvn archetype:generate \
 
 ```kotlin
 dependencies {
-    testImplementation("io.github.shafthq:SHAFT_ENGINE:LATEST")
+    // Get the latest version from Maven Central ↓
+    testImplementation("io.github.shafthq:SHAFT_ENGINE:<version>")
 }
 ```
 </details>
 
-> 💡 Replace `LATEST` with the version shown in the [![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/SHAFT_ENGINE?style=flat-square&label=latest)](https://central.sonatype.com/artifact/io.github.shafthq/SHAFT_ENGINE) badge above.
+> 💡 Check the latest version: [![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/SHAFT_ENGINE?style=flat-square&label=latest%20version)](https://central.sonatype.com/artifact/io.github.shafthq/SHAFT_ENGINE)
 
 ### Your First Test
 
