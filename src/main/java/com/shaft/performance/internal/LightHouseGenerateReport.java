@@ -10,10 +10,12 @@ import org.openqa.selenium.WebDriver;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.text.SimpleDateFormat;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class LightHouseGenerateReport {
+    private static final DateTimeFormatter FILENAME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSSS-a");
     final WebDriver driver;
     int PortNum;
     String PageName;
@@ -157,7 +159,7 @@ public class LightHouseGenerateReport {
             URL url = URI.create(CurrentUrl).toURL();
             Pagename = url.getPath();
             Pagename = Pagename.replace("/", "-");
-            return (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis()) + "-" + Pagename;
+            return FILENAME_FORMATTER.format(ZonedDateTime.now()) + "-" + Pagename;
         } catch (MalformedURLException e) {
             ReportManagerHelper.log(e);
 //            return  (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis())+ "-" + Pagename;

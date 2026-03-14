@@ -22,9 +22,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -50,7 +50,7 @@ import java.util.stream.Collectors;
  * }</pre>
  *
  * <p><strong>Thread safety:</strong> {@link #DATE_FORMAT} and
- * {@link #DISPLAY_DATE_FORMAT} are {@link ThreadLocal} instances, so formatting
+ * {@link #DISPLAY_DATE_FORMAT} are immutable {@link DateTimeFormatter} instances, so formatting
  * operations are safe to call from parallel test threads. However, concurrent scans
  * of the same {@code pageName} within the same second may produce file-name collisions
  * in the shared reports directory; use distinct page names or unique report directories
@@ -61,10 +61,10 @@ import java.util.stream.Collectors;
  */
 public class AccessibilityHelper {
     private static final Logger logger = LogManager.getLogger(AccessibilityHelper.class);
-    private static final ThreadLocal<SimpleDateFormat> DATE_FORMAT =
-            ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyyMMdd_HHmmss"));
-    private static final ThreadLocal<SimpleDateFormat> DISPLAY_DATE_FORMAT =
-            ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"));
+    private static final DateTimeFormatter DATE_FORMAT =
+            DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+    private static final DateTimeFormatter DISPLAY_DATE_FORMAT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     // DOM stability wait settings
     private static final int DOM_STABLE_MILLIS = 1500; // Wait until DOM stable
@@ -268,7 +268,7 @@ public class AccessibilityHelper {
             Results results = axeBuilder.analyze(driver);
             JSONObject responseJSON = convertResultsToJSON(results);
 
-            String timestamp = DATE_FORMAT.get().format(new Date());
+            String timestamp = DATE_FORMAT.format(ZonedDateTime.now());
             Files.createDirectories(Paths.get(config.getReportsDir()));
 
             String jsonReportPath = config.getReportsDir() + "AccessibilityJSON_" + pageName + "_" + timestamp + ".json";
@@ -520,7 +520,7 @@ public class AccessibilityHelper {
 
             if (saveReport) {
                 // Prepare paths
-                String timestamp = DATE_FORMAT.get().format(new Date());
+                String timestamp = DATE_FORMAT.format(ZonedDateTime.now());
                 String reportsDir = config.getReportsDir();
                 Files.createDirectories(Paths.get(reportsDir));
 
@@ -553,7 +553,7 @@ public class AccessibilityHelper {
                     Files.createDirectories(Paths.get(fallbackDir));
 
                     String fallbackPath = fallbackDir + "FailedReport_" + pageName + "_" +
-                            DATE_FORMAT.get().format(new Date()) + ".txt";
+                            DATE_FORMAT.format(ZonedDateTime.now()) + ".txt";
 
                     String message = "Accessibility analysis failed for page: " + pageName +
                             "\nError Message: " + e.getMessage() +
@@ -1019,7 +1019,7 @@ public class AccessibilityHelper {
         double score = totalChecks == 0 ? 100.0 : ((double) totalPassed / totalChecks) * 100.0;
 
         String formattedScore = String.format(Locale.US, "%.1f", score);
-        String dateTime = DISPLAY_DATE_FORMAT.get().format(new Date());
+        String dateTime = DISPLAY_DATE_FORMAT.format(ZonedDateTime.now());
         String browserInfo = "Unknown Browser";
         String browserVersion = "N/A";
         String platform = "N/A";

@@ -17,9 +17,9 @@ import io.restassured.specification.RequestSpecification;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.text.SimpleDateFormat;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
-import java.util.Calendar;
 import java.util.List;
 
 import static io.restassured.RestAssured.*;
@@ -84,11 +84,11 @@ public class XrayIntegrationHelper {
 
         if (_TestExecutionID == null) return;
         setup();
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
         String body = "{\r\n    \"fields\" : {\r\n       " +
                 " \"summary\": " +
-                "\"Execution results " + executionName + " | " + sdf.format(Calendar.getInstance().getTime()) + "\",\r\n        " +
+                "\"Execution results " + executionName + " | " + dtf.format(ZonedDateTime.now()) + "\",\r\n        " +
                 "\"description\": " +
                 "\"" + executionDescription + "\"\r\n    }\r\n}";
         try {
