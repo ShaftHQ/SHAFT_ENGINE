@@ -23,16 +23,16 @@ public class ProgressBarLogger implements AutoCloseable {
         ProgressBarBuilder pbb = ProgressBar.builder()
                 .setTaskName(taskName)
                 .setInitialMax(timeoutVal)
-                .setMaxRenderedLength(100)
+                .setMaxRenderedLength(120)
                 .hideEta()
                 .setStyle(ProgressBarStyle.builder()
-                        .leftBracket("\u001b[34;1m│") // the ANSI color code https://gist.github.com/dominikwilkowski/60eed2ea722183769d586c76f22098dd
+                        .leftBracket("\u001b[36;1m│") // bright cyan with box-drawing vertical
                         .delimitingSequence("")
                         .rightBracket("│\u001b[0m")
                         .block('█')
-                        .space(' ')
+                        .space('░')
                         .fractionSymbols(" ▏▎▍▌▋▊▉")
-                        .rightSideFractionSymbol(' ')
+                        .rightSideFractionSymbol('░')
                         .build()
                 );
         task = () -> {
