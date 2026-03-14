@@ -19,6 +19,7 @@ import java.util.Arrays;
 public class PropertiesHelper {
     private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "src/main/resources/properties/default";
     private static final String TARGET_PROPERTIES_FOLDER_PATH = DEFAULT_PROPERTIES_FOLDER_PATH.replace("/default", "");
+    private static volatile boolean postProcessingDone = false;
 
     public static void initialize() {
         //initialize default properties
@@ -27,6 +28,8 @@ public class PropertiesHelper {
         attachPropertyFiles();
         //load properties
         loadProperties();
+        // Reset post-processing guard so next postProcessing() call re-evaluates overrides
+        postProcessingDone = false;
     }
 
     public static void initializeAiAgent() {
@@ -36,6 +39,8 @@ public class PropertiesHelper {
         attachPropertyFiles();
         //load properties
         loadProperties();
+        // Reset post-processing guard so next postProcessing() call re-evaluates overrides
+        postProcessingDone = false;
     }
 
     private static void loadProperties() {
@@ -80,6 +85,9 @@ public class PropertiesHelper {
     }
 
     public static void postProcessing() {
+        if (postProcessingDone) {
+            return;
+        }
         ReportManager.logDiscrete("Post processing some properties to support platforms-specific restrictions.");
         overrideScreenShotTypeForMacPlatform();
         overrideForcedFlagsForMobilePlatforms();
@@ -92,6 +100,7 @@ public class PropertiesHelper {
         overrideScreenshotTypeForSafariBrowser();
         overrideScreenshotTypeForParallelExecution();
         setClearBeforeTypingMode();
+        postProcessingDone = true;
     }
 
     public static void setClearBeforeTypingMode() {

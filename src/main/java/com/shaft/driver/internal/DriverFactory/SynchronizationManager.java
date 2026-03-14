@@ -8,10 +8,30 @@ import org.openqa.selenium.support.ui.FluentWait;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 public class SynchronizationManager {
     private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 100; // milliseconds
+
+    // Pre-built immutable exception lists to avoid re-allocation per FluentWait call
+    private static final List<Class<? extends Exception>> BASE_EXCEPTIONS = List.of(
+            ClassCastException.class,
+            org.openqa.selenium.NoSuchElementException.class,
+            org.openqa.selenium.StaleElementReferenceException.class,
+            org.openqa.selenium.JavascriptException.class,
+            org.openqa.selenium.ElementClickInterceptedException.class,
+            MultipleElementsFoundException.class,
+            ExecutionException.class,
+            InterruptedException.class
+    );
+
+    private static final List<Class<? extends Exception>> VISIBILITY_EXCEPTIONS = List.of(
+            org.openqa.selenium.ElementNotInteractableException.class,
+            org.openqa.selenium.InvalidElementStateException.class,
+            org.openqa.selenium.interactions.MoveTargetOutOfBoundsException.class
+    );
+
     private final WebDriver driver;
 
     public SynchronizationManager(WebDriver driver) {
@@ -29,30 +49,25 @@ public class SynchronizationManager {
                 .ignoreAll(getExpectedExceptions(isValidToCheckForVisibility));
     }
 
-    private ArrayList<Class<? extends Exception>> getExpectedExceptions(boolean isValidToCheckForVisibility) {
-        ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
-        expectedExceptions.add(java.lang.ClassCastException.class);
-        expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
-        expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
-        expectedExceptions.add(org.openqa.selenium.JavascriptException.class);
-        expectedExceptions.add(org.openqa.selenium.ElementClickInterceptedException.class);
-        expectedExceptions.add(MultipleElementsFoundException.class);
+    private List<Class<? extends Exception>> getExpectedExceptions(boolean isValidToCheckForVisibility) {
+        boolean isSafari = SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName());
 
-        if (isValidToCheckForVisibility) {
-            expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
-            expectedExceptions.add(org.openqa.selenium.InvalidElementStateException.class);
-            expectedExceptions.add(org.openqa.selenium.interactions.MoveTargetOutOfBoundsException.class);
+        // Fast path: no visibility check and no Safari — return cached base list directly
+        if (!isValidToCheckForVisibility && !isSafari) {
+            return BASE_EXCEPTIONS;
         }
 
-        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
+        // Build a composite list only when extra exceptions are needed
+        ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>(BASE_EXCEPTIONS);
+
+        if (isValidToCheckForVisibility) {
+            expectedExceptions.addAll(VISIBILITY_EXCEPTIONS);
+        }
+
+        if (isSafari) {
             // the generic exception is added to handle a case with WebKit whereby the browser doesn't state the cause of the issue
             expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
         }
-
-        // to handle failure inside a virtual thread
-        expectedExceptions.add(ExecutionException.class);
-        expectedExceptions.add(InterruptedException.class);
-//        expectedExceptions.add(RuntimeException.class);
 
         return expectedExceptions;
     }

@@ -8,10 +8,11 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.List;
 
 public class JavaScriptWaitManager {
+    private static final List<String> DOCUMENT_READY_STATES = List.of("loaded", "complete");
+
     private JavaScriptWaitManager() {
         throw new IllegalStateException("Utility class");
     }
@@ -23,11 +24,12 @@ public class JavaScriptWaitManager {
         try {
         if (SHAFT.Properties.timeouts.waitForLazyLoading()
                 && !DriverFactoryHelper.isMobileNativeExecution()) {
-            ArrayList<Thread> lazyLoadingThreads = new ArrayList<>();
-            lazyLoadingThreads.add(Thread.ofVirtual().start(() -> waitForJQuery(driver)));
-            lazyLoadingThreads.add(Thread.ofVirtual().start(() -> waitForAngular(driver)));
-            lazyLoadingThreads.add(Thread.ofVirtual().start(() -> waitForDocumentReadyState(driver)));
-            lazyLoadingThreads.add(Thread.ofVirtual().start(() -> waitUntilNoActiveNetworkFetchRequests(driver)));
+            var lazyLoadingThreads = List.of(
+                    Thread.ofVirtual().start(() -> waitForJQuery(driver)),
+                    Thread.ofVirtual().start(() -> waitForAngular(driver)),
+                    Thread.ofVirtual().start(() -> waitForDocumentReadyState(driver)),
+                    Thread.ofVirtual().start(() -> waitUntilNoActiveNetworkFetchRequests(driver))
+            );
             lazyLoadingThreads.forEach(thread -> {
                 try {
                     thread.join();
@@ -63,8 +65,7 @@ public class JavaScriptWaitManager {
         new SynchronizationManager(driver).fluentWait().until(f -> {
             if (f instanceof JavascriptExecutor javascriptExecutor) {
                 try {
-                    var ready = Arrays.asList("loaded", "complete");
-                    return ready.contains(String.valueOf(javascriptExecutor.executeScript(JavaScriptHelper.DOCUMENT_READY_STATE.getValue())));
+                    return DOCUMENT_READY_STATES.contains(String.valueOf(javascriptExecutor.executeScript(JavaScriptHelper.DOCUMENT_READY_STATE.getValue())));
                 } catch (Exception exception) {
                     // force return in case of unexpected exception
                     return true;

@@ -41,6 +41,9 @@ public class ReportManagerHelper {
     private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSSS a");
     private static final String REPORT_MANAGER_PREFIX = "[ReportManager] ";
     private static final String SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE = "SHAFT Engine Logs";
+    private static final String LINE_SEPARATOR = System.lineSeparator();
+    private static final int SEPARATOR_WIDTH = 144;
+    private static final String SEPARATOR_DOUBLE_LINE = "═".repeat(SEPARATOR_WIDTH);
     private static final AtomicReference<String> issuesLog = new AtomicReference<>("");
     private static final AtomicInteger issueCounter = new AtomicInteger(1);
     private static volatile boolean discreteLogging = false;
@@ -469,27 +472,27 @@ public class ReportManagerHelper {
 
     private static String addSpacing(String log) {
         StringBuilder augmentedText = new StringBuilder();
-        StringBuilder lineByLine = new StringBuilder();
 
-        augmentedText.append(System.lineSeparator());
-        Arrays.stream(log.split("\n")).toList().forEach(line -> {
-            var trailingSpacing = "";
-            var spaces = Math.round((float) (144 - line.trim().length()) / 2);
+        augmentedText.append(LINE_SEPARATOR);
+        for (String line : log.split("\n")) {
+            String trimmed = line.trim();
+            var spaces = Math.round((float) (SEPARATOR_WIDTH - trimmed.length()) / 2);
             if (spaces > 0) {
-                lineByLine.append(" ".repeat(spaces));
-                trailingSpacing = lineByLine.toString();
+                String padding = " ".repeat(spaces);
+                augmentedText.append(padding).append(trimmed).append(padding);
+            } else {
+                augmentedText.append(trimmed);
             }
-            lineByLine.append(line.trim());
-            lineByLine.append(trailingSpacing);
-            augmentedText.append(lineByLine);
-            augmentedText.append(System.lineSeparator());
-            lineByLine.delete(0, lineByLine.length());
-        });
+            augmentedText.append(LINE_SEPARATOR);
+        }
         return augmentedText.toString();
     }
 
     private static String createSeparator(char ch) {
-        return String.valueOf(ch).repeat(144);
+        if (ch == '═') {
+            return SEPARATOR_DOUBLE_LINE;
+        }
+        return String.valueOf(ch).repeat(SEPARATOR_WIDTH);
     }
 
     private static void createImportantReportEntry(String logText) {
