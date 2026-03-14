@@ -114,10 +114,11 @@ public class ScreenshotManager {
 
     private boolean shouldTakeScreenshot(String actionName, boolean passFailStatus) {
         var whenToTakeAScreenshot = SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot();
+        String lowerActionName = actionName.toLowerCase();
         return (
                 !passFailStatus
-                        || (VALIDATION_ACTION_PATTERN.matcher(actionName.toLowerCase()).matches() && !whenToTakeAScreenshot.equals("Never"))
-                        || (SHAFT.Properties.visuals.createAnimatedGif() && (AnimatedGifManager.DETAILED_GIF || AnimatedGifManager.LIGHTWEIGHT_GIF_PATTERN.matcher(actionName.toLowerCase()).matches()))
+                        || (VALIDATION_ACTION_PATTERN.matcher(lowerActionName).matches() && !whenToTakeAScreenshot.equals("Never"))
+                        || (SHAFT.Properties.visuals.createAnimatedGif() && (AnimatedGifManager.DETAILED_GIF || AnimatedGifManager.LIGHTWEIGHT_GIF_PATTERN.matcher(lowerActionName).matches()))
                         || whenToTakeAScreenshot.equals("Always")
         );
         // if action failed => most common case

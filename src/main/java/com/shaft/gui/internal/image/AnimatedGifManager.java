@@ -43,8 +43,8 @@ import java.util.regex.Pattern;
 @SuppressWarnings("ConstantValue")
 public class AnimatedGifManager {
     protected static final Boolean DETAILED_GIF = true;
-    private static final String LIGHTWEIGHT_GIF_REGEX = "(.*validation.*)|(.*verify.*)|(.*assert.*)|(.*click.*)|(.*tap.*)|(.*key.*)|(.*navigate.*)|(.*type.*)";
-    protected static final Pattern LIGHTWEIGHT_GIF_PATTERN = Pattern.compile(LIGHTWEIGHT_GIF_REGEX);
+    protected static final Pattern LIGHTWEIGHT_GIF_PATTERN = Pattern.compile(
+            "(.*validation.*)|(.*verify.*)|(.*assert.*)|(.*click.*)|(.*tap.*)|(.*key.*)|(.*navigate.*)|(.*type.*)");
     private static final ThreadLocal<ImageWriter> gifWriter = new ThreadLocal<>();
     private static final ThreadLocal<ImageWriteParam> imageWriteParam = new ThreadLocal<>();
     private static final ThreadLocal<IIOMetadata> imageMetaData = new ThreadLocal<>();
