@@ -25,7 +25,7 @@ import java.util.Map;
 public class ScreenshotHelper {
     private static final String JS_RETRIEVE_DEVICE_PIXEL_RATIO = "var pr = window.devicePixelRatio; if (pr != undefined && pr != null)return pr; else return 1.0;";
     private static String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDER_PATH = "";
-    private static BufferedImage shaftLogo = null;
+    private static volatile BufferedImage shaftLogo = null;
 
     private ScreenshotHelper() {
         throw new IllegalStateException("Utility class");
@@ -59,20 +59,27 @@ public class ScreenshotHelper {
                 Graphics2D screenshotGraphics = screenshot.createGraphics();
                 screenshotGraphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-                screenshotGraphics.drawImage(screenshot, 0, 0, null);
                 screenshotGraphics.setComposite(
                         AlphaComposite.getInstance(AlphaComposite.SRC_OVER, SHAFT.Properties.visuals.screenshotParamsWatermarkOpacity()));
 
-                if (shaftLogo == null) {
-                    // read from custom location
-                    String watermarkImagePath = Properties.internal.watermarkImagePath();
-                    shaftLogo = ImageIO.read(URI.create(watermarkImagePath).toURL());
-                    shaftLogo = toBufferedImage(
-                            shaftLogo.getScaledInstance(screenshot.getWidth() / 8, -1, Image.SCALE_SMOOTH));
+                // Double-checked locking for thread-safe lazy initialization
+                BufferedImage logo = shaftLogo;
+                if (logo == null) {
+                    synchronized (ScreenshotHelper.class) {
+                        logo = shaftLogo;
+                        if (logo == null) {
+                            // read from custom location
+                            String watermarkImagePath = Properties.internal.watermarkImagePath();
+                            logo = ImageIO.read(URI.create(watermarkImagePath).toURL());
+                            logo = toBufferedImage(
+                                    logo.getScaledInstance(screenshot.getWidth() / 8, -1, Image.SCALE_SMOOTH));
+                            shaftLogo = logo;
+                        }
+                    }
                 }
 
-                screenshotGraphics.drawImage(shaftLogo, screenshot.getWidth() - shaftLogo.getWidth(),
-                        screenshot.getHeight() - shaftLogo.getHeight(), null);
+                screenshotGraphics.drawImage(logo, screenshot.getWidth() - logo.getWidth(),
+                        screenshot.getHeight() - logo.getHeight(), null);
                 screenshotGraphics.dispose();
             } catch (IOException e) {
                 // do nothing and proceed to return the original screenshot

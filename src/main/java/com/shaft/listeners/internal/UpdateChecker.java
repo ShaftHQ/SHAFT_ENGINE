@@ -8,18 +8,19 @@ import io.restassured.RestAssured;
 import lombok.SneakyThrows;
 import org.apache.logging.log4j.Level;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class UpdateChecker {
     public static AtomicReference<String> latestVersion = new AtomicReference<>();
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
     @SneakyThrows
     public static void check() {
         ReportManager.logDiscrete("Checking for engine updates...");
 
-        String todayDate = new SimpleDateFormat("dd-MM-yyyy").format(new Date());
+        String todayDate = DATE_FORMATTER.format(LocalDate.now());
         String currentVersion = SHAFT.Properties.internal.shaftEngineVersion();
         String latestVersion = getLatestVersionFromGitHub();
 

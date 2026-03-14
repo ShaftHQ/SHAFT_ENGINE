@@ -19,14 +19,16 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
+import java.util.regex.Pattern;
 
 public class ScreenshotManager {
-    private static final String VALIDATION_ACTION_REGEX = "(.*validation.*)|(.*verify.*)|(.*assert.*)";
+    private static final Pattern VALIDATION_ACTION_PATTERN = Pattern.compile("(.*validation.*)|(.*verify.*)|(.*assert.*)");
+    private static final DateTimeFormatter ATTACHMENT_FILENAME_FORMATTER = DateTimeFormatter.ofPattern("HH-mm-ss-SSS_ddMMyyyy");
     private final ElementActionsHelper elementActionsHelper;
 
     public ScreenshotManager() {
@@ -77,7 +79,7 @@ public class ScreenshotManager {
     }
 
     public String generateAttachmentFileName(String actionName) {
-        return actionName + "_" + new SimpleDateFormat("HH-mm-ss-SSS_ddMMyyyy").format(new Date());
+        return actionName + "_" + ATTACHMENT_FILENAME_FORMATTER.format(ZonedDateTime.now());
     }
 
     public List<Object> prepareImageForReport(byte[] image, String actionName) {
@@ -87,13 +89,19 @@ public class ScreenshotManager {
              *
              */
             try {
-                // add SHAFT_Engine logo overlay
-                BufferedImage screenshotImage = ImageIO.read(new ByteArrayInputStream(image));
-                ScreenshotHelper.overlayShaftEngineLogo(screenshotImage);
-                ByteArrayOutputStream screenshotOutputStream = new ByteArrayOutputStream();
-                ImageIO.write(screenshotImage, "png", screenshotOutputStream);
-                return Arrays.asList("Screenshot", generateAttachmentFileName(actionName),
-                        new ByteArrayInputStream(screenshotOutputStream.toByteArray()));
+                if (Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsWatermark())) {
+                    // Watermark enabled: decode → overlay → re-encode
+                    BufferedImage screenshotImage = ImageIO.read(new ByteArrayInputStream(image));
+                    ScreenshotHelper.overlayShaftEngineLogo(screenshotImage);
+                    ByteArrayOutputStream screenshotOutputStream = new ByteArrayOutputStream();
+                    ImageIO.write(screenshotImage, "png", screenshotOutputStream);
+                    return Arrays.asList("Screenshot", generateAttachmentFileName(actionName),
+                            new ByteArrayInputStream(screenshotOutputStream.toByteArray()));
+                } else {
+                    // Watermark disabled: skip expensive decode/encode, pass raw bytes directly
+                    return Arrays.asList("Screenshot", generateAttachmentFileName(actionName),
+                            new ByteArrayInputStream(image));
+                }
             } catch (IOException e) {
                 ReportManagerHelper.logDiscrete(e);
                 return null;
@@ -106,10 +114,11 @@ public class ScreenshotManager {
 
     private boolean shouldTakeScreenshot(String actionName, boolean passFailStatus) {
         var whenToTakeAScreenshot = SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot();
+        String lowerActionName = actionName.toLowerCase();
         return (
                 !passFailStatus
-                        || (actionName.toLowerCase().matches(VALIDATION_ACTION_REGEX) && !whenToTakeAScreenshot.equals("Never"))
-                        || (SHAFT.Properties.visuals.createAnimatedGif() && (AnimatedGifManager.DETAILED_GIF || actionName.toLowerCase().matches(AnimatedGifManager.LIGHTWEIGHT_GIF_REGEX)))
+                        || (VALIDATION_ACTION_PATTERN.matcher(lowerActionName).matches() && !whenToTakeAScreenshot.equals("Never"))
+                        || (SHAFT.Properties.visuals.createAnimatedGif() && (AnimatedGifManager.DETAILED_GIF || AnimatedGifManager.LIGHTWEIGHT_GIF_PATTERN.matcher(lowerActionName).matches()))
                         || whenToTakeAScreenshot.equals("Always")
         );
         // if action failed => most common case

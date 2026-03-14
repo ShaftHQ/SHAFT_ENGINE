@@ -16,11 +16,10 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
 @SuppressWarnings("unused")
@@ -281,9 +280,8 @@ public class ExcelFileManager {
                     cellValue = cellValue.split("\\.")[0];
                 }
                 if (DateUtil.isCellDateFormatted(cell)) {
-                    DateFormat df = new SimpleDateFormat("dd/MM/yy");
-                    Date date = cell.getDateCellValue();
-                    cellValue = df.format(date);
+                    DateTimeFormatter df = DateTimeFormatter.ofPattern("dd/MM/yy");
+                    cellValue = df.format(cell.getDateCellValue().toInstant().atZone(ZoneId.systemDefault()).toLocalDate());
                 }
                 return cellValue;
             } else if (cell.getCellType() == CellType.BOOLEAN) {

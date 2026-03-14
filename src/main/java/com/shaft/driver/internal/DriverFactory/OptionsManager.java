@@ -194,7 +194,7 @@ public class OptionsManager {
     }
 
     private void setSeleniumManagerOptions(MutableCapabilities options) {
-        // mutate per-thread capabilities outside the shared lock to reduce contention
+        // Set browser version capabilities outside the lock — these are per-instance and thread-safe
         if (SHAFT.Properties.web.forceBrowserDownload()) {
             if (options instanceof ChromeOptions chromeOptions) {
                 chromeOptions.setBrowserVersion("stable");
@@ -203,6 +203,7 @@ public class OptionsManager {
             }
         }
 
+        // Synchronize only the shared file I/O for se-config.toml
         synchronized (SE_CONFIG_LOCK) {
             String folderPath = System.getProperty("user.home") + File.separatorChar + ".cache" + File.separatorChar + "selenium" + File.separatorChar;
             String fileName = "se-config.toml";

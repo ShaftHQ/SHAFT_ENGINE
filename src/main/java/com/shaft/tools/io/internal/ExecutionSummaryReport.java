@@ -6,7 +6,9 @@ import com.shaft.tools.internal.support.HTMLHelper;
 import lombok.Getter;
 
 import java.text.DecimalFormat;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -17,6 +19,9 @@ public class ExecutionSummaryReport {
     private static final String SHAFT_LOGO_URL = "https://github.com/ShaftHQ/SHAFT_ENGINE/raw/main/src/main/resources/images/shaft.png";
     private static final AtomicInteger passedValidations = new AtomicInteger(0);
     private static final AtomicInteger failedValidations = new AtomicInteger(0);
+    private static final DateTimeFormatter FILENAME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSSS-a").withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy").withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault());
 
     public static void casesDetailsIncrement(String tmsLink, String caseSuite, String caseName, String caseDescription, String errorMessage, String status, String issue) {
         ArrayList<String> entry = new ArrayList<>();
@@ -54,7 +59,7 @@ public class ExecutionSummaryReport {
 
         fileActionsSession.createFolder(SHAFT.Properties.paths.executionSummaryReport());
         fileActionsSession.writeToFile(SHAFT.Properties.paths.executionSummaryReport(),
-                "ExecutionSummaryReport_" + new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa").format(System.currentTimeMillis()) + ".html",
+                "ExecutionSummaryReport_" + FILENAME_FORMATTER.format(Instant.ofEpochMilli(System.currentTimeMillis())) + ".html",
                 createReportMessage(passed, failed, skipped, startTime, endTime, detailsBuilder));
 
         ReportManagerHelper.openExecutionSummaryReportAfterExecution();
@@ -65,9 +70,9 @@ public class ExecutionSummaryReport {
         float total = passed + failed + skipped;
         var report = HTMLHelper.EXECUTION_SUMMARY.getValue()
                 .replace("${LOGO_URL}", SHAFT_LOGO_URL)
-                .replace("${DATE}", new SimpleDateFormat("dd/MM/yyyy").format(endTime))
-                .replace("${START_TIME}", new SimpleDateFormat("HH:mm:ss").format(startTime))
-                .replace("${END_TIME}", new SimpleDateFormat("HH:mm:ss").format(endTime))
+                .replace("${DATE}", DATE_FORMATTER.format(Instant.ofEpochMilli(endTime)))
+                .replace("${START_TIME}", TIME_FORMATTER.format(Instant.ofEpochMilli(startTime)))
+                .replace("${END_TIME}", TIME_FORMATTER.format(Instant.ofEpochMilli(endTime)))
                 .replace("${TOTAL_TIME}", ReportManagerHelper.getExecutionDuration(startTime, endTime))
                 .replace("${CASES_TOTAL}", String.valueOf((int) total))
                 .replace("${CASES_PASSED}", String.valueOf(passed))

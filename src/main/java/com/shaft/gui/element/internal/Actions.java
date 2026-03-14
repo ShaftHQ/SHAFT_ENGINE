@@ -44,10 +44,10 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.time.Duration;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -75,6 +75,7 @@ import java.util.function.Function;
  */
 public class Actions extends ElementActions {
     private static final Duration defaultPauseDuration = Duration.ofMillis(500);
+    private static final DateTimeFormatter SCREENSHOT_ATTACHMENT_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
 
     /**
      * Creates a new {@code Actions} instance using the driver managed by the current thread's
@@ -708,6 +709,10 @@ public class Actions extends ElementActions {
     }
 
     private byte[] appendShaftWatermark(byte[] screenshot) {
+        if (!Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsWatermark())) {
+            // Watermark disabled: skip expensive decode/encode, return raw bytes
+            return screenshot;
+        }
         try {
             // add SHAFT_Engine logo overlay
             BufferedImage screenshotImage = ImageIO.read(new ByteArrayInputStream(screenshot));
@@ -864,7 +869,7 @@ public class Actions extends ElementActions {
 
         // attach screenshot
         if (screenshot != null)
-            Allure.addAttachment(new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime()) + "_" + JavaHelper.convertToSentenceCase(action) + "_" + JavaHelper.removeSpecialCharacters(elementName), "image/png", new ByteArrayInputStream(screenshot), ".png");
+            Allure.addAttachment(SCREENSHOT_ATTACHMENT_FORMATTER.format(ZonedDateTime.now()) + "_" + JavaHelper.convertToSentenceCase(action) + "_" + JavaHelper.removeSpecialCharacters(elementName), "image/png", new ByteArrayInputStream(screenshot), ".png");
 
         // handle reporting based on status
         if (Status.PASSED.equals(status)) {

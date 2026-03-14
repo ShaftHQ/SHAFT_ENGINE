@@ -17,9 +17,10 @@ import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
 import java.io.*;
 import java.nio.file.FileSystems;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Iterator;
+import java.util.regex.Pattern;
 
 /**
  * Manages the creation, frame-appending, and finalisation of animated GIF files that visualise
@@ -42,7 +43,8 @@ import java.util.Iterator;
 @SuppressWarnings("ConstantValue")
 public class AnimatedGifManager {
     protected static final Boolean DETAILED_GIF = true;
-    protected static final String LIGHTWEIGHT_GIF_REGEX = "(.*validation.*)|(.*verify.*)|(.*assert.*)|(.*click.*)|(.*tap.*)|(.*key.*)|(.*navigate.*)|(.*type.*)";
+    protected static final Pattern LIGHTWEIGHT_GIF_PATTERN = Pattern.compile(
+            "(.*validation.*)|(.*verify.*)|(.*assert.*)|(.*click.*)|(.*tap.*)|(.*key.*)|(.*navigate.*)|(.*type.*)");
     private static final ThreadLocal<ImageWriter> gifWriter = new ThreadLocal<>();
     private static final ThreadLocal<ImageWriteParam> imageWriteParam = new ThreadLocal<>();
     private static final ThreadLocal<IIOMetadata> imageMetaData = new ThreadLocal<>();
@@ -50,6 +52,7 @@ public class AnimatedGifManager {
     private static final ThreadLocal<ImageOutputStream> gifOutputStream = new ThreadLocal<>();
     private static final ThreadLocal<AnimatedGifManager> gifManager = new ThreadLocal<>();
     private static final ThreadLocal<String> gifRelativePathWithFileName = ThreadLocal.withInitial(() -> "");
+    private static final DateTimeFormatter GIF_FILENAME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
     /**
      * Creates a new GifSequenceWriter
@@ -155,7 +158,7 @@ public class AnimatedGifManager {
         if (SHAFT.Properties.visuals.createAnimatedGif() && screenshot != null) {
             try {
                 String gifFileName = FileSystems.getDefault().getSeparator() + System.currentTimeMillis() + ".gif";
-                gifRelativePathWithFileName.set(SHAFT.Properties.paths.allureResults() + "/screenshots/" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + gifFileName);
+                gifRelativePathWithFileName.set(SHAFT.Properties.paths.allureResults() + "/screenshots/" + GIF_FILENAME_FORMATTER.format(ZonedDateTime.now()) + gifFileName);
 
                 // grab the output image type from the first image in the sequence
                 BufferedImage firstImage = ImageIO.read(new ByteArrayInputStream(screenshot));
