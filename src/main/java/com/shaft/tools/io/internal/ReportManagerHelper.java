@@ -44,6 +44,20 @@ public class ReportManagerHelper {
     private static final String LINE_SEPARATOR = System.lineSeparator();
     private static final int SEPARATOR_WIDTH = 144;
     private static final String SEPARATOR_DOUBLE_LINE = "═".repeat(SEPARATOR_WIDTH);
+    // ANSI escape code constants for consistent console coloring
+    private static final String ANSI_RESET = "\033[0m";
+    private static final String ANSI_BOLD = "\033[1m";
+    private static final String ANSI_BOLD_OFF = "\033[22m";
+    private static final String ANSI_UNDERLINE = "\033[4m";
+    private static final String ANSI_UNDERLINE_OFF = "\033[24m";
+    private static final String ANSI_BOLD_UNDERLINE = "\033[1;4m";
+    private static final String ANSI_BOLD_UNDERLINE_OFF = "\033[22;24m";
+    private static final String ANSI_BOLD_MAGENTA = "\033[1;35m";
+    private static final String ANSI_BOLD_MAGENTA_OFF = "\033[22;39m";
+    private static final String ANSI_GREEN = "\033[32m";
+    private static final String ANSI_RED = "\033[31m";
+    private static final String ANSI_YELLOW = "\033[33m";
+    private static final String ANSI_FG_DEFAULT = "\033[39m";
     private static final AtomicReference<String> issuesLog = new AtomicReference<>("");
     private static final AtomicInteger issueCounter = new AtomicInteger(1);
     private static volatile boolean discreteLogging = false;
@@ -199,17 +213,20 @@ public class ReportManagerHelper {
         }
         System.setOut(new PrintStream(new LogRedirector(logger, Level.INFO)));
         System.setErr(new PrintStream(new LogRedirector(logger, Level.WARN)));
-        String engineVersion = "⚡ Powered by \033[1;35mSHAFT\033[22;39m v.\033[1m" + SHAFT.Properties.internal.shaftEngineVersion() + "\033[22m";
-        createImportantReportEntry(engineVersion + "\n" + "Visit SHAFT's user guide \033[4mhttps://shafthq.github.io/\033[24m to learn more");
+        String engineVersion = "⚡ Powered by " + ANSI_BOLD_MAGENTA + "SHAFT" + ANSI_BOLD_MAGENTA_OFF
+                + " v." + ANSI_BOLD + SHAFT.Properties.internal.shaftEngineVersion() + ANSI_BOLD_OFF;
+        createImportantReportEntry(engineVersion + "\n" + "Visit SHAFT's user guide "
+                + ANSI_UNDERLINE + "https://shafthq.github.io/" + ANSI_UNDERLINE_OFF + " to learn more");
     }
 
     public static void logEngineClosure() {
         // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
         String copyrights = "⚡ This test run was powered by "
-                + "\033[1;35mSHAFT\033[22;39m v.\033[1m" + SHAFT.Properties.internal.shaftEngineVersion() + "\033[22m\n"
-                + "SHAFT \033[1;4mis and will always be 100% FREE\033[22;24m for commercial and private use\n"
-                + "in compliance with the \033[1mMIT license\033[22m\n"
-                + "Visit SHAFT's user guide \033[4mhttps://shafthq.github.io/\033[24m to learn more";
+                + ANSI_BOLD_MAGENTA + "SHAFT" + ANSI_BOLD_MAGENTA_OFF
+                + " v." + ANSI_BOLD + SHAFT.Properties.internal.shaftEngineVersion() + ANSI_BOLD_OFF + "\n"
+                + "SHAFT " + ANSI_BOLD_UNDERLINE + "is and will always be 100% FREE" + ANSI_BOLD_UNDERLINE_OFF + " for commercial and private use\n"
+                + "in compliance with the " + ANSI_BOLD + "MIT license" + ANSI_BOLD_OFF + "\n"
+                + "Visit SHAFT's user guide " + ANSI_UNDERLINE + "https://shafthq.github.io/" + ANSI_UNDERLINE_OFF + " to learn more";
         createImportantReportEntry(copyrights);
     }
 
@@ -254,7 +271,10 @@ public class ReportManagerHelper {
 
     public static void logExecutionSummary(String total, String passed, String failed, String skipped) {
         String summary = "Test Execution Summary Results" + "\n"
-                + "Total: " + total + "  ·  \033[32m✓ Passed: " + passed + "\033[39m  ·  \033[31m✗ Failed: " + failed + "\033[39m  ·  \033[33m⊘ Skipped: " + skipped + "\033[39m";
+                + "Total: " + total
+                + "  ·  " + ANSI_GREEN + "✓ Passed: " + passed + ANSI_FG_DEFAULT
+                + "  ·  " + ANSI_RED + "✗ Failed: " + failed + ANSI_FG_DEFAULT
+                + "  ·  " + ANSI_YELLOW + "⊘ Skipped: " + skipped + ANSI_FG_DEFAULT;
         createImportantReportEntry(summary);
     }
 
@@ -528,7 +548,7 @@ public class ReportManagerHelper {
                 addSpacing(logText.trim()) +
                 createSeparator('═') +
                 System.lineSeparator() +
-                "\033[0m";
+                ANSI_RESET;
 
         Reporter.log(log, false);
         if (logger == null) {
