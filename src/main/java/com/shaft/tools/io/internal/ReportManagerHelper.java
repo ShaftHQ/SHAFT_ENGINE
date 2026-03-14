@@ -538,6 +538,20 @@ public class ReportManagerHelper {
         }
     }
 
+    /**
+     * Formats logText and adds timestamp at the specified log level, then logs it as a step in the execution
+     * report.
+     *
+     * @param logText  the text that needs to be logged in this action
+     * @param logLevel the log level to use for the console log entry
+     */
+    public static void writeStepToReport(String logText, Level logLevel) {
+        if (!SHAFT.Properties.reporting.disableLogging()) {
+            createLogEntry(logText, logLevel);
+            Allure.step(logText, getStepStatus(logText));
+        }
+    }
+
     private static Status getStepStatus(String logText) {
         if (logText != null && logText.toLowerCase().contains("failed")) {
             return Status.FAILED;
@@ -597,7 +611,7 @@ public class ReportManagerHelper {
                 if (logger == null) {
                     initializeLogger();
                 }
-                logger.info(error, e);
+                logger.error(error, e);
                 Reporter.log(error, false);
             }
             String attachmentDescription = attachmentType + " - " + attachmentName;

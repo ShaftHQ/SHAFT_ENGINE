@@ -299,12 +299,13 @@ public class DriverFactoryHelper {
                     try {
                         driver.close();
                     } catch (Exception e) {
-                        //ignore
+                        ReportManagerHelper.logDiscrete(e, Level.DEBUG);
                     }
                     driver.quit();
                 }
             } catch (WebDriverException | NullPointerException e) {
                 // driver was already closed at an earlier stage
+                ReportManagerHelper.logDiscrete(e, Level.DEBUG);
             } catch (Exception e) {
                 ReportManagerHelper.logDiscrete(e);
             } finally {
@@ -425,7 +426,7 @@ public class DriverFactoryHelper {
                     //minimizing retry attempts to save execution time
                     retryAttempts = 0;
                 } catch (Throwable throwable) {
-                    // ignore
+                    ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
                 }
             } else if (exception.getMessage().contains("java.util.concurrent.TimeoutException")) {
                 // this happens in case an auto closable BiDi session was left hanging
@@ -434,14 +435,15 @@ public class DriverFactoryHelper {
                 try {
                     Thread.sleep(26000);
                 } catch (InterruptedException e) {
-                    //do nothing
+                    Thread.currentThread().interrupt();
+                    ReportManagerHelper.logDiscrete(e, Level.DEBUG);
                 }
             }
             // attempting blind fix by trying to quit existing driver if any
             try {
                 driver.quit();
             } catch (Throwable throwable) {
-                // ignore
+                ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
             } finally {
                 setDriver(null);
             }
@@ -450,7 +452,8 @@ public class DriverFactoryHelper {
                 try {
                     Thread.sleep(5000);
                 } catch (InterruptedException e) {
-                    //do nothing
+                    Thread.currentThread().interrupt();
+                    ReportManagerHelper.logDiscrete(e, Level.DEBUG);
                 }
                 createNewLocalDriverInstance(driverType, retryAttempts - 1);
             }
@@ -659,6 +662,7 @@ public class DriverFactoryHelper {
                 });
             } catch (WebDriverException e) {
                 // exception when the defined logging is not supported
+                ReportManagerHelper.logDiscrete(e, Level.DEBUG);
             }
         }
     }

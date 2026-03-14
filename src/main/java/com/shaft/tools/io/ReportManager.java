@@ -25,12 +25,18 @@ public class ReportManager {
         }
     }
 
+    /**
+     * Creates a custom log entry at the specified log level that will also be added as a step in the execution report
+     *
+     * @param logText  the text that will be logged by action
+     * @param logLevel the log level to use (e.g., Level.ERROR, Level.WARN, Level.INFO)
+     */
     public static void log(String logText, Level logLevel) {
         if (logText != null && !logText.isBlank()) {
             if (getDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
                 createLogEntry(logText, logLevel);
             } else {
-                writeStepToReport(logText);
+                writeStepToReport(logText, logLevel);
             }
         }
     }

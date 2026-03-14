@@ -3,6 +3,7 @@ package com.shaft.tools.io.internal;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.support.PerformanceReportHTMLHelper;
+import com.shaft.tools.io.ReportManager;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -55,7 +56,7 @@ public class ApiPerformanceExecutionReport {
     public static void generatePerformanceReport(Map<String, List<Double>> performanceData, long startTime, long endTime) {
         // Check if performance report generation is enabled
         if (!SHAFT.Properties.performance.isEnablePerformanceReport()) {
-            System.out.println("Performance report generation is disabled.");
+            ReportManager.logDiscrete("Performance report generation is disabled.");
             return;
         }
 
