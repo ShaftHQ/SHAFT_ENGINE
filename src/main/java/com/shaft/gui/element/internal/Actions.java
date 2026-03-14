@@ -709,6 +709,10 @@ public class Actions extends ElementActions {
     }
 
     private byte[] appendShaftWatermark(byte[] screenshot) {
+        if (!Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsWatermark())) {
+            // Watermark disabled: skip expensive decode/encode, return raw bytes
+            return screenshot;
+        }
         try {
             // add SHAFT_Engine logo overlay
             BufferedImage screenshotImage = ImageIO.read(new ByteArrayInputStream(screenshot));

@@ -20,6 +20,7 @@ import java.nio.file.FileSystems;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Iterator;
+import java.util.regex.Pattern;
 
 /**
  * Manages the creation, frame-appending, and finalisation of animated GIF files that visualise
@@ -42,7 +43,8 @@ import java.util.Iterator;
 @SuppressWarnings("ConstantValue")
 public class AnimatedGifManager {
     protected static final Boolean DETAILED_GIF = true;
-    protected static final String LIGHTWEIGHT_GIF_REGEX = "(.*validation.*)|(.*verify.*)|(.*assert.*)|(.*click.*)|(.*tap.*)|(.*key.*)|(.*navigate.*)|(.*type.*)";
+    private static final String LIGHTWEIGHT_GIF_REGEX = "(.*validation.*)|(.*verify.*)|(.*assert.*)|(.*click.*)|(.*tap.*)|(.*key.*)|(.*navigate.*)|(.*type.*)";
+    protected static final Pattern LIGHTWEIGHT_GIF_PATTERN = Pattern.compile(LIGHTWEIGHT_GIF_REGEX);
     private static final ThreadLocal<ImageWriter> gifWriter = new ThreadLocal<>();
     private static final ThreadLocal<ImageWriteParam> imageWriteParam = new ThreadLocal<>();
     private static final ThreadLocal<IIOMetadata> imageMetaData = new ThreadLocal<>();
