@@ -11,7 +11,7 @@ import org.openqa.selenium.WebDriver;
 import java.util.List;
 
 public class JavaScriptWaitManager {
-    private static final List<String> DOCUMENT_READY_STATES = List.of("loaded", "complete");
+    private static final List<String> COMPLETE_READY_STATES = List.of("loaded", "complete");
 
     private JavaScriptWaitManager() {
         throw new IllegalStateException("Utility class");
@@ -65,7 +65,7 @@ public class JavaScriptWaitManager {
         new SynchronizationManager(driver).fluentWait().until(f -> {
             if (f instanceof JavascriptExecutor javascriptExecutor) {
                 try {
-                    return DOCUMENT_READY_STATES.contains(String.valueOf(javascriptExecutor.executeScript(JavaScriptHelper.DOCUMENT_READY_STATE.getValue())));
+                    return COMPLETE_READY_STATES.contains(String.valueOf(javascriptExecutor.executeScript(JavaScriptHelper.DOCUMENT_READY_STATE.getValue())));
                 } catch (Exception exception) {
                     // force return in case of unexpected exception
                     return true;

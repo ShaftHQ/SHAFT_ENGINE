@@ -33,9 +33,11 @@ public class SynchronizationManager {
     );
 
     private final WebDriver driver;
+    private final boolean isSafari;
 
     public SynchronizationManager(WebDriver driver) {
         this.driver = driver;
+        this.isSafari = SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName());
     }
 
     public FluentWait<WebDriver> fluentWait() {
@@ -50,8 +52,6 @@ public class SynchronizationManager {
     }
 
     private List<Class<? extends Exception>> getExpectedExceptions(boolean isValidToCheckForVisibility) {
-        boolean isSafari = SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName());
-
         // Fast path: no visibility check and no Safari — return cached base list directly
         if (!isValidToCheckForVisibility && !isSafari) {
             return BASE_EXCEPTIONS;
