@@ -3,6 +3,8 @@ package com.shaft.listeners.internal;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.ReportManagerHelper;
+import org.apache.logging.log4j.Level;
 import org.testng.IRetryAnalyzer;
 import org.testng.ITestResult;
 
@@ -49,14 +51,18 @@ public class RetryAnalyzer implements IRetryAnalyzer {
             }
         } catch (Exception e) {
             // Never let an exception from the retry decision prevent TestNG from proceeding.
-            // Fall back to system property if SHAFT property system fails.
-            System.err.println("[SHAFT] RetryAnalyzer encountered an error: " + e.getMessage());
+            // Log full throwable for diagnostics, then fall back to system property.
+            ReportManagerHelper.logDiscrete(e, Level.DEBUG);
             int fallback = readSystemProperty();
             if (counter < fallback) {
                 counter++;
-                System.out.println("[SHAFT] Retry #" + counter + "/" + fallback
+                String message = "Retry #" + counter + "/" + fallback
                         + " for test: " + iTestResult.getMethod().getMethodName()
-                        + " (fallback mode)");
+                        + ", on thread: " + Thread.currentThread().getName()
+                        + " (fallback mode)";
+                System.out.println("[SHAFT] " + message);
+                ReportManager.logDiscrete(message);
+                enableSupportingEvidenceCapture();
                 return true;
             }
         }
@@ -118,7 +124,7 @@ public class RetryAnalyzer implements IRetryAnalyzer {
             }
         } catch (Exception e) {
             // Evidence capture is best-effort; don't let it prevent the retry.
-            System.err.println("[SHAFT] Failed to enable evidence capture for retry: " + e.getMessage());
+            ReportManagerHelper.logDiscrete(e, Level.DEBUG);
         }
     }
 }
