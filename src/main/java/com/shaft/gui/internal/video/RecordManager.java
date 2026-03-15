@@ -132,7 +132,7 @@ public class RecordManager {
                     base64EncodedRecording = iosDriver.stopRecordingScreen();
                 }
             } catch (WebDriverException e) {
-                ReportManager.logDiscrete("Failed to stop recording device screen");
+                ReportManager.logDiscrete("Failed to stop recording device screen (command may not be supported on this device)");
                 ReportManagerHelper.logDiscrete(e);
             }
             if (!base64EncodedRecording.isEmpty()) {
