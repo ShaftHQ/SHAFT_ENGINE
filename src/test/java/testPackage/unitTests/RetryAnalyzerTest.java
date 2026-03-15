@@ -106,4 +106,28 @@ public class RetryAnalyzerTest {
         Assert.assertTrue(analyzer2.retry(mockResult2), "analyzer2 first retry should be allowed");
         Assert.assertFalse(analyzer2.retry(mockResult2), "analyzer2 second retry should be denied");
     }
+
+    @Test(description = "RetryAnalyzer falls back to system property when SHAFT property returns 0")
+    public void fallbackToSystemPropertyWhenShaftReturnsZero() {
+        // Simulate CI scenario: system property set, no SHAFT property override
+        String original = System.getProperty("retryMaximumNumberOfAttempts");
+        try {
+            System.setProperty("retryMaximumNumberOfAttempts", "1");
+            Properties.clearForCurrentThread();
+
+            RetryAnalyzer analyzer = new RetryAnalyzer();
+            ITestResult mockResult = createMockTestResult("sysPropertyFallbackTest");
+
+            Assert.assertTrue(analyzer.retry(mockResult),
+                    "Should retry once using system property fallback");
+            Assert.assertFalse(analyzer.retry(mockResult),
+                    "Should not retry a second time (max=1)");
+        } finally {
+            if (original != null) {
+                System.setProperty("retryMaximumNumberOfAttempts", original);
+            } else {
+                System.clearProperty("retryMaximumNumberOfAttempts");
+            }
+        }
+    }
 }
