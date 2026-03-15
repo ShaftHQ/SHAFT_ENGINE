@@ -44,6 +44,20 @@ public class ReportManagerHelper {
     private static final String LINE_SEPARATOR = System.lineSeparator();
     private static final int SEPARATOR_WIDTH = 144;
     private static final String SEPARATOR_DOUBLE_LINE = "═".repeat(SEPARATOR_WIDTH);
+    // ANSI escape code constants for consistent console coloring
+    private static final String ANSI_RESET = "\033[0m";
+    private static final String ANSI_BOLD = "\033[1m";
+    private static final String ANSI_BOLD_OFF = "\033[22m";
+    private static final String ANSI_UNDERLINE = "\033[4m";
+    private static final String ANSI_UNDERLINE_OFF = "\033[24m";
+    private static final String ANSI_BOLD_UNDERLINE = "\033[1;4m";
+    private static final String ANSI_BOLD_UNDERLINE_OFF = "\033[22;24m";
+    private static final String ANSI_BOLD_MAGENTA = "\033[1;35m";
+    private static final String ANSI_BOLD_MAGENTA_OFF = "\033[22;39m";
+    private static final String ANSI_GREEN = "\033[32m";
+    private static final String ANSI_RED = "\033[31m";
+    private static final String ANSI_YELLOW = "\033[33m";
+    private static final String ANSI_FG_DEFAULT = "\033[39m";
     private static final AtomicReference<String> issuesLog = new AtomicReference<>("");
     private static final AtomicInteger issueCounter = new AtomicInteger(1);
     private static volatile boolean discreteLogging = false;
@@ -199,17 +213,20 @@ public class ReportManagerHelper {
         }
         System.setOut(new PrintStream(new LogRedirector(logger, Level.INFO)));
         System.setErr(new PrintStream(new LogRedirector(logger, Level.WARN)));
-        String engineVersion = "Powered by \033[1mSHAFT v." + SHAFT.Properties.internal.shaftEngineVersion() + "\033[22m";
-        createImportantReportEntry(engineVersion + "\n" + "Visit SHAFT's user guide \033[4mhttps://shafthq.github.io/\033[24m to learn more");
+        String engineVersion = "⚡ Powered by " + ANSI_BOLD_MAGENTA + "SHAFT" + ANSI_BOLD_MAGENTA_OFF
+                + " v." + ANSI_BOLD + SHAFT.Properties.internal.shaftEngineVersion() + ANSI_BOLD_OFF;
+        createImportantReportEntry(engineVersion + "\n" + "Visit SHAFT's user guide "
+                + ANSI_UNDERLINE + "https://shafthq.github.io/" + ANSI_UNDERLINE_OFF + " to learn more");
     }
 
     public static void logEngineClosure() {
         // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
-        String copyrights = "This test run was powered by "
-                + "\033[1mSHAFT v." + SHAFT.Properties.internal.shaftEngineVersion() + "\033[22m\n"
-                + "SHAFT \033[1;4mis and will always be 100% FREE\033[22;24m for commercial and private use\n"
-                + "in compliance with the \033[1mMIT license\033[22m\n"
-                + "Visit SHAFT's user guide \033[4mhttps://shafthq.github.io/\033[24m to learn more";
+        String copyrights = "⚡ This test run was powered by "
+                + ANSI_BOLD_MAGENTA + "SHAFT" + ANSI_BOLD_MAGENTA_OFF
+                + " v." + ANSI_BOLD + SHAFT.Properties.internal.shaftEngineVersion() + ANSI_BOLD_OFF + "\n"
+                + "SHAFT " + ANSI_BOLD_UNDERLINE + "is and will always be 100% FREE" + ANSI_BOLD_UNDERLINE_OFF + " for commercial and private use\n"
+                + "in compliance with the " + ANSI_BOLD + "MIT license" + ANSI_BOLD_OFF + "\n"
+                + "Visit SHAFT's user guide " + ANSI_UNDERLINE + "https://shafthq.github.io/" + ANSI_UNDERLINE_OFF + " to learn more";
         createImportantReportEntry(copyrights);
     }
 
@@ -219,15 +236,14 @@ public class ReportManagerHelper {
         StringBuilder reportMessage = new StringBuilder();
 
         if (totalNumberOfTests > 0) {
-            reportMessage.append("Starting Execution: ");
-            reportMessage.append("'");
+            reportMessage.append("▶ Starting Execution: '");
             reportMessage.append(currentCount);
-            reportMessage.append(" out of ");
+            reportMessage.append(" of ");
             reportMessage.append(totalNumberOfTests);
             reportMessage.append("' test cases in the current suite");
         } else {
             //it should never be ZERO
-            reportMessage.append("Starting Dynamic Test Suite Execution: ");
+            reportMessage.append("▶ Starting Dynamic Test Suite Execution: ");
         }
         reportMessage.append("\nTest Method: '").append(className).append(".").append(testMethodName).append("'");
 
@@ -240,7 +256,7 @@ public class ReportManagerHelper {
 
     public static void logScenarioInformation(String keyword, String name, String steps) {
         int currentCount = testCasesCounter.incrementAndGet();
-        createImportantReportEntry("Starting Execution: \"" + currentCount + " out of " + totalNumberOfTests
+        createImportantReportEntry("▶ Starting Execution: \"" + currentCount + " of " + totalNumberOfTests
                 + "\" scenarios in the \"" + featureName + "\" feature"
                 + System.lineSeparator() + keyword + " Name: \"" + name
                 + "\"" + System.lineSeparator() + keyword + " Steps:" + System.lineSeparator() + steps);
@@ -249,25 +265,42 @@ public class ReportManagerHelper {
     public static void logConfigurationMethodInformation(String className, String testMethodName, String configurationMethodType) {
         // In TestNG Reporter, this log entry is logged at the end of the previous test
         // (or null for the first test)
-        createImportantReportEntry("Starting execution of " + JavaHelper.convertToSentenceCase(configurationMethodType).toLowerCase() + " configuration method\n'"
+        createImportantReportEntry("⚙ Starting execution of " + JavaHelper.convertToSentenceCase(configurationMethodType).toLowerCase() + " configuration method\n'"
                 + className + "." + testMethodName + "'");
     }
 
     public static void logExecutionSummary(String total, String passed, String failed, String skipped) {
-        String copyrights = "Test Execution Summary Results" + "\n"
-                + "Total Cases: " + total + " --> Passed: " + passed + " | Failed: " + failed + " | Skipped: " + skipped;
-        createImportantReportEntry(copyrights);
+        String summary = "Test Execution Summary Results" + "\n"
+                + "Total: " + total
+                + "  ·  " + ANSI_GREEN + "✓ Passed: " + passed + ANSI_FG_DEFAULT
+                + "  ·  " + ANSI_RED + "✗ Failed: " + failed + ANSI_FG_DEFAULT
+                + "  ·  " + ANSI_YELLOW + "⊘ Skipped: " + skipped + ANSI_FG_DEFAULT;
+        createImportantReportEntry(summary);
     }
 
     public static void logFinishedTestInformation(String className, String testMethodName, String testDescription, String testStatus) {
         StringBuilder reportMessage = new StringBuilder();
-        reportMessage.append("\nFinished Execution of Test Method: '").append(className).append(".").append(testMethodName).append("'");
+
+        String statusIndicator = switch (testStatus.toUpperCase()) {
+            case "PASSED" -> "✓";
+            case "FAILED" -> "✗";
+            case "SKIPPED" -> "⊘";
+            default -> "●";
+        };
+
+        Level logLevel = switch (testStatus.toUpperCase()) {
+            case "FAILED" -> Level.ERROR;
+            case "SKIPPED" -> Level.WARN;
+            default -> Level.INFO;
+        };
+
+        reportMessage.append(statusIndicator).append(" Finished Execution of Test Method: '").append(className).append(".").append(testMethodName).append("'");
         if (!testDescription.isEmpty()) {
             reportMessage.append("\nTest Description: '").append(testDescription).append("'");
         }
-        reportMessage.append("\nTest Status: '").append(testStatus).append("'");
+        reportMessage.append("\nTest Status: ").append(testStatus);
 
-        createImportantReportEntry(reportMessage.toString());
+        createImportantReportEntry(reportMessage.toString(), logLevel);
     }
 
     public static String formatStackTraceToLogEntry(Throwable t) {
@@ -515,7 +548,7 @@ public class ReportManagerHelper {
                 addSpacing(logText.trim()) +
                 createSeparator('═') +
                 System.lineSeparator() +
-                "\033[0m";
+                ANSI_RESET;
 
         Reporter.log(log, false);
         if (logger == null) {
@@ -534,6 +567,20 @@ public class ReportManagerHelper {
     public static void writeStepToReport(String logText) {
         if (!SHAFT.Properties.reporting.disableLogging()) {
             createLogEntry(logText, true);
+            Allure.step(logText, getStepStatus(logText));
+        }
+    }
+
+    /**
+     * Formats logText and adds timestamp at the specified log level, then logs it as a step in the execution
+     * report.
+     *
+     * @param logText  the text that needs to be logged in this action
+     * @param logLevel the log level to use for the console log entry
+     */
+    public static void writeStepToReport(String logText, Level logLevel) {
+        if (!SHAFT.Properties.reporting.disableLogging()) {
+            createLogEntry(logText, logLevel);
             Allure.step(logText, getStepStatus(logText));
         }
     }
@@ -597,7 +644,7 @@ public class ReportManagerHelper {
                 if (logger == null) {
                     initializeLogger();
                 }
-                logger.info(error, e);
+                logger.error(error, e);
                 Reporter.log(error, false);
             }
             String attachmentDescription = attachmentType + " - " + attachmentName;
