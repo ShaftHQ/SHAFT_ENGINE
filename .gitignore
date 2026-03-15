@@ -18,6 +18,8 @@
 *.iml
 ajcore*.txt
 debug.log
+# Extracted .class files (from JAR inspection)
+/org/
 /.classpath
 /.project
 /bin/
