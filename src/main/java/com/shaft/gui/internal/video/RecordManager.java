@@ -125,12 +125,19 @@ public class RecordManager {
 
         } else if (SHAFT.Properties.visuals.videoParamsRecordVideo() && videoDriver.get() != null) {
             String base64EncodedRecording = "";
-            if (videoDriver.get() instanceof AndroidDriver androidDriver) {
-                base64EncodedRecording = androidDriver.stopRecordingScreen();
-            } else if (videoDriver.get() instanceof IOSDriver iosDriver) {
-                base64EncodedRecording = iosDriver.stopRecordingScreen();
+            try {
+                if (videoDriver.get() instanceof AndroidDriver androidDriver) {
+                    base64EncodedRecording = androidDriver.stopRecordingScreen();
+                } else if (videoDriver.get() instanceof IOSDriver iosDriver) {
+                    base64EncodedRecording = iosDriver.stopRecordingScreen();
+                }
+            } catch (WebDriverException e) {
+                ReportManager.logDiscrete("Failed to stop recording device screen");
+                ReportManagerHelper.logDiscrete(e);
             }
-            inputStream = new ByteArrayInputStream(Base64.getDecoder().decode(base64EncodedRecording));
+            if (!base64EncodedRecording.isEmpty()) {
+                inputStream = new ByteArrayInputStream(Base64.getDecoder().decode(base64EncodedRecording));
+            }
             videoDriver.remove();
             isRecordingStarted = false;
         }

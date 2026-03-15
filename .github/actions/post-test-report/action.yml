@@ -122,8 +122,8 @@ runs:
           if [ "$TOTAL" -eq 0 ]; then
             echo "::warning::No tests were executed. Check test configuration."
           fi
-          if [ "$FAILED" -gt 0 ]; then
-            echo "::error::Allure report shows $FAILED failed test(s) out of $TOTAL total. Check the Allure report artifact for details."
+          if [ "$FAILED" -gt 0 ] || [ "$BROKEN" -gt 0 ]; then
+            echo "::error::Allure report shows $FAILED failed and $BROKEN broken test(s) out of $TOTAL total. Check the Allure report artifact for details."
             exit 1
           fi
           echo "All tests passed according to Allure report."
