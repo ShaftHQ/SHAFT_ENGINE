@@ -70,9 +70,15 @@ public class RetryAnalyzer implements IRetryAnalyzer {
      * In that case we must respect the overridden value even if it is 0.
      */
     private static boolean hasExplicitOverride() {
-        String threadLocalValue = ThreadLocalPropertiesManager.getOverrides()
-                .getProperty("retryMaximumNumberOfAttempts");
-        return threadLocalValue != null;
+        try {
+            String threadLocalValue = ThreadLocalPropertiesManager.getOverrides()
+                    .getProperty("retryMaximumNumberOfAttempts");
+            return threadLocalValue != null;
+        } catch (Exception e) {
+            // If we can't determine override status, assume no override so the
+            // system property fallback can still take effect.
+            return false;
+        }
     }
 
     /**
