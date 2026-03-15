@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*], !%regex[.*CLI.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*obile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*], !%regex[.*Flutter.*]"
+  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*], !%regex[.*CLI.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*MobileWeb.*], !%regex[.*appium.Mobile.*], !%regex[.*properties.Mobile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*], !%regex[.*Flutter.*]"
 
 jobs:
   Windows_Edge_Local:
@@ -38,7 +38,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}, !%regex[.*MobileEmulation.*]"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report
