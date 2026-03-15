@@ -4,6 +4,7 @@ import com.shaft.tools.io.internal.CheckpointCounter;
 import com.shaft.tools.io.internal.CheckpointStatus;
 import com.shaft.tools.io.internal.CheckpointType;
 import com.shaft.validation.Validations;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
@@ -39,7 +40,8 @@ public class CheckpointAndReportingTest {
     /**
      * Resets the CheckpointCounter static state via reflection so each test starts clean.
      */
-    private void resetCheckpointCounter() throws Exception {
+    @BeforeMethod(alwaysRun = true)
+    public void resetCheckpointCounter() throws Exception {
         ((ConcurrentHashMap<?, ?>) CHECKPOINTS_FIELD.get(null)).clear();
         ((AtomicInteger) PASSED_FIELD.get(null)).set(0);
         ((AtomicInteger) FAILED_FIELD.get(null)).set(0);
@@ -59,7 +61,6 @@ public class CheckpointAndReportingTest {
 
     @Test(description = "CheckpointCounter.increment records passed checkpoints correctly")
     public void testCheckpointCounterIncrementPass() throws Exception {
-        resetCheckpointCounter();
         CheckpointCounter.increment(CheckpointType.ASSERTION, "test pass", CheckpointStatus.PASS);
         assertEquals(getCheckpointsSize(), 1, "Should have 1 checkpoint");
         assertEquals(getPassedCount(), 1, "Should have 1 passed checkpoint");
@@ -68,7 +69,6 @@ public class CheckpointAndReportingTest {
 
     @Test(description = "CheckpointCounter.increment records failed checkpoints correctly")
     public void testCheckpointCounterIncrementFail() throws Exception {
-        resetCheckpointCounter();
         CheckpointCounter.increment(CheckpointType.VERIFICATION, "test fail", CheckpointStatus.FAIL);
         assertEquals(getCheckpointsSize(), 1, "Should have 1 checkpoint");
         assertEquals(getPassedCount(), 0, "Should have 0 passed checkpoints");
@@ -77,7 +77,6 @@ public class CheckpointAndReportingTest {
 
     @Test(description = "CheckpointCounter.increment records multiple checkpoints")
     public void testCheckpointCounterMultipleIncrements() throws Exception {
-        resetCheckpointCounter();
         CheckpointCounter.increment(CheckpointType.ASSERTION, "assert 1", CheckpointStatus.PASS);
         CheckpointCounter.increment(CheckpointType.VERIFICATION, "verify 1", CheckpointStatus.PASS);
         CheckpointCounter.increment(CheckpointType.ASSERTION, "assert 2", CheckpointStatus.FAIL);
@@ -88,7 +87,6 @@ public class CheckpointAndReportingTest {
 
     @Test(description = "CheckpointCounter.attach does not produce NaN when no checkpoints exist")
     public void testCheckpointCounterAttachEmpty() throws Exception {
-        resetCheckpointCounter();
         // Should not throw and should not produce NaN in the attachment
         CheckpointCounter.attach();
         assertEquals(getCheckpointsSize(), 0, "Should still have 0 checkpoints after attach");
@@ -96,46 +94,39 @@ public class CheckpointAndReportingTest {
 
     @Test(description = "Validations.assertThat().number() populates checkpoint counter via ValidationsHelper2")
     public void testValidationsAssertPopulatesCheckpointCounter() throws Exception {
-        int beforeSize = getCheckpointsSize();
-        int beforePassed = getPassedCount();
         Validations.assertThat().number(42).isEqualTo(42).perform();
-        assertEquals(getCheckpointsSize(), beforeSize + 1,
-                "Checkpoint count should increase by exactly 1 after assertion");
-        assertEquals(getPassedCount(), beforePassed + 1,
-                "Passed checkpoint count should increase by exactly 1 after successful assertion");
+        assertEquals(getCheckpointsSize(), 1,
+                "Checkpoint count should be exactly 1 after assertion");
+        assertEquals(getPassedCount(), 1,
+                "Passed checkpoint count should be exactly 1 after successful assertion");
     }
 
     @Test(description = "Validations.verifyThat().number() populates checkpoint counter via ValidationsHelper2")
     public void testValidationsVerifyPopulatesCheckpointCounter() throws Exception {
-        int beforeSize = getCheckpointsSize();
-        int beforePassed = getPassedCount();
         Validations.verifyThat().number(10).isEqualTo(10).perform();
-        assertEquals(getCheckpointsSize(), beforeSize + 1,
-                "Checkpoint count should increase by exactly 1 after verification");
-        assertEquals(getPassedCount(), beforePassed + 1,
-                "Passed checkpoint count should increase by exactly 1 after successful verification");
+        assertEquals(getCheckpointsSize(), 1,
+                "Checkpoint count should be exactly 1 after verification");
+        assertEquals(getPassedCount(), 1,
+                "Passed checkpoint count should be exactly 1 after successful verification");
     }
 
     @Test(description = "Validations.assertThat().object() populates checkpoint counter via ValidationsHelper2")
     public void testValidationsObjectAssertPopulatesCheckpointCounter() throws Exception {
-        int beforeSize = getCheckpointsSize();
-        int beforePassed = getPassedCount();
         Validations.assertThat().object("hello").isEqualTo("hello").perform();
-        assertEquals(getCheckpointsSize(), beforeSize + 1,
-                "Checkpoint count should increase by exactly 1 after object assertion");
-        assertEquals(getPassedCount(), beforePassed + 1,
-                "Passed checkpoint count should increase by exactly 1 after successful object assertion");
+        assertEquals(getCheckpointsSize(), 1,
+                "Checkpoint count should be exactly 1 after object assertion");
+        assertEquals(getPassedCount(), 1,
+                "Passed checkpoint count should be exactly 1 after successful object assertion");
     }
 
     @Test(description = "Failed assertion populates checkpoint counter with FAIL status",
             expectedExceptions = {AssertionError.class})
     public void testFailedAssertionPopulatesCheckpointCounterWithFail() throws Exception {
-        int beforeFailed = getFailedCount();
         try {
             Validations.assertThat().number(1).isEqualTo(2).perform();
         } finally {
-            assertEquals(getFailedCount(), beforeFailed + 1,
-                    "Failed checkpoint count should increase by exactly 1 after failed assertion");
+            assertEquals(getFailedCount(), 1,
+                    "Failed checkpoint count should be exactly 1 after failed assertion");
         }
     }
 }

@@ -62,7 +62,8 @@ public class RecordManagerTest {
         getVideoDriverThreadLocal().set(mockDriver);
         IS_RECORDING_STARTED_FIELD.setBoolean(null, true);
 
-        // Set video recording enabled via system property
+        // Set video recording enabled via system property, preserving any existing value
+        String previousValue = System.getProperty("videoParams_recordVideo");
         System.setProperty("videoParams_recordVideo", "true");
 
         try {
@@ -71,7 +72,11 @@ public class RecordManagerTest {
             assertNull(result,
                     "Should return null when stopRecordingScreen throws WebDriverException");
         } finally {
-            System.clearProperty("videoParams_recordVideo");
+            if (previousValue != null) {
+                System.setProperty("videoParams_recordVideo", previousValue);
+            } else {
+                System.clearProperty("videoParams_recordVideo");
+            }
         }
 
         // Verify the mock was called (recording stop was attempted)
@@ -87,11 +92,16 @@ public class RecordManagerTest {
         getVideoDriverThreadLocal().set(mockDriver);
         IS_RECORDING_STARTED_FIELD.setBoolean(null, true);
 
+        String previousValue = System.getProperty("videoParams_recordVideo");
         System.setProperty("videoParams_recordVideo", "true");
         try {
             RecordManager.getVideoRecording();
         } finally {
-            System.clearProperty("videoParams_recordVideo");
+            if (previousValue != null) {
+                System.setProperty("videoParams_recordVideo", previousValue);
+            } else {
+                System.clearProperty("videoParams_recordVideo");
+            }
         }
 
         // Verify state was cleaned up: videoDriver removed and isRecordingStarted reset

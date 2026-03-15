@@ -58,6 +58,9 @@ public class ReportManagerHelper {
     private static final String ANSI_RED = "\033[31m";
     private static final String ANSI_YELLOW = "\033[33m";
     private static final String ANSI_FG_DEFAULT = "\033[39m";
+    private static final String ANSI_BOLD_CYAN = "\033[1;36m";
+    private static final String ANSI_BOLD_YELLOW = "\033[1;33m";
+    private static final String ANSI_BOLD_RED = "\033[1;31m";
     private static final AtomicReference<String> issuesLog = new AtomicReference<>("");
     private static final AtomicInteger issueCounter = new AtomicInteger(1);
     private static volatile boolean discreteLogging = false;
@@ -537,9 +540,9 @@ public class ReportManagerHelper {
         setDiscreteLogging(false); // force log even if discrete logging was turned on
 
         var color = switch (loglevel.name()) {
-            case "WARN" -> "\033[1;33m"; //bold yellow
-            case "ERROR" -> "\033[1;31m"; //bold red
-            default -> "\033[1;36m"; //bold cyan
+            case "WARN" -> ANSI_BOLD_YELLOW;
+            case "ERROR" -> ANSI_BOLD_RED;
+            default -> ANSI_BOLD_CYAN;
         };
 
         String log = System.lineSeparator() +

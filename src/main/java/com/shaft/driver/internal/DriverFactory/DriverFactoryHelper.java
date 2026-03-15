@@ -283,6 +283,21 @@ public class DriverFactoryHelper {
         setDriver(null);
     }
 
+    /**
+     * Closes the given WebDriver session and performs all associated teardown tasks:
+     * attaches video recording (if scope is DriverSession), collects WebDriver logs,
+     * handles dockerized driver cleanup, and removes the WebDriverManager reference.
+     *
+     * <p>The method handles the following edge cases gracefully:
+     * <ul>
+     *   <li>Driver already closed — logs at DEBUG level and continues</li>
+     *   <li>{@code null} driver — logs an informational message and returns</li>
+     *   <li>Exceptions during {@code close()} or {@code quit()} — caught and logged so the
+     *       remaining teardown (log attachment, state cleanup) still executes</li>
+     * </ul>
+     *
+     * @param driver the WebDriver instance to close; if {@code null}, the method is a no-op
+     */
     @Step("Close Driver Session")
     public void closeDriver(WebDriver driver) {
         if (driver != null) {

@@ -135,7 +135,7 @@ public class RecordManager {
                 ReportManager.logDiscrete("Failed to stop recording device screen (command may not be supported on this device)");
                 ReportManagerHelper.logDiscrete(e);
             }
-            if (!base64EncodedRecording.isEmpty()) {
+            if (base64EncodedRecording != null && !base64EncodedRecording.isBlank()) {
                 inputStream = new ByteArrayInputStream(Base64.getDecoder().decode(base64EncodedRecording));
             }
             videoDriver.remove();
