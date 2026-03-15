@@ -11,7 +11,9 @@ import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.CheckpointCounter;
 import com.shaft.tools.io.internal.CheckpointStatus;
+import com.shaft.tools.io.internal.CheckpointType;
 import com.shaft.tools.io.internal.ExecutionSummaryReport;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -500,6 +502,10 @@ public class ValidationsHelper2 {
         }
         // add attachments
         ReportManagerHelper.attach(attachments);
+        // determine checkpoint type
+        CheckpointType checkpointType = this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)
+                ? CheckpointType.ASSERTION : CheckpointType.VERIFICATION;
+        String checkpointMessage = this.validationCategoryString + ": expected \"" + expected + "\", actual \"" + actual + "\"";
         // handle reporting & failure based on validation category
         ReportManager.logDiscrete("Expected \"" + expected + "\", and actual \"" + actual + "\"");
         if (!validationState) {
@@ -511,6 +517,7 @@ public class ValidationsHelper2 {
             // Use enhanced message if available, otherwise fall back to original
             String finalFailureMessage = (enhancedFailureMessage != null) ? enhancedFailureMessage : failureMessage;
             
+            CheckpointCounter.increment(checkpointType, checkpointMessage, CheckpointStatus.FAIL);
             if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
                 Allure.getLifecycle().updateStep(stepResult -> FailureReporter.fail(finalFailureMessage));
@@ -522,6 +529,7 @@ public class ValidationsHelper2 {
                 Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(finalFailureMessage));
             }
         } else {
+            CheckpointCounter.increment(checkpointType, checkpointMessage, CheckpointStatus.PASS);
             ExecutionSummaryReport.validationsIncrement(CheckpointStatus.PASS);
             Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(this.validationCategoryString.replace("erify", "erificat") + "ion passed"));
         }

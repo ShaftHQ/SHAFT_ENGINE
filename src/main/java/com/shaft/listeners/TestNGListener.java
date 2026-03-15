@@ -119,7 +119,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         this.reportPortalTestNGService = REPORT_PORTAL_SERVICE.get();
         if (REPORT_PORTAL_INSTANCES.incrementAndGet() > 1) {
             String warning = "WARNING! More than one ReportPortal listener is added";
-            System.out.println(warning);
             ReportManagerHelper.logDiscrete(warning, Level.WARN);
         }
         String rpEnableValue = ThreadLocalPropertiesManager.getProperty("rp.enable");

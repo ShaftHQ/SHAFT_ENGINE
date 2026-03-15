@@ -283,6 +283,22 @@ public class DriverFactoryHelper {
         setDriver(null);
     }
 
+    /**
+     * Closes the given WebDriver session and performs all associated teardown tasks:
+     * attaches video recording (if scope is DriverSession), collects WebDriver logs,
+     * handles dockerized driver cleanup, and removes the WebDriverManager reference.
+     *
+     * <p>The method handles the following edge cases gracefully:
+     * <ul>
+     *   <li>Driver already closed — logs at DEBUG level and continues</li>
+     *   <li>{@code null} driver — logs an informational message and returns</li>
+     *   <li>Exceptions during {@code close()} or {@code quit()} — caught and logged so the
+     *       remaining teardown (log attachment, state cleanup) still executes</li>
+     * </ul>
+     *
+     * @param driver the WebDriver instance to close; if {@code null}, the method is a no-op
+     */
+    @Step("Close Driver Session")
     public void closeDriver(WebDriver driver) {
         if (driver != null) {
             if (SHAFT.Properties.visuals.videoParamsScope().equals("DriverSession")) {
@@ -299,12 +315,13 @@ public class DriverFactoryHelper {
                     try {
                         driver.close();
                     } catch (Exception e) {
-                        //ignore
+                        ReportManagerHelper.logDiscrete(e, Level.DEBUG);
                     }
                     driver.quit();
                 }
             } catch (WebDriverException | NullPointerException e) {
                 // driver was already closed at an earlier stage
+                ReportManagerHelper.logDiscrete(e, Level.DEBUG);
             } catch (Exception e) {
                 ReportManagerHelper.logDiscrete(e);
             } finally {
@@ -425,7 +442,7 @@ public class DriverFactoryHelper {
                     //minimizing retry attempts to save execution time
                     retryAttempts = 0;
                 } catch (Throwable throwable) {
-                    // ignore
+                    ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
                 }
             } else if (exception.getMessage().contains("java.util.concurrent.TimeoutException")) {
                 // this happens in case an auto closable BiDi session was left hanging
@@ -434,14 +451,15 @@ public class DriverFactoryHelper {
                 try {
                     Thread.sleep(26000);
                 } catch (InterruptedException e) {
-                    //do nothing
+                    Thread.currentThread().interrupt();
+                    ReportManagerHelper.logDiscrete(e, Level.DEBUG);
                 }
             }
             // attempting blind fix by trying to quit existing driver if any
             try {
                 driver.quit();
             } catch (Throwable throwable) {
-                // ignore
+                ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
             } finally {
                 setDriver(null);
             }
@@ -450,7 +468,8 @@ public class DriverFactoryHelper {
                 try {
                     Thread.sleep(5000);
                 } catch (InterruptedException e) {
-                    //do nothing
+                    Thread.currentThread().interrupt();
+                    ReportManagerHelper.logDiscrete(e, Level.DEBUG);
                 }
                 createNewLocalDriverInstance(driverType, retryAttempts - 1);
             }
@@ -659,6 +678,7 @@ public class DriverFactoryHelper {
                 });
             } catch (WebDriverException e) {
                 // exception when the defined logging is not supported
+                ReportManagerHelper.logDiscrete(e, Level.DEBUG);
             }
         }
     }

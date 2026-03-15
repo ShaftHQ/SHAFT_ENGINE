@@ -55,8 +55,8 @@ runs:
                   DURATION_STR="N/A"
                 fi
 
-                # Add status emoji based on failures
-                if [ "$FAILED" -gt 0 ]; then
+                # Add status emoji based on failures or broken tests
+                if [ "$FAILED" -gt 0 ] || [ "$BROKEN" -gt 0 ]; then
                   JOB_STATUS="❌ $JOB"
                   HAS_FAILURES=true
                 elif [ "$TOTAL" -eq 0 ]; then
@@ -93,7 +93,7 @@ runs:
 
         # Overall status
         if [ "$HAS_FAILURES" = true ]; then
-          echo "### ❌ Some tests failed. Check individual job reports for details." >> $GITHUB_STEP_SUMMARY
+          echo "### ❌ Some tests failed or are broken. Check individual job reports for details." >> $GITHUB_STEP_SUMMARY
         elif [ "$GRAND_TOTAL" -eq 0 ]; then
           echo "### ⚠️ No test results found. Check workflow configuration." >> $GITHUB_STEP_SUMMARY
         else
