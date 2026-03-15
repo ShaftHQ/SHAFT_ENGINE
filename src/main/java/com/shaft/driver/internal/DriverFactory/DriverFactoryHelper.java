@@ -283,6 +283,7 @@ public class DriverFactoryHelper {
         setDriver(null);
     }
 
+    @Step("Close Driver Session")
     public void closeDriver(WebDriver driver) {
         if (driver != null) {
             if (SHAFT.Properties.visuals.videoParamsScope().equals("DriverSession")) {

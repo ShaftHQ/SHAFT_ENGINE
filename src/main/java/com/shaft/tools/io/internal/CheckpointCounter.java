@@ -26,6 +26,9 @@ public class CheckpointCounter {
     }
 
     public static void attach() {
+        if (checkpoints.isEmpty()) {
+            return;
+        }
         StringBuilder detailsBuilder = new StringBuilder();
         checkpoints.forEach((key, value) -> detailsBuilder.append(String.format(HTMLHelper.CHECKPOINT_DETAILS_FORMAT.getValue(), key, value.get(0), value.get(1), value.get(2))));
 
