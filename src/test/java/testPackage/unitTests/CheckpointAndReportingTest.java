@@ -19,39 +19,42 @@ import static org.testng.Assert.*;
  */
 public class CheckpointAndReportingTest {
 
+    private static final Field CHECKPOINTS_FIELD;
+    private static final Field PASSED_FIELD;
+    private static final Field FAILED_FIELD;
+
+    static {
+        try {
+            CHECKPOINTS_FIELD = CheckpointCounter.class.getDeclaredField("checkpoints");
+            CHECKPOINTS_FIELD.setAccessible(true);
+            PASSED_FIELD = CheckpointCounter.class.getDeclaredField("passedCheckpoints");
+            PASSED_FIELD.setAccessible(true);
+            FAILED_FIELD = CheckpointCounter.class.getDeclaredField("failedCheckpoints");
+            FAILED_FIELD.setAccessible(true);
+        } catch (NoSuchFieldException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
     /**
      * Resets the CheckpointCounter static state via reflection so each test starts clean.
      */
     private void resetCheckpointCounter() throws Exception {
-        Field checkpointsField = CheckpointCounter.class.getDeclaredField("checkpoints");
-        checkpointsField.setAccessible(true);
-        ((ConcurrentHashMap<?, ?>) checkpointsField.get(null)).clear();
-
-        Field passedField = CheckpointCounter.class.getDeclaredField("passedCheckpoints");
-        passedField.setAccessible(true);
-        ((AtomicInteger) passedField.get(null)).set(0);
-
-        Field failedField = CheckpointCounter.class.getDeclaredField("failedCheckpoints");
-        failedField.setAccessible(true);
-        ((AtomicInteger) failedField.get(null)).set(0);
+        ((ConcurrentHashMap<?, ?>) CHECKPOINTS_FIELD.get(null)).clear();
+        ((AtomicInteger) PASSED_FIELD.get(null)).set(0);
+        ((AtomicInteger) FAILED_FIELD.get(null)).set(0);
     }
 
     private int getCheckpointsSize() throws Exception {
-        Field checkpointsField = CheckpointCounter.class.getDeclaredField("checkpoints");
-        checkpointsField.setAccessible(true);
-        return ((ConcurrentHashMap<?, ?>) checkpointsField.get(null)).size();
+        return ((ConcurrentHashMap<?, ?>) CHECKPOINTS_FIELD.get(null)).size();
     }
 
     private int getPassedCount() throws Exception {
-        Field passedField = CheckpointCounter.class.getDeclaredField("passedCheckpoints");
-        passedField.setAccessible(true);
-        return ((AtomicInteger) passedField.get(null)).get();
+        return ((AtomicInteger) PASSED_FIELD.get(null)).get();
     }
 
     private int getFailedCount() throws Exception {
-        Field failedField = CheckpointCounter.class.getDeclaredField("failedCheckpoints");
-        failedField.setAccessible(true);
-        return ((AtomicInteger) failedField.get(null)).get();
+        return ((AtomicInteger) FAILED_FIELD.get(null)).get();
     }
 
     @Test(description = "CheckpointCounter.increment records passed checkpoints correctly")
@@ -96,10 +99,10 @@ public class CheckpointAndReportingTest {
         int beforeSize = getCheckpointsSize();
         int beforePassed = getPassedCount();
         Validations.assertThat().number(42).isEqualTo(42).perform();
-        assertTrue(getCheckpointsSize() > beforeSize,
-                "Checkpoint count should increase after assertion");
-        assertTrue(getPassedCount() > beforePassed,
-                "Passed checkpoint count should increase after successful assertion");
+        assertEquals(getCheckpointsSize(), beforeSize + 1,
+                "Checkpoint count should increase by exactly 1 after assertion");
+        assertEquals(getPassedCount(), beforePassed + 1,
+                "Passed checkpoint count should increase by exactly 1 after successful assertion");
     }
 
     @Test(description = "Validations.verifyThat().number() populates checkpoint counter via ValidationsHelper2")
@@ -107,10 +110,10 @@ public class CheckpointAndReportingTest {
         int beforeSize = getCheckpointsSize();
         int beforePassed = getPassedCount();
         Validations.verifyThat().number(10).isEqualTo(10).perform();
-        assertTrue(getCheckpointsSize() > beforeSize,
-                "Checkpoint count should increase after verification");
-        assertTrue(getPassedCount() > beforePassed,
-                "Passed checkpoint count should increase after successful verification");
+        assertEquals(getCheckpointsSize(), beforeSize + 1,
+                "Checkpoint count should increase by exactly 1 after verification");
+        assertEquals(getPassedCount(), beforePassed + 1,
+                "Passed checkpoint count should increase by exactly 1 after successful verification");
     }
 
     @Test(description = "Validations.assertThat().object() populates checkpoint counter via ValidationsHelper2")
@@ -118,10 +121,10 @@ public class CheckpointAndReportingTest {
         int beforeSize = getCheckpointsSize();
         int beforePassed = getPassedCount();
         Validations.assertThat().object("hello").isEqualTo("hello").perform();
-        assertTrue(getCheckpointsSize() > beforeSize,
-                "Checkpoint count should increase after object assertion");
-        assertTrue(getPassedCount() > beforePassed,
-                "Passed checkpoint count should increase after successful object assertion");
+        assertEquals(getCheckpointsSize(), beforeSize + 1,
+                "Checkpoint count should increase by exactly 1 after object assertion");
+        assertEquals(getPassedCount(), beforePassed + 1,
+                "Passed checkpoint count should increase by exactly 1 after successful object assertion");
     }
 
     @Test(description = "Failed assertion populates checkpoint counter with FAIL status",
@@ -131,8 +134,8 @@ public class CheckpointAndReportingTest {
         try {
             Validations.assertThat().number(1).isEqualTo(2).perform();
         } finally {
-            assertTrue(getFailedCount() > beforeFailed,
-                    "Failed checkpoint count should increase after failed assertion");
+            assertEquals(getFailedCount(), beforeFailed + 1,
+                    "Failed checkpoint count should increase by exactly 1 after failed assertion");
         }
     }
 }
