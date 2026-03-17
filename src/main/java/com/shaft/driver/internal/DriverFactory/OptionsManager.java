@@ -193,6 +193,7 @@ public class OptionsManager {
         }
     }
 
+    private static final Object SE_CONFIG_LOCK = new Object();
     private void setSeleniumManagerOptions(MutableCapabilities options) {
         // mutate per-thread capabilities outside the shared lock to reduce contention
         if (SHAFT.Properties.web.forceBrowserDownload()) {
