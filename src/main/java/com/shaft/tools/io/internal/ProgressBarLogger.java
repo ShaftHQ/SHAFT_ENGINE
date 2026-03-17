@@ -11,6 +11,8 @@ import java.util.concurrent.Executors;
 
 
 public class ProgressBarLogger implements AutoCloseable {
+    private static final String ANSI_BRIGHT_CYAN = "\u001b[36;1m";
+    private static final String ANSI_RESET = "\u001b[0m";
     private final ExecutorService service;
     ProgressBar pb;
     Runnable task;
@@ -23,16 +25,16 @@ public class ProgressBarLogger implements AutoCloseable {
         ProgressBarBuilder pbb = ProgressBar.builder()
                 .setTaskName(taskName)
                 .setInitialMax(timeoutVal)
-                .setMaxRenderedLength(100)
+                .setMaxRenderedLength(120)
                 .hideEta()
                 .setStyle(ProgressBarStyle.builder()
-                        .leftBracket("\u001b[34;1m│") // the ANSI color code https://gist.github.com/dominikwilkowski/60eed2ea722183769d586c76f22098dd
+                        .leftBracket(ANSI_BRIGHT_CYAN + "│")
                         .delimitingSequence("")
-                        .rightBracket("│\u001b[0m")
+                        .rightBracket("│" + ANSI_RESET)
                         .block('█')
-                        .space(' ')
+                        .space('░')
                         .fractionSymbols(" ▏▎▍▌▋▊▉")
-                        .rightSideFractionSymbol(' ')
+                        .rightSideFractionSymbol('░')
                         .build()
                 );
         task = () -> {

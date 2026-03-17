@@ -58,7 +58,7 @@ public interface Visuals extends EngineProperties<Visuals> {
     int animatedGifFrameDelay();
 
     @Key("videoParams_recordVideo")
-    @DefaultValue("false")
+    @DefaultValue("true")
     boolean videoParamsRecordVideo();
 
     @Key("videoParams_scope")

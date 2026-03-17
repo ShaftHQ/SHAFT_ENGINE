@@ -36,6 +36,7 @@ import io.restassured.response.Response;
 import io.restassured.response.ResponseBody;
 import io.restassured.specification.RequestSpecification;
 import lombok.Setter;
+import org.apache.logging.log4j.Level;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -239,14 +240,14 @@ public class RestActions {
                     searchPool = String.valueOf(jsonValue);
                 }
             } catch (JSONException | PathNotFoundException rootCauseException) {
-                ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
+                ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
                 failAction(jsonPath, rootCauseException);
             }
         } catch (ClassCastException rootCauseException) {
-            ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"");
+            ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"", Level.ERROR);
             failAction(jsonPath, rootCauseException);
         } catch (JsonPathException | IllegalArgumentException rootCauseException) {
-            ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
+            ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
             failAction(jsonPath, rootCauseException);
         }
         if (searchPool != null) {
@@ -317,16 +318,16 @@ public class RestActions {
                             searchPool = String.valueOf(jsonValue);
                         }
                     } catch (JSONException rootCauseException) {
-                        ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
+                        ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
                         failAction(jsonPath, rootCauseException);
                     }
                 }
             }
         } catch (ClassCastException rootCauseException) {
-            ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"");
+            ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"", Level.ERROR);
             failAction(jsonPath, rootCauseException);
         } catch (JsonPathException | JSONException | IllegalArgumentException rootCauseException) {
-            ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
+            ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
             failAction(jsonPath, rootCauseException);
         }
         if (searchPool != null) {
@@ -353,15 +354,15 @@ public class RestActions {
                 jsonList = new ObjectMapper().readValue(Objects.requireNonNull(jsonArray).toString(), new TypeReference<>() {
                 });
             } catch (JSONException | JsonProcessingException rootCauseException) {
-                ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
+                ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
                 failAction(jsonPath, rootCauseException);
             }
             searchPool = jsonList;
         } catch (ClassCastException rootCauseException) {
-            ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"");
+            ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"", Level.ERROR);
             failAction(jsonPath, rootCauseException);
         } catch (JsonPathException | IllegalArgumentException rootCauseException) {
-            ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
+            ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
             failAction(jsonPath, rootCauseException);
         }
 
@@ -411,7 +412,7 @@ public class RestActions {
         try {
             searchPool = response.xmlPath().getString(xmlPath);
         } catch (ClassCastException rootCauseException) {
-            ReportManager.log(ERROR_INCORRECT_XML_PATH + "\"" + xmlPath + "\"");
+            ReportManager.log(ERROR_INCORRECT_XML_PATH + "\"" + xmlPath + "\"", Level.ERROR);
             failAction(xmlPath, rootCauseException);
 
         }
@@ -430,7 +431,7 @@ public class RestActions {
         try {
             output = ((Node) response).getAttribute(xmlPath);
         } catch (ClassCastException rootCauseException) {
-            ReportManager.log(ERROR_INCORRECT_XML_PATH + "\"" + xmlPath + "\"");
+            ReportManager.log(ERROR_INCORRECT_XML_PATH + "\"" + xmlPath + "\"", Level.ERROR);
             failAction(xmlPath, rootCauseException);
 
         }
@@ -449,7 +450,7 @@ public class RestActions {
         try {
             output = response.xmlPath().get(xmlPath);
         } catch (ClassCastException rootCauseException) {
-            ReportManager.log(ERROR_INCORRECT_XML_PATH + "\"" + xmlPath + "\"");
+            ReportManager.log(ERROR_INCORRECT_XML_PATH + "\"" + xmlPath + "\"", Level.ERROR);
             failAction(xmlPath, rootCauseException);
 
         }

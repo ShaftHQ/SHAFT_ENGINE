@@ -519,7 +519,7 @@
         <dependency>
              <groupId>com.microsoft.sqlserver</groupId>
              <artifactId>mssql-jdbc</artifactId>
-             <version>13.3.2.jre11-preview</version>
+             <version>13.4.0.jre11</version>
         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -698,7 +698,7 @@
         <dependency>
             <groupId>com.browserstack</groupId>
             <artifactId>browserstack-java-sdk</artifactId>
-            <version>1.54.4</version>
+            <version>1.54.5</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.aeonbits.owner/owner -->
@@ -752,7 +752,7 @@
         <dependency>
             <groupId>com.epam.reportportal</groupId>
             <artifactId>agent-java-testng</artifactId>
-            <version>5.6.5</version>
+            <version>5.6.6</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>

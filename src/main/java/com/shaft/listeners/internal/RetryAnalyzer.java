@@ -5,15 +5,29 @@ import com.shaft.tools.io.ReportManager;
 import org.testng.IRetryAnalyzer;
 import org.testng.ITestResult;
 
+/**
+ * TestNG retry analyzer that re-runs failed tests up to a configurable maximum
+ * number of attempts.
+ *
+ * <p>The maximum retry count is read <b>lazily</b> on every {@link #retry} call from
+ * {@link SHAFT.Properties#flags}{@code .retryMaximumNumberOfAttempts()} so that
+ * property changes made at any point before the first failure are always honoured.
+ *
+ * <p>Each {@code RetryAnalyzer} instance maintains its own invocation counter,
+ * which is correct because TestNG creates one instance per test method (or per
+ * parameter combination for data-driven tests).
+ */
 public class RetryAnalyzer implements IRetryAnalyzer {
-    private final int maxRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
     private int counter = 0;
 
     @Override
     public boolean retry(ITestResult iTestResult) {
+        int maxRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
         if (counter < maxRetryCount) {
             counter++;
-            ReportManager.logDiscrete("Retry #" + counter + " for test: " + iTestResult.getMethod().getMethodName() + ", on thread: " + Thread.currentThread().getName());
+            ReportManager.logDiscrete("Retry #" + counter + "/" + maxRetryCount
+                    + " for test: " + iTestResult.getMethod().getMethodName()
+                    + ", on thread: " + Thread.currentThread().getName());
             enableSupportingEvidenceCapture();
             return true;
         }
