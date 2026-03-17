@@ -8,9 +8,10 @@ import java.lang.reflect.Proxy;
 /**
  * Central holder for all SHAFT property configuration objects.
  * <p>
- * Mutable driver/session configuration is exposed through thread-safe proxies that
- * dispatch reads to the current thread's config instance (if a per-thread override
- * is active) or fall back to the globally-initialized base config. When a test calls
+ * Mutable driver/session configuration such as {@link Web}, {@link Mobile},
+ * and {@link Platform} is exposed through thread-safe proxies that dispatch reads
+ * to the current thread's config instance (if a per-thread override is active) or
+ * fall back to the globally-initialized base config. When a test calls
  * {@code SHAFT.Properties.web.set().targetBrowserName("firefox")}, only that
  * thread's config is updated — other threads continue to see their own values,
  * preventing cross-thread contamination during parallel test execution.
@@ -36,7 +37,7 @@ public class Properties {
     static Mobile baseMobile;
     static Paths basePaths;
     static Pattern basePattern;
-    static Flags baseFlags;
+    static volatile Flags baseFlags;
     static Reporting baseReporting;
     static Allure baseAllure;
     static Timeouts baseTimeouts;
@@ -138,6 +139,11 @@ public class Properties {
     /**
      * Creates a dynamic proxy for engine-global configuration that always resolves
      * against the globally initialized base instance.
+     *
+     * <p>The supplied base instance must be safely published because the proxy
+     * shares that instance across all execution threads. The current retry-flags
+     * implementation synchronizes updates and publishes the refreshed config
+     * through the volatile {@code baseFlags} reference.</p>
      *
      * @param <T>          the config interface type
      * @param configClass  the config interface class

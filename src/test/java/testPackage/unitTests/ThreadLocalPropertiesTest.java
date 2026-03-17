@@ -174,6 +174,7 @@ public class ThreadLocalPropertiesTest {
             Thread otherThread = new Thread(() -> SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(4));
             otherThread.start();
             otherThread.join(THREAD_JOIN_TIMEOUT_MS);
+            Assert.assertFalse(otherThread.isAlive(), "Flags configuration thread should finish within timeout");
 
             Assert.assertEquals(SHAFT.Properties.flags.retryMaximumNumberOfAttempts(), 4,
                     "retryMaximumNumberOfAttempts should be shared across threads");

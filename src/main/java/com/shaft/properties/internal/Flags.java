@@ -8,6 +8,8 @@ import org.aeonbits.owner.ConfigFactory;
 @Sources({"system:properties", "file:src/main/resources/properties/PlatformFlags.properties", "file:src/main/resources/properties/default/PlatformFlags.properties", "classpath:PlatformFlags.properties",})
 public interface Flags extends EngineProperties<Flags> {
     private static void setProperty(String key, String value) {
+        // Engine-wide flags are updated under a dedicated lock and then safely
+        // published through the volatile Properties.baseFlags reference.
         synchronized (Properties.class) {
             System.setProperty(key, value);
             Properties.baseFlags = ConfigFactory.create(Flags.class);

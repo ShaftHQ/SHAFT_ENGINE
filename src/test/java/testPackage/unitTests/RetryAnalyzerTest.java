@@ -18,6 +18,7 @@ import static org.mockito.Mockito.when;
  * number of retry attempts.
  */
 public class RetryAnalyzerTest {
+    private static final long THREAD_JOIN_TIMEOUT_MS = 5000;
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
@@ -35,7 +36,8 @@ public class RetryAnalyzerTest {
     private void setRetryCountOnAnotherThread(int value) throws InterruptedException {
         Thread otherThread = new Thread(() -> SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(value));
         otherThread.start();
-        otherThread.join(5000);
+        otherThread.join(THREAD_JOIN_TIMEOUT_MS);
+        Assert.assertFalse(otherThread.isAlive(), "Retry configuration thread should finish within timeout");
     }
 
     @Test(description = "RetryAnalyzer reads maxRetryCount lazily — property set AFTER construction is honoured")
