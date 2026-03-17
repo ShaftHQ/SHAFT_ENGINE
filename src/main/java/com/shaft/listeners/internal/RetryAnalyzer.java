@@ -1,7 +1,6 @@
 package com.shaft.listeners.internal;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.logging.log4j.Level;
@@ -12,11 +11,10 @@ import org.testng.ITestResult;
  * TestNG retry analyzer that re-runs failed tests up to a configurable maximum
  * number of attempts.
  *
- * <p>The maximum retry count is read <b>lazily</b> on every {@link #retry} call from
- * {@link SHAFT.Properties#flags}{@code .retryMaximumNumberOfAttempts()} so that
- * property changes made at any point before the first failure are always honoured.
- * As a safety net, if the SHAFT property system returns 0 the analyzer also checks
- * the raw {@code retryMaximumNumberOfAttempts} system property directly.
+ * <p>The maximum retry count is read from the engine-wide flags configuration on
+ * every {@link #retry} call. As a safety net, if the SHAFT property system returns
+ * 0 the analyzer also checks the raw {@code retryMaximumNumberOfAttempts} system
+ * property directly.
  *
  * <p>Each {@code RetryAnalyzer} instance maintains its own invocation counter,
  * which is correct because TestNG creates one instance per test method (or per
@@ -30,11 +28,8 @@ public class RetryAnalyzer implements IRetryAnalyzer {
         try {
             int maxRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
             if (maxRetryCount == 0) {
-                // Double-check the raw system property in case the SHAFT property
-                // system did not pick it up (e.g. timing/initialization issue).
-                // Only override when no explicit thread-local value was set.
                 int sysPropValue = readSystemProperty();
-                if (sysPropValue > 0 && !hasExplicitOverride()) {
+                if (sysPropValue > 0) {
                     maxRetryCount = sysPropValue;
                 }
             }
@@ -67,24 +62,6 @@ public class RetryAnalyzer implements IRetryAnalyzer {
             }
         }
         return false;
-    }
-
-    /**
-     * Returns {@code true} when a thread-local override has been explicitly set for
-     * the {@code retryMaximumNumberOfAttempts} property via
-     * {@code SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(...)}.
-     * In that case we must respect the overridden value even if it is 0.
-     */
-    private static boolean hasExplicitOverride() {
-        try {
-            String threadLocalValue = ThreadLocalPropertiesManager.getOverrides()
-                    .getProperty("retryMaximumNumberOfAttempts");
-            return threadLocalValue != null;
-        } catch (Exception e) {
-            // If we can't determine override status, assume no override so the
-            // system property fallback can still take effect.
-            return false;
-        }
     }
 
     /**

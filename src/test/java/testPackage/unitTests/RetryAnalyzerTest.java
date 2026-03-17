@@ -32,6 +32,12 @@ public class RetryAnalyzerTest {
         return mockResult;
     }
 
+    private void setRetryCountOnAnotherThread(int value) throws InterruptedException {
+        Thread otherThread = new Thread(() -> SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(value));
+        otherThread.start();
+        otherThread.join(5000);
+    }
+
     @Test(description = "RetryAnalyzer reads maxRetryCount lazily — property set AFTER construction is honoured")
     public void retryReadsPropertyLazily() {
         // Create the analyzer BEFORE setting the property
@@ -46,6 +52,19 @@ public class RetryAnalyzerTest {
         Assert.assertTrue(analyzer.retry(mockResult), "First retry should be allowed (1/2)");
         Assert.assertTrue(analyzer.retry(mockResult), "Second retry should be allowed (2/2)");
         Assert.assertFalse(analyzer.retry(mockResult), "Third retry should be denied (exceeded 2)");
+    }
+
+    @Test(description = "RetryAnalyzer uses retry count configured on a different thread because retries are engine-global")
+    public void retryConfigurationSetOnAnotherThreadIsVisibleToAnalyzer() throws InterruptedException {
+        setRetryCountOnAnotherThread(1);
+
+        RetryAnalyzer analyzer = new RetryAnalyzer();
+        ITestResult mockResult = createMockTestResult("crossThreadRetryTest");
+
+        Assert.assertTrue(analyzer.retry(mockResult),
+                "Retry should be allowed when retry count was configured on another thread");
+        Assert.assertFalse(analyzer.retry(mockResult),
+                "Second retry should be denied once the engine-global max is exhausted");
     }
 
     @Test(description = "RetryAnalyzer allows exactly maxRetryCount retries when set to 1")
