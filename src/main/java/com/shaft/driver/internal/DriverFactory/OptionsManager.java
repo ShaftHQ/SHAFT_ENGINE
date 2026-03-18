@@ -194,7 +194,7 @@ public class OptionsManager {
     }
 
     private void setSeleniumManagerOptions(MutableCapabilities options) {
-        // mutate per-thread capabilities outside the shared lock to reduce contention
+        // Mutate per-thread capabilities outside the shared lock to reduce contention.
         if (SHAFT.Properties.web.forceBrowserDownload()) {
             if (options instanceof ChromeOptions chromeOptions) {
                 chromeOptions.setBrowserVersion("stable");
