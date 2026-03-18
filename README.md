@@ -78,7 +78,7 @@ Built on industry-standard technologies — [Selenium](https://www.selenium.dev/
 | 🔧 **Zero Boilerplate** | Smart auto-configuration — no WebDriverManager, no manual waits, no setup code |
 | 📊 **Rich Reporting** | Built-in [Allure](https://allurereport.org/) integration with screenshots, videos, and detailed logs |
 | 🤖 **AI-Powered Validation** | Visual testing with [OpenCV](https://opencv.org/) and intelligent element detection |
-| 🌐 **Cloud-Ready** | Native support for [BrowserStack](https://www.browserstack.com/), [LambdaTest](https://www.lambdatest.com/), and [Selenium Grid](https://www.selenium.dev/documentation/grid/) |
+| 🌐 **Cloud-Ready** | Native support for [BrowserStack](https://www.browserstack.com/), [LambdaTest](https://www.testmuai.com/?utm_medium=sponsor&utm_source=shaft-engine), and [Selenium Grid](https://www.selenium.dev/documentation/grid/) |
 | ⚙️ **Any Test Runner** | Works with [TestNG](https://testng.org/), [JUnit 5](https://junit.org/junit5/), and [Cucumber](https://cucumber.io/) out of the box |
 | 🐳 **Containerized** | Ready-to-use Docker support for CI/CD pipelines |
 | 📱 **Full Mobile** | Native, Hybrid, and [Flutter](https://flutter.dev/) apps on Android & iOS via [Appium](https://appium.io/) |
@@ -268,7 +268,7 @@ public class QuickStartTest {
 
 <a href="https://www.browserstack.com/" target="_blank"><img src="https://ml.globenewswire.com/Resource/Download/745e80b7-4736-424e-b44b-850d2dc41940" alt="BrowserStack - Cross Browser Testing Platform" height="50"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;
-<a href="https://www.lambdatest.com" target="_blank"><img src="https://assets.testmuai.com/resources/images/logos/logo.svg" alt="LambdaTest - Cloud Testing Platform" width="250" height="50"></a>
+<a href="https://www.testmuai.com/?utm_medium=sponsor&utm_source=shaft-engine" target="_blank"><img src="https://assets.testmuai.com/resources/images/logos/logo.svg" alt="LambdaTest - Cloud Testing Platform" width="250" height="50"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;
 <a href="https://applitools.com/" target="_blank"><img src="https://www.selenium.dev/images/sponsors/applitools.png" alt="Applitools - Visual AI Testing" height="50"></a>
 
