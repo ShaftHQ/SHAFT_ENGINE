@@ -571,7 +571,6 @@ public class FileActions {
 
     public void createFile(String folderPath, String fileName) {
         try {
-            FileUtils.deleteQuietly(new File(folderPath + fileName));
             FileUtils.forceMkdir(new File(folderPath));
             FileUtils.touch(new File(folderPath + fileName));
             passAction("Target Folder: \"" + folderPath + "\", Target File: \"" + fileName + "\"");
