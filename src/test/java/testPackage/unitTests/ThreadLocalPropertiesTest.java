@@ -167,6 +167,22 @@ public class ThreadLocalPropertiesTest {
                 "Other thread should NOT see the current thread's thread-local override");
     }
 
+    @Test(description = "Flags configuration is engine-global even when set from another thread")
+    public void testFlagsConfigurationIsSharedAcrossThreads() throws InterruptedException {
+        int originalRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+        try {
+            Thread otherThread = new Thread(() -> SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(4));
+            otherThread.start();
+            otherThread.join(THREAD_JOIN_TIMEOUT_MS);
+            Assert.assertFalse(otherThread.isAlive(), "Flags configuration thread should finish within timeout");
+
+            Assert.assertEquals(SHAFT.Properties.flags.retryMaximumNumberOfAttempts(), 4,
+                    "retryMaximumNumberOfAttempts should be shared across threads");
+        } finally {
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetryCount);
+        }
+    }
+
     @Test(description = "Thread-local mobile_ properties do not leak to other threads")
     public void testMobilePropertiesThreadIsolation() throws InterruptedException {
         String testAppUrl = "https://example.com/thread-isolation-test.apk";

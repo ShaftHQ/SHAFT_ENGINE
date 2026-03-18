@@ -193,7 +193,6 @@ public class OptionsManager {
         }
     }
 
-    private static final Object SE_CONFIG_LOCK = new Object();
     private void setSeleniumManagerOptions(MutableCapabilities options) {
         // Set browser version capabilities outside the lock — these are per-instance and thread-safe
         if (SHAFT.Properties.web.forceBrowserDownload()) {

@@ -46,7 +46,13 @@ public class MobileEmulationTests {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.get().quit();
+        try {
+            if (driver.get() != null) {
+                driver.get().quit();
+            }
+        } finally {
+            driver.remove();
+        }
     }
 
     @AfterClass(alwaysRun = true)

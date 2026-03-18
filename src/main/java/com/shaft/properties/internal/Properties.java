@@ -8,17 +8,19 @@ import java.lang.reflect.Proxy;
 /**
  * Central holder for all SHAFT property configuration objects.
  * <p>
- * Each writable property type is exposed as a thread-safe proxy that dispatches
- * reads to the current thread's config instance (if a per-thread override is active)
- * or falls back to the globally-initialized base config.  When a test calls
+ * Mutable driver/session configuration such as {@link Web}, {@link Mobile},
+ * and {@link Platform} is exposed through thread-safe proxies that dispatch reads
+ * to the current thread's config instance (if a per-thread override is active) or
+ * fall back to the globally-initialized base config. When a test calls
  * {@code SHAFT.Properties.web.set().targetBrowserName("firefox")}, only that
  * thread's config is updated — other threads continue to see their own values,
  * preventing cross-thread contamination during parallel test execution.
  * </p>
  * <p>
- * Read-only property types ({@link Internal}, {@link TestNG}, {@link Log4j},
- * {@link Cucumber}) are backed by simple static fields because they are never
- * mutated after framework initialisation.
+ * Engine-wide configuration ({@link Flags}, plus the read-only {@link Internal},
+ * {@link TestNG}, {@link Log4j}, and {@link Cucumber} types) is backed by a
+ * single global config instance because these values are initialized once and
+ * must remain consistent across all execution threads.
  * </p>
  */
 public class Properties {
@@ -35,7 +37,7 @@ public class Properties {
     static Mobile baseMobile;
     static Paths basePaths;
     static Pattern basePattern;
-    static Flags baseFlags;
+    static volatile Flags baseFlags;
     static Reporting baseReporting;
     static Allure baseAllure;
     static Timeouts baseTimeouts;
@@ -56,7 +58,6 @@ public class Properties {
     static final ThreadLocal<Mobile> mobileOverride = new ThreadLocal<>();
     static final ThreadLocal<Paths> pathsOverride = new ThreadLocal<>();
     static final ThreadLocal<Pattern> patternOverride = new ThreadLocal<>();
-    static final ThreadLocal<Flags> flagsOverride = new ThreadLocal<>();
     static final ThreadLocal<Reporting> reportingOverride = new ThreadLocal<>();
     static final ThreadLocal<Allure> allureOverride = new ThreadLocal<>();
     static final ThreadLocal<Timeouts> timeoutsOverride = new ThreadLocal<>();
@@ -77,7 +78,7 @@ public class Properties {
     public static final Mobile mobile = createProxy(Mobile.class, mobileOverride, () -> baseMobile);
     public static final Paths paths = createProxy(Paths.class, pathsOverride, () -> basePaths);
     public static final Pattern pattern = createProxy(Pattern.class, patternOverride, () -> basePattern);
-    public static final Flags flags = createProxy(Flags.class, flagsOverride, () -> baseFlags);
+    public static final Flags flags = createGlobalProxy(Flags.class, () -> baseFlags);
     public static final Reporting reporting = createProxy(Reporting.class, reportingOverride, () -> baseReporting);
     public static final Allure allure = createProxy(Allure.class, allureOverride, () -> baseAllure);
     public static final Timeouts timeouts = createProxy(Timeouts.class, timeoutsOverride, () -> baseTimeouts);
@@ -132,6 +133,40 @@ public class Properties {
                     } catch (InvocationTargetException e) {
                         throw e.getCause() != null ? e.getCause() : e;
                     }
+                 });
+    }
+
+    /**
+     * Creates a dynamic proxy for engine-global configuration that always resolves
+     * against the globally initialized base instance.
+     *
+     * <p>The supplied base instance must be safely published because the proxy
+     * shares that instance across all execution threads. The current retry-flags
+     * implementation synchronizes updates and publishes the refreshed config
+     * through the volatile {@code baseFlags} reference.</p>
+     *
+     * @param <T>          the config interface type
+     * @param configClass  the config interface class
+     * @param baseSupplier a supplier for the global base instance
+     * @return a proxy that implements {@code T}
+     */
+    @SuppressWarnings("unchecked")
+    static <T extends EngineProperties<T>> T createGlobalProxy(
+            Class<T> configClass,
+            java.util.function.Supplier<T> baseSupplier) {
+        return (T) Proxy.newProxyInstance(
+                configClass.getClassLoader(),
+                new Class<?>[]{configClass},
+                (proxy, method, args) -> {
+                    T instance = baseSupplier.get();
+                    if (instance == null) {
+                        instance = ConfigFactory.create(configClass);
+                    }
+                    try {
+                        return method.invoke(instance, args);
+                    } catch (InvocationTargetException e) {
+                        throw e.getCause() != null ? e.getCause() : e;
+                    }
                 });
     }
 
@@ -170,7 +205,6 @@ public class Properties {
         mobileOverride.remove();
         pathsOverride.remove();
         patternOverride.remove();
-        flagsOverride.remove();
         reportingOverride.remove();
         allureOverride.remove();
         timeoutsOverride.remove();

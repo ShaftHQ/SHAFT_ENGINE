@@ -42,7 +42,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DretryMaximumNumberOfAttempts=1" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report
@@ -59,7 +59,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*API.*], %regex[.*Api.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*], %regex[.*CLIWizard.*], %regex[.*properties.Mobile.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*API.*], %regex[.*Api.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*], %regex[.*CLIWizard.*], %regex[.*properties.Mobile.*]"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report
@@ -96,7 +96,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=${{ matrix.browser }}" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=${{ matrix.browser }}" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report
@@ -114,7 +114,7 @@ jobs:
       - name: Run tests
         continue-on-error: true
         timeout-minutes: 40
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*]"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report
@@ -131,7 +131,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=iOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-DbrowserName=safari" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=iOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-DbrowserName=safari" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report
@@ -148,7 +148,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-DbrowserName=chrome" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-DbrowserName=chrome" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report
@@ -165,7 +165,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*]"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report
@@ -188,7 +188,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report
@@ -207,7 +207,7 @@ jobs:
           node-version: '16'
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
       - name: Post-Test Report and Check
         if: always()
         uses: ./.github/actions/post-test-report

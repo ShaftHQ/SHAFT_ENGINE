@@ -50,6 +50,60 @@ Before submitting a pull request, ensure:
 6. ✅ New or modified `public` methods/classes have JavaDoc comments
 7. ✅ No hardcoded credentials or sensitive data in code or test data files
 
+## Bug Fixing Process
+
+> **This process MUST be applied whenever there is a bug or unexpected behavior that needs to be fixed. No exceptions.**
+
+### Steps to Follow (in order)
+
+1. **Understand the Bug**
+   - Read the issue/bug report carefully; identify symptoms, expected behavior, and actual behavior
+   - Collect all available context: logs, stack traces, screenshots, and reproduction steps
+   - Do **not** start coding until you fully understand the problem
+
+2. **Reproduce the Bug**
+   - Set up a minimal scenario that consistently triggers the bug
+   - Confirm you can reproduce it reliably before proceeding
+   - If you cannot reproduce it, request more information from the reporter
+
+3. **Diagnose the Root Cause**
+   - Trace the code path that leads to the buggy behavior
+   - Identify the exact line(s) or logic that cause the problem
+   - Do **not** fix symptoms — always fix the **root cause**
+
+4. **Write a Failing Test First**
+   - Before making any code changes, write an automated test that demonstrates the bug
+   - The test **must FAIL** against the current (unfixed) code — this proves the test captures the bug
+   - Follow existing test patterns in `src/test/java/`
+   - Name the test to clearly describe the bug scenario (e.g., `createFileShouldPreserveContentOnConcurrentAccess`)
+
+5. **Fix the Bug (Minimal Change)**
+   - Make the **smallest possible code change** that fixes the root cause
+   - Do **not** refactor or change unrelated code while fixing a bug
+   - Follow all existing code patterns, conventions, and SHAFT architecture
+   - Maintain backward compatibility unless the bug itself is a breaking contract
+
+6. **Verify the Fix**
+   - Run the newly written failing test — it **must now PASS**
+   - Compile: `mvn clean install -DskipTests -Dgpg.skip`
+   - Run all affected tests: `mvn test -Dtest=TestClassName`
+
+7. **Run Regression Tests**
+   - Run all related test classes to ensure no regressions were introduced
+   - Pay special attention to tests that exercise the same code paths as the fix
+
+8. **Document and Commit**
+   - Add inline `//` comments to explain non-obvious parts of the fix
+   - Capture screenshots of passing test results as evidence
+   - Follow all **Mandatory Pre-Commit Rules** before committing
+
+### Bug Fix Anti-Patterns to Avoid
+- ❌ Don't start coding before you can reproduce and understand the root cause
+- ❌ Don't fix symptoms — always fix the root cause
+- ❌ Don't make code changes before writing a failing test first
+- ❌ Don't refactor unrelated code while fixing a bug
+- ❌ Don't commit without running and passing the newly added test and all related tests
+
 ## General Guidelines
 
 ### Code Quality
