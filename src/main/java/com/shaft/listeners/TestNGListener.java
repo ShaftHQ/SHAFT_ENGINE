@@ -37,7 +37,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 public class TestNGListener implements IAlterSuiteListener, IAnnotationTransformer,
-        IExecutionListener, ISuiteListener, IInvokedMethodListener, ITestListener, IResultListener2 {
+        IExecutionListener, ISuiteListener, IInvokedMethodListener, ITestListener, IResultListener2, IMethodInterceptor {
 
     public static final Supplier<ITestNGService> REPORT_PORTAL_SERVICE = new MemoizingSupplier<>(() -> new TestNGService(ReportPortal.builder().build()));
     private static final List<ITestNGMethod> passedTests = Collections.synchronizedList(new ArrayList<>());
@@ -167,6 +167,12 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
 
     @Override
     public void onStart(ITestContext testContext) {
+        // Defensive assignment: in some Surefire/TestNG execution paths (for example,
+        // method-filtered runs) annotation transformation may not attach the retry analyzer.
+        // Binding here ensures all discovered test methods in this context carry retries.
+        Arrays.stream(testContext.getAllTestMethods())
+                .filter(ITestNGMethod::isTest)
+                .forEach(method -> method.setRetryAnalyzerClass(RetryAnalyzer.class));
         if (isReportPortalEnabled) this.reportPortalTestNGService.startTest(testContext);
     }
 
@@ -221,6 +227,18 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void transform(ITestAnnotation annotation, Class testClass, Constructor testConstructor, Method testMethod) {
         annotation.setRetryAnalyzer(RetryAnalyzer.class);
+    }
+
+    @Override
+    public List<IMethodInstance> intercept(List<IMethodInstance> methods, ITestContext context) {
+        // Additional safety net: method interception runs right before invocation ordering.
+        // Keeping this hook alongside onStart() guarantees retries even when methods are
+        // dynamically filtered/reordered by TestNG or other interceptors.
+        methods.stream()
+                .map(IMethodInstance::getMethod)
+                .filter(ITestNGMethod::isTest)
+                .forEach(method -> method.setRetryAnalyzerClass(RetryAnalyzer.class));
+        return methods;
     }
 
     /**

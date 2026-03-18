@@ -27,6 +27,7 @@ public class ProjectStructureManager {
                 case TESTNG, AI_AGENT, CUCUMBER -> {
                     FileActions.getInstance(true).createFolder(Properties.paths.services());
                     FileActions.getInstance(true).writeToFile(Properties.paths.services(), "org.testng.ITestNGListener", "com.shaft.listeners.TestNGListener");
+                    FileActions.getInstance(true).writeToFile(Properties.paths.services(), "org.testng.IAnnotationTransformer", "com.shaft.listeners.TestNGListener");
                 }
 //                case CUCUMBER -> {
 //                    FileActions.getInstance(true).createFolder(Properties.paths.services());
