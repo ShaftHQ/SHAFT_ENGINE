@@ -34,6 +34,13 @@ When writing or editing framework source files under `src/main/java/`, follow th
 - Log meaningful messages before re-throwing or handling exceptions
 - Use SHAFT's internal logging utilities (not `System.out.println`)
 
+### Bug Fixes
+When fixing a bug or unexpected behavior in framework source files, you **must** follow the **Bug Fixing Process** defined in `.github/copilot-instructions.md`. Key requirements:
+- Reproduce the bug before writing any code
+- Write a **failing test first** that captures the bug, then fix it so the test passes
+- Make the **smallest possible change** — do not refactor unrelated code
+- Run regression tests to confirm no other behavior is broken
+
 ### ⛔ Mandatory Pre-Commit Rules (No Exceptions)
 > **You MUST NEVER commit untested framework code. There are no exceptions to these rules.**
 
