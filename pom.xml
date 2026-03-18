@@ -776,6 +776,12 @@
     <build>
         <resources>
             <resource>
+                <directory>${project.basedir}/src/main/resources</directory>
+                <includes>
+                    <include>META-INF/services/**</include>
+                </includes>
+            </resource>
+            <resource>
                 <directory>${project.basedir}/src/main/resources/allure</directory>
                 <targetPath>${project.basedir}/target/classes/resources/allure</targetPath>
             </resource>
