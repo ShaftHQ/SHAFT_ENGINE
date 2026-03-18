@@ -44,6 +44,12 @@ import org.testng.annotations.*;
 - Class names: `PascalCase` ending in `Test` or `Tests` (e.g., `BrowserActionsTests`)
 - Test method names: `camelCase`, describe the full scenario (e.g., `navigateToPageAndAssertTitleIsCorrect`)
 
+### Bug Fix Tests
+When writing tests for a bug fix, you **must** follow the **Bug Fixing Process** defined in `.github/copilot-instructions.md`. Key requirements:
+- Write the test **before** making the code fix, and verify that it **fails** against the unfixed code
+- Name the test to clearly describe the bug scenario (e.g., `createFileShouldPreserveContentOnConcurrentAccess`)
+- The test must **pass** after the fix is applied
+
 ### ⛔ Mandatory Pre-Commit Rules (No Exceptions)
 > **You MUST NEVER commit untested code. There are no exceptions to these rules.**
 
