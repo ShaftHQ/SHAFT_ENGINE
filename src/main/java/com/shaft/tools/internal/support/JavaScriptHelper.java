@@ -300,30 +300,157 @@ public enum JavaScriptHelper {
               }
             } catch(e) {}
             return 0;"""),
-    ACTIVE_NETWORK_REQUESTS_COUNT("""
-            if (!window._shaftNetworkTracker) {
-              window._shaftNetworkTracker = true;
-              window._shaftNetworkRequests = 0;
-              var origOpen = window.XMLHttpRequest.prototype.open;
-              window.XMLHttpRequest.prototype.open = function() {
-                window._shaftNetworkRequests++;
-                this.addEventListener('loadend', function() {
-                  window._shaftNetworkRequests = Math.max(0, window._shaftNetworkRequests - 1);
-                });
-                return origOpen.apply(this, arguments);
-              };
-              if (window.fetch) {
-                var origFetch = window.fetch;
-                window.fetch = function() {
-                  window._shaftNetworkRequests++;
-                  return origFetch.apply(this, arguments).then(
-                    function(r) { window._shaftNetworkRequests = Math.max(0, window._shaftNetworkRequests - 1); return r; },
-                    function(e) { window._shaftNetworkRequests = Math.max(0, window._shaftNetworkRequests - 1); throw e; }
-                  );
+    INSTALL_ASYNC_ACTIVITY_MONITOR("""
+            (function() {
+              var w = window;
+              if (w.__shaftAsyncMonitor && w.__shaftAsyncMonitor.installed) { return; }
+              var now = Date.now();
+              var m = w.__shaftAsyncMonitor || {};
+              m.installed = true;
+              m.xhr = m.xhr || 0;
+              m.fetch = m.fetch || 0;
+              m.beacon = m.beacon || 0;
+              m.webSocketConnecting = m.webSocketConnecting || 0;
+              m.eventSourceConnecting = m.eventSourceConnecting || 0;
+              m.lastResourceCount = m.lastResourceCount || 0;
+              m.lastBusyAt = m.lastBusyAt || now;
+              m.markBusy = function() { m.lastBusyAt = Date.now(); };
+              m.inc = function(key) { m[key] = (m[key] || 0) + 1; m.markBusy(); };
+              m.dec = function(key) { m[key] = Math.max(0, (m[key] || 0) - 1); if (m[key] > 0) { m.markBusy(); } };
+            
+              if (!m.xhrPatched && w.XMLHttpRequest && w.XMLHttpRequest.prototype) {
+                m.xhrPatched = true;
+                var origSend = w.XMLHttpRequest.prototype.send;
+                w.XMLHttpRequest.prototype.send = function() {
+                  var xhr = this;
+                  var done = false;
+                  m.inc('xhr');
+                  var finalize = function() { if (done) { return; } done = true; m.dec('xhr'); };
+                  xhr.addEventListener('loadend', finalize, { once: true });
+                  return origSend.apply(xhr, arguments);
                 };
               }
-            }
-            return window._shaftNetworkRequests || 0;"""),
+            
+              if (!m.fetchPatched && w.fetch) {
+                m.fetchPatched = true;
+                var origFetch = w.fetch.bind(w);
+                w.fetch = function() {
+                  m.inc('fetch');
+                  try {
+                    return Promise.resolve(origFetch.apply(w, arguments)).finally(function() { m.dec('fetch'); });
+                  } catch (e) {
+                    m.dec('fetch');
+                    throw e;
+                  }
+                };
+              }
+            
+              if (!m.beaconPatched && w.navigator && w.navigator.sendBeacon) {
+                m.beaconPatched = true;
+                var origBeacon = w.navigator.sendBeacon.bind(w.navigator);
+                w.navigator.sendBeacon = function() {
+                  m.inc('beacon');
+                  try {
+                    return origBeacon.apply(w.navigator, arguments);
+                  } finally {
+                    setTimeout(function() { m.dec('beacon'); }, 0);
+                  }
+                };
+              }
+            
+              if (!m.webSocketPatched && w.WebSocket) {
+                m.webSocketPatched = true;
+                var NativeWebSocket = w.WebSocket;
+                function WrappedWebSocket(url, protocols) {
+                  var ws = protocols === undefined ? new NativeWebSocket(url) : new NativeWebSocket(url, protocols);
+                  var done = false;
+                  m.inc('webSocketConnecting');
+                  var finalize = function() { if (done) { return; } done = true; m.dec('webSocketConnecting'); };
+                  ws.addEventListener('open', finalize, { once: true });
+                  ws.addEventListener('close', finalize, { once: true });
+                  return ws;
+                }
+                WrappedWebSocket.prototype = NativeWebSocket.prototype;
+                Object.setPrototypeOf(WrappedWebSocket, NativeWebSocket);
+                w.WebSocket = WrappedWebSocket;
+              }
+            
+              if (!m.eventSourcePatched && w.EventSource) {
+                m.eventSourcePatched = true;
+                var NativeEventSource = w.EventSource;
+                function WrappedEventSource(url, config) {
+                  var es = config === undefined ? new NativeEventSource(url) : new NativeEventSource(url, config);
+                  var done = false;
+                  m.inc('eventSourceConnecting');
+                  var finalize = function() { if (done) { return; } done = true; m.dec('eventSourceConnecting'); };
+                  es.addEventListener('open', finalize, { once: true });
+                  es.addEventListener('error', finalize, { once: true });
+                  return es;
+                }
+                WrappedEventSource.prototype = NativeEventSource.prototype;
+                Object.setPrototypeOf(WrappedEventSource, NativeEventSource);
+                w.EventSource = WrappedEventSource;
+              }
+            
+              m.getSnapshot = function() {
+                var docBusy = false;
+                var jQueryBusy = false;
+                var angularBusy = false;
+                var pendingImages = false;
+                var resourceCount = 0;
+                var resourcesGrowing = false;
+            
+                try { docBusy = document.readyState !== 'complete'; } catch (e) {}
+                try { if (w.jQuery && typeof w.jQuery.active === 'number') { jQueryBusy = w.jQuery.active > 0; } } catch (e) {}
+                try {
+                  if (w.angular) {
+                    var injector = w.angular.element(document).injector();
+                    if (injector) {
+                      var pending = injector.get('$http').pendingRequests;
+                      angularBusy = !!(pending && pending.length > 0);
+                    }
+                  }
+                } catch (e) {}
+                try {
+                  pendingImages = Array.prototype.some.call(document.images || [], function(img) { return !img.complete; });
+                } catch (e) {}
+                try {
+                  if (w.performance && w.performance.getEntriesByType) {
+                    resourceCount = w.performance.getEntriesByType('resource').length;
+                    resourcesGrowing = resourceCount > (m.lastResourceCount || 0);
+                    m.lastResourceCount = resourceCount;
+                  }
+                } catch (e) {}
+            
+                var networkTotal = (m.xhr || 0) + (m.fetch || 0) + (m.beacon || 0);
+                var connectionTotal = (m.webSocketConnecting || 0) + (m.eventSourceConnecting || 0);
+                var pageActivityTotal = (docBusy ? 1 : 0) + (jQueryBusy ? 1 : 0) + (angularBusy ? 1 : 0) + (resourcesGrowing ? 1 : 0) + (pendingImages ? 1 : 0);
+                var pendingTotal = networkTotal + connectionTotal + pageActivityTotal;
+            
+                if (pendingTotal > 0) { m.markBusy(); }
+                var nowMs = Date.now();
+            
+                return {
+                  xhr: m.xhr || 0,
+                  fetch: m.fetch || 0,
+                  beacon: m.beacon || 0,
+                  webSocketConnecting: m.webSocketConnecting || 0,
+                  eventSourceConnecting: m.eventSourceConnecting || 0,
+                  documentReadyBusy: docBusy,
+                  jQueryBusy: jQueryBusy,
+                  angularBusy: angularBusy,
+                  resourcesGrowing: resourcesGrowing,
+                  pendingImages: pendingImages,
+                  pendingTotal: pendingTotal,
+                  idle: pendingTotal === 0,
+                  nowMs: nowMs,
+                  quietForMs: nowMs - (m.lastBusyAt || nowMs)
+                };
+              };
+            
+              w.__shaftAsyncMonitor = m;
+            })();"""),
+    GET_ASYNC_ACTIVITY_SNAPSHOT("var m = window.__shaftAsyncMonitor; return m && m.getSnapshot ? m.getSnapshot() : null;"),
     INJECT_INPUT_TO_UPLOAD_FILE_VIA_DROP_ACTION("""
             for (var b = arguments[0], k = arguments[1], l = arguments[2], c = b.ownerDocument, m = 0;;) {
                 var e = b.getBoundingClientRect(),

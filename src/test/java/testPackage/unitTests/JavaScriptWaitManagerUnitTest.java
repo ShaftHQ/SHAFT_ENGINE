@@ -11,50 +11,69 @@ import org.testng.annotations.Test;
  */
 public class JavaScriptWaitManagerUnitTest {
 
-    @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script is defined and non-empty")
-    public void testActiveNetworkRequestsCountScriptIsDefined() {
-        String script = JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue();
+    @Test(description = "Verify INSTALL_ASYNC_ACTIVITY_MONITOR script is defined and non-empty")
+    public void testInstallAsyncActivityMonitorScriptIsDefined() {
+        String script = JavaScriptHelper.INSTALL_ASYNC_ACTIVITY_MONITOR.getValue();
         Assert.assertNotNull(script, "Script should not be null");
         Assert.assertFalse(script.isBlank(), "Script should not be blank");
     }
 
-    @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script instruments XMLHttpRequest and fetch")
-    public void testActiveNetworkRequestsCountScriptInstrumentsXHRAndFetch() {
-        String script = JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue();
+    @Test(description = "Verify INSTALL_ASYNC_ACTIVITY_MONITOR script instruments xhr and fetch")
+    public void testInstallAsyncActivityMonitorScriptInstrumentsXHRAndFetch() {
+        String script = JavaScriptHelper.INSTALL_ASYNC_ACTIVITY_MONITOR.getValue();
         Assert.assertTrue(script.contains("XMLHttpRequest"),
                 "Script should reference XMLHttpRequest to track AJAX requests");
         Assert.assertTrue(script.contains("fetch"),
                 "Script should reference the fetch API to track fetch requests");
-        Assert.assertTrue(script.contains("_shaftNetworkRequests"),
-                "Script should use _shaftNetworkRequests to count pending requests");
+        Assert.assertTrue(script.contains("__shaftAsyncMonitor"),
+                "Script should use a single async monitor object to count pending activities");
     }
 
-    @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script is idempotent via tracker flag")
-    public void testActiveNetworkRequestsCountScriptIsIdempotent() {
-        String script = JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue();
-        Assert.assertTrue(script.contains("_shaftNetworkTracker"),
-                "Script should check _shaftNetworkTracker flag to prevent double-instrumentation");
+    @Test(description = "Verify INSTALL_ASYNC_ACTIVITY_MONITOR script is idempotent via installation flag")
+    public void testInstallAsyncActivityMonitorScriptIsIdempotent() {
+        String script = JavaScriptHelper.INSTALL_ASYNC_ACTIVITY_MONITOR.getValue();
+        Assert.assertTrue(script.contains("installed"),
+                "Script should check an installation flag to prevent double instrumentation");
     }
 
-    @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script returns the pending request count")
-    public void testActiveNetworkRequestsCountScriptReturnsCount() {
-        String script = JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue();
-        Assert.assertTrue(script.contains("return window._shaftNetworkRequests"),
-                "Script should return the current pending request count");
+    @Test(description = "Verify GET_ASYNC_ACTIVITY_SNAPSHOT script returns snapshot")
+    public void testGetAsyncActivitySnapshotScriptReturnsSnapshot() {
+        String script = JavaScriptHelper.GET_ASYNC_ACTIVITY_SNAPSHOT.getValue();
+        Assert.assertTrue(script.contains("getSnapshot"),
+                "Script should invoke getSnapshot from the installed monitor");
     }
 
-    @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script protects against negative counts")
-    public void testActiveNetworkRequestsCountScriptProtectsAgainstNegativeCounts() {
-        String script = JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue();
+    @Test(description = "Verify INSTALL_ASYNC_ACTIVITY_MONITOR script protects against negative counts")
+    public void testInstallAsyncActivityMonitorScriptProtectsAgainstNegativeCounts() {
+        String script = JavaScriptHelper.INSTALL_ASYNC_ACTIVITY_MONITOR.getValue();
         Assert.assertTrue(script.contains("Math.max(0,"),
                 "Script should use Math.max(0, ...) to prevent the counter from going negative");
     }
 
-    @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script uses prototype patching for XHR")
-    public void testActiveNetworkRequestsCountScriptUsesPrototypePatchingForXHR() {
-        String script = JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue();
-        Assert.assertTrue(script.contains("XMLHttpRequest.prototype.open"),
-                "Script should patch XMLHttpRequest.prototype.open to intercept all XHR instances");
+    @Test(description = "Verify INSTALL_ASYNC_ACTIVITY_MONITOR script uses prototype patching for XHR")
+    public void testInstallAsyncActivityMonitorScriptUsesPrototypePatchingForXHR() {
+        String script = JavaScriptHelper.INSTALL_ASYNC_ACTIVITY_MONITOR.getValue();
+        Assert.assertTrue(script.contains("XMLHttpRequest.prototype.send"),
+                "Script should patch XMLHttpRequest.prototype.send to intercept XHR send calls");
+        Assert.assertTrue(script.contains("loadend"),
+                "Script should listen for loadend to finalize XHR tracking");
+    }
+
+    @Test(description = "Verify INSTALL_ASYNC_ACTIVITY_MONITOR script tracks additional async sources")
+    public void testInstallAsyncActivityMonitorScriptTracksAdditionalAsyncSources() {
+        String script = JavaScriptHelper.INSTALL_ASYNC_ACTIVITY_MONITOR.getValue();
+        Assert.assertTrue(script.contains("sendBeacon"),
+                "Script should instrument navigator.sendBeacon");
+        Assert.assertTrue(script.contains("WebSocket"),
+                "Script should instrument WebSocket connection state");
+        Assert.assertTrue(script.contains("EventSource"),
+                "Script should instrument EventSource connection state");
+        Assert.assertTrue(script.contains("pendingImages"),
+                "Script should check for pending images");
+        Assert.assertTrue(script.contains("resourcesGrowing"),
+                "Script should track growing resource entries");
+        Assert.assertTrue(script.contains("quietForMs"),
+                "Script should include a quietForMs stability measurement");
     }
 
     @Test(description = "Verify ANGULAR2_READY_STATE script is defined and checks Angular 2+ testabilities")
