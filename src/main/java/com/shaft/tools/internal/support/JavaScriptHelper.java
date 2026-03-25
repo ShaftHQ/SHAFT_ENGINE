@@ -327,7 +327,12 @@ public enum JavaScriptHelper {
                   m.inc('xhr');
                   var finalize = function() { if (done) { return; } done = true; m.dec('xhr'); };
                   xhr.addEventListener('loadend', finalize, { once: true });
-                  return origSend.apply(xhr, arguments);
+                  try {
+                    return origSend.apply(xhr, arguments);
+                  } catch (e) {
+                    finalize();
+                    throw e;
+                  }
                 };
               }
             
