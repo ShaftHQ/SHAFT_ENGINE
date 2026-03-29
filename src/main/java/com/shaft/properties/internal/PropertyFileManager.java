@@ -1,6 +1,7 @@
 package com.shaft.properties.internal;
 
 import com.shaft.cli.FileActions;
+import com.shaft.tools.internal.support.AndroidApkBadgingReader;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import lombok.Getter;
@@ -31,11 +32,57 @@ public final class PropertyFileManager {
         collectMobileProperties(ThreadLocalPropertiesManager.getEffectiveProperties(), appiumDesiredCapabilities);
 
         var app = appiumDesiredCapabilities.get("mobile_app");
-        if (app != null && !app.isEmpty() &&
-                (app.startsWith("src\\") || app.startsWith("src/"))) {
-            appiumDesiredCapabilities.put("mobile_app", FileActions.getInstance(true).getAbsolutePath(app));
+        if (app != null && !app.isEmpty()) {
+            if (app.startsWith("src\\") || app.startsWith("src/")) {
+                appiumDesiredCapabilities.put("mobile_app", FileActions.getInstance(true).getAbsolutePath(app));
+            } else if (!new File(app).isAbsolute()) {
+                appiumDesiredCapabilities.put("mobile_app",
+                        new File(System.getProperty("user.dir"), app).getAbsolutePath());
+            }
         }
+        maybeInferMissingAndroidAppIdentifiers(appiumDesiredCapabilities);
         return appiumDesiredCapabilities;
+    }
+
+    /**
+     * When {@code mobile_app} points to an APK but package/activity are omitted, UiAutomator2 may fail to
+     * resolve the main activity. If {@code ANDROID_HOME} / {@code ANDROID_SDK_ROOT} is set, run
+     * {@code aapt dump badging} and fill missing {@code mobile_appPackage} / {@code mobile_appActivity}.
+     * <p>
+     * Opt out: {@code -Dshaft.skipApkPackageActivityInference=true}
+     */
+    private static void maybeInferMissingAndroidAppIdentifiers(Map<String, String> caps) {
+        if (Boolean.parseBoolean(System.getProperty("shaft.skipApkPackageActivityInference", "false"))) {
+            return;
+        }
+        String appPath = caps.get("mobile_app");
+        if (appPath == null || appPath.isBlank() || !appPath.toLowerCase().endsWith(".apk")) {
+            return;
+        }
+        String pkg = Optional.ofNullable(caps.get("mobile_appPackage")).orElse("").trim();
+        String act = Optional.ofNullable(caps.get("mobile_appActivity")).orElse("").trim();
+        if (!pkg.isEmpty() && !act.isEmpty()) {
+            return;
+        }
+        File apk = new File(appPath);
+        if (!apk.isFile()) {
+            return;
+        }
+        var inferred = AndroidApkBadgingReader.readPackageAndLaunchableActivity(apk);
+        if (inferred.isEmpty()) {
+            ReportManager.logDiscrete(
+                    "Could not infer mobile_appPackage / mobile_appActivity from APK (install Android build-tools and set ANDROID_HOME, or set mobile_appPackage and mobile_appActivity in properties).");
+            return;
+        }
+        var pa = inferred.get();
+        if (pkg.isEmpty() && pa.packageName() != null && !pa.packageName().isBlank()) {
+            caps.put("mobile_appPackage", pa.packageName());
+            ReportManager.logDiscrete("Inferred mobile_appPackage from APK badging: " + pa.packageName());
+        }
+        if (act.isEmpty() && pa.launchableActivity() != null && !pa.launchableActivity().isBlank()) {
+            caps.put("mobile_appActivity", pa.launchableActivity());
+            ReportManager.logDiscrete("Inferred mobile_appActivity from APK badging: " + pa.launchableActivity());
+        }
     }
 
     private static void collectMobileProperties(java.util.Properties source, Map<String, String> target) {
