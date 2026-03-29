@@ -34,7 +34,7 @@
     <properties>
         <surefireArgLine></surefireArgLine>
         <!-- Dependency Versions -->
-        <log4j2.version>2.25.3</log4j2.version>
+        <log4j2.version>2.25.4</log4j2.version>
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install "-DskipTests" "-Dgpg.skip"</installToLocalRepository>
         <publishJavaDocs>mvn resources:resources javadoc:javadoc scm-publish:publish-scm</publishJavaDocs>
