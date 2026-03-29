@@ -192,15 +192,24 @@ public class DriverFactoryHelper {
                         || message.contains("has been exhausted"))) {
                     break;
                 } else {
-                    try {
-                        driver = connectToRemoteServer(capabilities, true);
-                        isRemoteConnectionEstablished = true;
-                    } catch (SessionNotCreatedException |
-                             URISyntaxException | ConnectionFailedException sessionNotCreatedException2) {
-                        // do nothing
-                        exception = sessionNotCreatedException2;
+                    // Appium 2: only W3C POST /session exists; /wd/hub returns 404. Retrying it every
+                    // loop iteration doubles work and can relaunch/stop the app while masking the real error.
+                    // Appium 1: set executionAddress to include /wd/hub if needed.
+                    var mobilePlatform = Platform.ANDROID.toString().equalsIgnoreCase(Properties.platform.targetPlatform())
+                            || Platform.IOS.toString().equalsIgnoreCase(Properties.platform.targetPlatform());
+                    if (mobilePlatform) {
                         ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
-                        ReportManagerHelper.logDiscrete(sessionNotCreatedException2, Level.DEBUG);
+                    } else {
+                        try {
+                            driver = connectToRemoteServer(capabilities, true);
+                            isRemoteConnectionEstablished = true;
+                        } catch (SessionNotCreatedException |
+                                 URISyntaxException | ConnectionFailedException sessionNotCreatedException2) {
+                            // do nothing
+                            exception = sessionNotCreatedException2;
+                            ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
+                            ReportManagerHelper.logDiscrete(sessionNotCreatedException2, Level.DEBUG);
+                        }
                     }
                 }
             }
