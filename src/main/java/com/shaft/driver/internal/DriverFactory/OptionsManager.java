@@ -272,6 +272,14 @@ public class OptionsManager {
                     }
                 }
             });
+            // Avoid UiAutomator2 stalling when the first resumed activity is not the declared appActivity (splash, etc.)
+            if ("android".equalsIgnoreCase(Properties.platform.targetPlatform())) {
+                Object appCap = appiumCapabilities.getCapability("appium:app");
+                if (appCap != null && !String.valueOf(appCap).isBlank()
+                        && appiumCapabilities.getCapability("appium:appWaitActivity") == null) {
+                    appiumCapabilities.setCapability("appium:appWaitActivity", "*");
+                }
+            }
         }
 
         if (DriverFactoryHelper.isMobileWebExecution()) {
