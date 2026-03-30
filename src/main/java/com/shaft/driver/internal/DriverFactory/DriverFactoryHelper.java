@@ -218,7 +218,7 @@ public class DriverFactoryHelper {
         else if (isLambdaTestExecution) targetExecutionUrl = targetLambdaTestHubURL;
         else targetExecutionUrl = targetHubUrl;
 
-        ReportManagerHelper.logDiscrete("Target Execution URI after processing: `" + targetExecutionUrl + "`, and capabilities after processing: `" + capabilities.toString() + "`.", Level.DEBUG);
+        ReportManagerHelper.logDiscrete("Target Execution URI used for remote connection: `" + targetExecutionUrl + "`, and capabilities after processing: `" + capabilities.toString() + "`.", Level.DEBUG);
         try {
             //builder code block, has issues in many cases, test it locally via grid before using it
 //            if (isAndroidExecution) return AndroidDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
@@ -252,7 +252,7 @@ public class DriverFactoryHelper {
 
     public static void initializeSystemProperties() {
         PropertiesHelper.postProcessing();
-        TARGET_HUB_URL = (SHAFT.Properties.platform.executionAddress().trim().toLowerCase().startsWith("http")) ? SHAFT.Properties.platform.executionAddress() : "http://" + SHAFT.Properties.platform.executionAddress() + "/";
+        TARGET_HUB_URL = (SHAFT.Properties.platform.executionAddress().trim().toLowerCase().startsWith("http")) ? SHAFT.Properties.platform.executionAddress() : "http://" + SHAFT.Properties.platform.executionAddress();
     }
 
     public void closeDriver() {
