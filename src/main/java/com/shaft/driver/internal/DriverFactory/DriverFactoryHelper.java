@@ -203,6 +203,26 @@ public class DriverFactoryHelper {
         return uri.resolve(normalizedPath).toString();
     }
 
+    /**
+     * Redacts user-info (credentials) from a URI string to prevent secret leakage in logs.
+     * If parsing fails, returns the original string unchanged.
+     *
+     * @param url the URI string that may contain embedded credentials
+     * @return the URI with user-info replaced by {@code ***:***}, or the original string on parse failure
+     */
+    private static String redactUriCredentials(String url) {
+        try {
+            URI uri = URI.create(url);
+            String userInfo = uri.getUserInfo();
+            if (userInfo != null && !userInfo.isEmpty()) {
+                return url.replace(userInfo + "@", "***:***@");
+            }
+        } catch (IllegalArgumentException ignored) {
+            // fall through – return as-is
+        }
+        return url;
+    }
+
     @SneakyThrows({InterruptedException.class, MalformedURLException.class})
     private static WebDriver attemptRemoteServerConnection(Capabilities capabilities) {
         WebDriver driver = null;
@@ -244,9 +264,14 @@ public class DriverFactoryHelper {
 
     private static WebDriver connectToRemoteServer(Capabilities capabilities) throws URISyntaxException, MalformedURLException {
         var targetHubUrl = TARGET_HUB_URL;
-        var targetLambdaTestHubURL = targetHubUrl.replace("http", "https");
+        var targetLambdaTestHubURL = targetHubUrl.startsWith("https://")
+                ? targetHubUrl
+                : targetHubUrl.replaceFirst("^http://", "https://");
         var targetPlatform = Properties.platform.targetPlatform();
-        var targetMobileHubUrl = targetHubUrl.replace("@", "@mobile-").replace("http", "https");
+        var targetMobileHubUrl = targetHubUrl.replace("@", "@mobile-");
+        if (targetMobileHubUrl.startsWith("http://")) {
+            targetMobileHubUrl = targetMobileHubUrl.replaceFirst("^http://", "https://");
+        }
 
         var isAndroidExecution = targetPlatform.equalsIgnoreCase(Platform.ANDROID.toString());
         var isIosExecution = targetPlatform.equalsIgnoreCase(Platform.IOS.toString());
@@ -258,7 +283,7 @@ public class DriverFactoryHelper {
         else if (isLambdaTestExecution) targetExecutionUrl = targetLambdaTestHubURL;
         else targetExecutionUrl = targetHubUrl;
 
-        ReportManager.logDiscrete("Target Execution URI used for remote connection: `" + targetExecutionUrl + "`.");
+        ReportManagerHelper.logDiscrete("Target Execution URI used for remote connection: `" + redactUriCredentials(targetExecutionUrl) + "`.", Level.DEBUG);
         ReportManagerHelper.logDiscrete("Capabilities after processing: `" + capabilities.toString() + "`.", Level.DEBUG);
         try {
             //builder code block, has issues in many cases, test it locally via grid before using it
@@ -293,7 +318,10 @@ public class DriverFactoryHelper {
 
     public static void initializeSystemProperties() {
         PropertiesHelper.postProcessing();
-        TARGET_HUB_URL = (SHAFT.Properties.platform.executionAddress().trim().toLowerCase().startsWith("http")) ? SHAFT.Properties.platform.executionAddress() : "http://" + SHAFT.Properties.platform.executionAddress();
+        var executionAddress = SHAFT.Properties.platform.executionAddress().trim();
+        TARGET_HUB_URL = executionAddress.toLowerCase(Locale.ROOT).startsWith("http")
+                ? executionAddress
+                : "http://" + executionAddress;
     }
 
     public void closeDriver() {
@@ -542,7 +570,7 @@ public class DriverFactoryHelper {
             initialLog.append(" | ").append(JavaHelper.convertToSentenceCase(driverType.getValue()));
         }
 
-        initialLog.append(" | ").append(TARGET_HUB_URL).append("\"");
+        initialLog.append(" | ").append(redactUriCredentials(TARGET_HUB_URL)).append("\"");
 
         if (SHAFT.Properties.web.headlessExecution() && !Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             initialLog.append(", Headless Execution");
@@ -560,10 +588,10 @@ public class DriverFactoryHelper {
             failAction("Unreachable Browser, terminated test suite execution.", e);
         } catch (WebDriverException e) {
             if (e.getMessage() !=null && e.getMessage().contains("Error forwarding the new session cannot find")) {
-                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + TARGET_HUB_URL + "\".");
+                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + redactUriCredentials(TARGET_HUB_URL) + "\".");
                 failAction("Error forwarding the new session: Couldn't find a node that matches the desired capabilities.", e);
             } else {
-                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + TARGET_HUB_URL + "\".");
+                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + redactUriCredentials(TARGET_HUB_URL) + "\".");
                 failAction("Unhandled Error.", e);
             }
         } catch (NoClassDefFoundError e) {

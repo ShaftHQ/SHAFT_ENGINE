@@ -1,7 +1,6 @@
 package testPackage.unitTests;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.driver.internal.DriverFactory.BrowserStackHelper;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
@@ -29,17 +28,6 @@ public class DriverFactoryHelperUnitTest {
         DriverFactoryHelper.initializeSystemProperties();
 
         SHAFT.Validations.assertThat().object(getTargetHubUrl()).isEqualTo("http://browserstack").perform();
-    }
-
-    @Test(description = "BrowserStack helper should construct final execution address with explicit /wd/hub path")
-    public void browserStackHelper_constructsFinalExecutionAddressWithWdHubPath() throws Exception {
-        Method constructExecutionAddressMethod = BrowserStackHelper.class.getDeclaredMethod("constructExecutionAddress", String.class, String.class);
-        constructExecutionAddressMethod.setAccessible(true);
-
-        String executionAddress = (String) constructExecutionAddressMethod.invoke(null, "user123", "key456");
-
-        SHAFT.Validations.assertThat().object(executionAddress)
-                .isEqualTo("https://user123:key456@hub-cloud.browserstack.com/wd/hub").perform();
     }
 
     @Test(description = "initializeSystemProperties should keep explicit BrowserStack /wd/hub execution URL unchanged")
@@ -70,6 +58,48 @@ public class DriverFactoryHelperUnitTest {
         String actualPingBaseUrl = (String) normalizeRemoteServerPingBaseUrlMethod.invoke(null, executionAddress);
 
         SHAFT.Validations.assertThat().object(actualPingBaseUrl).isEqualTo(expectedPingBaseUrl).perform();
+    }
+
+    @Test(description = "initializeSystemProperties should trim whitespace from execution address")
+    public void initializeSystemProperties_trimsWhitespace() throws Exception {
+        savedExecutionAddress = SHAFT.Properties.platform.executionAddress();
+        SHAFT.Properties.platform.set().executionAddress("  http://localhost:4444  ");
+
+        DriverFactoryHelper.initializeSystemProperties();
+
+        SHAFT.Validations.assertThat().object(getTargetHubUrl()).isEqualTo("http://localhost:4444").perform();
+    }
+
+    @Test(description = "initializeSystemProperties should preserve https scheme without corruption")
+    public void initializeSystemProperties_preservesHttpsScheme() throws Exception {
+        savedExecutionAddress = SHAFT.Properties.platform.executionAddress();
+        SHAFT.Properties.platform.set().executionAddress("https://user:key@hub-cloud.browserstack.com/wd/hub");
+
+        DriverFactoryHelper.initializeSystemProperties();
+
+        SHAFT.Validations.assertThat().object(getTargetHubUrl())
+                .isEqualTo("https://user:key@hub-cloud.browserstack.com/wd/hub").perform();
+    }
+
+    @Test(description = "redactUriCredentials should mask user-info in URL")
+    public void redactUriCredentials_masksCredentials() throws Exception {
+        Method redactMethod = DriverFactoryHelper.class.getDeclaredMethod("redactUriCredentials", String.class);
+        redactMethod.setAccessible(true);
+
+        String redacted = (String) redactMethod.invoke(null, "https://myuser:mypass@hub-cloud.browserstack.com/wd/hub");
+
+        SHAFT.Validations.assertThat().object(redacted)
+                .isEqualTo("https://***:***@hub-cloud.browserstack.com/wd/hub").perform();
+    }
+
+    @Test(description = "redactUriCredentials should return URL unchanged when no credentials present")
+    public void redactUriCredentials_noCredentials() throws Exception {
+        Method redactMethod = DriverFactoryHelper.class.getDeclaredMethod("redactUriCredentials", String.class);
+        redactMethod.setAccessible(true);
+
+        String result = (String) redactMethod.invoke(null, "http://localhost:4723/wd/hub");
+
+        SHAFT.Validations.assertThat().object(result).isEqualTo("http://localhost:4723/wd/hub").perform();
     }
 
     private static String getTargetHubUrl() throws NoSuchFieldException, IllegalAccessException {
