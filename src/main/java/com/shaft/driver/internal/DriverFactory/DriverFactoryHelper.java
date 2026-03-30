@@ -218,6 +218,7 @@ public class DriverFactoryHelper {
         else if (isLambdaTestExecution) targetExecutionUrl = targetLambdaTestHubURL;
         else targetExecutionUrl = targetHubUrl;
 
+        ReportManager.logDiscrete("Target Execution URI used for remote connection: `" + targetExecutionUrl + "`.");
         ReportManagerHelper.logDiscrete("Target Execution URI used for remote connection: `" + targetExecutionUrl + "`, and capabilities after processing: `" + capabilities.toString() + "`.", Level.DEBUG);
         try {
             //builder code block, has issues in many cases, test it locally via grid before using it

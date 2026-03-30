@@ -178,6 +178,20 @@ public class BrowserStackSdkTests {
     }
 
     @Test
+    public void generateBrowserStackYmlPrefersAppUrlOverAppRelativeFilePath() {
+        SHAFT.Properties.browserStack.set().appRelativeFilePath("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
+        SHAFT.Properties.browserStack.set().appUrl("bs://test-app-url-priority");
+        generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
+        var config = loadYaml(generatedYamlPath);
+
+        SHAFT.Validations.assertThat().object(config.get("app"))
+                .isEqualTo("bs://test-app-url-priority").perform();
+        // Reset
+        SHAFT.Properties.browserStack.set().appUrl("");
+        SHAFT.Properties.browserStack.set().appRelativeFilePath("");
+    }
+
+    @Test
     public void newBrowserStackPropertiesAreReadableAndSettable() {
         // Test buildName
         SHAFT.Properties.browserStack.set().buildName("test-build");

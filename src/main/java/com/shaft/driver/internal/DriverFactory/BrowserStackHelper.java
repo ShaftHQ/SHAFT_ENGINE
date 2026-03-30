@@ -115,6 +115,7 @@ public class BrowserStackHelper {
         } catch (NullPointerException exception) {
             failAction(testData, exception);
         }
+        SHAFT.Properties.browserStack.set().appUrl(appUrl);
         // set properties
         MutableCapabilities browserStackCapabilities = setBrowserStackProperties(username, password, deviceName, osVersion, appUrl);
         testData = testData + ", App URL: " + appUrl;
