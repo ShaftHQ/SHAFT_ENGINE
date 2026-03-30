@@ -18,7 +18,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 public class BrowserStackHelper {
-    private static final String hubUrl = "hub-cloud.browserstack.com";
+    private static final String hubUrl = "hub-cloud.browserstack.com/wd/hub";
     private static final String serviceUri = "https://api-cloud.browserstack.com/";
     private static final String appUploadServiceName = "app-automate/upload";
 
@@ -32,9 +32,6 @@ public class BrowserStackHelper {
      * @return a new Selenium WebDriver instance using BrowserStack
      */
     public static DriverFactoryHelper getBrowserStackDriver(MutableCapabilities browserStackOptions) {
-        // Generate browserstack.yml from SHAFT properties for SDK integration
-        BrowserStackSdkHelper.generateBrowserStackYml();
-
         String appUrl = SHAFT.Properties.browserStack.appUrl();
         var helper = new DriverFactoryHelper();
         if ("".equals(appUrl)) {
@@ -47,17 +44,23 @@ public class BrowserStackHelper {
                     // desktop web
                     browserStackOptions = setupDesktopWebExecution().merge(browserStackOptions);
                 }
+                // Generate browserstack.yml from the final resolved SHAFT properties for SDK integration
+                BrowserStackSdkHelper.generateBrowserStackYml();
                 helper.initializeDriver(browserStackOptions);
             } else {
                 // this is the new native app scenario
                 browserStackOptions = setupNativeAppExecution(SHAFT.Properties.browserStack.userName(), SHAFT.Properties.browserStack.accessKey(),
                         SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), SHAFT.Properties.browserStack.appRelativeFilePath(), SHAFT.Properties.browserStack.appName()).merge(browserStackOptions);
+                // Generate browserstack.yml after app upload updates app capability property
+                BrowserStackSdkHelper.generateBrowserStackYml();
                 helper.initializeDriver(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
             }
         } else {
             // this is the existing version from a native app scenario
             browserStackOptions = setupNativeAppExecution(SHAFT.Properties.browserStack.userName(), SHAFT.Properties.browserStack.accessKey(),
                     SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), appUrl).merge(browserStackOptions);
+            // Generate browserstack.yml from the final resolved SHAFT properties for SDK integration
+            BrowserStackSdkHelper.generateBrowserStackYml();
             helper.initializeDriver(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
         }
         return helper;
@@ -148,7 +151,7 @@ public class BrowserStackHelper {
 
         String testData = "Username: " + username + ", Password: " + password + ", Operating System: " + os + ", Operating System Version: " + osVersion;
         // set properties
-        SHAFT.Properties.platform.set().executionAddress(username + ":" + password + "@" + hubUrl);
+        SHAFT.Properties.platform.set().executionAddress(constructExecutionAddress(username, password));
 
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
         HashMap<String, Object> browserstackOptions = new HashMap<>();
@@ -181,7 +184,7 @@ public class BrowserStackHelper {
 
         String testData = "Username: " + username + ", Password: " + password + ", Operating System: " + os + ", Operating System Version: " + osVersion;
         // set properties
-        SHAFT.Properties.platform.set().executionAddress(username + ":" + password + "@" + hubUrl);
+        SHAFT.Properties.platform.set().executionAddress(constructExecutionAddress(username, password));
         SHAFT.Properties.mobile.set().browserName(SHAFT.Properties.web.targetBrowserName());
 
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
@@ -215,7 +218,7 @@ public class BrowserStackHelper {
     }
 
     private static MutableCapabilities setBrowserStackProperties(String username, String password, String deviceName, String osVersion, String appUrl) {
-        SHAFT.Properties.platform.set().executionAddress(username + ":" + password + "@" + hubUrl);
+        SHAFT.Properties.platform.set().executionAddress(constructExecutionAddress(username, password));
         SHAFT.Properties.mobile.set().deviceName(deviceName);
         SHAFT.Properties.mobile.set().platformVersion(osVersion);
         SHAFT.Properties.mobile.set().app(appUrl);
@@ -241,6 +244,10 @@ public class BrowserStackHelper {
 
     private static void passAction(String testData) {
         reportActionResult(Thread.currentThread().getStackTrace()[2].getMethodName(), testData, true);
+    }
+
+    static String constructExecutionAddress(String username, String password) {
+        return "https://" + username + ":" + password + "@" + hubUrl;
     }
 
     private static void failAction(String testData, Throwable... rootCauseException) {
