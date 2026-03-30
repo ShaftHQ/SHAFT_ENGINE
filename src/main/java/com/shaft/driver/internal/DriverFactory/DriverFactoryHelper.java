@@ -46,6 +46,7 @@ import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -136,7 +137,7 @@ public class DriverFactoryHelper {
         return DriverType.CHROME;
     }
 
-    @SneakyThrows(InterruptedException.class)
+    @SneakyThrows({InterruptedException.class, MalformedURLException.class})
     private static int attemptRemoteServerPing() {
         boolean serverReady = false;
         var session = new SHAFT.API(normalizeRemoteServerPingBaseUrl(TARGET_HUB_URL));
@@ -167,18 +168,38 @@ public class DriverFactoryHelper {
      * Normalizes the remote server base URL used by ping requests so appending {@code status/}
      * always produces a valid endpoint.
      *
+     * <p>Normalization rules:
+     * <ul>
+     *   <li>Adds {@code http://} when scheme is missing</li>
+     *   <li>Defaults missing or blank path to {@code /}</li>
+     *   <li>Ensures the path ends with a trailing {@code /}</li>
+     * </ul>
+     *
      * @param remoteServerUrl the configured remote server address
-     * @return normalized base URL with scheme and trailing slash in path form
+     * @return normalized base URL with explicit scheme and a trailing slash in path form
      */
-    private static String normalizeRemoteServerPingBaseUrl(String remoteServerUrl) {
+    private static String normalizeRemoteServerPingBaseUrl(String remoteServerUrl) throws MalformedURLException {
         var normalizedUrl = remoteServerUrl.trim();
-        if (!normalizedUrl.toLowerCase().startsWith("http")) {
+        if (!normalizedUrl.toLowerCase(Locale.ROOT).startsWith("http")) {
             normalizedUrl = "http://" + normalizedUrl;
         }
-        URI uri = URI.create(normalizedUrl);
-        var normalizedPath = uri.getPath() == null || uri.getPath().isBlank()
-                ? "/"
-                : uri.getPath().endsWith("/") ? uri.getPath() : uri.getPath() + "/";
+        URI uri;
+        try {
+            uri = URI.create(normalizedUrl);
+        } catch (IllegalArgumentException illegalArgumentException) {
+            var malformedURLException = new MalformedURLException("Invalid remote server URL `" + remoteServerUrl + "`.");
+            malformedURLException.addSuppressed(illegalArgumentException);
+            throw malformedURLException;
+        }
+        var path = uri.getPath();
+        String normalizedPath;
+        if (path == null || path.isBlank()) {
+            normalizedPath = "/";
+        } else if (path.endsWith("/")) {
+            normalizedPath = path;
+        } else {
+            normalizedPath = path + "/";
+        }
         return uri.resolve(normalizedPath).toString();
     }
 
