@@ -22,7 +22,6 @@ import io.github.bonigarcia.wdm.WebDriverManager;
 import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.qameta.allure.Step;
 import lombok.*;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.bidi.BiDiProvider;
@@ -150,16 +149,8 @@ public class DriverFactoryHelper {
                     serverReady = true;
                 }
             } catch (Throwable throwable1) {
-                try {
-                    statusCode = session.get("wd/hub/status/").perform().getResponse().andReturn().statusCode();
-                    if (statusCode >= 200 && statusCode < 300) {
-                        serverReady = true;
-                    }
-                } catch (Throwable throwable2) {
-                    // do nothing
-                    ReportManagerHelper.logDiscrete(throwable1, Level.DEBUG);
-                    ReportManagerHelper.logDiscrete(throwable2, Level.DEBUG);
-                }
+                // do nothing
+                ReportManagerHelper.logDiscrete(throwable1, Level.DEBUG);
             }
             if (!serverReady) {
                 //noinspection BusyWait
@@ -180,41 +171,27 @@ public class DriverFactoryHelper {
         Exception exception = null;
         do {
             try {
-                driver = connectToRemoteServer(capabilities, false);
+                driver = connectToRemoteServer(capabilities);
                 isRemoteConnectionEstablished = true;
-            } catch (SessionNotCreatedException | URISyntaxException |
-                     ConnectionFailedException sessionNotCreatedException1) {
-                exception = sessionNotCreatedException1;
-                String message = sessionNotCreatedException1.getMessage();
-                if (message !=null &&
+            } catch (URISyntaxException uriSyntaxException) {
+                // URL is malformed — retrying will not help; break immediately
+                exception = uriSyntaxException;
+                ReportManagerHelper.logDiscrete(uriSyntaxException, Level.DEBUG);
+                break;
+            } catch (SessionNotCreatedException |
+                     ConnectionFailedException sessionNotCreatedException) {
+                exception = sessionNotCreatedException;
+                String message = sessionNotCreatedException.getMessage();
+                if (message != null &&
                         (message.contains("missing in the capabilities")
                         || message.contains("not allowed on your current plan")
                         || message.contains("has been exhausted"))) {
                     break;
                 } else {
-                    // Appium 2: only W3C POST /session exists; /wd/hub returns 404. Retrying it every
-                    // loop iteration doubles work and can relaunch/stop the app while masking the real error.
-                    // Appium 1: set executionAddress to include /wd/hub if needed.
-                    var mobilePlatform = Platform.ANDROID.toString().equalsIgnoreCase(Properties.platform.targetPlatform())
-                            || Platform.IOS.toString().equalsIgnoreCase(Properties.platform.targetPlatform());
-                    if (mobilePlatform) {
-                        ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
-                    } else {
-                        try {
-                            driver = connectToRemoteServer(capabilities, true);
-                            isRemoteConnectionEstablished = true;
-                        } catch (SessionNotCreatedException |
-                                 URISyntaxException | ConnectionFailedException sessionNotCreatedException2) {
-                            // do nothing
-                            exception = sessionNotCreatedException2;
-                            ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
-                            ReportManagerHelper.logDiscrete(sessionNotCreatedException2, Level.DEBUG);
-                        }
-                    }
+                    ReportManagerHelper.logDiscrete(sessionNotCreatedException, Level.DEBUG);
                 }
             }
             if (!isRemoteConnectionEstablished) {
-                //terminate in case of any other exception
                 //noinspection BusyWait
                 Thread.sleep(TimeUnit.SECONDS.toMillis(appiumServerPreparationPollingInterval));
             }
@@ -225,17 +202,8 @@ public class DriverFactoryHelper {
         return driver;
     }
 
-    private static WebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws URISyntaxException, MalformedURLException {
+    private static WebDriver connectToRemoteServer(Capabilities capabilities) throws URISyntaxException, MalformedURLException {
         var targetHubUrl = TARGET_HUB_URL;
-        if (isLegacy) {
-            if (StringUtils.isNumeric(TARGET_HUB_URL.substring(TARGET_HUB_URL.length() - 1))) {
-                // this is a workaround for the case when the user sets the TARGET_HUB_URL to end with a numeric value like "4723"
-                // which is not a valid URL, so we append "/wd/hub" to it
-                targetHubUrl = TARGET_HUB_URL + "/wd/hub";
-            } else {
-                targetHubUrl = TARGET_HUB_URL + "wd/hub";
-            }
-        }
         var targetLambdaTestHubURL = targetHubUrl.replace("http", "https");
         var targetPlatform = Properties.platform.targetPlatform();
         var targetMobileHubUrl = targetHubUrl.replace("@", "@mobile-").replace("http", "https");
@@ -609,7 +577,7 @@ public class DriverFactoryHelper {
             //this happens when the user types an incorrect remote server address like so http://127.0.0.1:4723
             Throwable throwable1 = throwable;
             if (FailureReporter.getRootCause(throwable1).contains("NumberFormatException")) {
-                var newException = new MalformedURLException("Invalid remote server URL `"+TARGET_HUB_URL+"`. Kindly ensure using one of the supported patterns: `local`, `dockerized`, `browserstack`, `host:port`, `http://host:port/wd/hub`.");
+                var newException = new MalformedURLException("Invalid remote server URL `"+TARGET_HUB_URL+"`. Kindly ensure using one of the supported patterns: `local`, `dockerized`, `browserstack`, `host:port`, `http://host:port`.");
                 newException.addSuppressed(throwable1);
                 throwable1 = newException;
             }
