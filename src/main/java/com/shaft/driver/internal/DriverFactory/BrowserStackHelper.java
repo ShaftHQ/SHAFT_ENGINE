@@ -18,7 +18,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 public class BrowserStackHelper {
-    private static final String hubUrl = "hub-cloud.browserstack.com";
+    private static final String hubUrl = "hub-cloud.browserstack.com/wd/hub";
     private static final String serviceUri = "https://api-cloud.browserstack.com/";
     private static final String appUploadServiceName = "app-automate/upload";
 
