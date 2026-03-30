@@ -139,7 +139,7 @@ public class DriverFactoryHelper {
     @SneakyThrows(InterruptedException.class)
     private static int attemptRemoteServerPing() {
         boolean serverReady = false;
-        var session = new SHAFT.API(TARGET_HUB_URL);
+        var session = new SHAFT.API(normalizeRemoteServerPingBaseUrl(TARGET_HUB_URL));
         var statusCode = 500;
         var startTime = System.currentTimeMillis();
         do {
@@ -161,6 +161,25 @@ public class DriverFactoryHelper {
             failAction("Failed to connect to remote server. It was still not ready after " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + " minutes.");
         }
         return statusCode;
+    }
+
+    /**
+     * Normalizes the remote server base URL used by ping requests so appending {@code status/}
+     * always produces a valid endpoint.
+     *
+     * @param remoteServerUrl the configured remote server address
+     * @return normalized base URL with scheme and trailing slash in path form
+     */
+    private static String normalizeRemoteServerPingBaseUrl(String remoteServerUrl) {
+        var normalizedUrl = remoteServerUrl.trim();
+        if (!normalizedUrl.toLowerCase().startsWith("http")) {
+            normalizedUrl = "http://" + normalizedUrl;
+        }
+        URI uri = URI.create(normalizedUrl);
+        var normalizedPath = uri.getPath() == null || uri.getPath().isBlank()
+                ? "/"
+                : uri.getPath().endsWith("/") ? uri.getPath() : uri.getPath() + "/";
+        return uri.resolve(normalizedPath).toString();
     }
 
     @SneakyThrows({InterruptedException.class, MalformedURLException.class})
@@ -575,10 +594,10 @@ public class DriverFactoryHelper {
             ReportManager.logDiscrete("Successfully instantiated remote driver instance.");
         } catch (Throwable throwable) {
             //Root cause: "java.lang.NumberFormatException: Error at index 4 in: "4723wd""
-            //this happens when the user types an incorrect remote server address like so http://127.0.0.1:4723
+            //this happens when the URL has an unsupported format
             Throwable throwable1 = throwable;
             if (FailureReporter.getRootCause(throwable1).contains("NumberFormatException")) {
-                var newException = new MalformedURLException("Invalid remote server URL `"+TARGET_HUB_URL+"`. Kindly ensure using one of the supported patterns: `local`, `dockerized`, `browserstack`, `host:port`, `http://host:port`.");
+                var newException = new MalformedURLException("Invalid remote server URL `"+TARGET_HUB_URL+"`. Kindly ensure using one of the supported patterns: `local`, `dockerized`, `browserstack`, `host:port`, `http(s)://host:port[/path]`.");
                 newException.addSuppressed(throwable1);
                 throwable1 = newException;
             }

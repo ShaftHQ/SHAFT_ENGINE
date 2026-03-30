@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.BrowserStackHelper;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
@@ -50,6 +51,25 @@ public class DriverFactoryHelperUnitTest {
         DriverFactoryHelper.initializeSystemProperties();
 
         SHAFT.Validations.assertThat().object(getTargetHubUrl()).isEqualTo(explicitBrowserStackUrl).perform();
+    }
+
+    @DataProvider(name = "remoteServerPingBaseUrls")
+    public Object[][] remoteServerPingBaseUrls() {
+        return new Object[][]{
+                {"127.0.0.1:4723", "http://127.0.0.1:4723/"},
+                {"http://127.0.0.1:4723", "http://127.0.0.1:4723/"},
+                {"http://127.0.0.1:4723/wd/hub", "http://127.0.0.1:4723/wd/hub/"}
+        };
+    }
+
+    @Test(description = "normalizeRemoteServerPingBaseUrl should normalize supported execution address formats for ping", dataProvider = "remoteServerPingBaseUrls")
+    public void normalizeRemoteServerPingBaseUrl_handlesVariousFormats(String executionAddress, String expectedPingBaseUrl) throws Exception {
+        Method normalizeRemoteServerPingBaseUrlMethod = DriverFactoryHelper.class.getDeclaredMethod("normalizeRemoteServerPingBaseUrl", String.class);
+        normalizeRemoteServerPingBaseUrlMethod.setAccessible(true);
+
+        String actualPingBaseUrl = (String) normalizeRemoteServerPingBaseUrlMethod.invoke(null, executionAddress);
+
+        SHAFT.Validations.assertThat().object(actualPingBaseUrl).isEqualTo(expectedPingBaseUrl).perform();
     }
 
     private static String getTargetHubUrl() throws NoSuchFieldException, IllegalAccessException {
