@@ -247,6 +247,13 @@ public class BrowserStackHelper {
         reportActionResult(Thread.currentThread().getStackTrace()[2].getMethodName(), testData, true);
     }
 
+    /**
+     * Builds the BrowserStack remote execution address using explicit HTTPS and hub path.
+     *
+     * @param username BrowserStack username used for authentication
+     * @param password BrowserStack access key used for authentication
+     * @return execution address in the format {@code https://<username>:<password>@hub-cloud.browserstack.com/wd/hub}
+     */
     static String constructExecutionAddress(String username, String password) {
         return "https://" + username + ":" + password + "@" + hubUrl;
     }
