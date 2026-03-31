@@ -22,7 +22,6 @@ import io.github.bonigarcia.wdm.WebDriverManager;
 import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.qameta.allure.Step;
 import lombok.*;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.bidi.BiDiProvider;
@@ -47,6 +46,7 @@ import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -137,10 +137,10 @@ public class DriverFactoryHelper {
         return DriverType.CHROME;
     }
 
-    @SneakyThrows(InterruptedException.class)
+    @SneakyThrows({InterruptedException.class, MalformedURLException.class})
     private static int attemptRemoteServerPing() {
         boolean serverReady = false;
-        var session = new SHAFT.API(TARGET_HUB_URL);
+        var session = new SHAFT.API(normalizeRemoteServerPingBaseUrl(TARGET_HUB_URL));
         var statusCode = 500;
         var startTime = System.currentTimeMillis();
         do {
@@ -150,16 +150,8 @@ public class DriverFactoryHelper {
                     serverReady = true;
                 }
             } catch (Throwable throwable1) {
-                try {
-                    statusCode = session.get("wd/hub/status/").perform().getResponse().andReturn().statusCode();
-                    if (statusCode >= 200 && statusCode < 300) {
-                        serverReady = true;
-                    }
-                } catch (Throwable throwable2) {
-                    // do nothing
-                    ReportManagerHelper.logDiscrete(throwable1, Level.DEBUG);
-                    ReportManagerHelper.logDiscrete(throwable2, Level.DEBUG);
-                }
+                // do nothing
+                ReportManagerHelper.logDiscrete(throwable1, Level.DEBUG);
             }
             if (!serverReady) {
                 //noinspection BusyWait
@@ -172,6 +164,65 @@ public class DriverFactoryHelper {
         return statusCode;
     }
 
+    /**
+     * Normalizes the remote server base URL used by ping requests so appending {@code status/}
+     * always produces a valid endpoint.
+     *
+     * <p>Normalization rules:
+     * <ul>
+     *   <li>Adds {@code http://} when scheme is missing</li>
+     *   <li>Defaults missing or blank path to {@code /}</li>
+     *   <li>Ensures the path ends with a trailing {@code /}</li>
+     * </ul>
+     *
+     * @param remoteServerUrl the configured remote server address
+     * @return normalized base URL with explicit scheme and a trailing slash in path form
+     */
+    private static String normalizeRemoteServerPingBaseUrl(String remoteServerUrl) throws MalformedURLException {
+        var normalizedUrl = remoteServerUrl.trim();
+        if (!normalizedUrl.toLowerCase(Locale.ROOT).startsWith("http")) {
+            normalizedUrl = "http://" + normalizedUrl;
+        }
+        URI uri;
+        try {
+            uri = URI.create(normalizedUrl);
+        } catch (IllegalArgumentException illegalArgumentException) {
+            var malformedURLException = new MalformedURLException("Invalid remote server URL `" + remoteServerUrl + "`.");
+            malformedURLException.addSuppressed(illegalArgumentException);
+            throw malformedURLException;
+        }
+        var path = uri.getPath();
+        String normalizedPath;
+        if (path == null || path.isBlank()) {
+            normalizedPath = "/";
+        } else if (path.endsWith("/")) {
+            normalizedPath = path;
+        } else {
+            normalizedPath = path + "/";
+        }
+        return uri.resolve(normalizedPath).toString();
+    }
+
+    /**
+     * Redacts user-info (credentials) from a URI string to prevent secret leakage in logs.
+     * If parsing fails, returns the original string unchanged.
+     *
+     * @param url the URI string that may contain embedded credentials
+     * @return the URI with user-info replaced by {@code ***:***}, or the original string on parse failure
+     */
+    private static String redactUriCredentials(String url) {
+        try {
+            URI uri = URI.create(url);
+            String userInfo = uri.getUserInfo();
+            if (userInfo != null && !userInfo.isEmpty()) {
+                return url.replace(userInfo + "@", "***:***@");
+            }
+        } catch (IllegalArgumentException ignored) {
+            // fall through – return as-is
+        }
+        return url;
+    }
+
     @SneakyThrows({InterruptedException.class, MalformedURLException.class})
     private static WebDriver attemptRemoteServerConnection(Capabilities capabilities) {
         WebDriver driver = null;
@@ -180,41 +231,27 @@ public class DriverFactoryHelper {
         Exception exception = null;
         do {
             try {
-                driver = connectToRemoteServer(capabilities, false);
+                driver = connectToRemoteServer(capabilities);
                 isRemoteConnectionEstablished = true;
-            } catch (SessionNotCreatedException | URISyntaxException |
-                     ConnectionFailedException sessionNotCreatedException1) {
-                exception = sessionNotCreatedException1;
-                String message = sessionNotCreatedException1.getMessage();
-                if (message !=null &&
+            } catch (URISyntaxException uriSyntaxException) {
+                // URL is malformed — retrying will not help; break immediately
+                exception = uriSyntaxException;
+                ReportManagerHelper.logDiscrete(uriSyntaxException, Level.DEBUG);
+                break;
+            } catch (SessionNotCreatedException |
+                     ConnectionFailedException sessionNotCreatedException) {
+                exception = sessionNotCreatedException;
+                String message = sessionNotCreatedException.getMessage();
+                if (message != null &&
                         (message.contains("missing in the capabilities")
                         || message.contains("not allowed on your current plan")
                         || message.contains("has been exhausted"))) {
                     break;
                 } else {
-                    // Appium 2: only W3C POST /session exists; /wd/hub returns 404. Retrying it every
-                    // loop iteration doubles work and can relaunch/stop the app while masking the real error.
-                    // Appium 1: set executionAddress to include /wd/hub if needed.
-                    var mobilePlatform = Platform.ANDROID.toString().equalsIgnoreCase(Properties.platform.targetPlatform())
-                            || Platform.IOS.toString().equalsIgnoreCase(Properties.platform.targetPlatform());
-                    if (mobilePlatform) {
-                        ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
-                    } else {
-                        try {
-                            driver = connectToRemoteServer(capabilities, true);
-                            isRemoteConnectionEstablished = true;
-                        } catch (SessionNotCreatedException |
-                                 URISyntaxException | ConnectionFailedException sessionNotCreatedException2) {
-                            // do nothing
-                            exception = sessionNotCreatedException2;
-                            ReportManagerHelper.logDiscrete(sessionNotCreatedException1, Level.DEBUG);
-                            ReportManagerHelper.logDiscrete(sessionNotCreatedException2, Level.DEBUG);
-                        }
-                    }
+                    ReportManagerHelper.logDiscrete(sessionNotCreatedException, Level.DEBUG);
                 }
             }
             if (!isRemoteConnectionEstablished) {
-                //terminate in case of any other exception
                 //noinspection BusyWait
                 Thread.sleep(TimeUnit.SECONDS.toMillis(appiumServerPreparationPollingInterval));
             }
@@ -225,20 +262,16 @@ public class DriverFactoryHelper {
         return driver;
     }
 
-    private static WebDriver connectToRemoteServer(Capabilities capabilities, boolean isLegacy) throws URISyntaxException, MalformedURLException {
+    private static WebDriver connectToRemoteServer(Capabilities capabilities) throws URISyntaxException, MalformedURLException {
         var targetHubUrl = TARGET_HUB_URL;
-        if (isLegacy) {
-            if (StringUtils.isNumeric(TARGET_HUB_URL.substring(TARGET_HUB_URL.length() - 1))) {
-                // this is a workaround for the case when the user sets the TARGET_HUB_URL to end with a numeric value like "4723"
-                // which is not a valid URL, so we append "/wd/hub" to it
-                targetHubUrl = TARGET_HUB_URL + "/wd/hub";
-            } else {
-                targetHubUrl = TARGET_HUB_URL + "wd/hub";
-            }
-        }
-        var targetLambdaTestHubURL = targetHubUrl.replace("http", "https");
+        var targetLambdaTestHubURL = targetHubUrl.startsWith("https://")
+                ? targetHubUrl
+                : targetHubUrl.replaceFirst("^http://", "https://");
         var targetPlatform = Properties.platform.targetPlatform();
-        var targetMobileHubUrl = targetHubUrl.replace("@", "@mobile-").replace("http", "https");
+        var targetMobileHubUrl = targetHubUrl.replace("@", "@mobile-");
+        if (targetMobileHubUrl.startsWith("http://")) {
+            targetMobileHubUrl = targetMobileHubUrl.replaceFirst("^http://", "https://");
+        }
 
         var isAndroidExecution = targetPlatform.equalsIgnoreCase(Platform.ANDROID.toString());
         var isIosExecution = targetPlatform.equalsIgnoreCase(Platform.IOS.toString());
@@ -250,7 +283,8 @@ public class DriverFactoryHelper {
         else if (isLambdaTestExecution) targetExecutionUrl = targetLambdaTestHubURL;
         else targetExecutionUrl = targetHubUrl;
 
-        ReportManagerHelper.logDiscrete("Target Execution URI after processing: `" + targetExecutionUrl + "`, and capabilities after processing: `" + capabilities.toString() + "`.", Level.DEBUG);
+        ReportManagerHelper.logDiscrete("Target Execution URI used for remote connection: `" + redactUriCredentials(targetExecutionUrl) + "`.", Level.DEBUG);
+        ReportManagerHelper.logDiscrete("Capabilities after processing: `" + capabilities.toString() + "`.", Level.DEBUG);
         try {
             //builder code block, has issues in many cases, test it locally via grid before using it
 //            if (isAndroidExecution) return AndroidDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
@@ -284,7 +318,10 @@ public class DriverFactoryHelper {
 
     public static void initializeSystemProperties() {
         PropertiesHelper.postProcessing();
-        TARGET_HUB_URL = (SHAFT.Properties.platform.executionAddress().trim().toLowerCase().startsWith("http")) ? SHAFT.Properties.platform.executionAddress() : "http://" + SHAFT.Properties.platform.executionAddress() + "/";
+        var executionAddress = SHAFT.Properties.platform.executionAddress().trim();
+        TARGET_HUB_URL = executionAddress.toLowerCase(Locale.ROOT).startsWith("http")
+                ? executionAddress
+                : "http://" + executionAddress;
     }
 
     public void closeDriver() {
@@ -533,7 +570,7 @@ public class DriverFactoryHelper {
             initialLog.append(" | ").append(JavaHelper.convertToSentenceCase(driverType.getValue()));
         }
 
-        initialLog.append(" | ").append(TARGET_HUB_URL).append("\"");
+        initialLog.append(" | ").append(redactUriCredentials(TARGET_HUB_URL)).append("\"");
 
         if (SHAFT.Properties.web.headlessExecution() && !Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             initialLog.append(", Headless Execution");
@@ -551,10 +588,10 @@ public class DriverFactoryHelper {
             failAction("Unreachable Browser, terminated test suite execution.", e);
         } catch (WebDriverException e) {
             if (e.getMessage() !=null && e.getMessage().contains("Error forwarding the new session cannot find")) {
-                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + TARGET_HUB_URL + "\".");
+                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + redactUriCredentials(TARGET_HUB_URL) + "\".");
                 failAction("Error forwarding the new session: Couldn't find a node that matches the desired capabilities.", e);
             } else {
-                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + TARGET_HUB_URL + "\".");
+                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + redactUriCredentials(TARGET_HUB_URL) + "\".");
                 failAction("Unhandled Error.", e);
             }
         } catch (NoClassDefFoundError e) {
@@ -606,10 +643,10 @@ public class DriverFactoryHelper {
             ReportManager.logDiscrete("Successfully instantiated remote driver instance.");
         } catch (Throwable throwable) {
             //Root cause: "java.lang.NumberFormatException: Error at index 4 in: "4723wd""
-            //this happens when the user types an incorrect remote server address like so http://127.0.0.1:4723
+            //this happens when the URL has an unsupported format
             Throwable throwable1 = throwable;
             if (FailureReporter.getRootCause(throwable1).contains("NumberFormatException")) {
-                var newException = new MalformedURLException("Invalid remote server URL `"+TARGET_HUB_URL+"`. Kindly ensure using one of the supported patterns: `local`, `dockerized`, `browserstack`, `host:port`, `http://host:port/wd/hub`.");
+                var newException = new MalformedURLException("Invalid remote server URL `"+TARGET_HUB_URL+"`. Kindly ensure using one of the supported patterns: `local`, `dockerized`, `browserstack`, `host:port`, `http(s)://host:port[/path]`.");
                 newException.addSuppressed(throwable1);
                 throwable1 = newException;
             }

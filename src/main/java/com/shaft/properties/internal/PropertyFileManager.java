@@ -32,7 +32,7 @@ public final class PropertyFileManager {
         collectMobileProperties(ThreadLocalPropertiesManager.getEffectiveProperties(), appiumDesiredCapabilities);
 
         var app = appiumDesiredCapabilities.get("mobile_app");
-        if (app != null && !app.isEmpty()) {
+        if (app != null && !app.isEmpty() && !isRemoteAppUrl(app)) {
             if (app.startsWith("src\\") || app.startsWith("src/")) {
                 appiumDesiredCapabilities.put("mobile_app", FileActions.getInstance(true).getAbsolutePath(app));
             } else if (!new File(app).isAbsolute()) {
@@ -83,6 +83,16 @@ public final class PropertyFileManager {
             caps.put("mobile_appActivity", pa.launchableActivity());
             ReportManager.logDiscrete("Inferred mobile_appActivity from APK badging: " + pa.launchableActivity());
         }
+    }
+
+    /**
+     * Returns {@code true} when the app path looks like a remote/cloud app URL that must not
+     * be resolved as a local filesystem path. Recognized schemes include {@code bs://} (BrowserStack),
+     * {@code lt://} (LambdaTest), {@code http://}, and {@code https://}.
+     */
+    private static boolean isRemoteAppUrl(String app) {
+        return app.startsWith("bs://") || app.startsWith("lt://")
+                || app.startsWith("http://") || app.startsWith("https://");
     }
 
     private static void collectMobileProperties(java.util.Properties source, Map<String, String> target) {
