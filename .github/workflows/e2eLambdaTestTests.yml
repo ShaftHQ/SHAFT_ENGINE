@@ -12,7 +12,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '16'
+          node-version: 'lts/*'
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTMobAPK*.*]"
@@ -32,7 +32,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '16'
+          node-version: 'lts/*'
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTMobIPA*.*]"
@@ -52,7 +52,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '16'
+          node-version: 'lts/*'
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTWebApp*.*]"
@@ -72,7 +72,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '16'
+          node-version: 'lts/*'
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTDesktopWeb*.*]"

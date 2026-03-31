@@ -183,7 +183,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '16'
+          node-version: 'lts/*'
       - name: Check running containers
         run: docker ps
       - name: Run tests
@@ -204,7 +204,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '16'
+          node-version: 'lts/*'
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"

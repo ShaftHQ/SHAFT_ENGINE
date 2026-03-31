@@ -88,7 +88,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '16'
+          node-version: 'lts/*'
       - name: Print Edge version
         continue-on-error: true
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
