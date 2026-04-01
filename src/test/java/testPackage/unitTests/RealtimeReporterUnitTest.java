@@ -7,6 +7,8 @@ import org.testng.annotations.Test;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.testng.Assert.*;
@@ -207,7 +209,7 @@ public class RealtimeReporterUnitTest {
     }
 
     @Test
-    public void dashboardUsesNetlifyShaftLogoForBothThemeVariants() {
+    public void dashboardHasLightAndDarkLogoElements() {
         assertTrue(dashboardHtml.contains("https://shaftengine.netlify.app/img/shaft.svg"),
                 "Dashboard should use official SHAFT logo URL.");
         assertTrue(dashboardHtml.contains("class=\"logo-light\""),
@@ -238,13 +240,18 @@ public class RealtimeReporterUnitTest {
 
     private String readDashboardHtml() {
         try (InputStream is = RealtimeReporter.class.getResourceAsStream("/realtime/dashboard.html")) {
-            if (is == null) {
-                fail("Could not load /realtime/dashboard.html resource");
+            if (is != null) {
+                return new String(is.readAllBytes(), StandardCharsets.UTF_8);
             }
-            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            Path sourcePath = Path.of(System.getProperty("user.dir"),
+                    "src", "main", "resources", "realtime", "dashboard.html");
+            if (Files.exists(sourcePath)) {
+                return Files.readString(sourcePath, StandardCharsets.UTF_8);
+            }
+            fail("Could not load dashboard.html from classpath or source resources path");
         } catch (Exception e) {
             fail("Failed to read dashboard HTML resource: " + e.getMessage());
-            return "";
         }
+        return "";
     }
 }

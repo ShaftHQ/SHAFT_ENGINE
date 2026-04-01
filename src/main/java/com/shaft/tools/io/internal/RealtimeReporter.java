@@ -17,6 +17,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
@@ -64,7 +65,7 @@ public class RealtimeReporter {
     // Global attachment data store  (attachmentId → raw bytes)
     private static final ConcurrentMap<String, byte[]> attachmentData = new ConcurrentHashMap<>();
 
-    private static final java.util.concurrent.atomic.AtomicLong attachmentIdCounter = new java.util.concurrent.atomic.AtomicLong(0);
+    private static final AtomicLong attachmentIdCounter = new AtomicLong(0);
 
     private RealtimeReporter() {
         throw new IllegalStateException("Utility class");
