@@ -5,6 +5,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.testng.Assert.*;
@@ -14,10 +16,12 @@ import static org.testng.Assert.*;
  * data model helpers, and core server lifecycle (without actually starting a browser).
  */
 public class RealtimeReporterUnitTest {
+    private String dashboardHtml;
 
     @BeforeMethod(alwaysRun = true)
     public void ensureServerStopped() {
         RealtimeReporter.stopServer();
+        dashboardHtml = readDashboardHtml();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -200,5 +204,47 @@ public class RealtimeReporterUnitTest {
         // Server is stopped; this must not throw
         RealtimeReporter.appendAttachment("com.example.Foo#bar",
                 "Screenshot", "screenshot.png", "image/png", new byte[]{1, 2, 3});
+    }
+
+    @Test
+    public void dashboardUsesNetlifyShaftLogoForBothThemeVariants() {
+        assertTrue(dashboardHtml.contains("https://shaftengine.netlify.app/img/shaft.svg"),
+                "Dashboard should use official SHAFT logo URL.");
+        assertTrue(dashboardHtml.contains("class=\"logo-light\""),
+                "Dashboard should include explicit light logo element.");
+        assertTrue(dashboardHtml.contains("class=\"logo-dark\""),
+                "Dashboard should include explicit dark logo element.");
+    }
+
+    @Test
+    public void dashboardLightModeIsDefaultAndDarkModeIsOptIn() {
+        assertTrue(dashboardHtml.contains("/* Light mode (default) */"),
+                "Light mode should be documented and configured as default.");
+        assertTrue(dashboardHtml.contains("document.documentElement.classList.add('light');"),
+                "Dashboard should initialize in light mode by default.");
+        assertTrue(dashboardHtml.contains("if (savedTheme === 'dark')"),
+                "Dashboard should restore dark mode only when explicitly saved.");
+    }
+
+    @Test
+    public void dashboardHasThemePersistenceAndToggleHooks() {
+        assertTrue(dashboardHtml.contains("localStorage.getItem('shaft-theme')"),
+                "Dashboard should restore saved theme from localStorage.");
+        assertTrue(dashboardHtml.contains("localStorage.setItem('shaft-theme'"),
+                "Dashboard should persist theme changes in localStorage.");
+        assertTrue(dashboardHtml.contains("theme-btn"),
+                "Dashboard should expose a theme toggle control.");
+    }
+
+    private String readDashboardHtml() {
+        try (InputStream is = RealtimeReporter.class.getResourceAsStream("/realtime/dashboard.html")) {
+            if (is == null) {
+                fail("Could not load /realtime/dashboard.html resource");
+            }
+            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            fail("Failed to read dashboard HTML resource: " + e.getMessage());
+            return "";
+        }
     }
 }

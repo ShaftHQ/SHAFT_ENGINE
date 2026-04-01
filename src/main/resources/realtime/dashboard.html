@@ -13,15 +13,15 @@
       --shaft-orange-d: #e55d00;
       --shaft-orange-l: #ff8533;
 
-      /* Dark mode (default) */
-      --bg-base:        #0d1117;
-      --bg-surface:     #161b22;
-      --bg-card:        #21262d;
-      --bg-card-hover:  #2d333b;
-      --border:         #30363d;
-      --text-primary:   #e6edf3;
-      --text-secondary: #8b949e;
-      --text-muted:     #656d76;
+      /* Light mode (default) */
+      --bg-base:        #f6f8fa;
+      --bg-surface:     #ffffff;
+      --bg-card:        #f0f2f5;
+      --bg-card-hover:  #e8eaed;
+      --border:         #d0d7de;
+      --text-primary:   #1f2328;
+      --text-secondary: #656d76;
+      --text-muted:     #8b949e;
 
       /* Status palette */
       --status-todo:        #8b949e;
@@ -35,16 +35,16 @@
       --transition: 0.25s ease;
     }
 
-    /* ─── Light Mode ──────────────────────────────────────────────────── */
-    html.light {
-      --bg-base:        #f6f8fa;
-      --bg-surface:     #ffffff;
-      --bg-card:        #f0f2f5;
-      --bg-card-hover:  #e8eaed;
-      --border:         #d0d7de;
-      --text-primary:   #1f2328;
-      --text-secondary: #656d76;
-      --text-muted:     #8b949e;
+    /* ─── Dark Mode ───────────────────────────────────────────────────── */
+    html.dark {
+      --bg-base:        #0d1117;
+      --bg-surface:     #161b22;
+      --bg-card:        #21262d;
+      --bg-card-hover:  #2d333b;
+      --border:         #30363d;
+      --text-primary:   #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted:     #656d76;
     }
 
     html, body {
@@ -75,7 +75,11 @@
       display: flex; align-items: center; gap: 10px;
       text-decoration: none; color: inherit; flex-shrink: 0;
     }
-    .logo-wrap img { width: 32px; height: 32px; }
+    .logo-mark { position: relative; width: 32px; height: 32px; display: inline-block; }
+    .logo-mark img { width: 32px; height: 32px; position: absolute; inset: 0; }
+    .logo-dark { display: none; filter: brightness(0) invert(1); }
+    html.dark .logo-light { display: none; }
+    html.dark .logo-dark { display: block; }
     .logo-label { font-size: 15px; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
     .header-divider { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
     #suite-title {
@@ -111,7 +115,7 @@
       width: 16px; height: 16px; border-radius: 50%;
       background: var(--shaft-orange); transition: transform var(--transition);
     }
-    html.light .theme-toggle::after { transform: translateX(16px); }
+    html.dark .theme-toggle::after { transform: translateX(16px); }
     .theme-toggle-icon {
       display: flex; align-items: center; gap: 4px; font-size: 14px;
       color: var(--text-secondary); cursor: pointer;
@@ -132,6 +136,50 @@
       align-items: center;
       gap: 20px;
       flex-wrap: wrap;
+    }
+    .toolbar {
+      width: 100%;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .toolbar input {
+      border: 1px solid var(--border);
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      border-radius: 8px;
+      padding: 8px 10px;
+      min-width: 220px;
+    }
+    .filter-btn {
+      border: 1px solid var(--border);
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      border-radius: 14px;
+      padding: 5px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .filter-btn.active {
+      color: var(--shaft-orange);
+      border-color: var(--shaft-orange);
+      background: color-mix(in srgb, var(--shaft-orange) 10%, transparent);
+    }
+    .last-update {
+      margin-left: auto;
+      display: inline-flex;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      align-items: center;
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--status-inprogress);
+      animation: pulse 1.8s ease-in-out infinite;
     }
 
     /* ─── Pie Chart ────────────────────────────────────────────────────── */
@@ -351,7 +399,7 @@
       font-size: 12px; color: #c9d1d9; overflow-y: auto; max-height: 320px;
       white-space: pre-wrap; word-break: break-word;
     }
-    html.light #console-output { background: #f0f2f5; color: #1f2328; }
+    html.dark #console-output { background: #0d0d0d; color: #c9d1d9; }
 
     /* ─── Footer ───────────────────────────────────────────────────────── */
     footer {
@@ -371,6 +419,19 @@
     }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
     .pulse { animation: pulse 2s ease-in-out infinite; }
+    :focus-visible {
+      outline: 2px solid var(--shaft-orange);
+      outline-offset: 2px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+    @media (max-width: 1100px) {
+      #board { grid-template-columns: 1fr; }
+      header { height: auto; padding: 10px 16px; flex-wrap: wrap; }
+      .header-right { width: 100%; justify-content: space-between; margin-left: 0; }
+      .last-update { margin-left: 0; }
+    }
 
     /* ─── Scrollbar ────────────────────────────────────────────────────── */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -385,11 +446,10 @@
   <!-- Header -->
   <header>
     <a class="logo-wrap" href="https://shafthq.github.io/" target="_blank" rel="noopener">
-      <picture>
-        <source srcset="https://github.com/user-attachments/assets/b2e8454d-97ed-4dd8-91f2-1c09c53ba94e" media="(prefers-color-scheme: light)" width="32" />
-        <source srcset="https://github.com/user-attachments/assets/9cb4a7a8-2de7-486c-adb1-ad254af8c58b" media="(prefers-color-scheme: dark)" width="32" />
-        <img src="https://github.com/user-attachments/assets/016ebb3c-4090-4f07-a9b3-830fdf4cb696" alt="SHAFT" width="32" height="32" />
-      </picture>
+      <span class="logo-mark" aria-label="SHAFT Engine Logo">
+        <img class="logo-light" src="https://shaftengine.netlify.app/img/shaft.svg" alt="SHAFT Engine Logo" />
+        <img class="logo-dark" src="https://shaftengine.netlify.app/img/shaft.svg" alt="SHAFT Engine Logo White" />
+      </span>
       <span class="logo-label">SHAFT Engine</span>
     </a>
     <div class="header-divider"></div>
@@ -416,6 +476,14 @@
   <div class="main-content" id="main-content">
     <!-- Stats bar -->
     <div class="stats-bar" id="stats-bar">
+      <div class="toolbar">
+        <input id="search-input" type="search" placeholder="Search test name/class/file..." aria-label="Search tests" />
+        <button class="filter-btn active" data-filter="ALL">All</button>
+        <button class="filter-btn" data-filter="TODO">Todo</button>
+        <button class="filter-btn" data-filter="IN_PROGRESS">In Progress</button>
+        <button class="filter-btn" data-filter="DONE">Done</button>
+        <span class="last-update" id="last-update"><span class="pulse-dot"></span>Updated just now</span>
+      </div>
       <div class="pie-wrap">
         <div class="pie-chart" id="pie-chart">
           <div class="pie-center">
@@ -515,6 +583,8 @@
     activeTestId: null,
     durations: {},
     detailAttachments: [],
+    filter: 'ALL',
+    search: '',
   };
 
   // ── DOM refs ──────────────────────────────────────────────────────────────
@@ -529,19 +599,33 @@
 
   // ── Theme toggle ──────────────────────────────────────────────────────────
   const savedTheme = localStorage.getItem('shaft-theme');
-  if (savedTheme === 'light') document.documentElement.classList.add('light');
+  document.documentElement.classList.add('light');
+  if (savedTheme === 'dark') document.documentElement.classList.replace('light', 'dark');
   updateThemeIcon();
 
   $('theme-btn').addEventListener('click', () => {
-    document.documentElement.classList.toggle('light');
-    const isLight = document.documentElement.classList.contains('light');
-    localStorage.setItem('shaft-theme', isLight ? 'light' : 'dark');
+    const isDark = document.documentElement.classList.contains('dark');
+    document.documentElement.classList.toggle('dark', !isDark);
+    document.documentElement.classList.toggle('light', isDark);
+    localStorage.setItem('shaft-theme', isDark ? 'light' : 'dark');
     updateThemeIcon();
   });
 
   function updateThemeIcon() {
-    $('theme-icon').textContent = document.documentElement.classList.contains('light') ? '☀️' : '🌙';
+    $('theme-icon').textContent = document.documentElement.classList.contains('dark') ? '🌙' : '☀️';
   }
+  $('search-input').addEventListener('input', e => {
+    state.search = (e.target.value || '').trim().toLowerCase();
+    renderBoard();
+  });
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.filter = btn.dataset.filter || 'ALL';
+      renderBoard();
+    });
+  });
 
   // ── Bootstrap ─────────────────────────────────────────────────────────────
   loadInitialState();
@@ -589,6 +673,7 @@
     if (prev) { card.steps = card.steps && card.steps.length ? card.steps : (prev.steps || []); }
     state.tests[card.id] = card;
     renderBoard();
+    $('last-update').innerHTML = '<span class="pulse-dot"></span>Updated ' + new Date().toLocaleTimeString();
     if (state.activeTestId === card.id) refreshDetailPanel(card);
   }
 
@@ -625,6 +710,11 @@
 
     Object.values(state.tests).forEach(card => {
       const lane = laneKey(card.status);
+      if (state.filter !== 'ALL' && state.filter !== lane) return;
+      if (state.search) {
+        const blob = ((card.methodName || '') + ' ' + (card.className || '') + ' ' + (card.filePath || '')).toLowerCase();
+        if (!blob.includes(state.search)) return;
+      }
       if (!groups[lane]) groups[lane] = {};
       if (!groups[lane][card.className]) groups[lane][card.className] = [];
       groups[lane][card.className].push(card);
