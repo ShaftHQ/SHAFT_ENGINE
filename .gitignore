@@ -35,3 +35,4 @@ OpenLHReport.js
 /.idea/
 browserstack.yml
 /log/nohup.out
+log/
