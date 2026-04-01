@@ -1,0 +1,6 @@
+127.0.0.1 - - [01/Apr/2026 17:15:03] "GET /dashboard_preview.html HTTP/1.1" 200 -
+127.0.0.1 - - [01/Apr/2026 17:15:09] "GET /dashboard_preview.html HTTP/1.1" 200 -
+127.0.0.1 - - [01/Apr/2026 17:15:09] code 404, message File not found
+127.0.0.1 - - [01/Apr/2026 17:15:09] "GET /api/state HTTP/1.1" 404 -
+127.0.0.1 - - [01/Apr/2026 17:15:10] code 404, message File not found
+127.0.0.1 - - [01/Apr/2026 17:15:10] "GET /api/events HTTP/1.1" 404 -

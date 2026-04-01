@@ -50,6 +50,10 @@ public interface Reporting extends EngineProperties<Reporting> {
     @DefaultValue("false")
     boolean attachFullLog();
 
+    @Key("reporting.realtimeReport.enabled")
+    @DefaultValue("false")
+    boolean realtimeReport();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -98,6 +102,11 @@ public interface Reporting extends EngineProperties<Reporting> {
 
         public SetProperty attachFullLog(boolean value) {
             setProperty("attachFullLog", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty realtimeReport(boolean value) {
+            setProperty("reporting.realtimeReport.enabled", String.valueOf(value));
             return this;
         }
 

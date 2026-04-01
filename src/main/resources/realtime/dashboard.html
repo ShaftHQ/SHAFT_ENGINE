@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SHAFT – Real-Time Dashboard</title>
+  <style>
+    /* ─── CSS Reset & Variables ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --shaft-orange:   #ff6b00;
+      --shaft-orange-d: #cc5500;
+      --bg-base:        #0d1117;
+      --bg-surface:     #161b22;
+      --bg-card:        #21262d;
+      --bg-card-hover:  #2d333b;
+      --border:         #30363d;
+      --text-primary:   #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted:     #656d76;
+
+      --status-todo:        #8b949e;
+      --status-inprogress:  #58a6ff;
+      --status-passed:      #3fb950;
+      --status-failed:      #f85149;
+      --status-broken:      #e3b341;
+      --status-skipped:     #6e7681;
+
+      --radius: 8px;
+      --transition: 0.2s ease;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ─── Layout ────────────────────────────────────────────────────────── */
+    #app { display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* ─── Header ────────────────────────────────────────────────────────── */
+    header {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .logo-s {
+      width: 34px; height: 34px;
+      background: var(--shaft-orange);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 900; color: #fff;
+      letter-spacing: -1px;
+      flex-shrink: 0;
+    }
+
+    .logo-label {
+      font-size: 15px; font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: 0.02em;
+    }
+
+    .header-divider {
+      width: 1px; height: 24px;
+      background: var(--border);
+    }
+
+    #suite-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 500px;
+    }
+
+    .header-status {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .conn-badge {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--text-secondary);
+    }
+
+    .conn-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--status-skipped);
+    }
+    .conn-dot.connected { background: var(--status-passed); }
+    .conn-dot.error     { background: var(--status-failed); }
+
+    .summary-chips {
+      display: flex; gap: 8px;
+    }
+
+    .chip {
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid transparent;
+    }
+    .chip-passed  { color: var(--status-passed);  border-color: var(--status-passed); }
+    .chip-failed  { color: var(--status-failed);  border-color: var(--status-failed); }
+    .chip-broken  { color: var(--status-broken);  border-color: var(--status-broken); }
+    .chip-skipped { color: var(--status-skipped); border-color: var(--status-skipped); }
+
+    /* ─── Kanban Board ───────────────────────────────────────────────────── */
+    #board {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      padding: 20px 24px;
+      align-items: start;
+    }
+
+    .lane {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .lane-header {
+      padding: 14px 16px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .lane-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+    #lane-todo .lane-dot       { background: var(--status-todo); }
+    #lane-inprogress .lane-dot { background: var(--status-inprogress); }
+    #lane-done .lane-dot       { background: var(--status-passed); }
+
+    .lane-title {
+      font-weight: 700;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-primary);
+    }
+
+    .lane-count {
+      margin-left: auto;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2px 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .lane-body {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 200px;
+    }
+
+    /* ─── Test Cards ─────────────────────────────────────────────────────── */
+    .class-group { display: flex; flex-direction: column; gap: 6px; }
+
+    .class-group-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 4px 2px 0;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+    }
+
+    .card.clickable {
+      cursor: pointer;
+    }
+
+    .card.clickable:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--shaft-orange);
+      box-shadow: 0 0 0 1px var(--shaft-orange);
+    }
+
+    .card-method {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      word-break: break-word;
+    }
+
+    .card-file {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      word-break: break-all;
+      margin-bottom: 6px;
+    }
+
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .badge-todo      { background: rgba(139,148,158,0.15); color: var(--status-todo);        border: 1px solid rgba(139,148,158,0.3); }
+    .badge-inprogress{ background: rgba(88,166,255,0.15);  color: var(--status-inprogress);   border: 1px solid rgba(88,166,255,0.3);  }
+    .badge-passed    { background: rgba(63,185,80,0.15);   color: var(--status-passed);       border: 1px solid rgba(63,185,80,0.3);   }
+    .badge-failed    { background: rgba(248,81,73,0.15);   color: var(--status-failed);       border: 1px solid rgba(248,81,73,0.3);   }
+    .badge-broken    { background: rgba(227,179,65,0.15);  color: var(--status-broken);       border: 1px solid rgba(227,179,65,0.3);  }
+    .badge-skipped   { background: rgba(110,118,129,0.15); color: var(--status-skipped);      border: 1px solid rgba(110,118,129,0.3); }
+
+    .duration-badge {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: ui-monospace, monospace;
+    }
+
+    .start-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* ─── Detail View ────────────────────────────────────────────────────── */
+    #detail-view {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      padding: 20px 24px;
+      gap: 16px;
+    }
+
+    #detail-view.visible { display: flex; }
+
+    .detail-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      color: var(--shaft-orange);
+      font-weight: 600;
+      font-size: 14px;
+      border: none;
+      background: none;
+      padding: 0;
+    }
+    .detail-back:hover { color: var(--shaft-orange-d); }
+
+    .detail-header {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+    }
+
+    .detail-class  { font-size: 12px; color: var(--text-muted); font-family: ui-monospace, monospace; margin-bottom: 4px; }
+    .detail-method { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+    .detail-file   { font-size: 12px; color: var(--text-muted); font-family: ui-monospace, monospace; margin-bottom: 14px; }
+
+    .detail-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+    }
+
+    .meta-item { display: flex; flex-direction: column; gap: 2px; }
+    .meta-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .meta-value { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+
+    .detail-error {
+      margin-top: 12px;
+      background: rgba(248,81,73,0.08);
+      border: 1px solid rgba(248,81,73,0.3);
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      color: var(--status-failed);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* ─── Steps Section ──────────────────────────────────────────────────── */
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+    }
+
+    .steps-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .step-item {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .step-icon {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .step-passed  .step-icon { background: var(--status-passed); }
+    .step-failed  .step-icon { background: var(--status-failed); }
+    .step-broken  .step-icon { background: var(--status-broken); }
+    .step-skipped .step-icon { background: var(--status-skipped); }
+
+    .step-name {
+      flex: 1;
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+
+    .step-time {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: ui-monospace, monospace;
+    }
+
+    /* ─── Console Window ─────────────────────────────────────────────────── */
+    .console-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 200px;
+    }
+
+    #console-output {
+      flex: 1;
+      background: #0d0d0d;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: 12px;
+      color: #c9d1d9;
+      overflow-y: auto;
+      max-height: 320px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* ─── Empty State ────────────────────────────────────────────────────── */
+    .empty-lane {
+      padding: 32px 16px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* ─── Footer ─────────────────────────────────────────────────────────── */
+    footer {
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    footer a {
+      color: var(--shaft-orange);
+      text-decoration: none;
+    }
+    footer a:hover { text-decoration: underline; }
+
+    /* ─── Spinner (In Progress indicator) ───────────────────────────────── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .spinner {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border: 2px solid var(--status-inprogress);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+
+    /* ─── Scrollbar ──────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ─── Header ───────────────────────────────────────────────────────── -->
+  <header>
+    <a class="logo-wrap" href="https://shafthq.github.io/" target="_blank" rel="noopener">
+      <div class="logo-s">S</div>
+      <span class="logo-label">SHAFT Engine</span>
+    </a>
+    <div class="header-divider"></div>
+    <span id="suite-title">Real-Time Dashboard</span>
+    <div class="header-status">
+      <div class="summary-chips">
+        <span class="chip chip-passed" id="chip-passed" title="Passed">✓ <span id="count-passed">0</span></span>
+        <span class="chip chip-failed" id="chip-failed" title="Failed">✕ <span id="count-failed">0</span></span>
+        <span class="chip chip-broken" id="chip-broken" title="Broken">⚠ <span id="count-broken">0</span></span>
+        <span class="chip chip-skipped" id="chip-skipped" title="Skipped">– <span id="count-skipped">0</span></span>
+      </div>
+      <div class="conn-badge">
+        <div class="conn-dot" id="conn-dot"></div>
+        <span id="conn-label">Connecting…</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ─── Kanban Board ─────────────────────────────────────────────────── -->
+  <div id="board">
+    <div class="lane" id="lane-todo">
+      <div class="lane-header">
+        <div class="lane-dot"></div>
+        <span class="lane-title">Todo</span>
+        <span class="lane-count" id="count-todo">0</span>
+      </div>
+      <div class="lane-body" id="body-todo"></div>
+    </div>
+
+    <div class="lane" id="lane-inprogress">
+      <div class="lane-header">
+        <div class="lane-dot"></div>
+        <span class="lane-title">In Progress</span>
+        <span class="lane-count" id="count-inprogress">0</span>
+      </div>
+      <div class="lane-body" id="body-inprogress"></div>
+    </div>
+
+    <div class="lane" id="lane-done">
+      <div class="lane-header">
+        <div class="lane-dot"></div>
+        <span class="lane-title">Done</span>
+        <span class="lane-count" id="count-done">0</span>
+      </div>
+      <div class="lane-body" id="body-done"></div>
+    </div>
+  </div>
+
+  <!-- ─── Detail View ──────────────────────────────────────────────────── -->
+  <div id="detail-view">
+    <button class="detail-back" id="btn-back">← Back to Dashboard</button>
+
+    <div class="detail-header">
+      <div class="detail-class" id="detail-class"></div>
+      <div class="detail-method" id="detail-method"></div>
+      <div class="detail-file" id="detail-file"></div>
+      <div class="detail-meta">
+        <div class="meta-item">
+          <span class="meta-label">Status</span>
+          <span id="detail-status"></span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Start Time</span>
+          <span class="meta-value" id="detail-start"></span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">End Time</span>
+          <span class="meta-value" id="detail-end"></span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Duration</span>
+          <span class="meta-value" id="detail-duration"></span>
+        </div>
+      </div>
+      <div id="detail-error" class="detail-error" style="display:none"></div>
+    </div>
+
+    <div>
+      <div class="section-title">Steps</div>
+      <div class="steps-list" id="detail-steps"></div>
+    </div>
+
+    <div class="console-wrap">
+      <div class="section-title">Console Output</div>
+      <div id="console-output">Waiting for logs…</div>
+    </div>
+  </div>
+
+  <!-- ─── Footer ───────────────────────────────────────────────────────── -->
+  <footer>
+    <span>© SHAFT Engine — Real-Time Execution Dashboard</span>
+    <a href="https://shafthq.github.io/" target="_blank" rel="noopener">
+      Learn more about SHAFT Engine ↗
+    </a>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── State ───────────────────────────────────────────────────────────────
+  const state = {
+    tests: {},          // id → card object
+    suiteName: '',
+    activeTestId: null, // currently viewed in detail panel
+    durations: {},      // id → setInterval handle (live duration ticker)
+  };
+
+  // ── DOM refs ─────────────────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+  const board = $('board');
+  const detailView = $('detail-view');
+  const bodies = {
+    TODO:        $('body-todo'),
+    IN_PROGRESS: $('body-inprogress'),
+    DONE:        $('body-done'),
+  };
+  const counts = {
+    todo:       $('count-todo'),
+    inprogress: $('count-inprogress'),
+    done:       $('count-done'),
+  };
+  const countersEl = {
+    passed:  $('count-passed'),
+    failed:  $('count-failed'),
+    broken:  $('count-broken'),
+    skipped: $('count-skipped'),
+  };
+
+  // ── Bootstrap ────────────────────────────────────────────────────────────
+  loadInitialState();
+  connectSSE();
+
+  $('btn-back').addEventListener('click', showBoard);
+
+  // ── API helpers ──────────────────────────────────────────────────────────
+  async function loadInitialState() {
+    try {
+      const res = await fetch('/api/state');
+      const data = await res.json();
+      applyFullState(data);
+    } catch (e) {
+      console.error('Could not load initial state', e);
+    }
+  }
+
+  function connectSSE() {
+    const es = new EventSource('/api/events');
+
+    es.addEventListener('open', () => setConnected(true));
+    es.addEventListener('error', () => setConnected(false));
+
+    es.addEventListener('fullState',     e => applyFullState(JSON.parse(e.data)));
+    es.addEventListener('testStarted',   e => applyCardUpdate(JSON.parse(e.data)));
+    es.addEventListener('testFinished',  e => applyCardUpdate(JSON.parse(e.data)));
+    es.addEventListener('consoleLog',    e => applyConsoleLog(JSON.parse(e.data)));
+    es.addEventListener('stepAdded',     e => applyStepAdded(JSON.parse(e.data)));
+    es.addEventListener('executionFinished', () => setConnected(false, 'Run complete'));
+  }
+
+  // ── State application ────────────────────────────────────────────────────
+  function applyFullState(data) {
+    state.suiteName = data.suiteName || 'Test Execution';
+    $('suite-title').textContent = state.suiteName;
+    document.title = state.suiteName + ' – SHAFT Dashboard';
+
+    // Reset
+    state.tests = {};
+    Object.values(state.durations).forEach(clearInterval);
+    state.durations = {};
+
+    (data.tests || []).forEach(card => {
+      state.tests[card.id] = card;
+    });
+    renderBoard();
+  }
+
+  function applyCardUpdate(card) {
+    const prev = state.tests[card.id];
+    // Preserve steps & consoleLogs from in-memory state when server sends compact update
+    if (prev) {
+      card.steps = card.steps && card.steps.length ? card.steps : (prev.steps || []);
+    }
+    state.tests[card.id] = card;
+    renderBoard();
+    if (state.activeTestId === card.id) {
+      refreshDetailPanel(card);
+    }
+  }
+
+  function applyConsoleLog(data) {
+    if (state.activeTestId !== data.testId) return;
+    const el = $('console-output');
+    if (el.textContent === 'Waiting for logs…') el.textContent = '';
+    el.textContent += data.line + '\n';
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function applyStepAdded(data) {
+    const card = state.tests[data.testId];
+    if (!card) return;
+    card.steps = card.steps || [];
+    card.steps.push(data.step);
+    if (state.activeTestId === data.testId) {
+      renderSteps(card.steps);
+    }
+  }
+
+  // ── Board rendering ──────────────────────────────────────────────────────
+  function renderBoard() {
+    const groups = { TODO: {}, IN_PROGRESS: {}, DONE: {} };
+    let passed = 0, failed = 0, broken = 0, skipped = 0;
+
+    Object.values(state.tests).forEach(card => {
+      const lane = laneKey(card.status);
+      if (!groups[lane]) groups[lane] = {};
+      if (!groups[lane][card.className]) groups[lane][card.className] = [];
+      groups[lane][card.className].push(card);
+
+      if (card.status === 'PASSED')  passed++;
+      if (card.status === 'FAILED')  failed++;
+      if (card.status === 'BROKEN')  broken++;
+      if (card.status === 'SKIPPED') skipped++;
+    });
+
+    countersEl.passed.textContent  = passed;
+    countersEl.failed.textContent  = failed;
+    countersEl.broken.textContent  = broken;
+    countersEl.skipped.textContent = skipped;
+
+    ['TODO', 'IN_PROGRESS', 'DONE'].forEach(lane => {
+      const body = bodies[lane];
+      const classMap = groups[lane] || {};
+      const classNames = Object.keys(classMap);
+
+      if (classNames.length === 0) {
+        body.innerHTML = '<div class="empty-lane">No tests yet</div>';
+      } else {
+        body.innerHTML = '';
+        classNames.forEach(className => {
+          const shortClass = className.split('.').pop();
+          const grp = document.createElement('div');
+          grp.className = 'class-group';
+          grp.innerHTML = `<div class="class-group-label">${escHtml(shortClass)}</div>`;
+          classMap[className].forEach(card => {
+            grp.appendChild(buildCard(card));
+          });
+          body.appendChild(grp);
+        });
+      }
+
+      const laneCountKey = lane.toLowerCase().replace('_', '');
+      const countEl = counts[laneCountKey === 'inprogress' ? 'inprogress' : laneCountKey === 'todo' ? 'todo' : 'done'];
+      if (countEl) countEl.textContent = classNames.reduce((s, cn) => s + classMap[cn].length, 0);
+    });
+
+    // Restart duration tickers
+    Object.values(state.durations).forEach(clearInterval);
+    state.durations = {};
+    Object.values(state.tests)
+      .filter(c => c.status === 'IN_PROGRESS' && c.startTime > 0)
+      .forEach(card => {
+        const el = document.getElementById('dur-' + safeId(card.id));
+        if (el) {
+          state.durations[card.id] = setInterval(() => {
+            const sel = document.getElementById('dur-' + safeId(card.id));
+            if (sel) sel.textContent = formatDuration(Date.now() - card.startTime);
+            else clearInterval(state.durations[card.id]);
+          }, 5000);
+        }
+      });
+  }
+
+  function laneKey(status) {
+    if (status === 'TODO')        return 'TODO';
+    if (status === 'IN_PROGRESS') return 'IN_PROGRESS';
+    return 'DONE';
+  }
+
+  function buildCard(card) {
+    const div = document.createElement('div');
+    const clickable = card.status === 'IN_PROGRESS' || laneKey(card.status) === 'DONE';
+    div.className = 'card' + (clickable ? ' clickable' : '');
+    div.dataset.id = card.id;
+
+    const duration = card.startTime > 0 && card.status === 'IN_PROGRESS'
+      ? formatDuration(Date.now() - card.startTime)
+      : (card.startTime > 0 && card.endTime > 0 ? formatDuration(card.endTime - card.startTime) : '');
+
+    div.innerHTML = `
+      <div class="card-method">${escHtml(card.methodName)}</div>
+      <div class="card-file">${escHtml(card.filePath)}</div>
+      <div class="card-meta">
+        ${statusBadge(card.status)}
+        ${card.startTime > 0 ? `<span class="start-time">${escHtml(card.startTimeFormatted)}</span>` : ''}
+        ${card.status === 'IN_PROGRESS'
+          ? `<span class="duration-badge"><span class="spinner"></span>&nbsp;<span id="dur-${safeId(card.id)}">${duration}</span></span>`
+          : (duration ? `<span class="duration-badge">${duration}</span>` : '')}
+      </div>`;
+
+    if (clickable) {
+      div.addEventListener('click', () => showDetail(card.id));
+    }
+    return div;
+  }
+
+  function statusBadge(status) {
+    const badges = {
+      TODO:        ['badge-todo',       'Todo'],
+      IN_PROGRESS: ['badge-inprogress', 'In Progress'],
+      PASSED:      ['badge-passed',     '✓ Passed'],
+      FAILED:      ['badge-failed',     '✕ Failed'],
+      BROKEN:      ['badge-broken',     '⚠ Broken'],
+      SKIPPED:     ['badge-skipped',    '– Skipped'],
+    };
+    const [cls, label] = badges[status] || ['badge-todo', status];
+    return `<span class="status-badge ${cls}">${label}</span>`;
+  }
+
+  // ── Detail panel ─────────────────────────────────────────────────────────
+  async function showDetail(testId) {
+    state.activeTestId = testId;
+    board.style.display = 'none';
+    detailView.classList.add('visible');
+
+    // Load from server for most-up-to-date data
+    try {
+      const res = await fetch('/api/test/' + encodeURIComponent(testId));
+      const data = await res.json();
+      const card = data.card;
+      if (card) {
+        state.tests[card.id] = card;
+      }
+      refreshDetailPanel(card || state.tests[testId]);
+      renderConsole(data.consoleLogs || []);
+    } catch (e) {
+      refreshDetailPanel(state.tests[testId]);
+    }
+  }
+
+  function showBoard() {
+    state.activeTestId = null;
+    board.style.display = '';
+    detailView.classList.remove('visible');
+  }
+
+  function refreshDetailPanel(card) {
+    if (!card) return;
+    $('detail-class').textContent  = card.className;
+    $('detail-method').textContent = card.methodName;
+    $('detail-file').textContent   = card.filePath;
+    $('detail-status').innerHTML   = statusBadge(card.status);
+    $('detail-start').textContent  = card.startTime > 0
+      ? new Date(card.startTime).toLocaleTimeString() : '—';
+    $('detail-end').textContent    = card.endTime > 0
+      ? new Date(card.endTime).toLocaleTimeString() : '—';
+    $('detail-duration').textContent = (card.startTime > 0 && card.endTime > 0)
+      ? formatDuration(card.endTime - card.startTime)
+      : (card.startTime > 0 ? 'In progress…' : '—');
+
+    const errEl = $('detail-error');
+    if (card.errorMessage) {
+      errEl.style.display = '';
+      errEl.textContent = card.errorMessage;
+    } else {
+      errEl.style.display = 'none';
+    }
+
+    renderSteps(card.steps || []);
+  }
+
+  function renderSteps(steps) {
+    const el = $('detail-steps');
+    if (!steps || steps.length === 0) {
+      el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">No steps recorded.</div>';
+      return;
+    }
+    el.innerHTML = steps.map(s => `
+      <div class="step-item step-${(s.status||'passed').toLowerCase()}">
+        <div class="step-icon"></div>
+        <span class="step-name">${escHtml(s.name)}</span>
+        <span class="step-time">${escHtml(s.timestampFormatted || '')}</span>
+      </div>`).join('');
+  }
+
+  function renderConsole(lines) {
+    const el = $('console-output');
+    if (!lines || lines.length === 0) {
+      el.textContent = 'No console output yet.';
+      return;
+    }
+    el.textContent = lines.join('\n');
+    el.scrollTop = el.scrollHeight;
+  }
+
+  // ── Utilities ─────────────────────────────────────────────────────────────
+  function formatDuration(ms) {
+    if (ms < 1000) return ms + 'ms';
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return s + 's';
+    const m = Math.floor(s / 60);
+    const rs = s % 60;
+    return m + 'm ' + rs + 's';
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function safeId(str) {
+    return str.replace(/[^a-zA-Z0-9_-]/g, '_');
+  }
+
+  function setConnected(ok, label) {
+    const dot   = $('conn-dot');
+    const lbl   = $('conn-label');
+    dot.className = 'conn-dot ' + (ok ? 'connected' : 'error');
+    lbl.textContent = label || (ok ? 'Live' : 'Disconnected');
+  }
+})();
+</script>
+</body>
+</html>

@@ -11,6 +11,8 @@ import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.internal.*;
 import lombok.Getter;
 import org.junit.platform.engine.TestExecutionResult;
+import org.junit.platform.engine.TestSource;
+import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.*;
 
 import java.util.ArrayList;
@@ -36,6 +38,32 @@ public class JunitListener implements LauncherSessionListener {
                     executionStartTime = System.currentTimeMillis();
                     TestNGListener.engineSetup(ProjectStructureManager.RunType.JUNIT);
                     isEngineReady = true;
+                    // Populate real-time dashboard with planned tests
+                    RealtimeReporter.initialize("JUnit Test Run");
+                    List<RealtimeReporter.TestCard> planned = new ArrayList<>();
+                    testPlan.getRoots().forEach(root ->
+                            collectPlannedTests(testPlan, root, planned));
+                    RealtimeReporter.onTestsPlanned(planned);
+                }
+
+                private void collectPlannedTests(TestPlan testPlan, TestIdentifier node,
+                                                 List<RealtimeReporter.TestCard> out) {
+                    if (node.isTest()) {
+                        TestSource src = node.getSource().orElse(null);
+                        String className = "";
+                        String methodName = node.getDisplayName();
+                        if (src instanceof MethodSource ms) {
+                            className  = ms.getClassName();
+                            methodName = ms.getMethodName();
+                        }
+                        String id = RealtimeReporter.buildTestId(className, methodName);
+                        RealtimeReporter.TestCard card = new RealtimeReporter.TestCard(
+                                id, className, methodName,
+                                RealtimeReporter.classNameToFilePath(className));
+                        out.add(card);
+                    }
+                    testPlan.getChildren(node).forEach(child ->
+                            collectPlannedTests(testPlan, child, out));
                 }
 
                 @Override
@@ -53,6 +81,10 @@ public class JunitListener implements LauncherSessionListener {
                 public void executionStarted(TestIdentifier testIdentifier) {
                     JunitListenerHelper.setTestName(testIdentifier);
                     JunitListenerHelper.logTestInformation(testIdentifier);
+                    if (testIdentifier.isTest()) {
+                        String id = junitTestId(testIdentifier);
+                        RealtimeReporter.onTestStarted(id);
+                    }
                 }
 
                 @Override
@@ -77,6 +109,7 @@ public class JunitListener implements LauncherSessionListener {
         JiraHelper.reportExecutionStatusToJira();
         GoogleTink.encrypt();
         AllureManager.generateAllureReportArchive();
+        RealtimeReporter.onExecutionFinished();
         AllureManager.openAllureReportAfterExecution();
         long executionEndTime = System.currentTimeMillis();
         ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
@@ -103,18 +136,32 @@ public class JunitListener implements LauncherSessionListener {
         passedTests.add(testIdentifier);
         isLastFinishedTestOK = true;
         appendToExecutionSummaryReport(testIdentifier, "", ExecutionSummaryReport.StatusIcon.PASSED, ExecutionSummaryReport.Status.PASSED);
+        RealtimeReporter.onTestFinished(junitTestId(testIdentifier), RealtimeReporter.TestStatus.PASSED, null);
     }
 
     private void onTestFailure(TestIdentifier testIdentifier, Throwable throwable) {
         failedTests.add(testIdentifier);
         isLastFinishedTestOK = false;
         appendToExecutionSummaryReport(testIdentifier, throwable.getMessage(), ExecutionSummaryReport.StatusIcon.FAILED, ExecutionSummaryReport.Status.FAILED);
+        RealtimeReporter.onTestFinished(junitTestId(testIdentifier), RealtimeReporter.TestStatus.FAILED, throwable);
     }
 
     private void onTestSkipped(TestIdentifier testIdentifier, String reason) {
         skippedTests.add(testIdentifier);
         isLastFinishedTestOK = false;
         appendToExecutionSummaryReport(testIdentifier, reason, ExecutionSummaryReport.StatusIcon.SKIPPED, ExecutionSummaryReport.Status.SKIPPED);
+        RealtimeReporter.onTestFinished(junitTestId(testIdentifier), RealtimeReporter.TestStatus.SKIPPED, null);
+    }
+
+    private static String junitTestId(TestIdentifier testIdentifier) {
+        TestSource src = testIdentifier.getSource().orElse(null);
+        String className  = "";
+        String methodName = testIdentifier.getDisplayName();
+        if (src instanceof MethodSource ms) {
+            className  = ms.getClassName();
+            methodName = ms.getMethodName();
+        }
+        return RealtimeReporter.buildTestId(className, methodName);
     }
 
     private void appendToExecutionSummaryReport(TestIdentifier testIdentifier, String errorMessage, ExecutionSummaryReport.StatusIcon statusIcon, ExecutionSummaryReport.Status status) {

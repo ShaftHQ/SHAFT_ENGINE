@@ -486,6 +486,7 @@ public class ReportManagerHelper {
                 initializeLogger();
             }
             logger.log(loglevel, logText.trim());
+            forwardToRealtimeReporter(logText.trim());
         }
     }
 
@@ -503,7 +504,28 @@ public class ReportManagerHelper {
                 }
                 logger.log(Level.INFO, logText.trim());
             }
+            forwardToRealtimeReporter(logText.trim());
         }
+    }
+
+    /**
+     * Forwards a log line to the real-time reporter (if running) for the currently active test.
+     */
+    private static void forwardToRealtimeReporter(String logText) {
+        if (!RealtimeReporter.isRunning()) return;
+        String testId = null;
+        try {
+            var result = Reporter.getCurrentTestResult();
+            if (result != null && result.getTestClass() != null && result.getMethod() != null) {
+                testId = RealtimeReporter.buildTestId(
+                        result.getTestClass().getName(),
+                        result.getMethod().getMethodName());
+            }
+        } catch (Exception e) {
+            // Reporter.getCurrentTestResult() is not available in JUnit/Cucumber context
+            if (logger != null) logger.debug("[RealtimeReporter] Could not resolve active test context: {}", e.getMessage());
+        }
+        RealtimeReporter.appendConsoleLog(testId, logText);
     }
 
     private static String addSpacing(String log) {
@@ -571,6 +593,7 @@ public class ReportManagerHelper {
         if (!SHAFT.Properties.reporting.disableLogging()) {
             createLogEntry(logText, true);
             Allure.step(logText, getStepStatus(logText));
+            appendStepToRealtimeReporter(logText, getStepStatus(logText).name());
         }
     }
 
@@ -585,6 +608,26 @@ public class ReportManagerHelper {
         if (!SHAFT.Properties.reporting.disableLogging()) {
             createLogEntry(logText, logLevel);
             Allure.step(logText, getStepStatus(logText));
+            appendStepToRealtimeReporter(logText, getStepStatus(logText).name());
+        }
+    }
+
+    /**
+     * Forwards a step to the real-time reporter for the currently active test.
+     */
+    private static void appendStepToRealtimeReporter(String stepName, String stepStatus) {
+        if (!RealtimeReporter.isRunning()) return;
+        try {
+            var result = Reporter.getCurrentTestResult();
+            if (result != null && result.getTestClass() != null && result.getMethod() != null) {
+                String testId = RealtimeReporter.buildTestId(
+                        result.getTestClass().getName(),
+                        result.getMethod().getMethodName());
+                RealtimeReporter.appendStep(testId, stepName, stepStatus);
+            }
+        } catch (Exception e) {
+            // Reporter.getCurrentTestResult() is not available in JUnit/Cucumber context
+            if (logger != null) logger.debug("[RealtimeReporter] Could not resolve active test context for step: {}", e.getMessage());
         }
     }
 
