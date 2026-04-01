@@ -30,7 +30,6 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li>The {@code reporting.realtimeReport.enabled} property is {@code true}.</li>
  *   <li>Execution is not inside a CI/CD environment.</li>
- *   <li>Execution is not running locally in headless mode.</li>
  * </ul>
  *
  * <p>Only one instance of the server runs at a time. Starting a new test run tears down
@@ -59,6 +58,14 @@ public class RealtimeReporter {
     // Per-test console log buffer  (testId → list of log lines)
     private static final ConcurrentMap<String, List<String>> consoleLogs = new ConcurrentHashMap<>();
 
+    // Per-test attachment buffer  (testId → list of attachments)
+    private static final ConcurrentMap<String, List<AttachmentInfo>> attachments = new ConcurrentHashMap<>();
+
+    // Global attachment data store  (attachmentId → raw bytes)
+    private static final ConcurrentMap<String, byte[]> attachmentData = new ConcurrentHashMap<>();
+
+    private static final java.util.concurrent.atomic.AtomicLong attachmentIdCounter = new java.util.concurrent.atomic.AtomicLong(0);
+
     private RealtimeReporter() {
         throw new IllegalStateException("Utility class");
     }
@@ -70,8 +77,7 @@ public class RealtimeReporter {
     /**
      * Initialises the real-time report for a new test run.
      * <p>
-     * If the feature is disabled, the execution is in CI, or the execution is local
-     * and headless, this method is a no-op.
+     * If the feature is disabled or the execution is in CI, this method is a no-op.
      *
      * @param runSuiteName the name to display as the run title on the dashboard
      */
@@ -81,6 +87,9 @@ public class RealtimeReporter {
         suiteName = runSuiteName != null ? runSuiteName : "Test Execution";
         testCards.clear();
         consoleLogs.clear();
+        attachments.clear();
+        attachmentData.clear();
+        attachmentIdCounter.set(0);
         startServer();
         openBrowser();
     }
@@ -176,6 +185,42 @@ public class RealtimeReporter {
     }
 
     /**
+     * Appends an attachment (screenshot, API response, etc.) to a test card.
+     * The raw bytes are stored in memory and served via {@code /api/attachment/<id>}.
+     *
+     * @param testId         the unique identifier of the test
+     * @param attachmentType type label (e.g. "Screenshot", "API Response Body")
+     * @param attachmentName human-readable file name
+     * @param contentType    MIME type (e.g. "image/png", "text/json")
+     * @param content        the raw bytes of the attachment
+     */
+    public static void appendAttachment(String testId, String attachmentType, String attachmentName,
+                                        String contentType, byte[] content) {
+        if (!serverRunning.get() || testId == null || content == null || content.length == 0) return;
+        String attId = "att-" + attachmentIdCounter.incrementAndGet();
+        attachmentData.put(attId, content);
+
+        AttachmentInfo info = new AttachmentInfo();
+        info.id = attId;
+        info.type = attachmentType != null ? attachmentType : "file";
+        info.name = attachmentName != null ? attachmentName : "attachment";
+        info.contentType = contentType != null ? contentType : "application/octet-stream";
+        info.size = content.length;
+        info.timestamp = Instant.now().toEpochMilli();
+
+        attachments.computeIfAbsent(testId, k -> Collections.synchronizedList(new ArrayList<>())).add(info);
+
+        // Mark card as having attachments
+        TestCard card = testCards.get(testId);
+        if (card != null) card.hasAttachments = true;
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("testId", testId);
+        payload.put("attachment", attachmentInfoToMap(info));
+        broadcastRawEvent("attachmentAdded", toJson(payload));
+    }
+
+    /**
      * Called when the execution finishes. Closes the server if the Allure auto-open
      * flag is enabled; otherwise the server remains running so the user can review
      * the final state.
@@ -215,6 +260,7 @@ public class RealtimeReporter {
         }
         serverRunning.set(false);
         sseClients.clear();
+        attachmentData.clear();
     }
 
     /**
@@ -230,8 +276,10 @@ public class RealtimeReporter {
 
     /**
      * Determines whether the real-time report should be launched.
+     * The report launches when the flag is enabled and not running in CI.
+     * Both headless and non-headless local modes are supported.
      *
-     * @return {@code true} when the flag is enabled, not in CI, and not headless-local
+     * @return {@code true} when the flag is enabled and not in CI
      */
     public static boolean shouldLaunch() {
         try {
@@ -239,11 +287,7 @@ public class RealtimeReporter {
         } catch (Exception e) {
             return false;
         }
-        if (isRunningInCI()) return false;
-        boolean isLocal = isLocalExecution();
-        boolean isHeadless = isHeadlessExecution();
-        // Suppress when running locally in headless mode
-        return !(isLocal && isHeadless);
+        return !isRunningInCI();
     }
 
     /**
@@ -301,6 +345,7 @@ public class RealtimeReporter {
         httpServer.createContext("/api/state", RealtimeReporter::handleState);
         httpServer.createContext("/api/events", RealtimeReporter::handleSse);
         httpServer.createContext("/api/test/", RealtimeReporter::handleTestDetails);
+        httpServer.createContext("/api/attachment/", RealtimeReporter::handleAttachment);
         httpServer.setExecutor(Executors.newCachedThreadPool());
         httpServer.start();
         serverRunning.set(true);
@@ -383,8 +428,40 @@ public class RealtimeReporter {
             return;
         }
         List<String> logs = consoleLogs.getOrDefault(testId, Collections.emptyList());
-        String json = buildTestDetailsJson(card, logs);
+        List<AttachmentInfo> atts = attachments.getOrDefault(testId, Collections.emptyList());
+        String json = buildTestDetailsJson(card, logs, atts);
         sendResponse(exchange, 200, "application/json; charset=utf-8", json);
+    }
+
+    private static void handleAttachment(HttpExchange exchange) throws IOException {
+        if (!"GET".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, "text/plain", "Method Not Allowed");
+            return;
+        }
+        addCorsHeaders(exchange);
+        String path = exchange.getRequestURI().getPath();
+        String attId = path.substring("/api/attachment/".length());
+        byte[] data = attachmentData.get(attId);
+        if (data == null) {
+            sendResponse(exchange, 404, "text/plain", "Not found");
+            return;
+        }
+        // Infer content type from the corresponding AttachmentInfo
+        String ct = "application/octet-stream";
+        for (List<AttachmentInfo> list : attachments.values()) {
+            for (AttachmentInfo ai : list) {
+                if (ai.id.equals(attId)) {
+                    ct = ai.contentType;
+                    break;
+                }
+            }
+        }
+        exchange.getResponseHeaders().set("Content-Type", ct);
+        addCorsHeaders(exchange);
+        exchange.sendResponseHeaders(200, data.length);
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(data);
+        }
     }
 
     private static void sendResponse(HttpExchange exchange, int code, String contentType, String body)
@@ -448,7 +525,7 @@ public class RealtimeReporter {
         return sb.toString();
     }
 
-    private static String buildTestDetailsJson(TestCard card, List<String> logs) {
+    private static String buildTestDetailsJson(TestCard card, List<String> logs, List<AttachmentInfo> atts) {
         StringBuilder sb = new StringBuilder();
         sb.append("{");
         sb.append("\"card\":").append(cardToJson(card)).append(",");
@@ -457,6 +534,13 @@ public class RealtimeReporter {
         for (int i = 0; i < snapshot.size(); i++) {
             sb.append(jsonString(snapshot.get(i)));
             if (i < snapshot.size() - 1) sb.append(",");
+        }
+        sb.append("],");
+        sb.append("\"attachments\":[");
+        List<AttachmentInfo> attSnapshot = new ArrayList<>(atts);
+        for (int i = 0; i < attSnapshot.size(); i++) {
+            sb.append(toJson(attachmentInfoToMap(attSnapshot.get(i))));
+            if (i < attSnapshot.size() - 1) sb.append(",");
         }
         sb.append("]}");
         return sb.toString();
@@ -474,6 +558,7 @@ public class RealtimeReporter {
         sb.append("\"startTime\":").append(card.startTime).append(",");
         sb.append("\"endTime\":").append(card.endTime).append(",");
         sb.append("\"errorMessage\":").append(jsonString(card.errorMessage)).append(",");
+        sb.append("\"hasAttachments\":").append(card.hasAttachments).append(",");
         sb.append("\"startTimeFormatted\":").append(jsonString(card.startTime > 0
                 ? TIME_FORMATTER.format(Instant.ofEpochMilli(card.startTime)) : "")).append(",");
         sb.append("\"steps\":[");
@@ -491,6 +576,18 @@ public class RealtimeReporter {
         m.put("status", step.status);
         m.put("timestamp", step.timestamp);
         m.put("timestampFormatted", FULL_FORMATTER.format(Instant.ofEpochMilli(step.timestamp)));
+        return m;
+    }
+
+    private static Map<String, Object> attachmentInfoToMap(AttachmentInfo att) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", att.id);
+        m.put("type", att.type);
+        m.put("name", att.name);
+        m.put("contentType", att.contentType);
+        m.put("size", att.size);
+        m.put("timestamp", att.timestamp);
+        m.put("url", "/api/attachment/" + att.id);
         return m;
     }
 
@@ -522,26 +619,6 @@ public class RealtimeReporter {
                 .replace("\r", "\\r")
                 .replace("\t", "\\t")
                 + "\"";
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Execution location helpers
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private static boolean isLocalExecution() {
-        try {
-            return "local".equalsIgnoreCase(SHAFT.Properties.platform.executionAddress());
-        } catch (Exception e) {
-            return true;
-        }
-    }
-
-    private static boolean isHeadlessExecution() {
-        try {
-            return SHAFT.Properties.web.headlessExecution();
-        } catch (Exception e) {
-            return false;
-        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -589,6 +666,7 @@ public class RealtimeReporter {
         public long startTime = 0;
         public long endTime = 0;
         public String errorMessage = null;
+        public boolean hasAttachments = false;
         public final List<StepInfo> steps = Collections.synchronizedList(new ArrayList<>());
 
         public TestCard(String id, String className, String methodName, String filePath) {
@@ -603,6 +681,16 @@ public class RealtimeReporter {
     public static class StepInfo {
         public String name;
         public String status;
+        public long timestamp;
+    }
+
+    /** Represents an attachment (screenshot, API response, etc.) associated with a test. */
+    public static class AttachmentInfo {
+        public String id;
+        public String type;
+        public String name;
+        public String contentType;
+        public int size;
         public long timestamp;
     }
 

@@ -696,6 +696,7 @@ public class ReportManagerHelper {
             String attachmentDescription = attachmentType + " - " + attachmentName;
             AttachmentReporter.attachBasedOnFileType(attachmentType, attachmentName, byteArrayOutputStream, attachmentDescription);
             logAttachmentAction(attachmentType, attachmentName, byteArrayOutputStream);
+            forwardAttachmentToRealtimeReporter(attachmentType, attachmentName, byteArrayOutputStream);
         }
     }
 
@@ -721,6 +722,40 @@ public class ReportManagerHelper {
                 logger.info(logEntry);
             }
         }
+    }
+
+    /**
+     * Forwards an attachment to the real-time reporter for the currently active test.
+     */
+    private static void forwardAttachmentToRealtimeReporter(String attachmentType, String attachmentName,
+                                                            ByteArrayOutputStream content) {
+        if (!RealtimeReporter.isRunning()) return;
+        try {
+            var result = Reporter.getCurrentTestResult();
+            if (result != null && result.getTestClass() != null && result.getMethod() != null) {
+                String testId = RealtimeReporter.buildTestId(
+                        result.getTestClass().getName(),
+                        result.getMethod().getMethodName());
+                // Determine MIME type from attachment type
+                String ct = inferMimeTypeFromAttachment(attachmentType, attachmentName);
+                RealtimeReporter.appendAttachment(testId, attachmentType, attachmentName,
+                        ct, content.toByteArray());
+            }
+        } catch (Exception e) {
+            if (logger != null) logger.debug("[RealtimeReporter] Could not forward attachment: {}", e.getMessage());
+        }
+    }
+
+    private static String inferMimeTypeFromAttachment(String attachmentType, String attachmentName) {
+        String lower = (attachmentType + " " + attachmentName).toLowerCase();
+        if (lower.contains("screenshot") || lower.contains(".png")) return "image/png";
+        if (lower.contains("gif")) return "image/gif";
+        if (lower.contains("recording") || lower.contains(".mp4")) return "video/mp4";
+        if (lower.contains("json")) return "application/json";
+        if (lower.contains("xml")) return "text/xml";
+        if (lower.contains("csv")) return "text/csv";
+        if (lower.contains("html") || lower.contains("page snapshot")) return "text/html";
+        return "text/plain";
     }
 
     public static boolean isInternalStep() {

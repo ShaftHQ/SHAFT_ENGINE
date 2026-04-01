@@ -135,6 +135,31 @@ public class RealtimeReporterUnitTest {
         assertEquals(card.steps.size(), 0);
     }
 
+    @Test
+    public void testCardHasAttachmentsIsFalseByDefault() {
+        RealtimeReporter.TestCard card = new RealtimeReporter.TestCard(
+                "id", "ClassName", "methodName", "src/test/.../ClassName.java");
+        assertFalse(card.hasAttachments,
+                "New test card should not have attachments by default");
+    }
+
+    @Test
+    public void attachmentInfoHasExpectedFields() {
+        RealtimeReporter.AttachmentInfo att = new RealtimeReporter.AttachmentInfo();
+        att.id = "att-1";
+        att.type = "Screenshot";
+        att.name = "login-page.png";
+        att.contentType = "image/png";
+        att.size = 12345;
+        att.timestamp = System.currentTimeMillis();
+        assertEquals(att.id, "att-1");
+        assertEquals(att.type, "Screenshot");
+        assertEquals(att.name, "login-page.png");
+        assertEquals(att.contentType, "image/png");
+        assertEquals(att.size, 12345);
+        assertTrue(att.timestamp > 0);
+    }
+
     // ─── Planned tests (server must be running) ───────────────────────────
     // NOTE: These tests skip if the flag is disabled (default) to avoid
     //       binding to port 1111 in CI.  They exercise the server when the
@@ -168,5 +193,12 @@ public class RealtimeReporterUnitTest {
         List<RealtimeReporter.TestCard> cards = List.of(
                 new RealtimeReporter.TestCard("id", "C", "m", "path"));
         RealtimeReporter.onTestsPlanned(cards); // must not throw
+    }
+
+    @Test
+    public void appendAttachmentIsNoOpWhenServerNotRunning() {
+        // Server is stopped; this must not throw
+        RealtimeReporter.appendAttachment("com.example.Foo#bar",
+                "Screenshot", "screenshot.png", "image/png", new byte[]{1, 2, 3});
     }
 }

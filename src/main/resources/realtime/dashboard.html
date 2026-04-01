@@ -5,12 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SHAFT – Real-Time Dashboard</title>
   <style>
-    /* ─── CSS Reset & Variables ─────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
+      /* SHAFT branding */
       --shaft-orange:   #ff6b00;
-      --shaft-orange-d: #cc5500;
+      --shaft-orange-d: #e55d00;
+      --shaft-orange-l: #ff8533;
+
+      /* Dark mode (default) */
       --bg-base:        #0d1117;
       --bg-surface:     #161b22;
       --bg-card:        #21262d;
@@ -20,6 +23,7 @@
       --text-secondary: #8b949e;
       --text-muted:     #656d76;
 
+      /* Status palette */
       --status-todo:        #8b949e;
       --status-inprogress:  #58a6ff;
       --status-passed:      #3fb950;
@@ -28,7 +32,19 @@
       --status-skipped:     #6e7681;
 
       --radius: 8px;
-      --transition: 0.2s ease;
+      --transition: 0.25s ease;
+    }
+
+    /* ─── Light Mode ──────────────────────────────────────────────────── */
+    html.light {
+      --bg-base:        #f6f8fa;
+      --bg-surface:     #ffffff;
+      --bg-card:        #f0f2f5;
+      --bg-card-hover:  #e8eaed;
+      --border:         #d0d7de;
+      --text-primary:   #1f2328;
+      --text-secondary: #656d76;
+      --text-muted:     #8b949e;
     }
 
     html, body {
@@ -40,10 +56,9 @@
       line-height: 1.5;
     }
 
-    /* ─── Layout ────────────────────────────────────────────────────────── */
     #app { display: flex; flex-direction: column; min-height: 100vh; }
 
-    /* ─── Header ────────────────────────────────────────────────────────── */
+    /* ─── Header ───────────────────────────────────────────────────────── */
     header {
       background: var(--bg-surface);
       border-bottom: 1px solid var(--border);
@@ -51,397 +66,313 @@
       height: 56px;
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
       position: sticky;
       top: 0;
       z-index: 100;
     }
-
     .logo-wrap {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      text-decoration: none;
-      color: inherit;
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none; color: inherit; flex-shrink: 0;
     }
-
-    .logo-s {
-      width: 34px; height: 34px;
-      background: var(--shaft-orange);
-      border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px; font-weight: 900; color: #fff;
-      letter-spacing: -1px;
-      flex-shrink: 0;
-    }
-
-    .logo-label {
-      font-size: 15px; font-weight: 700;
-      color: var(--text-primary);
-      letter-spacing: 0.02em;
-    }
-
-    .header-divider {
-      width: 1px; height: 24px;
-      background: var(--border);
-    }
-
+    .logo-wrap img { width: 32px; height: 32px; }
+    .logo-label { font-size: 15px; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+    .header-divider { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
     #suite-title {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text-primary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 500px;
+      font-size: 15px; font-weight: 600; color: var(--text-primary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px;
     }
-
-    .header-status {
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 16px;
+    .header-right {
+      margin-left: auto; display: flex; align-items: center; gap: 14px;
     }
-
-    .conn-badge {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 12px; color: var(--text-secondary);
-    }
-
-    .conn-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--status-skipped);
-    }
-    .conn-dot.connected { background: var(--status-passed); }
-    .conn-dot.error     { background: var(--status-failed); }
-
-    .summary-chips {
-      display: flex; gap: 8px;
-    }
-
+    .summary-chips { display: flex; gap: 6px; }
     .chip {
-      padding: 3px 10px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
-      border: 1px solid transparent;
+      padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      border: 1px solid transparent; transition: opacity var(--transition);
     }
     .chip-passed  { color: var(--status-passed);  border-color: var(--status-passed); }
     .chip-failed  { color: var(--status-failed);  border-color: var(--status-failed); }
     .chip-broken  { color: var(--status-broken);  border-color: var(--status-broken); }
     .chip-skipped { color: var(--status-skipped); border-color: var(--status-skipped); }
 
-    /* ─── Kanban Board ───────────────────────────────────────────────────── */
-    #board {
-      flex: 1;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-      padding: 20px 24px;
-      align-items: start;
+    .conn-badge { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+    .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-skipped); transition: background 0.3s; }
+    .conn-dot.connected { background: var(--status-passed); }
+    .conn-dot.error     { background: var(--status-failed); }
+
+    /* Theme toggle */
+    .theme-toggle {
+      width: 38px; height: 22px; border-radius: 12px; border: 1px solid var(--border);
+      background: var(--bg-card); cursor: pointer; position: relative; flex-shrink: 0;
+      transition: background var(--transition);
+    }
+    .theme-toggle::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--shaft-orange); transition: transform var(--transition);
+    }
+    html.light .theme-toggle::after { transform: translateX(16px); }
+    .theme-toggle-icon {
+      display: flex; align-items: center; gap: 4px; font-size: 14px;
+      color: var(--text-secondary); cursor: pointer;
     }
 
-    .lane {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
+    /* ─── Main content area ────────────────────────────────────────────── */
+    .main-content {
+      flex: 1;
       display: flex;
       flex-direction: column;
+      padding: 20px 24px;
+      gap: 20px;
     }
 
-    .lane-header {
-      padding: 14px 16px 12px;
+    /* ─── Stats bar ────────────────────────────────────────────────────── */
+    .stats-bar {
       display: flex;
       align-items: center;
-      gap: 10px;
-      border-bottom: 1px solid var(--border);
+      gap: 20px;
+      flex-wrap: wrap;
     }
 
-    .lane-dot {
-      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    /* ─── Pie Chart ────────────────────────────────────────────────────── */
+    .pie-wrap {
+      display: flex; align-items: center; gap: 16px;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 20px;
     }
+    .pie-chart {
+      width: 100px; height: 100px; border-radius: 50%;
+      position: relative; flex-shrink: 0;
+      background: conic-gradient(var(--status-todo) 0% 100%);
+      transition: background 0.5s;
+    }
+    .pie-center {
+      position: absolute; inset: 18px; border-radius: 50%;
+      background: var(--bg-surface);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .pie-total { font-size: 22px; font-weight: 800; line-height: 1; color: var(--text-primary); }
+    .pie-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .pie-legend { display: flex; flex-direction: column; gap: 4px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+    /* ─── Progress bar ─────────────────────────────────────────────────── */
+    .progress-wrap {
+      flex: 1; min-width: 200px;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 20px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .progress-bar-bg {
+      height: 10px; border-radius: 5px; background: var(--bg-card); overflow: hidden;
+      display: flex;
+    }
+    .progress-seg {
+      height: 100%; transition: width 0.5s ease;
+    }
+    .progress-labels {
+      display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary);
+    }
+
+    /* ─── Kanban Board ──────────────────────────────────────────────────── */
+    #board {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 16px; align-items: start;
+    }
+    .lane {
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius); display: flex; flex-direction: column;
+      max-height: 70vh; overflow: hidden;
+    }
+    .lane-header {
+      padding: 14px 16px 12px; display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .lane-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
     #lane-todo .lane-dot       { background: var(--status-todo); }
     #lane-inprogress .lane-dot { background: var(--status-inprogress); }
     #lane-done .lane-dot       { background: var(--status-passed); }
-
-    .lane-title {
-      font-weight: 700;
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-primary);
-    }
-
+    .lane-title { font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; }
     .lane-count {
-      margin-left: auto;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 2px 8px;
-      font-size: 12px;
-      color: var(--text-secondary);
-      font-weight: 600;
+      margin-left: auto; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 2px 8px; font-size: 12px; color: var(--text-secondary); font-weight: 600;
     }
-
     .lane-body {
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      min-height: 200px;
+      padding: 12px; display: flex; flex-direction: column; gap: 10px;
+      min-height: 120px; overflow-y: auto;
     }
 
-    /* ─── Test Cards ─────────────────────────────────────────────────────── */
+    /* ─── Cards ─────────────────────────────────────────────────────────── */
     .class-group { display: flex; flex-direction: column; gap: 6px; }
-
     .class-group-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-muted);
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      padding: 4px 2px 0;
+      font-size: 11px; font-weight: 600; color: var(--text-muted);
+      letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 2px 0;
     }
-
     .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 12px 14px;
-      transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 12px 14px; transition: all var(--transition); position: relative;
+      animation: cardIn 0.3s ease;
     }
-
-    .card.clickable {
-      cursor: pointer;
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
-
+    .card.clickable { cursor: pointer; }
     .card.clickable:hover {
-      background: var(--bg-card-hover);
-      border-color: var(--shaft-orange);
-      box-shadow: 0 0 0 1px var(--shaft-orange);
+      background: var(--bg-card-hover); border-color: var(--shaft-orange);
+      box-shadow: 0 0 0 1px var(--shaft-orange), 0 4px 12px rgba(0,0,0,0.15);
+      transform: translateY(-1px);
     }
-
-    .card-method {
-      font-weight: 600;
-      font-size: 13px;
-      color: var(--text-primary);
-      margin-bottom: 4px;
-      word-break: break-word;
+    .card-top { display: flex; align-items: flex-start; gap: 8px; }
+    .card-method { font-weight: 600; font-size: 13px; color: var(--text-primary); word-break: break-word; flex: 1; }
+    .card-attach-icon {
+      flex-shrink: 0; color: var(--text-muted); font-size: 14px;
+      title: 'Has attachments';
     }
-
     .card-file {
-      font-size: 11px;
-      color: var(--text-muted);
+      font-size: 11px; color: var(--text-muted);
       font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-      word-break: break-all;
-      margin-bottom: 6px;
+      word-break: break-all; margin: 4px 0 6px;
     }
-
-    .card-meta {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
+    .card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
     }
+    .badge-todo      { background: rgba(139,148,158,0.15); color: var(--status-todo);      border: 1px solid rgba(139,148,158,0.3); }
+    .badge-inprogress{ background: rgba(88,166,255,0.15);  color: var(--status-inprogress); border: 1px solid rgba(88,166,255,0.3);  }
+    .badge-passed    { background: rgba(63,185,80,0.15);   color: var(--status-passed);     border: 1px solid rgba(63,185,80,0.3);   }
+    .badge-failed    { background: rgba(248,81,73,0.15);   color: var(--status-failed);     border: 1px solid rgba(248,81,73,0.3);   }
+    .badge-broken    { background: rgba(227,179,65,0.15);  color: var(--status-broken);     border: 1px solid rgba(227,179,65,0.3);  }
+    .badge-skipped   { background: rgba(110,118,129,0.15); color: var(--status-skipped);    border: 1px solid rgba(110,118,129,0.3); }
+    .duration-badge { font-size: 11px; color: var(--text-secondary); font-family: ui-monospace, monospace; }
+    .start-time { font-size: 11px; color: var(--text-muted); }
+    .empty-lane { padding: 32px 16px; text-align: center; color: var(--text-muted); font-size: 13px; }
 
-    .badge-todo      { background: rgba(139,148,158,0.15); color: var(--status-todo);        border: 1px solid rgba(139,148,158,0.3); }
-    .badge-inprogress{ background: rgba(88,166,255,0.15);  color: var(--status-inprogress);   border: 1px solid rgba(88,166,255,0.3);  }
-    .badge-passed    { background: rgba(63,185,80,0.15);   color: var(--status-passed);       border: 1px solid rgba(63,185,80,0.3);   }
-    .badge-failed    { background: rgba(248,81,73,0.15);   color: var(--status-failed);       border: 1px solid rgba(248,81,73,0.3);   }
-    .badge-broken    { background: rgba(227,179,65,0.15);  color: var(--status-broken);       border: 1px solid rgba(227,179,65,0.3);  }
-    .badge-skipped   { background: rgba(110,118,129,0.15); color: var(--status-skipped);      border: 1px solid rgba(110,118,129,0.3); }
-
-    .duration-badge {
-      font-size: 11px;
-      color: var(--text-secondary);
-      font-family: ui-monospace, monospace;
-    }
-
-    .start-time {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    /* ─── Detail View ────────────────────────────────────────────────────── */
-    #detail-view {
-      display: none;
-      flex: 1;
-      flex-direction: column;
-      padding: 20px 24px;
-      gap: 16px;
-    }
-
+    /* ─── Detail View ──────────────────────────────────────────────────── */
+    #detail-view { display: none; flex: 1; flex-direction: column; padding: 20px 24px; gap: 16px; }
     #detail-view.visible { display: flex; }
-
     .detail-back {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      color: var(--shaft-orange);
-      font-weight: 600;
-      font-size: 14px;
-      border: none;
-      background: none;
-      padding: 0;
+      display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+      color: var(--shaft-orange); font-weight: 600; font-size: 14px;
+      border: none; background: none; padding: 0;
     }
     .detail-back:hover { color: var(--shaft-orange-d); }
-
     .detail-header {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px 24px;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px 24px;
     }
-
     .detail-class  { font-size: 12px; color: var(--text-muted); font-family: ui-monospace, monospace; margin-bottom: 4px; }
     .detail-method { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
     .detail-file   { font-size: 12px; color: var(--text-muted); font-family: ui-monospace, monospace; margin-bottom: 14px; }
-
-    .detail-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 24px;
-    }
-
+    .detail-meta { display: flex; flex-wrap: wrap; gap: 24px; }
     .meta-item { display: flex; flex-direction: column; gap: 2px; }
     .meta-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .meta-value { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-
     .detail-error {
-      margin-top: 12px;
-      background: rgba(248,81,73,0.08);
-      border: 1px solid rgba(248,81,73,0.3);
-      border-radius: 6px;
-      padding: 10px 14px;
-      font-family: ui-monospace, monospace;
-      font-size: 12px;
-      color: var(--status-failed);
-      white-space: pre-wrap;
-      word-break: break-word;
+      margin-top: 12px; background: rgba(248,81,73,0.08); border: 1px solid rgba(248,81,73,0.3);
+      border-radius: 6px; padding: 10px 14px; font-family: ui-monospace, monospace;
+      font-size: 12px; color: var(--status-failed); white-space: pre-wrap; word-break: break-word;
     }
 
-    /* ─── Steps Section ──────────────────────────────────────────────────── */
+    /* ─── Steps ─────────────────────────────────────────────────────────── */
     .section-title {
-      font-size: 13px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      color: var(--text-secondary);
-      margin-bottom: 10px;
+      font-size: 13px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--text-secondary); margin-bottom: 10px;
     }
-
-    .steps-list {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
+    .steps-list { display: flex; flex-direction: column; gap: 4px; }
     .step-item {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px 14px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
+      background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px 14px; display: flex; align-items: center; gap: 12px;
+      animation: cardIn 0.2s ease;
     }
-
-    .step-icon {
-      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-    }
+    .step-icon { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .step-passed  .step-icon { background: var(--status-passed); }
     .step-failed  .step-icon { background: var(--status-failed); }
     .step-broken  .step-icon { background: var(--status-broken); }
     .step-skipped .step-icon { background: var(--status-skipped); }
+    .step-name { flex: 1; font-size: 13px; color: var(--text-primary); }
+    .step-time { font-size: 11px; color: var(--text-muted); font-family: ui-monospace, monospace; }
 
-    .step-name {
-      flex: 1;
-      font-size: 13px;
-      color: var(--text-primary);
+    /* ─── Attachments section ──────────────────────────────────────────── */
+    .attachments-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
     }
-
-    .step-time {
-      font-size: 11px;
-      color: var(--text-muted);
-      font-family: ui-monospace, monospace;
+    .att-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; cursor: pointer; transition: all var(--transition);
     }
-
-    /* ─── Console Window ─────────────────────────────────────────────────── */
-    .console-wrap {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      min-height: 200px;
+    .att-card:hover { border-color: var(--shaft-orange); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .att-preview {
+      width: 100%; height: 140px; object-fit: contain;
+      background: var(--bg-base); display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
     }
+    .att-preview img { max-width: 100%; max-height: 100%; }
+    .att-preview-text {
+      width: 100%; height: 140px; overflow: auto; padding: 8px;
+      font-family: ui-monospace, monospace; font-size: 11px; color: var(--text-secondary);
+      background: var(--bg-base); white-space: pre-wrap; word-break: break-all;
+    }
+    .att-info { padding: 10px 12px; }
+    .att-name { font-size: 12px; font-weight: 600; color: var(--text-primary); word-break: break-word; }
+    .att-type { font-size: 11px; color: var(--text-muted); }
 
+    /* Attachment modal */
+    .att-modal {
+      display: none; position: fixed; inset: 0; z-index: 999;
+      background: rgba(0,0,0,0.8); align-items: center; justify-content: center;
+    }
+    .att-modal.open { display: flex; }
+    .att-modal-body {
+      max-width: 90vw; max-height: 90vh; background: var(--bg-surface);
+      border-radius: var(--radius); overflow: auto; position: relative;
+    }
+    .att-modal-close {
+      position: absolute; top: 8px; right: 12px; font-size: 24px;
+      color: var(--text-secondary); cursor: pointer; z-index: 2;
+      background: var(--bg-card); border-radius: 50%; width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center; border: none;
+    }
+    .att-modal-body img { display: block; max-width: 90vw; max-height: 88vh; }
+    .att-modal-body pre {
+      padding: 20px; font-size: 13px; color: var(--text-primary);
+      white-space: pre-wrap; word-break: break-word; max-height: 88vh; overflow: auto;
+    }
+    .att-modal-body video { display: block; max-width: 90vw; max-height: 88vh; }
+
+    /* ─── Console ──────────────────────────────────────────────────────── */
+    .console-wrap { flex: 1; display: flex; flex-direction: column; min-height: 200px; }
     #console-output {
-      flex: 1;
-      background: #0d0d0d;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 14px 16px;
-      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-      font-size: 12px;
-      color: #c9d1d9;
-      overflow-y: auto;
-      max-height: 320px;
-      white-space: pre-wrap;
-      word-break: break-word;
+      flex: 1; background: #0d0d0d; border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 16px; font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: 12px; color: #c9d1d9; overflow-y: auto; max-height: 320px;
+      white-space: pre-wrap; word-break: break-word;
     }
+    html.light #console-output { background: #f0f2f5; color: #1f2328; }
 
-    /* ─── Empty State ────────────────────────────────────────────────────── */
-    .empty-lane {
-      padding: 32px 16px;
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 13px;
-    }
-
-    /* ─── Footer ─────────────────────────────────────────────────────────── */
+    /* ─── Footer ───────────────────────────────────────────────────────── */
     footer {
-      background: var(--bg-surface);
-      border-top: 1px solid var(--border);
-      padding: 10px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 12px;
-      color: var(--text-muted);
+      background: var(--bg-surface); border-top: 1px solid var(--border);
+      padding: 10px 24px; display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px; color: var(--text-muted);
     }
-
-    footer a {
-      color: var(--shaft-orange);
-      text-decoration: none;
-    }
+    footer a { color: var(--shaft-orange); text-decoration: none; }
     footer a:hover { text-decoration: underline; }
 
-    /* ─── Spinner (In Progress indicator) ───────────────────────────────── */
+    /* ─── Animations ───────────────────────────────────────────────────── */
     @keyframes spin { to { transform: rotate(360deg); } }
-
     .spinner {
-      display: inline-block;
-      width: 10px; height: 10px;
-      border: 2px solid var(--status-inprogress);
-      border-top-color: transparent;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      flex-shrink: 0;
+      display: inline-block; width: 10px; height: 10px;
+      border: 2px solid var(--status-inprogress); border-top-color: transparent;
+      border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0;
     }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .pulse { animation: pulse 2s ease-in-out infinite; }
 
-    /* ─── Scrollbar ──────────────────────────────────────────────────────── */
+    /* ─── Scrollbar ────────────────────────────────────────────────────── */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -451,200 +382,214 @@
 <body>
 <div id="app">
 
-  <!-- ─── Header ───────────────────────────────────────────────────────── -->
+  <!-- Header -->
   <header>
     <a class="logo-wrap" href="https://shafthq.github.io/" target="_blank" rel="noopener">
-      <div class="logo-s">S</div>
+      <picture>
+        <source srcset="https://github.com/user-attachments/assets/b2e8454d-97ed-4dd8-91f2-1c09c53ba94e" media="(prefers-color-scheme: light)" width="32" />
+        <source srcset="https://github.com/user-attachments/assets/9cb4a7a8-2de7-486c-adb1-ad254af8c58b" media="(prefers-color-scheme: dark)" width="32" />
+        <img src="https://github.com/user-attachments/assets/016ebb3c-4090-4f07-a9b3-830fdf4cb696" alt="SHAFT" width="32" height="32" />
+      </picture>
       <span class="logo-label">SHAFT Engine</span>
     </a>
     <div class="header-divider"></div>
     <span id="suite-title">Real-Time Dashboard</span>
-    <div class="header-status">
+    <div class="header-right">
       <div class="summary-chips">
-        <span class="chip chip-passed" id="chip-passed" title="Passed">✓ <span id="count-passed">0</span></span>
-        <span class="chip chip-failed" id="chip-failed" title="Failed">✕ <span id="count-failed">0</span></span>
-        <span class="chip chip-broken" id="chip-broken" title="Broken">⚠ <span id="count-broken">0</span></span>
-        <span class="chip chip-skipped" id="chip-skipped" title="Skipped">– <span id="count-skipped">0</span></span>
+        <span class="chip chip-passed" title="Passed">✓ <span id="count-passed">0</span></span>
+        <span class="chip chip-failed" title="Failed">✕ <span id="count-failed">0</span></span>
+        <span class="chip chip-broken" title="Broken">⚠ <span id="count-broken">0</span></span>
+        <span class="chip chip-skipped" title="Skipped">– <span id="count-skipped">0</span></span>
       </div>
       <div class="conn-badge">
         <div class="conn-dot" id="conn-dot"></div>
         <span id="conn-label">Connecting…</span>
       </div>
+      <div class="theme-toggle-icon" id="theme-btn" title="Toggle light/dark mode">
+        <span id="theme-icon">🌙</span>
+        <div class="theme-toggle" id="theme-toggle"></div>
+      </div>
     </div>
   </header>
 
-  <!-- ─── Kanban Board ─────────────────────────────────────────────────── -->
-  <div id="board">
-    <div class="lane" id="lane-todo">
-      <div class="lane-header">
-        <div class="lane-dot"></div>
-        <span class="lane-title">Todo</span>
-        <span class="lane-count" id="count-todo">0</span>
+  <!-- Main content: stats + board -->
+  <div class="main-content" id="main-content">
+    <!-- Stats bar -->
+    <div class="stats-bar" id="stats-bar">
+      <div class="pie-wrap">
+        <div class="pie-chart" id="pie-chart">
+          <div class="pie-center">
+            <span class="pie-total" id="pie-total">0</span>
+            <span class="pie-label">tests</span>
+          </div>
+        </div>
+        <div class="pie-legend" id="pie-legend"></div>
       </div>
-      <div class="lane-body" id="body-todo"></div>
+      <div class="progress-wrap">
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary)">Execution Progress</div>
+        <div class="progress-bar-bg" id="progress-bar"></div>
+        <div class="progress-labels">
+          <span id="progress-done">0 completed</span>
+          <span id="progress-pct">0%</span>
+        </div>
+      </div>
     </div>
 
-    <div class="lane" id="lane-inprogress">
-      <div class="lane-header">
-        <div class="lane-dot"></div>
-        <span class="lane-title">In Progress</span>
-        <span class="lane-count" id="count-inprogress">0</span>
+    <!-- Kanban board -->
+    <div id="board">
+      <div class="lane" id="lane-todo">
+        <div class="lane-header">
+          <div class="lane-dot"></div>
+          <span class="lane-title">Todo</span>
+          <span class="lane-count" id="count-todo">0</span>
+        </div>
+        <div class="lane-body" id="body-todo"></div>
       </div>
-      <div class="lane-body" id="body-inprogress"></div>
-    </div>
-
-    <div class="lane" id="lane-done">
-      <div class="lane-header">
-        <div class="lane-dot"></div>
-        <span class="lane-title">Done</span>
-        <span class="lane-count" id="count-done">0</span>
+      <div class="lane" id="lane-inprogress">
+        <div class="lane-header">
+          <div class="lane-dot"></div>
+          <span class="lane-title">In Progress</span>
+          <span class="lane-count" id="count-inprogress">0</span>
+        </div>
+        <div class="lane-body" id="body-inprogress"></div>
       </div>
-      <div class="lane-body" id="body-done"></div>
+      <div class="lane" id="lane-done">
+        <div class="lane-header">
+          <div class="lane-dot"></div>
+          <span class="lane-title">Done</span>
+          <span class="lane-count" id="count-done">0</span>
+        </div>
+        <div class="lane-body" id="body-done"></div>
+      </div>
     </div>
   </div>
 
-  <!-- ─── Detail View ──────────────────────────────────────────────────── -->
+  <!-- Detail View -->
   <div id="detail-view">
     <button class="detail-back" id="btn-back">← Back to Dashboard</button>
-
     <div class="detail-header">
       <div class="detail-class" id="detail-class"></div>
       <div class="detail-method" id="detail-method"></div>
       <div class="detail-file" id="detail-file"></div>
       <div class="detail-meta">
-        <div class="meta-item">
-          <span class="meta-label">Status</span>
-          <span id="detail-status"></span>
-        </div>
-        <div class="meta-item">
-          <span class="meta-label">Start Time</span>
-          <span class="meta-value" id="detail-start"></span>
-        </div>
-        <div class="meta-item">
-          <span class="meta-label">End Time</span>
-          <span class="meta-value" id="detail-end"></span>
-        </div>
-        <div class="meta-item">
-          <span class="meta-label">Duration</span>
-          <span class="meta-value" id="detail-duration"></span>
-        </div>
+        <div class="meta-item"><span class="meta-label">Status</span><span id="detail-status"></span></div>
+        <div class="meta-item"><span class="meta-label">Start Time</span><span class="meta-value" id="detail-start"></span></div>
+        <div class="meta-item"><span class="meta-label">End Time</span><span class="meta-value" id="detail-end"></span></div>
+        <div class="meta-item"><span class="meta-label">Duration</span><span class="meta-value" id="detail-duration"></span></div>
       </div>
       <div id="detail-error" class="detail-error" style="display:none"></div>
     </div>
-
-    <div>
-      <div class="section-title">Steps</div>
-      <div class="steps-list" id="detail-steps"></div>
+    <div><div class="section-title">Steps</div><div class="steps-list" id="detail-steps"></div></div>
+    <div id="attachments-section" style="display:none">
+      <div class="section-title">Attachments</div>
+      <div class="attachments-grid" id="detail-attachments"></div>
     </div>
-
     <div class="console-wrap">
       <div class="section-title">Console Output</div>
       <div id="console-output">Waiting for logs…</div>
     </div>
   </div>
 
-  <!-- ─── Footer ───────────────────────────────────────────────────────── -->
+  <!-- Attachment modal -->
+  <div class="att-modal" id="att-modal">
+    <div class="att-modal-body" id="att-modal-body">
+      <button class="att-modal-close" id="att-modal-close">×</button>
+    </div>
+  </div>
+
+  <!-- Footer -->
   <footer>
     <span>© SHAFT Engine — Real-Time Execution Dashboard</span>
-    <a href="https://shafthq.github.io/" target="_blank" rel="noopener">
-      Learn more about SHAFT Engine ↗
-    </a>
+    <a href="https://shafthq.github.io/" target="_blank" rel="noopener">Learn more about SHAFT Engine ↗</a>
   </footer>
-
 </div>
 
 <script>
 (function () {
   'use strict';
 
-  // ── State ───────────────────────────────────────────────────────────────
+  // ── State ────────────────────────────────────────────────────────────────
   const state = {
-    tests: {},          // id → card object
+    tests: {},
     suiteName: '',
-    activeTestId: null, // currently viewed in detail panel
-    durations: {},      // id → setInterval handle (live duration ticker)
+    activeTestId: null,
+    durations: {},
+    detailAttachments: [],
   };
 
-  // ── DOM refs ─────────────────────────────────────────────────────────────
+  // ── DOM refs ──────────────────────────────────────────────────────────────
   const $ = id => document.getElementById(id);
+  const mainContent = $('main-content');
   const board = $('board');
+  const statsBar = $('stats-bar');
   const detailView = $('detail-view');
-  const bodies = {
-    TODO:        $('body-todo'),
-    IN_PROGRESS: $('body-inprogress'),
-    DONE:        $('body-done'),
-  };
-  const counts = {
-    todo:       $('count-todo'),
-    inprogress: $('count-inprogress'),
-    done:       $('count-done'),
-  };
-  const countersEl = {
-    passed:  $('count-passed'),
-    failed:  $('count-failed'),
-    broken:  $('count-broken'),
-    skipped: $('count-skipped'),
-  };
+  const bodies = { TODO: $('body-todo'), IN_PROGRESS: $('body-inprogress'), DONE: $('body-done') };
+  const counts = { todo: $('count-todo'), inprogress: $('count-inprogress'), done: $('count-done') };
+  const countersEl = { passed: $('count-passed'), failed: $('count-failed'), broken: $('count-broken'), skipped: $('count-skipped') };
 
-  // ── Bootstrap ────────────────────────────────────────────────────────────
+  // ── Theme toggle ──────────────────────────────────────────────────────────
+  const savedTheme = localStorage.getItem('shaft-theme');
+  if (savedTheme === 'light') document.documentElement.classList.add('light');
+  updateThemeIcon();
+
+  $('theme-btn').addEventListener('click', () => {
+    document.documentElement.classList.toggle('light');
+    const isLight = document.documentElement.classList.contains('light');
+    localStorage.setItem('shaft-theme', isLight ? 'light' : 'dark');
+    updateThemeIcon();
+  });
+
+  function updateThemeIcon() {
+    $('theme-icon').textContent = document.documentElement.classList.contains('light') ? '☀️' : '🌙';
+  }
+
+  // ── Bootstrap ─────────────────────────────────────────────────────────────
   loadInitialState();
   connectSSE();
-
   $('btn-back').addEventListener('click', showBoard);
+  $('att-modal-close').addEventListener('click', () => $('att-modal').classList.remove('open'));
+  $('att-modal').addEventListener('click', e => { if (e.target === $('att-modal')) $('att-modal').classList.remove('open'); });
 
-  // ── API helpers ──────────────────────────────────────────────────────────
+  // ── API ───────────────────────────────────────────────────────────────────
   async function loadInitialState() {
     try {
       const res = await fetch('/api/state');
       const data = await res.json();
       applyFullState(data);
-    } catch (e) {
-      console.error('Could not load initial state', e);
-    }
+    } catch (e) { console.error('Could not load initial state', e); }
   }
 
   function connectSSE() {
     const es = new EventSource('/api/events');
-
     es.addEventListener('open', () => setConnected(true));
     es.addEventListener('error', () => setConnected(false));
-
     es.addEventListener('fullState',     e => applyFullState(JSON.parse(e.data)));
     es.addEventListener('testStarted',   e => applyCardUpdate(JSON.parse(e.data)));
     es.addEventListener('testFinished',  e => applyCardUpdate(JSON.parse(e.data)));
     es.addEventListener('consoleLog',    e => applyConsoleLog(JSON.parse(e.data)));
     es.addEventListener('stepAdded',     e => applyStepAdded(JSON.parse(e.data)));
+    es.addEventListener('attachmentAdded', e => applyAttachmentAdded(JSON.parse(e.data)));
     es.addEventListener('executionFinished', () => setConnected(false, 'Run complete'));
   }
 
-  // ── State application ────────────────────────────────────────────────────
+  // ── State application ─────────────────────────────────────────────────────
   function applyFullState(data) {
     state.suiteName = data.suiteName || 'Test Execution';
     $('suite-title').textContent = state.suiteName;
     document.title = state.suiteName + ' – SHAFT Dashboard';
-
-    // Reset
     state.tests = {};
     Object.values(state.durations).forEach(clearInterval);
     state.durations = {};
-
-    (data.tests || []).forEach(card => {
-      state.tests[card.id] = card;
-    });
+    (data.tests || []).forEach(c => { state.tests[c.id] = c; });
     renderBoard();
   }
 
   function applyCardUpdate(card) {
     const prev = state.tests[card.id];
-    // Preserve steps & consoleLogs from in-memory state when server sends compact update
-    if (prev) {
-      card.steps = card.steps && card.steps.length ? card.steps : (prev.steps || []);
-    }
+    if (prev) { card.steps = card.steps && card.steps.length ? card.steps : (prev.steps || []); }
     state.tests[card.id] = card;
     renderBoard();
-    if (state.activeTestId === card.id) {
-      refreshDetailPanel(card);
-    }
+    if (state.activeTestId === card.id) refreshDetailPanel(card);
   }
 
   function applyConsoleLog(data) {
@@ -660,26 +605,35 @@
     if (!card) return;
     card.steps = card.steps || [];
     card.steps.push(data.step);
-    if (state.activeTestId === data.testId) {
-      renderSteps(card.steps);
-    }
+    if (state.activeTestId === data.testId) renderSteps(card.steps);
   }
 
-  // ── Board rendering ──────────────────────────────────────────────────────
+  function applyAttachmentAdded(data) {
+    const card = state.tests[data.testId];
+    if (card) card.hasAttachments = true;
+    if (state.activeTestId === data.testId && data.attachment) {
+      state.detailAttachments.push(data.attachment);
+      renderAttachments(state.detailAttachments);
+    }
+    renderBoard();
+  }
+
+  // ── Board rendering ───────────────────────────────────────────────────────
   function renderBoard() {
     const groups = { TODO: {}, IN_PROGRESS: {}, DONE: {} };
-    let passed = 0, failed = 0, broken = 0, skipped = 0;
+    let todo = 0, inprogress = 0, passed = 0, failed = 0, broken = 0, skipped = 0;
 
     Object.values(state.tests).forEach(card => {
       const lane = laneKey(card.status);
       if (!groups[lane]) groups[lane] = {};
       if (!groups[lane][card.className]) groups[lane][card.className] = [];
       groups[lane][card.className].push(card);
-
-      if (card.status === 'PASSED')  passed++;
-      if (card.status === 'FAILED')  failed++;
-      if (card.status === 'BROKEN')  broken++;
-      if (card.status === 'SKIPPED') skipped++;
+      if (card.status === 'TODO')        todo++;
+      if (card.status === 'IN_PROGRESS') inprogress++;
+      if (card.status === 'PASSED')      passed++;
+      if (card.status === 'FAILED')      failed++;
+      if (card.status === 'BROKEN')      broken++;
+      if (card.status === 'SKIPPED')     skipped++;
     });
 
     countersEl.passed.textContent  = passed;
@@ -687,51 +641,95 @@
     countersEl.broken.textContent  = broken;
     countersEl.skipped.textContent = skipped;
 
+    const total = todo + inprogress + passed + failed + broken + skipped;
+    updatePieChart(todo, inprogress, passed, failed, broken, skipped, total);
+    updateProgressBar(passed, failed, broken, skipped, total);
+
     ['TODO', 'IN_PROGRESS', 'DONE'].forEach(lane => {
       const body = bodies[lane];
       const classMap = groups[lane] || {};
       const classNames = Object.keys(classMap);
-
       if (classNames.length === 0) {
-        body.innerHTML = '<div class="empty-lane">No tests yet</div>';
+        body.innerHTML = '<div class="empty-lane">No tests</div>';
       } else {
         body.innerHTML = '';
-        classNames.forEach(className => {
-          const shortClass = className.split('.').pop();
+        classNames.forEach(cn => {
           const grp = document.createElement('div');
           grp.className = 'class-group';
-          grp.innerHTML = `<div class="class-group-label">${escHtml(shortClass)}</div>`;
-          classMap[className].forEach(card => {
-            grp.appendChild(buildCard(card));
-          });
+          grp.innerHTML = '<div class="class-group-label">' + escHtml(cn.split('.').pop()) + '</div>';
+          classMap[cn].forEach(card => grp.appendChild(buildCard(card)));
           body.appendChild(grp);
         });
       }
-
-      const laneCountKey = lane.toLowerCase().replace('_', '');
-      const countEl = counts[laneCountKey === 'inprogress' ? 'inprogress' : laneCountKey === 'todo' ? 'todo' : 'done'];
-      if (countEl) countEl.textContent = classNames.reduce((s, cn) => s + classMap[cn].length, 0);
+      const key = lane === 'IN_PROGRESS' ? 'inprogress' : lane.toLowerCase();
+      const el = counts[key];
+      if (el) el.textContent = classNames.reduce((s, cn) => s + classMap[cn].length, 0);
     });
 
-    // Restart duration tickers
     Object.values(state.durations).forEach(clearInterval);
     state.durations = {};
-    Object.values(state.tests)
-      .filter(c => c.status === 'IN_PROGRESS' && c.startTime > 0)
-      .forEach(card => {
-        const el = document.getElementById('dur-' + safeId(card.id));
-        if (el) {
-          state.durations[card.id] = setInterval(() => {
-            const sel = document.getElementById('dur-' + safeId(card.id));
-            if (sel) sel.textContent = formatDuration(Date.now() - card.startTime);
-            else clearInterval(state.durations[card.id]);
-          }, 5000);
-        }
-      });
+    Object.values(state.tests).filter(c => c.status === 'IN_PROGRESS' && c.startTime > 0).forEach(card => {
+      const el = document.getElementById('dur-' + safeId(card.id));
+      if (el) {
+        state.durations[card.id] = setInterval(() => {
+          const sel = document.getElementById('dur-' + safeId(card.id));
+          if (sel) sel.textContent = formatDuration(Date.now() - card.startTime);
+          else clearInterval(state.durations[card.id]);
+        }, 5000);
+      }
+    });
+  }
+
+  // ── Pie chart ──────────────────────────────────────────────────────────────
+  function updatePieChart(todo, inprogress, passed, failed, broken, skipped, total) {
+    $('pie-total').textContent = total;
+    if (total === 0) {
+      $('pie-chart').style.background = 'conic-gradient(var(--border) 0% 100%)';
+      $('pie-legend').innerHTML = '';
+      return;
+    }
+    const segs = [
+      { label: 'Passed',      count: passed,     color: 'var(--status-passed)' },
+      { label: 'Failed',      count: failed,     color: 'var(--status-failed)' },
+      { label: 'Broken',      count: broken,     color: 'var(--status-broken)' },
+      { label: 'Skipped',     count: skipped,    color: 'var(--status-skipped)' },
+      { label: 'In Progress', count: inprogress, color: 'var(--status-inprogress)' },
+      { label: 'Todo',        count: todo,       color: 'var(--status-todo)' },
+    ].filter(s => s.count > 0);
+    let grad = [], pct = 0;
+    segs.forEach(s => {
+      const end = pct + (s.count / total) * 100;
+      grad.push(s.color + ' ' + pct.toFixed(2) + '% ' + end.toFixed(2) + '%');
+      pct = end;
+    });
+    $('pie-chart').style.background = 'conic-gradient(' + grad.join(', ') + ')';
+    $('pie-legend').innerHTML = segs.map(s =>
+      '<div class="legend-item"><div class="legend-dot" style="background:' + s.color + '"></div>' +
+      s.label + ': ' + s.count + '</div>'
+    ).join('');
+  }
+
+  function updateProgressBar(passed, failed, broken, skipped, total) {
+    const done = passed + failed + broken + skipped;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    $('progress-done').textContent = done + ' of ' + total + ' completed';
+    $('progress-pct').textContent = pct + '%';
+    const bar = $('progress-bar');
+    if (total === 0) { bar.innerHTML = ''; return; }
+    const items = [
+      { count: passed, color: 'var(--status-passed)' },
+      { count: failed, color: 'var(--status-failed)' },
+      { count: broken, color: 'var(--status-broken)' },
+      { count: skipped, color: 'var(--status-skipped)' },
+    ];
+    bar.innerHTML = items.map(it =>
+      '<div class="progress-seg" style="width:' + ((it.count / total) * 100).toFixed(2) +
+      '%;background:' + it.color + '"></div>'
+    ).join('');
   }
 
   function laneKey(status) {
-    if (status === 'TODO')        return 'TODO';
+    if (status === 'TODO') return 'TODO';
     if (status === 'IN_PROGRESS') return 'IN_PROGRESS';
     return 'DONE';
   }
@@ -740,66 +738,56 @@
     const div = document.createElement('div');
     const clickable = card.status === 'IN_PROGRESS' || laneKey(card.status) === 'DONE';
     div.className = 'card' + (clickable ? ' clickable' : '');
-    div.dataset.id = card.id;
-
     const duration = card.startTime > 0 && card.status === 'IN_PROGRESS'
       ? formatDuration(Date.now() - card.startTime)
       : (card.startTime > 0 && card.endTime > 0 ? formatDuration(card.endTime - card.startTime) : '');
 
-    div.innerHTML = `
-      <div class="card-method">${escHtml(card.methodName)}</div>
-      <div class="card-file">${escHtml(card.filePath)}</div>
-      <div class="card-meta">
-        ${statusBadge(card.status)}
-        ${card.startTime > 0 ? `<span class="start-time">${escHtml(card.startTimeFormatted)}</span>` : ''}
-        ${card.status === 'IN_PROGRESS'
-          ? `<span class="duration-badge"><span class="spinner"></span>&nbsp;<span id="dur-${safeId(card.id)}">${duration}</span></span>`
-          : (duration ? `<span class="duration-badge">${duration}</span>` : '')}
-      </div>`;
+    div.innerHTML =
+      '<div class="card-top"><div class="card-method">' + escHtml(card.methodName) + '</div>' +
+      (card.hasAttachments ? '<span class="card-attach-icon" title="Has attachments">📎</span>' : '') +
+      '</div>' +
+      '<div class="card-file">' + escHtml(card.filePath) + '</div>' +
+      '<div class="card-meta">' + statusBadge(card.status) +
+      (card.startTime > 0 ? '<span class="start-time">' + escHtml(card.startTimeFormatted) + '</span>' : '') +
+      (card.status === 'IN_PROGRESS'
+        ? '<span class="duration-badge"><span class="spinner"></span>&nbsp;<span id="dur-' + safeId(card.id) + '">' + duration + '</span></span>'
+        : (duration ? '<span class="duration-badge">' + duration + '</span>' : '')) +
+      '</div>';
 
-    if (clickable) {
-      div.addEventListener('click', () => showDetail(card.id));
-    }
+    if (clickable) div.addEventListener('click', () => showDetail(card.id));
     return div;
   }
 
   function statusBadge(status) {
     const badges = {
-      TODO:        ['badge-todo',       'Todo'],
-      IN_PROGRESS: ['badge-inprogress', 'In Progress'],
-      PASSED:      ['badge-passed',     '✓ Passed'],
-      FAILED:      ['badge-failed',     '✕ Failed'],
-      BROKEN:      ['badge-broken',     '⚠ Broken'],
-      SKIPPED:     ['badge-skipped',    '– Skipped'],
+      TODO: ['badge-todo','Todo'], IN_PROGRESS: ['badge-inprogress','⟳ In Progress'],
+      PASSED: ['badge-passed','✓ Passed'], FAILED: ['badge-failed','✕ Failed'],
+      BROKEN: ['badge-broken','⚠ Broken'], SKIPPED: ['badge-skipped','– Skipped'],
     };
     const [cls, label] = badges[status] || ['badge-todo', status];
-    return `<span class="status-badge ${cls}">${label}</span>`;
+    return '<span class="status-badge ' + cls + '">' + label + '</span>';
   }
 
-  // ── Detail panel ─────────────────────────────────────────────────────────
+  // ── Detail panel ──────────────────────────────────────────────────────────
   async function showDetail(testId) {
     state.activeTestId = testId;
-    board.style.display = 'none';
+    mainContent.style.display = 'none';
     detailView.classList.add('visible');
-
-    // Load from server for most-up-to-date data
+    state.detailAttachments = [];
     try {
       const res = await fetch('/api/test/' + encodeURIComponent(testId));
       const data = await res.json();
-      const card = data.card;
-      if (card) {
-        state.tests[card.id] = card;
-      }
-      refreshDetailPanel(card || state.tests[testId]);
+      if (data.card) state.tests[data.card.id] = data.card;
+      refreshDetailPanel(data.card || state.tests[testId]);
       renderConsole(data.consoleLogs || []);
-    } catch (e) {
-      refreshDetailPanel(state.tests[testId]);
-    }
+      state.detailAttachments = data.attachments || [];
+      renderAttachments(state.detailAttachments);
+    } catch (e) { refreshDetailPanel(state.tests[testId]); }
   }
 
   function showBoard() {
     state.activeTestId = null;
-    board.style.display = '';
+    mainContent.style.display = '';
     detailView.classList.remove('visible');
   }
 
@@ -809,77 +797,103 @@
     $('detail-method').textContent = card.methodName;
     $('detail-file').textContent   = card.filePath;
     $('detail-status').innerHTML   = statusBadge(card.status);
-    $('detail-start').textContent  = card.startTime > 0
-      ? new Date(card.startTime).toLocaleTimeString() : '—';
-    $('detail-end').textContent    = card.endTime > 0
-      ? new Date(card.endTime).toLocaleTimeString() : '—';
+    $('detail-start').textContent  = card.startTime > 0 ? new Date(card.startTime).toLocaleTimeString() : '—';
+    $('detail-end').textContent    = card.endTime > 0 ? new Date(card.endTime).toLocaleTimeString() : '—';
     $('detail-duration').textContent = (card.startTime > 0 && card.endTime > 0)
-      ? formatDuration(card.endTime - card.startTime)
-      : (card.startTime > 0 ? 'In progress…' : '—');
-
+      ? formatDuration(card.endTime - card.startTime) : (card.startTime > 0 ? 'In progress…' : '—');
     const errEl = $('detail-error');
-    if (card.errorMessage) {
-      errEl.style.display = '';
-      errEl.textContent = card.errorMessage;
-    } else {
-      errEl.style.display = 'none';
-    }
-
+    if (card.errorMessage) { errEl.style.display = ''; errEl.textContent = card.errorMessage; }
+    else errEl.style.display = 'none';
     renderSteps(card.steps || []);
   }
 
   function renderSteps(steps) {
     const el = $('detail-steps');
-    if (!steps || steps.length === 0) {
+    if (!steps || !steps.length) {
       el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">No steps recorded.</div>';
       return;
     }
-    el.innerHTML = steps.map(s => `
-      <div class="step-item step-${(s.status||'passed').toLowerCase()}">
-        <div class="step-icon"></div>
-        <span class="step-name">${escHtml(s.name)}</span>
-        <span class="step-time">${escHtml(s.timestampFormatted || '')}</span>
-      </div>`).join('');
+    el.innerHTML = steps.map(s =>
+      '<div class="step-item step-' + (s.status || 'passed').toLowerCase() + '">' +
+      '<div class="step-icon"></div>' +
+      '<span class="step-name">' + escHtml(s.name) + '</span>' +
+      '<span class="step-time">' + escHtml(s.timestampFormatted || '') + '</span></div>'
+    ).join('');
+  }
+
+  function renderAttachments(atts) {
+    const section = $('attachments-section');
+    const grid = $('detail-attachments');
+    if (!atts || !atts.length) { section.style.display = 'none'; return; }
+    section.style.display = '';
+    grid.innerHTML = atts.map(att => {
+      const isImage = att.contentType && att.contentType.startsWith('image/');
+      const isVideo = att.contentType && att.contentType.startsWith('video/');
+      const isText  = att.contentType && (att.contentType.startsWith('text/') || att.contentType.includes('json') || att.contentType.includes('xml'));
+      let preview;
+      if (isImage) {
+        preview = '<div class="att-preview"><img src="' + escHtml(att.url) + '" loading="lazy" /></div>';
+      } else if (isVideo) {
+        preview = '<div class="att-preview"><video src="' + escHtml(att.url) + '" controls style="max-width:100%;max-height:100%"></video></div>';
+      } else {
+        preview = '<div class="att-preview" style="display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--text-muted)">📄</div>';
+      }
+      return '<div class="att-card" data-url="' + escHtml(att.url) + '" data-ct="' + escHtml(att.contentType) + '">' +
+        preview + '<div class="att-info"><div class="att-name">' + escHtml(att.name) + '</div>' +
+        '<div class="att-type">' + escHtml(att.type) + ' · ' + formatSize(att.size) + '</div></div></div>';
+    }).join('');
+
+    grid.querySelectorAll('.att-card').forEach(card => {
+      card.addEventListener('click', () => openAttachmentModal(card.dataset.url, card.dataset.ct));
+    });
+  }
+
+  function openAttachmentModal(url, ct) {
+    const modal = $('att-modal');
+    const body = $('att-modal-body');
+    body.innerHTML = '<button class="att-modal-close" id="att-modal-close2">×</button>';
+    if (ct && ct.startsWith('image/')) {
+      body.innerHTML += '<img src="' + escHtml(url) + '" />';
+    } else if (ct && ct.startsWith('video/')) {
+      body.innerHTML += '<video src="' + escHtml(url) + '" controls autoplay style="max-width:90vw;max-height:88vh"></video>';
+    } else {
+      const pre = document.createElement('pre');
+      body.appendChild(pre);
+      fetch(url).then(r => r.text()).then(t => { pre.textContent = t; });
+    }
+    modal.classList.add('open');
+    body.querySelector('#att-modal-close2').addEventListener('click', () => modal.classList.remove('open'));
   }
 
   function renderConsole(lines) {
     const el = $('console-output');
-    if (!lines || lines.length === 0) {
-      el.textContent = 'No console output yet.';
-      return;
-    }
+    if (!lines || !lines.length) { el.textContent = 'No console output yet.'; return; }
     el.textContent = lines.join('\n');
     el.scrollTop = el.scrollHeight;
   }
 
-  // ── Utilities ─────────────────────────────────────────────────────────────
+  // ── Utilities ──────────────────────────────────────────────────────────────
   function formatDuration(ms) {
     if (ms < 1000) return ms + 'ms';
     const s = Math.floor(ms / 1000);
     if (s < 60) return s + 's';
     const m = Math.floor(s / 60);
-    const rs = s % 60;
-    return m + 'm ' + rs + 's';
+    return m + 'm ' + (s % 60) + 's';
   }
-
+  function formatSize(bytes) {
+    if (!bytes) return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
   function escHtml(str) {
     if (!str) return '';
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
-
-  function safeId(str) {
-    return str.replace(/[^a-zA-Z0-9_-]/g, '_');
-  }
-
+  function safeId(str) { return str.replace(/[^a-zA-Z0-9_-]/g, '_'); }
   function setConnected(ok, label) {
-    const dot   = $('conn-dot');
-    const lbl   = $('conn-label');
-    dot.className = 'conn-dot ' + (ok ? 'connected' : 'error');
-    lbl.textContent = label || (ok ? 'Live' : 'Disconnected');
+    $('conn-dot').className = 'conn-dot ' + (ok ? 'connected' : 'error');
+    $('conn-label').textContent = label || (ok ? 'Live' : 'Disconnected');
   }
 })();
 </script>
