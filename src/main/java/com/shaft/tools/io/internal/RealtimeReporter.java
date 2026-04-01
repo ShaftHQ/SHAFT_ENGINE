@@ -3,12 +3,12 @@ package com.shaft.tools.io.internal;
 import com.shaft.driver.SHAFT;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-import lombok.SneakyThrows;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.*;
+import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -44,10 +44,15 @@ public class RealtimeReporter {
     private static final Logger logger = LogManager.getLogger(RealtimeReporter.class);
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault());
     private static final DateTimeFormatter FULL_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault());
+    private static final int MAX_ATTACHMENT_SIZE_BYTES = 25 * 1024 * 1024; // 25MB per attachment
+    private static final long MAX_TOTAL_ATTACHMENT_BYTES = 250L * 1024 * 1024; // 250MB total
+    private static final String EXECUTION_ADDRESS_LOCAL = "local";
 
     // Server state
     private static HttpServer httpServer;
+    private static ExecutorService httpExecutor;
     private static final AtomicBoolean serverRunning = new AtomicBoolean(false);
+    private static final ThreadLocal<String> currentTestId = new ThreadLocal<>();
 
     // Test data
     private static final ConcurrentMap<String, TestCard> testCards = new ConcurrentLinkedHashMap<>();
@@ -64,6 +69,8 @@ public class RealtimeReporter {
 
     // Global attachment data store  (attachmentId → raw bytes)
     private static final ConcurrentMap<String, byte[]> attachmentData = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, String> attachmentContentTypes = new ConcurrentHashMap<>();
+    private static final AtomicLong attachmentBytesInMemory = new AtomicLong(0);
 
     private static final AtomicLong attachmentIdCounter = new AtomicLong(0);
 
@@ -90,9 +97,13 @@ public class RealtimeReporter {
         consoleLogs.clear();
         attachments.clear();
         attachmentData.clear();
+        attachmentContentTypes.clear();
+        attachmentBytesInMemory.set(0);
         attachmentIdCounter.set(0);
         startServer();
-        openBrowser();
+        if (serverRunning.get()) {
+            openBrowser();
+        }
     }
 
     /**
@@ -198,6 +209,23 @@ public class RealtimeReporter {
     public static void appendAttachment(String testId, String attachmentType, String attachmentName,
                                         String contentType, byte[] content) {
         if (!serverRunning.get() || testId == null || content == null || content.length == 0) return;
+        if (content.length > MAX_ATTACHMENT_SIZE_BYTES) {
+            logger.warn("[RealtimeReporter] Skipping attachment '{}' because it exceeds max size ({} bytes > {} bytes).",
+                    attachmentName, content.length, MAX_ATTACHMENT_SIZE_BYTES);
+            return;
+        }
+        while (true) {
+            long current = attachmentBytesInMemory.get();
+            long next = current + content.length;
+            if (next > MAX_TOTAL_ATTACHMENT_BYTES) {
+                logger.warn("[RealtimeReporter] Skipping attachment '{}' because attachment memory budget is exceeded ({} bytes).",
+                        attachmentName, MAX_TOTAL_ATTACHMENT_BYTES);
+                return;
+            }
+            if (attachmentBytesInMemory.compareAndSet(current, next)) {
+                break;
+            }
+        }
         String attId = "att-" + attachmentIdCounter.incrementAndGet();
         attachmentData.put(attId, content);
 
@@ -208,6 +236,7 @@ public class RealtimeReporter {
         info.contentType = contentType != null ? contentType : "application/octet-stream";
         info.size = content.length;
         info.timestamp = Instant.now().toEpochMilli();
+        attachmentContentTypes.put(attId, info.contentType);
 
         attachments.computeIfAbsent(testId, k -> Collections.synchronizedList(new ArrayList<>())).add(info);
 
@@ -251,6 +280,7 @@ public class RealtimeReporter {
      * the server is not running.
      */
     public static void stopServer() {
+        closeSseClients();
         if (httpServer != null) {
             try {
                 httpServer.stop(0);
@@ -259,9 +289,14 @@ public class RealtimeReporter {
             }
             httpServer = null;
         }
+        if (httpExecutor != null) {
+            httpExecutor.shutdownNow();
+            httpExecutor = null;
+        }
         serverRunning.set(false);
-        sseClients.clear();
         attachmentData.clear();
+        attachmentContentTypes.clear();
+        attachmentBytesInMemory.set(0);
     }
 
     /**
@@ -277,18 +312,50 @@ public class RealtimeReporter {
 
     /**
      * Determines whether the real-time report should be launched.
-     * The report launches when the flag is enabled and not running in CI.
-     * Both headless and non-headless local modes are supported.
+     * The report launches when the flag is enabled, not running in CI,
+     * and not executing locally in headless mode.
      *
-     * @return {@code true} when the flag is enabled and not in CI
+     * @return {@code true} when launch conditions are satisfied
      */
     public static boolean shouldLaunch() {
         try {
             if (!SHAFT.Properties.reporting.realtimeReport()) return false;
+            if (EXECUTION_ADDRESS_LOCAL.equalsIgnoreCase(SHAFT.Properties.platform.executionAddress())
+                    && SHAFT.Properties.web.headlessExecution()) {
+                return false;
+            }
         } catch (Exception e) {
             return false;
         }
         return !isRunningInCI();
+    }
+
+    /**
+     * Sets the current test identifier for the active execution thread.
+     * This allows framework-agnostic forwarding of logs/steps/attachments.
+     *
+     * @param testId the test id generated via {@link #buildTestId(String, String)}
+     */
+    public static void setCurrentTestId(String testId) {
+        if (testId == null || testId.isBlank()) {
+            currentTestId.remove();
+            return;
+        }
+        currentTestId.set(testId);
+    }
+
+    /**
+     * Returns the current test identifier bound to the active thread.
+     *
+     * @return current test id or {@code null} when none is bound
+     */
+    public static String getCurrentTestId() {
+        return currentTestId.get();
+    }
+
+    /** Clears the current thread-bound test identifier. */
+    public static void clearCurrentTestId() {
+        currentTestId.remove();
     }
 
     /**
@@ -332,6 +399,9 @@ public class RealtimeReporter {
      * @return e.g. {@code src/test/java/com/example/tests/LoginTest.java}
      */
     public static String classNameToFilePath(String qualifiedClassName) {
+        if (qualifiedClassName == null || qualifiedClassName.isBlank()) {
+            return "";
+        }
         return "src/test/java/" + qualifiedClassName.replace('.', '/') + ".java";
     }
 
@@ -339,18 +409,36 @@ public class RealtimeReporter {
     // Server management
     // ─────────────────────────────────────────────────────────────────────────
 
-    @SneakyThrows
     private static void startServer() {
-        httpServer = HttpServer.create(new InetSocketAddress("localhost", DEFAULT_PORT), 0);
-        httpServer.createContext("/", RealtimeReporter::handleRoot);
-        httpServer.createContext("/api/state", RealtimeReporter::handleState);
-        httpServer.createContext("/api/events", RealtimeReporter::handleSse);
-        httpServer.createContext("/api/test/", RealtimeReporter::handleTestDetails);
-        httpServer.createContext("/api/attachment/", RealtimeReporter::handleAttachment);
-        httpServer.setExecutor(Executors.newCachedThreadPool());
-        httpServer.start();
-        serverRunning.set(true);
-        logger.info("[RealtimeReporter] Dashboard started at {}", DASHBOARD_URL);
+        try {
+            httpServer = HttpServer.create(new InetSocketAddress("localhost", DEFAULT_PORT), 0);
+            httpServer.createContext("/", RealtimeReporter::handleRoot);
+            httpServer.createContext("/api/state", RealtimeReporter::handleState);
+            httpServer.createContext("/api/events", RealtimeReporter::handleSse);
+            httpServer.createContext("/api/test/", RealtimeReporter::handleTestDetails);
+            httpServer.createContext("/api/attachment/", RealtimeReporter::handleAttachment);
+            httpExecutor = Executors.newCachedThreadPool();
+            httpServer.setExecutor(httpExecutor);
+            httpServer.start();
+            serverRunning.set(true);
+            logger.info("[RealtimeReporter] Dashboard started at {}", DASHBOARD_URL);
+        } catch (BindException e) {
+            serverRunning.set(false);
+            httpServer = null;
+            if (httpExecutor != null) {
+                httpExecutor.shutdownNow();
+                httpExecutor = null;
+            }
+            logger.warn("[RealtimeReporter] Could not start dashboard on {} (port may already be in use). Reporter disabled for this run.", DEFAULT_PORT);
+        } catch (IOException e) {
+            serverRunning.set(false);
+            httpServer = null;
+            if (httpExecutor != null) {
+                httpExecutor.shutdownNow();
+                httpExecutor = null;
+            }
+            logger.warn("[RealtimeReporter] Could not start dashboard server. Reporter disabled for this run. Cause: {}", e.getMessage());
+        }
     }
 
     private static void openBrowser() {
@@ -447,16 +535,8 @@ public class RealtimeReporter {
             sendResponse(exchange, 404, "text/plain", "Not found");
             return;
         }
-        // Infer content type from the corresponding AttachmentInfo
-        String ct = "application/octet-stream";
-        for (List<AttachmentInfo> list : attachments.values()) {
-            for (AttachmentInfo ai : list) {
-                if (ai.id.equals(attId)) {
-                    ct = ai.contentType;
-                    break;
-                }
-            }
-        }
+        // O(1) content type lookup by attachment id
+        String ct = attachmentContentTypes.getOrDefault(attId, "application/octet-stream");
         exchange.getResponseHeaders().set("Content-Type", ct);
         addCorsHeaders(exchange);
         exchange.sendResponseHeaders(200, data.length);
@@ -531,14 +611,20 @@ public class RealtimeReporter {
         sb.append("{");
         sb.append("\"card\":").append(cardToJson(card)).append(",");
         sb.append("\"consoleLogs\":[");
-        List<String> snapshot = new ArrayList<>(logs);
+        List<String> snapshot;
+        synchronized (logs) {
+            snapshot = new ArrayList<>(logs);
+        }
         for (int i = 0; i < snapshot.size(); i++) {
             sb.append(jsonString(snapshot.get(i)));
             if (i < snapshot.size() - 1) sb.append(",");
         }
         sb.append("],");
         sb.append("\"attachments\":[");
-        List<AttachmentInfo> attSnapshot = new ArrayList<>(atts);
+        List<AttachmentInfo> attSnapshot;
+        synchronized (atts) {
+            attSnapshot = new ArrayList<>(atts);
+        }
         for (int i = 0; i < attSnapshot.size(); i++) {
             sb.append(toJson(attachmentInfoToMap(attSnapshot.get(i))));
             if (i < attSnapshot.size() - 1) sb.append(",");
@@ -670,11 +756,32 @@ public class RealtimeReporter {
         public boolean hasAttachments = false;
         public final List<StepInfo> steps = Collections.synchronizedList(new ArrayList<>());
 
+        /**
+         * Creates a dashboard test card.
+         *
+         * @param id unique test identifier generated by {@link RealtimeReporter#buildTestId(String, String)}
+         * @param className fully-qualified class name (or feature name in non-TestNG contexts)
+         * @param methodName method/scenario name
+         * @param filePath relative source path for navigation (empty when not resolvable)
+         */
         public TestCard(String id, String className, String methodName, String filePath) {
             this.id = id;
             this.className = className;
             this.methodName = methodName;
             this.filePath = filePath;
+        }
+    }
+
+    private static void closeSseClients() {
+        synchronized (sseClients) {
+            for (OutputStream os : sseClients) {
+                try {
+                    os.close();
+                } catch (IOException e) {
+                    logger.debug("[RealtimeReporter] Error closing SSE client stream: {}", e.getMessage());
+                }
+            }
+            sseClients.clear();
         }
     }
 

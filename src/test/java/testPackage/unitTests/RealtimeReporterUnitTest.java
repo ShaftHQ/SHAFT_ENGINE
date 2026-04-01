@@ -59,6 +59,21 @@ public class RealtimeReporterUnitTest {
                 "Real-time report should be disabled by default");
     }
 
+    @Test
+    public void currentTestIdThreadLocalCanBeSetAndCleared() {
+        RealtimeReporter.setCurrentTestId("com.example.Test#method");
+        assertEquals(RealtimeReporter.getCurrentTestId(), "com.example.Test#method");
+        RealtimeReporter.clearCurrentTestId();
+        assertNull(RealtimeReporter.getCurrentTestId());
+    }
+
+    @Test
+    public void currentTestIdIsClearedWhenSetWithBlankValue() {
+        RealtimeReporter.setCurrentTestId("com.example.Test#method");
+        RealtimeReporter.setCurrentTestId("   ");
+        assertNull(RealtimeReporter.getCurrentTestId());
+    }
+
     // ─── Helper utilities ─────────────────────────────────────────────────
 
     @Test
@@ -77,6 +92,13 @@ public class RealtimeReporterUnitTest {
     public void classNameToFilePathHandlesSingleSegmentClass() {
         String path = RealtimeReporter.classNameToFilePath("MyTest");
         assertEquals(path, "src/test/java/MyTest.java");
+    }
+
+    @Test
+    public void classNameToFilePathHandlesBlankInput() {
+        assertEquals(RealtimeReporter.classNameToFilePath(""), "");
+        assertEquals(RealtimeReporter.classNameToFilePath("   "), "");
+        assertEquals(RealtimeReporter.classNameToFilePath(null), "");
     }
 
     // ─── JSON serialisation ────────────────────────────────────────────────

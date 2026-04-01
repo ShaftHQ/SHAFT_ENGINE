@@ -513,6 +513,11 @@ public class ReportManagerHelper {
      */
     private static void forwardToRealtimeReporter(String logText) {
         if (!RealtimeReporter.isRunning()) return;
+        String threadTestId = RealtimeReporter.getCurrentTestId();
+        if (threadTestId != null && !threadTestId.isBlank()) {
+            RealtimeReporter.appendConsoleLog(threadTestId, logText);
+            return;
+        }
         String testId = null;
         try {
             var result = Reporter.getCurrentTestResult();
@@ -617,6 +622,11 @@ public class ReportManagerHelper {
      */
     private static void appendStepToRealtimeReporter(String stepName, String stepStatus) {
         if (!RealtimeReporter.isRunning()) return;
+        String currentTestId = RealtimeReporter.getCurrentTestId();
+        if (currentTestId != null && !currentTestId.isBlank()) {
+            RealtimeReporter.appendStep(currentTestId, stepName, stepStatus);
+            return;
+        }
         try {
             var result = Reporter.getCurrentTestResult();
             if (result != null && result.getTestClass() != null && result.getMethod() != null) {
@@ -730,6 +740,13 @@ public class ReportManagerHelper {
     private static void forwardAttachmentToRealtimeReporter(String attachmentType, String attachmentName,
                                                             ByteArrayOutputStream content) {
         if (!RealtimeReporter.isRunning()) return;
+        String currentTestId = RealtimeReporter.getCurrentTestId();
+        if (currentTestId != null && !currentTestId.isBlank()) {
+            String ct = inferMimeTypeFromAttachment(attachmentType, attachmentName);
+            RealtimeReporter.appendAttachment(currentTestId, attachmentType, attachmentName,
+                    ct, content.toByteArray());
+            return;
+        }
         try {
             var result = Reporter.getCurrentTestResult();
             if (result != null && result.getTestClass() != null && result.getMethod() != null) {

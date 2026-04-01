@@ -83,6 +83,7 @@ public class JunitListener implements LauncherSessionListener {
                     JunitListenerHelper.logTestInformation(testIdentifier);
                     if (testIdentifier.isTest()) {
                         String id = junitTestId(testIdentifier);
+                        RealtimeReporter.setCurrentTestId(id);
                         RealtimeReporter.onTestStarted(id);
                     }
                 }
@@ -137,6 +138,7 @@ public class JunitListener implements LauncherSessionListener {
         isLastFinishedTestOK = true;
         appendToExecutionSummaryReport(testIdentifier, "", ExecutionSummaryReport.StatusIcon.PASSED, ExecutionSummaryReport.Status.PASSED);
         RealtimeReporter.onTestFinished(junitTestId(testIdentifier), RealtimeReporter.TestStatus.PASSED, null);
+        RealtimeReporter.clearCurrentTestId();
     }
 
     private void onTestFailure(TestIdentifier testIdentifier, Throwable throwable) {
@@ -144,6 +146,7 @@ public class JunitListener implements LauncherSessionListener {
         isLastFinishedTestOK = false;
         appendToExecutionSummaryReport(testIdentifier, throwable.getMessage(), ExecutionSummaryReport.StatusIcon.FAILED, ExecutionSummaryReport.Status.FAILED);
         RealtimeReporter.onTestFinished(junitTestId(testIdentifier), RealtimeReporter.TestStatus.FAILED, throwable);
+        RealtimeReporter.clearCurrentTestId();
     }
 
     private void onTestSkipped(TestIdentifier testIdentifier, String reason) {
@@ -151,6 +154,7 @@ public class JunitListener implements LauncherSessionListener {
         isLastFinishedTestOK = false;
         appendToExecutionSummaryReport(testIdentifier, reason, ExecutionSummaryReport.StatusIcon.SKIPPED, ExecutionSummaryReport.Status.SKIPPED);
         RealtimeReporter.onTestFinished(junitTestId(testIdentifier), RealtimeReporter.TestStatus.SKIPPED, null);
+        RealtimeReporter.clearCurrentTestId();
     }
 
     private static String junitTestId(TestIdentifier testIdentifier) {

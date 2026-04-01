@@ -351,6 +351,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         String id = RealtimeReporter.buildTestId(
                 testResult.getTestClass().getName(),
                 testResult.getMethod().getMethodName());
+        RealtimeReporter.setCurrentTestId(id);
         RealtimeReporter.onTestStarted(id);
     }
 
@@ -365,6 +366,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
                 testResult.getTestClass().getName(),
                 testResult.getMethod().getMethodName());
         RealtimeReporter.onTestFinished(id, RealtimeReporter.TestStatus.PASSED, null);
+        RealtimeReporter.clearCurrentTestId();
     }
 
     @Override
@@ -379,6 +381,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
                 testResult.getTestClass().getName(),
                 testResult.getMethod().getMethodName());
         RealtimeReporter.onTestFinished(id, RealtimeReporter.TestStatus.FAILED, testResult.getThrowable());
+        RealtimeReporter.clearCurrentTestId();
     }
 
     @Override
@@ -392,5 +395,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
                 testResult.getTestClass().getName(),
                 testResult.getMethod().getMethodName());
         RealtimeReporter.onTestFinished(id, RealtimeReporter.TestStatus.SKIPPED, null);
+        RealtimeReporter.clearCurrentTestId();
     }
 }
