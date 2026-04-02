@@ -67,20 +67,29 @@ public class ProgressBarLogger implements AutoCloseable {
         task = () -> {
             pb = pbb.build();
             pb.setExtraMessage("seconds.");
+            boolean interrupted = false;
             while (Duration.ofSeconds(timeoutVal - 1).minus(pb.getElapsedAfterStart()).isPositive()) {
                 try {
                     Thread.sleep(Duration.ofSeconds(1));
                 } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                    interrupted = handleInterruptedProgressUpdate(e);
+                    break;
                 }
                 pb.step();
                 pb.refresh();
             }
-            pb.stepTo(timeoutVal);
+            if (!interrupted) {
+                pb.stepTo(timeoutVal);
+            }
             pb.close();
         };
         service = Executors.newVirtualThreadPerTaskExecutor();
         service.submit(task);
+    }
+
+    static boolean handleInterruptedProgressUpdate(InterruptedException interruptedException) {
+        Thread.currentThread().interrupt();
+        return true;
     }
 
     static boolean shouldUseAnsiColors() {

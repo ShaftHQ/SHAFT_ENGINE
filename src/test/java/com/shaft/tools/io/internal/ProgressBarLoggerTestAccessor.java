@@ -9,4 +9,8 @@ public final class ProgressBarLoggerTestAccessor {
     public static boolean isAnsiColorEnabledForCurrentEnvironment() {
         return ProgressBarLogger.shouldUseAnsiColors();
     }
+
+    public static boolean interruptedFlagShouldBeSet() {
+        return ProgressBarLogger.handleInterruptedProgressUpdate(new InterruptedException("test interruption"));
+    }
 }
