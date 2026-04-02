@@ -49,6 +49,9 @@ public class JSONFileManager {
         jsonFilePath = JavaHelper.appendTestDataToRelativePath(jsonFilePath);
         this.jsonFilePath = jsonFilePath;
         initializeReader();
+        // Reader was opened only to validate file existence; close it immediately so no
+        // ThreadLocal reference lingers until the first getTestData() call.
+        closeReader();
         List<List<Object>> attachments = new ArrayList<>();
         List<Object> testDataFileAttachment = null;
         try {
@@ -163,6 +166,8 @@ public class JSONFileManager {
             FailureReporter.fail(this.getClass(), "Incorrect jsonPath. [" + jsonPath + "].", rootCauseException);
         } catch (JsonPathException | IllegalArgumentException rootCauseException) {
             FailureReporter.fail(this.getClass(), "Couldn't read the desired file. [" + this.jsonFilePath + "].", rootCauseException);
+        } finally {
+            closeReader();
         }
         return testData;
     }
@@ -186,6 +191,22 @@ public class JSONFileManager {
             FailureReporter.fail(this.getClass(), "Couldn't read the desired file. [" + this.jsonFilePath + "].", rootCauseException);
         } catch (IOException formatException) {
             FailureReporter.fail(this.getClass(), "file didn't match the specified format. [" + this.jsonFilePath + "].", formatException);
+        }
+    }
+
+    /**
+     * Closes the current thread-local {@link FileReader} and removes it from the
+     * {@link ThreadLocal} to prevent memory leaks on pooled or long-lived threads.
+     */
+    private void closeReader() {
+        FileReader existingReader = reader.get();
+        if (existingReader != null) {
+            try {
+                existingReader.close();
+            } catch (IOException ignored) {
+                // best-effort close
+            }
+            reader.remove();
         }
     }
 

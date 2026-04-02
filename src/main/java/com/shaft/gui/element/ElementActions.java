@@ -67,14 +67,37 @@ public class ElementActions extends FluentWebDriverAction {
         return new Actions(driverFactoryHelper);
     }
 
+    /**
+     * Starts a hard-assertion chain on the target element.
+     * The test fails immediately when the assertion condition is not met.
+     *
+     * @param elementLocator the locator of the element under test (e.g. {@code By.id("result")})
+     * @return a {@link WebDriverElementValidationsBuilder} for chaining element assertions
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Assertions</a>
+     */
     public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
         return new WizardHelpers.WebDriverAssertions(driverFactoryHelper).element(elementLocator);
     }
 
+    /**
+     * Starts a soft-assertion (verification) chain on the target element.
+     * Failures are collected and reported at the end of the test rather than stopping execution immediately.
+     *
+     * @param elementLocator the locator of the element under test (e.g. {@code By.id("result")})
+     * @return a {@link WebDriverElementValidationsBuilder} for chaining element verifications
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Assertions</a>
+     */
     public WebDriverElementValidationsBuilder verifyThat(By elementLocator) {
         return new WizardHelpers.WebDriverVerifications(driverFactoryHelper).element(elementLocator);
     }
 
+    /**
+     * Returns the number of elements on the current page that match the given locator.
+     *
+     * @param elementLocator the locator used to find elements (e.g. {@code By.cssSelector(".item")})
+     * @return the count of matching elements, or {@code 0} if none are found
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Element Actions</a>
+     */
     public int getElementsCount(By elementLocator) {
         return elementActionsHelper.getElementsCount(driverFactoryHelper.getDriver(), elementLocator);
     }
@@ -674,6 +697,13 @@ public class ElementActions extends FluentWebDriverAction {
         return tableData;
     }
 
+    /**
+     * Captures a screenshot of the specified element and attaches it to the test report.
+     *
+     * @param elementLocator the locator of the element to screenshot
+     * @return an {@link Actions} instance for chaining further actions
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Element Actions</a>
+     */
     public Actions captureScreenshot(By elementLocator) {
         var screenshotManager = new ScreenshotManager();
         ReportManagerHelper.log("Capture element screenshot", Collections.singletonList(screenshotManager.prepareImageForReport(screenshotManager.takeElementScreenshot(driverFactoryHelper.getDriver(), elementLocator), "captureScreenshot")));
