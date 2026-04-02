@@ -44,6 +44,17 @@ public class ValidationAndProgressBarTests {
         Assert.assertFalse(actual, "ANSI colors should be disabled when cucumber.ansi-colors.disabled=true.");
     }
 
+    @Test(description = "ProgressBarLogger should preserve interrupted status after handling interruption")
+    public void progressBarInterruptionHandlingShouldPreserveInterruptedStatus() {
+        Assert.assertFalse(Thread.currentThread().isInterrupted(),
+                "Test thread should start in non-interrupted state.");
+        boolean interrupted = ProgressBarLoggerTestAccessor.interruptedFlagShouldBeSet();
+        Assert.assertTrue(interrupted, "Interrupted handler should report interrupted state.");
+        Assert.assertTrue(Thread.currentThread().isInterrupted(),
+                "Interrupted handler should preserve interrupted status on current thread.");
+        Thread.interrupted();
+    }
+
     @Test(description = "ValidationsExecutor should clear ThreadLocal state even when performValidation fails")
     public void validationsExecutorShouldClearThreadLocalsOnFailure() throws Exception {
         ValidationsExecutor executor = new ValidationsExecutor(new com.shaft.validation.internal.ValidationsBuilder(
