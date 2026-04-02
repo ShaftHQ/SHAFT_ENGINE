@@ -5,12 +5,12 @@ import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
 /**
- * Configuration properties interface for pattern matching settings in the SHAFT framework.
- * Controls regex and pattern-based validation behavior used during test execution.
+ * Configuration properties interface for pattern settings in the SHAFT framework.
+ * Controls test-data column name prefixes and Allure link patterns used during execution.
  *
  * <p>Use {@link #set()} to override values programmatically:
  * <pre>{@code
- * SHAFT.Properties.pattern.set().isMobile(true);
+ * SHAFT.Properties.pattern.set().testDataColumnNamePrefix("Data");
  * }</pre>
  */
 @SuppressWarnings("unused")
