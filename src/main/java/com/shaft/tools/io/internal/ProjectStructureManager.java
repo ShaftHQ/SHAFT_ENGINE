@@ -7,7 +7,15 @@ import com.shaft.tools.io.ReportManager;
 import java.nio.file.Paths;
 import java.util.Arrays;
 
+/**
+ * Initializes runtime project folders and service provider metadata files.
+ */
 public class ProjectStructureManager {
+    /**
+     * Prepares project structure and listener registration files based on run type.
+     *
+     * @param runType current execution framework mode
+     */
     public static void initialize(RunType runType) {
         ReportManager.logDiscrete("Initializing Project Structure...");
         if (Properties.platform.executionAddress().equals("local")
@@ -44,5 +52,8 @@ public class ProjectStructureManager {
                 "io.qameta.allure.listener.StepLifecycleListener", "io.qameta.allure.listener.TestLifecycleListener").forEach(fileName -> FileActions.getInstance(true).writeToFile(Properties.paths.services(), fileName, "com.shaft.listeners.AllureListener"));
     }
 
+    /**
+     * Supported runtime execution modes used for listener bootstrapping.
+     */
     public enum RunType {TESTNG, JUNIT, CUCUMBER, AI_AGENT}
 }

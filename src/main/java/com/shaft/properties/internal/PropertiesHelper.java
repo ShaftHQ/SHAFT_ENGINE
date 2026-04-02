@@ -17,11 +17,23 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * Initializes and post-processes framework configuration properties for runtime.
+ *
+ * <p>This helper loads default/custom property files, configures typed OWNER interfaces,
+ * and applies platform-specific overrides after initialization.</p>
+ *
+ * <p>Thread safety: this class uses static state and should be initialized during engine
+ * startup before parallel execution begins.</p>
+ */
 public class PropertiesHelper {
     private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "src/main/resources/properties/default";
     private static final String TARGET_PROPERTIES_FOLDER_PATH = DEFAULT_PROPERTIES_FOLDER_PATH.replace("/default", "");
     private static final AtomicBoolean postProcessingDone = new AtomicBoolean(false);
 
+    /**
+     * Initializes framework properties for standard execution.
+     */
     public static void initialize() {
         //initialize default properties
         initializeDefaultProperties(false);
@@ -33,6 +45,9 @@ public class PropertiesHelper {
         postProcessingDone.set(false);
     }
 
+    /**
+     * Initializes framework properties for AI-agent execution mode.
+     */
     public static void initializeAiAgent() {
         //initialize default properties
         initializeDefaultProperties(true);
@@ -85,6 +100,9 @@ public class PropertiesHelper {
         System.setProperty("allure.testng.hide.disabled.tests", "true");
     }
 
+    /**
+     * Applies runtime overrides based on platform and execution context.
+     */
     public static void postProcessing() {
         if (!postProcessingDone.compareAndSet(false, true)) {
             return;
@@ -103,6 +121,9 @@ public class PropertiesHelper {
         setClearBeforeTypingMode();
     }
 
+    /**
+     * Chooses the clear-before-typing mode based on current configuration flags.
+     */
     public static void setClearBeforeTypingMode() {
         if (!Properties.flags.attemptClearBeforeTyping()) {
             SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
