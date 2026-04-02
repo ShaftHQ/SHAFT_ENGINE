@@ -35,6 +35,15 @@ Nothing fancy... Just keep it clear and simple.
 - Keep methods short and focused (ideally under 30 lines).
 - Prefer extracting helper methods over deep nesting.
 - Use meaningful, descriptive names for variables and methods.
+- Prefer direct boolean expressions over multi-branch temporary flags when readability is improved.
+
+## Continuous Improvement Guard Rails (PDCA Cycles 2-5)
+
+- **JavaDocs:** For any edited public API, add concise JavaDoc with `@param`/`@return` where applicable and at least one `@see` reference to the [SHAFT User Guide](https://shafthq.github.io/).
+- **Complexity:** Keep surgical simplifications localized to touched methods and preserve behavior.
+- **Testing:** Every behavior change requires focused automated tests in `src/test/java/`.
+- **Memory:** Always clear `ThreadLocal` state with `.remove()` when lifecycle ends to prevent leaks on pooled threads.
+- **Logging UX:** Keep CI output readable; disable ANSI-heavy formatting when non-interactive or explicitly configured off.
 
 ## Build & Test
 
