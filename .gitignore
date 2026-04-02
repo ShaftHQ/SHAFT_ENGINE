@@ -34,4 +34,5 @@ OpenLHReport.js
 /src/test/resources/META-INF/services/
 /.idea/
 browserstack.yml
-/log/
+/log/nohup.out
+log/

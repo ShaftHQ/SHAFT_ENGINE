@@ -486,6 +486,7 @@ public class ReportManagerHelper {
                 initializeLogger();
             }
             logger.log(loglevel, logText.trim());
+            forwardToRealtimeReporter(logText.trim());
         }
     }
 
@@ -503,7 +504,33 @@ public class ReportManagerHelper {
                 }
                 logger.log(Level.INFO, logText.trim());
             }
+            forwardToRealtimeReporter(logText.trim());
         }
+    }
+
+    /**
+     * Forwards a log line to the real-time reporter (if running) for the currently active test.
+     */
+    private static void forwardToRealtimeReporter(String logText) {
+        if (!RealtimeReporter.isRunning()) return;
+        String threadTestId = RealtimeReporter.getCurrentTestId();
+        if (threadTestId != null && !threadTestId.isBlank()) {
+            RealtimeReporter.appendConsoleLog(threadTestId, logText);
+            return;
+        }
+        String testId = null;
+        try {
+            var result = Reporter.getCurrentTestResult();
+            if (result != null && result.getTestClass() != null && result.getMethod() != null) {
+                testId = RealtimeReporter.buildTestId(
+                        result.getTestClass().getName(),
+                        result.getMethod().getMethodName());
+            }
+        } catch (Exception e) {
+            // Reporter.getCurrentTestResult() is not available in JUnit/Cucumber context
+            if (logger != null) logger.debug("[RealtimeReporter] Could not resolve active test context: {}", e.getMessage());
+        }
+        RealtimeReporter.appendConsoleLog(testId, logText);
     }
 
     private static String addSpacing(String log) {
@@ -571,6 +598,7 @@ public class ReportManagerHelper {
         if (!SHAFT.Properties.reporting.disableLogging()) {
             createLogEntry(logText, true);
             Allure.step(logText, getStepStatus(logText));
+            appendStepToRealtimeReporter(logText, getStepStatus(logText).name());
         }
     }
 
@@ -585,6 +613,31 @@ public class ReportManagerHelper {
         if (!SHAFT.Properties.reporting.disableLogging()) {
             createLogEntry(logText, logLevel);
             Allure.step(logText, getStepStatus(logText));
+            appendStepToRealtimeReporter(logText, getStepStatus(logText).name());
+        }
+    }
+
+    /**
+     * Forwards a step to the real-time reporter for the currently active test.
+     */
+    private static void appendStepToRealtimeReporter(String stepName, String stepStatus) {
+        if (!RealtimeReporter.isRunning()) return;
+        String currentTestId = RealtimeReporter.getCurrentTestId();
+        if (currentTestId != null && !currentTestId.isBlank()) {
+            RealtimeReporter.appendStep(currentTestId, stepName, stepStatus);
+            return;
+        }
+        try {
+            var result = Reporter.getCurrentTestResult();
+            if (result != null && result.getTestClass() != null && result.getMethod() != null) {
+                String testId = RealtimeReporter.buildTestId(
+                        result.getTestClass().getName(),
+                        result.getMethod().getMethodName());
+                RealtimeReporter.appendStep(testId, stepName, stepStatus);
+            }
+        } catch (Exception e) {
+            // Reporter.getCurrentTestResult() is not available in JUnit/Cucumber context
+            if (logger != null) logger.debug("[RealtimeReporter] Could not resolve active test context for step: {}", e.getMessage());
         }
     }
 
@@ -653,6 +706,7 @@ public class ReportManagerHelper {
             String attachmentDescription = attachmentType + " - " + attachmentName;
             AttachmentReporter.attachBasedOnFileType(attachmentType, attachmentName, byteArrayOutputStream, attachmentDescription);
             logAttachmentAction(attachmentType, attachmentName, byteArrayOutputStream);
+            forwardAttachmentToRealtimeReporter(attachmentType, attachmentName, byteArrayOutputStream);
         }
     }
 
@@ -678,6 +732,47 @@ public class ReportManagerHelper {
                 logger.info(logEntry);
             }
         }
+    }
+
+    /**
+     * Forwards an attachment to the real-time reporter for the currently active test.
+     */
+    private static void forwardAttachmentToRealtimeReporter(String attachmentType, String attachmentName,
+                                                            ByteArrayOutputStream content) {
+        if (!RealtimeReporter.isRunning()) return;
+        String currentTestId = RealtimeReporter.getCurrentTestId();
+        if (currentTestId != null && !currentTestId.isBlank()) {
+            String ct = inferMimeTypeFromAttachment(attachmentType, attachmentName);
+            RealtimeReporter.appendAttachment(currentTestId, attachmentType, attachmentName,
+                    ct, content.toByteArray());
+            return;
+        }
+        try {
+            var result = Reporter.getCurrentTestResult();
+            if (result != null && result.getTestClass() != null && result.getMethod() != null) {
+                String testId = RealtimeReporter.buildTestId(
+                        result.getTestClass().getName(),
+                        result.getMethod().getMethodName());
+                // Determine MIME type from attachment type
+                String ct = inferMimeTypeFromAttachment(attachmentType, attachmentName);
+                RealtimeReporter.appendAttachment(testId, attachmentType, attachmentName,
+                        ct, content.toByteArray());
+            }
+        } catch (Exception e) {
+            if (logger != null) logger.debug("[RealtimeReporter] Could not forward attachment: {}", e.getMessage());
+        }
+    }
+
+    private static String inferMimeTypeFromAttachment(String attachmentType, String attachmentName) {
+        String lower = (attachmentType + " " + attachmentName).toLowerCase();
+        if (lower.contains("screenshot") || lower.contains(".png")) return "image/png";
+        if (lower.contains("gif")) return "image/gif";
+        if (lower.contains("recording") || lower.contains(".mp4")) return "video/mp4";
+        if (lower.contains("json")) return "application/json";
+        if (lower.contains("xml")) return "text/xml";
+        if (lower.contains("csv")) return "text/csv";
+        if (lower.contains("html") || lower.contains("page snapshot")) return "text/html";
+        return "text/plain";
     }
 
     public static boolean isInternalStep() {
