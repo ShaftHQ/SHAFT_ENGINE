@@ -33,6 +33,13 @@ public class TestNGListenerHelper {
     private static final List<ITestResult> beforeMethods = Collections.synchronizedList(new ArrayList<>());
     private static final List<ITestResult> afterMethods = Collections.synchronizedList(new ArrayList<>());
     private static final ThreadLocal<String> testName = new ThreadLocal<>();
+    /**
+     * Stores the throwable from the most recent configuration method failure on this thread.
+     * Used by {@link com.shaft.listeners.AllureListener} to convert a SKIPPED allure test result
+     * into BROKEN when the skip was caused by a configuration method failure rather than an
+     * intentional skip (e.g. {@link org.testng.SkipException}).
+     */
+    private static final ThreadLocal<Throwable> pendingConfigFailure = new ThreadLocal<>();
 
     /**
      * Stores the total number of tests in the current suite when applicable.
@@ -118,6 +125,34 @@ public class TestNGListenerHelper {
      */
     public static String getTestName() {
         return testName.get();
+    }
+
+    /**
+     * Stores the throwable from the most recent configuration method (e.g. {@code @BeforeMethod})
+     * failure on this thread, so that the Allure lifecycle listener can later promote a SKIPPED
+     * test result to BROKEN when the skip was caused by this failure.
+     *
+     * @param throwable the exception thrown by the failing configuration method, or {@code null}
+     *                  to clear any previously stored failure
+     */
+    public static void setPendingConfigFailure(Throwable throwable) {
+        if (throwable != null) {
+            pendingConfigFailure.set(throwable);
+        } else {
+            pendingConfigFailure.remove();
+        }
+    }
+
+    /**
+     * Returns and clears the configuration-method failure throwable stored for the current thread.
+     *
+     * @return the throwable set by the most recent {@link #setPendingConfigFailure} call, or
+     *         {@code null} if none is pending
+     */
+    public static Throwable getAndClearPendingConfigFailure() {
+        Throwable t = pendingConfigFailure.get();
+        pendingConfigFailure.remove();
+        return t;
     }
 
     /**

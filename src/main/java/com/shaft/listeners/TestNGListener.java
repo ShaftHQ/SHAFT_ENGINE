@@ -232,6 +232,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
 
     @Override
     public void onConfigurationFailure(ITestResult testResult) {
+        if (testResult.getThrowable() != null) {
+            TestNGListenerHelper.setPendingConfigFailure(testResult.getThrowable());
+        }
         if (isReportPortalEnabled) this.reportPortalTestNGService.sendReportPortalMsg(testResult);
         if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestMethod(ItemStatus.FAILED, testResult);
     }
@@ -419,8 +422,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onTestSkipped(ITestResult testResult) {
         skippedTests.add(testResult.getMethod());
+        String throwableMessage = testResult.getThrowable() != null ? testResult.getThrowable().getMessage() : "";
         ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
-                testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), testResult.getThrowable().getMessage(),
+                testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), throwableMessage,
                 ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
         if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestMethod(ItemStatus.SKIPPED, testResult);
         String id = RealtimeReporter.buildTestId(
