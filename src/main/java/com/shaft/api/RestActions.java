@@ -213,11 +213,11 @@ public class RestActions {
 
     /**
      * Converts an arbitrary response body object to a JSON {@link InputStream}.
-     * If the object cannot be serialised as JSON, it is serialised using Java object
-     * serialisation, or returned as a raw byte stream for REST-Assured response bodies.
+     * If the object cannot be serialized as JSON, it is serialized using Java object
+     * serialization, or returned as a raw byte stream for REST-Assured response bodies.
      *
      * @param body the response body object to convert — may be a REST-Assured
-     *             {@link Response}, a {@link String}, or any serialisable Java object
+     *             {@link Response}, a {@link String}, or any serializable Java object
      * @return an {@link InputStream} representing the body content
      */
     public static InputStream parseBodyToJson(Object body) {

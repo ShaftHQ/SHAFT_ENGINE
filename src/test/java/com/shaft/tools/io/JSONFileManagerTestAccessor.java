@@ -5,7 +5,7 @@ import java.lang.reflect.Field;
 
 /**
  * Test accessor for package-private and private state in {@link JSONFileManager}.
- * Used exclusively by unit tests to verify ThreadLocal lifecycle behaviour.
+ * Used exclusively by unit tests to verify ThreadLocal lifecycle behavior.
  */
 public final class JSONFileManagerTestAccessor {
 
