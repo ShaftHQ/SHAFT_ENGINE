@@ -1,27 +1,38 @@
 package com.shaft.listeners;
 
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.listeners.internal.TestNGListenerHelper;
+import com.shaft.tools.io.internal.ReportManagerHelper;
+import io.qameta.allure.Allure;
 import io.qameta.allure.listener.ContainerLifecycleListener;
 import io.qameta.allure.listener.FixtureLifecycleListener;
 import io.qameta.allure.listener.StepLifecycleListener;
 import io.qameta.allure.listener.TestLifecycleListener;
 import io.qameta.allure.model.FixtureResult;
+import io.qameta.allure.model.Status;
+import io.qameta.allure.model.StatusDetails;
 import io.qameta.allure.model.StepResult;
 import io.qameta.allure.model.TestResult;
 import io.qameta.allure.model.TestResultContainer;
+import org.testng.SkipException;
+
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Allure lifecycle listener that integrates SHAFT's TestNG support with the Allure reporting engine.
  *
  * <p>This listener is registered automatically and hooks into all four Allure lifecycle interfaces:
  * {@link StepLifecycleListener}, {@link FixtureLifecycleListener}, {@link TestLifecycleListener},
- * and {@link ContainerLifecycleListener}. Most callbacks delegate to the corresponding
- * Allure default implementation; the two exceptions below contain SHAFT-specific behaviour:
+ * and {@link ContainerLifecycleListener}. The SHAFT-specific behaviour is in:
  * <ul>
  *   <li>{@link #afterStepStop(StepResult)} — updates TestNG configuration method metadata after
  *       each step completes</li>
  *   <li>{@link #beforeFixtureStop(FixtureResult)} — attaches configuration-method artefacts to
  *       the Allure report before a fixture (setup/teardown) finishes</li>
+ *   <li>{@link #beforeTestStop(TestResult)} — promotes a SKIPPED test result to BROKEN when the
+ *       skip was caused by a configuration-method failure or kill-switch activation, and attaches
+ *       the exception stacktrace so it is readable in the Allure HTML report</li>
  * </ul>
  *
  * <p><b>Example — automatic registration via SPI:</b>
@@ -205,9 +216,53 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
         TestLifecycleListener.super.afterTestStart(result);
     }
 
-    //Before The @test stops
+    /**
+     * Invoked before each Allure test case stops. When the result status is {@link Status#SKIPPED}
+     * and the skip was caused by a non-intentional reason (configuration method failure or kill-switch
+     * activation rather than a deliberate {@link org.testng.SkipException}), this method:
+     * <ol>
+     *   <li>Promotes the status to {@link Status#BROKEN} so the test appears as failed in the report.</li>
+     *   <li>Attaches the full exception stacktrace as a readable {@code text/plain} attachment.</li>
+     * </ol>
+     *
+     * <p>Intentional skips — those raised by SHAFT's linked-issue skipper or the test-suite
+     * timeout guard — are left as {@link Status#SKIPPED}.
+     *
+     * @param result the {@link TestResult} that is about to be finalised
+     */
     @Override
     public void beforeTestStop(TestResult result) {
+        if (Status.SKIPPED.equals(result.getStatus())) {
+            Throwable configFailure = TestNGListenerHelper.getAndClearPendingConfigFailure();
+            boolean isKillSwitch = DriverFactoryHelper.isKillSwitch();
+            boolean isRealConfigFailure = configFailure != null && !(configFailure instanceof SkipException);
+
+            // Determine whether this skip was caused by a real failure rather than an intentional skip
+            boolean isFatalSkip = isKillSwitch || isRealConfigFailure;
+
+            if (isFatalSkip) {
+                String message;
+                String trace;
+                if (isRealConfigFailure) {
+                    message = configFailure.getMessage();
+                    trace = ReportManagerHelper.formatStackTraceToLogEntry(configFailure);
+                } else {
+                    message = "Test execution halted: a previous driver initialisation failure activated the kill switch.";
+                    trace = message;
+                }
+                result.setStatus(Status.BROKEN);
+                StatusDetails details = result.getStatusDetails() != null ? result.getStatusDetails() : new StatusDetails();
+                details.setMessage(message);
+                details.setTrace(trace);
+                result.setStatusDetails(details);
+                // Attach the stacktrace as a readable text file so it appears in the Allure report
+                Allure.addAttachment(
+                        "Exception Stacktrace",
+                        "text/plain",
+                        new ByteArrayInputStream(trace.getBytes(StandardCharsets.UTF_8)),
+                        ".txt");
+            }
+        }
         TestLifecycleListener.super.beforeTestStop(result);
     }
 

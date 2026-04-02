@@ -102,7 +102,7 @@ public class AttachmentReporter {
     }
 
     private static void handleDefault(String attachmentDescription, ByteArrayOutputStream content) {
-        attachFileBased(attachmentDescription, null, content, null);
+        attachFileBased(attachmentDescription, "text/plain", content, ".txt");
     }
 
     private static void attachFileBased(String attachmentDescription, String contentType, ByteArrayOutputStream content, String fileExtension) {
