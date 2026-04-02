@@ -4,6 +4,15 @@ import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
+/**
+ * Configuration properties interface for Jira and Xray integration in the SHAFT framework.
+ * Controls project keys, authorization, and test-management reporting settings.
+ *
+ * <p>Use {@link #set()} to override values programmatically:
+ * <pre>{@code
+ * SHAFT.Properties.jira.set().projectKey("PROJ").authorization("Bearer token");
+ * }</pre>
+ */
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/JiraXRay.properties", "file:src/main/resources/properties/default/JiraXRay.properties", "classpath:JiraXRay.properties"})
 public interface Jira extends EngineProperties<Jira> {

@@ -4,6 +4,15 @@ import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
+/**
+ * Configuration properties interface for file-system path settings in the SHAFT framework.
+ * Controls base directories for test data, downloads, and generated reports.
+ *
+ * <p>Use {@link #set()} to override values programmatically:
+ * <pre>{@code
+ * SHAFT.Properties.paths.set().testData("src/test/resources/testDataFiles/");
+ * }</pre>
+ */
 @SuppressWarnings("unused")
 @Sources({"system:properties",
         "file:src/main/resources/properties/path.properties",

@@ -2,6 +2,15 @@ package com.shaft.properties.internal;
 
 import org.aeonbits.owner.Config.Sources;
 
+/**
+ * Configuration properties interface for TestNG execution settings in the SHAFT framework.
+ * Controls parallel execution mode, thread count, and suite-level configuration.
+ *
+ * <p>Use {@link #set()} to override values programmatically:
+ * <pre>{@code
+ * SHAFT.Properties.testNG.set().parallel("methods").threadCount(4);
+ * }</pre>
+ */
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/TestNG.properties", "file:src/main/resources/properties/default/TestNG.properties", "classpath:TestNG.properties",})
 public interface TestNG extends EngineProperties<TestNG> {

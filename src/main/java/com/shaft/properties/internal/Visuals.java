@@ -4,6 +4,15 @@ import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
+/**
+ * Configuration properties interface for visual testing settings in the SHAFT framework.
+ * Controls screenshot capture, GIF recording, video recording, and visual comparison thresholds.
+ *
+ * <p>Use {@link #set()} to override values programmatically:
+ * <pre>{@code
+ * SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Always");
+ * }</pre>
+ */
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/VisualValidations.properties", "file:src/main/resources/properties/default/VisualValidations.properties", "classpath:VisualValidations.properties"})
 public interface Visuals extends EngineProperties<Visuals> {

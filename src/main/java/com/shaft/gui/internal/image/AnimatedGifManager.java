@@ -94,8 +94,11 @@ public class AnimatedGifManager {
 
                 gifOutputStream.remove();
                 gifManager.remove();
+                gifWriter.remove();
+                imageWriteParam.remove();
+                imageMetaData.remove();
                 String gifRelativePath = gifRelativePathWithFileName.get();
-                gifRelativePathWithFileName.set("");
+                gifRelativePathWithFileName.remove();
                 return gifRelativePath;
             } catch (FileNotFoundException e) {
                 // this happens when the gif fails to start, maybe the browser window was

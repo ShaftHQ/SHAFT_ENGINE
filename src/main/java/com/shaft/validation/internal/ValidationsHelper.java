@@ -41,8 +41,10 @@ public class ValidationsHelper {
     }
 
     public static void resetVerificationStateAfterFailing() {
-        verificationFailuresList.set(new ArrayList<>());
+        verificationFailuresList.remove();
         verificationError.remove();
+        optionalCustomLogMessage.remove();
+        lastUsedElementLocator.remove();
     }
 
     private static void reportValidationState(WebDriver driver, ValidationCategory validationCategory, String expectedValue, String actualValue,
@@ -96,7 +98,7 @@ public class ValidationsHelper {
             attachments.add(new ScreenshotManager().takeScreenshot(driver, lastUsedElementLocator.get(),
                     validationMethodName, validationState.getValue()));
             // reset lastUsed variables
-            lastUsedElementLocator.set(null);
+            lastUsedElementLocator.remove();
             //}
         }
         if (driver != null && !WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Never")) {

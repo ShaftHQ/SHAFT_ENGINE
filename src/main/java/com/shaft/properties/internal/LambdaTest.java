@@ -4,6 +4,15 @@ import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config;
 import org.aeonbits.owner.ConfigFactory;
 
+/**
+ * Configuration properties interface for LambdaTest cloud testing in the SHAFT framework.
+ * Controls credentials, OS/browser versions, and platform capabilities for remote execution.
+ *
+ * <p>Use {@link #set()} to override values programmatically:
+ * <pre>{@code
+ * SHAFT.Properties.lambdaTest.set().username("user").accessKey("key");
+ * }</pre>
+ */
 @SuppressWarnings({"unused"})
 @Config.Sources({"system:properties", "file:src/main/resources/properties/LambdaTest.properties", "file:src/main/resources/properties/default/LambdaTest.properties", "classpath:LambdaTest.properties",})
 public interface LambdaTest extends EngineProperties<LambdaTest> {

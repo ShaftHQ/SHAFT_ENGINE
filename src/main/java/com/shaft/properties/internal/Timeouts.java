@@ -4,6 +4,16 @@ import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
+/**
+ * Configuration properties interface for timeout settings in the SHAFT framework.
+ * Controls wait durations for browser navigation, page load, script execution, API calls,
+ * shell commands, database queries, and element identification.
+ *
+ * <p>Use {@link #set()} to override values programmatically:
+ * <pre>{@code
+ * SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(10);
+ * }</pre>
+ */
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/Timeouts.properties", "file:src/main/resources/properties/default/Timeouts.properties", "classpath:Timeouts.properties"})
 public interface Timeouts extends EngineProperties<Timeouts> {

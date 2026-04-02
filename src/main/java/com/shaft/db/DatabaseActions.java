@@ -550,4 +550,14 @@ public class DatabaseActions {
         MY_SQL, SQL_SERVER, POSTGRES_SQL, ORACLE, ORACLE_SERVICE_NAME, IBM_DB2
     }
 
+    /**
+     * Removes all thread-local state held by this instance, preventing memory leaks
+     * in long-running or parallel test environments. Call this in teardown methods
+     * (e.g., {@code @AfterMethod}) after all database interactions are complete.
+     */
+    public void cleanup() {
+        resultSetThreadLocal.remove();
+        rowCountThreadLocal.remove();
+    }
+
 }

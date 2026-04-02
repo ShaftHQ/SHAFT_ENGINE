@@ -172,6 +172,15 @@ public class JSONFileManager {
      */
     private void initializeReader() {
         try {
+            // Close existing reader before creating a new one to prevent resource leaks
+            FileReader existingReader = reader.get();
+            if (existingReader != null) {
+                try {
+                    existingReader.close();
+                } catch (IOException ignored) {
+                    // best-effort close
+                }
+            }
             reader.set(new FileReader(FileActions.getInstance(true).getAbsolutePath(jsonFilePath), StandardCharsets.UTF_8));
         } catch (FileNotFoundException rootCauseException) {
             FailureReporter.fail(this.getClass(), "Couldn't read the desired file. [" + this.jsonFilePath + "].", rootCauseException);
