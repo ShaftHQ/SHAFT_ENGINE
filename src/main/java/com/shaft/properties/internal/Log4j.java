@@ -2,6 +2,15 @@ package com.shaft.properties.internal;
 
 import org.aeonbits.owner.Config.Sources;
 
+/**
+ * Configuration properties interface for Log4j logging settings in the SHAFT framework.
+ * Controls appender configuration and log-level thresholds.
+ *
+ * <p>Use {@link #set()} to override values programmatically:
+ * <pre>{@code
+ * SHAFT.Properties.log4j.set().rootLogger("INFO, stdout");
+ * }</pre>
+ */
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/log4j2.properties", "file:src/main/resources/properties/default/log4j2.properties", "classpath:log4j2.properties"})
 public interface Log4j extends EngineProperties<Log4j> {

@@ -4,6 +4,15 @@ import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
+/**
+ * Configuration properties interface for pattern matching settings in the SHAFT framework.
+ * Controls regex and pattern-based validation behavior used during test execution.
+ *
+ * <p>Use {@link #set()} to override values programmatically:
+ * <pre>{@code
+ * SHAFT.Properties.pattern.set().isMobile(true);
+ * }</pre>
+ */
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/pattern.properties", "file:src/main/resources/properties/default/pattern.properties", "classpath:pattern.properties",})
 public interface Pattern extends EngineProperties<Pattern> {

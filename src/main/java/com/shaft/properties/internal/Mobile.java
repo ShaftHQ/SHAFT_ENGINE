@@ -5,6 +5,15 @@ import io.appium.java_client.remote.AutomationName;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
+/**
+ * Configuration properties interface for mobile and Appium testing in the SHAFT framework.
+ * Controls device name, platform version, app path, automation engine, and Appium server settings.
+ *
+ * <p>Use {@link #set()} to override values programmatically:
+ * <pre>{@code
+ * SHAFT.Properties.mobile.set().deviceName("Pixel_5").platformVersion("13.0");
+ * }</pre>
+ */
 @SuppressWarnings("unused")
 @Sources({"system:properties",
         "file:src/main/resources/properties/MobileCapabilities.properties",

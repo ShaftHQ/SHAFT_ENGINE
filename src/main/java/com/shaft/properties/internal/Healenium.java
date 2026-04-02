@@ -4,6 +4,15 @@ import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
+/**
+ * Configuration properties interface for Healenium self-healing locator support in the SHAFT framework.
+ * Controls whether Healenium is enabled and its recovery score threshold.
+ *
+ * <p>Use {@link #set()} to override values programmatically:
+ * <pre>{@code
+ * SHAFT.Properties.healenium.set().healEnabled(true).recoveryScore(0.6);
+ * }</pre>
+ */
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/healenium.properties", "file:src/main/resources/properties/default/healenium.properties", "classpath:healenium.properties",})
 public interface Healenium extends EngineProperties<Healenium> {

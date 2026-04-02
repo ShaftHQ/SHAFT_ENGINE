@@ -4,6 +4,15 @@ import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
+/**
+ * Configuration properties interface for performance testing settings in the SHAFT framework.
+ * Controls Lighthouse audit thresholds and performance measurement parameters.
+ *
+ * <p>Use {@link #set()} to override values programmatically:
+ * <pre>{@code
+ * SHAFT.Properties.performance.set().lighthouseExecution(true);
+ * }</pre>
+ */
 @SuppressWarnings("unused")
 @Sources({"system:properties",
         "file:src/main/resources/properties/performance.properties",

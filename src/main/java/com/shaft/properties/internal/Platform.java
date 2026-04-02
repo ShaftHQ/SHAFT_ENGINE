@@ -4,6 +4,15 @@ import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
+/**
+ * Configuration properties interface for execution platform settings in the SHAFT framework.
+ * Controls the target execution address, port, and operating-system configuration.
+ *
+ * <p>Use {@link #set()} to override values programmatically:
+ * <pre>{@code
+ * SHAFT.Properties.platform.set().executionAddress("localhost:4444");
+ * }</pre>
+ */
 @Sources({"system:properties",
         "file:src/main/resources/properties/ExecutionPlatform.properties",
         "file:src/main/resources/properties/default/ExecutionPlatform.properties",

@@ -4,6 +4,15 @@ import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
+/**
+ * Configuration properties interface for reporting behavior in the SHAFT framework.
+ * Controls report generation options, verbosity, and output format settings.
+ *
+ * <p>Use {@link #set()} to override values programmatically:
+ * <pre>{@code
+ * SHAFT.Properties.reporting.set().cleanAllureResultsDirectoryBeforeExecution(true);
+ * }</pre>
+ */
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/Reporting.properties", "file:src/main/resources/properties/default/Reporting.properties", "classpath:Reporting.properties"})
 public interface Reporting extends EngineProperties<Reporting> {

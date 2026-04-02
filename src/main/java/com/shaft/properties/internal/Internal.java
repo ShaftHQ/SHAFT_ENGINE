@@ -2,6 +2,15 @@ package com.shaft.properties.internal;
 
 import org.aeonbits.owner.Config.Sources;
 
+/**
+ * Configuration properties interface for internal engine metadata in the SHAFT framework.
+ * Exposes read-only information such as the framework version and build timestamp.
+ *
+ * <p>Use {@link #set()} to override values programmatically:
+ * <pre>{@code
+ * SHAFT.Properties.internal.set().shaftEngineVersion("8.0");
+ * }</pre>
+ */
 @SuppressWarnings("unused")
 @Sources({"system:properties",
         "file:src/main/resources/properties/internal.properties",

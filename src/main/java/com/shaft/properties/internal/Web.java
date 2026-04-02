@@ -4,6 +4,15 @@ import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
+/**
+ * Configuration properties interface for web browser capabilities in the SHAFT framework.
+ * Controls target browser type, headless mode, window size, page load strategy, and mobile emulation.
+ *
+ * <p>Use {@link #set()} to override values programmatically:
+ * <pre>{@code
+ * SHAFT.Properties.web.set().targetBrowserName("firefox").headlessExecution(true);
+ * }</pre>
+ */
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/WebCapabilities.properties", "file:src/main/resources/properties/default/WebCapabilities.properties", "classpath:WebCapabilities.properties"})
 public interface Web extends EngineProperties<Web> {
