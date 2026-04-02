@@ -13,14 +13,31 @@ import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.Browser;
 
+/**
+ * Factory for creating and managing WebDriver instances in SHAFT.
+ *
+ * <p>This class handles driver initialization for local browsers, remote
+ * Selenium Grid, BrowserStack, and LambdaTest. It also provides factory
+ * methods for API, CLI, and database drivers.
+ *
+ * <p>The factory automatically reads configuration from SHAFT's properties
+ * system and supports last-minute property overrides from TestNG suite XML.
+ *
+ * @see SHAFT.GUI.WebDriver
+ * @see DriverFactory.DriverType
+ */
 @Setter
 @SuppressWarnings({"UnusedReturnValue", "unused"})
 public class DriverFactory {
+
+    private static final Logger logger = LogManager.getLogger(DriverFactory.class);
 
     private DriverFactoryHelper helper;
 
@@ -46,12 +63,12 @@ public class DriverFactory {
 
     public static boolean reloadProperties() {
         if (!com.shaft.properties.internal.Properties.isInitialized()) {
-            System.out.println("Execution Listeners are not loaded properly... Self-Healing... Initializing minimalistic test run...");
+            logger.warn("Execution Listeners are not loaded properly... Self-Healing... Initializing minimalistic test run...");
             var runType = TestNGListener.identifyRunType();
             if (runType.equals(ProjectStructureManager.RunType.CUCUMBER)) {
                 // stuck on minimalistic test run in case of native cucumber execution without manual plugin configuration
-                System.out.println("To unlock the full capabilities of SHAFT kindly follow these steps to configure SHAFT's Cucumber plugin:");
-                System.out.println("https://github.com/ShaftHQ/SHAFT_ENGINE?tab=readme-ov-file#23-cucumber");
+                logger.warn("To unlock the full capabilities of SHAFT kindly follow these steps to configure SHAFT's Cucumber plugin:");
+                logger.warn("https://github.com/ShaftHQ/SHAFT_ENGINE?tab=readme-ov-file#23-cucumber");
             }
             TestNGListener.engineSetup(runType);
         }

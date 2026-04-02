@@ -2,6 +2,20 @@ package com.shaft.validation;
 
 import lombok.Getter;
 
+/**
+ * Defines the enumerations used by SHAFT's validation subsystem to control
+ * assertion behavior, comparison semantics, and validation state.
+ *
+ * <p>Key enums:
+ * <ul>
+ *   <li>{@link ValidationType} &ndash; Positive vs. negative assertions.</li>
+ *   <li>{@link ValidationComparisonType} &ndash; Equals, contains, matches, or case-insensitive.</li>
+ *   <li>{@link ValidationCategory} &ndash; Hard assert vs. soft assert.</li>
+ *   <li>{@link VisualValidationEngine} &ndash; Visual comparison engine selection.</li>
+ *   <li>{@link NumbersComparativeRelation} &ndash; Numeric comparison operators.</li>
+ *   <li>{@link ValidationState} &ndash; Passed vs. failed result states.</li>
+ * </ul>
+ */
 public class ValidationEnums {
 
     public enum ValidationType {

@@ -2,6 +2,22 @@ package com.shaft.validation;
 
 import com.shaft.validation.internal.ValidationsBuilder;
 
+/**
+ * Entry point for building assertions and verifications in SHAFT tests.
+ *
+ * <p>Use {@link #assertThat()} to create a <em>hard assertion</em> that stops
+ * the test on failure, or {@link #verifyThat()} for a <em>soft assertion</em>
+ * that collects failures and reports them at the end of the test.
+ *
+ * <p><b>Usage example:</b>
+ * <pre>{@code
+ * Validations.assertThat().object(actual).isEqualTo(expected).perform();
+ * Validations.verifyThat().number(count).isGreaterThan(0).perform();
+ * }</pre>
+ *
+ * @see com.shaft.driver.SHAFT.Validations
+ * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Validations</a>
+ */
 public class Validations {
     private Validations() {
         throw new IllegalStateException("Utility class");
