@@ -18,6 +18,7 @@ Nothing fancy... Just keep it clear and simple.
 - Include `@param`, `@return`, and `@throws` tags where applicable.
 - Add `@see` links to related classes and the [SHAFT User Guide](https://shafthq.github.io/) where appropriate.
 - Use `{@code ...}` for inline code references and `{@link ...}` for type references.
+- Validate JavaDoc output locally with `mvn javadoc:javadoc` before opening a PR when JavaDocs were changed.
 
 ### Logging
 - Use Log4j (`LogManager.getLogger(ClassName.class)`) or SHAFT's `ReportManager` for all logging.
