@@ -452,7 +452,6 @@ public class TerminalActions {
                     logBuilder.append(System.lineSeparator()).append(logLine);
                 }
             }
-            reader.close();
         }
         return logBuilder.toString();
     }
