@@ -22,6 +22,21 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Reads and parses Microsoft Excel ({@code .xlsx}) test-data files using
+ * Apache POI.
+ *
+ * <p>Supports reading cell values by row/column index or column header
+ * name. Files are resolved relative to the project's test data directory.
+ *
+ * <p><b>Usage example:</b>
+ * <pre>{@code
+ * SHAFT.TestData.EXCEL data = new SHAFT.TestData.EXCEL("users.xlsx");
+ * String value = data.getCellData("Sheet1", "Name", "2");
+ * }</pre>
+ *
+ * @see com.shaft.driver.SHAFT.TestData.EXCEL
+ */
 @SuppressWarnings("unused")
 public class ExcelFileManager {
     private FileInputStream fis;

@@ -25,6 +25,25 @@ import java.time.Duration;
 import java.util.*;
 import java.util.function.Function;
 
+/**
+ * Provides high-level actions for interacting with web and mobile elements
+ * such as clicking, typing, selecting, dragging, and retrieving element state.
+ *
+ * <p>This class extends {@link FluentWebDriverAction} and supports method
+ * chaining via the {@link #and()} connector. Prefer using
+ * {@link com.shaft.gui.element.internal.Actions} (returned by
+ * {@link com.shaft.driver.SHAFT.GUI.WebDriver#element()}) for new tests.
+ *
+ * <p><b>Usage example:</b>
+ * <pre>{@code
+ * driver.element().click(By.id("submit"))
+ *       .and().element().type(By.id("name"), "John")
+ *       .and().assertThat(By.id("result")).text().contains("Success");
+ * }</pre>
+ *
+ * @see com.shaft.gui.element.internal.Actions
+ * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Element Actions</a>
+ */
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class ElementActions extends FluentWebDriverAction {
     public ElementActions() {

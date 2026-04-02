@@ -11,27 +11,45 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Provides report-level helper operations for attaching execution artifacts.
+ */
 public class ReportHelper {
     private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
+    /**
+     * Attaches the engine log file to the report.
+     */
     public static void attachEngineLog() {
         String executionEndTimestamp = TIMESTAMP_FORMATTER.format(ZonedDateTime.now());
         ReportManagerHelper.attachEngineLog(executionEndTimestamp);
     }
 
+    /**
+     * Attaches the issues log file to the report.
+     */
     public static void attachIssuesLog() {
         String executionEndTimestamp = TIMESTAMP_FORMATTER.format(ZonedDateTime.now());
         ReportManagerHelper.attachIssuesLog(executionEndTimestamp);
     }
 
+    /**
+     * Enables logging output temporarily.
+     */
     public static void enableLogging() {
         SHAFT.Properties.reporting.set().disableLogging(false);
     }
 
+    /**
+     * Disables logging output temporarily.
+     */
     public static void disableLogging() {
         SHAFT.Properties.reporting.set().disableLogging(true);
     }
 
+    /**
+     * Attaches loaded property files as nested report steps.
+     */
     public static void attachPropertyFiles() {
         ReportManager.logDiscrete("Initializing Properties...");
         disableLogging();
@@ -44,6 +62,9 @@ public class ReportHelper {
         enableLogging();
     }
 
+    /**
+     * Attaches the generated Cucumber HTML report when available.
+     */
     public static void attachCucumberReport() {
         if (FileActions.getInstance(true).doesFileExist("allure-results/cucumberReport.html")) {
             ReportManagerHelper.attach("HTML", "Cucumber Execution Report", FileActions.getInstance(true).readFile("allure-results/cucumberReport.html"));

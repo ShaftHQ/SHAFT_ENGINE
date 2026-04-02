@@ -13,6 +13,26 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executors;
 
+/**
+ * Manages database connections and query execution for supported relational
+ * database systems.
+ *
+ * <p>Supports MySQL, SQL Server, PostgreSQL, Oracle (SID or service name),
+ * and IBM DB2 via JDBC. Provides methods for executing SELECT queries and
+ * retrieving results as {@link ResultSet} objects.
+ *
+ * <p>Thread safety: Each instance maintains per-thread result sets via
+ * {@link ThreadLocal} to support parallel test execution.
+ *
+ * <p><b>Usage example:</b>
+ * <pre>{@code
+ * SHAFT.DB db = new SHAFT.DB(DatabaseActions.DatabaseType.MY_SQL,
+ *         "localhost", "3306", "testdb", "user", "pass");
+ * ResultSet rs = db.executeSelectQuery("SELECT * FROM users");
+ * }</pre>
+ *
+ * @see com.shaft.driver.SHAFT.DB
+ */
 @SuppressWarnings("unused")
 public class DatabaseActions {
     private final ThreadLocal<ResultSet> resultSetThreadLocal = new ThreadLocal<>();

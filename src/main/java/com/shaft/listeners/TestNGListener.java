@@ -19,6 +19,8 @@ import com.shaft.tools.io.internal.*;
 import io.qameta.allure.Allure;
 import lombok.Getter;
 import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.testng.*;
 import org.testng.annotations.ITestAnnotation;
 import org.testng.internal.IResultListener2;
@@ -37,8 +39,33 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * Central TestNG listener that orchestrates SHAFT's engine lifecycle, test
+ * execution tracking, reporting integration, and suite-level configuration.
+ *
+ * <p>This listener is automatically registered via the Maven Surefire plugin
+ * configuration and implements multiple TestNG listener interfaces to hook
+ * into every phase of the test lifecycle:
+ * <ul>
+ *   <li>{@link IAlterSuiteListener} &ndash; Modifies suite XML before execution.</li>
+ *   <li>{@link IAnnotationTransformer} &ndash; Applies retry analyzers and adjusts annotations.</li>
+ *   <li>{@link IExecutionListener} &ndash; Engine setup on start, telemetry/reporting on finish.</li>
+ *   <li>{@link ISuiteListener} &ndash; Suite-level setup and teardown.</li>
+ *   <li>{@link IInvokedMethodListener} &ndash; Before/after each test method invocation.</li>
+ *   <li>{@link ITestListener} &amp; {@link IResultListener2} &ndash; Test result tracking.</li>
+ *   <li>{@link IMethodInterceptor} &ndash; Test method ordering/filtering.</li>
+ * </ul>
+ *
+ * <p>Thread safety: Shared state (e.g., passed/failed/skipped lists) is
+ * protected with synchronized collections or {@link java.util.concurrent.atomic.AtomicInteger}.
+ * Per-thread state uses {@link ThreadLocal} variables.
+ *
+ * @see com.shaft.listeners.internal.TestNGListenerHelper
+ */
 public class TestNGListener implements IAlterSuiteListener, IAnnotationTransformer,
         IExecutionListener, ISuiteListener, IInvokedMethodListener, ITestListener, IResultListener2, IMethodInterceptor {
+
+    private static final Logger logger = LogManager.getLogger(TestNGListener.class);
 
     public static final Supplier<ITestNGService> REPORT_PORTAL_SERVICE = new MemoizingSupplier<>(() -> new TestNGService(ReportPortal.builder().build()));
     private static final List<ITestNGMethod> passedTests = Collections.synchronizedList(new ArrayList<>());
@@ -63,13 +90,13 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         var isUsingTestNG = stacktraceSupplier.get().anyMatch(TestNG.class.getCanonicalName()::equals);
         var isUsingCucumber = stacktraceSupplier.get().anyMatch(io.cucumber.core.runner.Runner.class.getCanonicalName()::equals);
         if (isUsingJunitDiscovery || isUsingTestNG) {
-            System.out.println("TestNG run detected...");
+            logger.info("TestNG run detected...");
             return ProjectStructureManager.RunType.TESTNG;
         } else if (isUsingCucumber) {
-            System.out.println("Cucumber run detected...");
+            logger.info("Cucumber run detected...");
             return ProjectStructureManager.RunType.CUCUMBER;
         } else {
-            System.out.println("JUnit5 run detected...");
+            logger.info("JUnit5 run detected...");
             return ProjectStructureManager.RunType.JUNIT;
         }
     }

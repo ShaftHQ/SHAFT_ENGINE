@@ -11,6 +11,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+/**
+ * Builds configured {@link FluentWait} instances used by SHAFT element actions.
+ *
+ * <p>Thread safety: instances are stateful per driver session and should not be shared
+ * across different WebDriver sessions.</p>
+ */
 public class SynchronizationManager {
     private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 100; // milliseconds
 
@@ -35,15 +41,32 @@ public class SynchronizationManager {
     private final WebDriver driver;
     private final boolean isSafari;
 
+    /**
+     * Creates a synchronization manager bound to a specific driver session.
+     *
+     * @param driver the target {@link WebDriver} instance
+     */
     public SynchronizationManager(WebDriver driver) {
         this.driver = driver;
         this.isSafari = SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName());
     }
 
+    /**
+     * Creates a fluent wait using default expected exceptions.
+     *
+     * @return a configured {@link FluentWait} instance
+     */
     public FluentWait<WebDriver> fluentWait() {
         return fluentWait(false);
     }
 
+    /**
+     * Creates a fluent wait and optionally includes visibility-related exceptions.
+     *
+     * @param isValidToCheckForVisibility {@code true} to include visibility exceptions,
+     *                                    {@code false} otherwise
+     * @return a configured {@link FluentWait} instance
+     */
     public FluentWait<WebDriver> fluentWait(boolean isValidToCheckForVisibility) {
         return new FluentWait<>(driver)
                 .withTimeout(Duration.ofSeconds((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout())))

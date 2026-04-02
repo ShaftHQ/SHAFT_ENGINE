@@ -14,6 +14,21 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
+/**
+ * Reads and parses YAML test-data files using SnakeYAML.
+ *
+ * <p>Supports dot-notation key paths (e.g., {@code "parent.child.key"})
+ * and list indexing (e.g., {@code "items[0].name"}) for accessing nested
+ * values.
+ *
+ * <p><b>Usage example:</b>
+ * <pre>{@code
+ * SHAFT.TestData.YAML data = new SHAFT.TestData.YAML("config.yaml");
+ * String value = data.getTestData("database.host");
+ * }</pre>
+ *
+ * @see com.shaft.driver.SHAFT.TestData.YAML
+ */
 @SuppressWarnings("unused")
 public class YAMLFileManager {
     public final static String KEY_CONTAINS_LIST_REGEX = "^[-a-zA-Z\\d_!@#$%^&*()+=|\\\\/?><\"'{}~]*(\\[\\d+])+$";

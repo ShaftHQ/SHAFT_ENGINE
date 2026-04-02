@@ -20,6 +20,20 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Executes shell commands on local or remote terminals.
+ *
+ * <p>Supports local OS command execution via {@link ProcessBuilder} and
+ * remote command execution over SSH using JSch. Commands can be run
+ * synchronously or asynchronously with configurable timeouts.
+ *
+ * <p><b>Usage example:</b>
+ * <pre>{@code
+ * SHAFT.CLI.terminal().performTerminalCommand("ls -la");
+ * }</pre>
+ *
+ * @see com.shaft.driver.SHAFT.CLI
+ */
 @SuppressWarnings("unused")
 public class TerminalActions {
     @Getter

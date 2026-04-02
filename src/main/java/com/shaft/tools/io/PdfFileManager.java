@@ -13,6 +13,14 @@ import org.apache.pdfbox.text.PDFTextStripper;
 import java.io.File;
 import java.io.IOException;
 
+/**
+ * Reads and extracts text content from PDF files using Apache PDFBox.
+ *
+ * <p>Provides methods for reading full-page text or specific page
+ * content from PDF documents.
+ *
+ * @see com.shaft.cli.FileActions
+ */
 @SuppressWarnings("unused")
 public class PdfFileManager {
 

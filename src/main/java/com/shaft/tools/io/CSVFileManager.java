@@ -12,6 +12,20 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
 
+/**
+ * Reads and parses CSV test-data files using Apache Commons CSV.
+ *
+ * <p>Provides row-based and column-based access to CSV data.
+ * Files are resolved relative to the project's test data directory.
+ *
+ * <p><b>Usage example:</b>
+ * <pre>{@code
+ * SHAFT.TestData.CSV data = new SHAFT.TestData.CSV("users.csv");
+ * String value = data.getCellData("username", 1);
+ * }</pre>
+ *
+ * @see com.shaft.driver.SHAFT.TestData.CSV
+ */
 @SuppressWarnings("unused")
 public class CSVFileManager {
     private FileReader reader;

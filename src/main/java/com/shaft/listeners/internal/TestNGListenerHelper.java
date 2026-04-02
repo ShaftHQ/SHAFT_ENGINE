@@ -24,12 +24,20 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Provides TestNG lifecycle helper operations for logging, artifact attachment, and suite shaping.
+ */
 public class TestNGListenerHelper {
 
     private static final List<ITestResult> beforeMethods = Collections.synchronizedList(new ArrayList<>());
     private static final List<ITestResult> afterMethods = Collections.synchronizedList(new ArrayList<>());
     private static final ThreadLocal<String> testName = new ThreadLocal<>();
 
+    /**
+     * Stores the total number of tests in the current suite when applicable.
+     *
+     * @param testSuite current TestNG suite
+     */
     public static void setTotalNumberOfTests(ISuite testSuite) {
         // This condition checks to confirm that this is not a cucumber test runner instance
         // If this condition is removed the total number of tests will be zero because the cucumber
@@ -39,11 +47,19 @@ public class TestNGListenerHelper {
         }
     }
 
+    /**
+     * Attaches any pending before/after configuration artifacts.
+     */
     public static void attachConfigurationMethods() {
         attachBeforeConfigurationMethods();
         attachAfterConfigurationMethods();
     }
 
+    /**
+     * Updates cached configuration results for later artifact attachment.
+     *
+     * @param iTestResult current TestNG result
+     */
     public static void updateConfigurationMethods(ITestResult iTestResult) {
         updateBeforeConfigurationMethods(iTestResult);
         updateAfterConfigurationMethods(iTestResult);
@@ -94,14 +110,29 @@ public class TestNGListenerHelper {
         }
     }
 
+    /**
+     * Gets the current logical test name for the active thread.
+     *
+     * @return the current test name, or {@code null} if not set
+     */
     public static String getTestName() {
         return testName.get();
     }
 
+    /**
+     * Stores the current XML test name for the active thread.
+     *
+     * @param iTestContext current TestNG context
+     */
     public static void setTestName(ITestContext iTestContext) {
         testName.set(iTestContext.getCurrentXmlTest().getName());
     }
 
+    /**
+     * Expands suites for cross-browser execution according to configured mode.
+     *
+     * @param suites mutable list of TestNG suites
+     */
     public static void configureCrossBrowserExecution(List<XmlSuite> suites) {
         String crossBrowserMode = SHAFT.Properties.platform.crossBrowserMode();
         List<Browser> supportedBrowsers = Arrays.asList(Browser.CHROME, Browser.SAFARI, Browser.FIREFOX, Browser.EDGE);
@@ -157,12 +188,20 @@ public class TestNGListenerHelper {
         });
     }
 
+    /**
+     * Appends configuration helper classes to all XML tests in the provided suites.
+     *
+     * @param suites mutable list of TestNG suites
+     */
     public static void attachConfigurationHelperClass(List<XmlSuite> suites) {
         suites.forEach(xmlSuite ->
                 xmlSuite.getTests().forEach(xmlTest ->
                         xmlTest.getClasses().add(new XmlClass(ConfigurationHelper.class.getName()))));
     }
 
+    /**
+     * Configures JVM-level proxy settings when enabled.
+     */
     public static void configureJVMProxy() {
         String PROXY_SERVER_SETTINGS = SHAFT.Properties.platform.proxy();
         if (SHAFT.Properties.platform.jvmProxySettings() && !PROXY_SERVER_SETTINGS.isEmpty()) {
@@ -176,6 +215,11 @@ public class TestNGListenerHelper {
         }
     }
 
+    /**
+     * Attaches generated artifacts and logs for a test result.
+     *
+     * @param iTestResult current TestNG result
+     */
     public static void attachTestArtifacts(ITestResult iTestResult) {
         ITestNGMethod iTestNGMethod = iTestResult.getMethod();
 
@@ -198,6 +242,12 @@ public class TestNGListenerHelper {
         }
     }
 
+    /**
+     * Creates a single test-log string from TestNG reporter output entries.
+     *
+     * @param output reporter output lines
+     * @return aggregated log text
+     */
     public static String createTestLog(List<String> output) {
         StringBuilder builder = new StringBuilder();
         for (String each : output) {
@@ -212,6 +262,11 @@ public class TestNGListenerHelper {
         }
     }
 
+    /**
+     * Skips tests that are linked to known issues when that flag is enabled.
+     *
+     * @param iTestResult current TestNG result
+     */
     public static void skipTestsWithLinkedIssues(ITestResult iTestResult) {
         if (SHAFT.Properties.flags.skipTestsWithLinkedIssues()) {
             var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
@@ -232,6 +287,12 @@ public class TestNGListenerHelper {
         }
     }
 
+    /**
+     * Extracts issue annotation values from a test method.
+     *
+     * @param iTestResult current TestNG result
+     * @return issue value(s), or empty string if none exist
+     */
     public static String getIssueAnnotationValue(ITestResult iTestResult) {
         var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
         Issue issue = method.getAnnotation(Issue.class);
@@ -249,6 +310,12 @@ public class TestNGListenerHelper {
         }
     }
 
+    /**
+     * Extracts TMS link annotation values from a test method.
+     *
+     * @param iTestResult current TestNG result
+     * @return TMS link value(s), or empty string if none exist
+     */
     public static String getTmsLinkAnnotationValue(ITestResult iTestResult) {
         var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
         TmsLink tmsLink = method.getAnnotation(TmsLink.class);

@@ -25,6 +25,21 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
+/**
+ * Utility class for file-system operations such as copying, deleting,
+ * compressing, and extracting files and directories.
+ *
+ * <p>Use {@link #getInstance()} to obtain an instance. Supports reading
+ * file content, computing checksums, and managing file paths across
+ * different operating systems.
+ *
+ * <p><b>Usage example:</b>
+ * <pre>{@code
+ * FileActions.getInstance().copyFile("source.txt", "dest.txt");
+ * }</pre>
+ *
+ * @see com.shaft.driver.SHAFT.CLI
+ */
 public class FileActions {
     private static final String ERROR_CANNOT_CREATE_DIRECTORY = "Could not create directory: ";
     private boolean internalInstance = false;

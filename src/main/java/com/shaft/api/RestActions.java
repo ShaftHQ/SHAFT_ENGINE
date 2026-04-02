@@ -61,6 +61,29 @@ import java.util.concurrent.TimeUnit;
 import static io.restassured.RestAssured.config;
 import static io.restassured.RestAssured.given;
 
+/**
+ * Core REST API automation engine for SHAFT, built on top of REST Assured.
+ *
+ * <p>This class handles HTTP request construction, execution, response
+ * parsing, and validation for RESTful web services. It supports GET, POST,
+ * PUT, PATCH, and DELETE methods, along with GraphQL queries.
+ *
+ * <p>For new code, prefer using {@link com.shaft.driver.SHAFT.API} which
+ * provides a cleaner, session-scoped fluent interface. This class remains
+ * available for legacy compatibility and for its static utility methods
+ * such as {@link #getResponseJSONValue(Response, String)}.
+ *
+ * <p><b>Usage example (via SHAFT.API):</b>
+ * <pre>{@code
+ * SHAFT.API api = new SHAFT.API("https://jsonplaceholder.typicode.com");
+ * api.get("/posts/1").setTargetStatusCode(200).performRequest();
+ * String title = api.getResponseJSONValue("$.title");
+ * }</pre>
+ *
+ * @see com.shaft.driver.SHAFT.API
+ * @see RequestBuilder
+ * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
+ */
 @SuppressWarnings("unused")
 public class RestActions {
     private static final String ARGUMENT_SEPARATOR = "?";

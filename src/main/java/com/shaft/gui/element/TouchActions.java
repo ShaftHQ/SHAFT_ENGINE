@@ -31,6 +31,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.Arrays.asList;
 
+/**
+ * Provides touch and gesture actions for mobile test automation, including
+ * tap, swipe, pinch, and scroll operations on Android and iOS devices.
+ *
+ * <p>This class extends {@link FluentWebDriverAction} and supports method
+ * chaining for fluent test composition. It works with Appium drivers for
+ * native, hybrid, and mobile-web applications.
+ *
+ * <p><b>Usage example:</b>
+ * <pre>{@code
+ * driver.touch().swipeElementIntoView(targetLocator, TouchActions.SwipeDirection.DOWN)
+ *       .and().element().assertThat(targetLocator).isVisible();
+ * }</pre>
+ *
+ * @see com.shaft.driver.SHAFT.GUI.WebDriver#touch()
+ */
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class TouchActions extends FluentWebDriverAction {
     private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 5;
