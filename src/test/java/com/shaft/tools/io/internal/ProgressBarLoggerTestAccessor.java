@@ -1,0 +1,12 @@
+package com.shaft.tools.io.internal;
+
+public final class ProgressBarLoggerTestAccessor {
+
+    private ProgressBarLoggerTestAccessor() {
+        throw new IllegalStateException("Utility class");
+    }
+
+    public static boolean isAnsiColorEnabledForCurrentEnvironment() {
+        return ProgressBarLogger.shouldUseAnsiColors();
+    }
+}

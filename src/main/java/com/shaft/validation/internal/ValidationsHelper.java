@@ -41,8 +41,10 @@ public class ValidationsHelper {
     }
 
     public static void resetVerificationStateAfterFailing() {
-        verificationFailuresList.set(new ArrayList<>());
+        verificationFailuresList.remove();
         verificationError.remove();
+        optionalCustomLogMessage.remove();
+        lastUsedElementLocator.remove();
     }
 
     private static void reportValidationState(WebDriver driver, ValidationCategory validationCategory, String expectedValue, String actualValue,
@@ -95,8 +97,8 @@ public class ValidationsHelper {
             // create a screenshot attachment if needed for webdriver
             attachments.add(new ScreenshotManager().takeScreenshot(driver, lastUsedElementLocator.get(),
                     validationMethodName, validationState.getValue()));
-            // reset lastUsed variables
-            lastUsedElementLocator.set(null);
+            // reset last-used locator to avoid retaining references across reused pooled threads
+            lastUsedElementLocator.remove();
             //}
         }
         if (driver != null && !WHEN_TO_TAKE_PAGE_SOURCE_SNAPSHOT.equalsIgnoreCase("Never")) {
@@ -182,15 +184,8 @@ public class ValidationsHelper {
     }
 
     static boolean isExpectedOrActualValueLong(String expectedValue, String actualValue) {
-        boolean isExpectedOrActualValueLong = false;
-        if (actualValue == null && expectedValue != null) {
-            isExpectedOrActualValueLong = expectedValue.length() >= 500;
-        } else if (actualValue != null && expectedValue == null) {
-            isExpectedOrActualValueLong = actualValue.length() >= 500;
-        } else if (actualValue != null) {
-            isExpectedOrActualValueLong = expectedValue.length() >= 500 || actualValue.length() >= 500;
-        }
-        return isExpectedOrActualValueLong;
+        return (expectedValue != null && expectedValue.length() >= 500)
+                || (actualValue != null && actualValue.length() >= 500);
     }
 
     private static void processCustomLogMessage(String... optionalCustomLogMessage) {
@@ -201,6 +196,22 @@ public class ValidationsHelper {
                 //ReportManager.log(customMessage + "...");
             }
         }
+    }
+
+    static ArrayList<String> getOptionalCustomLogMessageForTesting() {
+        return optionalCustomLogMessage.get();
+    }
+
+    static void setOptionalCustomLogMessageForTesting(ArrayList<String> messages) {
+        optionalCustomLogMessage.set(messages);
+    }
+
+    static By getLastUsedElementLocatorForTesting() {
+        return lastUsedElementLocator.get();
+    }
+
+    static void setLastUsedElementLocatorForTesting(By locator) {
+        lastUsedElementLocator.set(locator);
     }
 
     protected void validateFail(ValidationCategory validationCategory, String customReportMessage) {
