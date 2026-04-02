@@ -97,7 +97,7 @@ public class ValidationsHelper {
             // create a screenshot attachment if needed for webdriver
             attachments.add(new ScreenshotManager().takeScreenshot(driver, lastUsedElementLocator.get(),
                     validationMethodName, validationState.getValue()));
-            // reset lastUsed variables
+            // reset last-used locator to avoid retaining references across reused pooled threads
             lastUsedElementLocator.remove();
             //}
         }
@@ -184,15 +184,8 @@ public class ValidationsHelper {
     }
 
     static boolean isExpectedOrActualValueLong(String expectedValue, String actualValue) {
-        boolean isExpectedOrActualValueLong = false;
-        if (actualValue == null && expectedValue != null) {
-            isExpectedOrActualValueLong = expectedValue.length() >= 500;
-        } else if (actualValue != null && expectedValue == null) {
-            isExpectedOrActualValueLong = actualValue.length() >= 500;
-        } else if (actualValue != null) {
-            isExpectedOrActualValueLong = expectedValue.length() >= 500 || actualValue.length() >= 500;
-        }
-        return isExpectedOrActualValueLong;
+        return (expectedValue != null && expectedValue.length() >= 500)
+                || (actualValue != null && actualValue.length() >= 500);
     }
 
     private static void processCustomLogMessage(String... optionalCustomLogMessage) {

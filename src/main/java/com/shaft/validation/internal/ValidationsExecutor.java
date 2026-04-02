@@ -142,21 +142,25 @@ public class ValidationsExecutor {
 
     protected void internalPerform() {
         JavaScriptWaitManager.waitForLazyLoading(driver.get());
-        boolean clearCustomReportMessage = false;
+        boolean generatedCustomReportMessage = false;
         if (customReportMessage.isBlank()) {
             customReportMessage = reportMessageBuilder.toString();
-            clearCustomReportMessage = true;
+            generatedCustomReportMessage = true;
         }
         this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
         ReportManager.logDiscrete(this.validationCategoryString + " that " + this.customReportMessage);
-        try (ProgressBarLogger ignored = new ProgressBarLogger(this.validationCategoryString.equals("Assert") ? "Asserting..." : "Verifying...")) {
-            // perform validation
-            performValidation();
+        String progressTaskName = this.validationCategoryString.equals("Assert") ? "Asserting..." : "Verifying...";
+        try {
+            try (ProgressBarLogger ignored = new ProgressBarLogger(progressTaskName)) {
+                performValidation();
+            }
+        } finally {
+            if (generatedCustomReportMessage) {
+                customReportMessage = "";
+            }
+            driver.remove();
+            response.remove();
         }
-        if (Boolean.TRUE.equals(clearCustomReportMessage))
-            customReportMessage = "";
-        driver.remove();
-        response.remove();
     }
 
     @Step(" {this.validationCategoryString} that {this.customReportMessage}")

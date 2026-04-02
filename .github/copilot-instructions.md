@@ -538,6 +538,12 @@ public class API {
 - Follow secure coding practices from the CONTRIBUTING.md file
 - All code changes undergo security scanning via CodeQL
 
+## Continuous Improvement Guard Rails (PDCA Cycles 2-5)
+- When modifying validation/reporting internals, clear `ThreadLocal` state with `.remove()` at lifecycle boundaries.
+- For progress/log UX, prefer readable output in CI/non-interactive terminals and avoid forcing ANSI colors.
+- Keep complexity reductions small and behavior-preserving (extract/inline only what is needed).
+- Add/adjust focused tests for every non-trivial behavior change.
+
 ## Testing Guidelines
 - **You MUST create tests for every new feature, bug fix, or code modification**
 - **You MUST run all affected tests and confirm they pass before committing**
