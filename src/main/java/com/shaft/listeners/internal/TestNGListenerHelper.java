@@ -129,6 +129,14 @@ public class TestNGListenerHelper {
     }
 
     /**
+     * Removes thread-local state held by this helper, preventing memory leaks
+     * in pooled thread environments.
+     */
+    public static void cleanup() {
+        testName.remove();
+    }
+
+    /**
      * Expands suites for cross-browser execution according to configured mode.
      *
      * @param suites mutable list of TestNG suites

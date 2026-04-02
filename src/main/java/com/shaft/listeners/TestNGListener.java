@@ -345,6 +345,11 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
 //            TestNGListenerHelper.updateConfigurationMethodLogs(iTestResult);
         TestNGListenerHelper.logFinishedTestInformation(iTestResult);
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
+        // Clean up thread-local state when the last after-class config method finishes
+        if (iInvokedMethod.isConfigurationMethod() && iInvokedMethod.getTestMethod().isAfterClassConfiguration()) {
+            activeTestClass.remove();
+            TestNGListenerHelper.cleanup();
+        }
     }
 
     /**

@@ -18,6 +18,16 @@ public class LocatorBuilder {
     private ArrayList<String> parameters = new ArrayList<>();
     private String order = "";
 
+    /**
+     * Removes all thread-local state held by this builder, preventing memory leaks
+     * in long-running or parallel test environments.
+     */
+    public static void cleanup() {
+        mode.remove();
+        iFrameLocator.remove();
+        shadowDomLocator.remove();
+    }
+
     @SuppressWarnings("unused")
     private LocatorBuilder() {
         // do nothing

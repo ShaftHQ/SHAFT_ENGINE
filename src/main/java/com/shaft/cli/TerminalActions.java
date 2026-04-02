@@ -346,23 +346,25 @@ public class TerminalActions {
                     Process localProcess = pb.start();
                     // output logs
                     String line;
-                    InputStreamReader isr = new InputStreamReader(localProcess.getInputStream());
-                    BufferedReader rdr = new BufferedReader(isr);
-                    while ((line = rdr.readLine()) != null) {
-                        if (Boolean.TRUE.equals(verbose)) {
-                            ReportManager.logDiscrete(line);
+                    try (InputStreamReader isr = new InputStreamReader(localProcess.getInputStream());
+                         BufferedReader rdr = new BufferedReader(isr)) {
+                        while ((line = rdr.readLine()) != null) {
+                            if (Boolean.TRUE.equals(verbose)) {
+                                ReportManager.logDiscrete(line);
+                            }
+                            logs.append(line);
+                            logs.append("\n");
                         }
-                        logs.append(line);
-                        logs.append("\n");
                     }
-                    isr = new InputStreamReader(localProcess.getErrorStream());
-                    rdr = new BufferedReader(isr);
-                    while ((line = rdr.readLine()) != null) {
-                        if (Boolean.TRUE.equals(verbose)) {
-                            ReportManager.logDiscrete(line);
+                    try (InputStreamReader isr = new InputStreamReader(localProcess.getErrorStream());
+                         BufferedReader rdr = new BufferedReader(isr)) {
+                        while ((line = rdr.readLine()) != null) {
+                            if (Boolean.TRUE.equals(verbose)) {
+                                ReportManager.logDiscrete(line);
+                            }
+                            logs.append("\n");
+                            logs.append(line);
                         }
-                        logs.append("\n");
-                        logs.append(line);
                     }
                     // Wait for the process to complete
                     localProcess.waitFor(SHAFT.Properties.timeouts.shellSessionTimeout(), TimeUnit.MINUTES);
@@ -423,10 +425,11 @@ public class TerminalActions {
                 remoteChannelExecutor.connect();
 
                 // Capture logs and close readers
-                BufferedReader reader = new BufferedReader(new InputStreamReader(remoteChannelExecutor.getInputStream()));
-                BufferedReader errorReader = new BufferedReader(new InputStreamReader(remoteChannelExecutor.getErrStream()));
-                logs.append(readConsoleLogs(reader));
-                logs.append(readConsoleLogs(errorReader));
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(remoteChannelExecutor.getInputStream()));
+                     BufferedReader errorReader = new BufferedReader(new InputStreamReader(remoteChannelExecutor.getErrStream()))) {
+                    logs.append(readConsoleLogs(reader));
+                    logs.append(readConsoleLogs(errorReader));
+                }
 
                 // Retrieve the exit status of the executed command and destroy open sessions
                 exitStatuses.append(remoteChannelExecutor.getExitStatus());

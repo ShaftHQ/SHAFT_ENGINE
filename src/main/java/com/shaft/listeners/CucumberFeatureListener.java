@@ -252,6 +252,12 @@ public class CucumberFeatureListener extends AllureCucumber7Jvm {
         lifecycle.writeTestCase(uuid);
         lifecycle.writeTestContainer(getTestContainerUuid());
         RealtimeReporter.clearCurrentTestId();
+        // Clean up thread-local state to prevent memory leaks
+        currentFeature.remove();
+        currentFeatureFile.remove();
+        currentTestCase.remove();
+        currentContainer.remove();
+        forbidTestCaseStatusChange.remove();
     }
 
     private void handleTestStepStarted(final TestStepStarted event) {
