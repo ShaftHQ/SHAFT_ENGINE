@@ -198,22 +198,6 @@ public class ValidationsHelper {
         }
     }
 
-    static ArrayList<String> getOptionalCustomLogMessageForTesting() {
-        return optionalCustomLogMessage.get();
-    }
-
-    static void setOptionalCustomLogMessageForTesting(ArrayList<String> messages) {
-        optionalCustomLogMessage.set(messages);
-    }
-
-    static By getLastUsedElementLocatorForTesting() {
-        return lastUsedElementLocator.get();
-    }
-
-    static void setLastUsedElementLocatorForTesting(By locator) {
-        lastUsedElementLocator.set(locator);
-    }
-
     protected void validateFail(ValidationCategory validationCategory, String customReportMessage) {
         processCustomLogMessage(customReportMessage);
         fail(null, validationCategory, null, null, null, null, new AssertionError(customReportMessage));

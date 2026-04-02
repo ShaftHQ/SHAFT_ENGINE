@@ -1,7 +1,6 @@
 package testPackage.unitTests;
 
 import com.shaft.properties.internal.Properties;
-import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.internal.ProgressBarLoggerTestAccessor;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.internal.ValidationsExecutor;
@@ -21,6 +20,7 @@ public class ValidationAndProgressBarTests {
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
         Properties.clearForCurrentThread();
+        System.clearProperty("cucumber.ansi-colors.disabled");
         ValidationsHelper.resetVerificationStateAfterFailing();
     }
 
@@ -39,7 +39,7 @@ public class ValidationAndProgressBarTests {
 
     @Test(description = "ProgressBarLogger should disable ANSI colors when cucumber.ansi-colors.disabled is true")
     public void shouldUseAnsiColorsShouldReturnFalseWhenAnsiIsDisabled() {
-        ThreadLocalPropertiesManager.setProperty("cucumber.ansi-colors.disabled", "true");
+        System.setProperty("cucumber.ansi-colors.disabled", "true");
         boolean actual = ProgressBarLoggerTestAccessor.isAnsiColorEnabledForCurrentEnvironment();
         Assert.assertFalse(actual, "ANSI colors should be disabled when cucumber.ansi-colors.disabled=true.");
     }

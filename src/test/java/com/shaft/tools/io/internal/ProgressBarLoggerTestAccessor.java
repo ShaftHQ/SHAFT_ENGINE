@@ -11,6 +11,6 @@ public final class ProgressBarLoggerTestAccessor {
     }
 
     public static boolean interruptedFlagShouldBeSet() {
-        return ProgressBarLogger.handleInterruptedProgressUpdate(new InterruptedException("test interruption"));
+        return ProgressBarLogger.handleInterruptedProgressUpdate();
     }
 }

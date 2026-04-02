@@ -1,7 +1,6 @@
 package com.shaft.tools.io.internal;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import me.tongfei.progressbar.ProgressBar;
 import me.tongfei.progressbar.ProgressBarBuilder;
 import me.tongfei.progressbar.ProgressBarStyle;
@@ -72,7 +71,7 @@ public class ProgressBarLogger implements AutoCloseable {
                 try {
                     Thread.sleep(Duration.ofSeconds(1));
                 } catch (InterruptedException e) {
-                    interrupted = handleInterruptedProgressUpdate(e);
+                    interrupted = handleInterruptedProgressUpdate();
                     break;
                 }
                 pb.step();
@@ -87,20 +86,22 @@ public class ProgressBarLogger implements AutoCloseable {
         service.submit(task);
     }
 
-    static boolean handleInterruptedProgressUpdate(InterruptedException interruptedException) {
+    static boolean handleInterruptedProgressUpdate() {
         Thread.currentThread().interrupt();
         return true;
     }
 
     static boolean shouldUseAnsiColors() {
-        String ansiDisabled = ThreadLocalPropertiesManager.getProperty("cucumber.ansi-colors.disabled");
+        // Delegate to SHAFT's unified Cucumber properties API so we honor all config sources
+        boolean ansiDisabled = SHAFT.Properties.cucumber.cucumberAnsiColorsDisabled();
         boolean hasConsole;
         try {
             hasConsole = System.console() != null;
         } catch (SecurityException ignored) {
             hasConsole = false;
         }
-        return (ansiDisabled == null || !Boolean.parseBoolean(ansiDisabled.trim())) && hasConsole;
+        // Enable ANSI colors only when they are not disabled by configuration and a console is present
+        return !ansiDisabled && hasConsole;
     }
 
     /**

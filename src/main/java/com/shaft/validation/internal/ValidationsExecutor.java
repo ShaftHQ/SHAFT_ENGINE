@@ -150,8 +150,10 @@ public class ValidationsExecutor {
         this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
         ReportManager.logDiscrete(this.validationCategoryString + " that " + this.customReportMessage);
         String progressTaskName = this.validationCategoryString.equals("Assert") ? "Asserting..." : "Verifying...";
-        try (ProgressBarLogger ignored = new ProgressBarLogger(progressTaskName)) {
-            performValidation();
+        try {
+            try (ProgressBarLogger ignored = new ProgressBarLogger(progressTaskName)) {
+                performValidation();
+            }
         } finally {
             if (generatedCustomReportMessage) {
                 customReportMessage = "";
