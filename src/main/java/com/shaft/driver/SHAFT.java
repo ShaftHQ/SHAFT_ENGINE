@@ -207,8 +207,13 @@ public class SHAFT {
             /**
              * Returns the current Selenium WebDriver instance for custom manipulation.
              *
-             * @return the underlying {@link org.openqa.selenium.WebDriver} instance,
-             *         optionally decorated with event-firing support
+             * <p>Note: Event-firing decoration is only applied for non-remote, non-Appium
+             * drivers when {@code enableTrueNativeMode} is disabled. Because most local
+             * Selenium drivers extend {@link RemoteWebDriver}, they will typically be
+             * returned undecorated.</p>
+             *
+             * @return the underlying {@link org.openqa.selenium.WebDriver} instance for
+             *         this session
              */
             public org.openqa.selenium.WebDriver getDriver() {
                 /*

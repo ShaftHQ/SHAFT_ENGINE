@@ -7,7 +7,7 @@ The more you contribute, the more you'll get the hang of how things are done.
 
 For any fixes we need evidence before and after the fix on all impacted platforms.
 For every new feature we need tests to validate it.
-For every new public method we need clear JAVADOCS.
+For every new public method we need clear JavaDocs.
 
 Nothing fancy... Just keep it clear and simple.
 

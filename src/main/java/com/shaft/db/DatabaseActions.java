@@ -17,8 +17,8 @@ import java.util.concurrent.Executors;
  * Manages database connections and query execution for supported relational
  * database systems.
  *
- * <p>Supports MySQL, SQL Server, PostgreSQL, Oracle, IBM DB2, H2, and
- * MongoDB via JDBC. Provides methods for executing SELECT queries and
+ * <p>Supports MySQL, SQL Server, PostgreSQL, Oracle (SID or service name),
+ * and IBM DB2 via JDBC. Provides methods for executing SELECT queries and
  * retrieving results as {@link ResultSet} objects.
  *
  * <p>Thread safety: Each instance maintains per-thread result sets via
