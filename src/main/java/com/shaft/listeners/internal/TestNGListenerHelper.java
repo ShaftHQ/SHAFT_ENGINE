@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.internal.image.AnimatedGifManager;
+import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Issue;
@@ -134,6 +135,7 @@ public class TestNGListenerHelper {
      */
     public static void cleanup() {
         testName.remove();
+        LocatorBuilder.cleanup();
     }
 
     /**

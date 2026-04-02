@@ -155,6 +155,17 @@ public class RestActions {
                 .setContentType(ContentType.JSON).addHeader(headerKey_forHelperMethod, headerValue_forHelperMethod).performRequest().getResponse();
     }
 
+    /**
+     * Builds a new API request using a static factory approach.
+     * Prefer using {@link com.shaft.driver.SHAFT.API} and its instance-level
+     * {@link #buildNewRequest(String, RequestType)} for new tests.
+     *
+     * @param serviceURI    the base URI of the service (e.g. {@code "https://api.example.com/"})
+     * @param serviceName   the endpoint path (e.g. {@code "users/1"})
+     * @param requestType   the HTTP method to use (e.g. {@link RequestType#GET})
+     * @return a {@link RequestBuilder} ready for further configuration and execution
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
+     */
     public static RequestBuilder buildNewRequest(String serviceURI, String serviceName, RequestType requestType) {
         return new RequestBuilder(new RestActions(serviceURI), serviceName, requestType);
     }
@@ -189,10 +200,26 @@ public class RestActions {
         passAction(actionName, testData, requestBody, specs, response, false, null);
     }
 
+    /**
+     * Parses a REST Assured {@link Response} body into a JSON {@link InputStream}.
+     * Delegates to {@link #parseBodyToJson(Object)} using the response's raw body.
+     *
+     * @param response the API response whose body will be parsed
+     * @return an {@link InputStream} containing the JSON-formatted body
+     */
     public static InputStream parseBodyToJson(Response response) {
         return parseBodyToJson(response.getBody());
     }
 
+    /**
+     * Converts an arbitrary response body object to a JSON {@link InputStream}.
+     * If the object cannot be serialized as JSON, it is serialized using Java object
+     * serialization, or returned as a raw byte stream for REST-Assured response bodies.
+     *
+     * @param body the response body object to convert — may be a REST-Assured
+     *             {@link Response}, a {@link String}, or any serializable Java object
+     * @return an {@link InputStream} representing the body content
+     */
     public static InputStream parseBodyToJson(Object body) {
         try {
             return parseJsonBody(body);
@@ -283,6 +310,16 @@ public class RestActions {
         }
     }
 
+    /**
+     * Extracts a string value from an arbitrary response object by evaluating a JSONPath expression.
+     * Supports REST-Assured {@link Response}, {@link String}, {@link org.json.JSONObject},
+     * {@link org.json.JSONArray}, {@link java.util.List}, and {@link java.util.HashMap} inputs.
+     *
+     * @param response the response object to parse — not limited to REST-Assured {@link Response}
+     * @param jsonPath the JSONPath expression (e.g. {@code "$.id"} or {@code "id"})
+     * @return the extracted string value, or {@code null} if not found
+     * @see #getResponseJSONValue(Response, String) for the typed REST-Assured overload
+     */
     public static String getResponseJSONValue(Object response, String jsonPath) {
         String searchPool = null;
         try {
@@ -363,6 +400,14 @@ public class RestActions {
         }
     }
 
+    /**
+     * Extracts a list of values from the response body by evaluating a JSONPath expression.
+     *
+     * @param response the REST-Assured response object
+     * @param jsonPath the JSONPath expression that resolves to an array (e.g. {@code "$.items[*].id"})
+     * @return a {@link List} of matched objects, or {@code null} if none are found
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
+     */
     public static List<Object> getResponseJSONValueAsList(Response response, String jsonPath) {
         List<Object> searchPool = null;
         String jsonResponse = response.asPrettyString();
@@ -430,6 +475,14 @@ public class RestActions {
         return value;
     }
 
+    /**
+     * Extracts a string value from the XML response body using the given XPath expression.
+     *
+     * @param response the REST-Assured response object with an XML body
+     * @param xmlPath  the XPath expression (e.g. {@code "root.item.name"})
+     * @return the extracted string value, or {@code null} if not found
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
+     */
     public static String getResponseXMLValue(Response response, String xmlPath) {
         String searchPool = "";
         try {
@@ -449,6 +502,14 @@ public class RestActions {
         }
     }
 
+    /**
+     * Extracts a string attribute value from an XML {@link org.w3c.dom.Node} object.
+     *
+     * @param response an XML {@link org.w3c.dom.Node} (typically obtained from
+     *                 {@link #getResponseXMLValueAsList(Response, String)})
+     * @param xmlPath  the attribute name to retrieve from the node
+     * @return the attribute value string, or {@code null} if not found
+     */
     public static String getResponseXMLValue(Object response, String xmlPath) {
         String output = "";
         try {
@@ -468,6 +529,13 @@ public class RestActions {
         }
     }
 
+    /**
+     * Extracts a list of XML {@link org.w3c.dom.Node} children matching the given XPath expression.
+     *
+     * @param response the REST-Assured response object with an XML body
+     * @param xmlPath  the XPath expression to the desired node set (e.g. {@code "root.items"})
+     * @return a {@link List} of matched {@link Object} nodes, or {@code null} if not found
+     */
     public static List<Object> getResponseXMLValueAsList(Response response, String xmlPath) {
         NodeChildren output = null;
         try {
@@ -495,12 +563,24 @@ public class RestActions {
         }
     }
 
+    /**
+     * Returns the HTTP status code of the given API response and logs it.
+     *
+     * @param response the REST-Assured response object
+     * @return the HTTP status code (e.g. {@code 200}, {@code 404})
+     */
     public static int getResponseStatusCode(Response response) {
         int statusCode = response.getStatusCode();
         passAction(String.valueOf(statusCode));
         return statusCode;
     }
 
+    /**
+     * Returns the total elapsed time of the given API response in milliseconds.
+     *
+     * @param response the REST-Assured response object
+     * @return the response time in milliseconds
+     */
     public static long getResponseTime(Response response) {
         long time = response.timeIn(TimeUnit.MILLISECONDS);
         passAction(String.valueOf(time));
@@ -608,6 +688,12 @@ public class RestActions {
         return comparisonResult;
     }
 
+    /**
+     * Pretty-prints an XML string by re-formatting it with consistent indentation.
+     *
+     * @param input the raw XML string to format
+     * @return a neatly indented XML string, or the original input if formatting fails
+     */
     public static String formatXML(String input) {
         return prettyFormatXML(input);
     }
@@ -921,6 +1007,15 @@ public class RestActions {
         return graphQlRequestHelperWithHeader(base_URI, requestBody, header_key, header_value);
     }
 
+    /**
+     * Builds a new API request within this session, inheriting all session-level
+     * headers, cookies, and configuration.
+     *
+     * @param serviceName the endpoint path relative to this instance's base URI
+     * @param requestType the HTTP method to use (e.g. {@link RequestType#POST})
+     * @return a {@link RequestBuilder} for configuring and executing the request
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
+     */
     public RequestBuilder buildNewRequest(String serviceName, RequestType requestType) {
         return new RequestBuilder(this, serviceName, requestType);
     }
@@ -996,6 +1091,13 @@ public class RestActions {
         return this;
     }
 
+    /**
+     * Appends a cookie to every subsequent request in this session.
+     *
+     * @param key   the cookie name
+     * @param value the cookie value
+     * @return self-reference to be used for chaining actions
+     */
     public RestActions addCookieVariable(String key, String value) {
         sessionCookies.put(key, value);
         return this;
@@ -1304,14 +1406,17 @@ public class RestActions {
     }
 
 
+    /** Comparison strategy used when validating a response body against a reference JSON file. */
     public enum ComparisonType {
         EQUALS, CONTAINS, EQUALS_IGNORING_ORDER
     }
 
+    /** Defines how request parameters are encoded and transmitted. */
     public enum ParametersType {
         FORM, QUERY, MULTIPART
     }
 
+    /** HTTP methods supported for building API requests. */
     public enum RequestType {
         POST, GET, PATCH, DELETE, PUT
     }
