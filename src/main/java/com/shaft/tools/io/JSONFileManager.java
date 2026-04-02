@@ -18,6 +18,21 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Reads and parses JSON test-data files using JSONPath expressions.
+ *
+ * <p>Test data files are resolved relative to the project's
+ * {@code src/test/resources/testDataFiles/} directory. Values can be
+ * retrieved as strings or lists using JSONPath syntax.
+ *
+ * <p><b>Usage example:</b>
+ * <pre>{@code
+ * SHAFT.TestData.JSON testData = new SHAFT.TestData.JSON("users.json");
+ * String name = testData.getTestData("$.users[0].name");
+ * }</pre>
+ *
+ * @see com.shaft.driver.SHAFT.TestData.JSON
+ */
 @SuppressWarnings("unused")
 public class JSONFileManager {
     private static final ThreadLocal<FileReader> reader = new ThreadLocal<>();

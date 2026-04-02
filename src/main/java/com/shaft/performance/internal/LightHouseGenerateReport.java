@@ -14,6 +14,13 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+/**
+ * Generates Google Lighthouse performance reports for web pages by
+ * invoking the Lighthouse CLI tool via Node.js.
+ *
+ * <p>Reports are saved to the project's performance report directory and
+ * can be attached to Allure reports for CI/CD integration.
+ */
 public class LightHouseGenerateReport {
     private static final DateTimeFormatter FILENAME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSSS-a");
     final WebDriver driver;

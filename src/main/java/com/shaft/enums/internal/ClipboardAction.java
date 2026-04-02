@@ -2,6 +2,10 @@ package com.shaft.enums.internal;
 
 import lombok.Getter;
 
+/**
+ * Defines clipboard-related keyboard actions that can be performed on
+ * web and mobile elements (copy, paste, cut, select all, unselect).
+ */
 @Getter
 public enum ClipboardAction {
     /** Copies the selected content to the clipboard. */
