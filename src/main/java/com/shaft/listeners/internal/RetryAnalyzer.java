@@ -14,9 +14,11 @@ import org.testng.ITestResult;
  * number of attempts.
  *
  * <p>The maximum retry count is read from the engine-wide flags configuration on
- * every {@link #retry} call. As a safety net, if the SHAFT property system returns
- * 0 the analyzer also checks the raw {@code retryMaximumNumberOfAttempts} system
- * property directly.
+ * every {@link #retry} call. Configure the retry count via
+ * {@code SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(n)} or the
+ * {@code retryMaximumNumberOfAttempts} JVM system property (e.g. {@code -DretryMaximumNumberOfAttempts=2}).
+ * When set before the JVM starts, SHAFT's {@code Flags} config reads it automatically
+ * via its {@code @Sources("system:properties")} source during initialization.
  *
  * <p>Each {@code RetryAnalyzer} instance maintains its own invocation counter,
  * which is correct because TestNG creates one instance per test method (or per
@@ -30,12 +32,6 @@ public class RetryAnalyzer implements IRetryAnalyzer {
     public boolean retry(ITestResult iTestResult) {
         try {
             int maxRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
-            if (maxRetryCount == 0) {
-                int sysPropValue = readSystemProperty();
-                if (sysPropValue > 0) {
-                    maxRetryCount = sysPropValue;
-                }
-            }
             if (counter < maxRetryCount) {
                 counter++;
                 String message = "Retry #" + counter + "/" + maxRetryCount
@@ -49,39 +45,9 @@ public class RetryAnalyzer implements IRetryAnalyzer {
             }
         } catch (Exception e) {
             // Never let an exception from the retry decision prevent TestNG from proceeding.
-            // Log full throwable for diagnostics, then fall back to system property.
             ReportManagerHelper.logDiscrete(e, Level.DEBUG);
-            int fallback = readSystemProperty();
-            if (counter < fallback) {
-                counter++;
-                String message = "Retry #" + counter + "/" + fallback
-                        + " for test: " + iTestResult.getMethod().getMethodName()
-                        + ", on thread: " + Thread.currentThread().getName()
-                        + " (fallback mode)";
-                logger.info("[SHAFT] {}", message);
-                ReportManager.logDiscrete(message);
-                enableSupportingEvidenceCapture();
-                return true;
-            }
         }
         return false;
-    }
-
-    /**
-     * Reads {@code retryMaximumNumberOfAttempts} directly from {@link System#getProperty}.
-     *
-     * @return the parsed value, or 0 if absent/unparsable
-     */
-    private static int readSystemProperty() {
-        String value = System.getProperty("retryMaximumNumberOfAttempts");
-        if (value != null && !value.isBlank()) {
-            try {
-                return Integer.parseInt(value.trim());
-            } catch (NumberFormatException ignored) {
-                // fall through
-            }
-        }
-        return 0;
     }
 
     /**

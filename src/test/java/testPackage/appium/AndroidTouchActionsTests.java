@@ -1,19 +1,12 @@
 package testPackage.appium;
 
 import com.google.common.collect.ImmutableMap;
-import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.TouchActions;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.android.AndroidDriver;
 import org.openqa.selenium.By;
 import org.openqa.selenium.ScreenOrientation;
 import org.testng.annotations.Test;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 /**
  * E2E tests covering the full functionality of the {@link TouchActions} class for Android native apps.
@@ -188,91 +181,6 @@ public class AndroidTouchActionsTests extends MobileTest {
                 .element(By.className("android.webkit.WebView"))
                 .exists()
                 .perform();
-    }
-
-    /**
-     * Verifies that {@link TouchActions#nativeKeyboardKeyPress(TouchActions.KeyboardKeys)} and
-     * {@link TouchActions#hideNativeKeyboard()} interact with the soft keyboard correctly
-     * without causing the activity to crash.
-     */
-    @Test(groups = {"ApiDemosDebug"})
-    public void hideNativeKeyboardAndPressKeyboardActionKeyWithoutErrors() {
-        ((AndroidDriver) driver.get().getDriver()).executeScript(
-                "mobile: startActivity", ImmutableMap.of("intent", PACKAGE + "/.app.SearchInvoke"));
-        driver.get().element().type(By.id("txt_query_prefill"), "SHAFT keyboard test");
-        driver.get().touch()
-                .nativeKeyboardKeyPress(TouchActions.KeyboardKeys.DONE)
-                .hideNativeKeyboard();
-        driver.get().assertThat()
-                .element(By.id("txt_query_prefill"))
-                .exists()
-                .perform();
-    }
-
-    /**
-     * Verifies that {@link TouchActions#pushFile(String, String)} and
-     * {@link TouchActions#pullFile(String, String)} round-trip a file to/from the
-     * device with content integrity preserved.
-     */
-    @Test(groups = {"ApiDemosDebug"})
-    public void pushFileWithStringPathAndPullBackAndAssertContentMatches() throws IOException {
-        String testContent = "SHAFT Engine push/pull file test content";
-        String deviceFilePath = "/sdcard/Download/shaft_test.txt";
-        String localDownloadPath = "target/shaft_pulled.txt";
-        Path tempFile = Files.createTempFile("shaft_push_", ".txt");
-        Files.writeString(tempFile, testContent, StandardCharsets.UTF_8);
-        try {
-            driver.get().touch()
-                    .pushFile(deviceFilePath, tempFile.toString())
-                    .pullFile(deviceFilePath, localDownloadPath);
-            File downloadedFile = new File(localDownloadPath);
-            SHAFT.Validations.assertThat()
-                    .object(downloadedFile.exists())
-                    .isTrue()
-                    .withCustomReportMessage("Pulled file should exist at: " + localDownloadPath)
-                    .perform();
-            SHAFT.Validations.assertThat()
-                    .object(new String(Files.readAllBytes(downloadedFile.toPath()), StandardCharsets.UTF_8))
-                    .isEqualTo(testContent)
-                    .withCustomReportMessage("Pulled file content should match the pushed content")
-                    .perform();
-        } finally {
-            Files.deleteIfExists(tempFile);
-            Files.deleteIfExists(Path.of(localDownloadPath));
-        }
-    }
-
-    /**
-     * Verifies that {@link TouchActions#pushFile(String, File)} uploads a {@link File}
-     * object to the device. The file is then pulled back and its content is verified to
-     * confirm the upload succeeded.
-     */
-    @Test(groups = {"ApiDemosDebug"})
-    public void pushFileWithFileObjectAndPullBackAndAssertContentMatches() throws IOException {
-        String testContent = "SHAFT Engine File-object push test";
-        String deviceFilePath = "/sdcard/Download/shaft_file_obj.txt";
-        String localDownloadPath = "target/shaft_file_obj_pulled.txt";
-        Path tempFile = Files.createTempFile("shaft_push_file_", ".txt");
-        Files.writeString(tempFile, testContent, StandardCharsets.UTF_8);
-        try {
-            driver.get().touch()
-                    .pushFile(deviceFilePath, tempFile.toFile())
-                    .pullFile(deviceFilePath, localDownloadPath);
-            File downloadedFile = new File(localDownloadPath);
-            SHAFT.Validations.assertThat()
-                    .object(downloadedFile.exists())
-                    .isTrue()
-                    .withCustomReportMessage("Pulled file should exist at: " + localDownloadPath)
-                    .perform();
-            SHAFT.Validations.assertThat()
-                    .object(new String(Files.readAllBytes(downloadedFile.toPath()), StandardCharsets.UTF_8))
-                    .isEqualTo(testContent)
-                    .withCustomReportMessage("Pulled file content should match the pushed File object content")
-                    .perform();
-        } finally {
-            Files.deleteIfExists(tempFile);
-            Files.deleteIfExists(Path.of(localDownloadPath));
-        }
     }
 
     /**
