@@ -16,8 +16,9 @@ import org.testng.ITestResult;
  * <p>The maximum retry count is read from the engine-wide flags configuration on
  * every {@link #retry} call. Configure the retry count via
  * {@code SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(n)} or the
- * {@code retryMaximumNumberOfAttempts} JVM system property (set before SHAFT initializes,
- * e.g. {@code -DretryMaximumNumberOfAttempts=2}).
+ * {@code retryMaximumNumberOfAttempts} JVM system property (e.g. {@code -DretryMaximumNumberOfAttempts=2}).
+ * When set before the JVM starts, SHAFT's {@code Flags} config reads it automatically
+ * via its {@code @Sources("system:properties")} source during initialization.
  *
  * <p>Each {@code RetryAnalyzer} instance maintains its own invocation counter,
  * which is correct because TestNG creates one instance per test method (or per

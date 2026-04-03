@@ -554,6 +554,18 @@ public class API {
 - Clean up resources in teardown methods
 - Use meaningful test names that describe what is being tested
 
+### Parallel-safe Tests for Global Engine State
+- `SHAFT.Properties.flags` uses **engine-global** state (not per-thread). Tests that modify flags (e.g. `retryMaximumNumberOfAttempts`) **must** use `@Test(singleThreaded = true)` at the class level to prevent within-class race conditions.
+- Always reset global flag state in `@AfterMethod(alwaysRun = true)` by calling `SHAFT.Properties.flags.set().xxx(defaultValue)`.
+- All CI workflows set `-DretryMaximumNumberOfAttempts=2` globally; tests that need zero retries must explicitly call `SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(0)`.
+
+### API Tests with External Services
+- Tests hitting external services (e.g. `restful-booker.herokuapp.com`) should use `.setTargetStatusCode(0)` to skip status code validation when the test is about functionality (performance, request building) rather than the API contract.
+
+### BrowserStack Mobile Tests
+- `TouchActions.pushFile()`/`pullFile()` may return corrupted content on BrowserStack; validate before writing integration tests for these.
+- `nativeKeyboardKeyPress()` relies on `mobile: isKeyboardShown` which may not return `true` on BrowserStack virtual devices after typing.
+
 ## Common Anti-Patterns to Avoid
 - ❌ **Don't commit untested code — EVER** (always write and run tests first)
 - ❌ **Don't commit code that doesn't compile** (always run `mvn clean install -DskipTests -Dgpg.skip` first)
@@ -563,6 +575,9 @@ public class API {
 - ❌ Don't hardcode wait times (SHAFT handles synchronization)
 - ❌ Don't create new frameworks or patterns without discussion
 - ❌ Don't modify working code unless fixing a bug or security issue
+- ❌ **Don't add intentionally-broken/failing tests** — they cause CI to fail on every run (BROKEN status in Allure triggers CI failure)
+- ❌ **Don't read `System.getProperty()` directly in retry/property logic** — use `SHAFT.Properties.flags.*` which consolidates all sources safely
+- ❌ **Don't leave commented-out test classes** (`@Ignore` or all methods commented) — delete them to avoid confusion
 
 ## Documentation Requirements
 - Add JavaDoc comments for all public classes and methods
