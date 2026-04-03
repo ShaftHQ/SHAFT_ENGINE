@@ -3,6 +3,7 @@ package testPackage.unitTests;
 import com.shaft.driver.SHAFT;
 import com.shaft.listeners.internal.RetryAnalyzer;
 import com.shaft.properties.internal.Properties;
+import org.aeonbits.owner.Config.DefaultValue;
 import org.testng.Assert;
 import org.testng.ITestResult;
 import org.testng.annotations.BeforeClass;
@@ -53,9 +54,21 @@ public class RetryEvidenceCaptureTest {
 
     @Test(description = "forceCaptureSupportingEvidenceOnRetry can be enabled")
     public void testForceCaptureSupportingEvidenceOnRetryCanBeEnabled() {
-        SHAFT.Properties.flags.set().forceCaptureSupportingEvidenceOnRetry(true);
-        Assert.assertTrue(SHAFT.Properties.flags.forceCaptureSupportingEvidenceOnRetry(),
-                "forceCaptureSupportingEvidenceOnRetry should be true after setting it to true");
+        synchronized (Properties.class) {
+            SHAFT.Properties.flags.set().forceCaptureSupportingEvidenceOnRetry(true);
+            Assert.assertTrue(SHAFT.Properties.flags.forceCaptureSupportingEvidenceOnRetry(),
+                    "forceCaptureSupportingEvidenceOnRetry should be true after setting it to true");
+        }
+    }
+
+    @Test(description = "forceCaptureSupportingEvidenceOnRetry default contract should remain true")
+    public void testForceCaptureSupportingEvidenceOnRetryDefaultContract() throws NoSuchMethodException {
+        DefaultValue defaultValue = com.shaft.properties.internal.Flags.class
+                .getMethod("forceCaptureSupportingEvidenceOnRetry")
+                .getAnnotation(DefaultValue.class);
+        Assert.assertNotNull(defaultValue, "forceCaptureSupportingEvidenceOnRetry should declare @DefaultValue");
+        Assert.assertEquals(defaultValue.value(), "true",
+                "forceCaptureSupportingEvidenceOnRetry should default to true by contract");
     }
 
     @Test(description = "forceCaptureSupportingEvidenceOnRetry setter should work correctly")
