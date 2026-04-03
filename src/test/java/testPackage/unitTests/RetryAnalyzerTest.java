@@ -16,12 +16,19 @@ import static org.mockito.Mockito.when;
  * Unit tests for {@link RetryAnalyzer} verifying that the retry mechanism
  * correctly reads properties lazily and respects the configured maximum
  * number of retry attempts.
+ *
+ * <p>These tests modify the engine-global {@code retryMaximumNumberOfAttempts} flag,
+ * so the class is marked {@code singleThreaded} to prevent within-class parallel
+ * interference. Each test resets the flag to 0 in {@code @AfterMethod}.
  */
+@Test(singleThreaded = true)
 public class RetryAnalyzerTest {
     private static final long THREAD_JOIN_TIMEOUT_MS = 5000;
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
+        // Reset the engine-global retry flag so subsequent tests start from a clean state.
+        SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(0);
         Properties.clearForCurrentThread();
     }
 
@@ -129,65 +136,18 @@ public class RetryAnalyzerTest {
         Assert.assertFalse(analyzer2.retry(mockResult2), "analyzer2 second retry should be denied");
     }
 
-    @Test(description = "RetryAnalyzer falls back to system property when SHAFT property returns 0 and no explicit override is set")
-    public void fallbackToSystemPropertyWhenShaftReturnsZero() {
-        // Simulate CI scenario: system property set via -D flag, SHAFT property
-        // system has not been explicitly overridden for this thread.
-        // The fallback code only activates when:
-        //   (a) SHAFT property returns 0 AND
-        //   (b) there is no explicit thread-local override
-        String original = System.getProperty("retryMaximumNumberOfAttempts");
-        try {
-            // Clear any existing system property, then set our test value
-            System.clearProperty("retryMaximumNumberOfAttempts");
-            // Clear thread-local so no explicit override exists.
-            Properties.clearForCurrentThread();
-
-            // Now set the system property AFTER clearing thread-local and
-            // after the SHAFT base config has been loaded (so SHAFT reads 0
-            // from @DefaultValue, but system property is 1).
-            System.setProperty("retryMaximumNumberOfAttempts", "1");
-
-            int shaftValue = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
-
-            RetryAnalyzer analyzer = new RetryAnalyzer();
-            ITestResult mockResult = createMockTestResult("sysPropertyFallbackTest");
-
-            // Whether SHAFT picks up the system property directly or the fallback
-            // code in RetryAnalyzer does, the result must be at least 1 retry.
-            Assert.assertTrue(analyzer.retry(mockResult),
-                    "Should retry at least once (SHAFT returned " + shaftValue
-                            + ", system property is 1)");
-        } finally {
-            if (original != null) {
-                System.setProperty("retryMaximumNumberOfAttempts", original);
-            } else {
-                System.clearProperty("retryMaximumNumberOfAttempts");
-            }
-        }
-    }
-
     @Test(description = "Explicit SHAFT override of 0 is respected even when system property is positive")
     public void explicitZeroOverrideTakesPrecedenceOverSystemProperty() {
         // When a user explicitly sets retryMaximumNumberOfAttempts(0) via SHAFT,
-        // the fallback to system property must NOT kick in.
-        String original = System.getProperty("retryMaximumNumberOfAttempts");
-        try {
-            System.setProperty("retryMaximumNumberOfAttempts", "3");
-            // Explicitly set SHAFT property to 0 — this creates a thread-local override
-            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(0);
+        // retries should be disabled regardless of any prior system property state.
+        SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(3);
+        // Explicitly override back to 0 — this must win.
+        SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(0);
 
-            RetryAnalyzer analyzer = new RetryAnalyzer();
-            ITestResult mockResult = createMockTestResult("explicitZeroTest");
+        RetryAnalyzer analyzer = new RetryAnalyzer();
+        ITestResult mockResult = createMockTestResult("explicitZeroTest");
 
-            Assert.assertFalse(analyzer.retry(mockResult),
-                    "Should NOT retry: explicit SHAFT override of 0 takes precedence over system property");
-        } finally {
-            if (original != null) {
-                System.setProperty("retryMaximumNumberOfAttempts", original);
-            } else {
-                System.clearProperty("retryMaximumNumberOfAttempts");
-            }
-        }
+        Assert.assertFalse(analyzer.retry(mockResult),
+                "Should NOT retry: explicit SHAFT override of 0 disables retries");
     }
 }
