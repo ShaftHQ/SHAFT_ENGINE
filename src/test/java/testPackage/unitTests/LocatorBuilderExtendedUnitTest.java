@@ -172,6 +172,19 @@ public class LocatorBuilderExtendedUnitTest {
                 "Built locator must include the preceding:: axis");
     }
 
+    @Test(description = "byAxis().child: xpath should contain child:: axis (not parent::)")
+    public void xpathAxisChildShouldContainChildAxisInExpression() {
+        By locator = Locator.hasTagName("ul")
+                .byAxis().child("li")
+                .build();
+        Assert.assertNotNull(locator, "Locator should not be null");
+        String str = locator.toString();
+        Assert.assertTrue(str.contains("child::") && str.contains("li"),
+                "Built locator must include the child:: axis and target tag, not parent::");
+        Assert.assertFalse(str.contains("//parent::li"),
+                "child() must NOT produce a parent:: axis — was a known bug");
+    }
+
     // ─── Locator.hasRole(Role) ─────────────────────────────────────────────────
 
     @Test(description = "Locator.hasRole(BUTTON): locator should contain button element expression")

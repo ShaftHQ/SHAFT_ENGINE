@@ -215,4 +215,48 @@ public class ValidationEnumsUnitTest {
         Assert.assertEquals(ValidationEnums.ValidationState.FAILED.name(), "FAILED",
                 "name() should return 'FAILED'");
     }
+
+    @Test(description = "ValidationComparisonType.valueOf should resolve CONTAINS by name")
+    public void validationComparisonTypeValueOfContainsShouldResolve() {
+        Assert.assertEquals(ValidationEnums.ValidationComparisonType.valueOf("CONTAINS"),
+                ValidationEnums.ValidationComparisonType.CONTAINS,
+                "valueOf('CONTAINS') should return the CONTAINS constant");
+    }
+
+    @Test(description = "ValidationComparisonType.name() should match the constant name")
+    public void validationComparisonTypeNameShouldMatchConstantName() {
+        Assert.assertEquals(ValidationEnums.ValidationComparisonType.EQUALS.name(), "EQUALS");
+        Assert.assertEquals(ValidationEnums.ValidationComparisonType.MATCHES.name(), "MATCHES");
+        Assert.assertEquals(ValidationEnums.ValidationComparisonType.CONTAINS.name(), "CONTAINS");
+        Assert.assertEquals(ValidationEnums.ValidationComparisonType.CASE_INSENSITIVE.name(), "CASE_INSENSITIVE");
+    }
+    @Test(description = "ValidationCategory.valueOf should resolve HARD_ASSERT by name")
+    public void validationCategoryValueOfHardAssertShouldResolve() {
+        Assert.assertEquals(ValidationEnums.ValidationCategory.valueOf("HARD_ASSERT"),
+                ValidationEnums.ValidationCategory.HARD_ASSERT,
+                "valueOf('HARD_ASSERT') should return the HARD_ASSERT constant");
+    }
+
+    @Test(description = "ValidationCategory.name() should match the constant name")
+    public void validationCategoryNameShouldMatchConstantName() {
+        Assert.assertEquals(ValidationEnums.ValidationCategory.HARD_ASSERT.name(), "HARD_ASSERT");
+        Assert.assertEquals(ValidationEnums.ValidationCategory.SOFT_ASSERT.name(), "SOFT_ASSERT");
+    }
+
+    @Test(description = "VisualValidationEngine.valueOf should resolve EXACT_EYES by name")
+    public void visualValidationEngineValueOfExactEyesShouldResolve() {
+        Assert.assertEquals(ValidationEnums.VisualValidationEngine.valueOf("EXACT_EYES"),
+                ValidationEnums.VisualValidationEngine.EXACT_EYES,
+                "valueOf('EXACT_EYES') should return the EXACT_EYES constant");
+    }
+
+    @Test(description = "VisualValidationEngine.name() should match the constant name for each engine")
+    public void visualValidationEngineNameShouldMatchConstantName() {
+        Assert.assertEquals(ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG.name(), "EXACT_SHUTTERBUG");
+        Assert.assertEquals(ValidationEnums.VisualValidationEngine.EXACT_OPENCV.name(), "EXACT_OPENCV");
+        Assert.assertEquals(ValidationEnums.VisualValidationEngine.EXACT_EYES.name(), "EXACT_EYES");
+        Assert.assertEquals(ValidationEnums.VisualValidationEngine.STRICT_EYES.name(), "STRICT_EYES");
+        Assert.assertEquals(ValidationEnums.VisualValidationEngine.CONTENT_EYES.name(), "CONTENT_EYES");
+        Assert.assertEquals(ValidationEnums.VisualValidationEngine.LAYOUT_EYES.name(), "LAYOUT_EYES");
+    }
 }

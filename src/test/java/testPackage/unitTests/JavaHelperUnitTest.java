@@ -189,6 +189,48 @@ public class JavaHelperUnitTest {
         Assert.assertEquals(result, 0, "Case-insensitive unequal strings should return 0");
     }
 
+    @Test(description = "compareTwoObjects: regex match negative (match should fail) → 0")
+    public void compareTwoObjectsRegexMatchNegativeShouldReturnZero() {
+        // negative assertion: actual DOES match the regex — negative assertion fails → 0
+        int result = JavaHelper.compareTwoObjects("[0-9]+", "123", 2, false);
+        Assert.assertEquals(result, 0, "Negative regex assertion on matching value should return 0");
+    }
+
+    @Test(description = "compareTwoObjects: regex non-match negative (no match) → 1")
+    public void compareTwoObjectsRegexNonMatchNegativeShouldReturnOne() {
+        // negative assertion: actual does NOT match the regex — negative assertion passes → 1
+        int result = JavaHelper.compareTwoObjects("[0-9]+", "abc", 2, false);
+        Assert.assertEquals(result, 1, "Negative regex assertion on non-matching value should return 1");
+    }
+
+    @Test(description = "compareTwoObjects: contains match negative (found) → 0")
+    public void compareTwoObjectsContainsMatchNegativeShouldReturnZero() {
+        // negative: actual DOES contain expected — negative assertion fails → 0
+        int result = JavaHelper.compareTwoObjects("SHAFT", "Hello SHAFT World", 3, false);
+        Assert.assertEquals(result, 0, "Negative contains on found substring should return 0");
+    }
+
+    @Test(description = "compareTwoObjects: contains non-match negative (not found) → 1")
+    public void compareTwoObjectsContainsNonMatchNegativeShouldReturnOne() {
+        // negative: actual does NOT contain expected — negative assertion passes → 1
+        int result = JavaHelper.compareTwoObjects("missing", "Hello World", 3, false);
+        Assert.assertEquals(result, 1, "Negative contains on absent substring should return 1");
+    }
+
+    @Test(description = "compareTwoObjects: case-insensitive equal negative (matches) → 0")
+    public void compareTwoObjectsCaseInsensitiveEqualNegativeShouldReturnZero() {
+        // negative: actual DOES equal expected case-insensitively — negative assertion fails → 0
+        int result = JavaHelper.compareTwoObjects("shaft", "SHAFT", 4, false);
+        Assert.assertEquals(result, 0, "Negative case-insensitive assertion on equal strings should return 0");
+    }
+
+    @Test(description = "compareTwoObjects: case-insensitive unequal negative (no match) → 1")
+    public void compareTwoObjectsCaseInsensitiveUnequalNegativeShouldReturnOne() {
+        // negative: actual does NOT equal expected case-insensitively — negative assertion passes → 1
+        int result = JavaHelper.compareTwoObjects("shaft", "selenium", 4, false);
+        Assert.assertEquals(result, 1, "Negative case-insensitive assertion on unequal strings should return 1");
+    }
+
     @Test(description = "compareTwoObjects: invalid comparison type → -1")
     public void compareTwoObjectsInvalidComparisonTypeShouldReturnNegativeOne() {
         int result = JavaHelper.compareTwoObjects("foo", "foo", 99, true);
