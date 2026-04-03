@@ -34,7 +34,7 @@ public class XpathAxis {
     }
 
     public LocatorBuilder child(String tagName) {
-        locatorBuilder.partialXpath += "//parent::" + tagName;
+        locatorBuilder.partialXpath += "//child::" + tagName;
         return locatorBuilder;
     }
 

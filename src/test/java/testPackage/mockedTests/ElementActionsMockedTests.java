@@ -20,6 +20,7 @@ import static org.mockito.Mockito.*;
  * Mocked unit tests for ElementActions class to increase code coverage.
  * These tests use Mockito to mock WebDriver and WebElement interactions.
  */
+@Test(singleThreaded = true)
 public class ElementActionsMockedTests {
     
     @Mock
