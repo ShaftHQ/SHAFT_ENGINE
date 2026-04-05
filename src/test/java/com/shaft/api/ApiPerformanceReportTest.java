@@ -53,7 +53,6 @@ public class ApiPerformanceReportTest {
         List<List<Object>> parameters = Arrays.asList(Arrays.asList("firstname", "Jim"), Arrays.asList("lastname", "Brown"));
         api.get().get("booking").
                 setParameters(parameters, RestActions.ParametersType.QUERY).
-                setTargetStatusCode(0).
                 perform();
     }
 
