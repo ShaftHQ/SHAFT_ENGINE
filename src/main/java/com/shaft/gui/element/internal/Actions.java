@@ -519,14 +519,19 @@ public class Actions extends ElementActions {
                         if (!"".equals(foundElements.get().getFirst().getDomProperty("value")))
                             executeClearBasedOnClearMode(foundElements.get().getFirst(), "backspace");
                     }
-                    case DRAG_AND_DROP -> new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
+                    case DRAG_AND_DROP -> {
+                        screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
+                        new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
                                     .dragAndDrop(foundElements.get().getFirst(),
                                             ElementActionsHelper.safeFindElement(d, (By) data)).perform();
-                    case DRAG_AND_DROP_BY_OFFSET ->
+                    }
+                    case DRAG_AND_DROP_BY_OFFSET -> {
+                        screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
                             new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
                                     .dragAndDropBy(foundElements.get().getFirst(),
                                             (int) ((ArrayList<?>) data).get(0),
                                             (int) ((ArrayList<?>) data).get(1)).perform();
+                    }
                     case DROP_FILE_TO_UPLOAD -> {
                         // Prepare target file to be uploaded
                         File file = new File((String) data);
