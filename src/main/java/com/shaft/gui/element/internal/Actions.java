@@ -527,7 +527,7 @@ public class Actions extends ElementActions {
                     }
                     case DRAG_AND_DROP_BY_OFFSET -> {
                         screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
-                            new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
+                        new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
                                     .dragAndDropBy(foundElements.get().getFirst(),
                                             (int) ((ArrayList<?>) data).get(0),
                                             (int) ((ArrayList<?>) data).get(1)).perform();
