@@ -115,6 +115,8 @@ public class ValidationsBuilderUnitTest {
             Assert.fail("Expected AssertionError from forceFail with message");
         } catch (AssertionError e) {
             Assert.assertNotNull(e.getMessage());
+            Assert.assertTrue(e.getMessage().contains("Custom failure reason"),
+                    "AssertionError message should contain the custom failure reason");
         }
     }
 

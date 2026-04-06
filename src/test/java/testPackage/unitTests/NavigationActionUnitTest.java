@@ -40,14 +40,15 @@ public class NavigationActionUnitTest {
         NavigationAction.valueOf("RELOAD");
     }
 
-    @Test(description = "Enum constants should have correct ordinal values")
-    public void ordinalValuesShouldBeSequential() {
-        Assert.assertEquals(NavigationAction.FORWARD.ordinal(), 0,
-                "FORWARD should have ordinal 0");
-        Assert.assertEquals(NavigationAction.BACK.ordinal(), 1,
-                "BACK should have ordinal 1");
-        Assert.assertEquals(NavigationAction.REFRESH.ordinal(), 2,
-                "REFRESH should have ordinal 2");
+    @Test(description = "values() should return constants in declared order: FORWARD, BACK, REFRESH")
+    public void valuesShouldReturnConstantsInDeclaredOrder() {
+        NavigationAction[] values = NavigationAction.values();
+        Assert.assertEquals(values[0], NavigationAction.FORWARD,
+                "First constant should be FORWARD");
+        Assert.assertEquals(values[1], NavigationAction.BACK,
+                "Second constant should be BACK");
+        Assert.assertEquals(values[2], NavigationAction.REFRESH,
+                "Third constant should be REFRESH");
     }
 
     @Test(description = "Enum name() should return the constant name as declared")
