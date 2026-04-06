@@ -520,10 +520,17 @@ public class Actions extends ElementActions {
                             executeClearBasedOnClearMode(foundElements.get().getFirst(), "backspace");
                     }
                     case DRAG_AND_DROP -> {
-                        screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
+                        var sourceElement = foundElements.get().getFirst();
+                        screenshot.set(0, takeActionScreenshot(sourceElement));
+                        By destinationLocator = (By) data;
+                        WebElement destinationElement;
+                        try {
+                            destinationElement = ElementActionsHelper.safeFindElement(d, destinationLocator);
+                        } catch (NoSuchElementException rootCauseException) {
+                            throw createDragAndDropDestinationNotFoundException(destinationLocator, rootCauseException);
+                        }
                         new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
-                                    .dragAndDrop(foundElements.get().getFirst(),
-                                            ElementActionsHelper.safeFindElement(d, (By) data)).perform();
+                                    .dragAndDrop(sourceElement, destinationElement).perform();
                     }
                     case DRAG_AND_DROP_BY_OFFSET -> {
                         screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
@@ -595,26 +602,26 @@ public class Actions extends ElementActions {
                 return true;
             });
         } catch (WebDriverException exception) {
-            // take failure screenshot if needed
-            if (screenshot.get(0) == null) {
-                try {
+            try {
+                // take failure screenshot if needed
+                if (screenshot.get(0) == null) {
                     if (foundElements.get() == null || foundElements.get().size() != 1) {
                         screenshot.set(0, takeFailureScreenshot(null));
                     } else {
                         screenshot.set(0, takeFailureScreenshot(foundElements.get().getFirst()));
                     }
+                }
+                // report broken
+                reportBroken(action.name(), accessibleName.get(), screenshot.get(0), exception);
+            } catch (RuntimeException exception2) {
+                if (exception2.getCause() == null || !exception2.getCause().equals(exception)) {
+                    // in case a new exception was thrown while attempting to take a screenshot
+                    exception2.addSuppressed(exception);
                     // report broken
-                    reportBroken(action.name(), accessibleName.get(), screenshot.get(0), exception);
-                } catch (RuntimeException exception2) {
-                    if (exception2.getCause() == null || !exception2.getCause().equals(exception)) {
-                        // in case a new exception was thrown while attempting to take a screenshot
-                        exception2.addSuppressed(exception);
-                        // report broken
-                        reportBroken(action.name(), accessibleName.get(), screenshot.get(0), exception2);
-                    } else {
-                        // in case no new exceptions where thrown, just the one created by SHAFT for the main issue
-                        throw exception2;
-                    }
+                    reportBroken(action.name(), accessibleName.get(), screenshot.get(0), exception2);
+                } else {
+                    // in case no new exceptions where thrown, just the one created by SHAFT for the main issue
+                    throw exception2;
                 }
             }
         }
@@ -893,14 +900,38 @@ public class Actions extends ElementActions {
             if (exception != null) {
                 // update allure stacktrace
                 Allure.getLifecycle().updateStep(update -> {
-                    var trace = update.getStatusDetails() == null ? exception : update.getStatusDetails().getTrace() + System.lineSeparator() + exception;
                     StatusDetails details = update.getStatusDetails() == null ? new StatusDetails() : update.getStatusDetails();
-                    details.setTrace(trace.toString().trim());
+                    details.setTrace(mergeStatusTrace(details, exception));
                     update.setStatusDetails(details);
                 });
-                throw new RuntimeException(FailureReporter.getRootCause(exception).trim(), exception);
+                throw new RuntimeException(createFailureMessageWithCausedBy(exception), exception);
             }
         }
+    }
+
+    static NoSuchElementException createDragAndDropDestinationNotFoundException(By destinationLocator, NoSuchElementException rootCauseException) {
+        return new NoSuchElementException("Failed to perform drag and drop because the destination element could not be located using "
+                + JavaHelper.formatLocatorToString(destinationLocator) + ".", rootCauseException);
+    }
+
+    static String mergeStatusTrace(StatusDetails details, RuntimeException exception) {
+        String formattedExceptionTrace = ReportManagerHelper.formatStackTraceToLogEntry(exception).trim();
+        String existingTrace = details.getTrace();
+        if (existingTrace == null || existingTrace.isBlank()) {
+            return formattedExceptionTrace;
+        }
+        return (existingTrace + System.lineSeparator() + formattedExceptionTrace).trim();
+    }
+
+    static String createFailureMessageWithCausedBy(RuntimeException exception) {
+        String rootCause = FailureReporter.getRootCause(exception).trim();
+        Throwable cause = exception.getCause();
+        if (cause == null) {
+            return rootCause;
+        }
+        String causeMessage = cause.getMessage() == null ? "" : cause.getMessage().trim();
+        String causedBySection = "Caused by: " + cause.getClass().getName() + (causeMessage.isEmpty() ? "" : ": " + causeMessage);
+        return (rootCause + System.lineSeparator() + causedBySection).trim();
     }
 
     protected enum ActionType {HOVER, CLICK, JAVASCRIPT_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, JAVASCRIPT_SET_VALUE, CLEAR, DRAG_AND_DROP, GET_ATTRIBUTE, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, DRAG_AND_DROP_BY_OFFSET, GET_SELECTED_TEXT, CLICK_AND_HOLD, DOUBLE_CLICK, GET_IS_SELECTED, CLIPBOARD_DELETE, CLIPBOARD_COPY, CLIPBOARD_CUT, CLIPBOARD_PASTE, DROP_FILE_TO_UPLOAD}
