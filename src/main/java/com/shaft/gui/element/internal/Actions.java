@@ -49,6 +49,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Function;
@@ -520,17 +521,22 @@ public class Actions extends ElementActions {
                             executeClearBasedOnClearMode(foundElements.get().getFirst(), "backspace");
                     }
                     case DRAG_AND_DROP -> {
-                        var sourceElement = foundElements.get().getFirst();
+                        var sourceElement = chooseDragAndDropElement(foundElements.get(), locator, "source");
                         screenshot.set(0, takeActionScreenshot(sourceElement));
                         By destinationLocator = (By) data;
-                        WebElement destinationElement;
-                        try {
-                            destinationElement = ElementActionsHelper.safeFindElement(d, destinationLocator);
-                        } catch (NoSuchElementException rootCauseException) {
-                            throw createDragAndDropDestinationNotFoundException(destinationLocator, rootCauseException);
+                        List<WebElement> destinationElements = ElementActionsHelper.safeFindElements(d, destinationLocator);
+                        WebElement destinationElement = chooseDragAndDropElement(destinationElements, destinationLocator, "destination");
+                        if (isMobileNativeExecution && d instanceof AppiumDriver appiumDriver) {
+                            executeMobileDragAndDrop(appiumDriver, sourceElement, destinationElement);
+                            List<WebElement> destinationElementsAfterDrop = ElementActionsHelper.safeFindElements(d, destinationLocator);
+                            if (!hasDisplayedElement(destinationElementsAfterDrop)) {
+                                throw createDragAndDropElementNotFoundException(destinationLocator, "destination",
+                                        new NoSuchElementException("Drag and drop gesture completed but destination element is still not displayed."));
+                            }
+                        } else {
+                            new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
+                                        .dragAndDrop(sourceElement, destinationElement).perform();
                         }
-                        new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
-                                    .dragAndDrop(sourceElement, destinationElement).perform();
                     }
                     case DRAG_AND_DROP_BY_OFFSET -> {
                         screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
@@ -912,6 +918,83 @@ public class Actions extends ElementActions {
     static NoSuchElementException createDragAndDropDestinationNotFoundException(By destinationLocator, NoSuchElementException rootCauseException) {
         return new NoSuchElementException("Failed to perform drag and drop because the destination element could not be located using "
                 + JavaHelper.formatLocatorToString(destinationLocator) + ".", rootCauseException);
+    }
+
+    static WebElement chooseDragAndDropElement(List<WebElement> elements, By locator, String role) {
+        if (elements == null || elements.isEmpty()) {
+            throw createDragAndDropElementNotFoundException(locator, role,
+                    new NoSuchElementException("No " + role + " element was found."));
+        }
+
+        for (WebElement element : elements) {
+            try {
+                if (element.isDisplayed()) {
+                    return element;
+                }
+            } catch (WebDriverException ignored) {
+                // try next match
+            }
+        }
+        throw createDragAndDropElementNotFoundException(locator, role,
+                new NoSuchElementException("Found " + elements.size() + " " + role + " element(s), but none are displayed."));
+    }
+
+    static boolean hasDisplayedElement(List<WebElement> elements) {
+        if (elements == null || elements.isEmpty()) {
+            return false;
+        }
+        for (WebElement element : elements) {
+            try {
+                if (element.isDisplayed()) {
+                    return true;
+                }
+            } catch (WebDriverException ignored) {
+                // try next match
+            }
+        }
+        return false;
+    }
+
+    private static NoSuchElementException createDragAndDropElementNotFoundException(By locator, String role, NoSuchElementException rootCauseException) {
+        return new NoSuchElementException("Failed to perform drag and drop because the " + role + " element could not be located using "
+                + JavaHelper.formatLocatorToString(locator) + ".", rootCauseException);
+    }
+
+    static Sequence buildTouchDragAndDropSequence(Rectangle sourceElementRectangle, Rectangle destinationElementRectangle) {
+        PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+        Sequence dragAndDrop = new Sequence(finger, 0);
+        PointerInput.Origin VIEW = PointerInput.Origin.viewport();
+        dragAndDrop.addAction(finger.createPointerMove(Duration.ZERO, VIEW,
+                sourceElementRectangle.getX() + sourceElementRectangle.getWidth() / 2,
+                sourceElementRectangle.getY() + sourceElementRectangle.getHeight() / 2));
+        dragAndDrop.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+        dragAndDrop.addAction(new Pause(finger, defaultPauseDuration));
+        dragAndDrop.addAction(finger.createPointerMove(defaultPauseDuration, VIEW,
+                destinationElementRectangle.getX() + destinationElementRectangle.getWidth() / 2,
+                destinationElementRectangle.getY() + destinationElementRectangle.getHeight() / 2));
+        dragAndDrop.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+        return dragAndDrop;
+    }
+
+    private static void executeMobileDragAndDrop(AppiumDriver appiumDriver, WebElement sourceElement, WebElement destinationElement) {
+        try {
+            if (sourceElement instanceof org.openqa.selenium.remote.RemoteWebElement remoteSourceElement) {
+                appiumDriver.executeScript("mobile: dragGesture",
+                        createDragGestureParameters(remoteSourceElement.getId(), destinationElement.getRect()));
+                return;
+            }
+        } catch (WebDriverException ignored) {
+            // fallback to W3C actions sequence
+        }
+        appiumDriver.perform(List.of(buildTouchDragAndDropSequence(sourceElement.getRect(), destinationElement.getRect())));
+    }
+
+    static Map<String, Object> createDragGestureParameters(String sourceElementId, Rectangle destinationElementRectangle) {
+        return Map.of(
+                "elementId", sourceElementId,
+                "endX", destinationElementRectangle.getX() + destinationElementRectangle.getWidth() / 2,
+                "endY", destinationElementRectangle.getY() + destinationElementRectangle.getHeight() / 2
+        );
     }
 
     static String mergeStatusTrace(StatusDetails details, RuntimeException exception) {
