@@ -207,7 +207,7 @@ When analyzing SHAFT code, verify these patterns:
 
 | Pattern | What to Check |
 |---|---|
-| `ThreadLocal<SHAFT.GUI.WebDriver>` | Verify `.remove()` is called after `.get().quit()` |
+| `ThreadLocal<SHAFT.GUI.WebDriver>` | Verify `driver.remove()` is called on the ThreadLocal itself after `driver.get().quit()` (two separate calls) |
 | `@AfterMethod` / `@AfterClass` | Must include `alwaysRun = true` |
 | `SHAFT.Properties.flags` | Engine-global state — check for thread safety in parallel test classes |
 | `RestActions.buildNewRequest()` | Verify response objects are not retained beyond test scope |
@@ -235,7 +235,7 @@ Below is an example of what a partial report might look like when applied to SHA
 | **Location** | `src/test/java/testPackage/MyTests.java:45` |
 | **Description** | ThreadLocal<WebDriver> is set in @BeforeMethod but never removed in @AfterMethod. Only quit() is called, leaving the ThreadLocal reference. |
 | **Impact** | In long-running test suites with parallel execution, leaked ThreadLocal entries can cause memory growth proportional to the number of threads × test methods. |
-| **Suggested Fix** | Add `driver.remove()` after `driver.get().quit()` in @AfterMethod |
+| **Suggested Fix** | In @AfterMethod, call `driver.get().quit();` then `driver.remove();` as two separate statements on the ThreadLocal variable |
 
 ### Issue #2
 
