@@ -120,4 +120,28 @@ public class ActionsExceptionDetailsUnitTest {
         Assert.assertEquals(params.get("endY"),
                 destinationRectangle.getY() + destinationRectangle.getHeight() / 2, "Expected centered destination Y.");
     }
+
+    @Test
+    public void chooseBestEffortDisplayedElementPrefersDisplayedElement() {
+        WebElement hiddenElement = mock(WebElement.class);
+        WebElement displayedElement = mock(WebElement.class);
+        when(hiddenElement.isDisplayed()).thenReturn(false);
+        when(displayedElement.isDisplayed()).thenReturn(true);
+
+        WebElement selected = Actions.chooseBestEffortDisplayedElement(List.of(hiddenElement, displayedElement));
+
+        Assert.assertSame(selected, displayedElement, "Expected displayed element to be preferred.");
+    }
+
+    @Test
+    public void chooseBestEffortDisplayedElementFallsBackToFirstElementWhenNoneDisplayed() {
+        WebElement firstElement = mock(WebElement.class);
+        WebElement secondElement = mock(WebElement.class);
+        when(firstElement.isDisplayed()).thenReturn(false);
+        when(secondElement.isDisplayed()).thenReturn(false);
+
+        WebElement selected = Actions.chooseBestEffortDisplayedElement(List.of(firstElement, secondElement));
+
+        Assert.assertSame(selected, firstElement, "Expected fallback to first element when none are displayed.");
+    }
 }
