@@ -4,6 +4,11 @@ import com.shaft.cli.TerminalActions;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+/**
+ * Unit tests for {@link TerminalActions}.
+ * Validates constructors, factory methods, and terminal state checks
+ * without requiring external services (SSH, Docker).
+ */
 public class TerminalActionsUnitTest {
 
     // --- Constructor and Factory Method Tests ---

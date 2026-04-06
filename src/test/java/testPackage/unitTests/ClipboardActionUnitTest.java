@@ -4,6 +4,10 @@ import com.shaft.enums.internal.ClipboardAction;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+/**
+ * Unit tests for {@link ClipboardAction} enum.
+ * Validates enum constants, their string values, and valueOf behavior.
+ */
 public class ClipboardActionUnitTest {
 
     @Test(description = "ClipboardAction should have exactly 5 enum constants")

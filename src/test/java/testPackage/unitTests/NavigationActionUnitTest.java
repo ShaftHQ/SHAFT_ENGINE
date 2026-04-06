@@ -4,6 +4,10 @@ import com.shaft.enums.internal.NavigationAction;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+/**
+ * Unit tests for {@link NavigationAction} enum.
+ * Validates enum constants, ordinals, and valueOf behavior.
+ */
 public class NavigationActionUnitTest {
 
     @Test(description = "NavigationAction should have exactly 3 enum constants")

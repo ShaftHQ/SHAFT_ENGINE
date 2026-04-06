@@ -39,8 +39,8 @@ public class ValidationsBuilderUnitTest {
         Validations.assertThat().object(true).isTrue().perform();
     }
 
-    @Test(description = "object: assertThat with list should pass for contains")
-    public void objectAssertThatListShouldPassForContains() {
+    @Test(description = "object: assertThat with string should pass for contains")
+    public void objectAssertThatStringShouldPassForContains() {
         Validations.assertThat().object("hello world").contains("hello").perform();
     }
 
