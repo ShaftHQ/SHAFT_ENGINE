@@ -40,8 +40,8 @@ When analyzing SHAFT Java code, check every item in this checklist:
 
 #### ThreadLocal Patterns
 
-- `ThreadLocal<SHAFT.GUI.WebDriver>` must be cleaned up with **two** separate calls: `driver.get().quit()` then `driver.remove()` — calling only `quit()` leaves a stale ThreadLocal entry and causes memory growth in parallel suites.
-- Any `ThreadLocal<T>` that is `.set()` in `@BeforeMethod` / `@BeforeEach` must have `.remove()` called in the corresponding teardown.
+- `ThreadLocal<SHAFT.GUI.WebDriver>` must be cleaned up with **two** separate calls: first `driver.get().quit()` (releases the browser process), then `driver.remove()` (removes the ThreadLocal mapping so the thread-local entry itself is garbage-collected). Calling only `quit()` leaves a stale ThreadLocal entry that grows unboundedly in long parallel suites.
+- Any `ThreadLocal<T>` that is `.set()` in `@BeforeMethod` / `@BeforeEach` must have `.remove()` called in the corresponding teardown — not just a null-check or reassignment.
 
 #### WebDriver Lifecycle
 

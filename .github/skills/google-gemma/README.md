@@ -24,7 +24,7 @@ google-gemma/
 1. Open the AI Edge Gallery app with your selected Gemma model.
 2. Navigate to **Skill Manager** (tap the "Skills" chip in Agent Skills mode).
 3. Tap **(+)** → **Load skill from URL**.
-4. Enter the URL pointing to this directory:
+4. Enter the URL pointing to this directory (update the branch name if the default branch changes):
    ```
    https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/master/.github/skills/google-gemma/
    ```
