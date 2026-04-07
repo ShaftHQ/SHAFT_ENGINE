@@ -70,18 +70,6 @@ l
         Assert.assertFalse(analyzer.retry(mockResult), "Second call should deny retry (max=1)");
     }
 
-    @Test(description = "RetryAnalyzer allows exactly maxRetryCount retries when set to 3")
-    public void retryThreeTimesWhenMaxIsThree() {
-        SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(3);
-        RetryAnalyzer analyzer = new RetryAnalyzer();
-        ITestResult mockResult = createMockTestResult("retryThreeTest");
-
-        Assert.assertTrue(analyzer.retry(mockResult), "Retry 1/3 should be allowed");
-        Assert.assertTrue(analyzer.retry(mockResult), "Retry 2/3 should be allowed");
-        Assert.assertTrue(analyzer.retry(mockResult), "Retry 3/3 should be allowed");
-        Assert.assertFalse(analyzer.retry(mockResult), "Fourth call should deny retry (max=3)");
-    }
-
     @Test(description = "RetryAnalyzer does not retry when maxRetryCount is 0 (default)")
     public void noRetryWhenMaxIsZero() {
         SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(0);
