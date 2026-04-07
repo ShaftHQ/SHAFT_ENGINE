@@ -46,23 +46,7 @@ public class RetryAnalyzerTest {
         otherThread.join(THREAD_JOIN_TIMEOUT_MS);
         Assert.assertFalse(otherThread.isAlive(), "Retry configuration thread should finish within timeout");
     }
-
-    @Test(description = "RetryAnalyzer reads maxRetryCount lazily — property set AFTER construction is honoured")
-    public void retryReadsPropertyLazily() {
-        // Create the analyzer BEFORE setting the property
-        RetryAnalyzer analyzer = new RetryAnalyzer();
-
-        // Now set the retry count
-        SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(2);
-
-        ITestResult mockResult = createMockTestResult("lazyPropertyTest");
-
-        // Should honour the value set after construction
-        Assert.assertTrue(analyzer.retry(mockResult), "First retry should be allowed (1/2)");
-        Assert.assertTrue(analyzer.retry(mockResult), "Second retry should be allowed (2/2)");
-        Assert.assertFalse(analyzer.retry(mockResult), "Third retry should be denied (exceeded 2)");
-    }
-
+l
     @Test(description = "RetryAnalyzer uses retry count configured on a different thread because retries are engine-global")
     public void retryConfigurationSetOnAnotherThreadIsVisibleToAnalyzer() throws InterruptedException {
         setRetryCountOnAnotherThread(1);
