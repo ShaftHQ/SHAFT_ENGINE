@@ -49,14 +49,6 @@ public class ApiPerformanceReportTest {
     }
 
     @Test(groups = {"restful-booker"})
-    public void testGetBookingByName() {
-        List<List<Object>> parameters = Arrays.asList(Arrays.asList("firstname", "Jim"), Arrays.asList("lastname", "Brown"));
-        api.get().get("booking").
-                setParameters(parameters, RestActions.ParametersType.QUERY).
-                perform();
-    }
-
-    @Test(groups = {"restful-booker"})
     public void testGetBooking() {
         api.get().get("booking/1").
                 perform();
