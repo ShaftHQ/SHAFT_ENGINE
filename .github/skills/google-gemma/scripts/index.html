@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+</head>
+<body>
+  <script>
+    /**
+     * SHAFT_ENGINE GitHub Code Fetcher
+     *
+     * Called by the AI Edge Gallery app when the user provides a GitHub file URL.
+     * Converts GitHub blob URLs to raw content URLs, fetches the source file,
+     * and returns it as a plain-text string for the on-device Gemma model to analyze.
+     *
+     * Input JSON schema:
+     *   { "url": "<GitHub file URL>" }
+     *
+     * Supported URL formats:
+     *   - https://github.com/owner/repo/blob/branch/path/File.java
+     *   - https://raw.githubusercontent.com/owner/repo/branch/path/File.java
+     *
+     * Output JSON schema (success):
+     *   { "result": "<raw source code string>" }
+     *
+     * Output JSON schema (error):
+     *   { "error": "<error message>" }
+     */
+    window['ai_edge_gallery_get_result'] = async (data) => {
+      try {
+        const jsonData = JSON.parse(data);
+
+        if (!jsonData.url) {
+          return JSON.stringify({ error: "Missing required field: url" });
+        }
+
+        const rawUrl = toRawUrl(jsonData.url);
+
+        const response = await fetch(rawUrl, {
+          headers: {
+            // Request plain text to avoid GitHub HTML rendering
+            Accept: "text/plain,application/octet-stream,*/*"
+          }
+        });
+
+        if (!response.ok) {
+          return JSON.stringify({
+            error: `Failed to fetch file (HTTP ${response.status}). Check the URL is a valid public GitHub file URL.`
+          });
+        }
+
+        const content = await response.text();
+
+        if (!content || content.trim().length === 0) {
+          return JSON.stringify({ error: "File is empty or could not be read." });
+        }
+
+        return JSON.stringify({ result: content });
+
+      } catch (e) {
+        return JSON.stringify({ error: `Fetch error: ${e.message}` });
+      }
+    };
+
+    /**
+     * Converts a GitHub blob URL to a raw.githubusercontent.com URL.
+     * If the URL is already a raw URL, it is returned as-is.
+     *
+     * @param {string} url - GitHub file URL
+     * @returns {string} Raw content URL
+     */
+    function toRawUrl(url) {
+      // Already a raw URL
+      if (url.includes("raw.githubusercontent.com")) {
+        return url;
+      }
+
+      // Standard GitHub blob URL:
+      // https://github.com/{owner}/{repo}/blob/{branch}/{path}
+      // → https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}
+      return url
+        .replace("https://github.com/", "https://raw.githubusercontent.com/")
+        .replace("/blob/", "/");
+    }
+  </script>
+</body>
+</html>
