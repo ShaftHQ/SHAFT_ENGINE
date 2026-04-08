@@ -20,23 +20,16 @@ runs:
         files: ./target/jacoco/jacoco.xml
         verbose: true
         disable_search: true
-    - name: Install Allure Report 3
-      if: always()
-      shell: bash
-      run: |
-        if ! command -v allure &>/dev/null; then
-          npm install -g allure 2>&1 || echo "::warning::Allure 3 CLI installation failed. Report generation may be skipped."
-        fi
     - name: Generate Allure Report for Verification
       if: always()
       shell: bash
       run: |
-        if command -v allure &>/dev/null && [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
-          # Generate full report to get summary.json for verification
-          allure generate allure-results -o allure-report-check --clean 2>/dev/null || true
+        if [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
+          # Generate full report to get summary.json for verification (use npx — no global install required)
+          npx --yes allure@3.4.0 generate allure-results -o allure-report-check 2>/dev/null || true
           # Generate single-file report if SHAFT didn't already create one
           if ! ls allure-report/*AllureReport.html 1>/dev/null 2>&1; then
-            allure generate allure-results -o allure-report --clean 2>/dev/null || true
+            npx --yes allure@3.4.0 generate allure-results -o allure-report 2>/dev/null || true
             if [ -f "allure-report/index.html" ]; then
               mv allure-report/index.html allure-report/AllureReport.html
             fi

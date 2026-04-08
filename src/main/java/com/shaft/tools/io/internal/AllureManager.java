@@ -9,6 +9,7 @@ import com.shaft.tools.io.ReportManager;
 import org.apache.commons.lang3.SystemUtils;
 
 import java.io.File;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -17,19 +18,47 @@ import java.util.List;
 /**
  * Internal utility class that manages the Allure reporting lifecycle for SHAFT test runs.
  * Responsibilities include initialising the results directory, generating an {@code allurerc.yaml}
- * configuration file, invoking the Allure 3 CLI (npm-based {@code allure} command) to produce
- * the single-file HTML report, and optionally producing a ZIP archive.
+ * configuration file, bootstrapping the Allure 3 CLI (downloaded automatically when not present),
+ * invoking it to produce the single-file HTML report, and optionally producing a ZIP archive.
  *
  * <p>This class is not intended for direct use in test code. It is invoked automatically by the
  * SHAFT framework listeners at suite start and finish.
+ *
+ * <p><b>Allure 3 CLI resolution order (batteries-included):</b>
+ * <ol>
+ *   <li>A globally installed {@code allure} binary already on {@code PATH}.</li>
+ *   <li>{@code npx} on {@code PATH} → {@code npx --yes allure@<version>} (auto-downloads).</li>
+ *   <li>Portable Node.js downloaded to {@code ~/.m2/repository/nodejs/} → its bundled
+ *       {@code npx} → same {@code npx --yes allure@<version>} invocation.</li>
+ * </ol>
+ * No manual installation is required; SHAFT handles it transparently.
  *
  * <p>Thread safety: all public methods are {@code static} and intended to be called from a
  * single thread (the test runner thread). The result directory fields are mutable class-level
  * state and should not be accessed concurrently.
  */
 public class AllureManager {
+    // ─── Allure 3 report paths & config ────────────────────────────────────────
     private static final String allureReportPath = "allure-report";
     private static final String allureConfigFileName = "allurerc.yaml";
+
+    // ─── Allure 3 CLI version ───────────────────────────────────────────────────
+    /** Allure 3 npm package version used when invoking via npx. */
+    private static final String ALLURE3_VERSION = "3.4.0";
+
+    // ─── Portable Node.js bootstrap ────────────────────────────────────────────
+    /** Node.js LTS version downloaded when Node.js is absent from PATH. */
+    private static final String NODE_LTS_VERSION = "20.19.1";
+    /** Cache directory for the downloaded portable Node.js distribution. */
+    private static final String NODEJS_CACHE_DIR = System.getProperty("user.home")
+            + File.separator + ".m2" + File.separator + "repository"
+            + File.separator + "nodejs" + File.separator;
+
+    /** Cached resolved command prefix for allure (e.g. {@code "allure"} or {@code "npx --yes allure@3.x.x"}).
+     *  {@code null} means resolution has not happened yet; {@code ""} means no CLI was found. */
+    private static volatile String cachedAllureCommandPrefix = null;
+
+    // ─── SHAFT internal helpers ─────────────────────────────────────────────────
     private static final TerminalActions internalTerminalSession = TerminalActions.getInstance(false, false, true);
     private static final FileActions internalFileSession = FileActions.getInstance(true);
     private static String allureResultsFolderPath = "";
@@ -45,8 +74,8 @@ public class AllureManager {
      *   <li>Writes the current JVM system properties to {@code environment.xml} in the results directory.</li>
      * </ol>
      *
-     * <p>Allure 3 CLI must be installed globally via npm ({@code npm install -g allure}) or available
-     * as {@code npx allure} before report generation is attempted.
+     * <p>The Allure 3 CLI is resolved (and downloaded if necessary) automatically at report-generation
+     * time; no separate installation step is required.
      *
      * <p>Example (called automatically by SHAFT listeners):
      * <pre>{@code
@@ -104,10 +133,9 @@ public class AllureManager {
             newFileName = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + "_AllureReport.html";
         String sourceFile = System.getProperty("user.dir") + File.separator + allureReportPath + File.separator + "index.html";
         if (!internalFileSession.doesFileExist(sourceFile)) {
-            // Allure report was not generated (CLI not installed or allure-results was empty)
+            // Allure report was not generated (CLI bootstrap failed or allure-results was empty)
             ReportManager.logDiscrete("Allure report 'index.html' not found — 'allure generate' may have failed."
-                    + " Ensure the Allure 3 CLI is installed via 'npm install -g allure'"
-                    + " and that the allure-results directory is not empty.");
+                    + " Check that allure-results is not empty and that SHAFT could reach nodejs.org to download Node.js.");
             return null;
         }
         internalFileSession.renameFile(sourceFile, newFileName);
@@ -160,18 +188,22 @@ public class AllureManager {
     private static void writeGenerateReportShellFilesToProjectDirectory() {
         String resultsPath = getResultsPath();
         // create generate_allure_report.sh or generate_allure_report.bat
+        // Uses allure if available on PATH, otherwise falls back to npx (which comes with Node.js).
         List<String> commandsToServeAllureReport;
         if (SystemUtils.IS_OS_WINDOWS) {
-            // create windows batch file
-            commandsToServeAllureReport = Arrays.asList("@echo off",
-                    "allure serve \"" + resultsPath + "\" -h localhost",
+            commandsToServeAllureReport = Arrays.asList(
+                    "@echo off",
+                    "where allure >nul 2>&1 && (allure open \"" + resultsPath + "\\allure-report\") || (npx --yes allure@" + ALLURE3_VERSION + " open \"" + resultsPath + "\\allure-report\")",
                     "pause", "exit");
             internalFileSession.writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
         } else {
-            // create Unix-based sh file
-            commandsToServeAllureReport = Arrays.asList("#!/bin/bash",
-                    "allure serve '" + resultsPath + "' -h localhost",
-                    "exit");
+            commandsToServeAllureReport = Arrays.asList(
+                    "#!/bin/bash",
+                    "if command -v allure >/dev/null 2>&1; then",
+                    "  allure open '" + resultsPath + "/allure-report'",
+                    "else",
+                    "  npx --yes allure@" + ALLURE3_VERSION + " open '" + resultsPath + "/allure-report'",
+                    "fi");
             internalFileSession.writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
             // make script executable on Unix-based shells
             internalTerminalSession.performTerminalCommand("chmod u+x generate_allure_report.sh");
@@ -209,8 +241,14 @@ public class AllureManager {
         // Write allurerc.yaml with current settings (including custom title and optional history path)
         writeAllureConfig(customReportName);
 
-        // Generate the report using Allure 3 CLI (npm-based `allure` command)
-        internalTerminalSession.performTerminalCommand(getCommandToCreateAllureReport());
+        // Resolve the Allure 3 CLI (downloading Node.js if needed) and generate the report
+        String cmd = getCommandToCreateAllureReport();
+        if (cmd != null && !cmd.isBlank()) {
+            internalTerminalSession.performTerminalCommand(cmd);
+        } else {
+            ReportManager.logDiscrete("Allure report generation skipped: could not resolve the Allure 3 CLI."
+                    + " Install Node.js (https://nodejs.org) and re-run to generate the report.");
+        }
     }
 
     /**
@@ -250,12 +288,181 @@ public class AllureManager {
     }
 
     private static String getCommandToCreateAllureReport() {
+        String prefix = resolveAllureCommandPrefix();
+        if (prefix == null) return null;
         String resultsPath = getResultsPath();
         if (SystemUtils.IS_OS_WINDOWS) {
-            return "allure generate \"" + resultsPath + "\" -o \"" + allureOutPutDirectory + "\" --clean";
+            return prefix + " generate \"" + resultsPath + "\" -o \"" + allureOutPutDirectory + "\"";
         } else {
-            return "allure generate " + resultsPath + " -o " + allureOutPutDirectory + " --clean";
+            return prefix + " generate " + resultsPath + " -o " + allureOutPutDirectory;
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Batteries-included Allure 3 CLI bootstrap
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Resolves the command prefix used to invoke the Allure 3 CLI.
+     *
+     * <p>The result is computed once and cached for the JVM lifetime.
+     *
+     * <p>Resolution order:
+     * <ol>
+     *   <li>{@code allure} binary on {@code PATH} (user-installed globally).</li>
+     *   <li>{@code npx} on {@code PATH} → {@code npx --yes allure@<version>}.</li>
+     *   <li>Portable Node.js downloaded to {@value #NODEJS_CACHE_DIR} → its {@code npx}.</li>
+     * </ol>
+     *
+     * @return the command prefix (e.g. {@code "allure"} or {@code "npx --yes allure@3.x.x"}),
+     *         or {@code null} when no CLI could be resolved or downloaded
+     */
+    private static String resolveAllureCommandPrefix() {
+        if (cachedAllureCommandPrefix != null) {
+            // "" means "already tried, nothing found"
+            return cachedAllureCommandPrefix.isEmpty() ? null : cachedAllureCommandPrefix;
+        }
+
+        // 1. allure binary on PATH
+        if (isExecutableOnPath("allure")) {
+            cachedAllureCommandPrefix = "allure";
+            ReportManager.logDiscrete("Allure 3 CLI resolved: using system 'allure' binary.");
+            return cachedAllureCommandPrefix;
+        }
+
+        // 2. npx on PATH
+        if (isExecutableOnPath("npx")) {
+            cachedAllureCommandPrefix = "npx --yes allure@" + ALLURE3_VERSION;
+            ReportManager.logDiscrete("Allure 3 CLI resolved: using system npx.");
+            return cachedAllureCommandPrefix;
+        }
+
+        // 3. Download portable Node.js and use its npx
+        ReportManager.logDiscrete("Node.js not found on PATH. Downloading portable Node.js v" + NODE_LTS_VERSION + " to bootstrap Allure 3 CLI...");
+        String downloadedNpxPath = downloadNodeJsPortable();
+        if (downloadedNpxPath != null) {
+            cachedAllureCommandPrefix = q(downloadedNpxPath) + " --yes allure@" + ALLURE3_VERSION;
+            ReportManager.logDiscrete("Allure 3 CLI resolved: using downloaded Node.js npx.");
+            return cachedAllureCommandPrefix;
+        }
+
+        // Nothing worked
+        cachedAllureCommandPrefix = ""; // sentinel: tried but failed
+        return null;
+    }
+
+    /**
+     * Checks whether an executable is available on the system {@code PATH}.
+     *
+     * @param name the executable name (e.g. {@code "allure"}, {@code "npx"})
+     * @return {@code true} if the executable was found
+     */
+    private static boolean isExecutableOnPath(String name) {
+        try {
+            ProcessBuilder pb = SystemUtils.IS_OS_WINDOWS
+                    ? new ProcessBuilder("cmd.exe", "/c", "where", name)
+                    : new ProcessBuilder("which", name);
+            pb.redirectErrorStream(true);
+            return pb.start().waitFor() == 0;
+        } catch (IOException | InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+    /**
+     * Downloads and extracts the portable Node.js LTS distribution to {@value #NODEJS_CACHE_DIR}
+     * if it is not already cached there.
+     *
+     * @return the absolute path to the {@code npx} executable inside the extracted archive,
+     *         or {@code null} if the download/extraction failed
+     */
+    private static String downloadNodeJsPortable() {
+        String npxPath = getNpxBinPath();
+        if (new File(npxPath).exists()) {
+            return npxPath; // already downloaded in a previous run
+        }
+
+        String downloadUrl = getNodeJsDownloadUrl();
+        String archiveName = downloadUrl.substring(downloadUrl.lastIndexOf('/') + 1);
+        String archivePath = NODEJS_CACHE_DIR + archiveName;
+
+        new File(NODEJS_CACHE_DIR).mkdirs();
+        var downloaded = internalFileSession.downloadFile(downloadUrl, archivePath);
+        if (downloaded == null) {
+            ReportManager.logDiscrete("Failed to download portable Node.js from " + downloadUrl);
+            return null;
+        }
+
+        if (archiveName.endsWith(".zip")) {
+            // Windows: reuse existing ZIP support in FileActions
+            internalFileSession.unpackArchive(downloaded, NODEJS_CACHE_DIR);
+        } else {
+            // Linux / macOS: standard tar.gz
+            internalTerminalSession.performTerminalCommand(
+                    "tar -xzf \"" + archivePath + "\" -C \"" + NODEJS_CACHE_DIR + "\"");
+        }
+
+        if (!new File(npxPath).exists()) {
+            ReportManager.logDiscrete("Node.js extraction appeared to succeed but npx was not found at: " + npxPath);
+            return null;
+        }
+
+        // Ensure executables are runnable on Unix
+        if (!SystemUtils.IS_OS_WINDOWS) {
+            internalTerminalSession.performTerminalCommand("chmod +x \"" + getNodeBinPath() + "\"");
+            internalTerminalSession.performTerminalCommand("chmod +x \"" + npxPath + "\"");
+        }
+        return npxPath;
+    }
+
+    /** @return the download URL for the portable Node.js LTS archive for the current OS/arch. */
+    private static String getNodeJsDownloadUrl() {
+        String arch = System.getProperty("os.arch", "amd64").toLowerCase();
+        boolean isArm = arch.contains("aarch64") || arch.contains("arm");
+        if (SystemUtils.IS_OS_WINDOWS) {
+            return "https://nodejs.org/dist/v" + NODE_LTS_VERSION + "/node-v" + NODE_LTS_VERSION + "-win-x64.zip";
+        } else if (SystemUtils.IS_OS_MAC) {
+            String suffix = isArm ? "darwin-arm64" : "darwin-x64";
+            return "https://nodejs.org/dist/v" + NODE_LTS_VERSION + "/node-v" + NODE_LTS_VERSION + "-" + suffix + ".tar.gz";
+        } else {
+            String suffix = isArm ? "linux-arm64" : "linux-x64";
+            return "https://nodejs.org/dist/v" + NODE_LTS_VERSION + "/node-v" + NODE_LTS_VERSION + "-" + suffix + ".tar.gz";
+        }
+    }
+
+    /** @return the directory name of the extracted Node.js archive (platform-specific). */
+    private static String getNodeJsFolderName() {
+        String arch = System.getProperty("os.arch", "amd64").toLowerCase();
+        boolean isArm = arch.contains("aarch64") || arch.contains("arm");
+        if (SystemUtils.IS_OS_WINDOWS) {
+            return "node-v" + NODE_LTS_VERSION + "-win-x64";
+        } else if (SystemUtils.IS_OS_MAC) {
+            return "node-v" + NODE_LTS_VERSION + "-" + (isArm ? "darwin-arm64" : "darwin-x64");
+        } else {
+            return "node-v" + NODE_LTS_VERSION + "-" + (isArm ? "linux-arm64" : "linux-x64");
+        }
+    }
+
+    /** @return absolute path to the {@code node} executable in the downloaded portable distribution. */
+    private static String getNodeBinPath() {
+        String base = NODEJS_CACHE_DIR + getNodeJsFolderName() + File.separator;
+        return SystemUtils.IS_OS_WINDOWS
+                ? base + "node.exe"
+                : base + "bin" + File.separator + "node";
+    }
+
+    /** @return absolute path to the {@code npx} executable in the downloaded portable distribution. */
+    private static String getNpxBinPath() {
+        String base = NODEJS_CACHE_DIR + getNodeJsFolderName() + File.separator;
+        return SystemUtils.IS_OS_WINDOWS
+                ? base + "npx.cmd"
+                : base + "bin" + File.separator + "npx";
+    }
+
+    /** Wraps a path in double-quotes for safe shell inclusion. */
+    private static String q(String path) {
+        return "\"" + path + "\"";
     }
 
     private static void createAllureReportArchive() {

@@ -23,9 +23,6 @@ jobs:
           java-version: '21'
           distribution: 'zulu'
 
-      - name: Install Allure Report 3
-        run: npm install -g allure
-
       - name: Download Docker Compose
         run: |
           curl -o docker-compose.yml https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/main/src/main/resources/docker-compose/selenium4.yml
