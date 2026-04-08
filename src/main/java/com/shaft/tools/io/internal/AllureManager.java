@@ -43,13 +43,7 @@ public class AllureManager {
     private static final String allureReportPath = "allure-report";
     private static final String allureConfigFileName = "allurerc.yaml";
 
-    // ─── Allure 3 CLI version ───────────────────────────────────────────────────
-    /** Allure 3 npm package version used when invoking via npx. */
-    private static final String ALLURE3_VERSION = "3.4.0";
-
     // ─── Portable Node.js bootstrap ────────────────────────────────────────────
-    /** Node.js LTS version downloaded when Node.js is absent from PATH. */
-    private static final String NODE_LTS_VERSION = "20.19.1";
     /** Cache directory for the downloaded portable Node.js distribution. */
     private static final String NODEJS_CACHE_DIR = System.getProperty("user.home")
             + File.separator + ".m2" + File.separator + "repository"
@@ -194,7 +188,7 @@ public class AllureManager {
         if (SystemUtils.IS_OS_WINDOWS) {
             commandsToServeAllureReport = Arrays.asList(
                     "@echo off",
-                    "where allure >nul 2>&1 && (allure open \"" + resultsPath + "\\allure-report\") || (npx --yes allure@" + ALLURE3_VERSION + " open \"" + resultsPath + "\\allure-report\")",
+                    "where allure >nul 2>&1 && (allure open \"" + resultsPath + "\\allure-report\") || (npx --yes allure@" + SHAFT.Properties.internal.allure3Version() + " open \"" + resultsPath + "\\allure-report\")",
                     "pause", "exit");
             internalFileSession.writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
         } else {
@@ -203,7 +197,7 @@ public class AllureManager {
                     "if command -v allure >/dev/null 2>&1; then",
                     "  allure open '" + resultsPath + "/allure-report'",
                     "else",
-                    "  npx --yes allure@" + ALLURE3_VERSION + " open '" + resultsPath + "/allure-report'",
+                    "  npx --yes allure@" + SHAFT.Properties.internal.allure3Version() + " open '" + resultsPath + "/allure-report'",
                     "fi");
             internalFileSession.writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
             // make script executable on Unix-based shells
@@ -333,16 +327,16 @@ public class AllureManager {
 
         // 2. npx on PATH
         if (isExecutableOnPath("npx")) {
-            cachedAllureCommandPrefix = "npx --yes allure@" + ALLURE3_VERSION;
+            cachedAllureCommandPrefix = "npx --yes allure@" + SHAFT.Properties.internal.allure3Version();
             ReportManager.logDiscrete("Allure 3 CLI resolved: using system npx.");
             return cachedAllureCommandPrefix;
         }
 
         // 3. Download portable Node.js and use its npx
-        ReportManager.logDiscrete("Node.js not found on PATH. Downloading portable Node.js v" + NODE_LTS_VERSION + " to bootstrap Allure 3 CLI...");
+        ReportManager.logDiscrete("Node.js not found on PATH. Downloading portable Node.js v" + SHAFT.Properties.internal.nodeLtsVersion() + " to bootstrap Allure 3 CLI...");
         String downloadedNpxPath = downloadNodeJsPortable();
         if (downloadedNpxPath != null) {
-            cachedAllureCommandPrefix = q(downloadedNpxPath) + " --yes allure@" + ALLURE3_VERSION;
+            cachedAllureCommandPrefix = q(downloadedNpxPath) + " --yes allure@" + SHAFT.Properties.internal.allure3Version();
             ReportManager.logDiscrete("Allure 3 CLI resolved: using downloaded Node.js npx.");
             return cachedAllureCommandPrefix;
         }
@@ -428,13 +422,13 @@ public class AllureManager {
         String arch = System.getProperty("os.arch", "amd64").toLowerCase();
         boolean isArm = arch.contains("aarch64") || arch.contains("arm");
         if (SystemUtils.IS_OS_WINDOWS) {
-            return "https://nodejs.org/dist/v" + NODE_LTS_VERSION + "/node-v" + NODE_LTS_VERSION + "-win-x64.zip";
+            return "https://nodejs.org/dist/v" + SHAFT.Properties.internal.nodeLtsVersion() + "/node-v" + SHAFT.Properties.internal.nodeLtsVersion() + "-win-x64.zip";
         } else if (SystemUtils.IS_OS_MAC) {
             String suffix = isArm ? "darwin-arm64" : "darwin-x64";
-            return "https://nodejs.org/dist/v" + NODE_LTS_VERSION + "/node-v" + NODE_LTS_VERSION + "-" + suffix + ".tar.gz";
+            return "https://nodejs.org/dist/v" + SHAFT.Properties.internal.nodeLtsVersion() + "/node-v" + SHAFT.Properties.internal.nodeLtsVersion() + "-" + suffix + ".tar.gz";
         } else {
             String suffix = isArm ? "linux-arm64" : "linux-x64";
-            return "https://nodejs.org/dist/v" + NODE_LTS_VERSION + "/node-v" + NODE_LTS_VERSION + "-" + suffix + ".tar.gz";
+            return "https://nodejs.org/dist/v" + SHAFT.Properties.internal.nodeLtsVersion() + "/node-v" + SHAFT.Properties.internal.nodeLtsVersion() + "-" + suffix + ".tar.gz";
         }
     }
 
@@ -443,11 +437,11 @@ public class AllureManager {
         String arch = System.getProperty("os.arch", "amd64").toLowerCase();
         boolean isArm = arch.contains("aarch64") || arch.contains("arm");
         if (SystemUtils.IS_OS_WINDOWS) {
-            return "node-v" + NODE_LTS_VERSION + "-win-x64";
+            return "node-v" + SHAFT.Properties.internal.nodeLtsVersion() + "-win-x64";
         } else if (SystemUtils.IS_OS_MAC) {
-            return "node-v" + NODE_LTS_VERSION + "-" + (isArm ? "darwin-arm64" : "darwin-x64");
+            return "node-v" + SHAFT.Properties.internal.nodeLtsVersion() + "-" + (isArm ? "darwin-arm64" : "darwin-x64");
         } else {
-            return "node-v" + NODE_LTS_VERSION + "-" + (isArm ? "linux-arm64" : "linux-x64");
+            return "node-v" + SHAFT.Properties.internal.nodeLtsVersion() + "-" + (isArm ? "linux-arm64" : "linux-x64");
         }
     }
 

@@ -24,12 +24,20 @@ runs:
       if: always()
       shell: bash
       run: |
+        # Derive Allure 3 version from Internal.java — the single source of truth for the engine.
+        # Pattern: @Key("allure3Version") is followed within 2 lines by @DefaultValue("X.Y.Z").
+        # Using -A2 (instead of -A1) tolerates an extra annotation between the two lines.
+        # A safe fallback version is applied if the grep produces no output.
+        ALLURE3_VERSION=$(grep -A2 'Key("allure3Version")' \
+          src/main/java/com/shaft/properties/internal/Internal.java \
+          | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/')
+        ALLURE3_VERSION=${ALLURE3_VERSION:-3.4.0}
         if [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
           # Generate full report to get summary.json for verification (use npx — no global install required)
-          npx --yes allure@3.4.0 generate allure-results -o allure-report-check 2>/dev/null || true
+          npx --yes allure@${ALLURE3_VERSION} generate allure-results -o allure-report-check 2>/dev/null || true
           # Generate single-file report if SHAFT didn't already create one
           if ! ls allure-report/*AllureReport.html 1>/dev/null 2>&1; then
-            npx --yes allure@3.4.0 generate allure-results -o allure-report 2>/dev/null || true
+            npx --yes allure@${ALLURE3_VERSION} generate allure-results -o allure-report 2>/dev/null || true
             if [ -f "allure-report/index.html" ]; then
               mv allure-report/index.html allure-report/AllureReport.html
             fi
