@@ -40,6 +40,8 @@ jobs:
           POSTGRES_PORT: 5432
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
@@ -57,6 +59,8 @@ jobs:
         uses: actions/checkout@v6
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*API.*], %regex[.*Api.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*], %regex[.*CLIWizard.*], %regex[.*properties.Mobile.*]"
@@ -92,6 +96,8 @@ jobs:
         run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=${{ matrix.scale_chrome }} --scale edge=${{ matrix.scale_edge }} --scale firefox=${{ matrix.scale_firefox }} -d
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
       - name: Check running containers
         run: docker ps
       - name: Run tests
@@ -111,6 +117,8 @@ jobs:
         uses: actions/checkout@v6
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
       - name: Run tests
         continue-on-error: true
         timeout-minutes: 40
@@ -129,6 +137,8 @@ jobs:
         uses: actions/checkout@v6
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=iOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-DbrowserName=safari" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
@@ -146,6 +156,8 @@ jobs:
         uses: actions/checkout@v6
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-DbrowserName=chrome" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
@@ -163,6 +175,8 @@ jobs:
         uses: actions/checkout@v6
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
       - name: Run tests
         continue-on-error: true
         run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*]"

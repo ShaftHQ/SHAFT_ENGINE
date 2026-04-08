@@ -19,6 +19,9 @@ jobs:
           java-version: '21'
           distribution: 'zulu'
 
+      - name: Install Allure Report 3
+        run: npm install -g allure
+
       - name: Run Tests
         run: |
           mvn -e clean test "-DgenerateAllureReportArchive=true" "-DretryMaximumNumberOfAttempts=1" "-DsetParallel=NONE" "-DsetParallelMode=DYNAMIC"

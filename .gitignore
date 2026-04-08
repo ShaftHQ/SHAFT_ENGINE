@@ -1,6 +1,8 @@
 /target/
 /allure-results/
 /allure-report/
+/allure-report-check/
+/allurerc.yaml
 /extent-reports/
 /execution-summary/
 /test-output/

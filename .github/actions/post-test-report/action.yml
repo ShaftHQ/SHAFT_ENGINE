@@ -20,18 +20,23 @@ runs:
         files: ./target/jacoco/jacoco.xml
         verbose: true
         disable_search: true
+    - name: Install Allure Report 3
+      if: always()
+      shell: bash
+      run: |
+        if ! command -v allure &>/dev/null; then
+          npm install -g allure 2>/dev/null || true
+        fi
     - name: Generate Allure Report for Verification
       if: always()
       shell: bash
       run: |
-        ALLURE_BINARY=$(find ~/.m2/repository/allure -maxdepth 3 -name allure -not -name "*.bat" -type f 2>/dev/null | head -1)
-        if [ -n "$ALLURE_BINARY" ] && [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
-          chmod +x "$ALLURE_BINARY"
-          # Generate full report to get widgets/summary.json for verification
-          "$ALLURE_BINARY" generate allure-results -o allure-report-check --clean 2>/dev/null || true
+        if command -v allure &>/dev/null && [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
+          # Generate full report to get summary.json for verification
+          allure generate allure-results -o allure-report-check --clean 2>/dev/null || true
           # Generate single-file report if SHAFT didn't already create one
           if ! ls allure-report/*AllureReport.html 1>/dev/null 2>&1; then
-            "$ALLURE_BINARY" generate --single-file --clean allure-results -o allure-report 2>/dev/null || true
+            allure generate allure-results -o allure-report --clean 2>/dev/null || true
             if [ -f "allure-report/index.html" ]; then
               mv allure-report/index.html allure-report/AllureReport.html
             fi
@@ -66,7 +71,8 @@ runs:
 
         mkdir -p test-summary-data
         SUMMARY_FILE="test-summary-data/${{ inputs.job-name }}.txt"
-        ALLURE_SUMMARY="allure-report-check/widgets/summary.json"
+        # Allure 3 writes summary.json at the report root (not widgets/summary.json)
+        ALLURE_SUMMARY="allure-report-check/summary.json"
 
         if [ -f "$ALLURE_SUMMARY" ]; then
           echo "job=${{ inputs.job-name }}" > "$SUMMARY_FILE"
@@ -104,7 +110,8 @@ runs:
         }
 
         echo "=== Checking test results using Allure report data ==="
-        ALLURE_SUMMARY="allure-report-check/widgets/summary.json"
+        # Allure 3 writes summary.json at the report root (not widgets/summary.json)
+        ALLURE_SUMMARY="allure-report-check/summary.json"
 
         # Primary check: Use Allure report summary (the main reference)
         if [ -f "$ALLURE_SUMMARY" ]; then

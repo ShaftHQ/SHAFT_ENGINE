@@ -1,5 +1,5 @@
 name: 'Setup Test Environment'
-description: 'Sets up JDK, Maven, and optionally Node.js for SHAFT test execution'
+description: 'Sets up JDK, Maven, and optionally Node.js with Allure 3 for SHAFT test execution'
 inputs:
   java-version:
     description: 'Java version to install'
@@ -10,7 +10,7 @@ inputs:
     required: false
     default: '3.9.5'
   node-version:
-    description: 'Node.js version to install (set to empty string to skip)'
+    description: 'Node.js version to install (set to empty string to skip). When set, Allure 3 CLI is also installed globally.'
     required: false
     default: ''
 runs:
@@ -21,6 +21,10 @@ runs:
       uses: actions/setup-node@v6
       with:
         node-version: ${{ inputs.node-version }}
+    - name: Install Allure Report 3 CLI
+      if: inputs.node-version != ''
+      shell: bash
+      run: npm install -g allure
     - name: Set up JDK ${{ inputs.java-version }}
       uses: actions/setup-java@v5
       with:

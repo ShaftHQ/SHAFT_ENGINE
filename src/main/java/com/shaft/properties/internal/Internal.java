@@ -21,9 +21,4 @@ public interface Internal extends EngineProperties<Internal> {
     @Key("watermarkImagePath")
     @DefaultValue("https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/src/main/resources/images/shaft_white_bg.png")
     String watermarkImagePath();
-
-    @Key("allureVersion")
-    @DefaultValue("2.37.0")
-        //https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/
-    String allureVersion();
 }
