@@ -20,21 +20,16 @@ runs:
         files: ./target/jacoco/jacoco.xml
         verbose: true
         disable_search: true
-    - name: Generate Allure Report for Verification
+    - name: Generate Allure Report Fallback
       if: always()
       shell: bash
       run: |
         # Derive Allure 3 version from Internal.java — the single source of truth for the engine.
-        # Pattern: @Key("allure3Version") is followed within 2 lines by @DefaultValue("X.Y.Z").
-        # Using -A2 (instead of -A1) tolerates an extra annotation between the two lines.
-        # A safe fallback version is applied if the grep produces no output.
         ALLURE3_VERSION=$(grep -A2 'Key("allure3Version")' \
           src/main/java/com/shaft/properties/internal/Internal.java \
           | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/')
         ALLURE3_VERSION=${ALLURE3_VERSION:-3.4.0}
         if [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
-          # Generate full report to get summary.json for verification (use npx — no global install required)
-          npx --yes allure@${ALLURE3_VERSION} generate allure-results -o allure-report-check 2>/dev/null || true
           # Generate single-file report if SHAFT didn't already create one
           if ! ls allure-report/*AllureReport.html 1>/dev/null 2>&1; then
             npx --yes allure@${ALLURE3_VERSION} generate allure-results -o allure-report 2>/dev/null || true
@@ -59,74 +54,47 @@ runs:
       uses: test-summary/action@v2
       with:
         paths: "target/surefire-reports/TEST-*.xml"
-    - name: Extract and Upload Test Summary Data
+    - name: Write Summary and Check Test Results
       if: always()
       shell: bash
       run: |
-        # Helper function to extract a numeric field from allure summary JSON
+        # Extract a numeric field from Allure 3 summary.json.
+        # Returns empty string (defaults to 0 at call site) when the field is absent —
+        # e.g. "failed" is omitted when all tests pass. The "|| true" prevents
+        # set -e / pipefail from failing the step when grep finds no match.
         extract_field() {
           local field="$1"
           local file="$2"
-          grep -o "\"$field\" *: *[0-9]*" "$file" | head -1 | grep -o '[0-9]*'
+          grep -o "\"${field}\" *: *[0-9]*" "$file" 2>/dev/null | head -1 | grep -o '[0-9]*' || true
         }
 
-        mkdir -p test-summary-data
-        SUMMARY_FILE="test-summary-data/${{ inputs.job-name }}.txt"
-        # Allure 3 writes summary.json at the report root (not widgets/summary.json)
-        ALLURE_SUMMARY="allure-report-check/summary.json"
+        # SHAFT writes summary.json at the report root after generating the single-file HTML.
+        ALLURE_SUMMARY="allure-report/summary.json"
 
         if [ -f "$ALLURE_SUMMARY" ]; then
-          echo "job=${{ inputs.job-name }}" > "$SUMMARY_FILE"
-          echo "total=$(extract_field total "$ALLURE_SUMMARY")" >> "$SUMMARY_FILE"
-          echo "passed=$(extract_field passed "$ALLURE_SUMMARY")" >> "$SUMMARY_FILE"
-          echo "failed=$(extract_field failed "$ALLURE_SUMMARY")" >> "$SUMMARY_FILE"
-          echo "broken=$(extract_field broken "$ALLURE_SUMMARY")" >> "$SUMMARY_FILE"
-          echo "skipped=$(extract_field skipped "$ALLURE_SUMMARY")" >> "$SUMMARY_FILE"
-          echo "duration=$(extract_field duration "$ALLURE_SUMMARY")" >> "$SUMMARY_FILE"
+          TOTAL=$(extract_field total "$ALLURE_SUMMARY");   TOTAL=${TOTAL:-0}
+          PASSED=$(extract_field passed "$ALLURE_SUMMARY"); PASSED=${PASSED:-0}
+          FAILED=$(extract_field failed "$ALLURE_SUMMARY"); FAILED=${FAILED:-0}
+          BROKEN=$(extract_field broken "$ALLURE_SUMMARY"); BROKEN=${BROKEN:-0}
+          SKIPPED=$(extract_field skipped "$ALLURE_SUMMARY"); SKIPPED=${SKIPPED:-0}
         else
-          echo "job=${{ inputs.job-name }}" > "$SUMMARY_FILE"
-          echo "total=0" >> "$SUMMARY_FILE"
-          echo "passed=0" >> "$SUMMARY_FILE"
-          echo "failed=0" >> "$SUMMARY_FILE"
-          echo "broken=0" >> "$SUMMARY_FILE"
-          echo "skipped=0" >> "$SUMMARY_FILE"
-          echo "duration=0" >> "$SUMMARY_FILE"
+          TOTAL=0; PASSED=0; FAILED=0; BROKEN=0; SKIPPED=0
         fi
-        cat "$SUMMARY_FILE"
-    - name: Upload Test Summary Data
-      if: always()
-      uses: actions/upload-artifact@v7
-      with:
-        name: test-summary-${{ inputs.job-name }}
-        path: "test-summary-data/${{ inputs.job-name }}.txt"
-    - name: Check Test Results via Allure Report
-      if: always()
-      shell: bash
-      run: |
-        # Helper function to extract a numeric field from allure summary JSON
-        extract_field() {
-          local field="$1"
-          local file="$2"
-          grep -o "\"$field\" *: *[0-9]*" "$file" | head -1 | grep -o '[0-9]*'
-        }
+
+        # Write per-job results table at the top of this job's step summary.
+        # test-summary/action@v2 (run above) appends surefire data after this.
+        {
+          echo "## 📊 ${{ inputs.job-name }} — Test Results"
+          echo "| Total | ✅ Passed | ❌ Failed | 💥 Broken | ⊘ Skipped |"
+          echo "|------:|----------:|----------:|----------:|----------:|"
+          echo "| $TOTAL | $PASSED | $FAILED | $BROKEN | $SKIPPED |"
+        } > "$GITHUB_STEP_SUMMARY"
 
         echo "=== Checking test results using Allure report data ==="
-        # Allure 3 writes summary.json at the report root (not widgets/summary.json)
-        ALLURE_SUMMARY="allure-report-check/summary.json"
+        echo "Allure Report Summary: Total=$TOTAL, Passed=$PASSED, Failed=$FAILED, Broken=$BROKEN, Skipped=$SKIPPED"
 
-        # Primary check: Use Allure report summary (the main reference)
+        # Primary check: use Allure report data.
         if [ -f "$ALLURE_SUMMARY" ]; then
-          FAILED=$(extract_field failed "$ALLURE_SUMMARY")
-          TOTAL=$(extract_field total "$ALLURE_SUMMARY")
-          PASSED=$(extract_field passed "$ALLURE_SUMMARY")
-          BROKEN=$(extract_field broken "$ALLURE_SUMMARY")
-          SKIPPED=$(extract_field skipped "$ALLURE_SUMMARY")
-          FAILED=${FAILED:-0}
-          TOTAL=${TOTAL:-0}
-          PASSED=${PASSED:-0}
-          BROKEN=${BROKEN:-0}
-          SKIPPED=${SKIPPED:-0}
-          echo "Allure Report Summary: Total=$TOTAL, Passed=$PASSED, Failed=$FAILED, Broken=$BROKEN, Skipped=$SKIPPED"
           if [ "$TOTAL" -eq 0 ]; then
             echo "::warning::No tests were executed. Check test configuration."
           fi
@@ -137,7 +105,7 @@ runs:
           echo "All tests passed according to Allure report."
         else
           echo "::warning::Allure report summary not found. Falling back to surefire reports."
-          # Fallback: Check surefire reports if allure data is unavailable
+          # Fallback: Check surefire reports if allure data is unavailable.
           if [ -d "target/surefire-reports" ]; then
             if grep -rq "failures=\"[1-9]" target/surefire-reports/ || grep -rq "errors=\"[1-9]" target/surefire-reports/; then
               echo "::error::Surefire reports indicate test failures. Failing the job."

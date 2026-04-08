@@ -11,6 +11,9 @@ import org.apache.commons.lang3.SystemUtils;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -239,6 +242,12 @@ public class AllureManager {
         var customReportName = SHAFT.Properties.allure.customTitle();
         internalFileSession.createFolder(allureOutPutDirectory);
 
+        // Pre-process result files to ensure every step has a statusDetails object.
+        // The awesome plugin's renderer crashes with a TypeError when step.statusDetails is
+        // undefined (absent from passing steps). Adding an empty object prevents the crash
+        // and allows test details to be opened without JavaScript console errors.
+        patchMissingStatusDetailsInResults(getResultsPath());
+
         // Write allurerc.yaml with current settings (including custom title and optional history path)
         writeAllureConfig(customReportName);
 
@@ -306,6 +315,101 @@ public class AllureManager {
                 .replace("\r", "\\r")
                 .replace("\t", "\\t");
     }
+
+    /**
+     * Patches Allure result JSON files so that every step (at any nesting depth) has a
+     * {@code statusDetails} object. The Allure 3 awesome-plugin renderer assumes the field
+     * is always present and throws a {@code TypeError: Cannot read properties of undefined
+     * (reading 'message')} when a passing step omits it (the default for
+     * {@code allure-testng} / {@code allure-junit5} adapters).
+     *
+     * <p>The patch is purely additive: files and steps that already have
+     * {@code statusDetails} are untouched. If the results directory does not exist, or a
+     * particular file cannot be read/written, the failure is silently logged so that report
+     * generation still proceeds.
+     *
+     * @param resultsPath path to the directory containing {@code *-result.json} files
+     */
+    private static void patchMissingStatusDetailsInResults(String resultsPath) {
+        File dir = new File(resultsPath);
+        if (!dir.isDirectory()) return;
+        File[] resultFiles = dir.listFiles((d, name) -> name.endsWith("-result.json"));
+        if (resultFiles == null) return;
+
+        for (File file : resultFiles) {
+            try {
+                String original = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+                String patched = patchStatusDetailsInJson(original);
+                if (!patched.equals(original)) {
+                    Files.writeString(file.toPath(), patched, StandardCharsets.UTF_8);
+                }
+            } catch (IOException e) {
+                ReportManager.logDiscrete("Could not patch statusDetails in " + file.getName() + ": " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Adds {@code "statusDetails":{"message":""}} after every {@code "stage":"finished"}
+     * token that is not already followed by a {@code "statusDetails"} key in the same step.
+     * The transformation works on the raw JSON text to avoid a full-parse dependency while
+     * still handling arbitrary nesting.
+     *
+     * <p>The boundary for "same step" is the position of the <em>next</em> {@code "stage"}
+     * token in the string. Any {@code "statusDetails"} found between the current
+     * {@code "finished"} and the next {@code "stage"} belongs to the same step object;
+     * anything beyond that boundary belongs to a sibling or child step.
+     *
+     * <p>Because allure result files are small (typically &lt;1 MB) and processed once,
+     * the performance impact is negligible.
+     *
+     * @param json the raw JSON string of a single result file
+     * @return the patched JSON string (identical to the input when no patch was needed)
+     */
+    private static String patchStatusDetailsInJson(String json) {
+        StringBuilder sb = new StringBuilder(json.length() + 64);
+        String marker = "\"stage\"";
+        String finished = "\"finished\"";
+        String sdKey = "\"statusDetails\"";
+        int pos = 0;
+        int len = json.length();
+        while (pos < len) {
+            int markerIdx = json.indexOf(marker, pos);
+            if (markerIdx < 0) {
+                sb.append(json, pos, len);
+                break;
+            }
+            // Check if this "stage" refers to "finished"
+            int afterMarker = markerIdx + marker.length();
+            // skip whitespace and colon
+            int valueStart = afterMarker;
+            while (valueStart < len && (json.charAt(valueStart) == ' ' || json.charAt(valueStart) == '\t'
+                    || json.charAt(valueStart) == ':' || json.charAt(valueStart) == '\n' || json.charAt(valueStart) == '\r')) {
+                valueStart++;
+            }
+            int finishedEnd = valueStart + finished.length();
+            boolean isFinished = finishedEnd <= len && json.substring(valueStart, finishedEnd).equals(finished);
+            if (!isFinished) {
+                sb.append(json, pos, finishedEnd <= len ? finishedEnd : len);
+                pos = finishedEnd <= len ? finishedEnd : len;
+                continue;
+            }
+            // Determine the look-ahead boundary: the next "stage" token marks a new step
+            // (could be a sibling or a child step). "statusDetails" between finishedEnd and
+            // that boundary belongs to the current step; beyond it belongs to another step.
+            int nextStageIdx = json.indexOf(marker, finishedEnd);
+            int lookaheadEnd = nextStageIdx >= 0 ? nextStageIdx : len;
+            boolean alreadyHasSD = json.indexOf(sdKey, finishedEnd) >= 0
+                    && json.indexOf(sdKey, finishedEnd) < lookaheadEnd;
+            sb.append(json, pos, finishedEnd);
+            if (!alreadyHasSD) {
+                sb.append(",\"statusDetails\":{\"message\":\"\"}");
+            }
+            pos = finishedEnd;
+        }
+        return sb.toString();
+    }
+
 
     private static String getCommandToCreateAllureReport() {
         String prefix = resolveAllureCommandPrefix();

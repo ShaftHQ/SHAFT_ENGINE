@@ -9,6 +9,21 @@ env:
   GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*], !%regex[.*CLI.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*MobileWeb.*], !%regex[.*appium.Mobile.*], !%regex[.*properties.Mobile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*], !%regex[.*Flutter.*]"
 
 jobs:
+  Workflow_Summary:
+    if: always()
+    needs: [Windows_Edge_Local, MacOSX_Safari_Local, Windows_Chrome_Local, MacOSX_Chrome_Local, Windows_Edge_Cucumber_Local]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Consolidate Test Results
+        uses: ./.github/actions/consolidate-test-results
+        with:
+          needs-json: ${{ toJSON(needs) }}
+
   Windows_Edge_Local:
     runs-on: windows-latest
     steps:
@@ -109,16 +124,3 @@ jobs:
         with:
           job-name: Windows_Edge_Cucumber_Local
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
-
-  Workflow_Summary:
-    if: always()
-    needs: [Windows_Edge_Local, MacOSX_Safari_Local, Windows_Chrome_Local, MacOSX_Chrome_Local, Windows_Edge_Cucumber_Local]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v6
-      - name: Consolidate Test Results
-        uses: ./.github/actions/consolidate-test-results

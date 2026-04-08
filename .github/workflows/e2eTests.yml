@@ -13,6 +13,21 @@ env:
   GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*], !%regex[.*CLI.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*MobileWeb.*], !%regex[.*appium.Mobile.*], !%regex[.*properties.Mobile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*], !%regex[.*Flutter.*]"
 
 jobs:
+  Workflow_Summary:
+    if: always()
+    needs: [Ubuntu_Database, Ubuntu_APIs, Ubuntu_Browser_Grid, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack, MacOSX_Safari_BrowserStack, Ubuntu_Chrome_Cucumber_Grid, MacOSX_Safari_Cucumber_BrowserStack]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Consolidate Test Results
+        uses: ./.github/actions/consolidate-test-results
+        with:
+          needs-json: ${{ toJSON(needs) }}
+
   Ubuntu_Database:
     runs-on: ubuntu-latest
     services:
@@ -228,16 +243,3 @@ jobs:
         with:
           job-name: MacOSX_Safari_Cucumber_BrowserStack
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
-
-  Workflow_Summary:
-    if: always()
-    needs: [Ubuntu_Database, Ubuntu_APIs, Ubuntu_Browser_Grid, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack, MacOSX_Safari_BrowserStack, Ubuntu_Chrome_Cucumber_Grid, MacOSX_Safari_Cucumber_BrowserStack]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v6
-      - name: Consolidate Test Results
-        uses: ./.github/actions/consolidate-test-results
