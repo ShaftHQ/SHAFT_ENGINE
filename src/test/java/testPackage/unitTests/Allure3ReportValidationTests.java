@@ -1,7 +1,6 @@
 package testPackage.unitTests;
 
 import io.qameta.allure.*;
-import io.qameta.allure.model.Status;
 import org.testng.SkipException;
 import org.testng.annotations.Test;
 
@@ -94,6 +93,10 @@ public class Allure3ReportValidationTests {
 
     /**
      * Generates a simple 400×100 PNG image as a byte array for use as an Allure attachment.
+     *
+     * @throws IllegalStateException if the PNG encoder is unavailable or image creation fails,
+     *                               so that the test fails visibly rather than silently producing
+     *                               an empty/invalid attachment
      */
     private static byte[] screenshotBytes() {
         try {
@@ -106,10 +109,13 @@ public class Allure3ReportValidationTests {
             g.drawString("SHAFT + Allure 3  ✓  PASSED", 30, 58);
             g.dispose();
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(img, "png", baos);
+            if (!ImageIO.write(img, "png", baos)) {
+                throw new IllegalStateException(
+                        "Failed to generate PNG attachment bytes because no PNG writer is available.");
+            }
             return baos.toByteArray();
         } catch (Exception e) {
-            return new byte[0];
+            throw new IllegalStateException("Failed to generate screenshot bytes for Allure attachment.", e);
         }
     }
 }

@@ -1074,6 +1074,9 @@
                         </dependencies>
                         <configuration>
                             <encoding>UTF-8</encoding>
+                            <!-- Exclude intentionally-failing visual-demo tests from default CI runs.
+                                 Run them explicitly with -Dgroups=allure3-visual-demo when needed. -->
+                            <excludedGroups>allure3-visual-demo</excludedGroups>
                             <systemPropertyVariables>
                                 <testng.dtd.http>true</testng.dtd.http>
                                 <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>

@@ -24,6 +24,20 @@ public interface Internal extends EngineProperties<Internal> {
     String watermarkImagePath();
 
     /**
+     * Returns the configured Allure version string.
+     *
+     * @return the configured Allure version value
+     * @deprecated This property is no longer used by the SHAFT framework internally.
+     *             It has been superseded by {@link #allure3Version()} and {@link #nodeLtsVersion()}.
+     *             Retained for one release cycle to preserve backward compatibility with downstream
+     *             code that still references {@code SHAFT.Properties.internal.allureVersion()}.
+     */
+    @Deprecated
+    @Key("allureVersion")
+    @DefaultValue("")
+    String allureVersion();
+
+    /**
      * Version of the Allure 3 npm package used when the CLI is not already on {@code PATH}.
      * SHAFT invokes {@code npx --yes allure@<version>} to download and cache the package
      * automatically.  Update this value here to upgrade the bundled CLI across the engine

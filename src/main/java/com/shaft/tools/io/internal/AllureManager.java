@@ -139,11 +139,17 @@ public class AllureManager {
 
     private static void openAllureReport(String newFileName) {
         if (SHAFT.Properties.allure.automaticallyOpen()) {
-            if (SystemUtils.IS_OS_WINDOWS) {
-                internalTerminalSession.performTerminalCommand(".\\" + allureReportPath + File.separator + newFileName);
-            } else {
-                internalTerminalSession.performTerminalCommand("open ./" + allureReportPath + File.separator + newFileName);
-            }
+            String prefix = resolveAllureCommandPrefix();
+            if (prefix == null) return;
+            String configPath = System.getProperty("user.dir") + File.separator + allureConfigFileName;
+            String resultsPath = getResultsPath();
+            // Use `allure open` to regenerate and serve the report via HTTP on a random port.
+            // This avoids opening via file:// URL, which causes JavaScript console errors
+            // in the Allure 3 awesome SPA (broken base-URL setup and History-API restrictions).
+            String openCommand = prefix + " open --config \"" + configPath + "\" \"" + resultsPath + "\"";
+            // Run asynchronously so the HTTP server stays alive while the user views the report
+            // without blocking SHAFT's main thread or preventing JVM shutdown.
+            TerminalActions.getInstance(true, false, true).performTerminalCommand(openCommand);
         }
     }
 
@@ -181,23 +187,23 @@ public class AllureManager {
     }
 
     private static void writeGenerateReportShellFilesToProjectDirectory() {
-        String resultsPath = getResultsPath();
         // create generate_allure_report.sh or generate_allure_report.bat
-        // Uses allure if available on PATH, otherwise falls back to npx (which comes with Node.js).
+        // These scripts re-generate the report from allure-results and serve it via HTTP.
+        String allure3Version = SHAFT.Properties.internal.allure3Version();
         List<String> commandsToServeAllureReport;
         if (SystemUtils.IS_OS_WINDOWS) {
             commandsToServeAllureReport = Arrays.asList(
                     "@echo off",
-                    "where allure >nul 2>&1 && (allure open \"" + resultsPath + "\\allure-report\") || (npx --yes allure@" + SHAFT.Properties.internal.allure3Version() + " open \"" + resultsPath + "\\allure-report\")",
+                    "where allure >nul 2>&1 && (allure open allure-results) || (npx --yes allure@" + allure3Version + " open allure-results)",
                     "pause", "exit");
             internalFileSession.writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
         } else {
             commandsToServeAllureReport = Arrays.asList(
                     "#!/bin/bash",
                     "if command -v allure >/dev/null 2>&1; then",
-                    "  allure open '" + resultsPath + "/allure-report'",
+                    "  allure open allure-results",
                     "else",
-                    "  npx --yes allure@" + SHAFT.Properties.internal.allure3Version() + " open '" + resultsPath + "/allure-report'",
+                    "  npx --yes allure@" + allure3Version + " open allure-results",
                     "fi");
             internalFileSession.writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
             // make script executable on Unix-based shells
@@ -254,13 +260,15 @@ public class AllureManager {
      * @param reportName the display name for the generated report
      */
     private static void writeAllureConfig(String reportName) {
+        String safeReportName = escapeYamlString(reportName);
+        String safeOutputDir = escapeYamlString(allureOutPutDirectory.replace("\\", "/"));
         var configBuilder = new StringBuilder();
-        configBuilder.append("name: \"").append(reportName).append("\"\n");
-        configBuilder.append("output: \"").append(allureOutPutDirectory.replace("\\", "/")).append("\"\n");
+        configBuilder.append("name: \"").append(safeReportName).append("\"\n");
+        configBuilder.append("output: \"").append(safeOutputDir).append("\"\n");
 
         if (SHAFT.Properties.allure.accumulateHistory()) {
-            String historyPath = (System.getProperty("user.dir") + File.separator + "target"
-                    + File.separator + "history.jsonl").replace("\\", "/");
+            String historyPath = escapeYamlString((System.getProperty("user.dir") + File.separator + "target"
+                    + File.separator + "history.jsonl").replace("\\", "/"));
             configBuilder.append("historyPath: \"").append(historyPath).append("\"\n");
             configBuilder.append("appendHistory: true\n");
         }
@@ -268,7 +276,7 @@ public class AllureManager {
         configBuilder.append("\nplugins:\n");
         configBuilder.append("  awesome:\n");
         configBuilder.append("    options:\n");
-        configBuilder.append("      reportName: \"").append(reportName).append("\"\n");
+        configBuilder.append("      reportName: \"").append(safeReportName).append("\"\n");
         configBuilder.append("      singleFile: true\n");
         configBuilder.append("      reportLanguage: \"en\"\n");
         configBuilder.append("      open: false\n");
@@ -282,15 +290,32 @@ public class AllureManager {
                 configBuilder.toString());
     }
 
+    /**
+     * Escapes a string value for safe embedding inside a double-quoted YAML scalar.
+     * Handles backslash, double-quote, and common control characters.
+     *
+     * @param value the raw string value
+     * @return the YAML-safe escaped string
+     */
+    private static String escapeYamlString(String value) {
+        if (value == null) return "";
+        return value
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
+    }
+
     private static String getCommandToCreateAllureReport() {
         String prefix = resolveAllureCommandPrefix();
         if (prefix == null) return null;
         String resultsPath = getResultsPath();
-        if (SystemUtils.IS_OS_WINDOWS) {
-            return prefix + " generate \"" + resultsPath + "\" -o \"" + allureOutPutDirectory + "\"";
-        } else {
-            return prefix + " generate " + resultsPath + " -o " + allureOutPutDirectory;
-        }
+        String configPath = System.getProperty("user.dir") + File.separator + allureConfigFileName;
+        // Always quote paths to handle spaces; always pass --config explicitly so
+        // allurerc.yaml is guaranteed to be applied regardless of the working directory.
+        return prefix + " generate --config \"" + configPath + "\" \""
+                + resultsPath + "\" -o \"" + allureOutPutDirectory + "\"";
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -370,7 +395,8 @@ public class AllureManager {
 
     /**
      * Downloads and extracts the portable Node.js LTS distribution to {@value #NODEJS_CACHE_DIR}
-     * if it is not already cached there.
+     * if it is not already cached there. The downloaded archive is verified against the SHA-256
+     * checksum published by Node.js before extraction; the download is rejected if verification fails.
      *
      * @return the absolute path to the {@code npx} executable inside the extracted archive,
      *         or {@code null} if the download/extraction failed
@@ -392,6 +418,14 @@ public class AllureManager {
         URL downloaded = internalFileSession.downloadFile(downloadUrl, archivePath);
         if (downloaded == null) {
             ReportManager.logDiscrete("Failed to download portable Node.js from " + downloadUrl);
+            return null;
+        }
+
+        // Verify the archive checksum before extracting to guard against download corruption
+        // or supply-chain tampering.
+        if (!verifyNodeJsChecksum(archivePath, downloadUrl, archiveName)) {
+            ReportManager.logDiscrete("Node.js archive integrity check failed; deleting corrupt download: " + archivePath);
+            new File(archivePath).delete();
             return null;
         }
 
@@ -417,18 +451,85 @@ public class AllureManager {
         return npxPath;
     }
 
+    /**
+     * Verifies the SHA-256 checksum of a downloaded Node.js archive against the official
+     * {@code SHASUMS256.txt} file published by nodejs.org.
+     *
+     * <p>If the checksums file cannot be retrieved (e.g., no network access), or if the archive
+     * name is not found in it, the check is skipped with a discrete log message (soft failure).
+     * Only a positive mismatch causes a hard failure.
+     *
+     * @param archivePath  path to the locally downloaded archive
+     * @param downloadUrl  the URL the archive was downloaded from (used to derive the checksums URL)
+     * @param archiveName  the archive filename (e.g., {@code node-v20.19.1-linux-x64.tar.gz})
+     * @return {@code true} if the checksum matches or could not be verified; {@code false} on mismatch
+     */
+    private static boolean verifyNodeJsChecksum(String archivePath, String downloadUrl, String archiveName) {
+        String dir = downloadUrl.substring(0, downloadUrl.lastIndexOf('/') + 1);
+        String checksumUrl = dir + "SHASUMS256.txt";
+        String checksumFilePath = NODEJS_CACHE_DIR + "SHASUMS256.txt";
+
+        URL checksumDownloaded = internalFileSession.downloadFile(checksumUrl, checksumFilePath);
+        if (checksumDownloaded == null) {
+            ReportManager.logDiscrete("Could not download Node.js SHASUMS256.txt from " + checksumUrl
+                    + ". Skipping integrity check.");
+            return true; // soft fail — don't block when checksums are unreachable
+        }
+        try {
+            // Parse expected SHA-256 from the checksums file
+            String expectedHash = null;
+            for (String line : java.nio.file.Files.readAllLines(java.nio.file.Paths.get(checksumFilePath))) {
+                line = line.trim();
+                if (line.endsWith("  " + archiveName) || line.endsWith("\t" + archiveName)) {
+                    expectedHash = line.split("\\s+")[0];
+                    break;
+                }
+            }
+            if (expectedHash == null) {
+                ReportManager.logDiscrete("Node.js checksum entry not found for '" + archiveName
+                        + "' in SHASUMS256.txt. Skipping integrity check.");
+                return true; // soft fail — archive name not listed
+            }
+            // Compute SHA-256 of the downloaded archive using streaming to avoid large heap allocation
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            try (java.io.InputStream is = new java.io.FileInputStream(archivePath);
+                 java.security.DigestInputStream dis = new java.security.DigestInputStream(is, md)) {
+                byte[] buf = new byte[65536];
+                //noinspection StatementWithEmptyBody - consume entire stream to compute SHA-256 digest
+                while (dis.read(buf) != -1) { }
+            }
+            byte[] digest = md.digest();
+            StringBuilder sb = new StringBuilder(64);
+            for (byte b : digest) sb.append(String.format("%02x", b));
+            String actualHash = sb.toString();
+            if (!expectedHash.equalsIgnoreCase(actualHash)) {
+                ReportManager.logDiscrete("Node.js integrity check FAILED for '" + archiveName
+                        + "'. Expected SHA-256: " + expectedHash + ", computed: " + actualHash);
+                return false;
+            }
+            return true;
+        } catch (Exception e) {
+            ReportManager.logDiscrete("Error during Node.js integrity verification: " + e.getMessage()
+                    + ". Skipping check.");
+            return true; // soft fail — don't block on unexpected errors
+        }
+    }
+
     /** @return the download URL for the portable Node.js LTS archive for the current OS/arch. */
     private static String getNodeJsDownloadUrl() {
         String arch = System.getProperty("os.arch", "amd64").toLowerCase();
         boolean isArm = arch.contains("aarch64") || arch.contains("arm");
+        String version = SHAFT.Properties.internal.nodeLtsVersion();
         if (SystemUtils.IS_OS_WINDOWS) {
-            return "https://nodejs.org/dist/v" + SHAFT.Properties.internal.nodeLtsVersion() + "/node-v" + SHAFT.Properties.internal.nodeLtsVersion() + "-win-x64.zip";
+            // Detect Windows ARM64 (os.arch is "aarch64" on 64-bit ARM Windows)
+            String winSuffix = isArm ? "win-arm64" : "win-x64";
+            return "https://nodejs.org/dist/v" + version + "/node-v" + version + "-" + winSuffix + ".zip";
         } else if (SystemUtils.IS_OS_MAC) {
             String suffix = isArm ? "darwin-arm64" : "darwin-x64";
-            return "https://nodejs.org/dist/v" + SHAFT.Properties.internal.nodeLtsVersion() + "/node-v" + SHAFT.Properties.internal.nodeLtsVersion() + "-" + suffix + ".tar.gz";
+            return "https://nodejs.org/dist/v" + version + "/node-v" + version + "-" + suffix + ".tar.gz";
         } else {
             String suffix = isArm ? "linux-arm64" : "linux-x64";
-            return "https://nodejs.org/dist/v" + SHAFT.Properties.internal.nodeLtsVersion() + "/node-v" + SHAFT.Properties.internal.nodeLtsVersion() + "-" + suffix + ".tar.gz";
+            return "https://nodejs.org/dist/v" + version + "/node-v" + version + "-" + suffix + ".tar.gz";
         }
     }
 
