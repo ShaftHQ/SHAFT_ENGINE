@@ -87,18 +87,28 @@ public class AllureManager {
         internalFileSession.copyFolder(allureOutPutDirectory, allureReportPath);
         internalFileSession.deleteFile(allureOutPutDirectory);
         String newFileName = renameAllureReport();
-        openAllureReport(newFileName);
+        if (newFileName != null) {
+            openAllureReport(newFileName);
+        }
     }
 
+    /**
+     * Renames the generated {@code index.html} to a descriptive filename.
+     *
+     * @return the new filename, or {@code null} if {@code index.html} was not found
+     *         (which means Allure report generation failed or the CLI is not installed)
+     */
     private static String renameAllureReport() {
         String newFileName = "AllureReport.html";
         if (SHAFT.Properties.allure.accumulateReports())
             newFileName = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + "_AllureReport.html";
         String sourceFile = System.getProperty("user.dir") + File.separator + allureReportPath + File.separator + "index.html";
         if (!internalFileSession.doesFileExist(sourceFile)) {
-            // Allure report was not generated (CLI not installed or generation failed); skip renaming
-            ReportManager.logDiscrete("Allure report 'index.html' not found. Ensure the Allure 3 CLI is installed via 'npm install -g allure'.");
-            return newFileName;
+            // Allure report was not generated (CLI not installed or allure-results was empty)
+            ReportManager.logDiscrete("Allure report 'index.html' not found — 'allure generate' may have failed."
+                    + " Ensure the Allure 3 CLI is installed via 'npm install -g allure'"
+                    + " and that the allure-results directory is not empty.");
+            return null;
         }
         internalFileSession.renameFile(sourceFile, newFileName);
         return newFileName;
@@ -137,8 +147,18 @@ public class AllureManager {
         }
     }
 
+    /**
+     * Returns the Allure results path with any trailing path separator removed.
+     * This trimmed form is used directly in CLI commands and config values.
+     *
+     * @return the allure results folder path without a trailing separator
+     */
+    private static String getResultsPath() {
+        return allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1);
+    }
+
     private static void writeGenerateReportShellFilesToProjectDirectory() {
-        String resultsPath = allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1);
+        String resultsPath = getResultsPath();
         // create generate_allure_report.sh or generate_allure_report.bat
         List<String> commandsToServeAllureReport;
         if (SystemUtils.IS_OS_WINDOWS) {
@@ -230,7 +250,7 @@ public class AllureManager {
     }
 
     private static String getCommandToCreateAllureReport() {
-        String resultsPath = allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1);
+        String resultsPath = getResultsPath();
         if (SystemUtils.IS_OS_WINDOWS) {
             return "allure generate \"" + resultsPath + "\" -o \"" + allureOutPutDirectory + "\" --clean";
         } else {
