@@ -10,6 +10,7 @@ import org.apache.commons.lang3.SystemUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -365,7 +366,10 @@ public class AllureManager {
             pb.redirectErrorStream(true);
             return pb.start().waitFor() == 0;
         } catch (IOException | InterruptedException e) {
-            Thread.currentThread().interrupt();
+            if (e instanceof InterruptedException) {
+                ReportManager.logDiscrete("PATH-check for '" + name + "' was interrupted; assuming not found.");
+                Thread.currentThread().interrupt();
+            }
             return false;
         }
     }
@@ -387,8 +391,11 @@ public class AllureManager {
         String archiveName = downloadUrl.substring(downloadUrl.lastIndexOf('/') + 1);
         String archivePath = NODEJS_CACHE_DIR + archiveName;
 
-        new File(NODEJS_CACHE_DIR).mkdirs();
-        var downloaded = internalFileSession.downloadFile(downloadUrl, archivePath);
+        if (!new File(NODEJS_CACHE_DIR).mkdirs() && !new File(NODEJS_CACHE_DIR).exists()) {
+            ReportManager.logDiscrete("Could not create Node.js cache directory: " + NODEJS_CACHE_DIR);
+            return null;
+        }
+        URL downloaded = internalFileSession.downloadFile(downloadUrl, archivePath);
         if (downloaded == null) {
             ReportManager.logDiscrete("Failed to download portable Node.js from " + downloadUrl);
             return null;

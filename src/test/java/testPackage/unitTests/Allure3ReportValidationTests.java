@@ -93,7 +93,7 @@ public class Allure3ReportValidationTests {
     // ─── helpers ─────────────────────────────────────────────────────────────
 
     /**
-     * Generates a simple 200×100 PNG image as a byte array for use as an Allure attachment.
+     * Generates a simple 400×100 PNG image as a byte array for use as an Allure attachment.
      */
     private static byte[] screenshotBytes() {
         try {
