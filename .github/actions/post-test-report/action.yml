@@ -48,12 +48,6 @@ runs:
       with:
         path: "allure-report/${{ inputs.job-name }}_Allure.html"
         archive: false
-    - name: Test Summary
-      if: always()
-      continue-on-error: true
-      uses: test-summary/action@v2
-      with:
-        paths: "target/surefire-reports/TEST-*.xml"
     - name: Write Summary and Check Test Results
       if: always()
       shell: bash
@@ -77,18 +71,31 @@ runs:
           FAILED=$(extract_field failed "$ALLURE_SUMMARY"); FAILED=${FAILED:-0}
           BROKEN=$(extract_field broken "$ALLURE_SUMMARY"); BROKEN=${BROKEN:-0}
           SKIPPED=$(extract_field skipped "$ALLURE_SUMMARY"); SKIPPED=${SKIPPED:-0}
+          DURATION=$(extract_field duration "$ALLURE_SUMMARY"); DURATION=${DURATION:-0}
         else
-          TOTAL=0; PASSED=0; FAILED=0; BROKEN=0; SKIPPED=0
+          TOTAL=0; PASSED=0; FAILED=0; BROKEN=0; SKIPPED=0; DURATION=0
         fi
 
-        # Write per-job results table at the top of this job's step summary.
-        # test-summary/action@v2 (run above) appends surefire data after this.
+        # Write per-job Allure results table at the top of this job's step summary.
+        # The test-summary/action step below will append surefire XML detail after this.
         {
           echo "## 📊 ${{ inputs.job-name }} — Test Results"
           echo "| Total | ✅ Passed | ❌ Failed | 💥 Broken | ⊘ Skipped |"
           echo "|------:|----------:|----------:|----------:|----------:|"
           echo "| $TOTAL | $PASSED | $FAILED | $BROKEN | $SKIPPED |"
         } > "$GITHUB_STEP_SUMMARY"
+
+        # Upload a tiny stats file so the Workflow_Summary job can aggregate across all jobs.
+        mkdir -p allure-stats
+        {
+          echo "job=${{ inputs.job-name }}"
+          echo "total=$TOTAL"
+          echo "passed=$PASSED"
+          echo "failed=$FAILED"
+          echo "broken=$BROKEN"
+          echo "skipped=$SKIPPED"
+          echo "duration=$DURATION"
+        } > "allure-stats/${{ inputs.job-name }}.txt"
 
         echo "=== Checking test results using Allure report data ==="
         echo "Allure Report Summary: Total=$TOTAL, Passed=$PASSED, Failed=$FAILED, Broken=$BROKEN, Skipped=$SKIPPED"
@@ -113,3 +120,17 @@ runs:
             fi
           fi
         fi
+    - name: Upload Allure Stats for Consolidation
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: allure-stats-${{ inputs.job-name }}
+        path: allure-stats/${{ inputs.job-name }}.txt
+        archive: false
+    - name: Test Summary
+      if: always()
+      continue-on-error: true
+      uses: test-summary/action@v2
+      with:
+        paths: "target/surefire-reports/TEST-*.xml"
+        show: "fail"

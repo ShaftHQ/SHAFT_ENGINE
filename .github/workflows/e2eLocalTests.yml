@@ -21,8 +21,6 @@ jobs:
         uses: actions/checkout@v6
       - name: Consolidate Test Results
         uses: ./.github/actions/consolidate-test-results
-        with:
-          needs-json: ${{ toJSON(needs) }}
 
   Windows_Edge_Local:
     runs-on: windows-latest

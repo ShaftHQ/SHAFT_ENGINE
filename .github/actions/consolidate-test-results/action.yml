@@ -1,59 +1,93 @@
 name: 'Consolidate Test Results'
-description: 'Writes a consolidated job-level test result summary to GITHUB_STEP_SUMMARY using the needs context, without requiring separate summary artifacts.'
-inputs:
-  needs-json:
-    description: 'JSON representation of the needs context (pass as ${{ toJSON(needs) }})'
-    required: true
+description: 'Downloads Allure stats artifacts from all test jobs, aggregates results, and writes a consolidated summary table to GITHUB_STEP_SUMMARY.'
 runs:
   using: 'composite'
   steps:
+    - name: Download all Allure stats artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: allure-stats-*
+        path: allure-stats
+        merge-multiple: false
     - name: Consolidate Test Results
       shell: bash
       run: |
-        NEEDS_JSON='${{ inputs.needs-json }}'
+        GRAND_TOTAL=0
+        GRAND_PASSED=0
+        GRAND_FAILED=0
+        GRAND_BROKEN=0
+        GRAND_SKIPPED=0
+        GRAND_DURATION=0
+        HAS_FAILURES=false
+
+        TABLE_ROWS=""
+
+        for file in allure-stats/allure-stats-*/*.txt; do
+          if [ -f "$file" ]; then
+            JOB=$(grep '^job=' "$file" | cut -d= -f2)
+            TOTAL=$(grep '^total=' "$file" | cut -d= -f2); TOTAL=${TOTAL:-0}
+            PASSED=$(grep '^passed=' "$file" | cut -d= -f2); PASSED=${PASSED:-0}
+            FAILED=$(grep '^failed=' "$file" | cut -d= -f2); FAILED=${FAILED:-0}
+            BROKEN=$(grep '^broken=' "$file" | cut -d= -f2); BROKEN=${BROKEN:-0}
+            SKIPPED=$(grep '^skipped=' "$file" | cut -d= -f2); SKIPPED=${SKIPPED:-0}
+            DURATION=$(grep '^duration=' "$file" | cut -d= -f2); DURATION=${DURATION:-0}
+
+            # Format duration from ms to human-readable
+            if [ "$DURATION" -gt 0 ] 2>/dev/null; then
+              DURATION_SEC=$((DURATION / 1000))
+              DURATION_MIN=$((DURATION_SEC / 60))
+              DURATION_REM=$((DURATION_SEC % 60))
+              DURATION_STR="${DURATION_MIN}m ${DURATION_REM}s"
+            else
+              DURATION_STR="N/A"
+            fi
+
+            # Status emoji for the job row
+            if [ "$FAILED" -gt 0 ] || [ "$BROKEN" -gt 0 ]; then
+              JOB_STATUS="❌ ${JOB}"
+              HAS_FAILURES=true
+            elif [ "$TOTAL" -eq 0 ]; then
+              JOB_STATUS="⚠️ ${JOB}"
+            else
+              JOB_STATUS="✅ ${JOB}"
+            fi
+
+            TABLE_ROWS="${TABLE_ROWS}| ${JOB_STATUS} | ${TOTAL} | ${PASSED} | ${FAILED} | ${BROKEN} | ${SKIPPED} | ${DURATION_STR} |
+"
+            GRAND_TOTAL=$((GRAND_TOTAL + TOTAL))
+            GRAND_PASSED=$((GRAND_PASSED + PASSED))
+            GRAND_FAILED=$((GRAND_FAILED + FAILED))
+            GRAND_BROKEN=$((GRAND_BROKEN + BROKEN))
+            GRAND_SKIPPED=$((GRAND_SKIPPED + SKIPPED))
+            GRAND_DURATION=$((GRAND_DURATION + DURATION))
+          fi
+        done
+
+        # Format grand duration
+        if [ "$GRAND_DURATION" -gt 0 ] 2>/dev/null; then
+          GRAND_DURATION_SEC=$((GRAND_DURATION / 1000))
+          GRAND_DURATION_MIN=$((GRAND_DURATION_SEC / 60))
+          GRAND_DURATION_REM=$((GRAND_DURATION_SEC % 60))
+          GRAND_DURATION_STR="${GRAND_DURATION_MIN}m ${GRAND_DURATION_REM}s"
+        else
+          GRAND_DURATION_STR="N/A"
+        fi
 
         {
           echo "## 🧪 Consolidated Test Results"
           echo ""
-          echo "| Job | Status |"
-          echo "|-----|--------|"
-
-          HAS_FAILURES=false
-          TOTAL_JOBS=0
-          PASSED_JOBS=0
-
-          while IFS= read -r line; do
-            JOB=$(echo "$line" | cut -d'|' -f1 | xargs)
-            RESULT=$(echo "$line" | cut -d'|' -f2 | xargs)
-            TOTAL_JOBS=$((TOTAL_JOBS + 1))
-            case "$RESULT" in
-              success)
-                STATUS="✅ Passed"
-                PASSED_JOBS=$((PASSED_JOBS + 1))
-                ;;
-              failure)
-                STATUS="❌ Failed"
-                HAS_FAILURES=true
-                ;;
-              cancelled)
-                STATUS="🚫 Cancelled"
-                ;;
-              skipped)
-                STATUS="⊘ Skipped"
-                ;;
-              *)
-                STATUS="⚠️ $RESULT"
-                ;;
-            esac
-            echo "| $JOB | $STATUS |"
-          done < <(echo "$NEEDS_JSON" | python3 -c "import json,sys; needs=json.load(sys.stdin); [print(job+'|'+data.get('result','unknown')) for job,data in needs.items()]")
-
+          echo "| Job | Total | ✅ Passed | ❌ Failed | 💥 Broken | ⊘ Skipped | ⏱️ Duration |"
+          echo "|-----|------:|----------:|----------:|----------:|----------:|------------|"
+          if [ -n "$TABLE_ROWS" ]; then
+            printf '%s' "$TABLE_ROWS"
+          fi
+          echo "| **Grand Total** | **${GRAND_TOTAL}** | **${GRAND_PASSED}** | **${GRAND_FAILED}** | **${GRAND_BROKEN}** | **${GRAND_SKIPPED}** | **${GRAND_DURATION_STR}** |"
           echo ""
           if [ "$HAS_FAILURES" = true ]; then
-            echo "### ❌ Some jobs failed. Check individual job summaries and Allure report artifacts for details."
-          elif [ "$TOTAL_JOBS" -eq 0 ]; then
-            echo "### ⚠️ No job results found."
+            echo "### ❌ Some jobs reported failures. Check individual job summaries and Allure report artifacts for details."
+          elif [ "$GRAND_TOTAL" -eq 0 ]; then
+            echo "### ⚠️ No test results found across all jobs."
           else
-            echo "### ✅ All $TOTAL_JOBS jobs passed!"
+            echo "### ✅ All ${GRAND_TOTAL} tests passed!"
           fi
         } > "$GITHUB_STEP_SUMMARY"

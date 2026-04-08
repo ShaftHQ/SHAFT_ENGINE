@@ -13,7 +13,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -115,7 +114,7 @@ public class AllureManager {
         internalFileSession.deleteFile(allureOutPutDirectory);
         String newFileName = renameAllureReport();
         if (newFileName != null) {
-            openAllureReport(newFileName);
+            openAllureReport();
         }
     }
 
@@ -140,7 +139,7 @@ public class AllureManager {
         return newFileName;
     }
 
-    private static void openAllureReport(String newFileName) {
+    private static void openAllureReport() {
         if (SHAFT.Properties.allure.automaticallyOpen()) {
             String prefix = resolveAllureCommandPrefix();
             if (prefix == null) return;
@@ -186,7 +185,15 @@ public class AllureManager {
      * @return the allure results folder path without a trailing separator
      */
     private static String getResultsPath() {
-        return allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1);
+        if (allureResultsFolderPath == null || allureResultsFolderPath.isEmpty()) {
+            return allureResultsFolderPath;
+        }
+        char last = allureResultsFolderPath.charAt(allureResultsFolderPath.length() - 1);
+        // Only strip a real trailing path separator so that valid directory names are not truncated.
+        if (last == '/' || last == '\\') {
+            return allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1);
+        }
+        return allureResultsFolderPath;
     }
 
     private static void writeGenerateReportShellFilesToProjectDirectory() {
@@ -217,7 +224,7 @@ public class AllureManager {
     private static void cleanAllureResultsDirectory() {
         if (SHAFT.Properties.allure.cleanResultsDirectory()) {
             // clean allure-results directory before execution
-            var allureResultsPath = allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1);
+            var allureResultsPath = getResultsPath();
             try {
                 internalFileSession.deleteFolder(allureResultsPath);
             } catch (Exception t) {
@@ -350,18 +357,20 @@ public class AllureManager {
     }
 
     /**
-     * Adds {@code "statusDetails":{"message":""}} after every {@code "stage":"finished"}
-     * token that is not already followed by a {@code "statusDetails"} key in the same step.
-     * The transformation works on the raw JSON text to avoid a full-parse dependency while
-     * still handling arbitrary nesting.
+     * Ensures every step in the JSON result has a {@code statusDetails} object by injecting
+     * {@code ,"statusDetails":{"message":""}} immediately after each {@code "stage":"<value>"}
+     * token that is not already followed by a {@code "statusDetails"} key before the next
+     * {@code "stage"} occurrence.
      *
-     * <p>The boundary for "same step" is the position of the <em>next</em> {@code "stage"}
-     * token in the string. Any {@code "statusDetails"} found between the current
-     * {@code "finished"} and the next {@code "stage"} belongs to the same step object;
-     * anything beyond that boundary belongs to a sibling or child step.
+     * <p>The Allure 3 awesome-plugin renderer reads {@code step.statusDetails.message} for
+     * every step regardless of its stage value. When the field is absent the renderer throws
+     * {@code TypeError: Cannot read properties of undefined (reading 'message')}, which causes
+     * the test-detail pane to remain blank. Adding an empty object prevents that crash.
      *
-     * <p>Because allure result files are small (typically &lt;1 MB) and processed once,
-     * the performance impact is negligible.
+     * <p>The transformation works on the raw JSON text to avoid a full-parse dependency while
+     * still handling arbitrary nesting. The actual value end is determined by scanning the
+     * quoted string character-by-character (respecting backslash escapes) so that stage values
+     * of any length are handled correctly and the JSON is never corrupted.
      *
      * @param json the raw JSON string of a single result file
      * @return the patched JSON string (identical to the input when no patch was needed)
@@ -369,7 +378,6 @@ public class AllureManager {
     private static String patchStatusDetailsInJson(String json) {
         StringBuilder sb = new StringBuilder(json.length() + 64);
         String marker = "\"stage\"";
-        String finished = "\"finished\"";
         String sdKey = "\"statusDetails\"";
         int pos = 0;
         int len = json.length();
@@ -379,33 +387,48 @@ public class AllureManager {
                 sb.append(json, pos, len);
                 break;
             }
-            // Check if this "stage" refers to "finished"
+            // Append everything up to and including the "stage" token.
             int afterMarker = markerIdx + marker.length();
-            // skip whitespace and colon
-            int valueStart = afterMarker;
+            sb.append(json, pos, afterMarker);
+            pos = afterMarker;
+
+            // Skip optional whitespace and the colon separator to find where the value starts.
+            int valueStart = pos;
             while (valueStart < len && (json.charAt(valueStart) == ' ' || json.charAt(valueStart) == '\t'
                     || json.charAt(valueStart) == ':' || json.charAt(valueStart) == '\n' || json.charAt(valueStart) == '\r')) {
                 valueStart++;
             }
-            int finishedEnd = valueStart + finished.length();
-            boolean isFinished = finishedEnd <= len && json.substring(valueStart, finishedEnd).equals(finished);
-            if (!isFinished) {
-                sb.append(json, pos, finishedEnd <= len ? finishedEnd : len);
-                pos = finishedEnd <= len ? finishedEnd : len;
-                continue;
+
+            // Scan to the real end of the quoted string value, respecting backslash escapes.
+            int valueEnd = valueStart;
+            if (valueEnd < len && json.charAt(valueEnd) == '"') {
+                valueEnd++; // step past opening quote
+                while (valueEnd < len) {
+                    char c = json.charAt(valueEnd);
+                    if (c == '\\') {
+                        valueEnd += 2; // skip escape + the next character
+                    } else if (c == '"') {
+                        valueEnd++; // include closing quote and stop
+                        break;
+                    } else {
+                        valueEnd++;
+                    }
+                }
             }
-            // Determine the look-ahead boundary: the next "stage" token marks a new step
-            // (could be a sibling or a child step). "statusDetails" between finishedEnd and
-            // that boundary belongs to the current step; beyond it belongs to another step.
-            int nextStageIdx = json.indexOf(marker, finishedEnd);
+
+            // Append the whitespace/colon and the full stage value.
+            sb.append(json, pos, Math.min(valueEnd, len));
+            pos = Math.min(valueEnd, len);
+
+            // Determine look-ahead boundary: the next "stage" token delimits a sibling/child step.
+            // Any "statusDetails" found between pos and that boundary belongs to the current step.
+            int nextStageIdx = json.indexOf(marker, pos);
             int lookaheadEnd = nextStageIdx >= 0 ? nextStageIdx : len;
-            boolean alreadyHasSD = json.indexOf(sdKey, finishedEnd) >= 0
-                    && json.indexOf(sdKey, finishedEnd) < lookaheadEnd;
-            sb.append(json, pos, finishedEnd);
+            boolean alreadyHasSD = json.indexOf(sdKey, pos) >= 0
+                    && json.indexOf(sdKey, pos) < lookaheadEnd;
             if (!alreadyHasSD) {
                 sb.append(",\"statusDetails\":{\"message\":\"\"}");
             }
-            pos = finishedEnd;
         }
         return sb.toString();
     }
@@ -642,7 +665,8 @@ public class AllureManager {
         String arch = System.getProperty("os.arch", "amd64").toLowerCase();
         boolean isArm = arch.contains("aarch64") || arch.contains("arm");
         if (SystemUtils.IS_OS_WINDOWS) {
-            return "node-v" + SHAFT.Properties.internal.nodeLtsVersion() + "-win-x64";
+            // Keep the folder name consistent with the download URL suffix selection.
+            return "node-v" + SHAFT.Properties.internal.nodeLtsVersion() + "-" + (isArm ? "win-arm64" : "win-x64");
         } else if (SystemUtils.IS_OS_MAC) {
             return "node-v" + SHAFT.Properties.internal.nodeLtsVersion() + "-" + (isArm ? "darwin-arm64" : "darwin-x64");
         } else {
