@@ -1,5 +1,27 @@
 name: 'Post-Test Report and Check'
 description: 'Uploads coverage, generates Allure report artifacts, creates test summary, and checks test results using Allure data'
+outputs:
+  job:
+    description: 'Job display name'
+    value: ${{ steps.collect_results.outputs.job }}
+  total:
+    description: 'Total executed tests'
+    value: ${{ steps.collect_results.outputs.total }}
+  passed:
+    description: 'Total passed tests'
+    value: ${{ steps.collect_results.outputs.passed }}
+  failed:
+    description: 'Total failed tests'
+    value: ${{ steps.collect_results.outputs.failed }}
+  broken:
+    description: 'Total broken tests'
+    value: ${{ steps.collect_results.outputs.broken }}
+  skipped:
+    description: 'Total skipped tests'
+    value: ${{ steps.collect_results.outputs.skipped }}
+  duration:
+    description: 'Execution duration in milliseconds'
+    value: ${{ steps.collect_results.outputs.duration }}
 inputs:
   job-name:
     description: 'Name of the job (used for naming the Allure report artifact)'
@@ -49,6 +71,7 @@ runs:
         path: "allure-report/${{ inputs.job-name }}_Allure.html"
         archive: false
     - name: Write Summary and Check Test Results
+      id: collect_results
       if: always()
       shell: bash
       run: |
@@ -84,8 +107,6 @@ runs:
           echo "| $TOTAL | $PASSED | $FAILED | $BROKEN | $SKIPPED |"
         } >> "$GITHUB_STEP_SUMMARY"
 
-        # Upload a tiny summary file so the Workflow_Summary job can aggregate across all jobs.
-        mkdir -p test-summary-data
         {
           echo "job=${{ inputs.job-name }}"
           echo "total=$TOTAL"
@@ -94,7 +115,7 @@ runs:
           echo "broken=$BROKEN"
           echo "skipped=$SKIPPED"
           echo "duration=$DURATION"
-        } > "test-summary-data/${{ inputs.job-name }}.txt"
+        } >> "$GITHUB_OUTPUT"
 
         echo "=== Checking test results using Allure report data ==="
         echo "Allure Report Summary: Total=$TOTAL, Passed=$PASSED, Failed=$FAILED, Broken=$BROKEN, Skipped=$SKIPPED"
@@ -119,10 +140,3 @@ runs:
             fi
           fi
         fi
-    - name: Upload Test Summary Data
-      if: always()
-      uses: actions/upload-artifact@v7
-      with:
-        name: test-summary-${{ inputs.job-name }}
-        path: test-summary-data/${{ inputs.job-name }}.txt
-        archive: false
