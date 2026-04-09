@@ -15,7 +15,7 @@ env:
 jobs:
   Workflow_Summary:
     if: always()
-    needs: [Ubuntu_Database, Ubuntu_APIs, Ubuntu_Browser_Grid, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack, MacOSX_Safari_BrowserStack, Ubuntu_Chrome_Cucumber_Grid, MacOSX_Safari_Cucumber_BrowserStack]
+    needs: [Ubuntu_Database, Ubuntu_APIs, Ubuntu_Firefox_Grid, Ubuntu_Chrome_Grid, Ubuntu_MicrosoftEdge_Grid, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack, MacOSX_Safari_BrowserStack, Ubuntu_Chrome_Cucumber_Grid, MacOSX_Safari_Cucumber_BrowserStack]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -104,7 +104,7 @@ jobs:
           job-name: Ubuntu_APIs
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
-  Ubuntu_Browser_Grid:
+  Ubuntu_Firefox_Grid:
     runs-on: ubuntu-latest
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
@@ -114,27 +114,11 @@ jobs:
       broken: ${{ steps.post_test_report.outputs.broken }}
       skipped: ${{ steps.post_test_report.outputs.skipped }}
       duration: ${{ steps.post_test_report.outputs.duration }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - browser: firefox
-            scale_chrome: 0
-            scale_edge: 0
-            scale_firefox: 10
-          - browser: chrome
-            scale_chrome: 10
-            scale_edge: 0
-            scale_firefox: 0
-          - browser: MicrosoftEdge
-            scale_chrome: 0
-            scale_edge: 10
-            scale_firefox: 0
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
       - name: Set up Native Selenium Grid
-        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=${{ matrix.scale_chrome }} --scale edge=${{ matrix.scale_edge }} --scale firefox=${{ matrix.scale_firefox }} -d
+        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=0 --scale firefox=10 -d
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -143,13 +127,77 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=${{ matrix.browser }}" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
         uses: ./.github/actions/post-test-report
         with:
-          job-name: Ubuntu_${{ matrix.browser }}_Grid
+          job-name: Ubuntu_firefox_Grid
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Ubuntu_Chrome_Grid:
+    runs-on: ubuntu-latest
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Set up Native Selenium Grid
+        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=10 --scale edge=0 --scale firefox=0 -d
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Check running containers
+        run: docker ps
+      - name: Run tests
+        continue-on-error: true
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Ubuntu_chrome_Grid
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Ubuntu_MicrosoftEdge_Grid:
+    runs-on: ubuntu-latest
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Set up Native Selenium Grid
+        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=10 --scale firefox=0 -d
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Check running containers
+        run: docker ps
+      - name: Run tests
+        continue-on-error: true
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Ubuntu_MicrosoftEdge_Grid
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Android_Native_BrowserStack:
