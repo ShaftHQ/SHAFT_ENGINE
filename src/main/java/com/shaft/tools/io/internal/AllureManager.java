@@ -212,20 +212,21 @@ public class AllureManager {
         // written by writeAllureConfig() are honoured when the user runs the script manually.
         String allure3Version = SHAFT.Properties.internal.allure3Version();
         String resultsPath = getResultsPath();
+        String serveArguments = "serve --config allurerc.yaml \"" + resultsPath + "\"";
         List<String> commandsToServeAllureReport;
         if (SystemUtils.IS_OS_WINDOWS) {
             commandsToServeAllureReport = Arrays.asList(
                     "@echo off",
-                    "where allure >nul 2>&1 && (allure serve --config allurerc.yaml \"" + resultsPath + "\") || (npx --yes allure@" + allure3Version + " serve --config allurerc.yaml \"" + resultsPath + "\")",
+                    "where allure >nul 2>&1 && (allure " + serveArguments + ") || (npx --yes allure@" + allure3Version + " " + serveArguments + ")",
                     "pause", "exit");
             internalFileSession.writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
         } else {
             commandsToServeAllureReport = Arrays.asList(
                     "#!/bin/bash",
                     "if command -v allure >/dev/null 2>&1; then",
-                    "  allure serve --config allurerc.yaml \"" + resultsPath + "\"",
+                    "  allure " + serveArguments,
                     "else",
-                    "  npx --yes allure@" + allure3Version + " serve --config allurerc.yaml \"" + resultsPath + "\"",
+                    "  npx --yes allure@" + allure3Version + " " + serveArguments,
                     "fi");
             internalFileSession.writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
             // make script executable on Unix-based shells

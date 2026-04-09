@@ -76,15 +76,17 @@ public class AllureManagerUnitTest {
         constructor.setAccessible(true);
 
         InvocationTargetException exception = null;
+        boolean constructorThrew = false;
         try {
             constructor.newInstance();
-            SHAFT.Validations.assertThat().object("constructor invoked").isEqualTo("exception expected").perform();
         } catch (InvocationTargetException e) {
             exception = e;
+            constructorThrew = true;
         }
 
-        SHAFT.Validations.assertThat().object(exception == null ? "null" : "not-null").isEqualTo("not-null").perform();
-        SHAFT.Validations.assertThat().object(exception.getCause() instanceof IllegalStateException).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(constructorThrew).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(exception.getCause().getClass().getName())
+                .isEqualTo(IllegalStateException.class.getName()).perform();
         SHAFT.Validations.assertThat().object(exception.getCause().getMessage()).isEqualTo("Utility class").perform();
     }
 }
