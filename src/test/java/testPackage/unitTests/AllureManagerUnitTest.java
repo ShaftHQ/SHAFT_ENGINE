@@ -2,8 +2,8 @@ package testPackage.unitTests;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.internal.AllureManager;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Constructor;
@@ -37,20 +37,19 @@ public class AllureManagerUnitTest {
         String patched = (String) patchMethod.invoke(null, input);
 
         JsonNode root = MAPPER.readTree(patched);
-        Assert.assertEquals(root.path("steps").size(), 2);
+        SHAFT.Validations.assertThat().number(root.path("steps").size()).isEqualTo(2).perform();
 
         JsonNode step1 = root.path("steps").get(0);
-        Assert.assertEquals(step1.path("statusDetails").path("message").asText(), "");
+        SHAFT.Validations.assertThat().object(step1.path("statusDetails").path("message").asText()).isEqualTo("").perform();
 
         JsonNode step2 = root.path("steps").get(1);
-        Assert.assertEquals(step2.path("statusDetails").path("trace").asText(), "x");
-        Assert.assertEquals(step2.path("statusDetails").path("message").asText(), "");
-        Assert.assertEquals(step2.path("steps").get(0).path("statusDetails").path("message").asText(), "");
+        SHAFT.Validations.assertThat().object(step2.path("statusDetails").path("trace").asText()).isEqualTo("x").perform();
+        SHAFT.Validations.assertThat().object(step2.path("statusDetails").path("message").asText()).isEqualTo("").perform();
+        SHAFT.Validations.assertThat().object(step2.path("steps").get(0).path("statusDetails").path("message").asText()).isEqualTo("").perform();
 
-        Assert.assertEquals(root.path("befores").size(), 1,
-                "Empty fixtures should be pruned from befores/afters arrays");
-        Assert.assertEquals(root.path("befores").get(0).path("steps").get(0)
-                .path("statusDetails").path("message").asText(), "");
+        SHAFT.Validations.assertThat().number(root.path("befores").size()).isEqualTo(1).perform();
+        SHAFT.Validations.assertThat().object(root.path("befores").get(0).path("steps").get(0)
+                .path("statusDetails").path("message").asText()).isEqualTo("").perform();
     }
 
     @Test(description = "getResultsPath should trim only a trailing separator")
@@ -62,13 +61,13 @@ public class AllureManagerUnitTest {
         getResultsPath.setAccessible(true);
 
         pathField.set(null, "allure-results/");
-        Assert.assertEquals(getResultsPath.invoke(null), "allure-results");
+        SHAFT.Validations.assertThat().object(getResultsPath.invoke(null).toString()).isEqualTo("allure-results").perform();
 
         pathField.set(null, "allure-results");
-        Assert.assertEquals(getResultsPath.invoke(null), "allure-results");
+        SHAFT.Validations.assertThat().object(getResultsPath.invoke(null).toString()).isEqualTo("allure-results").perform();
 
         pathField.set(null, "");
-        Assert.assertEquals(getResultsPath.invoke(null), "");
+        SHAFT.Validations.assertThat().object(getResultsPath.invoke(null).toString()).isEqualTo("").perform();
     }
 
     @Test(description = "AllureManager utility class constructor should be blocked")
@@ -76,8 +75,16 @@ public class AllureManagerUnitTest {
         Constructor<AllureManager> constructor = AllureManager.class.getDeclaredConstructor();
         constructor.setAccessible(true);
 
-        InvocationTargetException exception = Assert.expectThrows(InvocationTargetException.class, constructor::newInstance);
-        Assert.assertTrue(exception.getCause() instanceof IllegalStateException);
-        Assert.assertEquals(exception.getCause().getMessage(), "Utility class");
+        InvocationTargetException exception = null;
+        try {
+            constructor.newInstance();
+            SHAFT.Validations.assertThat().object("constructor invoked").isEqualTo("exception expected").perform();
+        } catch (InvocationTargetException e) {
+            exception = e;
+        }
+
+        SHAFT.Validations.assertThat().object(exception == null ? "null" : "not-null").isEqualTo("not-null").perform();
+        SHAFT.Validations.assertThat().object(exception.getCause() instanceof IllegalStateException).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(exception.getCause().getMessage()).isEqualTo("Utility class").perform();
     }
 }
