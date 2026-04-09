@@ -424,6 +424,12 @@ public class AllureManager {
         }
     }
 
+    /**
+     * Recursively normalizes step nodes so each step includes {@code statusDetails.message}.
+     *
+     * @param steps the step array to normalize (including any nested child steps)
+     * @return {@code true} when at least one step node was modified; otherwise {@code false}
+     */
     private static boolean ensureStatusDetailsInSteps(ArrayNode steps) {
         boolean changed = false;
         for (JsonNode stepNode : steps) {
@@ -439,6 +445,15 @@ public class AllureManager {
         return changed;
     }
 
+    /**
+     * Removes fixture entries that contain no actionable content.
+     *
+     * <p>A fixture is considered empty when it has no steps, attachments, or parameters.
+     * Pruning these entries reduces frontend rendering edge cases in Allure detail panes.
+     *
+     * @param fixtures the fixture array ({@code befores} or {@code afters}) to prune
+     * @return {@code true} when at least one fixture was removed; otherwise {@code false}
+     */
     private static boolean pruneEmptyFixtures(ArrayNode fixtures) {
         boolean changed = false;
         for (int i = fixtures.size() - 1; i >= 0; i--) {
@@ -459,6 +474,12 @@ public class AllureManager {
         return changed;
     }
 
+    /**
+     * Ensures the target node has a {@code statusDetails} object with a non-null {@code message}.
+     *
+     * @param node the result/fixture/step node to normalize
+     * @return {@code true} when the node was modified; otherwise {@code false}
+     */
     private static boolean ensureStatusDetailsMessage(ObjectNode node) {
         JsonNode statusDetailsNode = node.get("statusDetails");
         ObjectNode statusDetailsObject;
