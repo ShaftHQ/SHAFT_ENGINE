@@ -4,9 +4,11 @@ import org.aeonbits.owner.Config.Sources;
 
 /**
  * Configuration properties interface for internal engine metadata in the SHAFT framework.
- * Exposes read-only information such as the framework version, build timestamp, and the
+ * Exposes internal defaults such as the framework version, build timestamp, and the
  * version coordinates used to bootstrap the Allure 3 CLI at report-generation time.
- * These values are typically set at build time and not intended to be overridden at runtime.
+ * These values are typically populated from build-time defaults, but they may also be
+ * supplied or overridden through the configured OWNER property sources, such as system
+ * properties or internal properties files.
  */
 @SuppressWarnings("unused")
 @Sources({"system:properties",
@@ -46,7 +48,7 @@ public interface Internal extends EngineProperties<Internal> {
      * without changing {@code AllureManager} or any CI script.
      */
     @Key("allure3Version")
-    @DefaultValue("3.4.0")
+    @DefaultValue("3.3.1")
     String allure3Version();
 
     /**

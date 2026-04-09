@@ -33,6 +33,7 @@
 
     <properties>
         <surefireArgLine></surefireArgLine>
+        <surefire.excludedGroups>allure3-visual-demo</surefire.excludedGroups>
         <!-- Dependency Versions -->
         <log4j2.version>2.25.4</log4j2.version>
         <!-- Build Commands-->
@@ -1075,8 +1076,9 @@
                         <configuration>
                             <encoding>UTF-8</encoding>
                             <!-- Exclude intentionally-failing visual-demo tests from default CI runs.
-                                 Run them explicitly with -Dgroups=allure3-visual-demo when needed. -->
-                            <excludedGroups>allure3-visual-demo</excludedGroups>
+                                 Run them explicitly with -Dgroups=allure3-visual-demo when needed,
+                                 or override -Dsurefire.excludedGroups to customize exclusions. -->
+                            <excludedGroups>${surefire.excludedGroups}</excludedGroups>
                             <systemPropertyVariables>
                                 <testng.dtd.http>true</testng.dtd.http>
                                 <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>

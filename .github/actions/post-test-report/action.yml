@@ -28,7 +28,7 @@ runs:
         ALLURE3_VERSION=$(grep -A2 'Key("allure3Version")' \
           src/main/java/com/shaft/properties/internal/Internal.java \
           | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/')
-        ALLURE3_VERSION=${ALLURE3_VERSION:-3.4.0}
+        ALLURE3_VERSION=${ALLURE3_VERSION:-3.3.1}
         if [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
           # Generate single-file report if SHAFT didn't already create one
           if ! ls allure-report/*AllureReport.html 1>/dev/null 2>&1; then
@@ -76,8 +76,7 @@ runs:
           TOTAL=0; PASSED=0; FAILED=0; BROKEN=0; SKIPPED=0; DURATION=0
         fi
 
-        # Write per-job Allure results table at the top of this job's step summary.
-        # The test-summary/action step below will append surefire XML detail after this.
+        # Write the per-job Allure results table to this job's step summary.
         {
           echo "## 📊 ${{ inputs.job-name }} — Test Results"
           echo "| Total | ✅ Passed | ❌ Failed | 💥 Broken | ⊘ Skipped |"
