@@ -3,6 +3,10 @@ package com.shaft.tools.io.internal;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.ReportManager;
@@ -58,6 +62,7 @@ public class AllureManager {
     // ─── SHAFT internal helpers ─────────────────────────────────────────────────
     private static final TerminalActions internalTerminalSession = TerminalActions.getInstance(false, false, true);
     private static final FileActions internalFileSession = FileActions.getInstance(true);
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
     private static String allureResultsFolderPath = "";
     private static String allureOutPutDirectory = "";
 
@@ -364,80 +369,115 @@ public class AllureManager {
     }
 
     /**
-     * Ensures every step in the JSON result has a {@code statusDetails} object by injecting
-     * {@code ,"statusDetails":{"message":""}} immediately after each {@code "stage":"<value>"}
-     * token that is not already followed by a {@code "statusDetails"} key before the next
-     * {@code "stage"} occurrence.
+     * Ensures every step in a result/container JSON has a {@code statusDetails.message} value.
      *
-     * <p>The Allure 3 awesome-plugin renderer reads {@code step.statusDetails.message} for
-     * every step regardless of its stage value. When the field is absent the renderer throws
-     * {@code TypeError: Cannot read properties of undefined (reading 'message')}, which causes
-     * the test-detail pane to remain blank. Adding an empty object prevents that crash.
+     * <p>The Allure 3 awesome-plugin renderer reads {@code step.statusDetails.message} for each
+     * rendered step. Some adapters emit steps with:
+     * <ul>
+     *   <li>no {@code statusDetails} object at all, or</li>
+     *   <li>{@code statusDetails} containing only {@code trace} / flags and no {@code message} key.</li>
+     * </ul>
+     * Both forms trigger frontend runtime errors and blank test-detail panes. This method normalizes
+     * both cases by guaranteeing an object and adding an empty {@code message} when missing.
      *
-     * <p>The transformation works on the raw JSON text to avoid a full-parse dependency while
-     * still handling arbitrary nesting. The actual value end is determined by scanning the
-     * quoted string character-by-character (respecting backslash escapes) so that stage values
-     * of any length are handled correctly and the JSON is never corrupted.
-     *
-     * @param json the raw JSON string of a single result file
-     * @return the patched JSON string (identical to the input when no patch was needed)
+     * @param json the raw JSON string of a single result or container file
+     * @return the patched JSON string (identical to input when no patch was needed)
      */
     private static String patchStatusDetailsInJson(String json) {
-        StringBuilder sb = new StringBuilder(json.length() + 64);
-        String marker = "\"stage\"";
-        String sdKey = "\"statusDetails\"";
-        int pos = 0;
-        int len = json.length();
-        while (pos < len) {
-            int markerIdx = json.indexOf(marker, pos);
-            if (markerIdx < 0) {
-                sb.append(json, pos, len);
-                break;
-            }
-            // Append everything up to and including the "stage" token.
-            int afterMarker = markerIdx + marker.length();
-            sb.append(json, pos, afterMarker);
-            pos = afterMarker;
-
-            // Skip optional whitespace and the colon separator to find where the value starts.
-            int valueStart = pos;
-            while (valueStart < len && (json.charAt(valueStart) == ' ' || json.charAt(valueStart) == '\t'
-                    || json.charAt(valueStart) == ':' || json.charAt(valueStart) == '\n' || json.charAt(valueStart) == '\r')) {
-                valueStart++;
+        try {
+            JsonNode parsed = JSON_MAPPER.readTree(json);
+            if (!(parsed instanceof ObjectNode root)) {
+                return json;
             }
 
-            // Scan to the real end of the quoted string value, respecting backslash escapes.
-            int valueEnd = valueStart;
-            if (valueEnd < len && json.charAt(valueEnd) == '"') {
-                valueEnd++; // step past opening quote
-                while (valueEnd < len) {
-                    char c = json.charAt(valueEnd);
-                    if (c == '\\') {
-                        valueEnd += 2; // skip escape + the next character
-                    } else if (c == '"') {
-                        valueEnd++; // include closing quote and stop
-                        break;
-                    } else {
-                        valueEnd++;
+            boolean changed = false;
+            changed |= ensureStatusDetailsMessage(root);
+
+            JsonNode steps = root.get("steps");
+            if (steps instanceof ArrayNode) {
+                changed |= ensureStatusDetailsInSteps((ArrayNode) steps);
+            }
+
+            for (String fixtureKey : new String[]{"befores", "afters"}) {
+                JsonNode fixtures = root.get(fixtureKey);
+                if (fixtures instanceof ArrayNode fixtureArray) {
+                    changed |= pruneEmptyFixtures(fixtureArray);
+                    for (JsonNode fixtureNode : fixtureArray) {
+                        if (fixtureNode instanceof ObjectNode fixtureObject) {
+                            changed |= ensureStatusDetailsMessage(fixtureObject);
+                            JsonNode fixtureSteps = fixtureObject.get("steps");
+                            if (fixtureSteps instanceof ArrayNode) {
+                                changed |= ensureStatusDetailsInSteps((ArrayNode) fixtureSteps);
+                            }
+                        }
                     }
                 }
             }
 
-            // Append the whitespace/colon and the full stage value.
-            sb.append(json, pos, Math.min(valueEnd, len));
-            pos = Math.min(valueEnd, len);
+            if (!changed) {
+                return json;
+            }
+            return JSON_MAPPER.writeValueAsString(root);
+        } catch (Exception e) {
+            ReportManager.logDiscrete("Could not normalize statusDetails in Allure JSON: " + e.getMessage());
+            return json;
+        }
+    }
 
-            // Determine look-ahead boundary: the next "stage" token delimits a sibling/child step.
-            // Any "statusDetails" found between pos and that boundary belongs to the current step.
-            int nextStageIdx = json.indexOf(marker, pos);
-            int lookaheadEnd = nextStageIdx >= 0 ? nextStageIdx : len;
-            boolean alreadyHasSD = json.indexOf(sdKey, pos) >= 0
-                    && json.indexOf(sdKey, pos) < lookaheadEnd;
-            if (!alreadyHasSD) {
-                sb.append(",\"statusDetails\":{\"message\":\"\"}");
+    private static boolean ensureStatusDetailsInSteps(ArrayNode steps) {
+        boolean changed = false;
+        for (JsonNode stepNode : steps) {
+            if (!(stepNode instanceof ObjectNode stepObject)) {
+                continue;
+            }
+            changed |= ensureStatusDetailsMessage(stepObject);
+            JsonNode nestedSteps = stepObject.get("steps");
+            if (nestedSteps instanceof ArrayNode) {
+                changed |= ensureStatusDetailsInSteps((ArrayNode) nestedSteps);
             }
         }
-        return sb.toString();
+        return changed;
+    }
+
+    private static boolean pruneEmptyFixtures(ArrayNode fixtures) {
+        boolean changed = false;
+        for (int i = fixtures.size() - 1; i >= 0; i--) {
+            JsonNode fixtureNode = fixtures.get(i);
+            if (!(fixtureNode instanceof ObjectNode fixtureObject)) {
+                continue;
+            }
+
+            int stepsCount = (fixtureObject.get("steps") instanceof ArrayNode stepsArray) ? stepsArray.size() : 0;
+            int attachmentsCount = (fixtureObject.get("attachments") instanceof ArrayNode attachmentsArray) ? attachmentsArray.size() : 0;
+            int parametersCount = (fixtureObject.get("parameters") instanceof ArrayNode parametersArray) ? parametersArray.size() : 0;
+
+            if (stepsCount == 0 && attachmentsCount == 0 && parametersCount == 0) {
+                fixtures.remove(i);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private static boolean ensureStatusDetailsMessage(ObjectNode node) {
+        JsonNode statusDetailsNode = node.get("statusDetails");
+        ObjectNode statusDetailsObject;
+        boolean changed = false;
+
+        if (statusDetailsNode instanceof ObjectNode existingObject) {
+            statusDetailsObject = existingObject;
+        } else {
+            statusDetailsObject = node.putObject("statusDetails");
+            changed = true;
+        }
+
+        JsonNode messageNode = statusDetailsObject.get("message");
+        if (messageNode == null || messageNode.isNull()) {
+            statusDetailsObject.put("message", "");
+            changed = true;
+        }
+
+        return changed;
     }
 
 

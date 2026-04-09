@@ -85,8 +85,8 @@ runs:
           echo "| $TOTAL | $PASSED | $FAILED | $BROKEN | $SKIPPED |"
         } >> "$GITHUB_STEP_SUMMARY"
 
-        # Upload a tiny stats file so the Workflow_Summary job can aggregate across all jobs.
-        mkdir -p allure-stats
+        # Upload a tiny summary file so the Workflow_Summary job can aggregate across all jobs.
+        mkdir -p test-summary-data
         {
           echo "job=${{ inputs.job-name }}"
           echo "total=$TOTAL"
@@ -95,7 +95,7 @@ runs:
           echo "broken=$BROKEN"
           echo "skipped=$SKIPPED"
           echo "duration=$DURATION"
-        } > "allure-stats/${{ inputs.job-name }}.txt"
+        } > "test-summary-data/${{ inputs.job-name }}.txt"
 
         echo "=== Checking test results using Allure report data ==="
         echo "Allure Report Summary: Total=$TOTAL, Passed=$PASSED, Failed=$FAILED, Broken=$BROKEN, Skipped=$SKIPPED"
@@ -120,10 +120,10 @@ runs:
             fi
           fi
         fi
-    - name: Upload Allure Stats for Consolidation
+    - name: Upload Test Summary Data
       if: always()
       uses: actions/upload-artifact@v7
       with:
-        name: allure-stats-${{ inputs.job-name }}
-        path: allure-stats/${{ inputs.job-name }}.txt
+        name: test-summary-${{ inputs.job-name }}
+        path: test-summary-data/${{ inputs.job-name }}.txt
         archive: false
