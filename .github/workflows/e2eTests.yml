@@ -106,6 +106,8 @@ jobs:
 
   Ubuntu_Firefox_Grid:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -133,11 +135,13 @@ jobs:
         if: always()
         uses: ./.github/actions/post-test-report
         with:
-          job-name: Ubuntu_firefox_Grid
+          job-name: Ubuntu_Firefox_Grid
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Ubuntu_Chrome_Grid:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -165,11 +169,13 @@ jobs:
         if: always()
         uses: ./.github/actions/post-test-report
         with:
-          job-name: Ubuntu_chrome_Grid
+          job-name: Ubuntu_Chrome_Grid
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Ubuntu_MicrosoftEdge_Grid:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
