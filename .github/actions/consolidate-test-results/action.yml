@@ -9,6 +9,8 @@ runs:
   steps:
     - name: Consolidate Test Results
       shell: bash
+      env:
+        NEEDS_JSON: ${{ inputs.needs-json }}
       run: |
         echo "## 🧪 Consolidated Test Results" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -44,7 +46,7 @@ runs:
             DURATION_STR="N/A"
           fi
 
-          if [ "$FAILED" -gt 0 ] || [ "$BROKEN" -gt 0 ] || { [ -n "$RESULT" ] && [ "$RESULT" != "success" ]; }; then
+          if [ "$FAILED" -gt 0 ] || [ "$BROKEN" -gt 0 ] || [ "$RESULT" = "failure" ] || [ "$RESULT" = "cancelled" ]; then
             JOB_STATUS="❌ $JOB"
             HAS_FAILURES=true
           elif [ "$TOTAL" -eq 0 ]; then
@@ -61,7 +63,7 @@ runs:
           GRAND_BROKEN=$((GRAND_BROKEN + BROKEN))
           GRAND_SKIPPED=$((GRAND_SKIPPED + SKIPPED))
           GRAND_DURATION=$((GRAND_DURATION + DURATION))
-        done < <(echo '${{ inputs.needs-json }}' | jq -r '
+        done < <(jq -r '
           to_entries[]
           | [
               .key,
@@ -75,7 +77,7 @@ runs:
               (.value.outputs.duration // "0")
             ]
           | @tsv
-        ')
+        ' <<< "$NEEDS_JSON")
 
         if [ "$GRAND_DURATION" -gt 0 ] 2>/dev/null; then
           GD_SEC=$((GRAND_DURATION / 1000))
