@@ -28,7 +28,7 @@ runs:
         ALLURE3_VERSION=$(grep -A2 'Key("allure3Version")' \
           src/main/java/com/shaft/properties/internal/Internal.java \
           | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/')
-        ALLURE3_VERSION=${ALLURE3_VERSION:-3.4.0}
+        ALLURE3_VERSION=${ALLURE3_VERSION:-3.3.1}
         if [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
           # Generate single-file report if SHAFT didn't already create one
           if ! ls allure-report/*AllureReport.html 1>/dev/null 2>&1; then

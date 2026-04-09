@@ -45,6 +45,10 @@ import java.util.List;
  * state and should not be accessed concurrently.
  */
 public class AllureManager {
+    private AllureManager() {
+        throw new IllegalStateException("Utility class");
+    }
+
     // ─── Allure 3 report paths & config ────────────────────────────────────────
     private static final String allureReportPath = "allure-report";
     private static final String allureConfigFileName = "allurerc.yaml";
@@ -207,20 +211,21 @@ public class AllureManager {
         // --config allurerc.yaml is passed explicitly so the singleFile/groupBy/reportName options
         // written by writeAllureConfig() are honoured when the user runs the script manually.
         String allure3Version = SHAFT.Properties.internal.allure3Version();
+        String configuredResultsPath = getResultsPath();
         List<String> commandsToServeAllureReport;
         if (SystemUtils.IS_OS_WINDOWS) {
             commandsToServeAllureReport = Arrays.asList(
                     "@echo off",
-                    "where allure >nul 2>&1 && (allure serve --config allurerc.yaml allure-results) || (npx --yes allure@" + allure3Version + " serve --config allurerc.yaml allure-results)",
+                    "where allure >nul 2>&1 && (allure serve --config allurerc.yaml \"" + configuredResultsPath + "\") || (npx --yes allure@" + allure3Version + " serve --config allurerc.yaml \"" + configuredResultsPath + "\")",
                     "pause", "exit");
             internalFileSession.writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
         } else {
             commandsToServeAllureReport = Arrays.asList(
                     "#!/bin/bash",
                     "if command -v allure >/dev/null 2>&1; then",
-                    "  allure serve --config allurerc.yaml allure-results",
+                    "  allure serve --config allurerc.yaml \"" + configuredResultsPath + "\"",
                     "else",
-                    "  npx --yes allure@" + allure3Version + " serve --config allurerc.yaml allure-results",
+                    "  npx --yes allure@" + allure3Version + " serve --config allurerc.yaml \"" + configuredResultsPath + "\"",
                     "fi");
             internalFileSession.writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
             // make script executable on Unix-based shells
@@ -781,7 +786,7 @@ public class AllureManager {
     }
 
     private static void createAllureReportArchive() {
-        internalFileSession.zipFiles(allureReportPath + "/", "generatedReport_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + ".zip");
+        internalFileSession.zipFiles(allureOutPutDirectory + File.separator, "generatedReport_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + ".zip");
     }
 
     private static void writeEnvironmentVariablesToAllureResultsDirectory() {
