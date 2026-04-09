@@ -1,5 +1,6 @@
 package testPackage.unitTests;
 
+import com.shaft.driver.SHAFT;
 import io.qameta.allure.*;
 import org.testng.SkipException;
 import org.testng.annotations.Test;
@@ -40,7 +41,7 @@ public class Allure3ReportValidationTests {
     public void testPasses() {
         Allure.step("Perform a passing assertion", () -> {
             int result = 1 + 1;
-            if (result != 2) throw new AssertionError("Expected 2 but got " + result);
+            SHAFT.Validations.assertThat().number(result).isEqualTo(2).perform();
         });
 
         Allure.step("Attach a sample screenshot", () ->
@@ -59,9 +60,8 @@ public class Allure3ReportValidationTests {
     @Story("FAILED result")
     @Severity(SeverityLevel.NORMAL)
     public void testFails() {
-        Allure.step("Assert that 1 equals 2 (this step will fail)", () -> {
-            if (1 != 2) throw new AssertionError("Intentional failure: expected 2, got 1");
-        });
+        Allure.step("Assert that 1 equals 2 (this step will fail)", () ->
+                SHAFT.Validations.assertThat().number(1).isEqualTo(2).perform());
     }
 
     /**

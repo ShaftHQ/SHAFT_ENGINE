@@ -52,8 +52,7 @@ runs:
               JOB_STATUS="✅ ${JOB}"
             fi
 
-            TABLE_ROWS="${TABLE_ROWS}| ${JOB_STATUS} | ${TOTAL} | ${PASSED} | ${FAILED} | ${BROKEN} | ${SKIPPED} | ${DURATION_STR} |
-"
+            TABLE_ROWS="${TABLE_ROWS}| ${JOB_STATUS} | ${TOTAL} | ${PASSED} | ${FAILED} | ${BROKEN} | ${SKIPPED} | ${DURATION_STR} |"$'\n'
             GRAND_TOTAL=$((GRAND_TOTAL + TOTAL))
             GRAND_PASSED=$((GRAND_PASSED + PASSED))
             GRAND_FAILED=$((GRAND_FAILED + FAILED))

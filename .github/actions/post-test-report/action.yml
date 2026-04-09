@@ -32,7 +32,7 @@ runs:
         if [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
           # Generate single-file report if SHAFT didn't already create one
           if ! ls allure-report/*AllureReport.html 1>/dev/null 2>&1; then
-            npx --yes allure@${ALLURE3_VERSION} generate allure-results -o allure-report 2>/dev/null || true
+            npx --yes allure@${ALLURE3_VERSION} generate allure-results --config allurerc.yaml -o allure-report 2>/dev/null || true
             if [ -f "allure-report/index.html" ]; then
               mv allure-report/index.html allure-report/AllureReport.html
             fi
@@ -83,7 +83,7 @@ runs:
           echo "| Total | ✅ Passed | ❌ Failed | 💥 Broken | ⊘ Skipped |"
           echo "|------:|----------:|----------:|----------:|----------:|"
           echo "| $TOTAL | $PASSED | $FAILED | $BROKEN | $SKIPPED |"
-        } > "$GITHUB_STEP_SUMMARY"
+        } >> "$GITHUB_STEP_SUMMARY"
 
         # Upload a tiny stats file so the Workflow_Summary job can aggregate across all jobs.
         mkdir -p allure-stats
@@ -127,10 +127,3 @@ runs:
         name: allure-stats-${{ inputs.job-name }}
         path: allure-stats/${{ inputs.job-name }}.txt
         archive: false
-    - name: Test Summary
-      if: always()
-      continue-on-error: true
-      uses: test-summary/action@v2
-      with:
-        paths: "target/surefire-reports/TEST-*.xml"
-        show: "fail"

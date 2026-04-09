@@ -199,21 +199,23 @@ public class AllureManager {
     private static void writeGenerateReportShellFilesToProjectDirectory() {
         // create generate_allure_report.sh or generate_allure_report.bat
         // These scripts re-generate the report from allure-results and serve it via HTTP.
+        // --config allurerc.yaml is passed explicitly so the singleFile/groupBy/reportName options
+        // written by writeAllureConfig() are honoured when the user runs the script manually.
         String allure3Version = SHAFT.Properties.internal.allure3Version();
         List<String> commandsToServeAllureReport;
         if (SystemUtils.IS_OS_WINDOWS) {
             commandsToServeAllureReport = Arrays.asList(
                     "@echo off",
-                    "where allure >nul 2>&1 && (allure open allure-results) || (npx --yes allure@" + allure3Version + " open allure-results)",
+                    "where allure >nul 2>&1 && (allure serve --config allurerc.yaml allure-results) || (npx --yes allure@" + allure3Version + " serve --config allurerc.yaml allure-results)",
                     "pause", "exit");
             internalFileSession.writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
         } else {
             commandsToServeAllureReport = Arrays.asList(
                     "#!/bin/bash",
                     "if command -v allure >/dev/null 2>&1; then",
-                    "  allure open allure-results",
+                    "  allure serve --config allurerc.yaml allure-results",
                     "else",
-                    "  npx --yes allure@" + allure3Version + " open allure-results",
+                    "  npx --yes allure@" + allure3Version + " serve --config allurerc.yaml allure-results",
                     "fi");
             internalFileSession.writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
             // make script executable on Unix-based shells
@@ -340,7 +342,12 @@ public class AllureManager {
     private static void patchMissingStatusDetailsInResults(String resultsPath) {
         File dir = new File(resultsPath);
         if (!dir.isDirectory()) return;
-        File[] resultFiles = dir.listFiles((d, name) -> name.endsWith("-result.json"));
+        // Patch both test-case results and fixture containers.
+        // Container files hold before/after hook steps (befores[]/afters[]) whose steps also
+        // need "statusDetails" — otherwise the awesome-plugin throws the same TypeError when
+        // navigating to a test whose fixtures ran.
+        File[] resultFiles = dir.listFiles((d, name) ->
+                name.endsWith("-result.json") || name.endsWith("-container.json"));
         if (resultFiles == null) return;
 
         for (File file : resultFiles) {
@@ -470,6 +477,23 @@ public class AllureManager {
             return cachedAllureCommandPrefix.isEmpty() ? null : cachedAllureCommandPrefix;
         }
 
+        // Validate both version strings against a strict SemVer-like allowlist before they are
+        // embedded in shell command strings. This prevents command injection if a malicious value
+        // is supplied via system properties (e.g. -Dallure3Version="3.4.0; rm -rf /").
+        String allure3Version = SHAFT.Properties.internal.allure3Version();
+        String nodeLtsVersion = SHAFT.Properties.internal.nodeLtsVersion();
+        if (!allure3Version.matches("[0-9]+\\.[0-9]+\\.[0-9]+(-[A-Za-z0-9.]+)?")) {
+            ReportManager.logDiscrete("Invalid allure3Version value '" + allure3Version
+                    + "' — must be a SemVer string (e.g. 3.4.0). Report generation skipped.");
+            cachedAllureCommandPrefix = "";
+            return null;
+        }
+        if (!nodeLtsVersion.matches("[0-9]+\\.[0-9]+\\.[0-9]+")) {
+            ReportManager.logDiscrete("Invalid nodeLtsVersion value '" + nodeLtsVersion
+                    + "' — must be a SemVer string (e.g. 20.19.1). Portable Node.js download skipped.");
+            // nodeLtsVersion only affects the download fallback; still try allure/npx on PATH
+        }
+
         // 1. allure binary on PATH
         if (isExecutableOnPath("allure")) {
             cachedAllureCommandPrefix = "allure";
@@ -479,16 +503,16 @@ public class AllureManager {
 
         // 2. npx on PATH
         if (isExecutableOnPath("npx")) {
-            cachedAllureCommandPrefix = "npx --yes allure@" + SHAFT.Properties.internal.allure3Version();
+            cachedAllureCommandPrefix = "npx --yes allure@" + allure3Version;
             ReportManager.logDiscrete("Allure 3 CLI resolved: using system npx.");
             return cachedAllureCommandPrefix;
         }
 
         // 3. Download portable Node.js and use its npx
-        ReportManager.logDiscrete("Node.js not found on PATH. Downloading portable Node.js v" + SHAFT.Properties.internal.nodeLtsVersion() + " to bootstrap Allure 3 CLI...");
+        ReportManager.logDiscrete("Node.js not found on PATH. Downloading portable Node.js v" + nodeLtsVersion + " to bootstrap Allure 3 CLI...");
         String downloadedNpxPath = downloadNodeJsPortable();
         if (downloadedNpxPath != null) {
-            cachedAllureCommandPrefix = q(downloadedNpxPath) + " --yes allure@" + SHAFT.Properties.internal.allure3Version();
+            cachedAllureCommandPrefix = q(downloadedNpxPath) + " --yes allure@" + allure3Version;
             ReportManager.logDiscrete("Allure 3 CLI resolved: using downloaded Node.js npx.");
             return cachedAllureCommandPrefix;
         }
