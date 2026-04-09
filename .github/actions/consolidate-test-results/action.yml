@@ -44,7 +44,7 @@ runs:
             DURATION_STR="N/A"
           fi
 
-          if [ "$FAILED" -gt 0 ] || [ "$BROKEN" -gt 0 ] || [ "$RESULT" != "success" ]; then
+          if [ "$FAILED" -gt 0 ] || [ "$BROKEN" -gt 0 ] || { [ -n "$RESULT" ] && [ "$RESULT" != "success" ]; }; then
             JOB_STATUS="❌ $JOB"
             HAS_FAILURES=true
           elif [ "$TOTAL" -eq 0 ]; then
@@ -65,7 +65,7 @@ runs:
           to_entries[]
           | [
               .key,
-              (.value.result // "unknown"),
+              (.value.result // ""),
               (.value.outputs.job // .key),
               (.value.outputs.total // "0"),
               (.value.outputs.passed // "0"),
