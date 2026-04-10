@@ -99,22 +99,17 @@ runs:
           TOTAL=0; PASSED=0; FAILED=0; BROKEN=0; SKIPPED=0; DURATION=0
         fi
 
-        # Allure 3's summary.json duration is unreliable for parallel test runs
-        # (can report near-zero values for large suites). Compute the true wallclock
-        # duration as max(stop) - min(start) across all allure-results JSON files.
-        # Only epoch-ms timestamps are kept (must be > 1000000000000 ms, i.e. after
-        # the year 2001) to filter out any relative or zero timestamps.
-        if ls allure-results/*.json 1>/dev/null 2>&1; then
-          EPOCH_MS_MIN=1000000000000  # timestamps before year 2001 are treated as relative/invalid
-          RESULTS_DURATION=$(jq -rn --argjson epoch_min "$EPOCH_MS_MIN" '
-            [inputs | (.start? // empty), (.stop? // empty)]
-            | map(numbers | select(. > $epoch_min))
-            | if length > 1 then max - min else 0 end
-          ' allure-results/*.json 2>/dev/null) || { echo "::debug::jq duration computation failed; keeping summary.json value"; RESULTS_DURATION=0; }
-          RESULTS_DURATION=${RESULTS_DURATION:-0}
-          if [ "${RESULTS_DURATION}" -gt "${DURATION:-0}" ]; then
-            DURATION=${RESULTS_DURATION}
+        # Compute job wallclock duration using the GitHub Actions job timing recorded by setup-test-env.
+        # SHAFT_JOB_STARTED_S is set to $(date +%s) at the start of setup-test-env.
+        # This uses date +%s which is supported on Linux (GNU), macOS (BSD), and Windows (Git Bash).
+        if [ -n "$SHAFT_JOB_STARTED_S" ]; then
+          NOW_S=$(date +%s)
+          COMPUTED_DURATION=$(( (NOW_S - SHAFT_JOB_STARTED_S) * 1000 ))
+          if [ "$COMPUTED_DURATION" -gt 0 ]; then
+            DURATION=$COMPUTED_DURATION
           fi
+        else
+          echo "::warning::SHAFT_JOB_STARTED_S is not set; duration may be inaccurate. Ensure setup-test-env runs before post-test-report."
         fi
 
         # Write the per-job Allure results table to this job's step summary.

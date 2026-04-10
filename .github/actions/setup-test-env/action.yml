@@ -12,6 +12,9 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Record job start time
+      shell: bash
+      run: echo "SHAFT_JOB_STARTED_S=$(date +%s)" >> "$GITHUB_ENV"
     - name: Setup Node.js environment
       if: inputs.node-version != ''
       uses: actions/setup-node@v6
