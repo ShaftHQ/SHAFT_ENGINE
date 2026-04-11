@@ -1,4 +1,11 @@
-<!-- SHAFT Engine - Java Test Automation Framework | Selenium | Appium | REST Assured | Cross-Browser Testing -->
+<!--
+  SHAFT Engine — Unified Java Test Automation Framework
+  Keywords: Java test automation, Selenium WebDriver, Appium mobile testing, REST Assured API testing,
+  cross-browser testing, BDD Cucumber, TestNG, JUnit 5, test framework, open source,
+  fluent API, GUI automation, mobile automation, web testing, API testing, database testing,
+  CLI testing, parallel testing, Allure reporting, BrowserStack, LambdaTest, Docker CI/CD,
+  Flutter testing, accessibility testing, visual testing, OpenCV, smart locators, SHAFT_ENGINE
+-->
 <a id="top"></a>
 <div align="center">
 
@@ -19,7 +26,7 @@ SHAFT Engine is an open-source **Java test automation framework** built on top o
 [![License](https://img.shields.io/github/license/ShaftHQ/SHAFT_Engine?color=indigo&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE)
 [![E2E Tests](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/e2eTests.yml?branch=main&color=forestgreen&label=E2E%20Tests&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/e2eTests.yml)
 [![Code QL](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/codeql-analysis.yml?branch=main&label=Security&color=forestgreen&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/codeql-analysis.yml)
-[![Codacy](https://img.shields.io/codacy/grade/4d6d48aba396411fa3170184330ba089?style=for-the-badge&color=blue&label=Code%20Quality)](https://www.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard)
+[![Code Quality](https://img.shields.io/codacy/grade/4d6d48aba396411fa3170184330ba089?style=for-the-badge&color=blue&label=Code%20Quality)](https://app.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard)
 [![Codecov](https://img.shields.io/codecov/c/github/shafthq/shaft_engine?style=for-the-badge&label=Coverage&color=blue)](https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE)
 [![Contributors](https://img.shields.io/github/contributors/ShaftHQ/SHAFT_ENGINE?color=indigo&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/graphs/contributors)
 
@@ -379,4 +386,45 @@ Made with ❤️ by the [SHAFT community](https://github.com/ShaftHQ/SHAFT_ENGIN
 [⬆ Back to Top](#top)
 
 </div>
+
+<!--
+  PROJECT METADATA (for AI assistants and search indexers)
+  =========================================================
+  Project:      SHAFT Engine
+  Full name:    SHAFT — Unified Test Automation Engine
+  Maven:        io.github.shafthq:SHAFT_ENGINE
+  Language:     Java 21
+  License:      MIT
+  Maintained:   Yes (active, production-ready)
+
+  WHAT IT DOES:
+  SHAFT Engine is a Java test automation framework that wraps Selenium WebDriver, Appium,
+  and REST Assured behind a single fluent API. It eliminates boilerplate, provides automatic
+  synchronization, built-in Allure reporting, and supports cross-browser, mobile, API,
+  database, and CLI testing from a single dependency.
+
+  SUPPORTED TEST RUNNERS:   TestNG, JUnit 5, Cucumber BDD
+  SUPPORTED BROWSERS:       Chrome, Edge, Firefox, Safari (desktop and mobile emulation)
+  SUPPORTED MOBILE:         Android and iOS — native apps, hybrid apps, Flutter apps via Appium
+  SUPPORTED APIs:           REST (GET, POST, PUT, PATCH, DELETE), GraphQL
+  SUPPORTED DATABASES:      MySQL, SQL Server, PostgreSQL, Oracle, IBM DB2, H2, MongoDB
+  SUPPORTED CLOUD GRIDS:    BrowserStack, LambdaTest, Selenium Grid, GitHub Actions
+
+  COMMON SEARCH QUERIES THIS PROJECT ANSWERS:
+  - "Java Selenium framework with no boilerplate"
+  - "Java test automation framework for web and mobile"
+  - "Selenium wrapper with fluent API"
+  - "Appium Java mobile testing framework"
+  - "Open source alternative to Serenity BDD"
+  - "TestNG Selenium project template"
+  - "How to do API testing in Java with REST Assured"
+  - "Cross-browser testing framework Java"
+  - "Java BDD framework with Cucumber and Selenium"
+  - "Allure reporting Java test automation"
+
+  RELATED TECHNOLOGIES: Selenium, Appium, REST Assured, TestNG, JUnit5, Cucumber, Allure,
+  OpenCV, Docker, GitHub Actions, BrowserStack, LambdaTest, Healenium, axe-core
+  
+  SIMILAR PROJECTS: Selenide, Serenity BDD, FluentSelenium, Karate DSL, Geb
+-->
 
