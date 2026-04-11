@@ -12,9 +12,8 @@ import java.io.File;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static io.restassured.RestAssured.given;
@@ -28,10 +27,9 @@ public class TestUpload {
         api = new SHAFT.API("http://localhost:3000/");
         SHAFT.Properties.api.set().swaggerValidationEnabled(false);
 
-        List<List<Object>> parameters = Arrays.asList(
-                Arrays.asList("image", new File("src/test/resources/search.PNG")),
-                Arrays.asList("arabicText", "تست اوتوميشن")
-        );
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        parameters.put("image", new File("src/test/resources/search.PNG"));
+        parameters.put("arabicText", "تست اوتوميشن");
 
         api.post("upload")
                 .setContentType("multipart/form-data; charset=UTF-8") // Ensure UTF-8 encoding

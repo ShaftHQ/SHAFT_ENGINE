@@ -138,14 +138,22 @@ public class ElementSteps {
      * Attempts to perform a native clipboard action on the text from a certain web
      * element, like copy/cut/paste
      *
-     * @param action       supports the following actions "copy", "paste", "cut",
-     *                     "select all", "unselect"
+     * @param action       supports the following actions "COPY", "PASTE", "CUT",
+     *                     "SELECT_ALL", "UNSELECT_ALL"
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
     @When("I use the clipboard to perform {string} on the element found by {string}: {string}")
     public void clipboardActions(String action, String locatorType, String locatorValue) {
-        driver.get().element().clipboardActions(getLocatorFromTypeAndValue(locatorType, locatorValue), ClipboardAction.valueOf(action));
+        By locator = getLocatorFromTypeAndValue(locatorType, locatorValue);
+        var clipboardAction = ClipboardAction.valueOf(action);
+        switch (clipboardAction) {
+            case COPY -> driver.get().element().clipboard().copyAll(locator);
+            case CUT -> driver.get().element().clipboard().cutAll(locator);
+            case PASTE -> driver.get().element().clipboard().paste(locator);
+            case SELECT_ALL -> driver.get().element().clipboard().copyAll(locator);
+            case UNSELECT_ALL -> driver.get().element().clipboard().deleteAll(locator);
+        }
     }
 
     /**

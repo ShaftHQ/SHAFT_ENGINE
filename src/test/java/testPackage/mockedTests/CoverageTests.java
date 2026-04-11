@@ -114,7 +114,7 @@ public class CoverageTests {
                 .and().clear(searchBox)
                 .and().element().type(searchBox, "SHAFT_Engine")
                 .and().submitFormUsingJavaScript(searchBox)
-                .and().isElementDisplayed(searchResult);
+                .and().get().isDisplayed(searchResult);
         SHAFT.Validations.assertThat().object(isElementDisplayed).isEqualTo(true).withCustomReportMessage("target search result is displayed").perform();
     }
 

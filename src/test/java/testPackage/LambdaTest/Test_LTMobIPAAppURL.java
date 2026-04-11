@@ -32,7 +32,7 @@ public class Test_LTMobIPAAppURL {
         SHAFT.Properties.mobile.set().browserName("");
         SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
         SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
-        SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
+        SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
         driver.set(new SHAFT.GUI.WebDriver());
 
     }

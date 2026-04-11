@@ -84,22 +84,16 @@ public class BrowserStackHelper {
         String testData = "Username: " + username + ", Password: " + "•".repeat(password.length()) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", Relative Path to App File: " + relativePathToAppFile + ", App Name: " + appName;
 
         // upload app to browserstack api
-        List<Object> apkFile = new ArrayList<>();
-        apkFile.add("file");
         String appPath = FileActions.getInstance(true).getAbsolutePath(relativePathToAppFile);
-        apkFile.add(new File(appPath));
         ReportManager.logDiscrete("BrowserStack appPath: " + appPath);
 
-        List<Object> customID = new ArrayList<>();
-        customID.add("custom_id");
         String userProvidedCustomID = SHAFT.Properties.browserStack.customID();
         String custom_id = "".equals(userProvidedCustomID) ? "SHAFT_Engine_" + appName.replaceAll(" ", "_") : userProvidedCustomID;
-        customID.add(custom_id);
         ReportManager.logDiscrete("BrowserStack custom_id: " + custom_id);
 
-        List<List<Object>> parameters = new ArrayList<>();
-        parameters.add(apkFile);
-        parameters.add(customID);
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        parameters.put("file", new File(appPath));
+        parameters.put("custom_id", custom_id);
         var appUrl = "";
 
         try (ProgressBarLogger ignored = new ProgressBarLogger("Uploading app to BrowserStack...")) {

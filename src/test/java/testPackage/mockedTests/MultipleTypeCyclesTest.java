@@ -24,7 +24,7 @@ public class MultipleTypeCyclesTest {
 
     @Test(dependsOnMethods = "_01typeClearTypeTypeAppend")
     public void _02clearUsingBackSpace() {
-        SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(true);
+        SHAFT.Properties.flags.set().clearBeforeTypingMode("backspace");
         driver.get().browser().navigateToURL(testElement);
         driver.get().element().type(locator, "first string")
                 .type(locator, "Second string")
@@ -34,7 +34,7 @@ public class MultipleTypeCyclesTest {
 
     @Test(dependsOnMethods = "_02clearUsingBackSpace")
     public void _03NoClearBeforeTypingTest() {
-        SHAFT.Properties.flags.set().attemptClearBeforeTyping(false);
+        SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
         driver.get().browser().navigateToURL(testElement);
         driver.get().element().type(locator, "first string")
                 .type(locator, " + Second string")
@@ -86,7 +86,5 @@ public class MultipleTypeCyclesTest {
         driver.remove();
         //Resetting flags to default values after each method
         SHAFT.Properties.flags.set().clearBeforeTypingMode("native");
-        SHAFT.Properties.flags.set().attemptClearBeforeTyping(true);
-        SHAFT.Properties.flags.set().attemptClearBeforeTypingUsingBackspace(false);
     }
 }

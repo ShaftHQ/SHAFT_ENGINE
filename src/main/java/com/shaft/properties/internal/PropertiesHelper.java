@@ -125,14 +125,8 @@ public class PropertiesHelper {
      * Chooses the clear-before-typing mode based on current configuration flags.
      */
     public static void setClearBeforeTypingMode() {
-        if (!Properties.flags.attemptClearBeforeTyping()) {
-            SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
-            return;
-        }
-
-        if (Properties.flags.attemptClearBeforeTypingUsingBackspace() || SHAFT.Properties.flags.clearBeforeTypingMode().equals("backspace")) {
-            SHAFT.Properties.flags.set().clearBeforeTypingMode("backspace");
-        }
+        // clearBeforeTypingMode is the canonical property: "native", "backspace", or "off"
+        // No further normalization needed since deprecated boolean flags are removed.
     }
 
     private static void overrideScreenshotTypeForParallelExecution() {

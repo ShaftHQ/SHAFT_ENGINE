@@ -25,7 +25,7 @@ public class VerifyEqualsTests {
     public void test_assertEquals() {
         driver.get().element().type(GoogleSearch.getSearchBox_textField(),
                 "INC_004010050:Another SCHEDULER with the same name [Duplicate Job Name] already exists.");
-        String actualValue = driver.get().element().getText(GoogleSearch.getSearchBox_textField());
+        String actualValue = driver.get().element().get().text(GoogleSearch.getSearchBox_textField());
         Validations.verifyThat()
                 .object(actualValue)
                 .matchesRegex("INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.")
