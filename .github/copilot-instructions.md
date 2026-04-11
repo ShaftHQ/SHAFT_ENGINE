@@ -20,6 +20,60 @@ SHAFT_ENGINE is a unified test automation framework built with:
 
 ## Development Workflow
 
+### Plan-Do-Check-Act (PDCA) Strategy
+
+> **Every implementation — feature, bug fix, or refactor — MUST follow the PDCA cycle. No exceptions.**
+
+PDCA is the mandatory development methodology.  Each cycle consists of four phases that **must all be completed** before a change is considered done:
+
+#### Phase 1 — Plan
+- Fully understand the requirements, constraints, and expected outcomes before writing any code.
+- Identify which files, classes, and tests are affected.
+- Write down an explicit implementation plan (checklist format preferred).
+- Anticipate edge cases and failure modes.
+- **Do NOT start coding until the plan is clear.**
+
+#### Phase 2 — Do
+- Implement the planned change with the smallest possible diff.
+- Follow all SHAFT patterns, naming conventions, and architectural rules.
+- Write or update tests alongside the implementation (test-first preferred).
+- Compile: `mvn clean install -DskipTests -Dgpg.skip` must succeed before proceeding.
+
+#### Phase 3 — Check
+- Run all affected tests: `mvn test -Dtest=TestClassName`.
+- Verify the implementation against the original requirements.
+- Capture screenshots or log output as evidence of passing tests.
+- Review your own code for correctness, readability, and SHAFT idioms.
+- If anything fails, return to **Plan** with the new information — do not patch blindly.
+
+#### Phase 4 — Act (Refactor & Stabilize)
+- Refactor the implementation based on what the Check phase revealed.
+- Remove duplication, improve naming, tighten abstractions.
+- Re-run tests to confirm refactoring did not break anything.
+- Update JavaDocs and inline comments to reflect the final design.
+
+### Minimum 3-Iteration Rule
+
+> **You MUST complete at least three full PDCA cycles for any non-trivial implementation.**
+
+Three iterations are the minimum required to produce an optimized, stable result:
+
+| Iteration | Focus |
+|-----------|-------|
+| **1 — Make it work** | Get a correct, compiling, tested implementation. No premature optimization. |
+| **2 — Make it right** | Refactor for clarity, eliminate duplication, harden edge cases, improve test coverage. |
+| **3 — Make it optimal** | Optimize performance/readability, verify no regressions, finalize docs and naming. |
+
+Additional iterations are encouraged whenever tests reveal new edge cases or the design can be meaningfully simplified.
+
+**Anti-patterns to avoid:**
+- ❌ Committing after a single "it compiles" pass
+- ❌ Skipping the Check phase because "the logic looks correct"
+- ❌ Treating the first working implementation as the final one
+- ❌ Deferring refactoring to "a follow-up PR" that never happens
+
+---
+
 ### ⛔ Mandatory Pre-Commit Rules (No Exceptions)
 > **You MUST NEVER commit untested code. There are no exceptions to these rules.**
 
@@ -702,7 +756,8 @@ Since the migration (PR #2387), **Copilot must not assume Allure 2 behavior**.  
 - Follow secure coding practices from the CONTRIBUTING.md file
 - All code changes undergo security scanning via CodeQL
 
-## Continuous Improvement Guard Rails (PDCA Cycles 2-5)
+## Continuous Improvement Guard Rails
+These guard rails apply specifically when modifying SHAFT internals across PDCA iterations 2 and beyond (see **Plan-Do-Check-Act Strategy** above):
 - When modifying validation/reporting internals, clear `ThreadLocal` state with `.remove()` at lifecycle boundaries.
 - For progress/log UX, prefer readable output in CI/non-interactive terminals and avoid forcing ANSI colors.
 - Keep complexity reductions small and behavior-preserving (extract/inline only what is needed).
