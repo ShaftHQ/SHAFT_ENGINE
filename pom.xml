@@ -1080,7 +1080,13 @@
         <profile>
             <id>testng</id>
             <activation>
-                <activeByDefault>true</activeByDefault>
+                <!-- Use property-based activation instead of activeByDefault because
+                     Maven deactivates activeByDefault profiles when any other profile
+                     (e.g. jave-linux-64) is activated via its <activation> section.
+                     This activates unless -DskipTestNG is explicitly passed. -->
+                <property>
+                    <name>!skipTestNG</name>
+                </property>
             </activation>
             <build>
                 <plugins>
