@@ -8,8 +8,8 @@ import org.testng.annotations.Test;
 
 public class ElementMatchesSafariCompatibleTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
-    String url = "https://duckduckgo.com/?";
-    By searchbar = By.xpath("//*[@id='search_form_input_homepage'] | //input[@name='q']");
+    String url = "https://www.bing.com/";
+    By searchbar = By.name("q");
 
     @Test
     public void test(){

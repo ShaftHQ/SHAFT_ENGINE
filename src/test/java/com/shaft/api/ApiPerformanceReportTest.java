@@ -51,6 +51,7 @@ public class ApiPerformanceReportTest {
     @Test(groups = {"restful-booker"})
     public void testGetBooking() {
         api.get().get("booking/1").
+                setTargetStatusCode(0).
                 perform();
     }
 

@@ -55,7 +55,7 @@ public class SmartLocatorsTests extends Tests {
     }
 
     public void testSmartLocators7() {
-        driver.get().browser().navigateToURL("https://duckduckgo.com/")
+        driver.get().browser().navigateToURL("https://www.bing.com/")
                 .and().element().type("Search", "Selenium" + Keys.ENTER);
     }
 

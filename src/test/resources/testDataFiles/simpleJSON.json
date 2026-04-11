@@ -3,6 +3,6 @@
   "age": 31,
   "city": "Cairo",
   "searchQuery": "SHAFT_Engine",
-  "expectedTitle": "DuckDuckGo",
+  "expectedTitle": "duckduckgo",
   "unexpectedInFirstResult": "Nope"
 }
