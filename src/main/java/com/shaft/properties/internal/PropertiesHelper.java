@@ -118,15 +118,6 @@ public class PropertiesHelper {
         overrideScreenShotTypeForAnimatedGIF();
         overrideScreenshotTypeForSafariBrowser();
         overrideScreenshotTypeForParallelExecution();
-        setClearBeforeTypingMode();
-    }
-
-    /**
-     * Chooses the clear-before-typing mode based on current configuration flags.
-     */
-    public static void setClearBeforeTypingMode() {
-        // clearBeforeTypingMode is the canonical property: "native", "backspace", or "off"
-        // No further normalization needed since deprecated boolean flags are removed.
     }
 
     private static void overrideScreenshotTypeForParallelExecution() {

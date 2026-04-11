@@ -2,6 +2,7 @@ package com.shaft.cucumber;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.enums.internal.ClipboardAction;
+import com.shaft.gui.element.internal.ElementActionsHelper;
 import io.cucumber.java.en.When;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
@@ -145,15 +146,8 @@ public class ElementSteps {
      */
     @When("I use the clipboard to perform {string} on the element found by {string}: {string}")
     public void clipboardActions(String action, String locatorType, String locatorValue) {
-        By locator = getLocatorFromTypeAndValue(locatorType, locatorValue);
         var clipboardAction = ClipboardAction.valueOf(action);
-        switch (clipboardAction) {
-            case COPY -> driver.get().element().clipboard().copyAll(locator);
-            case CUT -> driver.get().element().clipboard().cutAll(locator);
-            case PASTE -> driver.get().element().clipboard().paste(locator);
-            case SELECT_ALL -> driver.get().element().clipboard().copyAll(locator);
-            case UNSELECT_ALL -> driver.get().element().clipboard().deleteAll(locator);
-        }
+        new ElementActionsHelper(false).performClipboardActions(driver.get().getDriver(), clipboardAction);
     }
 
     /**

@@ -14,7 +14,6 @@ import com.shaft.gui.internal.image.ScreenshotHelper;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
 import com.shaft.gui.internal.locator.SmartLocators;
-import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
@@ -509,7 +508,6 @@ public class Actions extends ElementActions {
                         }
                     }
                     case TYPE, TYPE_SECURELY -> {
-                        PropertiesHelper.setClearBeforeTypingMode();
                         executeClearBasedOnClearMode(foundElements.get().getFirst(), SHAFT.Properties.flags.clearBeforeTypingMode());
                         foundElements.get().getFirst().sendKeys((CharSequence[]) data);
                     }

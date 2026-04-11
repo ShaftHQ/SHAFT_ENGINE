@@ -3,7 +3,7 @@ package com.shaft.gui.element;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.enums.internal.ClipboardAction;
-import com.shaft.gui.element.internal.Actions;
+import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.Beta;
 import org.openqa.selenium.By;
@@ -170,14 +170,8 @@ public class AsyncElementActions extends FluentWebDriverAction {
      */
     public AsyncElementActions clipboardActions(By elementLocator, ClipboardAction action) {
         actionThreads.add(Thread.ofVirtual().start(() -> {
-            var actions = new Actions(driverFactoryHelper);
-            switch (action) {
-                case COPY -> actions.clipboard().copyAll(elementLocator);
-                case CUT -> actions.clipboard().cutAll(elementLocator);
-                case PASTE -> actions.clipboard().paste(elementLocator);
-                case SELECT_ALL -> actions.clipboard().copyAll(elementLocator);
-                case UNSELECT_ALL -> actions.clipboard().deleteAll(elementLocator);
-            }
+            var helper = new ElementActionsHelper(false);
+            helper.performClipboardActions(driverFactoryHelper.getDriver(), action);
         }));
         return this;
     }
