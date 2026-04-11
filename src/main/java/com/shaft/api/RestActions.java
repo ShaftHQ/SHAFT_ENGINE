@@ -828,7 +828,9 @@ public class RestActions {
             ArrayNode actualJsonArray = (ArrayNode) jacksonMapper
                     .readTree((new Gson()).toJsonTree(getResponseJSONValueAsList(response, jsonPathToTargetArray))
                             .getAsJsonArray().toString());
-            // check that all expected elements are present in the actual array
+            // check that all expected elements are present in the actual array.
+            // O(n*m) scan matches the previous json-simple containsAll() semantics because
+            // Jackson JsonNode equality requires structural comparison rather than hash-based lookup.
             for (JsonNode expectedElement : expectedJsonArray) {
                 boolean found = false;
                 for (JsonNode actualElement : actualJsonArray) {
@@ -1188,6 +1190,9 @@ public class RestActions {
 
                 String mimeType = URLConnection.guessContentTypeFromName(f.getName());
                 if (mimeType == null) {
+                    // Files.probeContentType() is platform-dependent and may return null on
+                    // systems without adequate MIME-type mappings. The "application/octet-stream"
+                    // fallback ensures a valid content-type is always sent.
                     try {
                         mimeType = Files.probeContentType(f.toPath());
                     } catch (IOException ignored) {
@@ -1295,6 +1300,8 @@ public class RestActions {
                 String mimeType;
                 mimeType = URLConnection.guessContentTypeFromName(((File) param.get(1)).getName());
                 if (mimeType == null) {
+                    // Files.probeContentType() is platform-dependent; fall back to
+                    // "application/octet-stream" when no mapping is available.
                     try {
                         mimeType = Files.probeContentType(((File) param.get(1)).toPath());
                     } catch (IOException ignored) {
