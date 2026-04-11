@@ -3,7 +3,10 @@ package com.shaft.api;
 import com.atlassian.oai.validator.restassured.OpenApiValidationFilter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
@@ -17,8 +20,6 @@ import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
-import eu.medsea.mimeutil.MimeUtil;
-import eu.medsea.mimeutil.MimeUtil2;
 import io.qameta.allure.restassured.AllureRestAssured;
 import io.restassured.builder.MultiPartSpecBuilder;
 import io.restassured.builder.RequestSpecBuilder;
@@ -40,8 +41,6 @@ import org.apache.logging.log4j.Level;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.JSONCompare;
 import org.skyscreamer.jsonassert.JSONCompareMode;
@@ -55,6 +54,7 @@ import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import java.io.*;
 import java.net.URLConnection;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -124,8 +124,9 @@ public class RestActions {
      * @param requestBody_forHelperMethod the request body.
      * @return Response object
      */
-    private static Response graphQlRequestHelper(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod) {
-        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod + "\"");
+    private static Response graphQlRequestHelper(String base_URI_forHelperMethod, Map<String, Object> requestBody_forHelperMethod) {
+        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: "
+                + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod + "]");
         return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
                 .setContentType(ContentType.JSON).performRequest().getResponse();
     }
@@ -149,8 +150,10 @@ public class RestActions {
      * @param headerValue_forHelperMethod the value that will be put inside the key.
      * @return Response object
      */
-    private static Response graphQlRequestHelperWithHeader(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod, String headerKey_forHelperMethod, String headerValue_forHelperMethod) {
-        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod + " | Header: \"" + headerKey_forHelperMethod + "\":\"" + headerValue_forHelperMethod + "\"\"");
+    private static Response graphQlRequestHelperWithHeader(String base_URI_forHelperMethod, Map<String, Object> requestBody_forHelperMethod, String headerKey_forHelperMethod, String headerValue_forHelperMethod) {
+        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: "
+                + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod
+                + " | Header: \"" + headerKey_forHelperMethod + "\":\"" + headerValue_forHelperMethod + "\"]");
         return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
                 .setContentType(ContentType.JSON).addHeader(headerKey_forHelperMethod, headerValue_forHelperMethod).performRequest().getResponse();
     }
@@ -337,14 +340,6 @@ public class RestActions {
                 jsonPath = jsonPath.startsWith("$[") ? jsonPath.substring(1) : jsonPath;
                 jsonPath = jsonPath.startsWith("[") ? "array" + jsonPath : "array." + jsonPath;
                 searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
-            } else if (response instanceof org.json.simple.JSONArray jsonSimpleArray) {
-                JSONObject obj = new JSONObject();
-                obj.put("array", jsonSimpleArray);
-                jsonPath = jsonPath.startsWith("$[") ? jsonPath.substring(1) : jsonPath;
-                jsonPath = jsonPath.startsWith("[") ? "array" + jsonPath : "array." + jsonPath;
-                searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
-            } else if (response instanceof org.json.simple.JSONObject jsonObject) {
-                searchPool = io.restassured.path.json.JsonPath.from(jsonObject.toString()).getString(jsonPath);
             } else if (response instanceof JSONObject obj) {
                 searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
             } else if (response instanceof List<?> objectsList) {
@@ -633,37 +628,40 @@ public class RestActions {
                     + "\", jsonPath to target array \"" + jsonPathToTargetArray + "\".");
         }
         boolean comparisonResult;
-        JSONParser parser = new JSONParser();
+        ObjectMapper jacksonMapper = new ObjectMapper();
         List<Object> expectedJSONAttachment = null;
 
         try {
             // parse actual JSON into Object or Array
-            org.json.simple.JSONObject actualJsonObject = null;
-            org.json.simple.JSONArray actualJsonArray = null;
+            ObjectNode actualJsonObject = null;
+            ArrayNode actualJsonArray = null;
 
-            var actualObject = parser.parse(response.asString());
-            if (actualObject instanceof org.json.simple.JSONObject) {
-                actualJsonObject = (org.json.simple.JSONObject) parser.parse(response.asString());
+            var actualRoot = jacksonMapper.readTree(response.asString());
+            if (actualRoot instanceof ObjectNode) {
+                actualJsonObject = (ObjectNode) actualRoot;
             } else {
-                // actualObject is an array org.json.simple.JSONArray
-                actualJsonArray = (org.json.simple.JSONArray) parser.parse(response.asString());
+                // actualRoot is an array
+                actualJsonArray = (ArrayNode) actualRoot;
             }
 
             // parse expected JSON into Object or Array
-            org.json.simple.JSONObject expectedJsonObject = null;
-            org.json.simple.JSONArray expectedJsonArray = null;
+            ObjectNode expectedJsonObject = null;
+            ArrayNode expectedJsonArray = null;
 
-            var expectedObject = parser.parse(new FileReader(referenceJsonFilePath));
-            if (expectedObject instanceof org.json.simple.JSONObject) {
-                expectedJsonObject = (org.json.simple.JSONObject) parser.parse(new FileReader(referenceJsonFilePath));
+            JsonNode expectedRoot;
+            try (FileReader expectedReader = new FileReader(referenceJsonFilePath)) {
+                expectedRoot = jacksonMapper.readTree(expectedReader);
+            }
+            if (expectedRoot instanceof ObjectNode) {
+                expectedJsonObject = (ObjectNode) expectedRoot;
                 expectedJSONAttachment = Arrays.asList("File Content", "Expected JSON",
                         new GsonBuilder().setPrettyPrinting().create()
-                                .toJson(JsonParser.parseString(expectedJsonObject.toJSONString())));
+                                .toJson(JsonParser.parseString(expectedJsonObject.toString())));
             } else {
-                // expectedObject is an array org.json.simple.JSONArray
-                expectedJsonArray = (org.json.simple.JSONArray) parser.parse(new FileReader(referenceJsonFilePath));
+                // expectedRoot is an array
+                expectedJsonArray = (ArrayNode) expectedRoot;
                 expectedJSONAttachment = Arrays.asList("File Content", "Expected JSON", new GsonBuilder()
-                        .setPrettyPrinting().create().toJson(JsonParser.parseString(expectedJsonArray.toJSONString())));
+                        .setPrettyPrinting().create().toJson(JsonParser.parseString(expectedJsonArray.toString())));
             }
 
             // handle different combinations of expected and actual (object vs array)
@@ -672,16 +670,16 @@ public class RestActions {
                 case EQUALS -> compareJSONEquals(expectedJsonObject, expectedJsonArray, actualJsonObject,
                         actualJsonArray);
                 case CONTAINS -> compareJSONContains(response, expectedJsonObject, expectedJsonArray,
-                        actualJsonObject, jsonPathToTargetArray);
+                        actualJsonObject, actualJsonArray, jsonPathToTargetArray);
                 case EQUALS_IGNORING_ORDER ->
                         compareJSONEqualsIgnoringOrder(expectedJsonObject, expectedJsonArray, actualJsonObject,
                                 actualJsonArray);
             };
         } catch (IOException rootCauseException) {
-            failAction("Couldn't find the desired file. \"" + referenceJsonFilePath + "\".", rootCauseException);
+            failAction("Couldn't find or parse the desired file. \"" + referenceJsonFilePath + "\".", rootCauseException);
             comparisonResult = false;
-        } catch (ParseException | JSONException rootCauseException) {
-            failAction("Couldn't parse the desired file. \"" + referenceJsonFilePath + "\".", rootCauseException);
+        } catch (JSONException rootCauseException) {
+            failAction("Couldn't compare JSON content. \"" + referenceJsonFilePath + "\".", rootCauseException);
             comparisonResult = false;
         }
         passAction(referenceJsonFilePath, expectedJSONAttachment);
@@ -747,52 +745,58 @@ public class RestActions {
         return message;
     }
 
-    private static InputStream parseJsonBody(Object body) throws ParseException {
-        JSONParser parser = new JSONParser();
-        org.json.simple.JSONObject actualJsonObject = null;
-        org.json.simple.JSONArray actualJsonArray = null;
+    private static InputStream parseJsonBody(Object body) throws IOException {
+        ObjectMapper jacksonMapper = new ObjectMapper();
+        ObjectNode actualJsonObject = null;
+        ArrayNode actualJsonArray = null;
         if (body.getClass().getName().toLowerCase().contains("restassured")) {
-            try {
-                // if it's a string response body
-                String bodyString = ((ResponseBody<?>) body).asString();
-                if (!bodyString.isEmpty()) {
-                    actualJsonObject = (org.json.simple.JSONObject) parser.parse(bodyString);
-                }
-            } catch (ClassCastException e) {
-                // java.lang.ClassCastException: org.json.simple.JSONArray cannot be cast to
-                // org.json.simple.JSONObject
-                String bodyString = ((ResponseBody<?>) body).asString();
-                if (!bodyString.isEmpty()) {
-                    actualJsonArray = (org.json.simple.JSONArray) parser.parse(bodyString);
+            String bodyString = ((ResponseBody<?>) body).asString();
+            if (!bodyString.isEmpty()) {
+                var root = jacksonMapper.readTree(bodyString);
+                if (root instanceof ObjectNode) {
+                    actualJsonObject = (ObjectNode) root;
+                } else {
+                    actualJsonArray = (ArrayNode) root;
                 }
             }
-        } else if (body instanceof org.json.simple.JSONObject) {
-            actualJsonObject = (org.json.simple.JSONObject) body;
-        } else if (body instanceof org.json.simple.JSONArray) {
-            actualJsonArray = (org.json.simple.JSONArray) body;
+        } else if (body instanceof ObjectNode) {
+            actualJsonObject = (ObjectNode) body;
+        } else if (body instanceof ArrayNode) {
+            actualJsonArray = (ArrayNode) body;
         } else if (body.getClass().getName().toLowerCase().contains("jsonobject")) {
-            actualJsonObject = (org.json.simple.JSONObject) parser
-                    .parse(body.toString().replace("\\n", "").replace("\\t", "").replace(" ", ""));
+            var root = jacksonMapper.readTree(body.toString());
+            if (root instanceof ObjectNode) {
+                actualJsonObject = (ObjectNode) root;
+            } else if (root instanceof ArrayNode) {
+                actualJsonArray = (ArrayNode) root;
+            } else {
+                actualJsonObject = jacksonMapper.createObjectNode().set("value", root);
+            }
         } else if (body instanceof Map<?, ?> bodyMap) {
-            actualJsonObject = new org.json.simple.JSONObject(bodyMap);
+            actualJsonObject = jacksonMapper.valueToTree(bodyMap);
         } else {
-            actualJsonObject = (org.json.simple.JSONObject) parser.parse(body.toString());
+            var root = jacksonMapper.readTree(body.toString());
+            if (root instanceof ObjectNode) {
+                actualJsonObject = (ObjectNode) root;
+            } else {
+                actualJsonArray = (ArrayNode) root;
+            }
         }
         if (actualJsonObject != null) {
             return new ByteArrayInputStream((new GsonBuilder().setPrettyPrinting().create()
-                    .toJson(JsonParser.parseString(actualJsonObject.toJSONString()))).getBytes());
+                    .toJson(JsonParser.parseString(actualJsonObject.toString()))).getBytes());
         } else if (actualJsonArray != null) {
             return new ByteArrayInputStream((new GsonBuilder().setPrettyPrinting().create()
-                    .toJson(JsonParser.parseString(actualJsonArray.toJSONString()))).getBytes());
+                    .toJson(JsonParser.parseString(actualJsonArray.toString()))).getBytes());
         } else {
             // in case of an empty body
             return new ByteArrayInputStream(("").getBytes());
         }
     }
 
-    private static boolean compareJSONEquals(org.json.simple.JSONObject expectedJsonObject,
-                                             org.json.simple.JSONArray expectedJsonArray, org.json.simple.JSONObject actualJsonObject,
-                                             org.json.simple.JSONArray actualJsonArray) {
+    private static boolean compareJSONEquals(ObjectNode expectedJsonObject,
+                                             ArrayNode expectedJsonArray, ObjectNode actualJsonObject,
+                                             ArrayNode actualJsonArray) {
         if (expectedJsonObject != null && actualJsonObject != null) {
             // if expected is an object and actual is also an object
             return actualJsonObject.toString().equals(expectedJsonObject.toString());
@@ -802,9 +806,9 @@ public class RestActions {
         }
     }
 
-    private static boolean compareJSONEqualsIgnoringOrder(org.json.simple.JSONObject expectedJsonObject,
-                                                          org.json.simple.JSONArray expectedJsonArray, org.json.simple.JSONObject actualJsonObject,
-                                                          org.json.simple.JSONArray actualJsonArray) {
+    private static boolean compareJSONEqualsIgnoringOrder(ObjectNode expectedJsonObject,
+                                                          ArrayNode expectedJsonArray, ObjectNode actualJsonObject,
+                                                          ArrayNode actualJsonArray) {
         if (expectedJsonObject != null && actualJsonObject != null) {
             // if expected is an object and actual is also an object
             try {
@@ -825,28 +829,42 @@ public class RestActions {
     }
 
     @SuppressWarnings("unchecked")
-    private static boolean compareJSONContains(Response response, org.json.simple.JSONObject expectedJsonObject,
-                                               org.json.simple.JSONArray expectedJsonArray, org.json.simple.JSONObject actualJsonObject,
+    private static boolean compareJSONContains(Response response, ObjectNode expectedJsonObject,
+                                               ArrayNode expectedJsonArray, ObjectNode actualJsonObject, ArrayNode actualJsonArray,
                                                String jsonPathToTargetArray)
-            throws JSONException, ParseException {
-        JSONParser parser = new JSONParser();
+            throws JSONException, IOException {
+        ObjectMapper jacksonMapper = new ObjectMapper();
+        Gson gson = new Gson();
         if (!jsonPathToTargetArray.isEmpty() && (expectedJsonArray != null)) {
             // if expected is an array and the user provided the path to extract it from the
             // response
-            org.json.simple.JSONArray actualJsonArray = (org.json.simple.JSONArray) parser
-                    .parse((new Gson()).toJsonTree(getResponseJSONValueAsList(response, jsonPathToTargetArray))
+            ArrayNode actualJsonArrayFromJsonPath = (ArrayNode) jacksonMapper
+                    .readTree(gson.toJsonTree(getResponseJSONValueAsList(response, jsonPathToTargetArray))
                             .getAsJsonArray().toString());
-            return actualJsonArray.containsAll(expectedJsonArray);
+            // check that all expected elements are present in the actual array.
+            // O(n*m) scan matches the previous json-simple containsAll() semantics because
+            // Jackson JsonNode equality requires structural comparison rather than hash-based lookup.
+            for (JsonNode expectedElement : expectedJsonArray) {
+                boolean found = false;
+                for (JsonNode actualElement : actualJsonArrayFromJsonPath) {
+                    if (expectedElement.equals(actualElement)) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) return false;
+            }
+            return true;
         } else if (jsonPathToTargetArray.isEmpty() && (expectedJsonArray != null)) {
             // if expected is an array and the user did not provide the path to extract it
             // from the response
-            String actual = (new Gson()).toJson(actualJsonObject);
-            String expected = (new Gson()).toJson(expectedJsonArray);
+            String actual = actualJsonArray == null ? gson.toJson(actualJsonObject) : actualJsonArray.toString();
+            String expected = gson.toJson(jacksonMapper.readTree(expectedJsonArray.toString()));
             return actual.contains(expected.substring(1));
         } else if (expectedJsonObject != null) {
             // if expected is an object and actual is also an object
-            boolean initialComparison = JSONCompare.compareJSON(expectedJsonObject.toJSONString(),
-                    actualJsonObject.toJSONString(), JSONCompareMode.LENIENT).passed();
+            boolean initialComparison = JSONCompare.compareJSON(expectedJsonObject.toString(),
+                    actualJsonObject.toString(), JSONCompareMode.LENIENT).passed();
             if (Boolean.FALSE.equals(initialComparison)) {
                 // secondary comparison using java contains
                 // not tested
@@ -905,7 +923,7 @@ public class RestActions {
     @SuppressWarnings("unchecked")
     public static Response sendGraphQlRequest(String base_URI, String query) {
 
-        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        Map<String, Object> requestBody = new LinkedHashMap<>();
         requestBody.put("query", query);
         return graphQlRequestHelper(base_URI, requestBody);
     }
@@ -921,7 +939,7 @@ public class RestActions {
     @SuppressWarnings("unchecked")
     public static Response sendGraphQlRequest(String base_URI, String query, String variables) {
 
-        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        Map<String, Object> requestBody = new LinkedHashMap<>();
         requestBody.put("query", query);
         requestBody.put("variables", variables);
         return graphQlRequestHelper(base_URI, requestBody);
@@ -939,7 +957,7 @@ public class RestActions {
     @SuppressWarnings("unchecked")
     public static Response sendGraphQlRequest(String base_URI, String query, String variables, String fragment) {
 
-        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        Map<String, Object> requestBody = new LinkedHashMap<>();
         requestBody.put("query", query);
         requestBody.put("variables", variables);
         requestBody.put("fragment", fragment);
@@ -962,7 +980,7 @@ public class RestActions {
     @SuppressWarnings("unchecked")
     public static Response sendGraphQlRequestWithHeader(String base_URI, String query, String header_key, String header_value) {
 
-        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        Map<String, Object> requestBody = new LinkedHashMap<>();
         requestBody.put("query", query);
         return graphQlRequestHelperWithHeader(base_URI, requestBody, header_key, header_value);
     }
@@ -980,7 +998,7 @@ public class RestActions {
     @SuppressWarnings("unchecked")
     public static Response sendGraphQlRequestWithHeader(String base_URI, String query, String variables, String header_key, String header_value) {
 
-        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        Map<String, Object> requestBody = new LinkedHashMap<>();
         requestBody.put("query", query);
         requestBody.put("variables", variables);
         return graphQlRequestHelperWithHeader(base_URI, requestBody, header_key, header_value);
@@ -1000,7 +1018,7 @@ public class RestActions {
     @SuppressWarnings("unchecked")
     public static Response sendGraphQlRequestWithHeader(String base_URI, String query, String variables, String fragment, String header_key, String header_value) {
 
-        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        Map<String, Object> requestBody = new LinkedHashMap<>();
         requestBody.put("query", query);
         requestBody.put("variables", variables);
         requestBody.put("fragment", fragment);
@@ -1193,7 +1211,17 @@ public class RestActions {
 
                 String mimeType = URLConnection.guessContentTypeFromName(f.getName());
                 if (mimeType == null) {
-                    mimeType = MimeUtil2.getMostSpecificMimeType(MimeUtil.getMimeTypes(f.getName())).toString();
+                    // Files.probeContentType() is platform-dependent and may return null on
+                    // systems without adequate MIME-type mappings. The "application/octet-stream"
+                    // fallback ensures a valid content-type is always sent.
+                    try {
+                        mimeType = Files.probeContentType(f.toPath());
+                    } catch (IOException ignored) {
+                        // fall through to default
+                    }
+                }
+                if (mimeType == null) {
+                    mimeType = "application/octet-stream";
                 }
                 mp.mimeType(mimeType);
                 builder.addMultiPart(mp.build());
@@ -1260,7 +1288,16 @@ public class RestActions {
                 String mimeType;
                 mimeType = URLConnection.guessContentTypeFromName(((File) param.get(1)).getName());
                 if (mimeType == null) {
-                    mimeType = MimeUtil2.getMostSpecificMimeType(MimeUtil.getMimeTypes(fileName)).toString();
+                    // Files.probeContentType() is platform-dependent; fall back to
+                    // "application/octet-stream" when no mapping is available.
+                    try {
+                        mimeType = Files.probeContentType(((File) param.get(1)).toPath());
+                    } catch (IOException ignored) {
+                        // fall through to default
+                    }
+                }
+                if (mimeType == null) {
+                    mimeType = "application/octet-stream";
                 }
                 multiPartSpecBuilder.mimeType(mimeType);
                 builder.addMultiPart(multiPartSpecBuilder.build());
