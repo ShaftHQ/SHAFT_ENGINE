@@ -125,7 +125,8 @@ public class RestActions {
      * @return Response object
      */
     private static Response graphQlRequestHelper(String base_URI_forHelperMethod, Map<String, Object> requestBody_forHelperMethod) {
-        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod + "\"");
+        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: "
+                + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod + "]");
         return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
                 .setContentType(ContentType.JSON).performRequest().getResponse();
     }
@@ -150,7 +151,9 @@ public class RestActions {
      * @return Response object
      */
     private static Response graphQlRequestHelperWithHeader(String base_URI_forHelperMethod, Map<String, Object> requestBody_forHelperMethod, String headerKey_forHelperMethod, String headerValue_forHelperMethod) {
-        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod + " | Header: \"" + headerKey_forHelperMethod + "\":\"" + headerValue_forHelperMethod + "\"\"");
+        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: "
+                + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod
+                + " | Header: \"" + headerKey_forHelperMethod + "\":\"" + headerValue_forHelperMethod + "\"]");
         return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
                 .setContentType(ContentType.JSON).addHeader(headerKey_forHelperMethod, headerValue_forHelperMethod).performRequest().getResponse();
     }
@@ -645,7 +648,10 @@ public class RestActions {
             ObjectNode expectedJsonObject = null;
             ArrayNode expectedJsonArray = null;
 
-            var expectedRoot = jacksonMapper.readTree(new FileReader(referenceJsonFilePath));
+            JsonNode expectedRoot;
+            try (FileReader expectedReader = new FileReader(referenceJsonFilePath)) {
+                expectedRoot = jacksonMapper.readTree(expectedReader);
+            }
             if (expectedRoot instanceof ObjectNode) {
                 expectedJsonObject = (ObjectNode) expectedRoot;
                 expectedJSONAttachment = Arrays.asList("File Content", "Expected JSON",
@@ -664,7 +670,7 @@ public class RestActions {
                 case EQUALS -> compareJSONEquals(expectedJsonObject, expectedJsonArray, actualJsonObject,
                         actualJsonArray);
                 case CONTAINS -> compareJSONContains(response, expectedJsonObject, expectedJsonArray,
-                        actualJsonObject, jsonPathToTargetArray);
+                        actualJsonObject, actualJsonArray, jsonPathToTargetArray);
                 case EQUALS_IGNORING_ORDER ->
                         compareJSONEqualsIgnoringOrder(expectedJsonObject, expectedJsonArray, actualJsonObject,
                                 actualJsonArray);
@@ -758,8 +764,14 @@ public class RestActions {
         } else if (body instanceof ArrayNode) {
             actualJsonArray = (ArrayNode) body;
         } else if (body.getClass().getName().toLowerCase().contains("jsonobject")) {
-            var root = jacksonMapper.readTree(body.toString().replace("\\n", "").replace("\\t", "").replace(" ", ""));
-            if (root instanceof ObjectNode) actualJsonObject = (ObjectNode) root;
+            var root = jacksonMapper.readTree(body.toString());
+            if (root instanceof ObjectNode) {
+                actualJsonObject = (ObjectNode) root;
+            } else if (root instanceof ArrayNode) {
+                actualJsonArray = (ArrayNode) root;
+            } else {
+                actualJsonObject = jacksonMapper.createObjectNode().set("value", root);
+            }
         } else if (body instanceof Map<?, ?> bodyMap) {
             actualJsonObject = jacksonMapper.valueToTree(bodyMap);
         } else {
@@ -818,22 +830,23 @@ public class RestActions {
 
     @SuppressWarnings("unchecked")
     private static boolean compareJSONContains(Response response, ObjectNode expectedJsonObject,
-                                               ArrayNode expectedJsonArray, ObjectNode actualJsonObject,
+                                               ArrayNode expectedJsonArray, ObjectNode actualJsonObject, ArrayNode actualJsonArray,
                                                String jsonPathToTargetArray)
             throws JSONException, IOException {
         ObjectMapper jacksonMapper = new ObjectMapper();
+        Gson gson = new Gson();
         if (!jsonPathToTargetArray.isEmpty() && (expectedJsonArray != null)) {
             // if expected is an array and the user provided the path to extract it from the
             // response
-            ArrayNode actualJsonArray = (ArrayNode) jacksonMapper
-                    .readTree((new Gson()).toJsonTree(getResponseJSONValueAsList(response, jsonPathToTargetArray))
+            ArrayNode actualJsonArrayFromJsonPath = (ArrayNode) jacksonMapper
+                    .readTree(gson.toJsonTree(getResponseJSONValueAsList(response, jsonPathToTargetArray))
                             .getAsJsonArray().toString());
             // check that all expected elements are present in the actual array.
             // O(n*m) scan matches the previous json-simple containsAll() semantics because
             // Jackson JsonNode equality requires structural comparison rather than hash-based lookup.
             for (JsonNode expectedElement : expectedJsonArray) {
                 boolean found = false;
-                for (JsonNode actualElement : actualJsonArray) {
+                for (JsonNode actualElement : actualJsonArrayFromJsonPath) {
                     if (expectedElement.equals(actualElement)) {
                         found = true;
                         break;
@@ -845,8 +858,8 @@ public class RestActions {
         } else if (jsonPathToTargetArray.isEmpty() && (expectedJsonArray != null)) {
             // if expected is an array and the user did not provide the path to extract it
             // from the response
-            String actual = (new Gson()).toJson(actualJsonObject);
-            String expected = (new Gson()).toJson(jacksonMapper.readTree(expectedJsonArray.toString()));
+            String actual = actualJsonArray == null ? gson.toJson(actualJsonObject) : actualJsonArray.toString();
+            String expected = gson.toJson(jacksonMapper.readTree(expectedJsonArray.toString()));
             return actual.contains(expected.substring(1));
         } else if (expectedJsonObject != null) {
             // if expected is an object and actual is also an object
