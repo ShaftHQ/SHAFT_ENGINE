@@ -118,21 +118,6 @@ public class PropertiesHelper {
         overrideScreenShotTypeForAnimatedGIF();
         overrideScreenshotTypeForSafariBrowser();
         overrideScreenshotTypeForParallelExecution();
-        setClearBeforeTypingMode();
-    }
-
-    /**
-     * Chooses the clear-before-typing mode based on current configuration flags.
-     */
-    public static void setClearBeforeTypingMode() {
-        if (!Properties.flags.attemptClearBeforeTyping()) {
-            SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
-            return;
-        }
-
-        if (Properties.flags.attemptClearBeforeTypingUsingBackspace() || SHAFT.Properties.flags.clearBeforeTypingMode().equals("backspace")) {
-            SHAFT.Properties.flags.set().clearBeforeTypingMode("backspace");
-        }
     }
 
     private static void overrideScreenshotTypeForParallelExecution() {

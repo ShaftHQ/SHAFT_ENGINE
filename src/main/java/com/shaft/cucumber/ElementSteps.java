@@ -2,6 +2,7 @@ package com.shaft.cucumber;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.enums.internal.ClipboardAction;
+import com.shaft.gui.element.internal.ElementActionsHelper;
 import io.cucumber.java.en.When;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
@@ -138,14 +139,15 @@ public class ElementSteps {
      * Attempts to perform a native clipboard action on the text from a certain web
      * element, like copy/cut/paste
      *
-     * @param action       supports the following actions "copy", "paste", "cut",
-     *                     "select all", "unselect"
+     * @param action       supports the following actions "COPY", "PASTE", "CUT",
+     *                     "SELECT_ALL", "UNSELECT_ALL"
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
     @When("I use the clipboard to perform {string} on the element found by {string}: {string}")
     public void clipboardActions(String action, String locatorType, String locatorValue) {
-        driver.get().element().clipboardActions(getLocatorFromTypeAndValue(locatorType, locatorValue), ClipboardAction.valueOf(action));
+        var clipboardAction = ClipboardAction.valueOf(action);
+        new ElementActionsHelper(false).performClipboardActions(driver.get().getDriver(), clipboardAction);
     }
 
     /**

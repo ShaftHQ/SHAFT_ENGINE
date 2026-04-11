@@ -1,8 +1,6 @@
 package testPackage.legacy;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
@@ -15,8 +13,8 @@ public class IsElementClickableTest {
 
     @Test
     public void testIsElementClickable() {
-        new BrowserActions(driver.get().getDriver()).navigateToURL("https://the-internet.herokuapp.com/");
-        Validations.assertThat().object(new ElementActions(driver.get().getDriver()).isElementClickable(By.linkText("File Upload"))).isTrue().perform();
+        driver.get().browser().navigateToURL("https://the-internet.herokuapp.com/");
+        Validations.assertThat().object(driver.get().element().get().isEnabled(By.linkText("File Upload"))).isTrue().perform();
     }
 
     @BeforeMethod

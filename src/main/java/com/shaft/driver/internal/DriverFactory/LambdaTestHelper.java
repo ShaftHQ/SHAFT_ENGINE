@@ -70,22 +70,16 @@ public class LambdaTestHelper {
         ReportManager.logDiscrete("Setting up LambdaTest configuration for new native app version...");
         String testData = "Username: " + username + ", Password: " + "•".repeat(password.length()) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", Relative Path to App File: " + relativePathToAppFile + ", App Name: " + appName;
         // upload app to LambdaTest api
-        List<Object> apkFile = new ArrayList<>();
-        apkFile.add("appFile");
         String appPath = FileActions.getInstance(true).getAbsolutePath(relativePathToAppFile);
-        apkFile.add(new File(appPath));
         ReportManager.logDiscrete("LambdaTest appPath: " + appPath);
 
-        List<Object> customID = new ArrayList<>();
-        customID.add("name");
         String userProvidedCustomID = SHAFT.Properties.lambdaTest.customID();
         String custom_id = "".equals(userProvidedCustomID) ? "SHAFT_Engine_" + appName.replaceAll(" ", "_") : userProvidedCustomID;
-        customID.add(custom_id);
         ReportManager.logDiscrete("LambdaTest custom_id: " + custom_id);
 
-        List<List<Object>> parameters = new ArrayList<>();
-        parameters.add(apkFile);
-        parameters.add(customID);
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        parameters.put("appFile", new File(appPath));
+        parameters.put("name", custom_id);
         var appUrl = "";
         try (ProgressBarLogger ignored = new ProgressBarLogger("Uploading app to LambdaTest...")) {
             appUrl = Objects.requireNonNull(RestActions.getResponseJSONValue(new SHAFT.API(serviceUri).post(appUploadServiceName).setContentType("multipart/form-data").setParameters(parameters, RestActions.ParametersType.FORM).setAuthentication(username, password, RequestBuilder.AuthenticationType.BASIC).perform(), "app_url"));

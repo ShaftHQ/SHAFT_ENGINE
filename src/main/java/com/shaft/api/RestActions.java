@@ -1130,19 +1130,27 @@ public class RestActions {
         }
     }
 
-    @Deprecated
     protected RequestSpecification prepareRequestSpecs(
-            List<List<Object>> parameters,
+            Map<String, Object> parametersMap,
             ParametersType parametersType,
             Object body,
             ContentType contentType,
-            Map<String, Object> sessionCookies,
-            Map<String, String> sessionHeaders,
-            RestAssuredConfig sessionConfig,
+            Map<String, Object> cookies,
+            Map<String, String> headers,
+            RestAssuredConfig config,
             boolean appendDefaultContentCharsetToContentTypeIfUndefined,
             boolean urlEncodingEnabled) {
 
-        RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders, sessionConfig, appendDefaultContentCharsetToContentTypeIfUndefined);
+        // Normalize Map -> List
+        List<List<Object>> paramsList = null;
+        if (parametersMap != null && !parametersMap.isEmpty()) {
+            paramsList = new ArrayList<>();
+            for (Map.Entry<String, Object> e : parametersMap.entrySet()) {
+                paramsList.add(Arrays.asList(e.getKey(), e.getValue()));
+            }
+        }
+
+        RequestSpecBuilder builder = initializeBuilder(cookies, headers, config, appendDefaultContentCharsetToContentTypeIfUndefined);
 
         boolean isSwaggerValidationEnabled = SHAFT.Properties.api.swaggerValidationEnabled();
 
@@ -1164,7 +1172,7 @@ public class RestActions {
 
         // Check if contentType is still ANY and use the Content-Type header value directly
         if (contentType == ContentType.ANY) {
-            String contentTypeHeader = sessionHeaders.get("Content-Type");
+            String contentTypeHeader = headers.get("Content-Type");
             if (contentTypeHeader != null) {
                 builder.setContentType(contentTypeHeader);
             }
@@ -1176,14 +1184,14 @@ public class RestActions {
 
         if (body != null && contentType != null && !body.toString().isEmpty()) {
             prepareRequestBody(builder, body, contentType);
-        } else if (parameters != null && !parameters.isEmpty() && !String.valueOf(parameters.getFirst().getFirst()).isEmpty()) {
-            boolean containsFile = parameters.stream().anyMatch(p -> p.get(1) instanceof File);
+        } else if (paramsList != null && !paramsList.isEmpty() && !String.valueOf(paramsList.getFirst().getFirst()).isEmpty()) {
+            boolean containsFile = paramsList.stream().anyMatch(p -> p.get(1) instanceof File);
             boolean useMultipart = (parametersType == ParametersType.MULTIPART) || containsFile;
 
             if (useMultipart) {
-                prepareMultipartBody(builder, parameters);   // builds UTF-8 text parts + files
+                prepareMultipartBody(builder, paramsList);   // builds UTF-8 text parts + files
             } else {
-                prepareRequestBody(builder, parameters, parametersType); // existing form/query path
+                prepareRequestBody(builder, paramsList, parametersType); // existing form/query path
             }
         }
         return builder.build();
@@ -1233,39 +1241,6 @@ public class RestActions {
             // Let RA set the boundary
             builder.setContentType("multipart/form-data");
         }
-    }
-
-    protected RequestSpecification prepareRequestSpecs(
-            Map<String, Object> parametersMap,
-            ParametersType parametersType,
-            Object body,
-            ContentType contentType,
-            Map<String, Object> cookies,          // match original types
-            Map<String, String> headers,          // match original types
-            RestAssuredConfig config,
-            boolean appendDefaultContentCharsetToContentTypeIfUndefined,
-            boolean urlEncodingEnabled) {
-
-        // Normalize Map -> List
-        List<List<Object>> paramsList = null;
-        if (parametersMap != null && !parametersMap.isEmpty()) {
-            paramsList = new ArrayList<>();
-            for (Map.Entry<String, Object> e : parametersMap.entrySet()) {
-                paramsList.add(Arrays.asList(e.getKey(), e.getValue()));
-            }
-        }
-
-        return prepareRequestSpecs(
-                paramsList,
-                parametersType,
-                body,
-                contentType,
-                cookies,
-                headers,
-                config,
-                appendDefaultContentCharsetToContentTypeIfUndefined,
-                urlEncodingEnabled
-        );
     }
 
 

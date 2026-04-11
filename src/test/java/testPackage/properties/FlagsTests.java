@@ -11,8 +11,7 @@ public class FlagsTests {
     boolean forceCheckForElementVisibility;
     boolean forceCheckElementLocatorIsUnique;
     boolean forceCheckTextWasTypedCorrectly;
-    boolean attemptClearBeforeTypingUsingBackspace;
-    boolean attemptClearBeforeTyping ;
+    String clearBeforeTypingMode;
     boolean forceCheckNavigationWasSuccessful;
     boolean respectBuiltInWaitsInNativeMode;
     boolean forceCheckStatusOfRemoteServer;
@@ -34,8 +33,7 @@ public class FlagsTests {
         forceCheckForElementVisibility = SHAFT.Properties.flags.forceCheckForElementVisibility();
         forceCheckElementLocatorIsUnique = SHAFT.Properties.flags.forceCheckElementLocatorIsUnique();
         forceCheckTextWasTypedCorrectly = SHAFT.Properties.flags.forceCheckTextWasTypedCorrectly();
-        attemptClearBeforeTyping = SHAFT.Properties.flags.attemptClearBeforeTyping();
-        attemptClearBeforeTypingUsingBackspace = SHAFT.Properties.flags.attemptClearBeforeTypingUsingBackspace();
+        clearBeforeTypingMode = SHAFT.Properties.flags.clearBeforeTypingMode();
         forceCheckNavigationWasSuccessful = SHAFT.Properties.flags.forceCheckNavigationWasSuccessful();
         respectBuiltInWaitsInNativeMode = SHAFT.Properties.flags.respectBuiltInWaitsInNativeMode();
         forceCheckStatusOfRemoteServer = SHAFT.Properties.flags.forceCheckStatusOfRemoteServer();
@@ -58,6 +56,7 @@ public class FlagsTests {
         SHAFT.Properties.flags.set().forceCheckForElementVisibility(forceCheckForElementVisibility);
         SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(forceCheckElementLocatorIsUnique);
         SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(forceCheckTextWasTypedCorrectly);
+        SHAFT.Properties.flags.set().clearBeforeTypingMode(clearBeforeTypingMode);
         SHAFT.Properties.flags.set().forceCheckNavigationWasSuccessful(forceCheckNavigationWasSuccessful);
         SHAFT.Properties.flags.set().respectBuiltInWaitsInNativeMode(respectBuiltInWaitsInNativeMode);
         SHAFT.Properties.flags.set().forceCheckStatusOfRemoteServer(forceCheckStatusOfRemoteServer);

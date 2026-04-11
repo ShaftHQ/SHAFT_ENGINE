@@ -1,7 +1,6 @@
 package testPackage.legacy;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
@@ -41,10 +40,10 @@ public class DragAndDropTests {
     @Test
     public void dragAndDropJquery() {
         driver.get().browser().navigateToURL("https://jqueryui.com/resources/demos/droppable/default.html");
-        ElementActions actions = driver.get().element();
-        String initialDroppableText = actions.getText(By.id("droppable"));
+        var actions = driver.get().element();
+        String initialDroppableText = actions.get().text(By.id("droppable"));
         actions.dragAndDrop(By.id("draggable"), By.id("droppable"));
-        String finalDroppableText = actions.getText(By.id("droppable"));
+        String finalDroppableText = actions.get().text(By.id("droppable"));
         Validations.assertThat().object(finalDroppableText).doesNotEqual(initialDroppableText)
                 .withCustomReportMessage("Checking to see if the text has changed after performing drag and drop")
                 .perform();
@@ -53,10 +52,10 @@ public class DragAndDropTests {
     @Test
     public void dragAndDropTouchEnabled() {
         driver.get().browser().navigateToURL("https://jqueryui.com/resources/demos/droppable/default.html");
-        ElementActions actions = driver.get().element();
-        String initialDroppableText = actions.getText(By.id("droppable"));
+        var actions = driver.get().element();
+        String initialDroppableText = actions.get().text(By.id("droppable"));
         actions.touch().swipeToElement(By.id("draggable"), By.id("droppable"));
-        String finalDroppableText = actions.getText(By.id("droppable"));
+        String finalDroppableText = actions.get().text(By.id("droppable"));
         Validations.assertThat().object(finalDroppableText).doesNotEqual(initialDroppableText)
                 .withCustomReportMessage("Checking to see if the text has changed after performing drag and drop")
                 .perform();

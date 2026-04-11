@@ -54,14 +54,6 @@ public interface Flags extends EngineProperties<Flags> {
     @DefaultValue("false")
     boolean forceCheckTextWasTypedCorrectly();
 
-    @Key("attemptClearBeforeTypingUsingBackspace")
-    @DefaultValue("false")
-    boolean attemptClearBeforeTypingUsingBackspace();
-
-    @Key("attemptClearBeforeTyping")
-    @DefaultValue("true")
-    boolean attemptClearBeforeTyping();
-
     @Key("scrollingMode")
     @DefaultValue("javascript")
     String scrollingMode();
@@ -168,24 +160,6 @@ public interface Flags extends EngineProperties<Flags> {
 
         public SetProperty forceCheckTextWasTypedCorrectly(boolean value) {
             setProperty("forceCheckTextWasTypedCorrectly", String.valueOf(value));
-            return this;
-        }
-
-        /**
-         * Please use {@link #clearBeforeTypingMode(String value)} instead.
-         */
-        @Deprecated(forRemoval = true)
-        public SetProperty attemptClearBeforeTyping(boolean value) {
-            setProperty("attemptClearBeforeTyping", String.valueOf(value));
-            return this;
-        }
-
-        /**
-         * Please use {@link #clearBeforeTypingMode(String value)} instead.
-         */
-        @Deprecated(forRemoval = true)
-        public SetProperty attemptClearBeforeTypingUsingBackspace(boolean value) {
-            setProperty("attemptClearBeforeTypingUsingBackspace", String.valueOf(value));
             return this;
         }
 

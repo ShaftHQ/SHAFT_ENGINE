@@ -1,12 +1,10 @@
 package com.shaft.api;
 
-import com.shaft.api.RestActions;
 import com.shaft.driver.SHAFT;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.Map;
 
 public class testPostRequest {
     SHAFT.API api = new SHAFT.API("http://localhost:5000");
@@ -16,7 +14,7 @@ public class testPostRequest {
               "description": "Full description of the new course in Arabic"
             }
             """;
-    List<List<Object>> parameters = Arrays.asList(Arrays.asList("access_key", "your-access-key"));
+    Map<String, Object> parameters = Map.of("access_key", "your-access-key");
 
    // @Test
     public void PostRequest(){

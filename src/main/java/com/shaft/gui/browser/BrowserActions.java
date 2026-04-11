@@ -8,7 +8,6 @@ import com.shaft.enums.internal.NavigationAction;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
-import com.shaft.gui.element.internal.Actions;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
@@ -33,10 +32,8 @@ import org.openqa.selenium.remote.http.Route;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -908,155 +905,6 @@ public class BrowserActions extends FluentWebDriverAction {
      */
     public BrowserActions waitForLazyLoading() {
         JavaScriptWaitManager.waitForLazyLoading(driverFactoryHelper.getDriver());
-        return this;
-    }
-
-    /**
-     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
-     * or {@link Actions#waitUntil(Function)}
-     * <p>
-     * Use this action to wait until the page title is exactly as provided
-     *
-     * @param title the expected title
-     * @return a self-reference for chainable actions
-     */
-    @Deprecated(forRemoval = true)
-    public BrowserActions waitUntilTitleIs(String title) {
-        new Actions(driverFactoryHelper).waitUntil(d -> title.equals(driverFactoryHelper.getDriver().getTitle()), Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
-        return this;
-    }
-
-    /**
-     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
-     * or {@link Actions#waitUntil(Function)}
-     * <p>
-     * Use this action to wait until the page title contains the provided text
-     *
-     * @param title the expected title
-     * @return a self-reference for chainable actions
-     */
-    @Deprecated(forRemoval = true)
-    public BrowserActions waitUntilTitleContains(String title) {
-        new Actions(driverFactoryHelper).waitUntil(d -> {
-            var currentTitle = driverFactoryHelper.getDriver().getTitle();
-            currentTitle = currentTitle != null ? currentTitle : "";
-            return currentTitle.equals(title);
-        }, Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
-        return this;
-    }
-
-    /**
-     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
-     * or {@link Actions#waitUntil(Function)}
-     * <p>
-     * Use this action to wait until the page title does not contain the provided text
-     *
-     * @param title the expected title
-     * @return a self-reference for chainable actions
-     */
-    @Deprecated(forRemoval = true)
-    public BrowserActions waitUntilTitleNotContains(String title) {
-        new Actions(driverFactoryHelper).waitUntil(d -> {
-            var currentTitle = driverFactoryHelper.getDriver().getTitle();
-            currentTitle = currentTitle != null ? currentTitle : "";
-            return !currentTitle.equals(title);
-        }, Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
-        return this;
-    }
-
-    /**
-     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
-     * or {@link Actions#waitUntil(Function)}
-     *
-     * Use this action to wait until the current URL contains the provided text
-     * @param url the expected URL
-     * @return a self-reference for chainable actions
-     */
-    @Deprecated(forRemoval = true)
-    public BrowserActions waitUntilUrlContains(String url) {
-        new Actions(driverFactoryHelper).waitUntil(d -> {
-            var currentUrl = driverFactoryHelper.getDriver().getCurrentUrl();
-            currentUrl = currentUrl != null ? currentUrl : "";
-            return currentUrl.contains(url);
-        }, Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
-        return this;
-    }
-
-    /**
-     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
-     * or {@link Actions#waitUntil(Function)}
-     *
-     * Use this action to wait until the current URL does not contain the provided text
-     * @param url the expected URL
-     * @return a self-reference for chainable actions
-     */
-    @Deprecated(forRemoval = true)
-    public BrowserActions waitUntilUrlNotContains(String url) {
-        new Actions(driverFactoryHelper).waitUntil(d -> {
-            var currentUrl = driverFactoryHelper.getDriver().getCurrentUrl();
-            currentUrl = currentUrl != null ? currentUrl : "";
-            return !currentUrl.contains(url);
-        }, Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
-        return this;
-    }
-
-    /**
-     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
-     * or {@link Actions#waitUntil(Function)}
-     *
-     * Use this action to wait until the current URL is exactly as provided
-     * @param url the expected URL
-     * @return a self-reference for chainable actions
-     */
-    @Deprecated(forRemoval = true)
-    public BrowserActions waitUntilUrlToBe(String url) {
-        new Actions(driverFactoryHelper).waitUntil(d -> url.equals(driverFactoryHelper.getDriver().getCurrentUrl()), Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
-        return this;
-    }
-
-    /**
-     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
-     * or {@link Actions#waitUntil(Function)}
-     *
-     * Use this action to wait until the current URL is not the provided text
-     * @param url the expected URL
-     * @return a self-reference for chainable actions
-     */
-    @Deprecated(forRemoval = true)
-    public BrowserActions waitUntilUrlNotToBe(String url) {
-        new Actions(driverFactoryHelper).waitUntil(d -> !url.equals(driverFactoryHelper.getDriver().getCurrentUrl()), Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
-        return this;
-    }
-
-    /**
-     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
-     * or {@link Actions#waitUntil(Function)}
-     *
-     * Use this action to wait until the current URL matches the provided regex
-     * @param urlRegex the expected URL regex
-     * @return a self-reference for chainable actions
-     */
-    @Deprecated(forRemoval = true)
-    public BrowserActions waitUntilUrlMatches(String urlRegex) {
-        new Actions(driverFactoryHelper).waitUntil(d -> {
-            var currentUrl = driverFactoryHelper.getDriver().getCurrentUrl();
-            currentUrl = currentUrl != null ? currentUrl : "";
-            return currentUrl.matches(urlRegex);
-        }, Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
-        return this;
-    }
-
-    /**
-     * Deprecated, instead you should use {@link Actions#waitUntil(Function, Duration)}
-     * or {@link Actions#waitUntil(Function)}
-     *
-     * Use this action to wait until the number of currently open windows matches the expected number
-     * @param expectedNumberOfWindows the expected number of open windows
-     * @return a self-reference for chainable actions
-     */
-    @Deprecated(forRemoval = true)
-    public BrowserActions waitUntilNumberOfWindowsToBe(int expectedNumberOfWindows) {
-        new Actions(driverFactoryHelper).waitUntil(d -> driverFactoryHelper.getDriver().getWindowHandles().size() == expectedNumberOfWindows, Duration.ofSeconds(BrowserActionsHelper.NAVIGATION_TIMEOUT_INTEGER));
         return this;
     }
 

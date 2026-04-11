@@ -4,7 +4,6 @@ import com.shaft.api.RestActions;
 import com.shaft.driver.SHAFT;
 import org.testng.annotations.Test;
 
-import java.util.Arrays;
 import java.util.*;
 
 public class BasicAPITests {
@@ -19,7 +18,7 @@ public class BasicAPITests {
 
     @Test
     public void apiTest2() {
-        List<List<Object>> queryParameters = Arrays.asList(Arrays.asList("FirstName", "Abdelrahman"), Arrays.asList("LastName", "Fahd"));
+        Map<String, Object> queryParameters = Map.of("FirstName", "Abdelrahman", "LastName", "Fahd");
         String body = "{\n" +
                 "\"Body1\": \"Abdelrahman\",\n" +
                 "\"Body2\": \"Fahd\"\n" +

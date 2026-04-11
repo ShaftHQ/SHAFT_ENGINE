@@ -3,6 +3,7 @@ package com.shaft.gui.element;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.enums.internal.ClipboardAction;
+import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.Beta;
 import org.openqa.selenium.By;
@@ -168,7 +169,10 @@ public class AsyncElementActions extends FluentWebDriverAction {
      * @return this {@code AsyncElementActions} instance for fluent chaining
      */
     public AsyncElementActions clipboardActions(By elementLocator, ClipboardAction action) {
-        actionThreads.add(Thread.ofVirtual().start(() -> elementActions.clipboardActions(elementLocator, action)));
+        actionThreads.add(Thread.ofVirtual().start(() -> {
+            var helper = new ElementActionsHelper(false);
+            helper.performClipboardActions(driverFactoryHelper.getDriver(), action);
+        }));
         return this;
     }
 

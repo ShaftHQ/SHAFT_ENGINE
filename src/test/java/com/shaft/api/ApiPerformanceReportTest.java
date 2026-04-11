@@ -9,8 +9,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
+import java.util.Map;
 
 
 public class ApiPerformanceReportTest {
@@ -72,7 +71,7 @@ public class ApiPerformanceReportTest {
 
     @Test(groups = {"reqres"})
     public void testGetUsers() {
-        List<List<Object>> parameters = List.of(Arrays.asList("_page", "2"));
+        Map<String, Object> parameters = Map.of("_page", "2");
         api.get().get("users")
                 .setParameters(parameters, RestActions.ParametersType.QUERY)
                 .perform();
