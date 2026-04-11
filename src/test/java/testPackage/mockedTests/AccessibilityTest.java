@@ -106,7 +106,7 @@ public class AccessibilityTest {
        ========================== */
     @Test(description = "Accessibility score above threshold should pass")
     public void testAccessibilityScorePass() {
-        // Assert that the page is at least 80% accessible
+        // Assert that the page is at least 80% accessible (Google.com currently scores ~88.9%)
         driver.get().browser().accessibility()
                 .assertAccessibilityScoreAtLeast("samplePage", 80.0);
     }

@@ -13,7 +13,7 @@ public class TestClass extends Tests {
 
     String targetUrl = "https://duckduckgo.com/";
 
-    By searchBox = By.xpath("//input[@id='searchbox_input'] | //*[@name='q']"); // DuckDuckGo search box
+    By searchBox = Locator.hasAnyTagName().hasAttribute("id", "searchbox_input").build(); // DuckDuckGo search box (id changed from legacy 'search_form_input_homepage')
     By firstSearchResult = Locator.hasTagName("article").isFirst().build(); // synonym to By.xpath("(//article)[1]");
 
     @Test
