@@ -20,6 +20,60 @@ SHAFT_ENGINE is a unified test automation framework built with:
 
 ## Development Workflow
 
+### Plan-Do-Check-Act (PDCA) Strategy
+
+> **Every implementation — feature, bug fix, or refactor — MUST follow the PDCA cycle. No exceptions.**
+
+PDCA is the mandatory development methodology.  Each cycle consists of four phases that **must all be completed** before a change is considered done:
+
+#### Phase 1 — Plan
+- Fully understand the requirements, constraints, and expected outcomes before writing any code.
+- Identify which files, classes, and tests are affected.
+- Write down an explicit implementation plan (checklist format preferred).
+- Anticipate edge cases and failure modes.
+- **Do NOT start coding until the plan is clear.**
+
+#### Phase 2 — Do
+- Implement the planned change with the smallest possible diff.
+- Follow all SHAFT patterns, naming conventions, and architectural rules.
+- Write or update tests alongside the implementation (test-first preferred).
+- Compile: `mvn clean install -DskipTests -Dgpg.skip` must succeed before proceeding.
+
+#### Phase 3 — Check
+- Run all affected tests: `mvn test -Dtest=TestClassName`.
+- Verify the implementation against the original requirements.
+- Capture screenshots or log output as evidence of passing tests.
+- Review your own code for correctness, readability, and SHAFT idioms.
+- If anything fails, return to **Plan** with the new information — do not patch blindly.
+
+#### Phase 4 — Act (Refactor & Stabilize)
+- Refactor the implementation based on what the Check phase revealed.
+- Remove duplication, improve naming, tighten abstractions.
+- Re-run tests to confirm refactoring did not break anything.
+- Update JavaDocs and inline comments to reflect the final design.
+
+### Minimum 3-Iteration Rule
+
+> **You MUST complete at least three full PDCA cycles for any non-trivial implementation.**
+
+Three iterations are the minimum required to produce an optimized, stable result:
+
+| Iteration | Focus |
+|-----------|-------|
+| **1 — Make it work** | Get a correct, compiling, tested implementation. No premature optimization. |
+| **2 — Make it right** | Refactor for clarity, eliminate duplication, harden edge cases, improve test coverage. |
+| **3 — Make it optimal** | Optimize performance/readability, verify no regressions, finalize docs and naming. |
+
+Additional iterations are encouraged whenever tests reveal new edge cases or the design can be meaningfully simplified.
+
+**Anti-patterns to avoid:**
+- ❌ Committing after a single "it compiles" pass
+- ❌ Skipping the Check phase because "the logic looks correct"
+- ❌ Treating the first working implementation as the final one
+- ❌ Deferring refactoring to "a follow-up PR" that never happens
+
+---
+
 ### ⛔ Mandatory Pre-Commit Rules (No Exceptions)
 > **You MUST NEVER commit untested code. There are no exceptions to these rules.**
 
@@ -531,6 +585,170 @@ public class API {
 }
 ```
 
+## Batteries-Included Architecture
+
+SHAFT's core promise is that users never need to download, install, or configure **any** binary, driver, or external tool.  Before adding any code that assumes an external tool is present on the host, read this section carefully.
+
+### WebDriver Management
+Selenium Manager is fully integrated.  **Never** instruct users to download `chromedriver`, `geckodriver`, or any other browser driver.  SHAFT resolves the correct driver automatically.
+
+### Allure 3 CLI — Three-Tier Resolution
+`AllureManager.resolveAllureCommandPrefix()` resolves the Allure CLI automatically, in order:
+1. System `allure` binary on `PATH`
+2. `npx --yes allure@<allure3Version>` (downloads and caches via npx)
+3. Downloads a portable Node.js LTS archive to `~/.m2/repository/nodejs/` (uses `nodeLtsVersion` from `Internal.java`)
+
+### Version Constants
+`allure3Version` and `nodeLtsVersion` live in `Internal.java` as `@Key`/`@DefaultValue` properties and are fully user-overridable via `internal.properties`.  **Never** hardcode version strings inline in logic.
+
+```java
+// ✅ Read from SHAFT properties — user-overridable
+String allureVersion = SHAFT.Properties.internal.allure3Version();
+String nodeLts       = SHAFT.Properties.internal.nodeLtsVersion();
+
+// ❌ Hardcoded — breaks when the version changes
+private static final String ALLURE_VERSION = "3.4.0";
+```
+
+### Rule for New Binary Dependencies
+Any new binary or tool dependency **MUST**:
+1. Follow the same three-tier resolution pattern (system PATH → npx/package-manager → self-download).
+2. Expose its version as a configurable `@Key`/`@DefaultValue` property in `Internal.java` (or the appropriate properties interface).
+3. Never assume the tool is pre-installed on the host machine.
+
+**Anti-patterns:**
+```
+❌ Assuming 'allure', 'node', 'npx', or any browser driver is on PATH
+❌ Hardcoding a version number (e.g. "3.4.0") directly in AllureManager or similar classes
+✅ Read version from SHAFT.Properties.internal.allure3Version() / nodeLtsVersion()
+✅ Fall back gracefully to bundled resolution if the tool is absent
+```
+
+---
+
+## No Hardcoded Values Policy
+
+SHAFT must **never** contain magic strings, version strings, URLs, thresholds, or behavioral switches baked into logic without a corresponding user-overridable property.
+
+### Where to Declare Properties
+Every configurable value MUST be declared as a `@Key` / `@DefaultValue` entry in the appropriate interface under `src/main/java/com/shaft/properties/internal/`:
+
+| Interface | Purpose |
+|-----------|---------|
+| `Flags.java` | Behavioral toggles, engine-wide (static) |
+| `Web.java` | Browser/WebDriver config |
+| `Mobile.java` | Appium/mobile config |
+| `API.java` | REST API defaults |
+| `Timeouts.java` | Wait/timeout values |
+| `Visuals.java` | Screenshot/visual testing |
+| `Reporting.java` / `Allure.java` | Reporting behavior |
+| `Paths.java` | File system paths |
+| `Performance.java` / `Healenium.java` | Integration-specific |
+| `Internal.java` | Internal version/build metadata |
+
+New properties must always include a sensible `@DefaultValue` so existing users are unaffected.  Access properties via `SHAFT.Properties.<group>.<methodName>()`, never via `System.getProperty()` directly.
+
+**Anti-patterns:**
+```java
+❌ private static final String ALLURE_VERSION = "3.4.0";  // hardcoded
+✅ SHAFT.Properties.internal.allure3Version()              // user-overridable
+
+❌ int timeout = 30;                                        // magic number
+✅ SHAFT.Properties.timeouts.waitForLazyLoadingTimeout()    // configurable
+
+❌ System.getProperty("targetBrowserName")                  // bypasses SHAFT layer
+✅ SHAFT.Properties.web.targetBrowserName()                 // correct accessor
+```
+
+---
+
+## Properties Scoping: ThreadLocal vs Engine-Wide
+
+SHAFT uses a **two-tier property system**.  Understanding the difference is essential to avoid race conditions and incorrect scoping in parallel test runs.
+
+### Engine-Wide (Static) Properties — `Flags.java` pattern
+- Applied via `System.setProperty` under `synchronized(Properties.class)`, then `ConfigFactory.create(Flags.class)` refreshes the singleton.
+- Affect **all threads** for the remainder of the execution.
+- Use for: retry counts, driver lifecycle flags, engine feature toggles.
+- Tests that modify these **must** use `@Test(singleThreaded = true)` to avoid within-class races.
+- **Always reset** engine-wide state in `@AfterMethod(alwaysRun = true)` to prevent test pollution.
+
+```java
+// Engine-wide: visible to ALL threads
+SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(2);
+
+// Reset in teardown — mandatory for test isolation
+@AfterMethod(alwaysRun = true)
+public void afterMethod() {
+    SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(0);
+}
+```
+
+### Per-Thread (ThreadLocal) Properties — `ThreadLocalPropertiesManager` pattern
+- Stored in `ThreadLocal<java.util.Properties>`; invisible to other threads.
+- `ThreadLocalPropertiesManager.getProperty(key)` checks thread-local overrides first, then falls back to system properties.
+- `Properties.clearForCurrentThread()` **must** be called at lifecycle boundaries to prevent stale state when thread pools reuse threads (it clears `ThreadLocalPropertiesManager` plus all cached per-interface overrides).
+- Use for: per-test browser type, target URL, credentials — anything that must differ between parallel test threads.
+
+```java
+// Thread-local: only affects the calling thread
+ThreadLocalPropertiesManager.setProperty("targetBrowserName", "firefox");
+
+// In teardown — mandatory to avoid state leakage
+@AfterMethod(alwaysRun = true)
+public void afterMethod() {
+    Properties.clearForCurrentThread();
+}
+```
+
+### Decision Guide
+
+| Change affects… | Use |
+|---|---|
+| All threads / whole run | `SHAFT.Properties.flags.set().*` (engine-wide) |
+| Only this test's thread | `ThreadLocalPropertiesManager.setProperty()` |
+| Never | `System.setProperty()` directly in test/framework code |
+
+**Anti-pattern:**
+```java
+❌ System.setProperty("targetBrowserName", "firefox"); // bypasses SHAFT's property layer
+✅ ThreadLocalPropertiesManager.setProperty("targetBrowserName", "firefox");
+```
+
+---
+
+## Versioning Convention
+
+SHAFT uses the format **`{major}.{quarter}.{YYYYMMDD}`**:
+- `major` increments each January (once per year).
+- `quarter` is the current calendar quarter (1–4).
+- `patch` is the release date in `YYYYMMDD` format.
+
+Example: `10.2.20260410` (major 10, Q2 of 2026, released 2026-04-10).
+
+When generating changelogs, release notes, or updating `Internal.java`, always follow this convention.
+
+---
+
+## Allure Report 3 Migration Notes
+
+Since the migration (PR #2387), **Copilot must not assume Allure 2 behavior**.  Key differences:
+
+| Aspect | Allure 2 (old) | Allure 3 (current) |
+|---|---|---|
+| CLI package | Java `allure-commandline` | npm `allure` |
+| `allure generate` flag | `--clean` supported | **No `--clean` flag** |
+| Config file | Java properties | `allurerc.yaml` (auto-detected in CWD) |
+| Summary JSON path | `widgets/summary.json` | `<report>/summary.json` |
+| History | folder copy | `historyPath` JSONL |
+| Version config | hardcoded | `allure3Version` in `Internal.java` |
+
+- `allure3Version` and `nodeLtsVersion` are configurable via `Internal.java` / `internal.properties`.
+- Always use `AllureManager.resolveAllureCommandPrefix()` — never invoke `allure` directly.
+- CI workflows supply Node.js via `setup-test-env` action; the `post-test-report` action reads version constants from `Internal.java` at runtime.
+
+---
+
 ## Security Best Practices
 - Never hardcode credentials, API keys, or sensitive data
 - Use environment variables or secure configuration files for secrets
@@ -538,7 +756,8 @@ public class API {
 - Follow secure coding practices from the CONTRIBUTING.md file
 - All code changes undergo security scanning via CodeQL
 
-## Continuous Improvement Guard Rails (PDCA Cycles 2-5)
+## Continuous Improvement Guard Rails
+These guard rails apply specifically when modifying SHAFT internals across PDCA iterations 2 and beyond (see **Plan-Do-Check-Act Strategy** above):
 - When modifying validation/reporting internals, clear `ThreadLocal` state with `.remove()` at lifecycle boundaries.
 - For progress/log UX, prefer readable output in CI/non-interactive terminals and avoid forcing ANSI colors.
 - Keep complexity reductions small and behavior-preserving (extract/inline only what is needed).
@@ -612,6 +831,100 @@ public class API {
 ### For Database Testing
 - Use `SHAFT.DB.DatabaseActions` for database operations
 - Close connections properly in teardown methods
+
+### Smart / Semantic Locators
+Prefer SHAFT's semantic locators over raw XPath when possible:
+```java
+// Smart locators — no XPath needed
+By searchBox  = Locator.inputField("username");
+By submitBtn  = Locator.clickableField("Login");
+
+// ARIA roles
+By dialog     = Locator.hasRole(Role.DIALOG).build();
+
+// XPath axes
+By sibling    = Locator.hasTagName("label").byAxis().followingSibling("input").build();
+
+// Shadow DOM
+By shadowEl   = Locator.hasTagName("button").insideShadowDom(shadowHostLocator).build();
+```
+
+### Element Extras
+```java
+driver.element().typeSecure(locator, secret);              // masks value in Allure report
+driver.element().switchToIframe(iframeLocator);            // iframe navigation
+driver.element().switchToDefaultContent();
+
+// Clipboard operations
+driver.element().clipboard().copyAll(locator);
+driver.element().clipboard().cutAll(locator);
+driver.element().clipboard().paste(locator);
+driver.element().clipboard().deleteAll(locator);
+
+// Explicit wait
+driver.element().waitUntil(ExpectedConditions.visibilityOfElementLocated(locator));
+
+// Alert handling
+driver.alert().isAlertPresent();
+driver.alert().acceptAlert();
+driver.alert().dismissAlert();
+driver.alert().getAlertText();
+driver.alert().typeIntoPromptAlert("text");
+```
+
+### Browser Extras
+```java
+// Network mocking / interception (Selenium DevTools) — both methods take (Predicate<HttpRequest>, HttpResponse)
+driver.browser().mock(predicate, httpResponse);
+driver.browser().intercept(predicate, httpResponse);
+
+// Accessibility (axe-core)
+driver.browser().accessibility().analyzePage();
+driver.browser().accessibility().assertNoCriticalViolations();
+driver.browser().accessibility().assertAccessibilityScoreAtLeast(90);
+driver.browser().accessibility().analyzeWithIgnoredRules(List.of("color-contrast"));
+```
+
+### Async / Virtual Threads (Java 21)
+```java
+// Fire-and-forget with synchronization — uses Java 21 virtual threads
+driver.async().element().click(locator).synchronize();
+```
+
+### GraphQL Support
+```java
+RestActions.sendGraphQlRequest(baseURI, endpoint, query);
+RestActions.sendGraphQlRequest(baseURI, endpoint, query, variables);
+// Also available with headers and/or fragment overloads (6 total)
+```
+
+### Additional Test Data Readers
+```java
+// YAML
+new SHAFT.TestData.YAML("data.yaml").getString("key");
+
+// CSV
+new SHAFT.TestData.CSV("data.csv").getCellData(row, col);
+
+// PDF
+new PdfFileManager("doc.pdf").readFileContent();
+```
+
+### Integrations (all configured via SHAFT properties — no external install needed)
+```java
+// Healenium self-healing
+SHAFT.Properties.healenium.set().healEnabled(true).recoveryTries(3);
+
+// Visual regression
+driver.element().assertThat(logo).matchesReferenceImage();
+
+// Lighthouse performance report (batteries-included Node.js)
+SHAFT.Properties.performance.set().isEnabled(true);
+driver.browser().generateLightHouseReport();
+
+// Video recording
+SHAFT.Properties.visuals.set().recordVideo(true);
+```
 
 ## AI-Assisted Development Tips
 - Use Copilot to suggest locators, assertions, and test data access

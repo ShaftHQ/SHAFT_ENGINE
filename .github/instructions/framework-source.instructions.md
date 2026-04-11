@@ -34,6 +34,73 @@ When writing or editing framework source files under `src/main/java/`, follow th
 - Log meaningful messages before re-throwing or handling exceptions
 - Use SHAFT's internal logging utilities (not `System.out.println`)
 
+### Batteries-Included Architecture
+SHAFT must **never** require users to pre-install binaries, drivers, or external tools.  When adding a new tool dependency:
+1. Use a three-tier resolution: system PATH → package-manager (npx/etc.) → self-download to `~/.m2/repository/`.
+2. Expose the tool version as a `@Key`/`@DefaultValue` property in `Internal.java` (or the relevant properties interface).
+3. Read the version via `SHAFT.Properties.internal.<property>()` — **never** hardcode it inline.
+
+```java
+// ✅ Read from SHAFT properties — user-overridable
+String allureVersion = SHAFT.Properties.internal.allure3Version();
+
+// ❌ Never hardcode versions
+private static final String ALLURE_VERSION = "3.4.0";
+```
+
+### No Hardcoded Values Policy
+Every configurable value — version strings, URLs, timeouts, thresholds, behavioral switches — **must** be declared as a `@Key`/`@DefaultValue` entry in the appropriate interface under `src/main/java/com/shaft/properties/internal/`:
+
+| Interface | Purpose |
+|-----------|---------|
+| `Flags.java` | Behavioral toggles, engine-wide (static) |
+| `Web.java` | Browser/WebDriver config |
+| `Mobile.java` | Appium/mobile config |
+| `API.java` | REST API defaults |
+| `Timeouts.java` | Wait/timeout values |
+| `Visuals.java` | Screenshot/visual testing |
+| `Reporting.java` / `Allure.java` | Reporting behavior |
+| `Paths.java` | File system paths |
+| `Performance.java` / `Healenium.java` | Integration-specific |
+| `Internal.java` | Internal version/build metadata |
+
+Access properties via `SHAFT.Properties.<group>.<methodName>()`.  **Never** call `System.getProperty()` directly in framework code.
+
+```java
+// ❌ Hardcoded timeout value
+int timeout = 30;
+
+// ✅ Use SHAFT properties instead
+SHAFT.Properties.timeouts.waitForLazyLoadingTimeout();
+
+// ❌ Direct system property access
+System.getProperty("targetBrowserName");
+
+// ✅ Use SHAFT properties instead
+SHAFT.Properties.web.targetBrowserName();
+```
+
+### Properties Scoping: Engine-Wide vs Thread-Local
+**Engine-wide (static) — `Flags.java` pattern:**
+- Applied via `System.setProperty` under `synchronized(Properties.class)`; affects **all threads**.
+- Use only for: retry counts, driver lifecycle flags, engine feature toggles.
+- Framework code must never leave these in a mutated state; document when callers are expected to reset them.
+
+**Per-thread — `ThreadLocalPropertiesManager` pattern:**
+- Stored in `ThreadLocal<java.util.Properties>`; invisible to other threads.
+- `Properties.clearForCurrentThread()` **must** be called at lifecycle boundaries (e.g., after each test) to prevent stale state in thread-pool reuse scenarios (it clears `ThreadLocalPropertiesManager` plus all cached per-interface overrides).
+- Use for: per-test browser type, target URL, credentials.
+
+```java
+// ❌ Bypasses SHAFT's property layer
+System.setProperty("targetBrowserName", "firefox");
+
+// ✅ Thread-local — only affects the calling thread
+ThreadLocalPropertiesManager.setProperty("targetBrowserName", "firefox");
+// Always clear in teardown:
+Properties.clearForCurrentThread();
+```
+
 ### Bug Fixes
 When fixing a bug or unexpected behavior in framework source files, you **must** follow the **Bug Fixing Process** defined in `.github/copilot-instructions.md`. Key requirements:
 - Reproduce the bug before writing any code
