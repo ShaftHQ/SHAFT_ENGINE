@@ -63,7 +63,7 @@ public class APIWizardTests {
         HashMap body = new HashMap<>();
         body.put("name", "morpheus");
         body.put("job", "leader");
-        org.json.simple.JSONObject bodyObj = new org.json.simple.JSONObject(body);
+        org.json.JSONObject bodyObj = new org.json.JSONObject(body);
         driver.get().post("api/users").setRequestBody(bodyObj).setTargetStatusCode(201).setContentType(ContentType.JSON).perform();
         driver.get().assertThatResponse().extractedJsonValue("name").isEqualTo("morpheus").withCustomReportMessage("Check that Morpheus exists.").perform();
     }
