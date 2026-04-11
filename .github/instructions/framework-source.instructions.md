@@ -67,11 +67,17 @@ Every configurable value — version strings, URLs, timeouts, thresholds, behavi
 Access properties via `SHAFT.Properties.<group>.<methodName>()`.  **Never** call `System.getProperty()` directly in framework code.
 
 ```java
-❌ int timeout = 30;
-✅ SHAFT.Properties.timeouts.waitForLazyLoadingTimeout()
+// ❌ Hardcoded timeout value
+int timeout = 30;
 
-❌ System.getProperty("targetBrowserName")
-✅ SHAFT.Properties.web.targetBrowserName()
+// ✅ Use SHAFT properties instead
+SHAFT.Properties.timeouts.waitForLazyLoadingTimeout();
+
+// ❌ Direct system property access
+System.getProperty("targetBrowserName");
+
+// ✅ Use SHAFT properties instead
+SHAFT.Properties.web.targetBrowserName();
 ```
 
 ### Properties Scoping: Engine-Wide vs Thread-Local
@@ -82,7 +88,7 @@ Access properties via `SHAFT.Properties.<group>.<methodName>()`.  **Never** call
 
 **Per-thread — `ThreadLocalPropertiesManager` pattern:**
 - Stored in `ThreadLocal<java.util.Properties>`; invisible to other threads.
-- `ThreadLocalPropertiesManager.clear()` **must** be called at lifecycle boundaries (e.g., after each test) to prevent stale state in thread-pool reuse scenarios.
+- `Properties.clearForCurrentThread()` **must** be called at lifecycle boundaries (e.g., after each test) to prevent stale state in thread-pool reuse scenarios (it clears `ThreadLocalPropertiesManager` plus all cached per-interface overrides).
 - Use for: per-test browser type, target URL, credentials.
 
 ```java
@@ -92,7 +98,7 @@ System.setProperty("targetBrowserName", "firefox");
 // ✅ Thread-local — only affects the calling thread
 ThreadLocalPropertiesManager.setProperty("targetBrowserName", "firefox");
 // Always clear in teardown:
-ThreadLocalPropertiesManager.clear();
+Properties.clearForCurrentThread();
 ```
 
 ### Bug Fixes

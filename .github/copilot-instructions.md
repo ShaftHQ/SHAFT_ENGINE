@@ -633,7 +633,7 @@ public void afterMethod() {
 ### Per-Thread (ThreadLocal) Properties — `ThreadLocalPropertiesManager` pattern
 - Stored in `ThreadLocal<java.util.Properties>`; invisible to other threads.
 - `ThreadLocalPropertiesManager.getProperty(key)` checks thread-local overrides first, then falls back to system properties.
-- `ThreadLocalPropertiesManager.clear()` **must** be called at lifecycle boundaries to prevent stale state when thread pools reuse threads.
+- `Properties.clearForCurrentThread()` **must** be called at lifecycle boundaries to prevent stale state when thread pools reuse threads (it clears `ThreadLocalPropertiesManager` plus all cached per-interface overrides).
 - Use for: per-test browser type, target URL, credentials — anything that must differ between parallel test threads.
 
 ```java
@@ -643,7 +643,7 @@ ThreadLocalPropertiesManager.setProperty("targetBrowserName", "firefox");
 // In teardown — mandatory to avoid state leakage
 @AfterMethod(alwaysRun = true)
 public void afterMethod() {
-    ThreadLocalPropertiesManager.clear();
+    Properties.clearForCurrentThread();
 }
 ```
 
@@ -788,10 +788,10 @@ By submitBtn  = Locator.clickableField("Login");
 By dialog     = Locator.hasRole(Role.DIALOG).build();
 
 // XPath axes
-By sibling    = Locator.hasTagName("label").byAxis().followingSibling().hasTagName("input").build();
+By sibling    = Locator.hasTagName("label").byAxis().followingSibling("input").build();
 
 // Shadow DOM
-By shadowEl   = Locator.insideShadowDom(shadowHostLocator).hasTagName("button").build();
+By shadowEl   = Locator.hasTagName("button").insideShadowDom(shadowHostLocator).build();
 ```
 
 ### Element Extras
@@ -799,8 +799,15 @@ By shadowEl   = Locator.insideShadowDom(shadowHostLocator).hasTagName("button").
 driver.element().typeSecure(locator, secret);              // masks value in Allure report
 driver.element().switchToIframe(iframeLocator);            // iframe navigation
 driver.element().switchToDefaultContent();
-driver.element().clipboardActions(locator, ClipboardAction.COPY);
-driver.element().waitUntilVisible(locator);                // explicit wait
+
+// Clipboard operations
+driver.element().clipboard().copyAll(locator);
+driver.element().clipboard().cutAll(locator);
+driver.element().clipboard().paste(locator);
+driver.element().clipboard().deleteAll(locator);
+
+// Explicit wait
+driver.element().waitUntil(ExpectedConditions.visibilityOfElementLocated(locator));
 
 // Alert handling
 driver.alert().isAlertPresent();
@@ -812,9 +819,9 @@ driver.alert().typeIntoPromptAlert("text");
 
 ### Browser Extras
 ```java
-// Network mocking / interception (Selenium DevTools)
+// Network mocking / interception (Selenium DevTools) — both methods take (Predicate<HttpRequest>, HttpResponse)
 driver.browser().mock(predicate, httpResponse);
-driver.browser().intercept(predicate, handler);
+driver.browser().intercept(predicate, httpResponse);
 
 // Accessibility (axe-core)
 driver.browser().accessibility().analyzePage();
@@ -845,7 +852,7 @@ new SHAFT.TestData.YAML("data.yaml").getString("key");
 new SHAFT.TestData.CSV("data.csv").getCellData(row, col);
 
 // PDF
-new SHAFT.TestData.PDF().readPDF("doc.pdf");
+new PdfFileManager("doc.pdf").readFileContent();
 ```
 
 ### Integrations (all configured via SHAFT properties — no external install needed)
@@ -857,7 +864,8 @@ SHAFT.Properties.healenium.set().healEnabled(true).recoveryTries(3);
 driver.element().assertThat(logo).matchesReferenceImage();
 
 // Lighthouse performance report (batteries-included Node.js)
-SHAFT.Properties.performance.set().generateLightHouseReport(true);
+SHAFT.Properties.performance.set().isEnabled(true);
+driver.browser().generateLightHouseReport();
 
 // Video recording
 SHAFT.Properties.visuals.set().recordVideo(true);
