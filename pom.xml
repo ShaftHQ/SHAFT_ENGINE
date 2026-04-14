@@ -73,7 +73,7 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
-                <version>2.20.1</version>
+                <version>2.21.2</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
@@ -83,7 +83,7 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-core</artifactId>
-                <version>2.21.1</version>
+                <version>2.21.2</version>
             </dependency>
             <dependency>
                 <groupId>com.google.guava</groupId>
@@ -103,7 +103,7 @@
             <dependency>
                 <groupId>commons-codec</groupId>
                 <artifactId>commons-codec</artifactId>
-                <version>1.19.0</version>
+                <version>1.21.0</version>
             </dependency>
             <dependency>
                 <groupId>org.yaml</groupId>
@@ -113,7 +113,7 @@
             <dependency>
                 <groupId>com.google.code.gson</groupId>
                 <artifactId>gson</artifactId>
-                <version>2.13.1</version>
+                <version>2.13.2</version>
             </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>
@@ -554,7 +554,7 @@
         <dependency>
             <groupId>com.github.mwiede</groupId>
             <artifactId>jsch</artifactId>
-            <version>0.2.21</version>
+            <version>2.28.0</version>
         </dependency>
 
         <!-- DATABASE CONNECTORS -->
