@@ -399,7 +399,10 @@ public class TerminalActions {
         // https://stackoverflow.com/a/10954450/12912100
         if (isWindows) {
             if (asynchronous && verbose) {
-                pb.command("powershell.exe", "-ExecutionPolicy", "Bypass", "Start-Process powershell.exe '-NoExit -WindowStyle Minimized \"[Console]::Title = ''SHAFT_Engine''; " + command + "\"'");
+                // Apply the execution policy to the spawned child PowerShell as well,
+                // because Start-Process launches a separate process that does not inherit
+                // the outer shell's command-line arguments.
+                pb.command("powershell.exe", "-ExecutionPolicy", "Bypass", "Start-Process powershell.exe '-ExecutionPolicy Bypass -NoExit -WindowStyle Minimized -Command \"[Console]::Title = ''SHAFT_Engine''; " + command + "\"'");
             } else {
                 pb.command("powershell.exe", "-ExecutionPolicy", "Bypass", "-Command", command);
             }

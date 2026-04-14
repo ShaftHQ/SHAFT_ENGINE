@@ -149,12 +149,16 @@ public class AllureManager {
     }
 
     private static void openAllureReport(String newFileName) {
-        if (SHAFT.Properties.allure.automaticallyOpen()) {
-            if (SystemUtils.IS_OS_WINDOWS) {
-                internalTerminalSession.performTerminalCommand(".\\" + allureReportPath + File.separator + newFileName);
-            } else {
-                internalTerminalSession.performTerminalCommand("open ./" + allureReportPath + File.separator + newFileName);
-            }
+        String reportPath = new File(allureReportPath, newFileName).getAbsolutePath();
+        if (SystemUtils.IS_OS_WINDOWS) {
+            reportPath = reportPath.replace("'", "''");
+            internalTerminalSession.performTerminalCommand(
+                    "powershell -NoProfile -Command \"Start-Process -FilePath '" + reportPath + "'\""
+            );
+        } else if (SystemUtils.IS_OS_MAC) {
+            internalTerminalSession.performTerminalCommand("open \"" + reportPath + "\"");
+        } else {
+            internalTerminalSession.performTerminalCommand("xdg-open \"" + reportPath + "\"");
         }
     }
 
