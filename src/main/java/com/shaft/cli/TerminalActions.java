@@ -399,9 +399,9 @@ public class TerminalActions {
         // https://stackoverflow.com/a/10954450/12912100
         if (isWindows) {
             if (asynchronous && verbose) {
-                pb.command("powershell.exe", "Start-Process powershell.exe '-NoExit -WindowStyle Minimized \"[Console]::Title = ''SHAFT_Engine''; " + command + "\"'");
+                pb.command("powershell.exe", "-ExecutionPolicy", "Bypass", "Start-Process powershell.exe '-NoExit -WindowStyle Minimized \"[Console]::Title = ''SHAFT_Engine''; " + command + "\"'");
             } else {
-                pb.command("powershell.exe", "-Command", command);
+                pb.command("powershell.exe", "-ExecutionPolicy", "Bypass", "-Command", command);
             }
         } else {
             pb.command("sh", "-c", command);

@@ -123,7 +123,7 @@ public class AllureManager {
         internalFileSession.deleteFile(allureOutPutDirectory);
         String newFileName = renameAllureReport();
         if (newFileName != null) {
-            openAllureReport();
+            openAllureReport(newFileName);
         }
     }
 
@@ -148,19 +148,13 @@ public class AllureManager {
         return newFileName;
     }
 
-    private static void openAllureReport() {
+    private static void openAllureReport(String newFileName) {
         if (SHAFT.Properties.allure.automaticallyOpen()) {
-            String prefix = resolveAllureCommandPrefix();
-            if (prefix == null) return;
-            String configPath = System.getProperty("user.dir") + File.separator + allureConfigFileName;
-            String resultsPath = getResultsPath();
-            // Use `allure open` to regenerate and serve the report via HTTP on a random port.
-            // This avoids opening via file:// URL, which causes JavaScript console errors
-            // in the Allure 3 awesome SPA (broken base-URL setup and History-API restrictions).
-            String openCommand = prefix + " open --config \"" + configPath + "\" \"" + resultsPath + "\"";
-            // Run asynchronously so the HTTP server stays alive while the user views the report
-            // without blocking SHAFT's main thread or preventing JVM shutdown.
-            TerminalActions.getInstance(true, false, true).performTerminalCommand(openCommand);
+            if (SystemUtils.IS_OS_WINDOWS) {
+                internalTerminalSession.performTerminalCommand(".\\" + allureReportPath + File.separator + newFileName);
+            } else {
+                internalTerminalSession.performTerminalCommand("open ./" + allureReportPath + File.separator + newFileName);
+            }
         }
     }
 
