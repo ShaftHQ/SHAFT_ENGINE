@@ -724,9 +724,52 @@ SHAFT uses the format **`{major}.{quarter}.{YYYYMMDD}`**:
 - `quarter` is the current calendar quarter (1–4).
 - `patch` is the release date in `YYYYMMDD` format.
 
-Example: `10.2.20260410` (major 10, Q2 of 2026, released 2026-04-10).
+Example: `10.2.20260414` (major 10, Q2 of 2026, released 2026-04-14).
 
 When generating changelogs, release notes, or updating `Internal.java`, always follow this convention.
+
+---
+
+## Release Process
+
+Follow these steps in order when preparing a new SHAFT release:
+
+### 1. Update Version Numbers (Two Files — Always Both)
+- **`pom.xml`** (line 6): change `<version>OLD</version>` to `<version>NEW</version>`.  The comment next to it reminds you to also update `Internal.java`.
+- **`src/main/java/com/shaft/properties/internal/Internal.java`**: change the `@DefaultValue` of `shaftEngineVersion()` to match the new version.
+
+### 2. Verify No Stable Dependency Updates Are Skipped
+Run `mvn versions:display-dependency-updates` and update any dependency that has a **stable** (non-beta, non-RC, non-milestone, non-alpha) newer version.  Pre-release updates should be skipped.
+
+### 3. Compile and Test
+```bash
+mvn clean install -DskipTests -Dgpg.skip    # must succeed
+mvn test -Dtest=<AffectedTests>             # must pass
+```
+
+### 4. Commit and Merge to `main`
+Merging to `main` automatically triggers the **Maven Central Continuous Delivery** workflow (`mavenCentral_cd.yml`), which:
+1. Creates a GitHub Release tagged with the version from `pom.xml`.
+2. Deploys the artifact to Maven Central.
+3. Dispatches a `shaft-engine-release` event to `ShaftHQ/shafthq.github.io` (user guide repo) via `BOT_TOKEN`.
+
+After the release is published, two more workflows fire automatically:
+- **JavaDocs Publisher** (`publishJavaDocs.yml`) — regenerates and publishes the JavaDoc site.
+- **Sync Sample Projects SHAFT Version** (`sync-sample-projects-version.yml`) — opens a PR in this repo updating all example `pom.xml` files to the new version.
+
+### Required Secrets
+| Secret | Purpose |
+|---|---|
+| `GPG_KEYNAME`, `GPG_PASSPHRASE`, `GPG_PRIVATE_KEY` | Artifact signing for Maven Central |
+| `OSSRH_USERNAME`, `OSSRH_PASSWORD` | Maven Central credentials |
+| `BOT_TOKEN` | PAT with `repo` scope on `ShaftHQ/shafthq.github.io` for cross-repo dispatch |
+
+### Checklist
+- [ ] `pom.xml` version updated
+- [ ] `Internal.java` `shaftEngineVersion` `@DefaultValue` updated
+- [ ] No stable dependency updates skipped
+- [ ] Compiles: `mvn clean install -DskipTests -Dgpg.skip`
+- [ ] PR merged to `main`
 
 ---
 

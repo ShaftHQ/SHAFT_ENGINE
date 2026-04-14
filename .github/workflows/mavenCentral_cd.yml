@@ -66,3 +66,10 @@ jobs:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
         run: mvn --batch-mode deploy "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
+      - name: Notify User Guide Repository
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.BOT_TOKEN }}
+          repository: ShaftHQ/shafthq.github.io
+          event-type: shaft-engine-release
+          client-payload: '{"version": "${{ env.RELEASE_VERSION }}", "release_url": "${{ steps.create_release.outputs.html_url }}"}'
