@@ -808,6 +808,13 @@
             <artifactId>logger-java-log4j</artifactId>
             <version>5.4.0</version>
         </dependency>
+             <!-- Source: https://mvnrepository.com/artifact/io.netty/netty-all -->
+<dependency>
+    <groupId>io.netty</groupId>
+    <artifactId>netty-all</artifactId>
+    <version>4.2.12.Final</version>
+    <scope>compile</scope>
+</dependency>
     </dependencies>
 
     <build>
