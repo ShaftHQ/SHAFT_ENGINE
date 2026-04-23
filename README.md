@@ -90,12 +90,6 @@ Built on industry-standard technologies — [Selenium](https://www.selenium.dev/
 | 🐳 **Containerized** | Ready-to-use Docker support for CI/CD pipelines |
 | 📱 **Full Mobile** | Native, Hybrid, and [Flutter](https://flutter.dev/) apps on Android & iOS via [Appium](https://appium.io/) |
 
-### Global Adoption
-
-**41,511 active users** across **10+ countries** trust SHAFT for their test automation needs — from startups to Fortune 500 companies.
-
-[View detailed analytics →](docs/USER_ANALYTICS.md)
-
 ---
 
 ## 💡 See the Difference
@@ -307,7 +301,6 @@ public class QuickStartTest {
 | 🏗️ **[Architecture](docs/ARCHITECTURE.md)** | Framework design, module overview, and Mermaid diagrams |
 | 🛠️ **[Tech Stack](docs/TECH_STACK.md)** | Technologies and libraries powering SHAFT |
 | ✨ **[Features](docs/FEATURES.md)** | Full feature list with platform compatibility matrix |
-| 📊 **[User Analytics](docs/USER_ANALYTICS.md)** | Global adoption, geographic breakdown, and growth metrics |
 
 ### 🤖 AI-Powered Code Exploration
 
