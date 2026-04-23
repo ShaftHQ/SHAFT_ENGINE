@@ -1,62 +1,103 @@
 ---
-name: Bug report
-about: Create a report to help us improve
+name: 🐛 Bug Report
+about: Report a reproducible bug to help us improve SHAFT_ENGINE
 title: "[Bug]: "
 labels: bug, triage
 assignees: ''
 
 ---
 
-# Describe the bug
+## ✅ Pre-submission Checklist
 
-A clear and concise description of what the bug is.
+Please confirm the following before submitting:
 
-
-# Link to SHAFT_Engine Console logs
-
-Create a [GIST](https://gist.github.com) which is a paste of your _full_ console logs, and link it here.
-Do _NOT_ paste your full console logs here, as it will make this issue very long and hard to read!
-If you are reporting a bug, _always_ include console logs!
+- [ ] I have searched [existing issues](https://github.com/ShaftHQ/SHAFT_ENGINE/issues) and this bug has not been reported before.
+- [ ] I am using the **latest release** of SHAFT_ENGINE (we only support the latest version).
+- [ ] I have read the [documentation](https://shafthq.github.io/) and this is not a configuration mistake.
 
 
-# Link to SHAFT_Engine Extent Report HTML
+## 🐛 Describe the Bug
 
-Create a [GIST](https://gist.github.com) which is a paste of your _full_ extent report .html file, and link it here.
+> A clear and concise description of what the bug is. What did you observe? What did you expect?
 
-
-# Environment
-
- 1. SHAFT_Engine version that exhibits the issue (Note: We support only the latest release):
- 2. Last SHAFT_Engine version that did not exhibit the issue (if applicable):
- 3. Desktop OS: [e.g. iOS]
- 4. Desktop Browser (if applicable): [e.g. chrome, safari]
- 5. Desktop Browser Version (if applicable): [e.g. 22]
- 6. Mobile Device Name (if applicable): [e.g. iPhone6]
- 7. Mobile Device OS (if applicable): [e.g. iOS8.1]
- 8. Mobile Device Browser or Native App: 
- 9. Mobile Device Browser (if applicable): [e.g. chrome, safari]
- 10. Mobile Device Browser Version (if applicable): [e.g. 22]
+<!-- Replace this comment with your description -->
 
 
-# To Reproduce
+## 🔁 Steps to Reproduce
 
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+> Provide the minimal steps needed to consistently trigger the bug.
 
-
-# Expected behavior
-
-A clear and concise description of what you expected to happen.
+1. 
+2. 
+3. 
+4. See error: `...`
 
 
-# Screenshots
+## ✅ Expected Behavior
 
-If applicable, add screenshots, gifs, or video recordings to help explain the issue you're facing.
+> What should have happened?
+
+<!-- Replace this comment with expected behavior -->
 
 
-# Additional context
+## ❌ Actual Behavior
 
-Add any other relevant context about the problem here.
+> What actually happened? Include any error messages or stack traces.
+
+<!-- Replace this comment with actual behavior -->
+
+
+## 💻 Minimal Reproducible Code
+
+> Paste the **smallest possible** test method or class that reproduces the issue.
+> Remove any proprietary details. This is the single most helpful piece of information you can provide.
+
+```java
+// Paste your minimal reproducible test here
+```
+
+
+## 🌍 Environment
+
+| Field | Value |
+|---|---|
+| SHAFT_ENGINE version | <!-- e.g. 8.1.20240101 --> |
+| Last working SHAFT_ENGINE version | <!-- e.g. 8.0.20231201, or "N/A" --> |
+| Java version | <!-- e.g. 21 (run: java -version) --> |
+| Maven version | <!-- e.g. 3.9.6 (run: mvn -version) --> |
+| Testing framework | <!-- TestNG / JUnit5 / Cucumber --> |
+| Operating System | <!-- e.g. Windows 11, macOS 14, Ubuntu 22.04 --> |
+| Target platform | <!-- Web / Android / iOS / API / CLI / DB --> |
+| Browser & version (if Web) | <!-- e.g. Chrome 124, Firefox 125 --> |
+| Mobile device & OS (if Mobile) | <!-- e.g. Pixel 7 / Android 14, iPhone 15 / iOS 17 --> |
+| Execution environment | <!-- Local / CI (GitHub Actions, Jenkins…) / BrowserStack / Sauce Labs --> |
+
+
+## 📋 Console Logs
+
+> **Do NOT paste raw logs here** — they make issues very hard to read.
+> Instead, create a [GitHub Gist](https://gist.github.com) with your full console output and paste the link below.
+> Console logs are **required** for bug reports.
+
+Gist link: <!-- https://gist.github.com/... -->
+
+
+## 📊 Allure Report
+
+> If available, attach the Allure report or create a [GitHub Gist](https://gist.github.com) with the report content and paste the link below.
+
+Gist / attachment link: <!-- https://gist.github.com/... or drag-and-drop a file above -->
+
+
+## 📸 Screenshots / Recordings
+
+> If applicable, add screenshots, GIFs, or video recordings to help explain the issue.
+
+<!-- Drag and drop images or recordings here -->
+
+
+## 📝 Additional Context
+
+> Any other information that may be relevant (custom properties, special network setup, proxy, etc.).
+
+<!-- Replace this comment with any additional context -->
