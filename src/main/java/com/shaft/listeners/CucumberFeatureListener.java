@@ -49,6 +49,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static com.shaft.listeners.internal.CucumberHelper.recordScenarioResult;
 import static com.shaft.listeners.internal.CucumberHelper.shaftTearDown;
 import static io.qameta.allure.util.ResultsUtils.*;
 
@@ -221,6 +222,8 @@ public class CucumberFeatureListener extends AllureCucumber7Jvm {
 
     private void handleTestCaseFinished(final TestCaseFinished event) {
         //custom code
+        // Record the scenario outcome so telemetry can report accurate per-test-method counts.
+        recordScenarioResult(event.getResult().getStatus());
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
             if (SHAFT.Properties.visuals.videoParamsScope().equals("TestMethod")) {

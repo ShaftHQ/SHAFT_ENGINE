@@ -224,7 +224,7 @@ public class FirestoreRestClient {
         String clientId = fileActions.readFile(uuidFilePath);
         // client_id is the primary GA4 identifier for a device/installation; must be stable across runs.
         requestBody.put("client_id", clientId);
-        // user_id mirrors the same persistent UUID to enable cross-device user analysis in GA4.
+        // user_id is set to the same installation UUID so GA4 can correlate client and user dimensions.
         requestBody.put("user_id", clientId);
 
         // https://ipv4.icanhazip.com/

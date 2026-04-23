@@ -5,10 +5,12 @@ import com.shaft.listeners.TestNGListener;
 import com.shaft.tools.internal.FirestoreRestClient;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.internal.*;
+import io.cucumber.plugin.event.Status;
 import org.testng.Reporter;
 import org.testng.xml.XmlSuite;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Internal helper class providing shared setup and teardown logic for Cucumber-based
@@ -20,6 +22,10 @@ import java.util.List;
 public class CucumberHelper {
     static long executionStartTime;
     static long executionEndTime;
+
+    private static final AtomicInteger passedScenarios = new AtomicInteger(0);
+    private static final AtomicInteger failedScenarios = new AtomicInteger(0);
+    private static final AtomicInteger skippedScenarios = new AtomicInteger(0);
 
     /**
      * Utility class — do not instantiate.
@@ -75,6 +81,21 @@ public class CucumberHelper {
     }
 
     /**
+     * Records the outcome of a completed Cucumber scenario for telemetry.
+     * This must be called from the test-case-finished handler in the Cucumber listener
+     * so that the actual scenario counts are captured before {@link #shaftTearDown()}.
+     *
+     * @param status the Cucumber {@link Status} of the finished scenario
+     */
+    public static void recordScenarioResult(Status status) {
+        switch (status) {
+            case PASSED -> passedScenarios.incrementAndGet();
+            case FAILED, AMBIGUOUS, UNDEFINED -> failedScenarios.incrementAndGet();
+            default -> skippedScenarios.incrementAndGet();
+        }
+    }
+
+    /**
      * Performs SHAFT engine teardown at the end of a native Cucumber run (i.e. when there is
      * no active TestNG {@link org.testng.Reporter} result). Attaches logs, generates the
      * Allure report archive, and reports results to Jira.
@@ -93,7 +114,9 @@ public class CucumberHelper {
             GoogleTink.encrypt();
             AllureManager.generateAllureReportArchive();
             AllureManager.openAllureReportAfterExecution();
-            Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime, 0, 0, 0));
+            Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(
+                    executionStartTime, executionEndTime,
+                    passedScenarios.get(), failedScenarios.get(), skippedScenarios.get()));
             ReportManagerHelper.logEngineClosure();
         }
     }
