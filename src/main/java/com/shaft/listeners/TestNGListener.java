@@ -32,8 +32,10 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -365,7 +367,21 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         Thread.ofVirtual().start(() -> ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime));
         Thread.ofVirtual().start(JiraHelper::reportExecutionStatusToJira);
         Thread.ofVirtual().start(GoogleTink::encrypt);
-        Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime, passedTests.size(), failedTests.size(), skippedTests.size()));
+        Thread.ofVirtual().start(() -> {
+            // Deduplicate test method counts to remove retry-inflated numbers.
+            // A method that failed on early attempts but eventually passed is counted only as PASSED.
+            // Using HashSet on ITestNGMethod deduplicates by method identity (same object = same method).
+            Set<ITestNGMethod> passedSet = new HashSet<>(passedTests);
+            Set<ITestNGMethod> failedSet = failedTests.stream()
+                    .filter(m -> !passedSet.contains(m))
+                    .collect(Collectors.toCollection(HashSet::new));
+            Set<ITestNGMethod> resolvedSet = new HashSet<>(passedSet);
+            resolvedSet.addAll(failedSet);
+            int uniquePassed = passedSet.size();
+            int uniqueFailed = failedSet.size();
+            int uniqueSkipped = (int) skippedTests.stream().filter(m -> !resolvedSet.contains(m)).distinct().count();
+            FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime, uniquePassed, uniqueFailed, uniqueSkipped);
+        });
         ReportManagerHelper.logEngineClosure();
         Thread.ofVirtual().start(() -> {
             // Fetch performance data from RequestBuilder

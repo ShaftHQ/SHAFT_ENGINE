@@ -63,9 +63,15 @@ public class CucumberHelper {
     /**
      * Initialises the SHAFT engine for a Cucumber run: records the execution start time,
      * triggers engine setup, and configures legacy {@code cucumber.options} system property.
+     * The scenario counters are reset here so that a single JVM running multiple Cucumber
+     * suites sequentially never accumulates stale counts from a prior run.
      */
     public static void engineSetup() {
         executionStartTime = System.currentTimeMillis();
+        // Reset counters for the new run to avoid accumulation across sequential suite runs.
+        passedScenarios.set(0);
+        failedScenarios.set(0);
+        skippedScenarios.set(0);
         TestNGListener.engineSetup(ProjectStructureManager.RunType.CUCUMBER);
         //set cucumber options
         System.setProperty("cucumber.options",

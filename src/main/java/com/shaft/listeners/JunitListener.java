@@ -17,8 +17,11 @@ import org.junit.platform.launcher.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class JunitListener implements LauncherSessionListener {
     private static final List<TestIdentifier> passedTests = Collections.synchronizedList(new ArrayList<>());
@@ -121,7 +124,26 @@ public class JunitListener implements LauncherSessionListener {
             // Generate the performance report using the fetched data
             ApiPerformanceExecutionReport.generatePerformanceReport(performanceData, executionStartTime, executionEndTime);
         });
-        Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime, passedTests.size(), failedTests.size(), skippedTests.size()));
+        Thread.ofVirtual().start(() -> {
+            // Deduplicate by unique ID: a test that failed then passed counts only as PASSED.
+            Set<String> passedIds = passedTests.stream()
+                    .map(TestIdentifier::getUniqueId)
+                    .collect(Collectors.toCollection(HashSet::new));
+            Set<String> failedIds = failedTests.stream()
+                    .map(TestIdentifier::getUniqueId)
+                    .filter(id -> !passedIds.contains(id))
+                    .collect(Collectors.toCollection(HashSet::new));
+            Set<String> resolvedIds = new HashSet<>(passedIds);
+            resolvedIds.addAll(failedIds);
+            int uniquePassed = passedIds.size();
+            int uniqueFailed = failedIds.size();
+            int uniqueSkipped = (int) skippedTests.stream()
+                    .map(TestIdentifier::getUniqueId)
+                    .filter(id -> !resolvedIds.contains(id))
+                    .distinct()
+                    .count();
+            FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime, uniquePassed, uniqueFailed, uniqueSkipped);
+        });
         ReportManagerHelper.logEngineClosure();
     }
 
