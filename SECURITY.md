@@ -73,7 +73,7 @@ The following are **out of scope**:
 
 SHAFT Engine uses **Dependabot** for automated daily dependency updates and **CodeQL** for continuous static analysis on every pull request. This significantly reduces the window of exposure for known CVEs in transitive dependencies.
 
-Security-related dependency updates are labeled `security` and appear in a dedicated section of each [release's changelog](https://github.com/ShaftHQ/SHAFT_ENGINE/releases).
+Security-related dependency updates are tracked through Dependabot pull requests and are reflected in each [release's changelog](https://github.com/ShaftHQ/SHAFT_ENGINE/releases) when applicable.
 
 ---
 
