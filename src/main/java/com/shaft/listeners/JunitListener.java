@@ -125,25 +125,33 @@ public class JunitListener implements LauncherSessionListener {
             ApiPerformanceExecutionReport.generatePerformanceReport(performanceData, executionStartTime, executionEndTime);
         });
         Thread.ofVirtual().start(() -> {
-            // Deduplicate by unique ID: a test that failed then passed counts only as PASSED.
+            // Deduplicate by unique ID. Categories are mutually exclusive: passed | failed | skipped | flaky.
             Set<String> passedIds = passedTests.stream()
                     .map(TestIdentifier::getUniqueId)
                     .collect(Collectors.toCollection(HashSet::new));
+            // Flaky = IDs present in both failed and passed lists (failed then retried to success).
+            Set<String> flakyIds = failedTests.stream()
+                    .map(TestIdentifier::getUniqueId)
+                    .filter(passedIds::contains)
+                    .collect(Collectors.toCollection(HashSet::new));
+            // Failed = IDs that failed and never passed (exclude flaky).
             Set<String> failedIds = failedTests.stream()
                     .map(TestIdentifier::getUniqueId)
                     .filter(id -> !passedIds.contains(id))
                     .collect(Collectors.toCollection(HashSet::new));
+            // Passed = methods that ultimately passed, excluding those that also failed (flaky).
+            int uniquePassed = passedIds.size() - flakyIds.size();
+            int uniqueFailed = failedIds.size();
+            int uniqueFlaky = flakyIds.size();
             Set<String> resolvedIds = new HashSet<>();
             resolvedIds.addAll(passedIds);
             resolvedIds.addAll(failedIds);
-            int uniquePassed = passedIds.size();
-            int uniqueFailed = failedIds.size();
             int uniqueSkipped = (int) skippedTests.stream()
                     .map(TestIdentifier::getUniqueId)
                     .filter(id -> !resolvedIds.contains(id))
                     .distinct()
                     .count();
-            FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime, uniquePassed, uniqueFailed, uniqueSkipped);
+            FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime, uniquePassed, uniqueFailed, uniqueSkipped, uniqueFlaky);
         });
         ReportManagerHelper.logEngineClosure();
     }

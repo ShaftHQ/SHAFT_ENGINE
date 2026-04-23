@@ -83,11 +83,13 @@ public class FirestoreRestClient {
      * @param executionStartTime the epoch-millisecond timestamp when the test run began
      * @param executionEndTime   the epoch-millisecond timestamp when the test run finished
      * @param passedTests        the number of unique test methods that passed
-     * @param failedTests        the number of unique test methods that failed
+     * @param failedTests        the number of unique test methods that failed (never passed)
      * @param skippedTests       the number of unique test methods that were skipped
+     * @param flakyTests         the number of test methods that failed on at least one attempt
+     *                           but eventually passed (i.e. retried to success); 0 if none
      */
     public static void sendTelemetry(long executionStartTime, long executionEndTime,
-                                     int passedTests, int failedTests, int skippedTests) {
+                                     int passedTests, int failedTests, int skippedTests, int flakyTests) {
         if (!SHAFT.Properties.flags.telemetryEnabled()) {
             ReportManager.logDiscrete("Telemetry is disabled, skipping anonymous usage tracking.");
             return;
@@ -104,7 +106,7 @@ public class FirestoreRestClient {
                 // Country/city attribution is handled automatically by GA4 via ip_override —
                 // no separate geo-lookup call is needed.
                 logEventToAnalytics("test_run", executionStartTime, executionEndTime - executionStartTime,
-                        passedTests, failedTests, skippedTests);
+                        passedTests, failedTests, skippedTests, flakyTests);
             } catch (Exception ignored) {
                 // Silently catch all exceptions to ensure telemetry failures never impact test execution
             }
@@ -220,6 +222,10 @@ public class FirestoreRestClient {
         if (cachedClientId == null) {
             synchronized (CLIENT_ID_LOCK) {
                 if (cachedClientId == null) {
+                    // The UUID is stored in src/test/resources/ so that it is local to each
+                    // project working directory. It should be added to .gitignore to ensure each
+                    // cloned checkout generates its own unique identifier rather than sharing
+                    // the same UUID across all users of the same repository.
                     String uuidFilePath = "src/test/resources/META-INF/services/uuid";
                     var fileActions = FileActions.getInstance(true);
                     if (!fileActions.doesFileExist(uuidFilePath)) {
@@ -257,8 +263,9 @@ public class FirestoreRestClient {
      *                               divided by 1000 to produce the {@code session_id}
      * @param durationInMilliseconds the total execution duration in milliseconds
      * @param passedTests            the number of unique test methods that passed
-     * @param failedTests            the number of unique test methods that failed
+     * @param failedTests            the number of unique test methods that failed (never passed)
      * @param skippedTests           the number of unique test methods that were skipped
+     * @param flakyTests             the number of test methods that failed then passed on retry; 0 if none
      * @throws IOException          in case of a network or IO issue
      * @throws InterruptedException if the operation is interrupted
      * @throws URISyntaxException   if a constructed URI is malformed
@@ -266,7 +273,7 @@ public class FirestoreRestClient {
      */
     public static void logEventToAnalytics(String eventName, long executionStartTime,
                                            long durationInMilliseconds,
-                                           int passedTests, int failedTests, int skippedTests)
+                                           int passedTests, int failedTests, int skippedTests, int flakyTests)
             throws IOException, InterruptedException, URISyntaxException, JSONException {
         // https://analytics.google.com/analytics/web/?authuser=0&hl=en-GB#/a368239280p504911558/realtime/overview?params=_u..nav%3Dmaui
         // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=gtag#payload
@@ -313,11 +320,19 @@ public class FirestoreRestClient {
         eventParams.put("run_platform", "java_desktop");
         eventParams.put("runtime_version", Runtime.version().toString());
 
-        // Deduplicated per-method outcome counts
+        // Deduplicated per-method outcome counts — categories are mutually exclusive.
+        // passed  = first-attempt passes (never recorded as failed)
+        // failed  = permanent failures (never passed)
+        // skipped = never executed
+        // flaky   = failed on at least one attempt then passed on retry
+        // total   = sum of all four categories (no double-counting)
         eventParams.put("passed_tests", passedTests);
         eventParams.put("failed_tests", failedTests);
         eventParams.put("skipped_tests", skippedTests);
-        eventParams.put("total_tests", passedTests + failedTests + skippedTests);
+        // flaky_tests = tests that failed on at least one attempt but eventually passed (retried to success).
+        // Always reported; 0 when no flaky tests were observed.
+        eventParams.put("flaky_tests", flakyTests);
+        eventParams.put("total_tests", passedTests + failedTests + skippedTests + flakyTests);
 
         eventInformation.put("params", eventParams);
 
