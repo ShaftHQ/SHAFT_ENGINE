@@ -17,13 +17,17 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
-import java.time.Instant;
 import java.util.UUID;
 
 /**
  * FirestoreRestClient handles anonymous usage telemetry for SHAFT Engine.
- * This service is designed to be 100% anonymous and only tracks test run counts.
- * No personal data, machine identifiers, or sensitive information is collected.
+ * <p>
+ * Each test run sends one {@code test_run} event to Google Analytics (GA4) via the
+ * Measurement Protocol and atomically increments a global counter in Firestore.
+ * The event captures per-test-method outcome counts (passed, failed, skipped),
+ * engine version, target platform, and anonymous geographic region (city/country).
+ * No personal data beyond geographic region is collected; telemetry can be
+ * disabled by setting {@code telemetry.enabled=false} in {@code custom.properties}.
  */
 public class FirestoreRestClient {
 
@@ -52,41 +56,35 @@ public class FirestoreRestClient {
     /**
      * Sends anonymous telemetry data if telemetry is enabled.
      * This method executes asynchronously and will not block test execution.
-     * Only a simple counter increment is sent to track test run statistics.
+     * A counter increment and an analytics event are sent to track test run statistics,
+     * including the number of passed, failed, and skipped test methods.
+     *
+     * @param executionStartTime the epoch-millisecond timestamp when the test run began
+     * @param executionEndTime   the epoch-millisecond timestamp when the test run finished
+     * @param passedTests        the number of test methods that passed
+     * @param failedTests        the number of test methods that failed
+     * @param skippedTests       the number of test methods that were skipped
      */
-    public static void sendTelemetry(long executionStartTime, long executionEndTime) {
+    public static void sendTelemetry(long executionStartTime, long executionEndTime,
+                                     int passedTests, int failedTests, int skippedTests) {
         if (!SHAFT.Properties.flags.telemetryEnabled()) {
             ReportManager.logDiscrete("Telemetry is disabled, skipping anonymous usage tracking.");
             return;
         }
 
-        // Step 1: Create a document for our counter
-        String counterCollection = "counters";
-        String counterId = "test_runs";
-
         // Execute telemetry in a separate virtual thread to avoid blocking
         Thread.ofVirtual().start(() -> {
             try {
-                ReportManager.logDiscrete("Sending anonymous usage information...\nNote that no personal data is collected, only generic test run counters. To disable telemetry, set `telemetry.enabled` flag to `false` in your custom.properties file.", Level.INFO);
-                // First, create the counter document.
-                //System.out.println("Creating counter document...");
-                createCounterDocument(counterCollection, counterId);
+                ReportManager.logDiscrete("Sending anonymous usage information...\n"
+                        + "Note: geographic region (country/city) and OS information are collected anonymously.\n"
+                        + "To disable telemetry, set `telemetry.enabled` flag to `false` in your custom.properties file.", Level.INFO);
 
-                // Read the initial value to show it's starting at 0.
-                //System.out.println("\nReading initial counter value...");
-                readCounter(counterCollection, counterId);
+                // Log the 'test_run' event to Analytics with per-method outcome counts.
+                logEventToAnalytics("test_run", executionStartTime, executionEndTime - executionStartTime,
+                        passedTests, failedTests, skippedTests);
 
-                // Before incrementing the counter in Firestore, log the action as an event.
-                //System.out.println("\nLogging 'test_run' event to Analytics...");
-                logEventToAnalytics("test_run", executionEndTime - executionStartTime);
-
-                // Now, increment the counter.
-                //System.out.println("\nIncrementing counter...");
-                incrementCounter(counterCollection, counterId);
-
-                // Read the final value to confirm the increment.
-                //System.out.println("\nReading final counter value...");
-                readCounter(counterCollection, counterId);
+                // Atomically increment the global test-run counter in Firestore.
+                incrementCounter("counters", "test_runs");
             } catch (Exception ignored) {
                 // Silently catch all exceptions to ensure telemetry failures never impact test execution
             }
@@ -189,12 +187,25 @@ public class FirestoreRestClient {
      * Logs a custom event to Firebase Analytics via the Measurement Protocol.
      * This is the correct way to log events from a desktop application.
      *
-     * @param eventName The name of the event to log (e.g., "test_run").
-     * @throws IOException  in case of a network or IO issue
+     * <p>The event includes per-test-method outcome counts (passed, failed, skipped)
+     * as well as OS and runtime information to help understand the usage environment.
+     * Geographic data (city, country) is collected anonymously via the client IP.
+     *
+     * @param eventName              the name of the event to log (e.g., "test_run")
+     * @param executionStartTime     the epoch-millisecond timestamp when the test run began;
+     *                               used as the stable {@code session_id}
+     * @param durationInMilliseconds the total execution duration in milliseconds
+     * @param passedTests            the number of test methods that passed
+     * @param failedTests            the number of test methods that failed
+     * @param skippedTests           the number of test methods that were skipped
+     * @throws IOException        in case of a network or IO issue
      * @throws InterruptedException if the operation is interrupted
      * @throws URISyntaxException if the URI is malformed
      */
-    public static void logEventToAnalytics(String eventName, long durationInMilliseconds) throws IOException, InterruptedException, URISyntaxException, JSONException {
+    public static void logEventToAnalytics(String eventName, long executionStartTime,
+                                           long durationInMilliseconds,
+                                           int passedTests, int failedTests, int skippedTests)
+            throws IOException, InterruptedException, URISyntaxException, JSONException {
         // https://analytics.google.com/analytics/web/?authuser=0&hl=en-GB#/a368239280p504911558/realtime/overview?params=_u..nav%3Dmaui
         // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=gtag#payload
 
@@ -203,13 +214,18 @@ public class FirestoreRestClient {
 
         JSONObject requestBody = new JSONObject();
 
+        // Read or create a persistent UUID to identify this installation across runs.
+        // This UUID is used as client_id (the primary GA4 device/installation identifier).
         String uuidFilePath = "src/test/resources/META-INF/services/uuid";
         var fileActions = FileActions.getInstance(true);
         if (!fileActions.doesFileExist(uuidFilePath)) {
             fileActions.writeToFile(uuidFilePath, UUID.randomUUID().toString());
         }
-        String userId = fileActions.readFile(uuidFilePath);
-        requestBody.put("client_id", UUID.randomUUID().toString());
+        String clientId = fileActions.readFile(uuidFilePath);
+        // client_id is the primary GA4 identifier for a device/installation; must be stable across runs.
+        requestBody.put("client_id", clientId);
+        // user_id mirrors the same persistent UUID to enable cross-device user analysis in GA4.
+        requestBody.put("user_id", clientId);
 
         // https://ipv4.icanhazip.com/
         // http://myexternalip.com/raw
@@ -217,7 +233,7 @@ public class FirestoreRestClient {
         var ip = new BufferedReader(new InputStreamReader(new URI("https://checkip.amazonaws.com").toURL().openStream())).readLine();
         requestBody.put("ip_override", ip);
 
-        // start of new section
+        // Resolve geographic region (city, country) from the client IP for anonymous usage analytics.
         // https://ipinfo.io/dashboard/lite
         // https://ipinfo.io/?token=0a5dc997f79f6a
         // https://ipinfo.io/156.214.138.86?token=0a5dc997f79f6a
@@ -229,7 +245,6 @@ public class FirestoreRestClient {
         if (userLocationResponse.statusCode() == 200) {
             try {
                 var userLocation = new JSONObject();
-                requestBody.put("user_id", userId);
                 var locationData = new org.json.JSONObject(userLocationResponse.body());
                 userLocation.put("city", locationData.get("city"));
                 userLocation.put("country_id", locationData.get("country"));
@@ -238,7 +253,6 @@ public class FirestoreRestClient {
                 // silently ignore and use default values
             }
         }
-        // end of new section
 
         var deviceInformation = new JSONObject();
         deviceInformation.put("operating_system", System.getProperty("os.name"));
@@ -250,12 +264,17 @@ public class FirestoreRestClient {
 
         var eventParams = new JSONObject();
         eventParams.put("engagement_time_msec", durationInMilliseconds);
-        eventParams.put("session_id", String.valueOf(Instant.now().getEpochSecond())); // Must match the regular expression ^\d+$.
+        // session_id must match ^\d+$ and should represent when this test session started.
+        eventParams.put("session_id", String.valueOf(executionStartTime / 1000));
         eventParams.put("engine_version", SHAFT.Properties.internal.shaftEngineVersion());
         eventParams.put("target_os", SHAFT.Properties.platform.targetPlatform());
         eventParams.put("target_browser", SHAFT.Properties.web.targetBrowserName());
         eventParams.put("run_platform", "java_desktop");
         eventParams.put("runtime_version", Runtime.version().toString());
+        // Per-test-method outcome counts so each method's result is represented in analytics.
+        eventParams.put("passed_tests", passedTests);
+        eventParams.put("failed_tests", failedTests);
+        eventParams.put("skipped_tests", skippedTests);
         eventInformation.put("params", eventParams);
 
         JSONArray events = new JSONArray();

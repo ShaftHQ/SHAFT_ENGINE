@@ -93,7 +93,7 @@ public class CucumberHelper {
             GoogleTink.encrypt();
             AllureManager.generateAllureReportArchive();
             AllureManager.openAllureReportAfterExecution();
-            Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime));
+            Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime, 0, 0, 0));
             ReportManagerHelper.logEngineClosure();
         }
     }

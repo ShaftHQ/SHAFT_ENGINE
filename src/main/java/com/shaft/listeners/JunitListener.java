@@ -121,7 +121,7 @@ public class JunitListener implements LauncherSessionListener {
             // Generate the performance report using the fetched data
             ApiPerformanceExecutionReport.generatePerformanceReport(performanceData, executionStartTime, executionEndTime);
         });
-        Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime));
+        Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime, passedTests.size(), failedTests.size(), skippedTests.size()));
         ReportManagerHelper.logEngineClosure();
     }
 
