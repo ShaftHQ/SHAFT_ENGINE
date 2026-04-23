@@ -375,7 +375,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
             Set<ITestNGMethod> failedSet = failedTests.stream()
                     .filter(m -> !passedSet.contains(m))
                     .collect(Collectors.toCollection(HashSet::new));
-            Set<ITestNGMethod> resolvedSet = new HashSet<>(passedSet);
+            Set<ITestNGMethod> resolvedSet = new HashSet<>();
+            resolvedSet.addAll(passedSet);
             resolvedSet.addAll(failedSet);
             int uniquePassed = passedSet.size();
             int uniqueFailed = failedSet.size();

@@ -67,6 +67,11 @@ public class FirestoreRestClient {
     // The API Secret is found under Admin > Data Streams > Choose your stream > Measurement Protocol > Create
     private static final String API_SECRET = "nzK22pHiTZWu8FGgvDVtnA";
 
+    // Lazily initialized, stable installation UUID.  Loaded once from disk and cached for the
+    // lifetime of the JVM so that repeated telemetry calls avoid redundant file I/O.
+    private static volatile String cachedClientId;
+    private static final Object CLIENT_ID_LOCK = new Object();
+
     /**
      * Sends anonymous telemetry data if telemetry is enabled.
      * This method executes asynchronously and will not block test execution.
@@ -205,6 +210,29 @@ public class FirestoreRestClient {
     }
 
     /**
+     * Returns the persistent installation UUID used as {@code client_id} and {@code user_id}.
+     * The UUID is read from disk on the first call and cached for the JVM lifetime to avoid
+     * repeated file I/O on subsequent telemetry events.
+     *
+     * @return the stable installation UUID string
+     */
+    private static String resolveClientId() {
+        if (cachedClientId == null) {
+            synchronized (CLIENT_ID_LOCK) {
+                if (cachedClientId == null) {
+                    String uuidFilePath = "src/test/resources/META-INF/services/uuid";
+                    var fileActions = FileActions.getInstance(true);
+                    if (!fileActions.doesFileExist(uuidFilePath)) {
+                        fileActions.writeToFile(uuidFilePath, UUID.randomUUID().toString());
+                    }
+                    cachedClientId = fileActions.readFile(uuidFilePath);
+                }
+            }
+        }
+        return cachedClientId;
+    }
+
+    /**
      * Sends one {@code test_run} event to the GA4 Measurement Protocol endpoint.
      *
      * <p><strong>Network calls made</strong> (two total):
@@ -213,7 +241,7 @@ public class FirestoreRestClient {
      *       the event to the correct country via {@code ip_override}.</li>
      *   <li>GA4 Measurement Protocol — posts the event payload.</li>
      * </ol>
-     * No separate geo-lookup service (e.g.\ ipinfo.io) is called; GA4 derives the
+     * No separate geo-lookup service (e.g., ipinfo.io) is called; GA4 derives the
      * country/city automatically from {@code ip_override}.
      *
      * <p><strong>Identity fields</strong>:
@@ -249,16 +277,11 @@ public class FirestoreRestClient {
         JSONObject requestBody = new JSONObject();
 
         // --- Static identity: client_id / user_id ---
-        // Read or create a persistent UUID to identify this installation across runs.
+        // Resolve the persistent installation UUID once per JVM run, then reuse the cached value.
         // client_id is the primary GA4 device/installation identifier and must be stable.
         // user_id is set to the same value so GA4 can correlate client and user dimensions,
         // enabling unique-installation counting in both device-level and user-level reports.
-        String uuidFilePath = "src/test/resources/META-INF/services/uuid";
-        var fileActions = FileActions.getInstance(true);
-        if (!fileActions.doesFileExist(uuidFilePath)) {
-            fileActions.writeToFile(uuidFilePath, UUID.randomUUID().toString());
-        }
-        String clientId = fileActions.readFile(uuidFilePath);
+        String clientId = resolveClientId();
         requestBody.put("client_id", clientId);
         requestBody.put("user_id", clientId);
 

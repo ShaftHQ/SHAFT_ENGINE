@@ -133,7 +133,8 @@ public class JunitListener implements LauncherSessionListener {
                     .map(TestIdentifier::getUniqueId)
                     .filter(id -> !passedIds.contains(id))
                     .collect(Collectors.toCollection(HashSet::new));
-            Set<String> resolvedIds = new HashSet<>(passedIds);
+            Set<String> resolvedIds = new HashSet<>();
+            resolvedIds.addAll(passedIds);
             resolvedIds.addAll(failedIds);
             int uniquePassed = passedIds.size();
             int uniqueFailed = failedIds.size();

@@ -97,6 +97,8 @@ public class CucumberHelper {
         switch (status) {
             case PASSED -> passedScenarios.incrementAndGet();
             case FAILED, AMBIGUOUS, UNDEFINED -> failedScenarios.incrementAndGet();
+            // SKIPPED, PENDING, and any future Status values are all treated as skipped
+            // because they represent scenarios that did not run to completion successfully.
             default -> skippedScenarios.incrementAndGet();
         }
     }
