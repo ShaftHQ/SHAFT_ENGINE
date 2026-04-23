@@ -462,9 +462,6 @@ public class FlutterAppTestSuite {
     }
 }
 ```
-    }
-}
-```
 
 ## Additional Resources
 
@@ -479,3 +476,7 @@ For issues or questions:
 - Open an issue on [GitHub](https://github.com/ShaftHQ/SHAFT_ENGINE/issues)
 - Join our [Slack community](https://join.slack.com/t/shaft-engine/shared_invite/zt-oii5i2gg-0ZGnih_Y34NjK7QqDn01Dw)
 - Check our [documentation](https://shaftengine.netlify.app/)
+
+---
+
+[← Back to README](../README.md) | [Features →](FEATURES.md)

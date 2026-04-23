@@ -8,6 +8,9 @@ updates:
       interval: "daily"
       time: "00:00"
       timezone: "Africa/Cairo"
+    labels:
+      - "dependencies"
+      - "github-actions"
 
   # Maintain dependencies for maven
   - package-ecosystem: "maven"
@@ -16,3 +19,5 @@ updates:
       interval: "daily"
       time: "00:00"
       timezone: "Africa/Cairo"
+    labels:
+      - "dependencies"
