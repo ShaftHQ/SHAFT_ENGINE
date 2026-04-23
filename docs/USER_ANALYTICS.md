@@ -53,6 +53,6 @@ pie title Active Users by Country (28-day period)
 
 ---
 
-*Data source: Google Analytics | Last updated: November 10, 2025*
+*Data source: Google Analytics | Last updated: April 23, 2026*
 
 [← Back to README](../README.md)
