@@ -42,6 +42,9 @@ jobs:
       - name: Set Release Version Number
         run: |
           echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
+      # Inject the release version into the body template so upgrade snippets are ready-to-copy
+      - name: Prepare Release Body
+        run: sed "s/\$RELEASE_VERSION/${{ env.RELEASE_VERSION }}/g" .github/RELEASE_BODY_TEMPLATE.md > /tmp/release_body.md
       # Attempt to create a GitHub release using the version in the pom.xml, if this release already exists, this job will fail fast
       - name: Create GitHub Release
         id: create_release
@@ -51,6 +54,7 @@ jobs:
         with:
           allowUpdates: false
           generateReleaseNotes: true
+          bodyFile: /tmp/release_body.md
           name: ${{ env.RELEASE_VERSION }}
           tag: ${{ env.RELEASE_VERSION }}
       - name: Setup Prerequisites
