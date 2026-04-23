@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 GitHub Discussions
+    url: https://github.com/ShaftHQ/SHAFT_ENGINE/discussions
+    about: Ask questions, share ideas, and connect with the community.
+  - name: 📖 Documentation
+    url: https://shafthq.github.io/
+    about: Browse the official SHAFT_ENGINE user guide and API reference.
+  - name: 💼 Slack Community
+    url: https://join.slack.com/t/shaft-engine/shared_invite/zt-oii5i2gg-0ZGnih_Y34NjK7QqDn01Dw
+    about: Join our Slack workspace for real-time support and discussions.
