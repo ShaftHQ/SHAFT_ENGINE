@@ -64,7 +64,7 @@ All dependency updates in this release are reviewed and applied automatically vi
 | 💬 Community | [GitHub Discussions](https://github.com/ShaftHQ/SHAFT_ENGINE/discussions) |
 | 🐛 Report a Bug | [Bug Report](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/new?template=bug_report.md) |
 | 💡 Request a Feature | [Feature Request](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/new?template=feature_request.md) |
-| 💬 Slack | [Join our Slack](https://join.slack.com/t/shaft-engine/shared_invite/zt-356e6e28-8Kv8R8__PIvAkWrLqPXC6g) |
+| 💬 Slack | [Join our Slack](https://join.slack.com/t/shaft-engine/shared_invite/zt-oii5i2gg-0ZGnih_Y34NjK7QqDn01Dw) |
 
 ---
 
@@ -82,7 +82,7 @@ If SHAFT_ENGINE saves you time, helps your team ship quality software faster, or
 - 🐛 **Found a bug?** [Open a bug report](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/new?template=bug_report.md)
 - 💡 **Have an idea?** [Request a feature](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/new?template=feature_request.md)
 - 🤝 **Want to contribute?** Read the [Contributing Guide](https://github.com/ShaftHQ/SHAFT_ENGINE/blob/main/CONTRIBUTING.md)
-- 💬 **Questions or feedback?** Join us on [GitHub Discussions](https://github.com/ShaftHQ/SHAFT_ENGINE/discussions) or [Slack](https://join.slack.com/t/shaft-engine/shared_invite/zt-356e6e28-8Kv8R8__PIvAkWrLqPXC6g)
+- 💬 **Questions or feedback?** Join us on [GitHub Discussions](https://github.com/ShaftHQ/SHAFT_ENGINE/discussions) or [Slack](https://join.slack.com/t/shaft-engine/shared_invite/zt-oii5i2gg-0ZGnih_Y34NjK7QqDn01Dw)
 
 ---
 
