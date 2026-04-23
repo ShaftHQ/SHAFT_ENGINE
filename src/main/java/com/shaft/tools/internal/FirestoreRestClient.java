@@ -77,7 +77,7 @@ public class FirestoreRestClient {
             try {
                 ReportManager.logDiscrete("Sending anonymous usage information...\n"
                         + "Note: geographic region (country/city) and OS information are collected anonymously.\n"
-                        + "To disable telemetry, set `telemetry.enabled` flag to `false` in your custom.properties file.", Level.INFO);
+                        + "To disable telemetry, set `telemetry.enabled=false` in your custom.properties file.", Level.INFO);
 
                 // Log the 'test_run' event to Analytics with per-method outcome counts.
                 logEventToAnalytics("test_run", executionStartTime, executionEndTime - executionStartTime,
@@ -224,7 +224,8 @@ public class FirestoreRestClient {
         String clientId = fileActions.readFile(uuidFilePath);
         // client_id is the primary GA4 identifier for a device/installation; must be stable across runs.
         requestBody.put("client_id", clientId);
-        // user_id is set to the same installation UUID so GA4 can correlate client and user dimensions.
+        // user_id is set to the same installation UUID so GA4 can correlate client and user dimensions,
+        // enabling unified reporting across both device-level and user-level metrics.
         requestBody.put("user_id", clientId);
 
         // https://ipv4.icanhazip.com/
