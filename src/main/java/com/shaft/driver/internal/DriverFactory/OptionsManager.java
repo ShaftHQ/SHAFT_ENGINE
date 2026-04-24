@@ -73,7 +73,6 @@ public class OptionsManager {
 
                 // attempted fix for `org.openqa.selenium.WebDriverException: SecurityError: Permission denied to access property "pageXOffset" on cross-origin object`
                 ffOptions.addPreference("browser.contentblocking.enabled", false);
-//                ffOptions.addPreference("privacy.trackingprotection.enabled", false);
 
                 if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local"))
                     ffOptions.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
