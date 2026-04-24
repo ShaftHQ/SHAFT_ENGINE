@@ -8,85 +8,92 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
-import java.time.Instant;
+import java.time.Duration;
 import java.util.UUID;
 
 /**
  * FirestoreRestClient handles anonymous usage telemetry for SHAFT Engine.
- * This service is designed to be 100% anonymous and only tracks test run counts.
- * No personal data, machine identifiers, or sensitive information is collected.
+ * <p>
+ * Each test run sends one {@code test_run} event to Google Analytics (GA4) via the
+ * Measurement Protocol. The event captures per-test-method outcome counts
+ * (passed, failed, skipped, total), engine version, target platform, OS name,
+ * and anonymous geographic region — derived automatically by GA4 from the
+ * {@code ip_override} field, so no separate geo-lookup call is required.
+ * <p>
+ * <strong>Privacy</strong>: no personal data is collected.  Only the client IP is
+ * forwarded to GA4 (via {@code ip_override}) to enable anonymous country-level
+ * reporting; the raw IP is not stored by SHAFT.  Telemetry can be disabled by
+ * setting {@code telemetry.enabled=false} in {@code custom.properties}.
+ * <p>
+ * <strong>Identity model</strong>:
+ * <ul>
+ *   <li>{@code client_id} / {@code user_id} — a <em>static</em>, persistent UUID stored
+ *       on disk at {@code src/test/resources/META-INF/services/uuid}.  It identifies the
+ *       installation across test runs.</li>
+ *   <li>{@code session_id} (event param) — a <em>dynamic</em> value derived from the
+ *       epoch-second timestamp at which the current test run started.  It uniquely
+ *       identifies a single test-run session and changes with every execution.</li>
+ * </ul>
  */
 public class FirestoreRestClient {
 
     private static final String FIREBASE_PROJECT_ID = "shaft-engine";
     private static final String API_KEY = "AIzaSyDnpnsxifokegYIke38I1wzvj5Zcm1a4mA";
     private static final String BASE_URL = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_PROJECT_ID + "/databases/(default)/documents/";
-    private static final HttpClient httpClient = HttpClient.newBuilder().build();
+    private static final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
 
-    // These credentials are required for sending events to Firebase Analytics via the Measurement Protocol.
-    // https://analytics.google.com/analytics/web/?authuser=0&hl=en-GB#/a327683500p504950575/admin/streams/table/12157123249
-    // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=gtag#payload
-    // https://analytics.google.com/analytics/web/?authuser=0&hl=en-GB#/a368239280p504911558/realtime/overview?params=_u..nav%3Dmaui&collectionId=user
-    // The Measurement ID (e.g., "G-XXXXXXXXXX") from your Firebase/GA4 console.
-    /**
-     * api_secret
-     * Required. The API Secret from the Google Analytics UI.
-     * Found under Admin > Data Streams > Choose your stream > Measurement Protocol > Create.
-     * Private to your organization. Should be regularly updated to avoid excessive SPAM.
-     * measurement_id
-     * Measurement ID. The identifier for a Data Stream. Found in the Google Analytics UI under Admin > Data Streams > choose your stream > Measurement ID
-     */
-    private static final String MEASUREMENT_ID = "G-4L9L79WZBV";
-    // The API Secret is found under Admin > Data Streams > Choose your stream > Measurement Protocol > Create
-    private static final String API_SECRET = "nzK22pHiTZWu8FGgvDVtnA";
+    // GA4 Measurement Protocol credentials are read from Internal.java so they can be
+    // overridden in internal.properties without a code change (e.g. for secret rotation).
+    // See: SHAFT.Properties.internal.ga4MeasurementId() / ga4ApiSecret()
+
+    // Lazily initialized, stable installation UUID.  Loaded once from disk and cached for the
+    // lifetime of the JVM so that repeated telemetry calls avoid redundant file I/O.
+    private static volatile String cachedClientId;
+    private static final Object CLIENT_ID_LOCK = new Object();
 
     /**
      * Sends anonymous telemetry data if telemetry is enabled.
      * This method executes asynchronously and will not block test execution.
-     * Only a simple counter increment is sent to track test run statistics.
+     * One GA4 analytics event ({@code test_run}) is sent, carrying deduplicated
+     * per-method outcome counts and key environment dimensions.
+     * Network overhead is minimal: only two HTTP calls are made (one to resolve the
+     * client IP for geographic attribution, one to the GA4 Measurement Protocol endpoint).
+     *
+     * @param executionStartTime the epoch-millisecond timestamp when the test run began
+     * @param executionEndTime   the epoch-millisecond timestamp when the test run finished
+     * @param passedTests        the number of unique test methods that passed
+     * @param failedTests        the number of unique test methods that failed (never passed)
+     * @param skippedTests       the number of unique test methods that were skipped
+     * @param flakyTests         the number of test methods that failed on at least one attempt
+     *                           but eventually passed (i.e. retried to success); 0 if none
      */
-    public static void sendTelemetry(long executionStartTime, long executionEndTime) {
+    public static void sendTelemetry(long executionStartTime, long executionEndTime,
+                                     int passedTests, int failedTests, int skippedTests, int flakyTests) {
         if (!SHAFT.Properties.flags.telemetryEnabled()) {
             ReportManager.logDiscrete("Telemetry is disabled, skipping anonymous usage tracking.");
             return;
         }
 
-        // Step 1: Create a document for our counter
-        String counterCollection = "counters";
-        String counterId = "test_runs";
-
         // Execute telemetry in a separate virtual thread to avoid blocking
         Thread.ofVirtual().start(() -> {
             try {
-                ReportManager.logDiscrete("Sending anonymous usage information...\nNote that no personal data is collected, only generic test run counters. To disable telemetry, set `telemetry.enabled` flag to `false` in your custom.properties file.", Level.INFO);
-                // First, create the counter document.
-                //System.out.println("Creating counter document...");
-                createCounterDocument(counterCollection, counterId);
+                ReportManager.logDiscrete("Sending anonymous usage information...\n"
+                        + "Note: the client IP is forwarded to Google Analytics for anonymous country-level reporting only.\n"
+                        + "To disable telemetry, set `telemetry.enabled=false` in your custom.properties file.", Level.INFO);
 
-                // Read the initial value to show it's starting at 0.
-                //System.out.println("\nReading initial counter value...");
-                readCounter(counterCollection, counterId);
-
-                // Before incrementing the counter in Firestore, log the action as an event.
-                //System.out.println("\nLogging 'test_run' event to Analytics...");
-                logEventToAnalytics("test_run", executionEndTime - executionStartTime);
-
-                // Now, increment the counter.
-                //System.out.println("\nIncrementing counter...");
-                incrementCounter(counterCollection, counterId);
-
-                // Read the final value to confirm the increment.
-                //System.out.println("\nReading final counter value...");
-                readCounter(counterCollection, counterId);
+                // Single GA4 Measurement Protocol call carries all telemetry.
+                // Country/city attribution is handled automatically by GA4 via ip_override —
+                // no separate geo-lookup call is needed.
+                logEventToAnalytics("test_run", executionStartTime, executionEndTime - executionStartTime,
+                        passedTests, failedTests, skippedTests, flakyTests);
             } catch (Exception ignored) {
                 // Silently catch all exceptions to ensure telemetry failures never impact test execution
             }
@@ -98,9 +105,11 @@ public class FirestoreRestClient {
      *
      * @param collectionId The collection to create the document in.
      * @param documentId   The ID for the new counter document.
-     * @throws IOException  in case of a network or IO issue
+     * @throws IOException          in case of a network or IO issue
      * @throws InterruptedException if the operation is interrupted
+     * @deprecated Firestore counters are no longer used for telemetry; GA4 counts events natively.
      */
+    @Deprecated(since = "10.2.20260422", forRemoval = true)
     public static void createCounterDocument(String collectionId, String documentId) throws IOException, InterruptedException {
         // https://console.firebase.google.com/u/0/project/shaft-engine/firestore/databases/-default-/data/~2Fcounters~2Ftest_runs
         // The JSON body for creating a document with a "value" field of 0.
@@ -129,9 +138,11 @@ public class FirestoreRestClient {
      *
      * @param collectionId The collection containing the counter document.
      * @param documentId   The ID of the counter document.
-     * @throws IOException  in case of a network or IO issue
+     * @throws IOException          in case of a network or IO issue
      * @throws InterruptedException if the operation is interrupted
+     * @deprecated Firestore counters are no longer used for telemetry; GA4 counts events natively.
      */
+    @Deprecated(since = "10.2.20260422", forRemoval = true)
     public static void incrementCounter(String collectionId, String documentId) throws IOException, InterruptedException {
         // The JSON body for an atomic increment operation. The correct structure requires
         // the "writes" array with a "transform" object inside and the document path
@@ -167,13 +178,15 @@ public class FirestoreRestClient {
     }
 
     /**
-     * Reads a document and prints its content.
+     * Reads a document and returns its content.
      *
      * @param collectionId The collection containing the document.
      * @param documentId   The ID of the document to read.
-     * @throws IOException  in case of a network or IO issue
+     * @throws IOException          in case of a network or IO issue
      * @throws InterruptedException if the operation is interrupted
+     * @deprecated Firestore counters are no longer used for telemetry; GA4 counts events natively.
      */
+    @Deprecated(since = "10.2.20260422", forRemoval = true)
     public static void readCounter(String collectionId, String documentId) throws IOException, InterruptedException {
         String url = BASE_URL + collectionId + "/" + documentId + "?key=" + API_KEY;
 
@@ -186,87 +199,165 @@ public class FirestoreRestClient {
     }
 
     /**
-     * Logs a custom event to Firebase Analytics via the Measurement Protocol.
-     * This is the correct way to log events from a desktop application.
+     * Returns the persistent installation UUID used as {@code client_id} and {@code user_id}.
+     * The UUID is read from disk on the first call and cached for the JVM lifetime to avoid
+     * repeated file I/O on subsequent telemetry events.
+     * <p>
+     * If the file cannot be written or the content read back is blank (e.g. due to a transient
+     * I/O failure), a freshly generated in-memory UUID is used for this JVM run only, rather
+     * than caching an empty/invalid value that would persist for the lifetime of the process.
      *
-     * @param eventName The name of the event to log (e.g., "test_run").
-     * @throws IOException  in case of a network or IO issue
-     * @throws InterruptedException if the operation is interrupted
-     * @throws URISyntaxException if the URI is malformed
+     * @return the stable installation UUID string (never blank)
      */
-    public static void logEventToAnalytics(String eventName, long durationInMilliseconds) throws IOException, InterruptedException, URISyntaxException, JSONException {
+    private static String resolveClientId() {
+        if (cachedClientId == null) {
+            synchronized (CLIENT_ID_LOCK) {
+                if (cachedClientId == null) {
+                    // The UUID is stored in src/test/resources/ so that it is local to each
+                    // project working directory. It should be added to .gitignore to ensure each
+                    // cloned checkout generates its own unique identifier rather than sharing
+                    // the same UUID across all users of the same repository.
+                    String uuidFilePath = "src/test/resources/META-INF/services/uuid";
+                    var fileActions = FileActions.getInstance(true);
+                    String resolved = null;
+                    try {
+                        if (!fileActions.doesFileExist(uuidFilePath)) {
+                            fileActions.writeToFile(uuidFilePath, UUID.randomUUID().toString());
+                        }
+                        String fromDisk = fileActions.readFile(uuidFilePath);
+                        if (fromDisk != null && !fromDisk.isBlank()) {
+                            resolved = fromDisk.trim();
+                        }
+                    } catch (Exception ignored) {
+                        // Fall through to the in-memory fallback below.
+                    }
+                    // Fall back to a fresh in-memory UUID when the file is unreadable or blank,
+                    // to avoid caching an empty string for the entire JVM lifetime.
+                    cachedClientId = (resolved != null) ? resolved : UUID.randomUUID().toString();
+                }
+            }
+        }
+        return cachedClientId;
+    }
+
+    /**
+     * Sends one {@code test_run} event to the GA4 Measurement Protocol endpoint.
+     *
+     * <p><strong>Network calls made</strong> (two total):
+     * <ol>
+     *   <li>{@code checkip.amazonaws.com} — resolves the outbound IP so GA4 can attribute
+     *       the event to the correct country via {@code ip_override}.</li>
+     *   <li>GA4 Measurement Protocol — posts the event payload.</li>
+     * </ol>
+     * No separate geo-lookup service (e.g., ipinfo.io) is called; GA4 derives the
+     * country/city automatically from {@code ip_override}.
+     *
+     * <p><strong>Identity fields</strong>:
+     * <ul>
+     *   <li>{@code client_id} / {@code user_id} — the <em>static</em> installation UUID
+     *       (persisted on disk).  Stable across runs; used for unique-user counting.</li>
+     *   <li>{@code session_id} (event param) — the <em>dynamic</em> epoch-second timestamp of the
+     *       test-run start.  Unique per execution; used for session-scoped analysis.</li>
+     * </ul>
+     *
+     * @param eventName              the name of the event to log (e.g., {@code "test_run"})
+     * @param executionStartTime     the epoch-millisecond timestamp when the test run began;
+     *                               divided by 1000 to produce the {@code session_id}
+     * @param durationInMilliseconds the total execution duration in milliseconds
+     * @param passedTests            the number of unique test methods that passed
+     * @param failedTests            the number of unique test methods that failed (never passed)
+     * @param skippedTests           the number of unique test methods that were skipped
+     * @param flakyTests             the number of test methods that failed then passed on retry; 0 if none
+     * @throws IOException          in case of a network or IO issue
+     * @throws InterruptedException if the operation is interrupted
+     * @throws JSONException        if the JSON payload cannot be constructed
+     */
+    public static void logEventToAnalytics(String eventName, long executionStartTime,
+                                           long durationInMilliseconds,
+                                           int passedTests, int failedTests, int skippedTests, int flakyTests)
+            throws IOException, InterruptedException, JSONException {
         // https://analytics.google.com/analytics/web/?authuser=0&hl=en-GB#/a368239280p504911558/realtime/overview?params=_u..nav%3Dmaui
         // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=gtag#payload
 
+        // GA4 credentials are read from SHAFT.Properties so they can be rotated via internal.properties
+        // without requiring a new SHAFT release.
+        String measurementId = SHAFT.Properties.internal.ga4MeasurementId();
+        String apiSecret = SHAFT.Properties.internal.ga4ApiSecret();
         // The Measurement Protocol endpoint.
-        String url = "https://www.google-analytics.com/mp/collect?measurement_id=" + MEASUREMENT_ID + "&api_secret=" + API_SECRET;
+        String url = "https://www.google-analytics.com/mp/collect?measurement_id=" + measurementId + "&api_secret=" + apiSecret;
 
         JSONObject requestBody = new JSONObject();
 
-        String uuidFilePath = "src/test/resources/META-INF/services/uuid";
-        var fileActions = FileActions.getInstance(true);
-        if (!fileActions.doesFileExist(uuidFilePath)) {
-            fileActions.writeToFile(uuidFilePath, UUID.randomUUID().toString());
-        }
-        String userId = fileActions.readFile(uuidFilePath);
-        requestBody.put("client_id", UUID.randomUUID().toString());
+        // --- Static identity: client_id / user_id ---
+        // Resolve the persistent installation UUID once per JVM run, then reuse the cached value.
+        // client_id is the primary GA4 device/installation identifier and must be stable.
+        // user_id is set to the same value so GA4 can correlate client and user dimensions,
+        // enabling unique-installation counting in both device-level and user-level reports.
+        String clientId = resolveClientId();
+        requestBody.put("client_id", clientId);
+        requestBody.put("user_id", clientId);
 
-        // https://ipv4.icanhazip.com/
-        // http://myexternalip.com/raw
-        // http://ipecho.net/plain
-        var ip = new BufferedReader(new InputStreamReader(new URI("https://checkip.amazonaws.com").toURL().openStream())).readLine();
-        requestBody.put("ip_override", ip);
-
-        // start of new section
-        // https://ipinfo.io/dashboard/lite
-        // https://ipinfo.io/?token=0a5dc997f79f6a
-        // https://ipinfo.io/156.214.138.86?token=0a5dc997f79f6a
-        HttpRequest userLocationRequest = HttpRequest.newBuilder()
-                .uri(URI.create("https://ipinfo.io/" + ip + "?token=0a5dc997f79f6a"))
+        // --- Geographic attribution ---
+        // Forward the client's outbound IP so GA4 can derive country/city automatically.
+        // This eliminates the need for a separate geo-lookup HTTP call (e.g. ipinfo.io).
+        // https://checkip.amazonaws.com returns the plain outbound IPv4 address.
+        // Use the shared httpClient (which has a connect timeout) instead of URL.openStream()
+        // to avoid resource leaks and unbounded blocking on slow/unreachable endpoints.
+        HttpRequest ipRequest = HttpRequest.newBuilder()
+                .uri(URI.create("https://checkip.amazonaws.com"))
+                .timeout(Duration.ofSeconds(10))
                 .GET()
                 .build();
-        HttpResponse<String> userLocationResponse = httpClient.send(userLocationRequest, HttpResponse.BodyHandlers.ofString());
-        if (userLocationResponse.statusCode() == 200) {
-            try {
-                var userLocation = new JSONObject();
-                requestBody.put("user_id", userId);
-                var locationData = new org.json.JSONObject(userLocationResponse.body());
-                userLocation.put("city", locationData.get("city"));
-                userLocation.put("country_id", locationData.get("country"));
-                requestBody.put("user_location", userLocation);
-            } catch (Exception e) {
-                // silently ignore and use default values
-            }
+        HttpResponse<String> ipResponse = httpClient.send(ipRequest, HttpResponse.BodyHandlers.ofString());
+        if (ipResponse.statusCode() != 200) {
+            throw new IOException("Failed to retrieve outbound IP from checkip.amazonaws.com: HTTP " + ipResponse.statusCode());
         }
-        // end of new section
+        String ip = ipResponse.body().trim();
+        requestBody.put("ip_override", ip);
 
-        var deviceInformation = new JSONObject();
-        deviceInformation.put("operating_system", System.getProperty("os.name"));
-        deviceInformation.put("operating_system_version", System.getProperty("os.version"));
-        requestBody.put("device", deviceInformation);
-
+        // --- Event payload ---
         var eventInformation = new JSONObject();
         eventInformation.put("name", eventName);
 
         var eventParams = new JSONObject();
+
+        // GA4 standard session params
         eventParams.put("engagement_time_msec", durationInMilliseconds);
-        eventParams.put("session_id", String.valueOf(Instant.now().getEpochSecond())); // Must match the regular expression ^\d+$.
+        // session_id is DYNAMIC: unique per test run (epoch-seconds of session start).
+        // It is intentionally different from the static client_id / user_id.
+        eventParams.put("session_id", String.valueOf(executionStartTime / 1000));
+
+        // Environment dimensions
         eventParams.put("engine_version", SHAFT.Properties.internal.shaftEngineVersion());
         eventParams.put("target_os", SHAFT.Properties.platform.targetPlatform());
         eventParams.put("target_browser", SHAFT.Properties.web.targetBrowserName());
+        eventParams.put("os_name", System.getProperty("os.name"));
         eventParams.put("run_platform", "java_desktop");
         eventParams.put("runtime_version", Runtime.version().toString());
+
+        // Deduplicated per-method outcome counts — categories are mutually exclusive.
+        // passed  = first-attempt passes (never recorded as failed)
+        // failed  = permanent failures (never passed)
+        // skipped = never executed
+        // flaky   = failed on at least one attempt then passed on retry
+        // total   = sum of all four categories (no double-counting)
+        eventParams.put("passed_tests", passedTests);
+        eventParams.put("failed_tests", failedTests);
+        eventParams.put("skipped_tests", skippedTests);
+        // flaky_tests = tests that failed on at least one attempt but eventually passed (retried to success).
+        // Always reported; 0 when no flaky tests were observed.
+        eventParams.put("flaky_tests", flakyTests);
+        eventParams.put("total_tests", passedTests + failedTests + skippedTests + flakyTests);
+
         eventInformation.put("params", eventParams);
 
         JSONArray events = new JSONArray();
         events.put(0, eventInformation);
         requestBody.put("events", events);
 
-        String stringRequestBody = requestBody.toString();
-
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .POST(BodyPublishers.ofString(stringRequestBody))
+                .POST(BodyPublishers.ofString(requestBody.toString()))
                 .header("Content-Type", "application/json")
                 .build();
 

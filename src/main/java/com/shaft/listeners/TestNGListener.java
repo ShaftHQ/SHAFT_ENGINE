@@ -32,8 +32,10 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -365,7 +367,29 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         Thread.ofVirtual().start(() -> ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime));
         Thread.ofVirtual().start(JiraHelper::reportExecutionStatusToJira);
         Thread.ofVirtual().start(GoogleTink::encrypt);
-        Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime));
+        Thread.ofVirtual().start(() -> {
+            // Deduplicate test method counts to remove retry-inflated numbers.
+            // A method that failed on early attempts but eventually passed is counted as FLAKY.
+            // Categories are mutually exclusive: passed | failed | skipped | flaky.
+            Set<ITestNGMethod> passedSet = new HashSet<>(passedTests);
+            // Flaky = methods that appear in both the failed list and the passed list.
+            Set<ITestNGMethod> flakySet = failedTests.stream()
+                    .filter(passedSet::contains)
+                    .collect(Collectors.toCollection(HashSet::new));
+            // Failed = methods that failed and never passed (exclude flaky).
+            Set<ITestNGMethod> failedSet = failedTests.stream()
+                    .filter(m -> !passedSet.contains(m))
+                    .collect(Collectors.toCollection(HashSet::new));
+            // Passed = methods that ultimately passed, excluding those that also failed (flaky).
+            int uniquePassed = passedSet.size() - flakySet.size();
+            int uniqueFailed = failedSet.size();
+            int uniqueFlaky = flakySet.size();
+            Set<ITestNGMethod> resolvedSet = new HashSet<>();
+            resolvedSet.addAll(passedSet);
+            resolvedSet.addAll(failedSet);
+            int uniqueSkipped = (int) skippedTests.stream().filter(m -> !resolvedSet.contains(m)).distinct().count();
+            FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime, uniquePassed, uniqueFailed, uniqueSkipped, uniqueFlaky);
+        });
         ReportManagerHelper.logEngineClosure();
         Thread.ofVirtual().start(() -> {
             // Fetch performance data from RequestBuilder

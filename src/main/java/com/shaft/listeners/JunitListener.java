@@ -17,8 +17,11 @@ import org.junit.platform.launcher.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class JunitListener implements LauncherSessionListener {
     private static final List<TestIdentifier> passedTests = Collections.synchronizedList(new ArrayList<>());
@@ -121,7 +124,35 @@ public class JunitListener implements LauncherSessionListener {
             // Generate the performance report using the fetched data
             ApiPerformanceExecutionReport.generatePerformanceReport(performanceData, executionStartTime, executionEndTime);
         });
-        Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime));
+        Thread.ofVirtual().start(() -> {
+            // Deduplicate by unique ID. Categories are mutually exclusive: passed | failed | skipped | flaky.
+            Set<String> passedIds = passedTests.stream()
+                    .map(TestIdentifier::getUniqueId)
+                    .collect(Collectors.toCollection(HashSet::new));
+            // Flaky = IDs present in both failed and passed lists (failed then retried to success).
+            Set<String> flakyIds = failedTests.stream()
+                    .map(TestIdentifier::getUniqueId)
+                    .filter(passedIds::contains)
+                    .collect(Collectors.toCollection(HashSet::new));
+            // Failed = IDs that failed and never passed (exclude flaky).
+            Set<String> failedIds = failedTests.stream()
+                    .map(TestIdentifier::getUniqueId)
+                    .filter(id -> !passedIds.contains(id))
+                    .collect(Collectors.toCollection(HashSet::new));
+            // Passed = methods that ultimately passed, excluding those that also failed (flaky).
+            int uniquePassed = passedIds.size() - flakyIds.size();
+            int uniqueFailed = failedIds.size();
+            int uniqueFlaky = flakyIds.size();
+            Set<String> resolvedIds = new HashSet<>();
+            resolvedIds.addAll(passedIds);
+            resolvedIds.addAll(failedIds);
+            int uniqueSkipped = (int) skippedTests.stream()
+                    .map(TestIdentifier::getUniqueId)
+                    .filter(id -> !resolvedIds.contains(id))
+                    .distinct()
+                    .count();
+            FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime, uniquePassed, uniqueFailed, uniqueSkipped, uniqueFlaky);
+        });
         ReportManagerHelper.logEngineClosure();
     }
 

@@ -5,10 +5,15 @@ import com.shaft.listeners.TestNGListener;
 import com.shaft.tools.internal.FirestoreRestClient;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.internal.*;
+import io.cucumber.plugin.event.Status;
 import org.testng.Reporter;
 import org.testng.xml.XmlSuite;
 
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Internal helper class providing shared setup and teardown logic for Cucumber-based
@@ -20,6 +25,15 @@ import java.util.List;
 public class CucumberHelper {
     static long executionStartTime;
     static long executionEndTime;
+
+    private static final AtomicInteger skippedScenarios = new AtomicInteger(0);
+
+    // Scenario-ID sets used to detect and count flaky/passed/failed scenarios.
+    // A scenario ID is derived from its feature file URI and line number, which remains stable
+    // across retry attempts for the same scenario definition.
+    // Counts are derived purely from these sets so that retried scenarios are never double-counted.
+    private static final Set<String> passedScenarioIds = Collections.synchronizedSet(new HashSet<>());
+    private static final Set<String> failedScenarioIds = Collections.synchronizedSet(new HashSet<>());
 
     /**
      * Utility class — do not instantiate.
@@ -57,9 +71,15 @@ public class CucumberHelper {
     /**
      * Initialises the SHAFT engine for a Cucumber run: records the execution start time,
      * triggers engine setup, and configures legacy {@code cucumber.options} system property.
+     * The scenario counters are reset here so that a single JVM running multiple Cucumber
+     * suites sequentially never accumulates stale counts from a prior run.
      */
     public static void engineSetup() {
         executionStartTime = System.currentTimeMillis();
+        // Reset counters/sets for the new run to avoid accumulation across sequential suite runs.
+        skippedScenarios.set(0);
+        passedScenarioIds.clear();
+        failedScenarioIds.clear();
         TestNGListener.engineSetup(ProjectStructureManager.RunType.CUCUMBER);
         //set cucumber options
         System.setProperty("cucumber.options",
@@ -72,6 +92,29 @@ public class CucumberHelper {
                         " --quiet " + SHAFT.Properties.cucumber.cucumberPublishQuiet() +
                         " --publish " + !SHAFT.Properties.cucumber.cucumberPublishQuiet()
         );
+    }
+
+    /**
+     * Records the outcome of a completed Cucumber scenario for telemetry.
+     * This must be called from the test-case-finished handler in the Cucumber listener
+     * so that the actual scenario counts are captured before {@link #shaftTearDown()}.
+     * <p>
+     * The {@code scenarioId} should be a stable string that uniquely identifies the
+     * scenario definition across retry attempts (e.g. {@code "featureUri:line"}).
+     * It is used to detect flaky scenarios: those that failed on at least one attempt
+     * but eventually passed.
+     *
+     * @param status     the Cucumber {@link Status} of the finished scenario attempt
+     * @param scenarioId a stable identifier for the scenario (e.g. feature URI + line number)
+     */
+    public static void recordScenarioResult(Status status, String scenarioId) {
+        switch (status) {
+            case PASSED -> passedScenarioIds.add(scenarioId);
+            case FAILED, AMBIGUOUS, UNDEFINED -> failedScenarioIds.add(scenarioId);
+            // SKIPPED, PENDING, and any future Status values are all treated as skipped
+            // because they represent scenarios that did not run to completion successfully.
+            default -> skippedScenarios.incrementAndGet();
+        }
     }
 
     /**
@@ -93,7 +136,22 @@ public class CucumberHelper {
             GoogleTink.encrypt();
             AllureManager.generateAllureReportArchive();
             AllureManager.openAllureReportAfterExecution();
-            Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime));
+            Thread.ofVirtual().start(() -> {
+                // Derive all counts from the per-scenario-ID sets so retried scenarios are
+                // never double-counted regardless of how many times they were attempted.
+                // Categories are mutually exclusive: passed | failed | skipped | flaky.
+                // Flaky = scenarios that appear in both the failed and passed sets.
+                Set<String> flakyIds = new HashSet<>(failedScenarioIds);
+                flakyIds.retainAll(passedScenarioIds);
+                int flakyCount = flakyIds.size();
+                // Passed = ultimately passed scenarios, minus those that also failed (flaky).
+                int uniquePassed = passedScenarioIds.size() - flakyCount;
+                // Failed = scenarios that only ever failed (never made it to passed).
+                int uniqueFailed = failedScenarioIds.size() - flakyCount;
+                FirestoreRestClient.sendTelemetry(
+                        executionStartTime, executionEndTime,
+                        uniquePassed, uniqueFailed, skippedScenarios.get(), flakyCount);
+            });
             ReportManagerHelper.logEngineClosure();
         }
     }
