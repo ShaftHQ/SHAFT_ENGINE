@@ -26,13 +26,12 @@ public class CucumberHelper {
     static long executionStartTime;
     static long executionEndTime;
 
-    private static final AtomicInteger passedScenarios = new AtomicInteger(0);
-    private static final AtomicInteger failedScenarios = new AtomicInteger(0);
     private static final AtomicInteger skippedScenarios = new AtomicInteger(0);
 
-    // Scenario-ID sets used to detect flaky scenarios (failed on one attempt, passed on another).
+    // Scenario-ID sets used to detect and count flaky/passed/failed scenarios.
     // A scenario ID is derived from its feature file URI and line number, which remains stable
     // across retry attempts for the same scenario definition.
+    // Counts are derived purely from these sets so that retried scenarios are never double-counted.
     private static final Set<String> passedScenarioIds = Collections.synchronizedSet(new HashSet<>());
     private static final Set<String> failedScenarioIds = Collections.synchronizedSet(new HashSet<>());
 
@@ -77,9 +76,7 @@ public class CucumberHelper {
      */
     public static void engineSetup() {
         executionStartTime = System.currentTimeMillis();
-        // Reset counters for the new run to avoid accumulation across sequential suite runs.
-        passedScenarios.set(0);
-        failedScenarios.set(0);
+        // Reset counters/sets for the new run to avoid accumulation across sequential suite runs.
         skippedScenarios.set(0);
         passedScenarioIds.clear();
         failedScenarioIds.clear();
@@ -112,14 +109,8 @@ public class CucumberHelper {
      */
     public static void recordScenarioResult(Status status, String scenarioId) {
         switch (status) {
-            case PASSED -> {
-                passedScenarios.incrementAndGet();
-                passedScenarioIds.add(scenarioId);
-            }
-            case FAILED, AMBIGUOUS, UNDEFINED -> {
-                failedScenarios.incrementAndGet();
-                failedScenarioIds.add(scenarioId);
-            }
+            case PASSED -> passedScenarioIds.add(scenarioId);
+            case FAILED, AMBIGUOUS, UNDEFINED -> failedScenarioIds.add(scenarioId);
             // SKIPPED, PENDING, and any future Status values are all treated as skipped
             // because they represent scenarios that did not run to completion successfully.
             default -> skippedScenarios.incrementAndGet();
@@ -146,14 +137,17 @@ public class CucumberHelper {
             AllureManager.generateAllureReportArchive();
             AllureManager.openAllureReportAfterExecution();
             Thread.ofVirtual().start(() -> {
-                // Flaky scenarios appeared in both the failed and passed sets (failed then retried to success).
+                // Derive all counts from the per-scenario-ID sets so retried scenarios are
+                // never double-counted regardless of how many times they were attempted.
                 // Categories are mutually exclusive: passed | failed | skipped | flaky.
+                // Flaky = scenarios that appear in both the failed and passed sets.
                 Set<String> flakyIds = new HashSet<>(failedScenarioIds);
                 flakyIds.retainAll(passedScenarioIds);
                 int flakyCount = flakyIds.size();
-                // Subtract flaky from passed and failed so they are counted only in the flaky category.
-                int uniquePassed = passedScenarios.get() - flakyCount;
-                int uniqueFailed = failedScenarios.get() - flakyCount;
+                // Passed = ultimately passed scenarios, minus those that also failed (flaky).
+                int uniquePassed = passedScenarioIds.size() - flakyCount;
+                // Failed = scenarios that only ever failed (never made it to passed).
+                int uniqueFailed = failedScenarioIds.size() - flakyCount;
                 FirestoreRestClient.sendTelemetry(
                         executionStartTime, executionEndTime,
                         uniquePassed, uniqueFailed, skippedScenarios.get(), flakyCount);

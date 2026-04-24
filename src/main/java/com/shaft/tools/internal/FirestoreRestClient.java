@@ -8,15 +8,13 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.UUID;
 
 /**
@@ -48,24 +46,13 @@ public class FirestoreRestClient {
     private static final String FIREBASE_PROJECT_ID = "shaft-engine";
     private static final String API_KEY = "AIzaSyDnpnsxifokegYIke38I1wzvj5Zcm1a4mA";
     private static final String BASE_URL = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_PROJECT_ID + "/databases/(default)/documents/";
-    private static final HttpClient httpClient = HttpClient.newBuilder().build();
+    private static final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
 
-    // These credentials are required for sending events to Firebase Analytics via the Measurement Protocol.
-    // https://analytics.google.com/analytics/web/?authuser=0&hl=en-GB#/a327683500p504950575/admin/streams/table/12157123249
-    // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=gtag#payload
-    // https://analytics.google.com/analytics/web/?authuser=0&hl=en-GB#/a368239280p504911558/realtime/overview?params=_u..nav%3Dmaui&collectionId=user
-    // The Measurement ID (e.g., "G-XXXXXXXXXX") from your Firebase/GA4 console.
-    /**
-     * api_secret
-     * Required. The API Secret from the Google Analytics UI.
-     * Found under Admin > Data Streams > Choose your stream > Measurement Protocol > Create.
-     * Private to your organization. Should be regularly updated to avoid excessive SPAM.
-     * measurement_id
-     * Measurement ID. The identifier for a Data Stream. Found in the Google Analytics UI under Admin > Data Streams > choose your stream > Measurement ID
-     */
-    private static final String MEASUREMENT_ID = "G-4L9L79WZBV";
-    // The API Secret is found under Admin > Data Streams > Choose your stream > Measurement Protocol > Create
-    private static final String API_SECRET = "nzK22pHiTZWu8FGgvDVtnA";
+    // GA4 Measurement Protocol credentials are read from Internal.java so they can be
+    // overridden in internal.properties without a code change (e.g. for secret rotation).
+    // See: SHAFT.Properties.internal.ga4MeasurementId() / ga4ApiSecret()
 
     // Lazily initialized, stable installation UUID.  Loaded once from disk and cached for the
     // lifetime of the JVM so that repeated telemetry calls avoid redundant file I/O.
@@ -215,8 +202,12 @@ public class FirestoreRestClient {
      * Returns the persistent installation UUID used as {@code client_id} and {@code user_id}.
      * The UUID is read from disk on the first call and cached for the JVM lifetime to avoid
      * repeated file I/O on subsequent telemetry events.
+     * <p>
+     * If the file cannot be written or the content read back is blank (e.g. due to a transient
+     * I/O failure), a freshly generated in-memory UUID is used for this JVM run only, rather
+     * than caching an empty/invalid value that would persist for the lifetime of the process.
      *
-     * @return the stable installation UUID string
+     * @return the stable installation UUID string (never blank)
      */
     private static String resolveClientId() {
         if (cachedClientId == null) {
@@ -228,10 +219,21 @@ public class FirestoreRestClient {
                     // the same UUID across all users of the same repository.
                     String uuidFilePath = "src/test/resources/META-INF/services/uuid";
                     var fileActions = FileActions.getInstance(true);
-                    if (!fileActions.doesFileExist(uuidFilePath)) {
-                        fileActions.writeToFile(uuidFilePath, UUID.randomUUID().toString());
+                    String resolved = null;
+                    try {
+                        if (!fileActions.doesFileExist(uuidFilePath)) {
+                            fileActions.writeToFile(uuidFilePath, UUID.randomUUID().toString());
+                        }
+                        String fromDisk = fileActions.readFile(uuidFilePath);
+                        if (fromDisk != null && !fromDisk.isBlank()) {
+                            resolved = fromDisk.trim();
+                        }
+                    } catch (Exception ignored) {
+                        // Fall through to the in-memory fallback below.
                     }
-                    cachedClientId = fileActions.readFile(uuidFilePath);
+                    // Fall back to a fresh in-memory UUID when the file is unreadable or blank,
+                    // to avoid caching an empty string for the entire JVM lifetime.
+                    cachedClientId = (resolved != null) ? resolved : UUID.randomUUID().toString();
                 }
             }
         }
@@ -268,18 +270,21 @@ public class FirestoreRestClient {
      * @param flakyTests             the number of test methods that failed then passed on retry; 0 if none
      * @throws IOException          in case of a network or IO issue
      * @throws InterruptedException if the operation is interrupted
-     * @throws URISyntaxException   if a constructed URI is malformed
      * @throws JSONException        if the JSON payload cannot be constructed
      */
     public static void logEventToAnalytics(String eventName, long executionStartTime,
                                            long durationInMilliseconds,
                                            int passedTests, int failedTests, int skippedTests, int flakyTests)
-            throws IOException, InterruptedException, URISyntaxException, JSONException {
+            throws IOException, InterruptedException, JSONException {
         // https://analytics.google.com/analytics/web/?authuser=0&hl=en-GB#/a368239280p504911558/realtime/overview?params=_u..nav%3Dmaui
         // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=gtag#payload
 
+        // GA4 credentials are read from SHAFT.Properties so they can be rotated via internal.properties
+        // without requiring a new SHAFT release.
+        String measurementId = SHAFT.Properties.internal.ga4MeasurementId();
+        String apiSecret = SHAFT.Properties.internal.ga4ApiSecret();
         // The Measurement Protocol endpoint.
-        String url = "https://www.google-analytics.com/mp/collect?measurement_id=" + MEASUREMENT_ID + "&api_secret=" + API_SECRET;
+        String url = "https://www.google-analytics.com/mp/collect?measurement_id=" + measurementId + "&api_secret=" + apiSecret;
 
         JSONObject requestBody = new JSONObject();
 
@@ -296,8 +301,18 @@ public class FirestoreRestClient {
         // Forward the client's outbound IP so GA4 can derive country/city automatically.
         // This eliminates the need for a separate geo-lookup HTTP call (e.g. ipinfo.io).
         // https://checkip.amazonaws.com returns the plain outbound IPv4 address.
-        var ip = new BufferedReader(new InputStreamReader(
-                new URI("https://checkip.amazonaws.com").toURL().openStream())).readLine();
+        // Use the shared httpClient (which has a connect timeout) instead of URL.openStream()
+        // to avoid resource leaks and unbounded blocking on slow/unreachable endpoints.
+        HttpRequest ipRequest = HttpRequest.newBuilder()
+                .uri(URI.create("https://checkip.amazonaws.com"))
+                .timeout(Duration.ofSeconds(10))
+                .GET()
+                .build();
+        HttpResponse<String> ipResponse = httpClient.send(ipRequest, HttpResponse.BodyHandlers.ofString());
+        if (ipResponse.statusCode() != 200) {
+            throw new IOException("Failed to retrieve outbound IP from checkip.amazonaws.com: HTTP " + ipResponse.statusCode());
+        }
+        String ip = ipResponse.body().trim();
         requestBody.put("ip_override", ip);
 
         // --- Event payload ---

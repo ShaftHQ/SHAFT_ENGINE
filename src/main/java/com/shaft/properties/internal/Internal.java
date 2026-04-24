@@ -44,4 +44,27 @@ public interface Internal extends EngineProperties<Internal> {
     @Key("nodeLtsVersion")
     @DefaultValue("20.19.1")
     String nodeLtsVersion();
+
+    /**
+     * Google Analytics 4 Measurement ID used for anonymous telemetry.
+     * Found in the GA4 console under Admin &gt; Data Streams &gt; choose your stream &gt; Measurement ID.
+     * Override in {@code internal.properties} to route telemetry to a different GA4 property.
+     */
+    @Key("ga4MeasurementId")
+    @DefaultValue("G-4L9L79WZBV")
+    String ga4MeasurementId();
+
+    /**
+     * Google Analytics 4 API Secret used for the Measurement Protocol.
+     * Found in the GA4 console under Admin &gt; Data Streams &gt; choose your stream &gt;
+     * Measurement Protocol &gt; Create.
+     * Override in {@code internal.properties} to supply a fresh secret after rotation.
+     * <p>
+     * <strong>Note</strong>: if you override this with your own GA4 property's secret,
+     * rotate the secret regularly via the GA4 console to prevent abuse; the new value
+     * can then be supplied via {@code internal.properties} without a SHAFT release.
+     */
+    @Key("ga4ApiSecret")
+    @DefaultValue("nzK22pHiTZWu8FGgvDVtnA")
+    String ga4ApiSecret();
 }
