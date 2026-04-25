@@ -742,7 +742,45 @@ Follow these steps in order when preparing a new SHAFT release:
   find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<shaft_engine.version>OLD</shaft_engine.version>|<shaft_engine.version>NEW</shaft_engine.version>|g'
   ```
 
-### 2. Verify No Stable Dependency Updates Are Skipped
+### 2. Sync All Sample Project Properties with Main `pom.xml`
+
+> **Every release MUST keep all sample project `pom.xml` files fully in sync with the main `pom.xml` — not just the SHAFT version.  Stale values in sample projects cause user confusion and build failures.**
+
+After updating the SHAFT version, compare every versioned property in each sample project against its canonical value in the main `pom.xml` and update anything that has drifted.  The full set of properties to keep in sync is:
+
+| Property | Where to read the canonical value in main `pom.xml` |
+|---|---|
+| `shaft_engine.version` | `<project><version>` (line 6) |
+| `jdk.version` | `<source>` / `<target>` inside `maven-compiler-plugin` configuration |
+| `aspectjweaver.version` | `<version>` of `org.aspectj:aspectjweaver` in `<dependencies>` |
+| `maven-compiler-plugin.version` | `<version>` of the `maven-compiler-plugin` in `<build><plugins>` |
+| `maven-resources-plugin.version` | `<version>` of the `maven-resources-plugin` in `<build><plugins>` |
+| `maven-surefire-plugin.version` | `<version>` of the `maven-surefire-plugin` in the testng/junit profile |
+| `surefire-testng.version` | `<version>` of `org.apache.maven.surefire:surefire-testng` inside `maven-surefire-plugin` dependencies |
+
+**How to check for drift quickly:**
+```bash
+# Extract canonical values from main pom.xml
+grep -E "aspectjweaver|maven-compiler-plugin|maven-resources-plugin|maven-surefire-plugin|surefire-testng" pom.xml | grep "<version>"
+
+# Check what the sample projects currently declare
+grep -rE "jdk\.version|aspectjweaver\.version|maven-compiler-plugin\.version|maven-resources-plugin\.version|maven-surefire-plugin\.version|surefire-testng\.version" src/main/resources/examples/
+```
+
+Apply bulk sed updates for each drifted property across all 7 sample files, for example:
+```bash
+# Example: updating jdk.version from OLD to NEW
+find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<jdk.version>OLD</jdk.version>|<jdk.version>NEW</jdk.version>|g'
+
+# Example: updating aspectjweaver.version
+find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<aspectjweaver.version>OLD</aspectjweaver.version>|<aspectjweaver.version>NEW</aspectjweaver.version>|g'
+
+# Example: updating maven-surefire-plugin.version and surefire-testng.version
+find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<maven-surefire-plugin.version>OLD</maven-surefire-plugin.version>|<maven-surefire-plugin.version>NEW</maven-surefire-plugin.version>|g'
+find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<surefire-testng.version>OLD</surefire-testng.version>|<surefire-testng.version>NEW</surefire-testng.version>|g'
+```
+
+### 3. Verify No Stable Dependency Updates Are Skipped
 Run `mvn versions:display-dependency-updates` and update any dependency that has a **stable** (non-beta, non-RC, non-milestone, non-alpha) newer version.  Pre-release updates should be skipped.
 
 ### 3. Compile and Test
@@ -771,7 +809,8 @@ After the release is published, two more workflows fire automatically:
 ### Checklist
 - [ ] `pom.xml` version updated
 - [ ] `Internal.java` `shaftEngineVersion` `@DefaultValue` updated
-- [ ] All 7 example `pom.xml` files under `src/main/resources/examples/` updated (use bulk `sed` command above)
+- [ ] All 7 example `pom.xml` files under `src/main/resources/examples/` updated — `<shaft_engine.version>` bumped (use bulk `sed` command above)
+- [ ] All 7 example `pom.xml` files synced with main `pom.xml` — check `jdk.version`, `aspectjweaver.version`, `maven-compiler-plugin.version`, `maven-resources-plugin.version`, `maven-surefire-plugin.version`, and `surefire-testng.version` for drift (see Step 2 above)
 - [ ] No stable dependency updates skipped
 - [ ] Compiles: `mvn clean install -DskipTests -Dgpg.skip`
 - [ ] PR merged to `main`
