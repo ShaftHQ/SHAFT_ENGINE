@@ -791,9 +791,21 @@ mvn test -Dtest=<AffectedTests>             # must pass
 
 ### 4. Commit and Merge to `main`
 Merging to `main` automatically triggers the **Maven Central Continuous Delivery** workflow (`mavenCentral_cd.yml`), which:
-1. Creates a GitHub Release tagged with the version from `pom.xml`.
-2. Deploys the artifact to Maven Central.
-3. Dispatches a `shaft-engine-release` event to `ShaftHQ/shafthq.github.io` (user guide repo) via `BOT_TOKEN`.
+1. Substitutes `$RELEASE_VERSION` in `.github/RELEASE_BODY_TEMPLATE.md` and uses it as the release body.
+2. Creates a GitHub Release via `ncipollo/release-action` with `generateReleaseNotes: true` **and** `bodyFile`.
+3. Deploys the artifact to Maven Central.
+4. Dispatches a `shaft-engine-release` event to `ShaftHQ/shafthq.github.io` (user guide repo) via `BOT_TOKEN`.
+
+> [!IMPORTANT]
+> **How release notes are assembled — do not break this contract:**
+> When `ncipollo/release-action` receives both a `bodyFile` and `generateReleaseNotes: true`, it uses the
+> body file as-is and **appends** the auto-generated, label-categorized changelog (from `.github/release.yml`)
+> **after the entire template**. The changelog is NOT injected into any placeholder inside the template.
+>
+> Rules for editing `.github/RELEASE_BODY_TEMPLATE.md`:
+> - ❌ Do NOT add a `## What's Changed` placeholder inside the template — the real one is appended at the end automatically, creating a duplicate.
+> - ❌ Do NOT add static sections that reference optional changelog categories (e.g. `## 💥 Breaking Changes`, `## 🔒 Security`) — those categories only appear in the appended changelog when PRs carry the matching labels. Referencing them unconditionally produces misleading content in releases where no such PRs exist.
+> - ✅ Only include content that is unconditionally useful for every release: upgrade instructions, resources table, and community links.
 
 After the release is published, two more workflows fire automatically:
 - **JavaDocs Publisher** (`publishJavaDocs.yml`) — regenerates and publishes the JavaDoc site.
