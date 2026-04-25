@@ -1,6 +1,15 @@
 <!-- SHAFT_ENGINE Release Body Template
-     Rendered automatically by the Maven Central CD workflow.
-     The auto-generated changelog (categorized via .github/release.yml) is appended below this section by GitHub. -->
+     Rendered automatically by the Maven Central CD workflow (mavenCentral_cd.yml).
+
+     HOW THIS WORKS:
+     - The workflow runs `sed` to replace $RELEASE_VERSION with the actual version, then passes the
+       result as the `bodyFile` to ncipollo/release-action with `generateReleaseNotes: true`.
+     - ncipollo APPENDS the auto-generated changelog (categorized via .github/release.yml) AFTER the
+       entire content of this template. It does NOT inject it into any placeholder inside this file.
+     - Therefore: do NOT add static sections here that reference optional changelog categories
+       (e.g. "Breaking Changes", "Security Fixes") — those sections only appear in the appended
+       changelog when PRs carry the matching labels, and referencing them unconditionally creates
+       misleading empty-looking entries in every release. -->
 
 <div align="center">
 
@@ -40,19 +49,6 @@ Or update the dependency directly:
 
 ---
 
-## 💥 Breaking Changes
-
-> [!WARNING]
-> Check the **Breaking Changes** section in the changelog below before upgrading. Follow the [Migration Guide](https://shafthq.github.io/) if any apply to your project.
-
----
-
-## 🔒 Security
-
-All dependency updates in this release are reviewed and applied automatically via Dependabot. Check the **Security Fixes** and **Dependency Updates** sections in the changelog below for details.
-
----
-
 ## 📖 Resources
 
 | Resource | Link |
@@ -68,13 +64,7 @@ All dependency updates in this release are reviewed and applied automatically vi
 
 ---
 
-## 🌍 What's Changed
-
-<!-- GitHub appends the auto-generated, categorized changelog here -->
-
----
-
-## 🙌 Call to Action
+## 🙌 Get Involved
 
 If SHAFT_ENGINE saves you time, helps your team ship quality software faster, or you just enjoy using it — please consider:
 
@@ -86,8 +76,5 @@ If SHAFT_ENGINE saves you time, helps your team ship quality software faster, or
 
 ---
 
-<div align="center">
+<!-- The auto-generated, categorized changelog (from .github/release.yml) is appended here by GitHub. -->
 
-Made with ❤️ by the SHAFT_ENGINE community
-
-</div>
