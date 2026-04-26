@@ -42,10 +42,51 @@ jobs:
           echo "NEW_VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Determined SHAFT version: $VERSION"
 
+      - name: Extract Canonical Versions from Main pom.xml
+        id: extract-versions
+        run: |
+          # Extract the canonical version for each tracked property from the main pom.xml.
+          # These values are used to keep all sample project pom.xml files in sync.
+
+          extract_version() {
+            local tag="$1"
+            grep -m1 "<${tag}>" pom.xml | sed "s/.*<${tag}>\(.*\)<\/${tag}>.*/\1/" | tr -d ' '
+          }
+
+          extract_plugin_version() {
+            local artifactId="$1"
+            # Extract the <version> that immediately follows the <artifactId> tag in pom.xml
+            grep -A1 "<artifactId>${artifactId}</artifactId>" pom.xml | grep '<version>' | head -1 | sed 's/.*<version>\(.*\)<\/version>.*/\1/' | tr -d ' '
+          }
+
+          # JDK version: read from maven-compiler-plugin <source> configuration
+          JDK_VERSION=$(grep -A10 '<artifactId>maven-compiler-plugin</artifactId>' pom.xml | grep '<source>' | head -1 | sed 's/.*<source>\(.*\)<\/source>.*/\1/' | tr -d ' ')
+
+          ASPECTJWEAVER_VERSION=$(grep -A2 '<artifactId>aspectjweaver</artifactId>' pom.xml | grep '<version>' | head -1 | sed 's/.*<version>\(.*\)<\/version>.*/\1/' | tr -d ' ')
+          COMPILER_PLUGIN_VERSION=$(extract_plugin_version "maven-compiler-plugin")
+          RESOURCES_PLUGIN_VERSION=$(extract_plugin_version "maven-resources-plugin")
+          SUREFIRE_PLUGIN_VERSION=$(extract_plugin_version "maven-surefire-plugin")
+          SUREFIRE_TESTNG_VERSION=$(grep -A2 '<artifactId>surefire-testng</artifactId>' pom.xml | grep '<version>' | head -1 | sed 's/.*<version>\(.*\)<\/version>.*/\1/' | tr -d ' ')
+
+          echo "JDK_VERSION=$JDK_VERSION" >> $GITHUB_OUTPUT
+          echo "ASPECTJWEAVER_VERSION=$ASPECTJWEAVER_VERSION" >> $GITHUB_OUTPUT
+          echo "COMPILER_PLUGIN_VERSION=$COMPILER_PLUGIN_VERSION" >> $GITHUB_OUTPUT
+          echo "RESOURCES_PLUGIN_VERSION=$RESOURCES_PLUGIN_VERSION" >> $GITHUB_OUTPUT
+          echo "SUREFIRE_PLUGIN_VERSION=$SUREFIRE_PLUGIN_VERSION" >> $GITHUB_OUTPUT
+          echo "SUREFIRE_TESTNG_VERSION=$SUREFIRE_TESTNG_VERSION" >> $GITHUB_OUTPUT
+
+          echo "Canonical versions extracted from main pom.xml:"
+          echo "  jdk.version             = $JDK_VERSION"
+          echo "  aspectjweaver.version   = $ASPECTJWEAVER_VERSION"
+          echo "  maven-compiler-plugin   = $COMPILER_PLUGIN_VERSION"
+          echo "  maven-resources-plugin  = $RESOURCES_PLUGIN_VERSION"
+          echo "  maven-surefire-plugin   = $SUREFIRE_PLUGIN_VERSION"
+          echo "  surefire-testng         = $SUREFIRE_TESTNG_VERSION"
+
       - name: Check Current Versions in Examples
         id: check-current
         run: |
-          # Get unique versions from example pom.xml files
+          # Get unique shaft_engine versions from example pom.xml files
           CURRENT_VERSIONS=$(find src/main/resources/examples -name "pom.xml" -exec grep -h '<shaft_engine.version>' {} \; | sed 's/.*<shaft_engine.version>\(.*\)<\/shaft_engine.version>.*/\1/' | tr -d ' ' | sort -u | tr '\n' ' ')
           echo "CURRENT_VERSIONS=$CURRENT_VERSIONS" >> $GITHUB_OUTPUT
           echo "Current SHAFT versions in examples: $CURRENT_VERSIONS"
@@ -54,32 +95,59 @@ jobs:
         id: update-files
         run: |
           NEW_VERSION="${{ steps.get-version.outputs.NEW_VERSION }}"
-          CURRENT_VERSIONS="${{ steps.check-current.outputs.CURRENT_VERSIONS }}"
+          NEW_JDK="${{ steps.extract-versions.outputs.JDK_VERSION }}"
+          NEW_ASPECTJ="${{ steps.extract-versions.outputs.ASPECTJWEAVER_VERSION }}"
+          NEW_COMPILER="${{ steps.extract-versions.outputs.COMPILER_PLUGIN_VERSION }}"
+          NEW_RESOURCES="${{ steps.extract-versions.outputs.RESOURCES_PLUGIN_VERSION }}"
+          NEW_SUREFIRE="${{ steps.extract-versions.outputs.SUREFIRE_PLUGIN_VERSION }}"
+          NEW_SUREFIRE_TESTNG="${{ steps.extract-versions.outputs.SUREFIRE_TESTNG_VERSION }}"
 
-          echo "Updating SHAFT version to: $NEW_VERSION"
+          echo "Syncing all versioned properties to sample projects..."
+          echo "  shaft_engine.version          = $NEW_VERSION"
+          echo "  jdk.version                   = $NEW_JDK"
+          echo "  aspectjweaver.version         = $NEW_ASPECTJ"
+          echo "  maven-compiler-plugin.version = $NEW_COMPILER"
+          echo "  maven-resources-plugin.version= $NEW_RESOURCES"
+          echo "  maven-surefire-plugin.version = $NEW_SUREFIRE"
+          echo "  surefire-testng.version       = $NEW_SUREFIRE_TESTNG"
 
-          # Find all pom.xml files in examples directory
-          POM_FILES=$(find src/main/resources/examples -name "pom.xml")
+          # Helper: safely replace a property value in a pom.xml file
+          update_property() {
+            local file="$1"
+            local prop="$2"
+            local new_val="$3"
+            local old_val
+            old_val=$(grep "<${prop}>" "$file" | head -1 | sed "s/.*<${prop}>\(.*\)<\/${prop}>.*/\1/" | tr -d ' ')
+            if [ -n "$old_val" ] && [ "$old_val" != "$new_val" ]; then
+              local esc_old esc_new
+              esc_old=$(printf '%s\n' "$old_val" | sed 's/[.[\^$*+?(){|}-]/\\&/g')
+              esc_new=$(printf '%s\n' "$new_val" | sed 's/[.[\^$*+?(){|}-]/\\&/g')
+              sed -i "s|<${prop}>${esc_old}</${prop}>|<${prop}>${esc_new}</${prop}>|g" "$file"
+              echo "  Updated ${prop}: $old_val -> $new_val in $file"
+              return 0  # change made
+            fi
+            return 1  # no change
+          }
 
           CHANGES_MADE=false
           FILES_UPDATED=()
 
-          for POM_FILE in $POM_FILES; do
-            # Check if the file contains shaft_engine.version
-            if grep -q 'shaft_engine.version' "$POM_FILE"; then
-              CURRENT_VERSION=$(grep 'shaft_engine.version' "$POM_FILE" | sed 's/.*<shaft_engine.version>\(.*\)<\/shaft_engine.version>.*/\1/' | head -1 | tr -d ' ')
+          for POM_FILE in $(find src/main/resources/examples -name "pom.xml"); do
+            FILE_CHANGED=false
 
-              if [ "$CURRENT_VERSION" != "$NEW_VERSION" ]; then
-                echo "Updating $POM_FILE from $CURRENT_VERSION to $NEW_VERSION"
-                # Escape dots and other special regex characters in versions for safe sed substitution
-                ESCAPED_CURRENT=$(echo "$CURRENT_VERSION" | sed 's/[.[\^$*+?(){|}-]/\\&/g')
-                ESCAPED_NEW=$(echo "$NEW_VERSION" | sed 's/[.[\^$*+?(){|}-]/\\&/g')
-                sed -i "s|<shaft_engine.version>$ESCAPED_CURRENT</shaft_engine.version>|<shaft_engine.version>$ESCAPED_NEW</shaft_engine.version>|g" "$POM_FILE"
-                CHANGES_MADE=true
-                FILES_UPDATED+=("- $POM_FILE")
-              else
-                echo "Skipping $POM_FILE - already at version $NEW_VERSION"
-              fi
+            update_property "$POM_FILE" "shaft_engine.version" "$NEW_VERSION" && FILE_CHANGED=true
+            [ -n "$NEW_JDK" ] && update_property "$POM_FILE" "jdk.version" "$NEW_JDK" && FILE_CHANGED=true
+            [ -n "$NEW_ASPECTJ" ] && update_property "$POM_FILE" "aspectjweaver.version" "$NEW_ASPECTJ" && FILE_CHANGED=true
+            [ -n "$NEW_COMPILER" ] && update_property "$POM_FILE" "maven-compiler-plugin.version" "$NEW_COMPILER" && FILE_CHANGED=true
+            [ -n "$NEW_RESOURCES" ] && update_property "$POM_FILE" "maven-resources-plugin.version" "$NEW_RESOURCES" && FILE_CHANGED=true
+            [ -n "$NEW_SUREFIRE" ] && update_property "$POM_FILE" "maven-surefire-plugin.version" "$NEW_SUREFIRE" && FILE_CHANGED=true
+            [ -n "$NEW_SUREFIRE_TESTNG" ] && update_property "$POM_FILE" "surefire-testng.version" "$NEW_SUREFIRE_TESTNG" && FILE_CHANGED=true
+
+            if [ "$FILE_CHANGED" = true ]; then
+              CHANGES_MADE=true
+              FILES_UPDATED+=("- $POM_FILE")
+            else
+              echo "Skipping $POM_FILE - already in sync"
             fi
           done
 
@@ -91,7 +159,7 @@ jobs:
             echo "Changes were made to sample projects"
           else
             echo "changes=false" >> $GITHUB_OUTPUT
-            echo "No changes needed - all examples are already at version $NEW_VERSION"
+            echo "No changes needed - all examples are already in sync"
           fi
 
       - name: Create Pull Request
@@ -100,22 +168,35 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: |
-            Update sample projects to SHAFT Engine version ${{ steps.get-version.outputs.NEW_VERSION }}
+            Sync sample projects to SHAFT Engine ${{ steps.get-version.outputs.NEW_VERSION }}
 
-            Automatically updated all example pom.xml files to use SHAFT_ENGINE version ${{ steps.get-version.outputs.NEW_VERSION }}
+            Updated all example pom.xml files to use SHAFT_ENGINE ${{ steps.get-version.outputs.NEW_VERSION }}
+            and synced all plugin/dependency versions with the main pom.xml.
           branch: auto-update-sample-projects-version
           delete-branch: true
-          title: 'Update sample projects to SHAFT Engine ${{ steps.get-version.outputs.NEW_VERSION }}'
+          title: 'Sync sample projects to SHAFT Engine ${{ steps.get-version.outputs.NEW_VERSION }}'
           body: |
             ## 🤖 Automated Sample Projects Version Sync
 
-            This PR automatically updates all sample project dependencies to use the latest SHAFT_ENGINE version.
+            This PR automatically keeps all sample project `pom.xml` files in sync with the main `pom.xml`.
 
             ### Version Update:
 
             **New SHAFT_ENGINE Version:** `${{ steps.get-version.outputs.NEW_VERSION }}`
 
             **Previous Versions:** `${{ steps.check-current.outputs.CURRENT_VERSIONS }}`
+
+            ### Properties Synced:
+
+            | Property | New Value |
+            |---|---|
+            | `shaft_engine.version` | `${{ steps.get-version.outputs.NEW_VERSION }}` |
+            | `jdk.version` | `${{ steps.extract-versions.outputs.JDK_VERSION }}` |
+            | `aspectjweaver.version` | `${{ steps.extract-versions.outputs.ASPECTJWEAVER_VERSION }}` |
+            | `maven-compiler-plugin.version` | `${{ steps.extract-versions.outputs.COMPILER_PLUGIN_VERSION }}` |
+            | `maven-resources-plugin.version` | `${{ steps.extract-versions.outputs.RESOURCES_PLUGIN_VERSION }}` |
+            | `maven-surefire-plugin.version` | `${{ steps.extract-versions.outputs.SUREFIRE_PLUGIN_VERSION }}` |
+            | `surefire-testng.version` | `${{ steps.extract-versions.outputs.SUREFIRE_TESTNG_VERSION }}` |
 
             ### Files Updated:
             ${{ steps.update-files.outputs.files_updated }}
@@ -125,12 +206,8 @@ jobs:
             - `src/main/resources/examples/JUnit/`
             - `src/main/resources/examples/Cucumber/`
 
-            ### ✅ Changes Made:
-            - Updated `shaft_engine.version` property in all example pom.xml files
-            - Ensures all sample projects use the same SHAFT_ENGINE version
-
             ### 📋 Trigger:
-            - ${{ github.event_name == 'release' && format('Triggered by release: {0}', github.event.release.tag_name) || (github.event.inputs.version != '' && format('Manually triggered workflow with version: {0}', github.event.inputs.version) || 'Manually triggered workflow') }}
+            - ${{ github.event_name == 'release' && format('Triggered by release: {0}', github.event.release.tag_name) || (github.event.inputs.version != '' && format('Manually triggered with version: {0}', github.event.inputs.version) || 'Manually triggered workflow') }}
 
             Please review and merge if the changes look correct.
           labels: |

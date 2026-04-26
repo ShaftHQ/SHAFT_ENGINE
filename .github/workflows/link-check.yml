@@ -1,0 +1,66 @@
+name: Broken Links Audit
+
+on:
+  schedule:
+    # Runs every Monday at 07:00 UTC
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  link-check:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Check Links in Markdown Files
+        id: lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # Check all Markdown files in docs/, root, and .github templates
+          args: >
+            --verbose
+            --no-progress
+            --timeout 30
+            --max-retries 3
+            --accept 200,429
+            --exclude-path node_modules
+            --exclude-path target
+            --exclude-path .git
+            --exclude 'localhost'
+            --exclude 'http://www.w3.org'
+            --exclude 'mailto:'
+            --exclude 'https://img.shields.io'
+            --exclude 'https://join.slack.com'
+            docs/
+            README.md
+            CONTRIBUTING.md
+            SECURITY.md
+            CODE_OF_CONDUCT.md
+            .github/RELEASE_BODY_TEMPLATE.md
+            .github/pull_request_template.md
+          fail: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Open or Update Issue on Link Failures
+        if: steps.lychee.outputs.exit_code != '0'
+        uses: peter-evans/create-or-update-comment@v4
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Issue for Broken Links
+        if: steps.lychee.outputs.exit_code != '0'
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: '🔗 Broken Links Detected in Documentation'
+          content-filepath: ./lychee/out.md
+          labels: |
+            documentation
+            automated
+            broken-links

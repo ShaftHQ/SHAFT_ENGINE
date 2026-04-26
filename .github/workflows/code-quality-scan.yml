@@ -1,0 +1,110 @@
+name: Code Quality Scan
+
+on:
+  schedule:
+    # Runs every Sunday at 06:00 UTC — weekly quality gate
+    - cron: '0 6 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  quality-scan:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v5
+        with:
+          maven-version: 3.9.5
+
+      - name: Compile
+        run: mvn clean compile -DskipTests -Dgpg.skip -q
+
+      - name: Check for Dependency Updates
+        id: dep-updates
+        run: |
+          mvn versions:display-dependency-updates -Dgpg.skip 2>&1 | tee /tmp/dep-updates.txt || true
+          mvn versions:display-plugin-updates -Dgpg.skip 2>&1 | tee -a /tmp/dep-updates.txt || true
+
+          # Capture only stable (non-beta/RC/milestone) updates
+          UPDATES=$(grep -E "^\[INFO\].*->.*[0-9]+\.[0-9]+\.[0-9]+" /tmp/dep-updates.txt | grep -v -iE "alpha|beta|rc|milestone|snapshot|cr|m[0-9]" | head -40 || true)
+
+          if [ -n "$UPDATES" ]; then
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+            {
+              echo "updates<<EOF"
+              echo "$UPDATES"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+          else
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+            echo "No stable dependency updates found."
+          fi
+
+      - name: Verify Sample Projects Compile
+        run: |
+          for POM in $(find src/main/resources/examples -name "pom.xml"); do
+            DIR=$(dirname "$POM")
+            echo "Checking $DIR ..."
+            # Validate pom.xml structure only (no actual compile — engine not in local repo)
+            mvn validate -f "$POM" -q 2>&1 | tail -5 || true
+          done
+
+      - name: Check Sample Projects Version Drift
+        id: version-drift
+        run: |
+          MAIN_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout 2>/dev/null)
+          DRIFT_FOUND=false
+          DRIFT_DETAILS=""
+
+          for POM in $(find src/main/resources/examples -name "pom.xml"); do
+            SAMPLE_VERSION=$(grep '<shaft_engine.version>' "$POM" | head -1 | sed 's/.*<shaft_engine.version>\(.*\)<\/shaft_engine.version>.*/\1/' | tr -d ' ')
+            if [ -n "$SAMPLE_VERSION" ] && [ "$SAMPLE_VERSION" != "$MAIN_VERSION" ]; then
+              DRIFT_FOUND=true
+              DRIFT_DETAILS="$DRIFT_DETAILS\n- $POM: $SAMPLE_VERSION (expected $MAIN_VERSION)"
+            fi
+          done
+
+          if [ "$DRIFT_FOUND" = true ]; then
+            echo "drift=true" >> $GITHUB_OUTPUT
+            printf "drift_details<<EOF\n%b\nEOF\n" "$DRIFT_DETAILS" >> $GITHUB_OUTPUT
+          else
+            echo "drift=false" >> $GITHUB_OUTPUT
+            echo "All sample projects match main version $MAIN_VERSION"
+          fi
+
+      - name: Open Issue for Dependency Updates
+        if: steps.dep-updates.outputs.has_updates == 'true'
+        uses: peter-evans/create-issue-from-file@v5
+        continue-on-error: true
+        with:
+          title: '📦 Stable Dependency Updates Available'
+          content-filepath: /tmp/dep-updates.txt
+          labels: |
+            dependencies
+            automated
+
+      - name: Open Issue for Version Drift
+        if: steps.version-drift.outputs.drift == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '⚠️ Sample Project Version Drift Detected',
+              body: `## Sample Projects Out of Sync\n\nThe following sample project \`pom.xml\` files have a \`shaft_engine.version\` that does not match the current main \`pom.xml\` version.\n\n${{ steps.version-drift.outputs.drift_details }}\n\nRun the **Sync Sample Projects SHAFT Version** workflow to fix this automatically.`,
+              labels: ['dependencies', 'automated', 'examples']
+            });
