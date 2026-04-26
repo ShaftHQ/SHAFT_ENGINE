@@ -35,19 +35,29 @@ jobs:
       - name: Check for Dependency Updates
         id: dep-updates
         run: |
-          mvn versions:display-dependency-updates -Dgpg.skip 2>&1 | tee /tmp/dep-updates.txt || true
-          mvn versions:display-plugin-updates -Dgpg.skip 2>&1 | tee -a /tmp/dep-updates.txt || true
+          mvn versions:display-dependency-updates -Dgpg.skip 2>&1 | tee /tmp/dep-updates-raw.txt || true
+          mvn versions:display-plugin-updates -Dgpg.skip 2>&1 | tee -a /tmp/dep-updates-raw.txt || true
 
-          # Capture only stable (non-beta/RC/milestone) updates
-          UPDATES=$(grep -E "^\[INFO\].*->.*[0-9]+\.[0-9]+\.[0-9]+" /tmp/dep-updates.txt | grep -v -iE "alpha|beta|rc|milestone|snapshot|cr|m[0-9]" | head -40 || true)
+          # Capture only stable updates (numeric X.Y or X.Y.Z without pre-release identifiers)
+          UPDATES=$(grep -E "^\[INFO\].*->.*[0-9]+\.[0-9]+" /tmp/dep-updates-raw.txt \
+            | grep -v -iE "alpha|beta|rc|milestone|snapshot|cr|m[0-9]" \
+            | head -40 || true)
 
           if [ -n "$UPDATES" ]; then
             echo "has_updates=true" >> $GITHUB_OUTPUT
+            # Write a clean, formatted summary file for the issue body
             {
-              echo "updates<<EOF"
+              echo "## 📦 Stable Dependency Updates Available"
+              echo ""
+              echo "The following dependencies have newer **stable** versions available."
+              echo "Pre-release (alpha, beta, RC, milestone, snapshot) versions are excluded."
+              echo ""
+              echo '```'
               echo "$UPDATES"
-              echo "EOF"
-            } >> $GITHUB_OUTPUT
+              echo '```'
+              echo ""
+              echo "_Triggered by the weekly Code Quality Scan workflow._"
+            } > /tmp/dep-updates.txt
           else
             echo "has_updates=false" >> $GITHUB_OUTPUT
             echo "No stable dependency updates found."

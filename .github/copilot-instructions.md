@@ -821,9 +821,9 @@ After the release is published, additional workflows fire automatically:
 ### Checklist
 - [ ] `pom.xml` version updated
 - [ ] `Internal.java` `shaftEngineVersion` `@DefaultValue` updated
-- [ ] All 7 example `pom.xml` files under `src/main/resources/examples/` updated — `<shaft_engine.version>` bumped (use bulk `sed` command above, or let the **Sync Sample Projects SHAFT Version** workflow handle it automatically on release)
-- [ ] All 7 example `pom.xml` files synced with main `pom.xml` — check `jdk.version`, `aspectjweaver.version`, `maven-compiler-plugin.version`, `maven-resources-plugin.version`, `maven-surefire-plugin.version`, and `surefire-testng.version` for drift (the **Sync Sample Projects SHAFT Version** workflow now handles all of these automatically)
-- [ ] No stable dependency updates skipped (the **Code Quality Scan** workflow flags these weekly)
+- [ ] All 7 example `pom.xml` files under `src/main/resources/examples/` updated — bump `<shaft_engine.version>` manually (use bulk `sed` command above) **or** wait for the **Sync Sample Projects SHAFT Version** workflow to open a PR automatically after the release is published
+- [ ] All 7 example `pom.xml` files synced with main `pom.xml` for plugin/dependency versions — the **Sync Sample Projects SHAFT Version** workflow handles `jdk.version`, `aspectjweaver.version`, `maven-compiler-plugin.version`, `maven-resources-plugin.version`, `maven-surefire-plugin.version`, and `surefire-testng.version` automatically; manually verify only if the workflow fails
+- [ ] No stable dependency updates skipped — the **Code Quality Scan** workflow flags these weekly; check for open issues with the `dependencies` label before releasing
 - [ ] Compiles: `mvn clean install -DskipTests -Dgpg.skip`
 - [ ] PR merged to `main`
 

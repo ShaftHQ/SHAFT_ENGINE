@@ -47,13 +47,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Open or Update Issue on Link Failures
-        if: steps.lychee.outputs.exit_code != '0'
-        uses: peter-evans/create-or-update-comment@v4
-        continue-on-error: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Create Issue for Broken Links
         if: steps.lychee.outputs.exit_code != '0'
         uses: peter-evans/create-issue-from-file@v5
