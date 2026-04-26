@@ -47,13 +47,44 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Issue for Broken Links
+      - name: Create or Update Issue for Broken Links
         if: steps.lychee.outputs.exit_code != '0'
-        uses: peter-evans/create-issue-from-file@v5
+        uses: actions/github-script@v7
         with:
-          title: '🔗 Broken Links Detected in Documentation'
-          content-filepath: ./lychee/out.md
-          labels: |
-            documentation
-            automated
-            broken-links
+          script: |
+            const fs = require('fs');
+            const title = '🔗 Broken Links Detected in Documentation';
+            const labels = ['documentation', 'automated', 'broken-links'];
+            const reportBody = fs.readFileSync('./lychee/out.md', 'utf8');
+
+            const { owner, repo } = context.repo;
+
+            const { data: existingIssues } = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              labels: labels.join(','),
+              per_page: 100
+            });
+
+            const existingIssue = existingIssues.find((issue) =>
+              issue.title === title &&
+              labels.every((label) => issue.labels.some((issueLabel) => issueLabel.name === label))
+            );
+
+            if (existingIssue) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: existingIssue.number,
+                body: `A scheduled link audit detected broken links again. Latest report:\n\n${reportBody}`
+              });
+            } else {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title,
+                body: reportBody,
+                labels
+              });
+            }

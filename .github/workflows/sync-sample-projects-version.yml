@@ -48,15 +48,11 @@ jobs:
           # Extract the canonical version for each tracked property from the main pom.xml.
           # These values are used to keep all sample project pom.xml files in sync.
 
-          extract_version() {
-            local tag="$1"
-            grep -m1 "<${tag}>" pom.xml | sed "s/.*<${tag}>\(.*\)<\/${tag}>.*/\1/" | tr -d ' '
-          }
-
           extract_plugin_version() {
             local artifactId="$1"
-            # Extract the <version> that immediately follows the <artifactId> tag in pom.xml
-            grep -A1 "<artifactId>${artifactId}</artifactId>" pom.xml | grep '<version>' | head -1 | sed 's/.*<version>\(.*\)<\/version>.*/\1/' | tr -d ' '
+            # Use python3 to parse pom.xml as XML so that only <plugin> elements are searched,
+            # avoiding false matches inside <exclusion> blocks that share the same artifactId.
+            python3 -c "import sys,xml.etree.ElementTree as ET; ns='http://maven.apache.org/POM/4.0.0'; root=ET.parse('pom.xml').getroot(); [print(p.find('{%s}version'%ns).text) or sys.exit(0) for p in root.findall('.//{%s}plugin'%ns) if p.find('{%s}artifactId'%ns) is not None and p.find('{%s}artifactId'%ns).text=='$artifactId' and p.find('{%s}version'%ns) is not None]"
           }
 
           # JDK version: read from maven-compiler-plugin <source> configuration
@@ -74,6 +70,12 @@ jobs:
           echo "RESOURCES_PLUGIN_VERSION=$RESOURCES_PLUGIN_VERSION" >> $GITHUB_OUTPUT
           echo "SUREFIRE_PLUGIN_VERSION=$SUREFIRE_PLUGIN_VERSION" >> $GITHUB_OUTPUT
           echo "SUREFIRE_TESTNG_VERSION=$SUREFIRE_TESTNG_VERSION" >> $GITHUB_OUTPUT
+
+          # Fail early if any version resolved to empty — prevents silently skipping properties
+          if [ -z "$COMPILER_PLUGIN_VERSION" ] || [ -z "$RESOURCES_PLUGIN_VERSION" ] || [ -z "$SUREFIRE_PLUGIN_VERSION" ]; then
+            echo "::error::One or more plugin versions could not be extracted from pom.xml"
+            exit 1
+          fi
 
           echo "Canonical versions extracted from main pom.xml:"
           echo "  jdk.version             = $JDK_VERSION"

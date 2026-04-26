@@ -65,12 +65,25 @@ jobs:
 
       - name: Verify Sample Projects Compile
         run: |
-          for POM in $(find src/main/resources/examples -name "pom.xml"); do
+          set -o pipefail
+          VALIDATION_FAILED=false
+          FAILED_POMS=""
+
+          while IFS= read -r -d '' POM; do
             DIR=$(dirname "$POM")
             echo "Checking $DIR ..."
             # Validate pom.xml structure only (no actual compile — engine not in local repo)
-            mvn validate -f "$POM" -q 2>&1 | tail -5 || true
-          done
+            if ! mvn validate -f "$POM" -q 2>&1 | tail -5; then
+              VALIDATION_FAILED=true
+              FAILED_POMS="${FAILED_POMS}\n- $POM"
+            fi
+          done < <(find src/main/resources/examples -name "pom.xml" -print0)
+
+          if [ "$VALIDATION_FAILED" = true ]; then
+            echo "Sample project validation failed for the following pom.xml files:"
+            printf "%b\n" "$FAILED_POMS"
+            exit 1
+          fi
 
       - name: Check Sample Projects Version Drift
         id: version-drift
@@ -95,26 +108,82 @@ jobs:
             echo "All sample projects match main version $MAIN_VERSION"
           fi
 
-      - name: Open Issue for Dependency Updates
+      - name: Open or Update Issue for Dependency Updates
         if: steps.dep-updates.outputs.has_updates == 'true'
-        uses: peter-evans/create-issue-from-file@v5
+        uses: actions/github-script@v7
         continue-on-error: true
         with:
-          title: '📦 Stable Dependency Updates Available'
-          content-filepath: /tmp/dep-updates.txt
-          labels: |
-            dependencies
-            automated
+          script: |
+            const fs = require('fs');
+            const title = '📦 Stable Dependency Updates Available';
+            const labels = ['dependencies', 'automated'];
+            const body = fs.readFileSync('/tmp/dep-updates.txt', 'utf8');
 
-      - name: Open Issue for Version Drift
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: labels.join(','),
+              per_page: 100
+            });
+
+            const existingIssue = issues.find((issue) =>
+              issue.title === title &&
+              labels.every((label) => issue.labels.some((issueLabel) => issueLabel.name === label))
+            );
+
+            if (existingIssue) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: `A scheduled scan detected that stable dependency updates are still available.\n\nLatest report:\n\n${body}`
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels
+              });
+            }
+
+      - name: Open or Update Issue for Version Drift
         if: steps.version-drift.outputs.drift == 'true'
         uses: actions/github-script@v7
         with:
           script: |
-            await github.rest.issues.create({
+            const title = '⚠️ Sample Project Version Drift Detected';
+            const labels = ['dependencies', 'automated', 'examples'];
+            const body = `## Sample Projects Out of Sync\n\nThe following sample project \`pom.xml\` files have a \`shaft_engine.version\` that does not match the current main \`pom.xml\` version.\n\n${{ steps.version-drift.outputs.drift_details }}\n\nRun the **Sync Sample Projects SHAFT Version** workflow to fix this automatically.`;
+
+            const { data: issues } = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: '⚠️ Sample Project Version Drift Detected',
-              body: `## Sample Projects Out of Sync\n\nThe following sample project \`pom.xml\` files have a \`shaft_engine.version\` that does not match the current main \`pom.xml\` version.\n\n${{ steps.version-drift.outputs.drift_details }}\n\nRun the **Sync Sample Projects SHAFT Version** workflow to fix this automatically.`,
-              labels: ['dependencies', 'automated', 'examples']
+              state: 'open',
+              labels: labels.join(','),
+              per_page: 100
             });
+
+            const existingIssue = issues.find((issue) =>
+              issue.title === title &&
+              labels.every((label) => issue.labels.some((issueLabel) => issueLabel.name === label))
+            );
+
+            if (existingIssue) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: `A scheduled scan detected that sample project version drift still exists.\n\nLatest report:\n\n${body}`
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels
+              });
+            }
