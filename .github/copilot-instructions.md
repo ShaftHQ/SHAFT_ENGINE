@@ -807,9 +807,9 @@ Merging to `main` automatically triggers the **Maven Central Continuous Delivery
 > - ❌ Do NOT add static sections that reference optional changelog categories (e.g. `## 💥 Breaking Changes`, `## 🔒 Security`) — those categories only appear in the appended changelog when PRs carry the matching labels. Referencing them unconditionally produces misleading content in releases where no such PRs exist.
 > - ✅ Only include content that is unconditionally useful for every release: upgrade instructions, resources table, and community links.
 
-After the release is published, two more workflows fire automatically:
+After the release is published, additional workflows fire automatically:
 - **JavaDocs Publisher** (`publishJavaDocs.yml`) — regenerates and publishes the JavaDoc site.
-- **Sync Sample Projects SHAFT Version** (`sync-sample-projects-version.yml`) — opens a PR in this repo updating all example `pom.xml` files to the new version.
+- **Sync Sample Projects SHAFT Version** (`sync-sample-projects-version.yml`) — opens a PR syncing all example `pom.xml` files to the new `shaft_engine.version` **and** all tracked plugin/dependency versions (`jdk.version`, `aspectjweaver.version`, `maven-compiler-plugin.version`, `maven-resources-plugin.version`, `maven-surefire-plugin.version`, `surefire-testng.version`).
 
 ### Required Secrets
 | Secret | Purpose |
@@ -821,9 +821,9 @@ After the release is published, two more workflows fire automatically:
 ### Checklist
 - [ ] `pom.xml` version updated
 - [ ] `Internal.java` `shaftEngineVersion` `@DefaultValue` updated
-- [ ] All 7 example `pom.xml` files under `src/main/resources/examples/` updated — `<shaft_engine.version>` bumped (use bulk `sed` command above)
-- [ ] All 7 example `pom.xml` files synced with main `pom.xml` — check `jdk.version`, `aspectjweaver.version`, `maven-compiler-plugin.version`, `maven-resources-plugin.version`, `maven-surefire-plugin.version`, and `surefire-testng.version` for drift (see Step 2 above)
-- [ ] No stable dependency updates skipped
+- [ ] All 7 example `pom.xml` files under `src/main/resources/examples/` updated — bump `<shaft_engine.version>` manually (use bulk `sed` command above) **or** wait for the **Sync Sample Projects SHAFT Version** workflow to open a PR automatically after the release is published
+- [ ] All 7 example `pom.xml` files synced with main `pom.xml` for plugin/dependency versions — the **Sync Sample Projects SHAFT Version** workflow handles `jdk.version`, `aspectjweaver.version`, `maven-compiler-plugin.version`, `maven-resources-plugin.version`, `maven-surefire-plugin.version`, and `surefire-testng.version` automatically; manually verify only if the workflow fails
+- [ ] No stable dependency updates skipped — the **Code Quality Scan** workflow flags these weekly; check for open issues with the `dependencies` label before releasing
 - [ ] Compiles: `mvn clean install -DskipTests -Dgpg.skip`
 - [ ] PR merged to `main`
 
@@ -1043,8 +1043,33 @@ SHAFT.Properties.visuals.set().recordVideo(true);
 ## Getting Help
 - Review existing tests in `src/test/java/testPackage/` for examples
 - Check documentation at https://shafthq.github.io/
+- Explore the SHAFT MCP server at https://github.com/ShaftHQ/SHAFT_MCP for AI-native tool integrations
 - Join the Slack community for questions
 - Review README.md and CONTRIBUTING.md for contribution guidelines
+
+---
+
+## Copilot Self-Improvement Guidelines
+
+These guidelines apply to GitHub Copilot coding agent sessions working on this repository.  After every major conversation or implementation session, Copilot **should** capture learnings that prevent repeating the same mistakes and improve future sessions.
+
+### What to Capture After Each Session
+1. **New patterns discovered** — if you found a better way to implement something, note it in the relevant section of these instructions.
+2. **Anti-patterns encountered** — if you ran into a trap or common mistake, add it to the appropriate "Anti-patterns to avoid" list.
+3. **Edge cases** — if a test revealed an unexpected edge case, document it near the relevant SHAFT API section.
+4. **Workflow improvements** — if a CI/CD workflow behaved unexpectedly, note the root cause and the correct fix.
+
+### When to Update These Instructions
+- When a significant new SHAFT API surface is added (add usage examples to the relevant section).
+- When a PDCA cycle reveals that a guideline was incorrect or incomplete (correct it directly).
+- When a new workflow is added to `.github/workflows/` (add it to the Release Process or appropriate section).
+- When a breaking change is introduced (update anti-patterns and migration notes).
+
+### Self-Improvement Anti-Patterns to Avoid
+- ❌ Don't add comments like "TODO: improve later" — fix it now or open a tracking issue
+- ❌ Don't repeat the same mistake across sessions — update the instructions to prevent it
+- ❌ Don't leave instructions that contradict each other — resolve conflicts immediately
+- ❌ Don't add redundant instructions that duplicate what's already written elsewhere in this file
 
 ---
 **Note**: These instructions are designed to help GitHub Copilot coding agent generate high-quality, maintainable code that follows SHAFT framework best practices. **You MUST NEVER commit untested code.** Always compile, create tests, run tests (with screenshots), and review code before every commit — no exceptions.

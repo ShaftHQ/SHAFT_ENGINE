@@ -56,6 +56,7 @@ Or update the dependency directly:
 | 📚 Full Documentation | [shafthq.github.io](https://shafthq.github.io/) |
 | 🚀 Getting Started | [Quick-Start Guide](https://shafthq.github.io/) |
 | 📋 JavaDocs | [ShaftHQ JavaDoc](https://shafthq.github.io/SHAFT_ENGINE/) |
+| 🤖 MCP Server | [SHAFT_MCP](https://github.com/ShaftHQ/SHAFT_MCP) |
 | 🗺️ Roadmap | [GitHub Projects](https://github.com/orgs/ShaftHQ/projects) |
 | 💬 Community | [GitHub Discussions](https://github.com/ShaftHQ/SHAFT_ENGINE/discussions) |
 | 🐛 Report a Bug | [Bug Report](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/new?template=bug_report.md) |
