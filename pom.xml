@@ -554,7 +554,7 @@
         <dependency>
             <groupId>com.github.mwiede</groupId>
             <artifactId>jsch</artifactId>
-            <version>2.28.0</version>
+            <version>2.28.2</version>
         </dependency>
 
         <!-- DATABASE CONNECTORS -->
