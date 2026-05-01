@@ -10,7 +10,7 @@ Each subdirectory contains skill files tailored to a specific AI agent or model.
 
 | Agent / Model | Directory | Description |
 |---|---|---|
-| [GitHub Copilot](./github-copilot/) | `github-copilot/` | Skills for GitHub Copilot integration with SHAFT |
+| [GitHub Copilot](./github-copilot/) | `github-copilot/` | Skills for GitHub Copilot integration with SHAFT (CI triage, flaky-test stabilization, release guard) |
 | [DeepSeek](./deepseek/) | `deepseek/` | Skills for DeepSeek AI model integration |
 | [Qwen](./qwen/) | `qwen/` | Skills for Alibaba's Qwen model integration |
 | [Claude Code](./claude-code/) | `claude-code/` | Skills for Anthropic's Claude Code integration |

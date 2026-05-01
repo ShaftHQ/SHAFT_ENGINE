@@ -8,7 +8,11 @@ GitHub Copilot is an AI pair programmer that helps you write code faster. It dra
 
 ## Available Skills
 
-_No skills have been added yet. Contributions are welcome!_
+| Skill | File | Description |
+|---|---|---|
+| CI Failure Investigator | [ci-failure-investigator.md](./ci-failure-investigator.md) | Ingests CI workflow logs, summarizes root causes, maps failures to source files, and proposes minimal fix strategies |
+| Flaky Test Stabilizer | [flaky-test-stabilizer.md](./flaky-test-stabilizer.md) | Detects intermittent test anti-patterns, proposes stabilization plans, and generates regression checks |
+| Release & Dependency Guard | [release-dependency-guard.md](./release-dependency-guard.md) | Validates release-version consistency, detects dependency drift, and generates release readiness reports |
 
 ## Notes
 
