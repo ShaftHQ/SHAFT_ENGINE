@@ -1,8 +1,11 @@
 package testPackage.unitTests;
 
 import com.shaft.tools.internal.support.JavaScriptHelper;
+import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.lang.reflect.Method;
 
 /**
  * Unit tests for JavaScriptWaitManager and JavaScriptHelper.
@@ -11,69 +14,75 @@ import org.testng.annotations.Test;
  */
 public class JavaScriptWaitManagerUnitTest {
 
-    @Test(description = "Verify INSTALL_ASYNC_ACTIVITY_MONITOR script is defined and non-empty")
-    public void testInstallAsyncActivityMonitorScriptIsDefined() {
-        String script = JavaScriptHelper.INSTALL_ASYNC_ACTIVITY_MONITOR.getValue();
+    @Test(description = "Verify network idle window logic requires 500ms of continuous zero active requests")
+    public void testNetworkIdleWindowLogicRequiresContinuousQuietPeriod() throws Exception {
+        final long startTime = 1000L;
+        final long belowQuietWindowTime = startTime + 300L;
+        final long reachesQuietWindowTime = startTime + 500L;
+        final long busyPollTime = startTime + 600L;
+        final long firstIdleAfterResetTime = startTime + 700L;
+
+        Method method = JavaScriptWaitManager.class.getDeclaredMethod(
+                "hasMetMinimumIdleWindow",
+                long.class,
+                long[].class,
+                long.class
+        );
+        method.setAccessible(true);
+
+        long[] idleSince = {-1L};
+
+        boolean firstIdleCheck = (boolean) method.invoke(null, 0L, idleSince, startTime);
+        boolean secondIdleCheck = (boolean) method.invoke(null, 0L, idleSince, belowQuietWindowTime);
+        boolean thirdIdleCheck = (boolean) method.invoke(null, 0L, idleSince, reachesQuietWindowTime);
+        boolean busyCheck = (boolean) method.invoke(null, 2L, idleSince, busyPollTime);
+        boolean afterResetIdleCheck = (boolean) method.invoke(null, 0L, idleSince, firstIdleAfterResetTime);
+
+        Assert.assertFalse(firstIdleCheck, "The first idle poll should start the quiet window and not pass yet.");
+        Assert.assertFalse(secondIdleCheck, "Quiet window below 500ms should not pass.");
+        Assert.assertTrue(thirdIdleCheck, "Quiet window at or above 500ms should pass.");
+        Assert.assertFalse(busyCheck, "Any active request should reset the idle window and fail the check.");
+        Assert.assertFalse(afterResetIdleCheck, "After reset, the first idle poll should fail until 500ms elapses again.");
+        Assert.assertEquals(idleSince[0], firstIdleAfterResetTime, "Idle window should restart from the latest zero-activity timestamp.");
+    }
+
+    @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script is defined and non-empty")
+    public void testActiveNetworkRequestsCountScriptIsDefined() {
+        String script = JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue();
         Assert.assertNotNull(script, "Script should not be null");
         Assert.assertFalse(script.isBlank(), "Script should not be blank");
     }
 
-    @Test(description = "Verify INSTALL_ASYNC_ACTIVITY_MONITOR script instruments xhr and fetch")
-    public void testInstallAsyncActivityMonitorScriptInstrumentsXHRAndFetch() {
-        String script = JavaScriptHelper.INSTALL_ASYNC_ACTIVITY_MONITOR.getValue();
+    @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script instruments XHR and fetch")
+    public void testActiveNetworkRequestsCountScriptInstrumentsXHRAndFetch() {
+        String script = JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue();
         Assert.assertTrue(script.contains("XMLHttpRequest"),
                 "Script should reference XMLHttpRequest to track AJAX requests");
         Assert.assertTrue(script.contains("fetch"),
                 "Script should reference the fetch API to track fetch requests");
-        Assert.assertTrue(script.contains("__shaftAsyncMonitor"),
-                "Script should use a single async monitor object to count pending activities");
     }
 
-    @Test(description = "Verify INSTALL_ASYNC_ACTIVITY_MONITOR script is idempotent via installation flag")
-    public void testInstallAsyncActivityMonitorScriptIsIdempotent() {
-        String script = JavaScriptHelper.INSTALL_ASYNC_ACTIVITY_MONITOR.getValue();
-        Assert.assertTrue(script.contains("installed"),
-                "Script should check an installation flag to prevent double instrumentation");
+    @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script is idempotent via tracker flag")
+    public void testActiveNetworkRequestsCountScriptIsIdempotent() {
+        String script = JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue();
+        Assert.assertTrue(script.contains("_shaftNetworkTracker"),
+                "Script should check a tracker flag to prevent double instrumentation");
     }
 
-    @Test(description = "Verify GET_ASYNC_ACTIVITY_SNAPSHOT script returns snapshot")
-    public void testGetAsyncActivitySnapshotScriptReturnsSnapshot() {
-        String script = JavaScriptHelper.GET_ASYNC_ACTIVITY_SNAPSHOT.getValue();
-        Assert.assertTrue(script.contains("getSnapshot"),
-                "Script should invoke getSnapshot from the installed monitor");
-    }
-
-    @Test(description = "Verify INSTALL_ASYNC_ACTIVITY_MONITOR script protects against negative counts")
-    public void testInstallAsyncActivityMonitorScriptProtectsAgainstNegativeCounts() {
-        String script = JavaScriptHelper.INSTALL_ASYNC_ACTIVITY_MONITOR.getValue();
+    @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script protects against negative counts")
+    public void testActiveNetworkRequestsCountScriptProtectsAgainstNegativeCounts() {
+        String script = JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue();
         Assert.assertTrue(script.contains("Math.max(0,"),
                 "Script should use Math.max(0, ...) to prevent the counter from going negative");
     }
 
-    @Test(description = "Verify INSTALL_ASYNC_ACTIVITY_MONITOR script uses prototype patching for XHR")
-    public void testInstallAsyncActivityMonitorScriptUsesPrototypePatchingForXHR() {
-        String script = JavaScriptHelper.INSTALL_ASYNC_ACTIVITY_MONITOR.getValue();
-        Assert.assertTrue(script.contains("XMLHttpRequest.prototype.send"),
-                "Script should patch XMLHttpRequest.prototype.send to intercept XHR send calls");
+    @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script patches XMLHttpRequest.prototype.open")
+    public void testActiveNetworkRequestsCountScriptPatchesXHROpen() {
+        String script = JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue();
+        Assert.assertTrue(script.contains("XMLHttpRequest.prototype.open"),
+                "Script should patch XMLHttpRequest.prototype.open to intercept XHR calls");
         Assert.assertTrue(script.contains("loadend"),
                 "Script should listen for loadend to finalize XHR tracking");
-    }
-
-    @Test(description = "Verify INSTALL_ASYNC_ACTIVITY_MONITOR script tracks additional async sources")
-    public void testInstallAsyncActivityMonitorScriptTracksAdditionalAsyncSources() {
-        String script = JavaScriptHelper.INSTALL_ASYNC_ACTIVITY_MONITOR.getValue();
-        Assert.assertTrue(script.contains("sendBeacon"),
-                "Script should instrument navigator.sendBeacon");
-        Assert.assertTrue(script.contains("WebSocket"),
-                "Script should instrument WebSocket connection state");
-        Assert.assertTrue(script.contains("EventSource"),
-                "Script should instrument EventSource connection state");
-        Assert.assertTrue(script.contains("pendingImages"),
-                "Script should check for pending images");
-        Assert.assertTrue(script.contains("resourcesGrowing"),
-                "Script should track growing resource entries");
-        Assert.assertTrue(script.contains("quietForMs"),
-                "Script should include a quietForMs stability measurement");
     }
 
     @Test(description = "Verify ANGULAR2_READY_STATE script is defined and checks Angular 2+ testabilities")

@@ -10,7 +10,6 @@ import org.openqa.selenium.WebDriver;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 
 public class JavaScriptWaitManager {
     private static final List<String> COMPLETE_READY_STATES = List.of("loaded", "complete");
@@ -32,7 +31,7 @@ public class JavaScriptWaitManager {
                     Thread.ofVirtual().start(() -> waitForJQuery(driver)),
                     Thread.ofVirtual().start(() -> waitForAngular(driver)),
                     Thread.ofVirtual().start(() -> waitForDocumentReadyState(driver)),
-                    Thread.ofVirtual().start(() -> waitUntilWebsiteIsIdle(driver))
+                    Thread.ofVirtual().start(() -> waitUntilNoActiveNetworkRequests(driver))
             );
             lazyLoadingThreads.forEach(thread -> {
                 try {
@@ -47,26 +46,20 @@ public class JavaScriptWaitManager {
         }
     }
 
-    private static void waitUntilWebsiteIsIdle(WebDriver driver) {
-        //Wait for full async activity to stay idle for a minimum quiet window
-        if (driver instanceof JavascriptExecutor javascriptExecutor) {
-            installAsyncActivityMonitor(javascriptExecutor);
-        }
+    private static void waitUntilNoActiveNetworkRequests(WebDriver driver) {
+        //Wait for active XHR/fetch requests to remain idle for the minimum quiet window
+        final long[] idleSinceMillis = {-1L};
         new SynchronizationManager(driver).fluentWait().pollingEvery(ACTIVE_REQUEST_POLLING_INTERVAL).until(f -> {
             if (f instanceof JavascriptExecutor javascriptExecutor) {
                 try {
-                    var snapshot = readAsyncActivitySnapshot(javascriptExecutor);
-                    if (snapshot == null) {
-                        return true;
+                    var returnedValue = javascriptExecutor.executeScript(JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue());
+                    long activeRequests = 0L;
+                    if (returnedValue instanceof Number numberValue) {
+                        activeRequests = numberValue.longValue();
+                    } else if (returnedValue != null) {
+                        activeRequests = Long.parseLong(returnedValue.toString());
                     }
-                    if (!Boolean.TRUE.equals(snapshot.get("idle"))) {
-                        return false;
-                    }
-                    var quietForMs = snapshot.get("quietForMs");
-                    if (!(quietForMs instanceof Number quietForMsNumber)) {
-                        return false;
-                    }
-                    return quietForMsNumber.longValue() >= MINIMUM_IDLE_WINDOW.toMillis();
+                    return hasMetMinimumIdleWindow(activeRequests, idleSinceMillis, System.currentTimeMillis());
                 } catch (Exception exception) {
                     // force return in case of unexpected exception
                     // e.g. org.openqa.selenium.JavascriptException if the script cannot execute
@@ -78,17 +71,30 @@ public class JavaScriptWaitManager {
         });
     }
 
-    private static void installAsyncActivityMonitor(JavascriptExecutor javascriptExecutor) {
-        javascriptExecutor.executeScript(JavaScriptHelper.INSTALL_ASYNC_ACTIVITY_MONITOR.getValue());
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> readAsyncActivitySnapshot(JavascriptExecutor javascriptExecutor) {
-        var result = javascriptExecutor.executeScript(JavaScriptHelper.GET_ASYNC_ACTIVITY_SNAPSHOT.getValue());
-        if (result instanceof Map<?, ?> mapResult) {
-            return (Map<String, Object>) mapResult;
+    /**
+     * Evaluates whether the network has remained idle for the configured quiet window.
+     * <p>
+     * State machine behavior:
+     * <ul>
+     *   <li>On the first poll where {@code activeRequests == 0}, the quiet-window start time is captured.</li>
+     *   <li>On subsequent zero-activity polls, the method returns {@code true} once the quiet window is reached.</li>
+     *   <li>On any poll where {@code activeRequests > 0}, the quiet-window state is reset.</li>
+     * </ul>
+     *
+     * @param activeRequests  current number of active network requests
+     * @param idleSinceMillis single-element state holder for quiet-window start timestamp
+     * @param nowMillis       current time in milliseconds
+     * @return {@code true} when the quiet window has been satisfied, otherwise {@code false}
+     */
+    private static boolean hasMetMinimumIdleWindow(long activeRequests, long[] idleSinceMillis, long nowMillis) {
+        if (activeRequests == 0) {
+            if (idleSinceMillis[0] < 0) {
+                idleSinceMillis[0] = nowMillis;
+            }
+            return (nowMillis - idleSinceMillis[0]) >= MINIMUM_IDLE_WINDOW.toMillis();
         }
-        return null;
+        idleSinceMillis[0] = -1L;
+        return false;
     }
 
     private static void waitForDocumentReadyState(WebDriver driver) {

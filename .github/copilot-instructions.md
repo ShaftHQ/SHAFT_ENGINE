@@ -91,6 +91,18 @@ Before **every** commit, you **must** complete **all** of the following steps in
 - **Build**: `mvn clean install -DskipTests -Dgpg.skip`
 - **Run All Tests**: `mvn test`
 - **Run Specific Tests**: `mvn test -Dtest=TestClassName`
+- **Run Side-by-Side Comparison (before/after focused change)**:
+  ```bash
+  BEFORE=<before_commit> AFTER=<after_commit> TESTS='testPackage.ClassA,testPackage.ClassB'
+  for C in "$BEFORE" "$AFTER"; do
+    git checkout -q "$C"
+    START=$(date +%s)
+    mvn test -Dtest="$TESTS" -Dgpg.skip > "/tmp/compare_${C}.log" 2>&1
+    END=$(date +%s)
+    echo "${C},$((END-START))s"
+    grep -E "Tests run:|BUILD SUCCESS|BUILD FAILURE" "/tmp/compare_${C}.log" | tail -10
+  done
+  ```
 - **Generate JavaDocs**: `mvn javadoc:javadoc`
 - **Code Analysis**: CodeQL runs automatically on PRs
 
