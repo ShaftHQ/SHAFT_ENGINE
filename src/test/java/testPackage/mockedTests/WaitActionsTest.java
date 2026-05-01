@@ -37,6 +37,22 @@ public class WaitActionsTest {
                 .perform();
     }
 
+    @Test
+    public void expectedConditionReturningWebElement() {
+        driver.get().element().type(locator, "web element condition")
+                .and().waitUntil(ExpectedConditions.visibilityOfElementLocated(locator))
+                .and().element().assertThat(locator).text().isEqualTo("web element condition")
+                .perform();
+    }
+
+    @Test
+    public void expectedConditionReturningListOfWebElements() {
+        driver.get().element().type(locator, "list condition")
+                .and().waitUntil(ExpectedConditions.presenceOfAllElementsLocatedBy(locator))
+                .and().element().assertThat(locator).text().isEqualTo("list condition")
+                .perform();
+    }
+
     @Test(expectedExceptions = RuntimeException.class)
     public void expectedConditionExpectedToFail() {
         driver.get().element().type(locator, "first string")
