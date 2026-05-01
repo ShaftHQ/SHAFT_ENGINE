@@ -5,7 +5,9 @@
 </head>
 <body>
   <script>
-    const MAX_CONTENT_CHARS = 1_000_000; // protect model context and app memory
+    // Tune this limit if your target model/context window requires a different cap.
+    const MAX_FILE_SIZE_CHARS = 1_000_000;
+    // Tune timeout based on expected network conditions in your deployment environment.
     const FETCH_TIMEOUT_MS = 15_000;
 
     window['ai_edge_gallery_get_result'] = async (data) => {
@@ -47,25 +49,20 @@
             return JSON.stringify({ error: "File is empty or could not be read." });
           }
 
-          if (content.length > MAX_CONTENT_CHARS) {
+          if (content.length > MAX_FILE_SIZE_CHARS) {
             return JSON.stringify({
               error: `File is too large (${content.length} chars). Please provide a smaller file.`
             });
           }
 
-          return JSON.stringify({
-            result: content,
-            metadata: {
-              sourceUrl: inputUrl,
-              fetchedUrl: rawUrl,
-              size: content.length
-            }
-          });
+          return JSON.stringify({ result: content });
         } finally {
           clearTimeout(timeout);
         }
       } catch (e) {
-        const isAbort = e && e.name === "AbortError";
+        const isAbort = typeof DOMException !== "undefined"
+          ? (e instanceof DOMException && e.name === "AbortError")
+          : (e && e.name === "AbortError");
         return JSON.stringify({
           error: isAbort ? "Fetch timed out. Please retry with a valid public GitHub file URL." : `Fetch error: ${e.message}`
         });
@@ -87,8 +84,15 @@
       const cleanPath = path.replace(/\/+$/, "");
 
       if (hostname === "raw.githubusercontent.com") {
-        if (!cleanPath || cleanPath.split("/").length < 5) {
+        // Expected raw path shape: /owner/repo/branch/file (root file) or deeper
+        // Minimum segments are 4: owner, repo, branch, file
+        const rawParts = cleanPath.split("/").filter(Boolean);
+        if (!cleanPath || rawParts.length < 4) {
           throw new Error("Invalid raw GitHub file URL.");
+        }
+        const [owner, repo, branch, ...fileParts] = rawParts;
+        if (!owner || !repo || !branch || fileParts.length === 0 || !fileParts.join("/")) {
+          throw new Error("Incomplete raw GitHub file URL.");
         }
         return `https://raw.githubusercontent.com${cleanPath}`;
       }
@@ -99,6 +103,8 @@
 
       // Expected: /{owner}/{repo}/blob/{branch}/{path/to/file}
       const parts = cleanPath.split("/").filter(Boolean);
+      // Expected github.com path shape: /owner/repo/blob/branch/file (root file) or deeper
+      // -> 'blob' must be at index 2 and minimum segments are 5
       if (parts.length < 5 || parts[2] !== "blob") {
         throw new Error("Expected a GitHub file URL in /owner/repo/blob/branch/path format.");
       }

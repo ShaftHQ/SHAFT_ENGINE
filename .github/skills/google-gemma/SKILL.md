@@ -50,9 +50,9 @@ Before proposing fixes, follow this order:
    - Avoid “possible causes” without ranking; provide a primary cause and secondary suspects.
 
 3. **Classify confidence**
-   - High confidence: direct anti-pattern match in code.
-   - Medium confidence: inferred from partial code context.
-   - Low confidence: missing key files/signals.
+   - High confidence: direct anti-pattern match in code (example: teardown has `driver.get().quit()` but no `driver.remove()`).
+   - Medium confidence: inferred from partial code context (example: stack trace points to teardown class but teardown source is incomplete).
+   - Low confidence: missing key files/signals (example: only error message is provided with no related code or lifecycle methods).
 
 4. **Propose minimal safe fix first**
    - Prefer smallest change that removes root cause.
@@ -107,7 +107,7 @@ Use this exact structure:
 ### Summary
 - Total issues found: [count]
 - Critical: [n] | High: [n] | Medium: [n] | Low: [n]
-- Confidence: High / Medium / Low
+- Confidence: High [n] | Medium [n] | Low [n]
 
 ### Recommended Fix Order
 1. [Highest risk issue]
