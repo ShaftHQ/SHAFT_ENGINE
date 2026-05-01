@@ -7,8 +7,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.time.Duration;
-
 public class WaitActionsTest {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     String testElement = "data:text/html,<input type=\"text\"/><br><br>";
@@ -41,12 +39,18 @@ public class WaitActionsTest {
 
     @Test
     public void expectedConditionReturningWebElement() {
-        driver.get().element().waitUntil(ExpectedConditions.visibilityOfElementLocated(locator), Duration.ofSeconds(2));
+        driver.get().element().type(locator, "web element condition")
+                .and().waitUntil(ExpectedConditions.visibilityOfElementLocated(locator))
+                .and().element().assertThat(locator).text().isEqualTo("web element condition")
+                .perform();
     }
 
     @Test
     public void expectedConditionReturningListOfWebElements() {
-        driver.get().element().waitUntil(ExpectedConditions.presenceOfAllElementsLocatedBy(locator), Duration.ofSeconds(2));
+        driver.get().element().type(locator, "list condition")
+                .and().waitUntil(ExpectedConditions.presenceOfAllElementsLocatedBy(locator))
+                .and().element().assertThat(locator).text().isEqualTo("list condition")
+                .perform();
     }
 
     @Test(expectedExceptions = RuntimeException.class)
