@@ -21,6 +21,7 @@
 
 SHAFT Engine is an open-source **Java test automation framework** built on top of [Selenium](https://www.selenium.dev/), [Appium](https://appium.io/), and [REST Assured](https://rest-assured.io/). It provides a unified, fluent API for **cross-browser testing**, **mobile app testing**, **API testing**, **CLI testing**, and **database testing** — so you can automate anything, from any platform, with zero boilerplate.
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/78ad8359c97841339b13abf3c77bdb4a)](https://app.codacy.com/gh/ShaftHQ/SHAFT_ENGINE?utm_source=github.com&utm_medium=referral&utm_content=ShaftHQ/SHAFT_ENGINE&utm_campaign=Badge_Grade)
 [![GitHub Stars](https://img.shields.io/github/stars/ShaftHQ/SHAFT_ENGINE?style=for-the-badge&logo=github&label=Stars&color=gold)](https://github.com/ShaftHQ/SHAFT_ENGINE/stargazers)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/SHAFT_ENGINE?style=for-the-badge&logo=apachemaven&label=Maven%20Central&color=indigo)](https://central.sonatype.com/artifact/io.github.shafthq/SHAFT_ENGINE)
 [![License](https://img.shields.io/github/license/ShaftHQ/SHAFT_Engine?color=indigo&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE)
