@@ -8,14 +8,10 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 
-import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 
 public class JavaScriptWaitManager {
     private static final List<String> COMPLETE_READY_STATES = List.of("loaded", "complete");
-    private static final Duration ACTIVE_REQUEST_POLLING_INTERVAL = Duration.ofMillis(200);
-    private static final Duration MINIMUM_IDLE_WINDOW = Duration.ofMillis(500);
 
     private JavaScriptWaitManager() {
         throw new IllegalStateException("Utility class");
@@ -32,7 +28,7 @@ public class JavaScriptWaitManager {
                     Thread.ofVirtual().start(() -> waitForJQuery(driver)),
                     Thread.ofVirtual().start(() -> waitForAngular(driver)),
                     Thread.ofVirtual().start(() -> waitForDocumentReadyState(driver)),
-                    Thread.ofVirtual().start(() -> waitUntilWebsiteIsIdle(driver))
+                    Thread.ofVirtual().start(() -> waitUntilNoActiveNetworkRequests(driver))
             );
             lazyLoadingThreads.forEach(thread -> {
                 try {
@@ -47,26 +43,13 @@ public class JavaScriptWaitManager {
         }
     }
 
-    private static void waitUntilWebsiteIsIdle(WebDriver driver) {
-        //Wait for full async activity to stay idle for a minimum quiet window
-        if (driver instanceof JavascriptExecutor javascriptExecutor) {
-            installAsyncActivityMonitor(javascriptExecutor);
-        }
-        new SynchronizationManager(driver).fluentWait().pollingEvery(ACTIVE_REQUEST_POLLING_INTERVAL).until(f -> {
+    private static void waitUntilNoActiveNetworkRequests(WebDriver driver) {
+        //Wait for active XHR/fetch requests to reach zero
+        new SynchronizationManager(driver).fluentWait().until(f -> {
             if (f instanceof JavascriptExecutor javascriptExecutor) {
                 try {
-                    var snapshot = readAsyncActivitySnapshot(javascriptExecutor);
-                    if (snapshot == null) {
-                        return true;
-                    }
-                    if (!Boolean.TRUE.equals(snapshot.get("idle"))) {
-                        return false;
-                    }
-                    var quietForMs = snapshot.get("quietForMs");
-                    if (!(quietForMs instanceof Number quietForMsNumber)) {
-                        return false;
-                    }
-                    return quietForMsNumber.longValue() >= MINIMUM_IDLE_WINDOW.toMillis();
+                    var returnedValue = javascriptExecutor.executeScript(JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue());
+                    return Long.parseLong(String.valueOf(returnedValue)) == 0;
                 } catch (Exception exception) {
                     // force return in case of unexpected exception
                     // e.g. org.openqa.selenium.JavascriptException if the script cannot execute
@@ -76,19 +59,6 @@ public class JavaScriptWaitManager {
             }
             return true;
         });
-    }
-
-    private static void installAsyncActivityMonitor(JavascriptExecutor javascriptExecutor) {
-        javascriptExecutor.executeScript(JavaScriptHelper.INSTALL_ASYNC_ACTIVITY_MONITOR.getValue());
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> readAsyncActivitySnapshot(JavascriptExecutor javascriptExecutor) {
-        var result = javascriptExecutor.executeScript(JavaScriptHelper.GET_ASYNC_ACTIVITY_SNAPSHOT.getValue());
-        if (result instanceof Map<?, ?> mapResult) {
-            return (Map<String, Object>) mapResult;
-        }
-        return null;
     }
 
     private static void waitForDocumentReadyState(WebDriver driver) {
