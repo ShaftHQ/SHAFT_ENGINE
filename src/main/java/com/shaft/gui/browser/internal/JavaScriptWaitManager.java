@@ -53,7 +53,12 @@ public class JavaScriptWaitManager {
             if (f instanceof JavascriptExecutor javascriptExecutor) {
                 try {
                     var returnedValue = javascriptExecutor.executeScript(JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue());
-                    var activeRequests = Long.parseLong(String.valueOf(returnedValue));
+                    long activeRequests = 0L;
+                    if (returnedValue instanceof Number numberValue) {
+                        activeRequests = numberValue.longValue();
+                    } else if (returnedValue != null) {
+                        activeRequests = Long.parseLong(returnedValue.toString());
+                    }
                     return hasMetMinimumIdleWindow(activeRequests, idleSinceMillis, System.currentTimeMillis());
                 } catch (Exception exception) {
                     // force return in case of unexpected exception
@@ -66,6 +71,21 @@ public class JavaScriptWaitManager {
         });
     }
 
+    /**
+     * Evaluates whether the network has remained idle for the configured quiet window.
+     * <p>
+     * State machine behavior:
+     * <ul>
+     *   <li>On the first poll where {@code activeRequests == 0}, the quiet-window start time is captured.</li>
+     *   <li>On subsequent zero-activity polls, the method returns {@code true} once the quiet window is reached.</li>
+     *   <li>On any poll where {@code activeRequests > 0}, the quiet-window state is reset.</li>
+     * </ul>
+     *
+     * @param activeRequests  current number of active network requests
+     * @param idleSinceMillis single-element state holder for quiet-window start timestamp
+     * @param nowMillis       current time in milliseconds
+     * @return {@code true} when the quiet window has been satisfied, otherwise {@code false}
+     */
     private static boolean hasMetMinimumIdleWindow(long activeRequests, long[] idleSinceMillis, long nowMillis) {
         if (activeRequests == 0) {
             if (idleSinceMillis[0] < 0) {

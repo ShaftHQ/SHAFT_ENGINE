@@ -16,6 +16,12 @@ public class JavaScriptWaitManagerUnitTest {
 
     @Test(description = "Verify network idle window logic requires 500ms of continuous zero active requests")
     public void testNetworkIdleWindowLogicRequiresContinuousQuietPeriod() throws Exception {
+        final long startTime = 1000L;
+        final long belowQuietWindowTime = startTime + 300L;
+        final long reachesQuietWindowTime = startTime + 500L;
+        final long busyPollTime = startTime + 600L;
+        final long firstIdleAfterResetTime = startTime + 700L;
+
         Method method = JavaScriptWaitManager.class.getDeclaredMethod(
                 "hasMetMinimumIdleWindow",
                 long.class,
@@ -26,18 +32,18 @@ public class JavaScriptWaitManagerUnitTest {
 
         long[] idleSince = {-1L};
 
-        boolean firstIdleCheck = (boolean) method.invoke(null, 0L, idleSince, 1000L);
-        boolean secondIdleCheck = (boolean) method.invoke(null, 0L, idleSince, 1300L);
-        boolean thirdIdleCheck = (boolean) method.invoke(null, 0L, idleSince, 1500L);
-        boolean busyCheck = (boolean) method.invoke(null, 2L, idleSince, 1600L);
-        boolean afterResetIdleCheck = (boolean) method.invoke(null, 0L, idleSince, 1700L);
+        boolean firstIdleCheck = (boolean) method.invoke(null, 0L, idleSince, startTime);
+        boolean secondIdleCheck = (boolean) method.invoke(null, 0L, idleSince, belowQuietWindowTime);
+        boolean thirdIdleCheck = (boolean) method.invoke(null, 0L, idleSince, reachesQuietWindowTime);
+        boolean busyCheck = (boolean) method.invoke(null, 2L, idleSince, busyPollTime);
+        boolean afterResetIdleCheck = (boolean) method.invoke(null, 0L, idleSince, firstIdleAfterResetTime);
 
         Assert.assertFalse(firstIdleCheck, "The first idle poll should start the quiet window and not pass yet.");
         Assert.assertFalse(secondIdleCheck, "Quiet window below 500ms should not pass.");
         Assert.assertTrue(thirdIdleCheck, "Quiet window at or above 500ms should pass.");
         Assert.assertFalse(busyCheck, "Any active request should reset the idle window and fail the check.");
         Assert.assertFalse(afterResetIdleCheck, "After reset, the first idle poll should fail until 500ms elapses again.");
-        Assert.assertEquals(idleSince[0], 1700L, "Idle window should restart from the latest zero-activity timestamp.");
+        Assert.assertEquals(idleSince[0], firstIdleAfterResetTime, "Idle window should restart from the latest zero-activity timestamp.");
     }
 
     @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script is defined and non-empty")
