@@ -339,8 +339,9 @@ public class Actions extends ElementActions {
     public Actions waitUntil(@NonNull Function<? super WebDriver, ?> isTrue, @NonNull Duration timeout) {
         String output = "";
         try {
-            output = String.valueOf(new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().withTimeout(timeout).until(isTrue));
-            if (!"true".equalsIgnoreCase(output))
+            Object waitResult = new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().withTimeout(timeout).until(isTrue);
+            output = String.valueOf(waitResult);
+            if (waitResult == null || Boolean.FALSE.equals(waitResult))
                 throw new TimeoutException("Condition was not met within the timeout period.");
         } catch (WebDriverException exception) {
             if (output.isEmpty())
