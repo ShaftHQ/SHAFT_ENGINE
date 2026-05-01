@@ -8,10 +8,13 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 
+import java.time.Duration;
 import java.util.List;
 
 public class JavaScriptWaitManager {
     private static final List<String> COMPLETE_READY_STATES = List.of("loaded", "complete");
+    private static final Duration ACTIVE_REQUEST_POLLING_INTERVAL = Duration.ofMillis(200);
+    private static final Duration MINIMUM_IDLE_WINDOW = Duration.ofMillis(500);
 
     private JavaScriptWaitManager() {
         throw new IllegalStateException("Utility class");
@@ -44,12 +47,14 @@ public class JavaScriptWaitManager {
     }
 
     private static void waitUntilNoActiveNetworkRequests(WebDriver driver) {
-        //Wait for active XHR/fetch requests to reach zero
-        new SynchronizationManager(driver).fluentWait().until(f -> {
+        //Wait for active XHR/fetch requests to remain idle for the minimum quiet window
+        final long[] idleSinceMillis = {-1L};
+        new SynchronizationManager(driver).fluentWait().pollingEvery(ACTIVE_REQUEST_POLLING_INTERVAL).until(f -> {
             if (f instanceof JavascriptExecutor javascriptExecutor) {
                 try {
                     var returnedValue = javascriptExecutor.executeScript(JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue());
-                    return Long.parseLong(String.valueOf(returnedValue)) == 0;
+                    var activeRequests = Long.parseLong(String.valueOf(returnedValue));
+                    return hasMetMinimumIdleWindow(activeRequests, idleSinceMillis, System.currentTimeMillis());
                 } catch (Exception exception) {
                     // force return in case of unexpected exception
                     // e.g. org.openqa.selenium.JavascriptException if the script cannot execute
@@ -59,6 +64,17 @@ public class JavaScriptWaitManager {
             }
             return true;
         });
+    }
+
+    private static boolean hasMetMinimumIdleWindow(long activeRequests, long[] idleSinceMillis, long nowMillis) {
+        if (activeRequests == 0) {
+            if (idleSinceMillis[0] < 0) {
+                idleSinceMillis[0] = nowMillis;
+            }
+            return (nowMillis - idleSinceMillis[0]) >= MINIMUM_IDLE_WINDOW.toMillis();
+        }
+        idleSinceMillis[0] = -1L;
+        return false;
     }
 
     private static void waitForDocumentReadyState(WebDriver driver) {

@@ -1,8 +1,11 @@
 package testPackage.unitTests;
 
 import com.shaft.tools.internal.support.JavaScriptHelper;
+import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.lang.reflect.Method;
 
 /**
  * Unit tests for JavaScriptWaitManager and JavaScriptHelper.
@@ -10,6 +13,32 @@ import org.testng.annotations.Test;
  * without requiring a running browser.
  */
 public class JavaScriptWaitManagerUnitTest {
+
+    @Test(description = "Verify network idle window logic requires 500ms of continuous zero active requests")
+    public void testNetworkIdleWindowLogicRequiresContinuousQuietPeriod() throws Exception {
+        Method method = JavaScriptWaitManager.class.getDeclaredMethod(
+                "hasMetMinimumIdleWindow",
+                long.class,
+                long[].class,
+                long.class
+        );
+        method.setAccessible(true);
+
+        long[] idleSince = {-1L};
+
+        boolean firstIdleCheck = (boolean) method.invoke(null, 0L, idleSince, 1000L);
+        boolean secondIdleCheck = (boolean) method.invoke(null, 0L, idleSince, 1300L);
+        boolean thirdIdleCheck = (boolean) method.invoke(null, 0L, idleSince, 1500L);
+        boolean busyCheck = (boolean) method.invoke(null, 2L, idleSince, 1600L);
+        boolean afterResetIdleCheck = (boolean) method.invoke(null, 0L, idleSince, 1700L);
+
+        Assert.assertFalse(firstIdleCheck, "The first idle poll should start the quiet window and not pass yet.");
+        Assert.assertFalse(secondIdleCheck, "Quiet window below 500ms should not pass.");
+        Assert.assertTrue(thirdIdleCheck, "Quiet window at or above 500ms should pass.");
+        Assert.assertFalse(busyCheck, "Any active request should reset the idle window and fail the check.");
+        Assert.assertFalse(afterResetIdleCheck, "After reset, the first idle poll should fail until 500ms elapses again.");
+        Assert.assertEquals(idleSince[0], 1700L, "Idle window should restart from the latest zero-activity timestamp.");
+    }
 
     @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script is defined and non-empty")
     public void testActiveNetworkRequestsCountScriptIsDefined() {
