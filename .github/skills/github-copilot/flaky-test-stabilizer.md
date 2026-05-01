@@ -1,4 +1,4 @@
-# Skill: Flaky Test Reproducer & Stabilizer
+# Skill: Flaky Test Stabilizer
 
 ## Skill Name
 
@@ -57,7 +57,7 @@ Scan the test code for the following categories:
 | Pattern | Risk |
 |---|---|
 | Missing `@AfterMethod(alwaysRun = true)` | Driver leaks on failure |
-| `driver.get().quit()` without `driver.remove()` | ThreadLocal stale reference |
+| `ThreadLocal<SHAFT.GUI.WebDriver>` not calling `.remove()` after `.get().quit()` in teardown | Stale ThreadLocal reference when thread pool reuses threads |
 | Browser interactions without explicit waits | Element not ready in CI |
 | Shared driver instance across test methods | State bleeds between tests |
 

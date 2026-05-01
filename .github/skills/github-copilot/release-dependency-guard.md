@@ -25,7 +25,7 @@ Verify that the SHAFT engine version is consistent across all required locations
 |---|---|---|
 | 1 | `pom.xml` (line 6) | `<version>X.Y.Z</version>` |
 | 2 | `src/main/java/com/shaft/properties/internal/Internal.java` | `@DefaultValue("X.Y.Z")` on `shaftEngineVersion()` |
-| 3–9 | All `pom.xml` files under `src/main/resources/examples/` | `<shaft_engine.version>X.Y.Z</shaft_engine.version>` |
+| 3 | All 7 `pom.xml` files under `src/main/resources/examples/` | `<shaft_engine.version>X.Y.Z</shaft_engine.version>` |
 
 ### Validation Rules
 - All locations must declare the **same** version string.
@@ -57,7 +57,7 @@ Compare the following properties across the main `pom.xml` and all 7 sample proj
 
 Check for outdated dependencies:
 
-1. Run or simulate `mvn versions:display-dependency-updates` output.
+1. Run `mvn versions:display-dependency-updates` to identify available updates, or analyze `pom.xml` dependency versions directly if Maven execution is unavailable.
 2. For each dependency with an available update:
    - **Include** if the newer version is **stable** (no `-beta`, `-RC`, `-M`, `-alpha`, `-SNAPSHOT` suffixes).
    - **Exclude** pre-release versions.
