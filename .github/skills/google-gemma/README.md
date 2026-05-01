@@ -1,63 +1,53 @@
 # Google Gemma Skills
 
-Skills and instructions for using [Google Gemma](https://ai.google.dev/gemma) AI models with the SHAFT test automation framework.
+Skills and instructions for using [Google Gemma](https://ai.google.dev/gemma) models with SHAFT_ENGINE.
 
 ## About Google Gemma
 
-Google Gemma is a family of lightweight, state-of-the-art open models built from the same research and technology used to create the Gemini models. Gemma models are well-suited for a variety of text generation and code analysis tasks, and can be run locally (e.g., via Ollama, LM Studio, or the [AI Edge Gallery](https://github.com/google-ai-edge/gallery) on-device app) or through cloud APIs.
+Google Gemma is a family of lightweight open models built from the same research used for Gemini. In this repository, Gemma is configured as a SHAFT-focused expert for code diagnosis, issue fixing guidance, and test generation.
 
 ## Skill Structure (Google AI Edge Gallery Format)
 
-This directory is a fully self-contained **[AI Edge Gallery skill](https://github.com/google-ai-edge/gallery/tree/main/skills)** that can be loaded directly into the Gallery app.
+This directory is a self-contained [AI Edge Gallery skill](https://github.com/google-ai-edge/gallery/tree/main/skills).
 
 ```
 google-gemma/
-├── SKILL.md              ← Gallery-format skill definition (frontmatter + LLM instructions)
+├── SKILL.md                              ← Gallery-format skill definition
 ├── scripts/
-│   └── index.html        ← JS helper: fetches source files from GitHub URLs for analysis
-├── README.md             ← This file
-└── code-analysis-and-optimization.md  ← Detailed reference documentation
+│   └── index.html                        ← JS helper to fetch GitHub source files
+├── README.md                             ← This file
+└── code-analysis-and-optimization.md     ← Extended analysis reference
 ```
 
-### Loading This Skill in AI Edge Gallery
+## Loading This Skill in AI Edge Gallery
 
-1. Open the AI Edge Gallery app with your selected Gemma model.
-2. Navigate to **Skill Manager** (tap the "Skills" chip in Agent Skills mode).
+1. Open AI Edge Gallery with your selected Gemma model.
+2. Go to **Skill Manager**.
 3. Tap **(+)** → **Load skill from URL**.
-4. Enter the URL pointing to this directory (update the branch name if the default branch changes):
+4. Use:
    ```
    https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/master/.github/skills/google-gemma/
    ```
-5. The app will load `SKILL.md` and make the skill available.
-
-### Loading via ADB (Local File)
-
-```bash
-adb push .github/skills/google-gemma/ /sdcard/Download/google-gemma/
-```
-
-Then use **Import local skill** in the Skill Manager.
 
 ## Available Skills
 
 | Skill | File | Description |
 |---|---|---|
-| SHAFT_ENGINE Expert (Gallery format) | [SKILL.md](./SKILL.md) | Google AI Edge Gallery skill: analyzes SHAFT Java code and generates SHAFT-compliant tests. Supports GitHub URL input via JS helper. |
-| Code Analysis and Optimization (reference) | [code-analysis-and-optimization.md](./code-analysis-and-optimization.md) | Detailed reference: static/dynamic analysis for Java 21 performance bottleneck identification with SHAFT-specific patterns |
+| SHAFT_ENGINE Expert | [SKILL.md](./SKILL.md) | High-accuracy SHAFT issue triage, root-cause analysis, and minimal-risk fix guidance |
+| Code Analysis and Optimization (reference) | [code-analysis-and-optimization.md](./code-analysis-and-optimization.md) | Broader performance/architecture analysis reference |
 
-## Skill Capabilities
+## Enhanced Capabilities
 
-| Capability | Mode | Trigger |
+| Capability | Mode | Value |
 |---|---|---|
-| Analyze pasted Java code | Text-only | User pastes code and asks for review |
-| Fetch + analyze from GitHub URL | JS (`scripts/index.html`) | User provides a `github.com` file URL |
-| Generate SHAFT-compliant test classes | Text-only | User asks to generate or write tests |
-| Identify anti-patterns and fixes | Text-only | User asks for code fixes or best practices |
+| Analyze pasted Java code | Text | Detects SHAFT anti-patterns with confidence scoring |
+| Fetch and analyze GitHub file URLs | JS + Text | Converts supported GitHub URLs to raw source with validation and timeout handling |
+| Prioritize fixes | Text | Produces risk-based fix order and verification steps |
+| Generate SHAFT-compliant tests | Text | Produces TestNG/JUnit5 skeletons aligned to SHAFT lifecycle patterns |
+| Improve issue-fix accuracy | Text | Distinguishes root cause vs symptoms and flags missing context |
 
 ## Notes
 
-- Gemma models are open-weight and can be run locally or through cloud APIs
-- When using Gemma with SHAFT, provide relevant source code context for accurate analysis
-- Gemma excels at code understanding, complexity analysis, and generating optimization suggestions
-- The `SKILL.md` follows the [Google AI Edge Gallery skill format](https://github.com/google-ai-edge/gallery/tree/main/skills) — frontmatter metadata + LLM instructions
-- The `scripts/index.html` JS helper fetches public GitHub files so Gemma can analyze them without the user copying and pasting large files manually
+- Best results come from including setup/teardown + test methods + relevant stack trace.
+- The helper script only supports public GitHub file URLs.
+- The skill emphasizes minimal safe changes and explicit validation guidance.
