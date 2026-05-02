@@ -830,7 +830,7 @@ The `Notify User Guide Repository` step in `mavenCentral_cd.yml` dispatches with
 ```json
 {"tag_name": "<version>", "version": "<version>", "release_url": "<url>"}
 ```
-**Always include `tag_name`** in the payload. The blog post workflow reads `client_payload.tag_name` (with `version` as fallback). Using only `version` causes a fallback to the latest release instead of the exact release.
+**Always include `tag_name`** in the payload. The blog post workflow (`automated-release-blog-post.yml`) reads `client_payload.tag_name` (with `version` as fallback). Sending only `version` causes that workflow to skip all tag-resolution paths (since `tag_name` is `undefined`) and fall back to fetching the latest SHAFT_ENGINE release instead of the exact dispatched release.
 
 ### Automated Release Blog Post — Known Issues & Patterns
 
