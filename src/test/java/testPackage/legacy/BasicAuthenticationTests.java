@@ -69,7 +69,7 @@ public class BasicAuthenticationTests extends Tests {
         ((HasAuthentication) driver).register(UsernameAndPassword.of("admin", "admin"));
         driver.get("https://the-internet.herokuapp.com/basic_auth");
         var text = driver.findElement(By.tagName("p")).getText();
-        SHAFT.Validations.assertThat().object(text).equals("Congratulations! You must have the proper credentials.");
+        SHAFT.Validations.assertThat().object(text).isEqualTo("Congratulations! You must have the proper credentials.");
     }
 
 }
