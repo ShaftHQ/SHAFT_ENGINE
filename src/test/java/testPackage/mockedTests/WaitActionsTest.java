@@ -15,7 +15,7 @@ public class WaitActionsTest {
     @Test
     public void lambdaExpression() {
         driver.get().element().type(locator, "first string")
-                .and().waitUntil(webDriver -> webDriver.findElement(locator).getAttribute("value").equalsIgnoreCase("first string"))
+                .and().waitUntil(ExpectedConditions.attributeToBe(locator, "value", "first string"))
                 .and().element().assertThat(locator).text().isEqualTo("first string")
                 .perform();
     }
@@ -56,7 +56,7 @@ public class WaitActionsTest {
     @Test(expectedExceptions = RuntimeException.class)
     public void expectedConditionExpectedToFail() {
         driver.get().element().type(locator, "first string")
-                .and().waitUntil(webDriver -> ExpectedConditions.attributeToBe(locator, "value", "NANANANANANA"))
+                .and().waitUntil(ExpectedConditions.attributeToBe(locator, "value", "NANANANANANA"))
                 .and().element().assertThat(locator).text().isEqualTo("first string")
                 .perform();
     }
