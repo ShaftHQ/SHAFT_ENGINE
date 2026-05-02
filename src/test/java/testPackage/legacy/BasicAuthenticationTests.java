@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class BasicAuthenticationTests extends Tests {
 
     @Test
-    public void basicAuthentication_traditional(){
+    public void basicAuthenticationTraditional(){
         if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
                 || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
             driver.get().browser().navigateToURL("https://user:pass@authenticationtest.com/HTTPAuth/", "https://authenticationtest.com/loginSuccess/");
@@ -31,7 +31,7 @@ public class BasicAuthenticationTests extends Tests {
     }
 
     @Test
-    public void basicAuthentication_webdriverBiDi() {
+    public void basicAuthenticationWebdriverBidi() {
         if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
                 || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
             driver.get().browser().navigateToURLWithBasicAuthentication("https://authenticationtest.com/HTTPAuth/", "user", "pass", "https://authenticationtest.com/loginSuccess/");
@@ -39,19 +39,19 @@ public class BasicAuthenticationTests extends Tests {
         }
     }
 
-    //@Test
+    @Test(enabled = false, description = "Temporarily disabled: known Selenium BiDi/RemoteWebDriver basic auth instability. Re-enable once upstream issue is resolved.")
     public void testBasicAuth() throws MalformedURLException {
-        //nattive selenium test with bidi/oauth
+        //native selenium test with bidi/oauth
         //this test is currently broken, I think there's an issue with this feature from Selenium's side
         // https://www.selenium.dev/documentation/webdriver/bidirectional/bidi_api_remotewebdriver/
         WebDriverManager.chromedriver().setup();
 
         var gridUrl = new URL("http://localhost:4444/");
         ChromeOptions options = new ChromeOptions();
-        WebDriver driver = new RemoteWebDriver(gridUrl, options);
+        WebDriver authDriver = new RemoteWebDriver(gridUrl, options);
         AtomicReference<DevTools> devToolsAtomicReference = new AtomicReference<>();
 
-        driver = new Augmenter().addDriverAugmentation("chrome",
+        authDriver = new Augmenter().addDriverAugmentation("chrome",
                 HasAuthentication.class,
                 (caps, exec) -> (whenThisMatches, useTheseCredentials) -> {
                     devToolsAtomicReference.get()
@@ -61,14 +61,14 @@ public class BasicAuthenticationTests extends Tests {
                             .addAuthHandler(whenThisMatches,
                                     useTheseCredentials);
 
-                }).augment(driver);
+                }).augment(authDriver);
 
-        DevTools devTools = ((HasDevTools) driver).getDevTools();
+        DevTools devTools = ((HasDevTools) authDriver).getDevTools();
         devTools.createSession();
         devToolsAtomicReference.set(devTools);
-        ((HasAuthentication) driver).register(UsernameAndPassword.of("admin", "admin"));
-        driver.get("https://the-internet.herokuapp.com/basic_auth");
-        var text = driver.findElement(By.tagName("p")).getText();
+        ((HasAuthentication) authDriver).register(UsernameAndPassword.of("admin", "admin"));
+        authDriver.get("https://the-internet.herokuapp.com/basic_auth");
+        var text = authDriver.findElement(By.tagName("p")).getText();
         SHAFT.Validations.assertThat().object(text).isEqualTo("Congratulations! You must have the proper credentials.");
     }
 
