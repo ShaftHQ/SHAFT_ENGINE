@@ -822,6 +822,29 @@ Merging to `main` automatically triggers the **Maven Central Continuous Delivery
 After the release is published, additional workflows fire automatically:
 - **JavaDocs Publisher** (`publishJavaDocs.yml`) — regenerates and publishes the JavaDoc site.
 - **Sync Sample Projects SHAFT Version** (`sync-sample-projects-version.yml`) — opens a PR syncing all example `pom.xml` files to the new `shaft_engine.version` **and** all tracked plugin/dependency versions (`jdk.version`, `aspectjweaver.version`, `maven-compiler-plugin.version`, `maven-resources-plugin.version`, `maven-surefire-plugin.version`, `surefire-testng.version`).
+- **Automated Release Blog Post** (`shafthq.github.io/.github/workflows/automated-release-blog-post.yml`) — triggered by the `shaft-engine-release` `repository_dispatch` event; creates a PR adding a new blog post to the user guide. See notes below.
+
+### Cross-Repo Dispatch Payload Contract
+
+The `Notify User Guide Repository` step in `mavenCentral_cd.yml` dispatches with:
+```json
+{"tag_name": "<version>", "version": "<version>", "release_url": "<url>"}
+```
+**Always include `tag_name`** in the payload. The blog post workflow (`automated-release-blog-post.yml`) reads `client_payload.tag_name` (with `version` as fallback). Sending only `version` causes that workflow to skip all tag-resolution paths (since `tag_name` is `undefined`) and fall back to fetching the latest SHAFT_ENGINE release instead of the exact dispatched release.
+
+### Automated Release Blog Post — Known Issues & Patterns
+
+The `automated-release-blog-post.yml` workflow in `ShaftHQ/shafthq.github.io`:
+
+- **❌ Do NOT** use `stefanzweifel/git-auto-commit-action` to commit directly to `master` — the branch is protected and requires PRs (fails with `GH006`).
+- **✅ Do** use `peter-evans/create-pull-request@v8` to create a PR. Requires `pull-requests: write` in `permissions`.
+- **❌ Do NOT** add an `on: release` trigger in the user guide workflow — it fires for releases *in the user guide repo itself* (which never happen), not for SHAFT_ENGINE releases. Use only `repository_dispatch` and `workflow_dispatch`.
+- **✅ Do** add an idempotency check before PR creation: scan `blog/` for an existing file matching the release tag and skip if found (`find blog -name "*release-${SAFE_TAG}*"`).
+- **✅ Do** add a concurrency key using `github.event.client_payload.tag_name` (not `github.event.release.tag_name`) since the trigger is `repository_dispatch`, not a native release event.
+- The `BOT_TOKEN` secret (a PAT with `repo` scope on `shafthq.github.io`) is required for both the cross-repo dispatch and for the `peter-evans/create-pull-request` step to push to a protected branch.
+
+### Tracking Issue
+See: https://github.com/ShaftHQ/shafthq.github.io/issues/468
 
 ### Required Secrets
 | Secret | Purpose |

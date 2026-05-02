@@ -76,4 +76,4 @@ jobs:
           token: ${{ secrets.BOT_TOKEN }}
           repository: ShaftHQ/shafthq.github.io
           event-type: shaft-engine-release
-          client-payload: '{"version": "${{ env.RELEASE_VERSION }}", "release_url": "${{ steps.create_release.outputs.html_url }}"}'
+          client-payload: '{"tag_name": "${{ env.RELEASE_VERSION }}", "version": "${{ env.RELEASE_VERSION }}", "release_url": "${{ steps.create_release.outputs.html_url }}"}'
