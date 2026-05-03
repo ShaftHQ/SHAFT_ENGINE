@@ -4,8 +4,6 @@ import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.testng.IRetryAnalyzer;
 import org.testng.ITestResult;
 
@@ -25,7 +23,6 @@ import org.testng.ITestResult;
  * parameter combination for data-driven tests).
  */
 public class RetryAnalyzer implements IRetryAnalyzer {
-    private static final Logger logger = LogManager.getLogger(RetryAnalyzer.class);
     private int counter = 0;
 
     @Override
@@ -37,8 +34,7 @@ public class RetryAnalyzer implements IRetryAnalyzer {
                 String message = "Retry #" + counter + "/" + maxRetryCount
                         + " for test: " + iTestResult.getMethod().getMethodName()
                         + ", on thread: " + Thread.currentThread().getName();
-                // Log to both structured logger (always visible in CI) and SHAFT's discrete log
-                logger.info("[SHAFT] {}", message);
+                ReportManagerHelper.enableDebugFileLogging();
                 ReportManager.logDiscrete(message);
                 enableSupportingEvidenceCapture();
                 return true;

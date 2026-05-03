@@ -1,6 +1,7 @@
 package testPackage.properties;
 
 import com.shaft.driver.SHAFT;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class Log4jTests {
@@ -43,6 +44,11 @@ public class Log4jTests {
         rootLogger = SHAFT.Properties.log4j.rootLogger();
         loggerAppName = SHAFT.Properties.log4j.loggerAppName();
         loggerAppLevel = SHAFT.Properties.log4j.loggerAppLevel();
+
+        Assert.assertTrue(rootLogger.toLowerCase().startsWith("info"),
+                "Default root logger level should be info");
+        Assert.assertFalse(rootLogger.contains("LOGFILE"),
+                "Default root logger should keep file logging disabled until retry diagnostics enable it");
     }
 
 }

@@ -1,14 +1,21 @@
 package testPackage.unitTests;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.listeners.internal.RetryAnalyzer;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.PropertyFileManager;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
+import org.testng.ITestNGMethod;
+import org.testng.ITestResult;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.util.Map;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests to verify that SHAFT configuration properties are correctly
@@ -201,6 +208,30 @@ public class ThreadLocalPropertiesTest {
         Assert.assertFalse(workerThread.isAlive(), "Worker thread should finish within timeout");
         Assert.assertFalse(disableLoggingInWorkerThread[0],
                 "Fresh worker threads should inherit logging enabled by default");
+    }
+
+    @Test(description = "Failed-test retry enables debug file logging diagnostics")
+    public void testRetryEnablesDebugFileLogging() {
+        int originalRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+        File logFile = new File(SHAFT.Properties.log4j.appenderFile_FileName());
+        if (logFile.exists()) {
+            Assert.assertTrue(logFile.delete(), "Pre-existing log file should be deleted before retry logging test");
+        }
+
+        ITestNGMethod testMethod = mock(ITestNGMethod.class);
+        when(testMethod.getMethodName()).thenReturn("retryLoggingTest");
+        ITestResult testResult = mock(ITestResult.class);
+        when(testResult.getMethod()).thenReturn(testMethod);
+
+        try {
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(1);
+            Assert.assertTrue(new RetryAnalyzer().retry(testResult), "Retry should be scheduled for the first failure");
+            Assert.assertTrue(logFile.isFile(), "Retry diagnostics should ensure the log file exists");
+            Assert.assertTrue(logFile.length() > 0, "Retry diagnostics should write to the log file");
+        } finally {
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetryCount);
+            Properties.clearForCurrentThread();
+        }
     }
 
     @Test(description = "Thread-local mobile_ properties do not leak to other threads")

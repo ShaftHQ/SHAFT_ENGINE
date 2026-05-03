@@ -6,6 +6,7 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import lombok.Getter;
 import org.apache.commons.io.FileUtils;
+import org.apache.logging.log4j.Level;
 import org.openqa.selenium.MutableCapabilities;
 
 import java.io.File;
@@ -139,7 +140,7 @@ public final class PropertyFileManager {
 
     private static void readPropertyFiles(String propertiesFolderPath) {
         if (propertiesFolderPath != null) {
-            ReportManager.logDiscrete("Reading properties directory: " + propertiesFolderPath);
+            ReportManager.logDiscrete("Reading properties directory: " + propertiesFolderPath, Level.DEBUG);
             try {
                 java.util.Properties properties = new java.util.Properties();
                 if (propertiesFolderPath.contains(".jar")) {
@@ -156,7 +157,7 @@ public final class PropertyFileManager {
                     File propertyFile;
                     for (int i = 0; i < propertiesFilesList.size(); i++) {
                         propertyFile = (File) (propertiesFilesList.toArray())[i];
-                        ReportManager.logDiscrete("Loading properties file: " + propertyFile);
+                        ReportManager.logDiscrete("Loading properties file: " + propertyFile, Level.DEBUG);
                         loadPropertiesFileIntoSystemProperties(properties, propertyFile);
                     }
                 } else {

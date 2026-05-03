@@ -76,7 +76,7 @@ public interface Log4j extends EngineProperties<Log4j> {
     String appenderFileFilterThresholdLevel();
 
     @Key("rootLogger")
-    @DefaultValue("debug, STDOUT, LOGFILE")
+    @DefaultValue("info, STDOUT")
     String rootLogger();
 
     @Key("logger.app.name")
