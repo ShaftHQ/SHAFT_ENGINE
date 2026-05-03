@@ -39,13 +39,17 @@ public class AttachmentReporterUnitTest {
      * Calls {@link AttachmentReporter#attachBasedOnFileType} with minimal byte content
      * and returns the MIME type that was registered on the Allure lifecycle for the
      * most-recently-added attachment.
+     *
+     * @throws AssertionError if no attachment was found (attachment creation failed silently)
      */
     private String captureAttachmentMimeType(String attachmentType, String attachmentName) {
         ByteArrayOutputStream content = new ByteArrayOutputStream();
         try {
             content.write("sample content".getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException(
+                    "Failed to write sample content to ByteArrayOutputStream for '"
+                            + attachmentType + "/" + attachmentName + "'", e);
         }
 
         AttachmentReporter.attachBasedOnFileType(attachmentType, attachmentName, content,
@@ -58,6 +62,12 @@ public class AttachmentReporterUnitTest {
                 capturedType.set(attachments.getLast().getType());
             }
         });
+        if (capturedType.get() == null) {
+            throw new AssertionError(
+                    "No attachment found in Allure test-case for type='" + attachmentType
+                            + "', name='" + attachmentName + "'. "
+                            + "AttachmentReporter.attachBasedOnFileType() may have failed silently.");
+        }
         return capturedType.get();
     }
 

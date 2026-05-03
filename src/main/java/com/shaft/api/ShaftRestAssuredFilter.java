@@ -1,7 +1,9 @@
 package com.shaft.api;
 
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
+import com.shaft.driver.SHAFT;
 import io.qameta.allure.Allure;
 import io.restassured.filter.Filter;
 import io.restassured.filter.FilterContext;
@@ -22,7 +24,7 @@ import java.nio.charset.StandardCharsets;
  * HTML source ({@code &lt;div&gt;}, {@code &lt;pre&gt;}, etc.) instead of the actual
  * request/response content — this is the "API attachments styled as HTML files" bug.
  *
- * <p>This filter creates three attachment types per API call, each with the correct
+ * <p>This filter creates up to four attachment types per API call, each with the correct
  * MIME type for Allure 3:
  *
  * <ol>
@@ -41,17 +43,14 @@ import java.nio.charset.StandardCharsets;
  *
  * <p>JSON bodies are pretty-printed before attachment to improve readability.
  *
- * <p>This class is package-private because it is an internal implementation detail
- * of {@link RestActions} and should not be referenced directly by test code.
+ * <p>The threshold for inlining small bodies versus attaching them separately is
+ * configurable via the {@code api.attachment.inline.body.threshold} property
+ * (default: 500 characters); see {@code SHAFT.Properties.api.attachmentInlineBodyThreshold()}.
  *
  * @see RestActions#sendRequest(RestActions.RequestType, String,
  *      io.restassured.specification.RequestSpecification)
  */
 public class ShaftRestAssuredFilter implements Filter {
-
-    // Maximum number of characters a body may have to be inlined into the
-    // metadata attachment (rather than creating a dedicated body attachment).
-    private static final int INLINE_BODY_THRESHOLD = 500;
 
     /**
      * Intercepts every REST Assured request, attaches the request and response
@@ -114,8 +113,9 @@ public class ShaftRestAssuredFilter implements Filter {
             if (!bodyStr.isEmpty()) {
                 String contentType = detectContentType(bodyStr,
                         requestSpec.getContentType() != null ? requestSpec.getContentType() : "");
+                int inlineThreshold = SHAFT.Properties.api.attachmentInlineBodyThreshold();
                 if (!"application/json".equals(contentType) && !"text/xml".equals(contentType)
-                        && bodyStr.length() <= INLINE_BODY_THRESHOLD) {
+                        && bodyStr.length() <= inlineThreshold) {
                     // Inline for small, non-JSON/XML bodies
                     info.append("\nBody:\n").append(bodyStr).append("\n");
                 } else {
@@ -207,26 +207,48 @@ public class ShaftRestAssuredFilter implements Filter {
     /**
      * Returns {@code true} when {@code content} looks like a JSON object or array.
      *
+     * <p>Performs a two-stage check: first a lightweight bracket-boundary heuristic,
+     * then actual Gson parsing to confirm the content is valid JSON.  This eliminates
+     * false positives such as {@code "{not valid json}"} or {@code "[plain text]"}
+     * while keeping the fast-path rejection for non-JSON content.
+     *
      * @param content the string to inspect
-     * @return {@code true} if the trimmed content starts with a curly brace or
-     *         square bracket and ends with the corresponding closing bracket
+     * @return {@code true} if {@code content} is a syntactically valid JSON object
+     *         or array
      */
     public boolean looksLikeJson(String content) {
         String trimmed = content.trim();
-        return (trimmed.startsWith("{") && trimmed.endsWith("}"))
-                || (trimmed.startsWith("[") && trimmed.endsWith("]"));
+        if ((trimmed.startsWith("{") && trimmed.endsWith("}"))
+                || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+            try {
+                JsonParser.parseString(trimmed);
+                return true;
+            } catch (JsonParseException ignored) {
+                // Not parseable — content only superficially resembles JSON
+            }
+        }
+        return false;
     }
 
     /**
      * Returns {@code true} when {@code content} looks like an XML document or fragment.
      *
+     * <p>Uses a lightweight structural check: XML must start with {@code <} and contain
+     * either a closing tag ({@code </}) or a self-closing element ({@code />}).  This
+     * avoids false positives for arbitrary strings that merely start with {@code <} and
+     * end with {@code >} (e.g. {@code "<not xml at all>"}).
+     *
+     * <p><strong>Note:</strong> HTML documents also pass this check because they contain
+     * closing tags.  In practice, HTML bodies are accompanied by a {@code Content-Type:
+     * text/html} header which is resolved before this sniff is invoked, so the
+     * misclassification scenario is rare.
+     *
      * @param content the string to inspect
-     * @return {@code true} if the trimmed content starts with {@code <}
-     *         and ends with {@code >}
+     * @return {@code true} if the trimmed content has the structural markers of XML
      */
     public boolean looksLikeXml(String content) {
         String trimmed = content.trim();
-        return trimmed.startsWith("<") && trimmed.endsWith(">");
+        return trimmed.startsWith("<") && (trimmed.contains("</") || trimmed.contains("/>"));
     }
 
     /**
@@ -242,7 +264,7 @@ public class ShaftRestAssuredFilter implements Filter {
             try {
                 return new GsonBuilder().setPrettyPrinting().create()
                         .toJson(JsonParser.parseString(body));
-            } catch (Exception ignored) {
+            } catch (JsonParseException ignored) {
                 // If parsing fails return the original
             }
         }

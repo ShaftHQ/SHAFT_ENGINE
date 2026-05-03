@@ -60,11 +60,27 @@ public class ShaftRestAssuredFilterUnitTest {
                 .isEqualTo(false).perform();
     }
 
+    @Test(description = "looksLikeJson returns false for invalid JSON that only looks like JSON")
+    public void looksLikeJsonShouldReturnFalseForInvalidJson() {
+        // Strings that start/end with brackets but are NOT valid JSON — the improved
+        // implementation uses actual Gson parsing to eliminate these false positives.
+        SHAFT.Validations.assertThat().object(filter.looksLikeJson("{not valid json at all}"))
+                .isEqualTo(false).perform();
+        SHAFT.Validations.assertThat().object(filter.looksLikeJson("[plain text in brackets]"))
+                .isEqualTo(false).perform();
+    }
+
     // ─── looksLikeXml ────────────────────────────────────────────────────────
 
     @Test(description = "looksLikeXml returns true for XML document")
     public void looksLikeXmlShouldReturnTrueForXml() {
         SHAFT.Validations.assertThat().object(filter.looksLikeXml("<root><item>test</item></root>"))
+                .isEqualTo(true).perform();
+    }
+
+    @Test(description = "looksLikeXml returns true for self-closing XML element")
+    public void looksLikeXmlShouldReturnTrueForSelfClosingElement() {
+        SHAFT.Validations.assertThat().object(filter.looksLikeXml("<result status=\"ok\"/>"))
                 .isEqualTo(true).perform();
     }
 
@@ -77,6 +93,13 @@ public class ShaftRestAssuredFilterUnitTest {
     @Test(description = "looksLikeXml returns false for plain text")
     public void looksLikeXmlShouldReturnFalseForPlainText() {
         SHAFT.Validations.assertThat().object(filter.looksLikeXml("plain text"))
+                .isEqualTo(false).perform();
+    }
+
+    @Test(description = "looksLikeXml returns false for text that only looks like XML superficially")
+    public void looksLikeXmlShouldReturnFalseForFalsePositive() {
+        // "<not xml at all>" starts with '<' and ends with '>' but has no closing tag or self-close
+        SHAFT.Validations.assertThat().object(filter.looksLikeXml("<not xml at all>"))
                 .isEqualTo(false).perform();
     }
 
