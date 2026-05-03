@@ -183,6 +183,26 @@ public class ThreadLocalPropertiesTest {
         }
     }
 
+    @Test(description = "Reporting logging remains enabled by default on fresh worker threads")
+    public void testReportingDisableLoggingDefaultsToFalseOnFreshThread() throws InterruptedException {
+        final boolean[] disableLoggingInWorkerThread = {true};
+
+        Thread workerThread = new Thread(() -> {
+            try {
+                Properties.clearForCurrentThread();
+                disableLoggingInWorkerThread[0] = SHAFT.Properties.reporting.disableLogging();
+            } finally {
+                Properties.clearForCurrentThread();
+            }
+        });
+        workerThread.start();
+        workerThread.join(THREAD_JOIN_TIMEOUT_MS);
+
+        Assert.assertFalse(workerThread.isAlive(), "Worker thread should finish within timeout");
+        Assert.assertFalse(disableLoggingInWorkerThread[0],
+                "Fresh worker threads should inherit logging enabled by default");
+    }
+
     @Test(description = "Thread-local mobile_ properties do not leak to other threads")
     public void testMobilePropertiesThreadIsolation() throws InterruptedException {
         String testAppUrl = "https://example.com/thread-isolation-test.apk";

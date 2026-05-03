@@ -52,7 +52,7 @@ public interface Reporting extends EngineProperties<Reporting> {
     boolean openExecutionSummaryReportAfterExecution();
 
     @Key("disableLogging")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean disableLogging();
 
     @Key("attachFullLog")
