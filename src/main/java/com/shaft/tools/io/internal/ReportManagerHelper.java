@@ -700,7 +700,10 @@ public class ReportManagerHelper {
 
     private static void createDebugCompanionLogEntry(String logText, Level sourceLevel) {
         if (!Level.DEBUG.equals(sourceLevel)) {
-            String debugLogText = "Debug details for action: " + logText;
+            String caller = getCallingMethodFullName();
+            String debugLogText = caller == null || caller.isBlank()
+                    ? "Debug action details: " + logText
+                    : "Debug action details [caller=" + caller + "]: " + logText;
             logger.debug(debugLogText);
             writeToDebugLogFile(debugLogText, Level.DEBUG);
         }
