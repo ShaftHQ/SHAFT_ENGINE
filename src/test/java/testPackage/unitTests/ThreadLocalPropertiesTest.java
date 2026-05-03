@@ -6,6 +6,9 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.PropertyFileManager;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LoggerContext;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 import org.testng.Assert;
@@ -13,6 +16,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Map;
 
 import static org.mockito.Mockito.mock;
@@ -212,9 +217,10 @@ public class ThreadLocalPropertiesTest {
     }
 
     @Test(description = "Failed-test retry enables debug file logging diagnostics")
-    public void testRetryEnablesDebugFileLogging() {
+    public void testRetryEnablesDebugFileLogging() throws java.io.IOException {
         int originalRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
         File logFile = new File(SHAFT.Properties.log4j.appenderFile_FileName());
+        Level originalRootLogLevel = getRootLogLevel();
         if (logFile.exists()) {
             logFile.delete();
         }
@@ -229,8 +235,15 @@ public class ThreadLocalPropertiesTest {
             Assert.assertTrue(new RetryAnalyzer().retry(testResult), "Retry should be scheduled for the first failure");
             Assert.assertTrue(logFile.isFile(), "Retry diagnostics should ensure the log file exists");
             Assert.assertTrue(logFile.length() > 0, "Retry diagnostics should write to the log file");
+            Assert.assertEquals(getRootLogLevel(), Level.DEBUG,
+                    "Retry diagnostics should temporarily push the root log level to debug");
+            String retryLog = Files.readString(logFile.toPath(), StandardCharsets.UTF_8);
+            Assert.assertTrue(retryLog.contains("[DEBUG"),
+                    "Retry diagnostics should include at least one debug-level entry");
             ReportManagerHelper.attachEngineLog("retry-diagnostics-test");
             Assert.assertFalse(logFile.exists(), "Generated retry diagnostics log should be attached and removed");
+            Assert.assertEquals(getRootLogLevel(), originalRootLogLevel,
+                    "Retry diagnostics should restore the root log level after attaching logs");
         } finally {
             SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetryCount);
             if (logFile.exists()) {
@@ -238,6 +251,10 @@ public class ThreadLocalPropertiesTest {
             }
             Properties.clearForCurrentThread();
         }
+    }
+
+    private Level getRootLogLevel() {
+        return ((LoggerContext) LogManager.getContext(false)).getConfiguration().getRootLogger().getLevel();
     }
 
     @Test(description = "Thread-local mobile_ properties do not leak to other threads")

@@ -5,6 +5,7 @@ import com.shaft.tools.internal.support.AndroidApkBadgingReader;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import lombok.Getter;
+import org.aeonbits.owner.ConfigFactory;
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.MutableCapabilities;
@@ -25,7 +26,7 @@ public final class PropertyFileManager {
 
     @Getter
     private static final String CUSTOM_PROPERTIES_FOLDER_PATH = "src/main/resources/properties";
-    private static final String DEFAULT_LOG4J_CONFIG_PATH = "src/main/resources/properties/default/log4j2.properties";
+    private static final String LOG4J_PROPERTIES_FILE = "log4j2.properties";
 
     private PropertyFileManager() {
         throw new IllegalStateException("Utility class");
@@ -128,11 +129,29 @@ public final class PropertyFileManager {
      * @return the Log4j2 configuration file path to use during logger initialization
      */
     public static String getLog4jConfigPath() {
-        String log4jConfigPath = CUSTOM_PROPERTIES_FOLDER_PATH + "/log4j2.properties";
+        Paths paths = ConfigFactory.create(Paths.class, ThreadLocalPropertiesManager.getEffectiveProperties());
+        String log4jConfigPath = appendFileName(paths.properties(), LOG4J_PROPERTIES_FILE);
         if (!new File(log4jConfigPath).isFile()) {
-            log4jConfigPath = DEFAULT_LOG4J_CONFIG_PATH;
+            log4jConfigPath = appendFileName(paths.defaultProperties(), LOG4J_PROPERTIES_FILE);
         }
         return log4jConfigPath;
+    }
+
+    /**
+     * Resolves the effective Log4j file-appender path using the typed Log4j properties.
+     *
+     * @return the effective log file path for retry diagnostics and full-log attachments
+     */
+    public static String getLogFilePath() {
+        return ConfigFactory.create(Log4j.class, ThreadLocalPropertiesManager.getEffectiveProperties())
+                .appenderFile_FileName();
+    }
+
+    private static String appendFileName(String folderPath, String fileName) {
+        if (folderPath.endsWith("/") || folderPath.endsWith(File.separator)) {
+            return folderPath + fileName;
+        }
+        return folderPath + File.separator + fileName;
     }
 
     public static HashMap<String, Object> getCustomBrowserstackCapabilities() {
