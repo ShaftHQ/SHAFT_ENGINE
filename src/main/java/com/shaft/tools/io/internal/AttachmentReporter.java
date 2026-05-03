@@ -78,7 +78,7 @@ public class AttachmentReporter {
     }
 
     private static void handleJson(String attachmentDescription, ByteArrayOutputStream content) {
-        attachFileBased(attachmentDescription, "text/json", content, ".json");
+        attachFileBased(attachmentDescription, "application/json", content, ".json");
     }
 
     private static void handleProperties(String attachmentDescription, ByteArrayOutputStream content) {
