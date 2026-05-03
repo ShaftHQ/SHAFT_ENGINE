@@ -147,6 +147,13 @@ public final class PropertyFileManager {
                 .appenderFile_FileName();
     }
 
+    /**
+     * Joins a folder path and a file name while preserving an existing trailing separator.
+     *
+     * @param folderPath the folder path to append to
+     * @param fileName   the file name to append
+     * @return the combined file path
+     */
     private static String appendFileName(String folderPath, String fileName) {
         if (folderPath.endsWith("/") || folderPath.endsWith(File.separator)) {
             return folderPath + fileName;

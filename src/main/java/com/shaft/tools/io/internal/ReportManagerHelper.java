@@ -698,6 +698,13 @@ public class ReportManagerHelper {
         setDiscreteLogging(initialLoggingStatus);
     }
 
+    /**
+     * Emits the DEBUG companion entry required for each SHAFT action log without
+     * creating a duplicate DEBUG entry when the original log is already DEBUG level.
+     *
+     * @param logText     the action log text to include in the diagnostic entry
+     * @param sourceLevel the level of the original action log entry
+     */
     private static void createDebugCompanionLogEntry(String logText, Level sourceLevel) {
         if (!Level.DEBUG.equals(sourceLevel)) {
             String caller = getCallingMethodFullName();
