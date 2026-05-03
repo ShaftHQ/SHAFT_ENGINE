@@ -85,9 +85,13 @@ jobs:
                   if parsed_previous_best is not None and parsed_available_version > parsed_previous_best:
                       best_updates[key] = available_version
 
+          def update_sort_key(item: tuple[tuple[str, str], str]) -> tuple[str, str]:
+              (artifact_name, current_version), _ = item
+              return artifact_name.lower(), current_version
+
           output_lines = [
               f"[INFO]   {artifact} ... {current_version} -> {available_version}"
-              for (artifact, current_version), available_version in sorted(best_updates.items(), key=lambda item: (item[0][0].lower(), item[0][1]))
+              for (artifact, current_version), available_version in sorted(best_updates.items(), key=update_sort_key)
           ]
           filtered_updates_path.write_text("\n".join(output_lines), encoding="utf-8")
           PY
