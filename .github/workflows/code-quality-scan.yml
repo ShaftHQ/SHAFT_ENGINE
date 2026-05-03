@@ -50,12 +50,15 @@ jobs:
           stable_version_pattern = re.compile(r"^\d+(?:\.\d+)+$")
           prerelease_pattern = re.compile(r"alpha|beta|rc|milestone|snapshot|cr|m\d+", re.IGNORECASE)
 
-          def parse_version(version: str) -> tuple[int, ...]:
-              return tuple(int(segment) for segment in version.split("."))
+          def parse_version(version: str) -> tuple[int, ...] | None:
+              try:
+                  return tuple(int(segment) for segment in version.split("."))
+              except ValueError:
+                  return None
 
           best_updates: dict[tuple[str, str], str] = {}
 
-          for raw_line in raw_updates_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+          for raw_line in raw_updates_path.read_text(encoding="utf-8", errors="replace").splitlines():
               match = update_line_pattern.match(raw_line.strip())
               if not match:
                   continue
@@ -66,17 +69,25 @@ jobs:
                   continue
               if not stable_version_pattern.fullmatch(current_version) or not stable_version_pattern.fullmatch(available_version):
                   continue
-              if parse_version(available_version) <= parse_version(current_version):
+              parsed_current_version = parse_version(current_version)
+              parsed_available_version = parse_version(available_version)
+              if parsed_current_version is None or parsed_available_version is None:
+                  continue
+              if parsed_available_version <= parsed_current_version:
                   continue
 
               key = (artifact, current_version)
               previous_best = best_updates.get(key)
-              if previous_best is None or parse_version(available_version) > parse_version(previous_best):
+              if previous_best is None:
                   best_updates[key] = available_version
+              else:
+                  parsed_previous_best = parse_version(previous_best)
+                  if parsed_previous_best is not None and parsed_available_version > parsed_previous_best:
+                      best_updates[key] = available_version
 
           output_lines = [
               f"[INFO]   {artifact} ... {current_version} -> {available_version}"
-              for (artifact, current_version), available_version in sorted(best_updates.items(), key=lambda item: item[0][0].lower())
+              for (artifact, current_version), available_version in sorted(best_updates.items(), key=lambda item: (item[0][0].lower(), item[0][1]))
           ]
           filtered_updates_path.write_text("\n".join(output_lines), encoding="utf-8")
           PY
