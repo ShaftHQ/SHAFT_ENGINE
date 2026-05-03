@@ -218,7 +218,9 @@ public class ReportManagerHelper {
         if (logger == null) {
             initializeLogger();
         }
-        ensureLogFileExists();
+        if (!ensureLogFileExists()) {
+            return;
+        }
         debugFileLoggingEnabled = true;
         Configurator.setRootLevel(Level.DEBUG);
         logger.debug("Enabled debug-level file logging for retry diagnostics.");
@@ -229,16 +231,36 @@ public class ReportManagerHelper {
         return Objects.requireNonNullElse(ThreadLocalPropertiesManager.getProperty("appender.file.fileName"), DEFAULT_LOG_FILE_PATH);
     }
 
-    private static void ensureLogFileExists() {
+    private static boolean ensureLogFileExists() {
         File logFile = new File(getLogFilePath());
         File parent = logFile.getParentFile();
-        if (parent != null && !parent.exists()) {
-            parent.mkdirs();
+        if (parent != null && !parent.exists() && !parent.mkdirs() && !parent.exists()) {
+            logDebugFileSetupFailure("Could not create debug log directory: " + parent);
+            return false;
         }
         try {
-            logFile.createNewFile();
+            if (!logFile.exists() && !logFile.createNewFile() && !logFile.exists()) {
+                logDebugFileSetupFailure("Could not create debug log file: " + logFile);
+                return false;
+            }
+            return true;
         } catch (IOException e) {
-            logDiscrete(e, Level.DEBUG);
+            logDebugFileSetupFailure("Could not create debug log file: " + logFile, e);
+            return false;
+        }
+    }
+
+    private static void logDebugFileSetupFailure(String message) {
+        logDebugFileSetupFailure(message, null);
+    }
+
+    private static void logDebugFileSetupFailure(String message, Throwable throwable) {
+        if (logger != null) {
+            if (throwable != null) {
+                logger.warn(message, throwable);
+            } else {
+                logger.warn(message);
+            }
         }
     }
 
@@ -246,12 +268,14 @@ public class ReportManagerHelper {
         if (!debugFileLoggingEnabled) {
             return;
         }
-        ensureLogFileExists();
+        if (!ensureLogFileExists()) {
+            return;
+        }
         try (FileWriter writer = new FileWriter(getLogFilePath(), true)) {
-            writer.write(String.format("[%-5s] %s │ %s%n", logLevel.name(), java.time.LocalDateTime.now(), logText.trim()));
+            writer.write(String.format("[%-5s] %s | %s%n", logLevel.name(), java.time.LocalDateTime.now(), logText.trim()));
         } catch (IOException e) {
             if (logger != null) {
-                logger.debug("Failed to write debug log file: {}", e.getMessage());
+                logger.warn("Failed to write debug log file: {}", e.getMessage());
             }
         }
     }

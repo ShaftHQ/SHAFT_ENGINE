@@ -5,6 +5,7 @@ import com.shaft.listeners.internal.RetryAnalyzer;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.PropertyFileManager;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 import org.testng.Assert;
@@ -213,10 +214,8 @@ public class ThreadLocalPropertiesTest {
     @Test(description = "Failed-test retry enables debug file logging diagnostics")
     public void testRetryEnablesDebugFileLogging() {
         int originalRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
-        File logFile = new File(SHAFT.Properties.log4j.appenderFile_FileName());
-        if (logFile.exists()) {
-            Assert.assertTrue(logFile.delete(), "Pre-existing log file should be deleted before retry logging test");
-        }
+        File logFile = new File("target/logs/retry-diagnostics-" + System.nanoTime() + ".log");
+        ThreadLocalPropertiesManager.setProperty("appender.file.fileName", logFile.getPath());
 
         ITestNGMethod testMethod = mock(ITestNGMethod.class);
         when(testMethod.getMethodName()).thenReturn("retryLoggingTest");
@@ -228,8 +227,13 @@ public class ThreadLocalPropertiesTest {
             Assert.assertTrue(new RetryAnalyzer().retry(testResult), "Retry should be scheduled for the first failure");
             Assert.assertTrue(logFile.isFile(), "Retry diagnostics should ensure the log file exists");
             Assert.assertTrue(logFile.length() > 0, "Retry diagnostics should write to the log file");
+            ReportManagerHelper.attachEngineLog("retry-diagnostics-test");
+            Assert.assertFalse(logFile.exists(), "Generated retry diagnostics log should be attached and removed");
         } finally {
             SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetryCount);
+            if (logFile.exists()) {
+                logFile.delete();
+            }
             Properties.clearForCurrentThread();
         }
     }
