@@ -50,19 +50,7 @@ public interface API extends EngineProperties<API> {
     String swaggerValidationUrl();
 
     /**
-     * Maximum number of characters a request body may have to be inlined directly
-     * into the plain-text "Request" attachment instead of creating a dedicated
-     * body attachment.  Bodies exceeding this threshold are always attached
-     * separately so they receive their correct MIME type (e.g. {@code application/json}).
-     * <p>Property key: {@code api.attachment.inline.body.threshold} — default: {@code 500}
-     *
-     * @return the character threshold for inlining request bodies
-     */
-    @Key("api.attachment.inline.body.threshold")
-    @DefaultValue("500")
-    int attachmentInlineBodyThreshold();
-
-    /**
+     * Returns a fluent {@link SetProperty} builder for programmatically overriding API properties.
      *
      * <p>Example:
      * <pre>{@code
@@ -95,18 +83,6 @@ public interface API extends EngineProperties<API> {
         }
 
         /**
-         * Overrides the {@code api.attachment.inline.body.threshold} property at runtime.
-         *
-         * @param value the maximum number of characters a request body may have to be
-         *              inlined into the plain-text Request attachment
-         * @return this {@link SetProperty} instance for chaining
-         */
-        public SetProperty attachmentInlineBodyThreshold(int value) {
-            setProperty("api.attachment.inline.body.threshold", String.valueOf(value));
-            return this;
-        }
-
-        /**
          * Overrides the {@code swagger.validation.enabled} property at runtime.
          *
          * @param value {@code true} to enable Swagger/OpenAPI response validation
@@ -129,4 +105,3 @@ public interface API extends EngineProperties<API> {
         }
     }
 }
-

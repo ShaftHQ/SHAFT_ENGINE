@@ -236,4 +236,117 @@ public class ShaftRestAssuredFilterUnitTest {
         SHAFT.Validations.assertThat()
                 .object(filter.getFileExtension("application/octet-stream")).isEqualTo(".txt").perform();
     }
+
+    @Test(description = "getFileExtension returns .png for image/png")
+    public void getFileExtensionShouldReturnDotPngForImagePng() {
+        SHAFT.Validations.assertThat()
+                .object(filter.getFileExtension("image/png")).isEqualTo(".png").perform();
+    }
+
+    @Test(description = "getFileExtension returns .gif for image/gif")
+    public void getFileExtensionShouldReturnDotGifForImageGif() {
+        SHAFT.Validations.assertThat()
+                .object(filter.getFileExtension("image/gif")).isEqualTo(".gif").perform();
+    }
+
+    @Test(description = "getFileExtension returns .mp4 for video/mp4")
+    public void getFileExtensionShouldReturnDotMp4ForVideoMp4() {
+        SHAFT.Validations.assertThat()
+                .object(filter.getFileExtension("video/mp4")).isEqualTo(".mp4").perform();
+    }
+
+    @Test(description = "getFileExtension returns .pdf for application/pdf")
+    public void getFileExtensionShouldReturnDotPdfForApplicationPdf() {
+        SHAFT.Validations.assertThat()
+                .object(filter.getFileExtension("application/pdf")).isEqualTo(".pdf").perform();
+    }
+
+    // ─── isBinaryContentType ─────────────────────────────────────────────────
+
+    @Test(description = "isBinaryContentType returns true for image types")
+    public void isBinaryContentTypeShouldReturnTrueForImageTypes() {
+        SHAFT.Validations.assertThat().object(filter.isBinaryContentType("image/png"))
+                .isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(filter.isBinaryContentType("image/gif"))
+                .isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(filter.isBinaryContentType("image/jpeg"))
+                .isEqualTo(true).perform();
+    }
+
+    @Test(description = "isBinaryContentType returns true for video and audio types")
+    public void isBinaryContentTypeShouldReturnTrueForMediaTypes() {
+        SHAFT.Validations.assertThat().object(filter.isBinaryContentType("video/mp4"))
+                .isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(filter.isBinaryContentType("audio/mpeg"))
+                .isEqualTo(true).perform();
+    }
+
+    @Test(description = "isBinaryContentType returns true for application/pdf and octet-stream")
+    public void isBinaryContentTypeShouldReturnTrueForBinaryApplicationTypes() {
+        SHAFT.Validations.assertThat().object(filter.isBinaryContentType("application/pdf"))
+                .isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(filter.isBinaryContentType("application/octet-stream"))
+                .isEqualTo(true).perform();
+    }
+
+    @Test(description = "isBinaryContentType returns true for zip and OOXML types")
+    public void isBinaryContentTypeShouldReturnTrueForZipAndOoxml() {
+        SHAFT.Validations.assertThat().object(filter.isBinaryContentType("application/zip"))
+                .isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(
+                filter.isBinaryContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .isEqualTo(true).perform();
+    }
+
+    @Test(description = "isBinaryContentType returns false for text types")
+    public void isBinaryContentTypeShouldReturnFalseForTextTypes() {
+        SHAFT.Validations.assertThat().object(filter.isBinaryContentType("application/json"))
+                .isEqualTo(false).perform();
+        SHAFT.Validations.assertThat().object(filter.isBinaryContentType("text/plain"))
+                .isEqualTo(false).perform();
+        SHAFT.Validations.assertThat().object(filter.isBinaryContentType("text/html"))
+                .isEqualTo(false).perform();
+        SHAFT.Validations.assertThat().object(filter.isBinaryContentType("text/xml"))
+                .isEqualTo(false).perform();
+    }
+
+    @Test(description = "isBinaryContentType returns false for null or empty content type")
+    public void isBinaryContentTypeShouldReturnFalseForNullOrEmpty() {
+        SHAFT.Validations.assertThat().object(filter.isBinaryContentType(null))
+                .isEqualTo(false).perform();
+        SHAFT.Validations.assertThat().object(filter.isBinaryContentType(""))
+                .isEqualTo(false).perform();
+    }
+
+    // ─── normalizeMimeType ────────────────────────────────────────────────────
+
+    @Test(description = "normalizeMimeType strips charset and parameters from content-type")
+    public void normalizeMimeTypeShouldStripParameters() {
+        SHAFT.Validations.assertThat()
+                .object(filter.normalizeMimeType("application/json; charset=utf-8"))
+                .isEqualTo("application/json").perform();
+        SHAFT.Validations.assertThat()
+                .object(filter.normalizeMimeType("text/html; charset=UTF-8"))
+                .isEqualTo("text/html").perform();
+    }
+
+    @Test(description = "normalizeMimeType returns the MIME type unchanged when no parameters")
+    public void normalizeMimeTypeShouldReturnUnchangedWhenNoParameters() {
+        SHAFT.Validations.assertThat()
+                .object(filter.normalizeMimeType("image/png"))
+                .isEqualTo("image/png").perform();
+        SHAFT.Validations.assertThat()
+                .object(filter.normalizeMimeType("application/json"))
+                .isEqualTo("application/json").perform();
+    }
+
+    @Test(description = "normalizeMimeType returns application/octet-stream for null or empty")
+    public void normalizeMimeTypeShouldReturnOctetStreamForNullOrEmpty() {
+        SHAFT.Validations.assertThat()
+                .object(filter.normalizeMimeType(null))
+                .isEqualTo("application/octet-stream").perform();
+        SHAFT.Validations.assertThat()
+                .object(filter.normalizeMimeType(""))
+                .isEqualTo("application/octet-stream").perform();
+    }
 }

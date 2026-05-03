@@ -72,9 +72,37 @@ public class AllAttachmentTypesTest {
             "MIME-Version: 1.0\nContent-Type: multipart/related;\n\n--boundary\n"
                     + "Content-Type: text/html\n\n<html><body>Snapshot</body></html>\n";
 
-    /** Minimal valid 8-byte PNG signature used for the screenshot attachment test. */
-    private static final byte[] PNG_SIGNATURE = {
-            (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A
+    /** Minimal valid 1x1 white pixel PNG file used for the screenshot attachment test. */
+    private static final byte[] MINIMAL_PNG = {
+            // PNG signature
+            (byte)0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+            // IHDR chunk: 1x1 pixel, 8-bit RGB
+            0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+            0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+            0x08, 0x02, 0x00, 0x00, 0x00, (byte)0x90, 0x77, 0x53, (byte)0xDE,
+            // IDAT chunk: compressed white pixel
+            0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54,
+            0x08, (byte)0xD7, 0x63, (byte)0xF8, (byte)0xCF, (byte)0xC0, 0x00, 0x00,
+            0x00, 0x02, 0x00, 0x01, (byte)0xE2, 0x21, (byte)0xBC, 0x33,
+            // IEND chunk
+            0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44,
+            (byte)0xAE, 0x42, 0x60, (byte)0x82
+    };
+
+    /** Minimal valid 1x1 pixel GIF87a file used for the GIF attachment test. */
+    private static final byte[] MINIMAL_GIF = {
+            // GIF87a header + 1x1 global colour table
+            0x47, 0x49, 0x46, 0x38, 0x37, 0x61, 0x01, 0x00,
+            0x01, 0x00, (byte)0x80, 0x00, 0x00, (byte)0xFF, (byte)0xFF,
+            (byte)0xFF, 0x00, 0x00, 0x00,
+            // Graphic Control Extension
+            0x21, (byte)0xF9, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
+            // Image Descriptor
+            0x2C, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00,
+            // Image data
+            0x02, 0x02, 0x44, 0x01, 0x00,
+            // Trailer
+            0x3B
     };
 
     // ─── helper ───────────────────────────────────────────────────────────────
@@ -282,7 +310,8 @@ public class AllAttachmentTypesTest {
 
     /**
      * Verifies that a screenshot attachment uses the {@code image/png} MIME type.
-     * Uses a minimal 8-byte PNG signature to keep the test lightweight.
+     * Uses a complete minimal 1x1 white pixel PNG to ensure the attachment renders
+     * correctly as an image in Allure viewers.
      */
     @Test(description = "Screenshot attachment uses image/png MIME type in Allure 3")
     @Story("Screenshot attachment")
@@ -290,11 +319,45 @@ public class AllAttachmentTypesTest {
     public void screenshotAttachmentCreatedWithImagePngMimeType() {
         AttachmentReporter.attachBasedOnFileType(
                 "screenshot", "homepage.png",
-                bytesOf(PNG_SIGNATURE),
+                bytesOf(MINIMAL_PNG),
                 "Homepage Screenshot");
 
         SHAFT.Validations.assertThat()
                 .object(captureLastAttachmentMimeType()).isEqualTo("image/png").perform();
+    }
+
+    /**
+     * Verifies that an animated GIF attachment uses the {@code image/gif} MIME type.
+     * Uses a complete minimal 1x1 pixel GIF87a file.
+     */
+    @Test(description = "GIF attachment uses image/gif MIME type in Allure 3")
+    @Story("GIF attachment")
+    @Severity(SeverityLevel.NORMAL)
+    public void gifAttachmentCreatedWithImageGifMimeType() {
+        AttachmentReporter.attachBasedOnFileType(
+                "gif", "test_actions.gif",
+                bytesOf(MINIMAL_GIF),
+                "Test Actions GIF");
+
+        SHAFT.Validations.assertThat()
+                .object(captureLastAttachmentMimeType()).isEqualTo("image/gif").perform();
+    }
+
+    /**
+     * Verifies that a video recording attachment uses the {@code video/mp4} MIME type.
+     */
+    @Test(description = "Recording attachment uses video/mp4 MIME type in Allure 3")
+    @Story("Recording attachment")
+    @Severity(SeverityLevel.NORMAL)
+    public void recordingAttachmentCreatedWithVideoMp4MimeType() {
+        // Placeholder bytes — we are only testing MIME type routing, not video playback
+        AttachmentReporter.attachBasedOnFileType(
+                "recording", "test_execution.mp4",
+                bytesOf("fake-mp4-content"),
+                "Test Execution Recording");
+
+        SHAFT.Validations.assertThat()
+                .object(captureLastAttachmentMimeType()).isEqualTo("video/mp4").perform();
     }
 
     /**
