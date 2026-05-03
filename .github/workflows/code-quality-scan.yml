@@ -38,10 +38,65 @@ jobs:
           mvn versions:display-dependency-updates -Dgpg.skip 2>&1 | tee /tmp/dep-updates-raw.txt || true
           mvn versions:display-plugin-updates -Dgpg.skip 2>&1 | tee -a /tmp/dep-updates-raw.txt || true
 
-          # Capture only stable updates (numeric X.Y or X.Y.Z without pre-release identifiers)
-          UPDATES=$(grep -E "^\[INFO\].*->.*[0-9]+\.[0-9]+" /tmp/dep-updates-raw.txt \
-            | grep -v -iE "alpha|beta|rc|milestone|snapshot|cr|m[0-9]" \
-            | head -40 || true)
+          # Capture only true stable upgrades (exclude prereleases and version downgrades)
+          python3 <<'PY'
+          import re
+          from pathlib import Path
+
+          raw_updates_path = Path("/tmp/dep-updates-raw.txt")
+          filtered_updates_path = Path("/tmp/dep-updates-filtered.txt")
+
+          update_line_pattern = re.compile(r"^\[INFO\]\s+(.+?)\s+\.+\s+([^\s]+)\s+->\s+([^\s]+)\s*$")
+          stable_version_pattern = re.compile(r"^\d+(?:\.\d+)+$")
+          prerelease_pattern = re.compile(r"alpha|beta|rc|milestone|snapshot|cr|m\d+", re.IGNORECASE)
+
+          def parse_version(version: str) -> tuple[int, ...] | None:
+              try:
+                  return tuple(int(segment) for segment in version.split("."))
+              except ValueError:
+                  return None
+
+          best_updates: dict[tuple[str, str], str] = {}
+
+          for raw_line in raw_updates_path.read_text(encoding="utf-8", errors="replace").splitlines():
+              match = update_line_pattern.match(raw_line.strip())
+              if not match:
+                  continue
+
+              artifact, current_version, available_version = (group.strip() for group in match.groups())
+
+              if prerelease_pattern.search(available_version):
+                  continue
+              if not stable_version_pattern.fullmatch(current_version) or not stable_version_pattern.fullmatch(available_version):
+                  continue
+              parsed_current_version = parse_version(current_version)
+              parsed_available_version = parse_version(available_version)
+              if parsed_current_version is None or parsed_available_version is None:
+                  continue
+              if parsed_available_version <= parsed_current_version:
+                  continue
+
+              key = (artifact, current_version)
+              previous_best = best_updates.get(key)
+              if previous_best is None:
+                  best_updates[key] = available_version
+              else:
+                  parsed_previous_best = parse_version(previous_best)
+                  if parsed_previous_best is not None and parsed_available_version > parsed_previous_best:
+                      best_updates[key] = available_version
+
+          def update_sort_key(item: tuple[tuple[str, str], str]) -> tuple[str, str]:
+              (artifact_name, current_version), _ = item
+              return artifact_name.lower(), current_version
+
+          output_lines = [
+              f"[INFO]   {artifact} ... {current_version} -> {available_version}"
+              for (artifact, current_version), available_version in sorted(best_updates.items(), key=update_sort_key)
+          ]
+          filtered_updates_path.write_text("\n".join(output_lines), encoding="utf-8")
+          PY
+
+          UPDATES=$(cat /tmp/dep-updates-filtered.txt)
 
           if [ -n "$UPDATES" ]; then
             echo "has_updates=true" >> $GITHUB_OUTPUT
