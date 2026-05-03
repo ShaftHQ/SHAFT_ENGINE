@@ -214,8 +214,10 @@ public class ThreadLocalPropertiesTest {
     @Test(description = "Failed-test retry enables debug file logging diagnostics")
     public void testRetryEnablesDebugFileLogging() {
         int originalRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
-        File logFile = new File("target/logs/retry-diagnostics-" + System.nanoTime() + ".log");
-        ThreadLocalPropertiesManager.setProperty("appender.file.fileName", logFile.getPath());
+        File logFile = new File(SHAFT.Properties.log4j.appenderFile_FileName());
+        if (logFile.exists()) {
+            logFile.delete();
+        }
 
         ITestNGMethod testMethod = mock(ITestNGMethod.class);
         when(testMethod.getMethodName()).thenReturn("retryLoggingTest");

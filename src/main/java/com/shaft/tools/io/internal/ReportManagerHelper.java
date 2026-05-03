@@ -203,11 +203,7 @@ public class ReportManagerHelper {
         // initialize log4j, used by some transitive dependencies
         BasicConfigurator.configure();
         // initialize log4j2
-        String log4jConfigPath = PropertyFileManager.getCUSTOM_PROPERTIES_FOLDER_PATH() + "/log4j2.properties";
-        if (!new File(log4jConfigPath).isFile()) {
-            log4jConfigPath = "src/main/resources/properties/default/log4j2.properties";
-        }
-        Configurator.initialize(null, log4jConfigPath);
+        Configurator.initialize(null, PropertyFileManager.getLog4jConfigPath());
         logger = LogManager.getLogger(ReportManager.class.getName());
     }
 
@@ -234,12 +230,12 @@ public class ReportManagerHelper {
     private static boolean ensureLogFileExists() {
         File logFile = new File(getLogFilePath());
         File parent = logFile.getParentFile();
-        if (parent != null && !parent.exists() && !parent.mkdirs() && !parent.exists()) {
+        if (parent != null && !parent.exists() && !parent.mkdirs()) {
             logDebugFileSetupFailure("Could not create debug log directory: " + parent);
             return false;
         }
         try {
-            if (!logFile.exists() && !logFile.createNewFile() && !logFile.exists()) {
+            if (!logFile.exists() && !logFile.createNewFile()) {
                 logDebugFileSetupFailure("Could not create debug log file: " + logFile);
                 return false;
             }

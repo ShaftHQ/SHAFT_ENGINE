@@ -25,6 +25,7 @@ public final class PropertyFileManager {
 
     @Getter
     private static final String CUSTOM_PROPERTIES_FOLDER_PATH = "src/main/resources/properties";
+    private static final String DEFAULT_LOG4J_CONFIG_PATH = "src/main/resources/properties/default/log4j2.properties";
 
     private PropertyFileManager() {
         throw new IllegalStateException("Utility class");
@@ -118,6 +119,20 @@ public final class PropertyFileManager {
             }
         });
         return customDriverOptions;
+    }
+
+    /**
+     * Resolves the Log4j2 configuration path, preferring the copied/custom properties file
+     * and falling back to the bundled default file when the custom file has not been created yet.
+     *
+     * @return the Log4j2 configuration file path to use during logger initialization
+     */
+    public static String getLog4jConfigPath() {
+        String log4jConfigPath = CUSTOM_PROPERTIES_FOLDER_PATH + "/log4j2.properties";
+        if (!new File(log4jConfigPath).isFile()) {
+            log4jConfigPath = DEFAULT_LOG4J_CONFIG_PATH;
+        }
+        return log4jConfigPath;
     }
 
     public static HashMap<String, Object> getCustomBrowserstackCapabilities() {

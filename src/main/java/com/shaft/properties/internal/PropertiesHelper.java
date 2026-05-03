@@ -96,11 +96,7 @@ public class PropertiesHelper {
         //set key system properties that are needed for the framework to function
         System.setProperty("rp.properties.path", SHAFT.Properties.paths.properties());
         System.setProperty("webdriver.http.factory", "jdk-http-client");
-        String log4jConfigPath = SHAFT.Properties.paths.properties() + "log4j2.properties";
-        if (!new File(log4jConfigPath).isFile()) {
-            log4jConfigPath = DEFAULT_PROPERTIES_FOLDER_PATH + "/log4j2.properties";
-        }
-        System.setProperty("log4j.configurationFile", log4jConfigPath);
+        System.setProperty("log4j.configurationFile", PropertyFileManager.getLog4jConfigPath());
         System.setProperty("allure.testng.hide.configuration.failures", "true");
         System.setProperty("allure.testng.hide.disabled.tests", "true");
     }
