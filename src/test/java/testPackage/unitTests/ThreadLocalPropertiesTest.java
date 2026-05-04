@@ -259,7 +259,7 @@ public class ThreadLocalPropertiesTest {
     }
 
     @Test(description = "Engine log attachment should collapse consecutive duplicate lines")
-    public void testEngineLogAttachmentConsecutiveDuplicateLinesAreCollapsed() throws Exception {
+    public void testConsecutiveDuplicateLinesAreCollapsed() throws Exception {
         String duplicatedLog = String.join(System.lineSeparator(),
                 "[INFO] action-one",
                 "[INFO] action-one",
@@ -283,7 +283,7 @@ public class ThreadLocalPropertiesTest {
     }
 
     @Test(description = "Engine log attachment should preserve non-consecutive repeated lines")
-    public void testEngineLogAttachmentPreservesNonConsecutiveRepeatedLines() throws Exception {
+    public void testNonConsecutiveRepeatedLinesArePreserved() throws Exception {
         String duplicatedLog = String.join(System.lineSeparator(),
                 "[INFO] action-one",
                 "[DEBUG] context",

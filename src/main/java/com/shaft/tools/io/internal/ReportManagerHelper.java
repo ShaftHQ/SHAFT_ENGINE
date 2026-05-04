@@ -487,19 +487,16 @@ public class ReportManagerHelper {
         if (engineLog == null || engineLog.length == 0) {
             return new byte[0];
         }
-        String[] lines = new String(engineLog, StandardCharsets.UTF_8).split("\\R");
+        String engineLogContent = new String(engineLog, StandardCharsets.UTF_8);
         String previousLine = null;
-        StringBuilder deduplicatedLog = new StringBuilder();
-        for (String currentLine : lines) {
+        List<String> deduplicatedLines = new ArrayList<>();
+        for (String currentLine : engineLogContent.lines().toList()) {
             if (!currentLine.equals(previousLine)) {
-                if (!deduplicatedLog.isEmpty()) {
-                    deduplicatedLog.append(System.lineSeparator());
-                }
-                deduplicatedLog.append(currentLine);
+                deduplicatedLines.add(currentLine);
                 previousLine = currentLine;
             }
         }
-        return deduplicatedLog.toString().getBytes(StandardCharsets.UTF_8);
+        return String.join(System.lineSeparator(), deduplicatedLines).getBytes(StandardCharsets.UTF_8);
     }
 
     public static void attachIssuesLog(String executionEndTimestamp) {
