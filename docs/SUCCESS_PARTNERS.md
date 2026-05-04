@@ -21,7 +21,7 @@ SHAFT Engine is proudly sponsored by industry leaders in testing and development
   <td align="center">
    <br/>
 <a href="https://www.voiscentre.com/"><img height="50" alt="_VOIS (Vodafone Intelligent Solution)" src="https://cdn.cookielaw.org/logos/a018e2cd-22cc-44d6-bd04-a7629b563be5/01928bed-547e-7b46-9d41-f5fe2fd4d6be/d9b809b0-e840-41aa-946e-6d57a5612479/vois-logo.png"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.vodafone.com.eg"><img height="50" alt="Vodafone Egypt" src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Vodafone_logo_2017.png/1200px-Vodafone_logo_2017.png"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.vodafone.com.eg"><img height="50" alt="Vodafone Egypt" src="https://upload.wikimedia.org/wikipedia/commons/9/95/Vodafone_logo_2017.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://dxc.com/us/en"><img height="50" alt="DXC Technology" src="https://github.com/user-attachments/assets/84cb59da-d29d-44fa-9012-b10d2cc671ff"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.euronetworldwide.com/"><img height="50" alt="Euronet" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Euronet_Worldwide_logo.svg/1920px-Euronet_Worldwide_logo.svg.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://solutions.com.sa/"><img height="50" alt="Solutions by STC" src="https://solutions.com.sa/wp-content/uploads/2019/11/logo.svg"></a>
@@ -40,7 +40,7 @@ SHAFT Engine is proudly sponsored by industry leaders in testing and development
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://salt.bank/"><img height="50" alt="Salt Bank" src="https://static.wikia.nocookie.net/logopedia/images/3/34/Salt_Bank.svg"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.act.eg/"><img height="50" alt="ACT Global Soft" src="https://www.act.eg/wp-content/uploads/2021/01/3.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://robustastudio.com/"><img height="50" alt="Robusta" src="https://images.wuzzuf-data.net/files/company_logo/Robusta-Egypt-7927.png"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.terkwaz.com/"><img height="50" alt="Terkwaz Business Solutions" src="https://images.wuzzuf-data.net/files/company_logo/Terkwaz-Solutions-Jordan-35434-1578830823.png"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://wuzzuf.net/jobs/careers/Terkwaz-Solutions-Jordan-35434"><img height="50" alt="Terkwaz Business Solutions" src="https://images.wuzzuf-data.net/files/company_logo/Terkwaz-Solutions-Jordan-35434-1578830823.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.qoyod.com/en/"><img height="50" alt="QOYOD" src="https://github.com/user-attachments/assets/52ffc117-c912-4d96-a9f0-4d917165fa0e"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.baianat.com/"><img height="50" alt="Baianat" src="https://mir-s3-cdn-cf.behance.net/user/276/f5dc271705011.5b8c47fcee858.png"></a>
 
@@ -51,4 +51,4 @@ SHAFT Engine is proudly sponsored by industry leaders in testing and development
 
 ---
 
-[← Back to README](../README.md) | [User Analytics →](USER_ANALYTICS.md)
+[← Back to README](../README.md) | [Tech Stack →](TECH_STACK.md)

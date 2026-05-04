@@ -33,7 +33,7 @@
  <tr>
   <td align="center">
 <a href="https://allurereport.org/" target="_blank"><img src="https://allurereport.org/svg/logo-report-sign.svg" alt="Allure Reports" height="50"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://reportportal.io/" target="_blank"><img src="https://images.ctfassets.net/1n1nntnzoxp4/1g6b56w2LaPeHk4XUo3vqP/45dfb8b10e6fafba913d0f012793e44e/reportportal.svg" alt="ReportPortal" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://github.com/reportportal/reportportal" target="_blank"><img src="https://images.ctfassets.net/1n1nntnzoxp4/1g6b56w2LaPeHk4XUo3vqP/45dfb8b10e6fafba913d0f012793e44e/reportportal.svg" alt="ReportPortal" height="50"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.selenium.dev/documentation/grid/" target="_blank"><img src="https://media.softwaresim.com/Selenium_Grid_mpxkym-600.webp" alt="Selenium Grid" height="50"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://github.com/features/actions" target="_blank"><img src="https://github.githubassets.com/images/modules/site/features/actions-icon-actions.svg" alt="GitHub Actions" height="50"></a>
   <br/><br/></td>
@@ -59,7 +59,7 @@
   <td align="center"><br/>
 <a href="https://gemini.google.com/" target="_blank"><img src="https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg" alt="Google Gemini" height="50"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://github.com/features/copilot" target="_blank"><img src="https://github.githubassets.com/images/modules/site/copilot/copilot.png" alt="GitHub Copilot" height="50"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://claude.ai/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/8/8a/Claude_AI_logo.svg" alt="Claude" height="50"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.anthropic.com/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/8/8a/Claude_AI_logo.svg" alt="Claude" height="50"></a>
   <br/><br/></td>
  </tr>
 </table>
