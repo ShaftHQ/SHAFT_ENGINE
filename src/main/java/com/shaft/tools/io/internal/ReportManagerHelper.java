@@ -287,11 +287,11 @@ public class ReportManagerHelper {
     }
 
     private static void writeToDebugLogFile(String logText, Level logLevel) {
+        if (!debugFileLoggingEnabled || !ensureLogFileExists()) {
+            return;
+        }
         synchronized (ReportManagerHelper.class) {
             if (!debugFileLoggingEnabled) {
-                return;
-            }
-            if (!ensureLogFileExists()) {
                 return;
             }
             try (var writer = Files.newBufferedWriter(Path.of(getLogFilePath()), StandardCharsets.UTF_8,

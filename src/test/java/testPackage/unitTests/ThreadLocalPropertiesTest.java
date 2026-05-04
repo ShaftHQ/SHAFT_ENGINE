@@ -256,8 +256,8 @@ public class ThreadLocalPropertiesTest {
         }
     }
 
-    @Test(description = "Retry debug log setup should fail when log path points to a directory")
-    public void testEnsureLogFileExistsFailsForDirectoryPath() throws Exception {
+    @Test(description = "Retry diagnostics should reject a directory path as the debug log target")
+    public void retryDiagnosticsShouldRejectDirectoryLogPath() throws Exception {
         String originalLogFilePath = SHAFT.Properties.log4j.appenderFile_FileName();
         Path nonFileLogPath = Files.createTempDirectory("shaft-debug-log-directory");
 
@@ -276,8 +276,8 @@ public class ThreadLocalPropertiesTest {
         }
     }
 
-    @Test(description = "Retry diagnostics debug log writer should use UTF-8 encoding")
-    public void testDebugLogFileWriterUsesUtf8Encoding() throws Exception {
+    @Test(description = "Retry diagnostics debug log writer should preserve unicode content")
+    public void retryDiagnosticsDebugLogWriterShouldPreserveUnicodeCharacters() throws Exception {
         String originalLogFilePath = SHAFT.Properties.log4j.appenderFile_FileName();
         Path tempDirectory = Files.createTempDirectory("shaft-debug-log-utf8");
         Path logFilePath = tempDirectory.resolve("retry-diagnostics.log");
