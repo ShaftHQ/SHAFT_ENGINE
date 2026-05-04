@@ -467,12 +467,39 @@ public class ReportManagerHelper {
                 ReportManagerHelper.setDiscreteLogging(initialLoggingState);
             }
             if (engineLog.length > 0) {
+                engineLog = deduplicateConsecutiveLogLines(engineLog);
                 createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Execution log: " + executionEndTimestamp,
                         new ByteArrayInputStream(engineLog));
                 createLogEntry("Successfully created attachment '" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
                         + "Execution log" + "'", true);
             }
         }
+    }
+
+    /**
+     * Removes only immediately repeated lines from the engine log before attaching it to Allure.
+     * Non-consecutive repeated lines are preserved because they can represent distinct events.
+     *
+     * @param engineLog raw engine log bytes
+     * @return processed log bytes with consecutive duplicate lines collapsed
+     */
+    private static byte[] deduplicateConsecutiveLogLines(byte[] engineLog) {
+        if (engineLog == null || engineLog.length == 0) {
+            return new byte[0];
+        }
+        String[] lines = new String(engineLog, StandardCharsets.UTF_8).split("\\R");
+        String previousLine = null;
+        StringBuilder deduplicatedLog = new StringBuilder();
+        for (String currentLine : lines) {
+            if (!currentLine.equals(previousLine)) {
+                if (!deduplicatedLog.isEmpty()) {
+                    deduplicatedLog.append(System.lineSeparator());
+                }
+                deduplicatedLog.append(currentLine);
+                previousLine = currentLine;
+            }
+        }
+        return deduplicatedLog.toString().getBytes(StandardCharsets.UTF_8);
     }
 
     public static void attachIssuesLog(String executionEndTimestamp) {

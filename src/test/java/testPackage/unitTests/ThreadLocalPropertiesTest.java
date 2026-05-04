@@ -16,6 +16,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import java.io.File;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Map;
@@ -255,6 +256,49 @@ public class ThreadLocalPropertiesTest {
 
     private Level getRootLogLevel() {
         return ((LoggerContext) LogManager.getContext(false)).getConfiguration().getRootLogger().getLevel();
+    }
+
+    @Test(description = "Engine log attachment should collapse consecutive duplicate lines")
+    public void testEngineLogAttachmentConsecutiveDuplicateLinesAreCollapsed() throws Exception {
+        String duplicatedLog = String.join(System.lineSeparator(),
+                "[INFO] action-one",
+                "[INFO] action-one",
+                "[DEBUG] action-one details",
+                "[DEBUG] action-one details",
+                "[INFO] action-two");
+
+        Method deduplicateMethod = ReportManagerHelper.class
+                .getDeclaredMethod("deduplicateConsecutiveLogLines", byte[].class);
+        deduplicateMethod.setAccessible(true);
+
+        byte[] processed = (byte[]) deduplicateMethod.invoke(null, duplicatedLog.getBytes(StandardCharsets.UTF_8));
+        String processedLog = new String(processed, StandardCharsets.UTF_8);
+
+        long actionOneInfoCount = processedLog.lines().filter(line -> line.equals("[INFO] action-one")).count();
+        long actionOneDebugCount = processedLog.lines().filter(line -> line.equals("[DEBUG] action-one details")).count();
+        Assert.assertEquals(actionOneInfoCount, 1,
+                "Consecutive duplicate INFO lines should be collapsed before attachment");
+        Assert.assertEquals(actionOneDebugCount, 1,
+                "Consecutive duplicate DEBUG lines should be collapsed before attachment");
+    }
+
+    @Test(description = "Engine log attachment should preserve non-consecutive repeated lines")
+    public void testEngineLogAttachmentPreservesNonConsecutiveRepeatedLines() throws Exception {
+        String duplicatedLog = String.join(System.lineSeparator(),
+                "[INFO] action-one",
+                "[DEBUG] context",
+                "[INFO] action-one");
+
+        Method deduplicateMethod = ReportManagerHelper.class
+                .getDeclaredMethod("deduplicateConsecutiveLogLines", byte[].class);
+        deduplicateMethod.setAccessible(true);
+
+        byte[] processed = (byte[]) deduplicateMethod.invoke(null, duplicatedLog.getBytes(StandardCharsets.UTF_8));
+        String processedLog = new String(processed, StandardCharsets.UTF_8);
+
+        long actionOneInfoCount = processedLog.lines().filter(line -> line.equals("[INFO] action-one")).count();
+        Assert.assertEquals(actionOneInfoCount, 2,
+                "Non-consecutive repeated INFO lines represent different events and should remain");
     }
 
     @Test(description = "Thread-local mobile_ properties do not leak to other threads")
