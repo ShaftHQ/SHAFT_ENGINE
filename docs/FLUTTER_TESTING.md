@@ -468,7 +468,7 @@ public class FlutterAppTestSuite {
 - [Appium Flutter Driver Documentation](https://github.com/appium-userland/appium-flutter-driver)
 - [Flutter Testing Guide](https://flutter.dev/docs/testing)
 - [SHAFT Engine Documentation](https://shaftengine.netlify.app/)
-- [Flutter Finder Java Library](https://github.com/ashwithpoojary98/appium-flutter-finder-java) - Package: `io.github.ashwithpoojary98`
+- [Flutter Finder Java Library](https://github.com/ashwithpoojary98/javaflutterfinder) - Package: `io.github.ashwithpoojary98`
 
 ## Support
 
