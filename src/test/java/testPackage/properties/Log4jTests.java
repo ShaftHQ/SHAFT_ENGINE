@@ -51,6 +51,8 @@ public class Log4jTests {
                 "Default root logger level should be info");
         Assert.assertFalse(rootLogger.contains("LOGFILE"),
                 "Default root logger should keep file logging disabled until retry diagnostics enable it");
+        Assert.assertTrue(rootLogger.contains("ReportPortalAppender"),
+                "Default root logger should stay aligned with the bundled default log4j2.properties appenders");
     }
 
 }

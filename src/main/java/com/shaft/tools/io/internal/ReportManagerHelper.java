@@ -26,6 +26,9 @@ import org.testng.Reporter;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -248,6 +251,10 @@ public class ReportManagerHelper {
 
     private static boolean ensureLogFileExists() {
         File logFile = new File(getLogFilePath());
+        if (logFile.exists() && !logFile.isFile()) {
+            logDebugFileSetupFailure("Debug log path exists but is not a regular file: " + logFile);
+            return false;
+        }
         File parent = logFile.getParentFile();
         if (parent != null && !parent.exists() && !parent.mkdirs()) {
             logDebugFileSetupFailure("Could not create debug log directory: " + parent);
@@ -279,19 +286,31 @@ public class ReportManagerHelper {
         }
     }
 
-    private static synchronized void writeToDebugLogFile(String logText, Level logLevel) {
+    private static void writeToDebugLogFile(String logText, Level logLevel) {
         if (!debugFileLoggingEnabled) {
             return;
         }
-        if (!ensureLogFileExists()) {
-            return;
-        }
-        try (FileWriter writer = new FileWriter(getLogFilePath(), true)) {
-            writer.write(String.format("[%-5s] %s | %s%n", logLevel.name(), java.time.LocalDateTime.now(), logText.trim()));
-        } catch (IOException e) {
-            if (logger != null) {
-                logger.warn("Failed to write debug log file: {}", e.getMessage());
+        synchronized (ReportManagerHelper.class) {
+            if (!debugFileLoggingEnabled) {
+                return;
             }
+            if (!ensureLogFileExists()) {
+                return;
+            }
+            try (var writer = Files.newBufferedWriter(Path.of(getLogFilePath()), StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
+                writer.write(String.format("[%-5s] %s | %s%n", logLevel.name(), java.time.LocalDateTime.now(), logText.trim()));
+            } catch (IOException e) {
+                if (logger != null) {
+                    logger.warn("Failed to write debug log file: {}", e.getMessage());
+                }
+            }
+        }
+    }
+
+    private static void writeToDebugLogFileIfEnabled(String logText, Level logLevel) {
+        if (debugFileLoggingEnabled) {
+            writeToDebugLogFile(logText, logLevel);
         }
     }
 
@@ -615,7 +634,7 @@ public class ReportManagerHelper {
             }
             logger.log(loglevel, logText.trim());
             createDebugCompanionLogEntry(logText.trim(), loglevel);
-            writeToDebugLogFile(logText.trim(), loglevel);
+            writeToDebugLogFileIfEnabled(logText.trim(), loglevel);
             forwardToRealtimeReporter(logText.trim());
         }
     }
@@ -634,7 +653,7 @@ public class ReportManagerHelper {
                 }
                 logger.log(Level.INFO, logText.trim());
                 createDebugCompanionLogEntry(logText.trim(), Level.INFO);
-                writeToDebugLogFile(logText.trim(), Level.INFO);
+                writeToDebugLogFileIfEnabled(logText.trim(), Level.INFO);
             }
             forwardToRealtimeReporter(logText.trim());
         }
@@ -718,7 +737,7 @@ public class ReportManagerHelper {
         }
         logger.log(loglevel, log);
         createDebugCompanionLogEntry(logText.trim(), loglevel);
-        writeToDebugLogFile(logText.trim(), loglevel);
+        writeToDebugLogFileIfEnabled(logText.trim(), loglevel);
         setDiscreteLogging(initialLoggingStatus);
     }
 
@@ -736,7 +755,7 @@ public class ReportManagerHelper {
                     ? "Debug action details: " + logText
                     : "Debug action details [caller=" + caller + "]: " + logText;
             logger.debug(debugLogText);
-            writeToDebugLogFile(debugLogText, Level.DEBUG);
+            writeToDebugLogFileIfEnabled(debugLogText, Level.DEBUG);
         }
     }
 

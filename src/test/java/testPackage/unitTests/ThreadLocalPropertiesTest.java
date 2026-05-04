@@ -5,6 +5,7 @@ import com.shaft.listeners.internal.RetryAnalyzer;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.PropertyFileManager;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
+import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -19,6 +20,7 @@ import java.io.File;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 import static org.mockito.Mockito.mock;
@@ -250,6 +252,60 @@ public class ThreadLocalPropertiesTest {
             if (logFile.exists()) {
                 logFile.delete();
             }
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Retry debug log setup should fail when log path points to a directory")
+    public void testEnsureLogFileExistsFailsForDirectoryPath() throws Exception {
+        String originalLogFilePath = SHAFT.Properties.log4j.appenderFile_FileName();
+        Path logDirectoryPath = Files.createTempDirectory("shaft-debug-log-directory");
+
+        Method ensureLogFileExists = ReportManagerHelper.class.getDeclaredMethod("ensureLogFileExists");
+        ensureLogFileExists.setAccessible(true);
+
+        try {
+            ThreadLocalPropertiesManager.setProperty("appender.file.fileName", logDirectoryPath.toString());
+            boolean isLogFileReady = (boolean) ensureLogFileExists.invoke(null);
+            Assert.assertFalse(isLogFileReady,
+                    "Retry diagnostics should reject non-regular log file paths");
+        } finally {
+            ThreadLocalPropertiesManager.setProperty("appender.file.fileName", originalLogFilePath);
+            Files.deleteIfExists(logDirectoryPath);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Retry diagnostics debug log writer should use UTF-8 encoding")
+    public void testDebugLogFileWriterUsesUtf8Encoding() throws Exception {
+        String originalLogFilePath = SHAFT.Properties.log4j.appenderFile_FileName();
+        Path tempDirectory = Files.createTempDirectory("shaft-debug-log-utf8");
+        Path logFilePath = tempDirectory.resolve("retry-diagnostics.log");
+        String unicodeLogEntry = "Retry diagnostics UTF-8 check - مرحبا 🌍";
+
+        Method enableDebugFileLogging = ReportManagerHelper.class.getDeclaredMethod("enableDebugFileLogging");
+        enableDebugFileLogging.setAccessible(true);
+        Method writeToDebugLogFile = ReportManagerHelper.class
+                .getDeclaredMethod("writeToDebugLogFile", String.class, Level.class);
+        writeToDebugLogFile.setAccessible(true);
+        Method resetRetryDiagnosticLogging = ReportManagerHelper.class
+                .getDeclaredMethod("resetRetryDiagnosticLogging");
+        resetRetryDiagnosticLogging.setAccessible(true);
+
+        try {
+            ThreadLocalPropertiesManager.setProperty("appender.file.fileName", logFilePath.toString());
+            ReportManager.logDiscrete("Initialize logger for UTF-8 retry diagnostics test");
+            enableDebugFileLogging.invoke(null);
+            writeToDebugLogFile.invoke(null, unicodeLogEntry, Level.DEBUG);
+
+            String writtenLog = Files.readString(logFilePath, StandardCharsets.UTF_8);
+            Assert.assertTrue(writtenLog.contains(unicodeLogEntry),
+                    "Retry debug log writer should preserve Unicode characters when written/read as UTF-8");
+        } finally {
+            resetRetryDiagnosticLogging.invoke(null);
+            ThreadLocalPropertiesManager.setProperty("appender.file.fileName", originalLogFilePath);
+            Files.deleteIfExists(logFilePath);
+            Files.deleteIfExists(tempDirectory);
             Properties.clearForCurrentThread();
         }
     }
