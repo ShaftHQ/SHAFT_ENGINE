@@ -484,13 +484,13 @@ public class ReportManagerHelper {
      * @return processed log bytes with consecutive duplicate lines collapsed
      */
     private static byte[] deduplicateConsecutiveLogLines(byte[] engineLog) {
-        if (engineLog == null || engineLog.length == 0) {
+        if (engineLog.length == 0) {
             return new byte[0];
         }
         String engineLogContent = new String(engineLog, StandardCharsets.UTF_8);
         String previousLine = null;
         List<String> deduplicatedLines = new ArrayList<>();
-        for (String currentLine : engineLogContent.lines().toList()) {
+        for (String currentLine : (Iterable<String>) engineLogContent.lines()::iterator) {
             if (!currentLine.equals(previousLine)) {
                 deduplicatedLines.add(currentLine);
                 previousLine = currentLine;
