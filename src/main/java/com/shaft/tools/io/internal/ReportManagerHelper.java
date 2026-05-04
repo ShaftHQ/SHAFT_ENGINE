@@ -287,9 +287,6 @@ public class ReportManagerHelper {
     }
 
     private static void writeToDebugLogFile(String logText, Level logLevel) {
-        if (!debugFileLoggingEnabled) {
-            return;
-        }
         synchronized (ReportManagerHelper.class) {
             if (!debugFileLoggingEnabled) {
                 return;

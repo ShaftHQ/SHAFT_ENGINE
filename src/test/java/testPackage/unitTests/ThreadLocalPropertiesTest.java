@@ -259,19 +259,19 @@ public class ThreadLocalPropertiesTest {
     @Test(description = "Retry debug log setup should fail when log path points to a directory")
     public void testEnsureLogFileExistsFailsForDirectoryPath() throws Exception {
         String originalLogFilePath = SHAFT.Properties.log4j.appenderFile_FileName();
-        Path logDirectoryPath = Files.createTempDirectory("shaft-debug-log-directory");
+        Path nonFileLogPath = Files.createTempDirectory("shaft-debug-log-directory");
 
         Method ensureLogFileExists = ReportManagerHelper.class.getDeclaredMethod("ensureLogFileExists");
         ensureLogFileExists.setAccessible(true);
 
         try {
-            ThreadLocalPropertiesManager.setProperty("appender.file.fileName", logDirectoryPath.toString());
+            ThreadLocalPropertiesManager.setProperty("appender.file.fileName", nonFileLogPath.toString());
             boolean isLogFileReady = (boolean) ensureLogFileExists.invoke(null);
             Assert.assertFalse(isLogFileReady,
                     "Retry diagnostics should reject non-regular log file paths");
         } finally {
             ThreadLocalPropertiesManager.setProperty("appender.file.fileName", originalLogFilePath);
-            Files.deleteIfExists(logDirectoryPath);
+            Files.deleteIfExists(nonFileLogPath);
             Properties.clearForCurrentThread();
         }
     }
