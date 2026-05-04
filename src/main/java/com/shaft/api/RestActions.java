@@ -20,7 +20,6 @@ import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
-import io.qameta.allure.restassured.AllureRestAssured;
 import io.restassured.builder.MultiPartSpecBuilder;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.config.EncoderConfig;
@@ -92,9 +91,7 @@ public class RestActions {
     private static final String ERROR_INCORRECT_XML_PATH = "Incorrect xmlPath ";
     private static final String ERROR_FAILED_TO_PARSE_JSON = "Failed to parse the JSON document";
     private static final String GRAPHQL_END_POINT = "graphql";
-    static AllureRestAssured allureFilter = new AllureRestAssured()
-            .setRequestAttachmentName("Request")
-            .setResponseAttachmentName("Response");
+    static final ShaftRestAssuredFilter allureFilter = new ShaftRestAssuredFilter();
     private static boolean AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = true;
     private static int HTTP_SOCKET_TIMEOUT;
     private static int HTTP_CONNECTION_TIMEOUT;
