@@ -73,7 +73,16 @@ public class APIPropertiesUnitTest {
         if (threadA.isAlive() || threadB.isAlive()) {
             threadA.interrupt();
             threadB.interrupt();
-            throw new IllegalStateException("Timed out waiting for API properties thread isolation test to complete.");
+            try {
+                threadA.join(THREAD_JOIN_TIMEOUT_MS);
+                threadB.join(THREAD_JOIN_TIMEOUT_MS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted while waiting for API properties thread cleanup to complete.", e);
+            }
+            if (threadA.isAlive() || threadB.isAlive()) {
+                throw new IllegalStateException("Timed out waiting for API properties thread isolation test to complete.");
+            }
         }
 
         assertEquals(threadBObserved.get(), defaultSwaggerUrl);

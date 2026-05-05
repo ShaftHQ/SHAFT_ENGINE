@@ -143,8 +143,13 @@ public class BrowserStackPropertiesUnitTest {
         if (threadA.isAlive() || threadB.isAlive()) {
             threadA.interrupt();
             threadB.interrupt();
-            threadA.join(THREAD_INTERRUPT_TIMEOUT_MS);
-            threadB.join(THREAD_INTERRUPT_TIMEOUT_MS);
+            try {
+                threadA.join(THREAD_INTERRUPT_TIMEOUT_MS);
+                threadB.join(THREAD_INTERRUPT_TIMEOUT_MS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted while waiting for BrowserStack thread cleanup to complete.", e);
+            }
             if (threadA.isAlive() || threadB.isAlive()) {
                 throw new IllegalStateException("Timed out waiting for BrowserStack thread isolation test to complete.");
             }
