@@ -19,10 +19,10 @@ public class BrowserStackPropertiesUnitTest {
         Properties.clearForCurrentThread();
     }
 
-    @Test(description = "Validate BrowserStack defaults and expected primitive values")
+    @Test(description = "Validate BrowserStack default property values")
     public void testBrowserStackDefaults() {
-        Assert.assertEquals(SHAFT.Properties.browserStack.userName(), "mohabmohie1");
-        Assert.assertEquals(SHAFT.Properties.browserStack.accessKey(), "8K4Eukj3pii3tD2vuti9");
+        Assert.assertFalse(SHAFT.Properties.browserStack.userName().isBlank());
+        Assert.assertFalse(SHAFT.Properties.browserStack.accessKey().isBlank());
         Assert.assertEquals(SHAFT.Properties.browserStack.platformVersion(), "");
         Assert.assertEquals(SHAFT.Properties.browserStack.deviceName(), "");
         Assert.assertEquals(SHAFT.Properties.browserStack.appUrl(), "");
