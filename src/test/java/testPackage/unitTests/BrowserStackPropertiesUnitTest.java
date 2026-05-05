@@ -121,7 +121,6 @@ public class BrowserStackPropertiesUnitTest {
             }
         });
 
-        // Platform threads are used here to keep deterministic join/teardown behavior in this isolation test.
         Thread threadB = Thread.ofPlatform().start(() -> {
             try {
                 threadASet.await();
