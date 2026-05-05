@@ -1108,6 +1108,12 @@ These guidelines apply to GitHub Copilot coding agent sessions working on this r
 - When a new workflow is added to `.github/workflows/` (add it to the Release Process or appropriate section).
 - When a breaking change is introduced (update anti-patterns and migration notes).
 
+### Coverage Task Conclusion Requirements
+- For tasks focused on increasing test coverage, the final response **must** include:
+  1. The overall code coverage percentage (from the executed coverage report).
+  2. A consolidated table listing every production class targeted in the task, with **before**, **after**, and **delta** coverage values.
+- Coverage comparisons must be computed from consistent JaCoCo report outputs produced during the same task session.
+
 ### Self-Improvement Anti-Patterns to Avoid
 - ❌ Don't add comments like "TODO: improve later" — fix it now or open a tracking issue
 - ❌ Don't repeat the same mistake across sessions — update the instructions to prevent it
