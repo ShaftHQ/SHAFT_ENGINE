@@ -12,6 +12,12 @@ import java.lang.reflect.Method;
  * without requiring a running browser.
  */
 public class JavaScriptWaitManagerUnitTest {
+    private static Method getHasMetMinimumIdleWindowMethod() throws Exception {
+        Method method = Class.forName("com.shaft.gui.browser.internal.JavaScriptWaitManager")
+                .getDeclaredMethod("hasMetMinimumIdleWindow", long.class, long[].class, long.class);
+        method.setAccessible(true);
+        return method;
+    }
 
     @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script is defined and non-empty")
     public void testActiveNetworkRequestsCountScriptIsDefined() {
@@ -101,10 +107,7 @@ public class JavaScriptWaitManagerUnitTest {
 
     @Test(description = "Verify idle window check returns immediately when there were no network requests")
     public void testIdleWindowReturnsImmediatelyWhenNoNetworkActivityWasObserved() throws Exception {
-        Method method = Class.forName("com.shaft.gui.browser.internal.JavaScriptWaitManager")
-                .getDeclaredMethod("hasMetMinimumIdleWindow", long.class, long[].class, long.class);
-        method.setAccessible(true);
-
+        Method method = getHasMetMinimumIdleWindowMethod();
         long[] idleSinceMillis = {-1L};
         boolean result = (boolean) method.invoke(null, 0L, idleSinceMillis, 1000L);
 
@@ -113,10 +116,7 @@ public class JavaScriptWaitManagerUnitTest {
 
     @Test(description = "Verify idle window still applies after real network activity is observed")
     public void testIdleWindowAppliesAfterNetworkActivity() throws Exception {
-        Method method = Class.forName("com.shaft.gui.browser.internal.JavaScriptWaitManager")
-                .getDeclaredMethod("hasMetMinimumIdleWindow", long.class, long[].class, long.class);
-        method.setAccessible(true);
-
+        Method method = getHasMetMinimumIdleWindowMethod();
         long[] idleSinceMillis = {-1L};
         boolean duringActivity = (boolean) method.invoke(null, 2L, idleSinceMillis, 1000L);
         boolean firstIdlePoll = (boolean) method.invoke(null, 0L, idleSinceMillis, 1200L);
