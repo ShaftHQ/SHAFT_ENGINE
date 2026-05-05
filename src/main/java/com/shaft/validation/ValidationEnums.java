@@ -46,6 +46,43 @@ public class ValidationEnums {
 
     }
 
+    /** Supported text directions used in localization and layout validations. */
+    @Getter
+    public enum TextDirection {
+        LTR("ltr"),
+        RTL("rtl");
+
+        private final String value;
+
+        TextDirection(String value) {
+            this.value = value;
+        }
+    }
+
+    /**
+     * Supported language presets for text-localization validations.
+     *
+     * <p>Each preset maps to a Unicode-aware regex that checks whether the target text contains
+     * at least one character from the selected language family. For broader scenarios, use
+     * language code-based assertions in the language builder.</p>
+     */
+    @Getter
+    public enum TextLanguage {
+        ARABIC("ar", "(?s).*[\\p{InArabic}].*"),
+        ENGLISH("en", "(?s).*[A-Za-z].*"),
+        SPANISH("es", "(?s).*[A-Za-zÁÉÍÓÚÜÑáéíóúüñ].*"),
+        FRENCH("fr", "(?s).*[A-Za-zÀÂÆÇÉÈÊËÏÎÔŒÙÛÜŸàâæçéèêëïîôœùûüÿ].*"),
+        GERMAN("de", "(?s).*[A-Za-zÄÖÜẞäöüß].*");
+
+        private final String languageCode;
+        private final String detectionRegex;
+
+        TextLanguage(String languageCode, String detectionRegex) {
+            this.languageCode = languageCode;
+            this.detectionRegex = detectionRegex;
+        }
+    }
+
     /** Identifies the visual comparison engine to use for image-based validations. */
     public enum VisualValidationEngine {
         EXACT_SHUTTERBUG,

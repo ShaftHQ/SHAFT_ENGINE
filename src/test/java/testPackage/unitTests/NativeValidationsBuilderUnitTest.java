@@ -238,4 +238,25 @@ public class NativeValidationsBuilderUnitTest {
     public void verifyThatContainsShouldPass() {
         Validations.verifyThat().object("hello world").contains("hello").perform();
     }
+
+    @Test(description = "language builder should fail outside text assertion context")
+    public void languageBuilderOutsideTextContextShouldFail() {
+        try {
+            Validations.assertThat().object("hello").language().is("en").perform();
+            Assert.fail("Expected IllegalStateException when using language() outside text() assertions");
+        } catch (IllegalStateException e) {
+            Assert.assertTrue(e.getMessage().contains("text()"));
+        }
+    }
+
+    @Test(description = "direction builder should fail outside text assertion context")
+    public void directionBuilderOutsideTextContextShouldFail() {
+        try {
+            Validations.assertThat().object("hello").direction().isLeftToRight().perform();
+            Assert.fail("Expected IllegalStateException when using direction() outside text() assertions");
+        } catch (IllegalStateException e) {
+            Assert.assertTrue(e.getMessage().contains("text()"));
+        }
+    }
+
 }

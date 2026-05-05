@@ -153,6 +153,11 @@ public class ValidationsHelper2 {
                     case "pagesource", "windowsource", "source" -> new BrowserActions(driver, true).getPageSource();
                     case "title", "windowtitle", "pagetitle" ->
                             new BrowserActions(driver, true).getCurrentWindowTitle();
+                    case "text", "pagetext", "windowtext" -> getPageText(driver);
+                    case "textdirection", "pagedirection", "windowdirection" -> getPageTextDirection(driver);
+                    case "textalignment", "pagealignment", "windowalignment" -> getPageTextAlignmentDirection(driver);
+                    case "textorientation", "pageorientation", "windoworientation" -> getPageTextOrientationDirection(driver);
+                    case "textdisplaystyle", "pagedisplaystyle", "windowdisplaystyle" -> getPageTextDisplayStyleDirection(driver);
                     case "windowhandle", "pagehndle", "handle" -> new BrowserActions(driver, true).getWindowHandle();
                     case "windowposition", "pageposition", "position" ->
                             new BrowserActions(driver, true).getWindowPosition();
@@ -243,6 +248,10 @@ public class ValidationsHelper2 {
                     case "text" -> new Actions(driver, true).get().text(locator);
                     case "texttrimmed", "trimmedtext" -> new Actions(driver, true).get().text(locator).trim();
                     case "selectedtext" -> new Actions(driver, true).get().selectedText(locator);
+                    case "textdirection" -> getElementTextDirection(driver, locator);
+                    case "textalignment" -> getElementTextAlignmentDirection(driver, locator);
+                    case "textorientation" -> getElementTextOrientationDirection(driver, locator);
+                    case "textdisplaystyle" -> getElementTextDisplayStyleDirection(driver, locator);
                     default -> new Actions(driver, true).get().domAttribute(locator, attribute);
                 });
                 validationState.set(performValidation(expected, actual.get(), comparisonType, validationType));
@@ -424,6 +433,81 @@ public class ValidationsHelper2 {
         updateAllureParameters(parameters);
         // force take page screenshot, (rather than element highlighted screenshot)
         reportValidationState(validationState.get(), expected, actual, driver, elementCount.get() == 0 ? null : locator, attachments);
+    }
+
+    private String getPageText(WebDriver driver) {
+        return executeJavascript(driver, "return (document.body && document.body.innerText) || document.documentElement.innerText || '';");
+    }
+
+    private String getPageTextDirection(WebDriver driver) {
+        return normalizeDirection(executeJavascript(driver,
+                "const doc=document.documentElement; const body=document.body; const bodyStyle=body?window.getComputedStyle(body):null; " +
+                        "const dir=(doc.getAttribute('dir')|| (body?body.getAttribute('dir'):'') || (bodyStyle?bodyStyle.direction:'') || getComputedStyle(doc).direction || 'ltr'); return dir;"));
+    }
+
+    private String getPageTextAlignmentDirection(WebDriver driver) {
+        return normalizeDirection(executeJavascript(driver,
+                "const body=document.body; const doc=document.documentElement; const style=body?window.getComputedStyle(body):window.getComputedStyle(doc); " +
+                        "const align=(style.textAlign || '').toLowerCase(); if(align==='right'||align==='end'){return 'rtl';} if(align==='left'||align==='start'){return 'ltr';} " +
+                        "const dir=(doc.getAttribute('dir')|| (body?body.getAttribute('dir'):'') || style.direction || 'ltr'); return dir;"));
+    }
+
+    private String getPageTextOrientationDirection(WebDriver driver) {
+        return normalizeDirection(executeJavascript(driver,
+                "const body=document.body; const doc=document.documentElement; const style=body?window.getComputedStyle(body):window.getComputedStyle(doc); " +
+                        "const writingMode=(style.writingMode||'').toLowerCase(); if(writingMode.includes('rl')){return 'rtl';} if(writingMode.includes('lr')){return 'ltr';} " +
+                        "const dir=(doc.getAttribute('dir')|| (body?body.getAttribute('dir'):'') || style.direction || 'ltr'); return dir;"));
+    }
+
+    private String getPageTextDisplayStyleDirection(WebDriver driver) {
+        return normalizeDirection(executeJavascript(driver,
+                "const body=document.body; const doc=document.documentElement; const style=body?window.getComputedStyle(body):window.getComputedStyle(doc); " +
+                        "const dir=(doc.getAttribute('dir')|| (body?body.getAttribute('dir'):'') || style.direction || 'ltr'); return dir;"));
+    }
+
+    private String getElementTextDirection(WebDriver driver, By locator) {
+        return normalizeDirection(executeJavascript(driver,
+                "const el=arguments[0]; const style=window.getComputedStyle(el); const doc=document.documentElement; " +
+                        "const dir=(el.getAttribute('dir')|| style.direction || doc.getAttribute('dir') || getComputedStyle(doc).direction || 'ltr'); return dir;",
+                locator));
+    }
+
+    private String getElementTextAlignmentDirection(WebDriver driver, By locator) {
+        return normalizeDirection(executeJavascript(driver,
+                "const el=arguments[0]; const style=window.getComputedStyle(el); const align=(style.textAlign||'').toLowerCase(); " +
+                        "if(align==='right'||align==='end'){return 'rtl';} if(align==='left'||align==='start'){return 'ltr';} " +
+                        "const doc=document.documentElement; const dir=(el.getAttribute('dir')|| style.direction || doc.getAttribute('dir') || getComputedStyle(doc).direction || 'ltr'); return dir;",
+                locator));
+    }
+
+    private String getElementTextOrientationDirection(WebDriver driver, By locator) {
+        return normalizeDirection(executeJavascript(driver,
+                "const el=arguments[0]; const style=window.getComputedStyle(el); const writingMode=(style.writingMode||'').toLowerCase(); " +
+                        "if(writingMode.includes('rl')){return 'rtl';} if(writingMode.includes('lr')){return 'ltr';} " +
+                        "const doc=document.documentElement; const dir=(el.getAttribute('dir')|| style.direction || doc.getAttribute('dir') || getComputedStyle(doc).direction || 'ltr'); return dir;",
+                locator));
+    }
+
+    private String getElementTextDisplayStyleDirection(WebDriver driver, By locator) {
+        return normalizeDirection(executeJavascript(driver,
+                "const el=arguments[0]; const style=window.getComputedStyle(el); const doc=document.documentElement; " +
+                        "const dir=(el.getAttribute('dir')|| style.direction || doc.getAttribute('dir') || getComputedStyle(doc).direction || 'ltr'); return dir;",
+                locator));
+    }
+
+    private String executeJavascript(WebDriver driver, String script) {
+        Object value = ((JavascriptExecutor) driver).executeScript(script);
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    private String executeJavascript(WebDriver driver, String script, By locator) {
+        WebElement element = driver.findElement(locator);
+        Object value = ((JavascriptExecutor) driver).executeScript(script, element);
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    private String normalizeDirection(String direction) {
+        return "rtl".equalsIgnoreCase(direction) ? "rtl" : "ltr";
     }
 
     private LinkedHashMap<String, String> setCommonParameters(Object expected, Object actual, String comparisonType) {

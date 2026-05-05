@@ -68,6 +68,16 @@ public class NativeValidationsBuilder {
         this.reportMessageBuilder = fileValidationsBuilder.reportMessageBuilder;
     }
 
+    private NativeValidationsBuilder(NativeValidationsBuilder sourceBuilder, String validationMethod, String elementAttribute, String browserAttribute) {
+        this.validationCategory = sourceBuilder.validationCategory;
+        this.driver = sourceBuilder.driver;
+        this.locator = sourceBuilder.locator;
+        this.validationMethod = validationMethod;
+        this.elementAttribute = elementAttribute;
+        this.browserAttribute = browserAttribute;
+        this.reportMessageBuilder = sourceBuilder.reportMessageBuilder;
+    }
+
     /**
      * Use this to check that the actual object is equal to the expected value
      *
@@ -267,5 +277,91 @@ public class NativeValidationsBuilder {
         var executor = new ValidationsExecutor(this);
         executor.internalPerform();
         return executor;
+    }
+
+    /**
+     * Use this under text assertions to validate text language.
+     *
+     * @return a TextLanguageValidationsBuilder object to continue building language validations
+     * @throws IllegalStateException if called outside text-based assertions
+     */
+    public TextLanguageValidationsBuilder language() {
+        ensureTextAssertionContext("language");
+        reportMessageBuilder.append("language ");
+        return new TextLanguageValidationsBuilder(this);
+    }
+
+    /**
+     * Use this under text assertions to validate text direction as LTR/RTL.
+     *
+     * @return a TextDirectionValidationsBuilder object to continue building direction validations
+     * @throws IllegalStateException if called outside text-based assertions
+     */
+    public TextDirectionValidationsBuilder direction() {
+        return buildTextDirectionBuilder("textDirection", "direction");
+    }
+
+    /**
+     * Use this under text assertions to validate text alignment as LTR/RTL.
+     *
+     * @return a TextDirectionValidationsBuilder object to continue building alignment validations
+     * @throws IllegalStateException if called outside text-based assertions
+     */
+    public TextDirectionValidationsBuilder alignment() {
+        return buildTextDirectionBuilder("textAlignment", "alignment");
+    }
+
+    /**
+     * Use this under text assertions to validate text orientation as LTR/RTL.
+     *
+     * @return a TextDirectionValidationsBuilder object to continue building orientation validations
+     * @throws IllegalStateException if called outside text-based assertions
+     */
+    public TextDirectionValidationsBuilder orientation() {
+        return buildTextDirectionBuilder("textOrientation", "orientation");
+    }
+
+    /**
+     * Use this under text assertions to validate text display style as LTR/RTL.
+     *
+     * @return a TextDirectionValidationsBuilder object to continue building display style validations
+     * @throws IllegalStateException if called outside text-based assertions
+     */
+    public TextDirectionValidationsBuilder displayStyle() {
+        return buildTextDirectionBuilder("textDisplayStyle", "display style");
+    }
+
+    /**
+     * Convenience method that validates Arabic text characters and RTL direction.
+     *
+     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @throws IllegalStateException if called outside text-based assertions
+     */
+    public ValidationsExecutor isArabic() {
+        ensureTextAssertionContext("isArabic");
+        language().is(ValidationEnums.TextLanguage.ARABIC);
+        return direction().is(ValidationEnums.TextDirection.RTL);
+    }
+
+    private void ensureTextAssertionContext(String apiName) {
+        boolean isElementTextAssertion = locator != null
+                && "elementDomAttributeEquals".equals(validationMethod)
+                && "text".equalsIgnoreCase(elementAttribute);
+        boolean isBrowserTextAssertion = browserAttribute != null && "text".equalsIgnoreCase(browserAttribute);
+        if (!(isElementTextAssertion || isBrowserTextAssertion)) {
+            throw new IllegalStateException("The \"" + apiName + "\" assertion can only be called after text(), e.g. assertThat(...).text()." + apiName + "().");
+        }
+    }
+
+    private TextDirectionValidationsBuilder buildTextDirectionBuilder(String metadataAttribute, String reportLabel) {
+        ensureTextAssertionContext(reportLabel);
+        reportMessageBuilder.append(reportLabel).append(" ");
+        NativeValidationsBuilder metadataBuilder;
+        if (locator != null) {
+            metadataBuilder = new NativeValidationsBuilder(this, "elementDomAttributeEquals", metadataAttribute, null);
+        } else {
+            metadataBuilder = new NativeValidationsBuilder(this, "browserAttributeEquals", null, metadataAttribute);
+        }
+        return new TextDirectionValidationsBuilder(metadataBuilder);
     }
 }
