@@ -221,14 +221,14 @@ public class ThreadLocalPropertiesTest {
     @Test(description = "Flags setters should update SHAFT global properties without mutating JVM system properties")
     public void testFlagsSetterDoesNotMutateJvmSystemProperties() {
         int originalRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
-        String originalSystemRetryCount = System.getProperty("retryMaximumNumberOfAttempts");
+        String originalSystemRetryValue = System.getProperty("retryMaximumNumberOfAttempts");
         int updatedRetryCount = originalRetryCount == 7 ? 6 : 7;
 
         try {
             SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(updatedRetryCount);
             Assert.assertEquals(SHAFT.Properties.flags.retryMaximumNumberOfAttempts(), updatedRetryCount,
                     "Flag setter should update the effective SHAFT flag value");
-            Assert.assertEquals(System.getProperty("retryMaximumNumberOfAttempts"), originalSystemRetryCount,
+            Assert.assertEquals(System.getProperty("retryMaximumNumberOfAttempts"), originalSystemRetryValue,
                     "Flag setter should not mutate JVM system properties");
         } finally {
             SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetryCount);
