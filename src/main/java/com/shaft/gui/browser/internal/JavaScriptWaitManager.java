@@ -14,6 +14,7 @@ import java.util.List;
 public class JavaScriptWaitManager {
     private static final List<String> COMPLETE_READY_STATES = List.of("loaded", "complete");
     private static final Duration ACTIVE_REQUEST_POLLING_INTERVAL = Duration.ofMillis(200);
+    private static final Duration INITIAL_IDLE_OBSERVATION_WINDOW = ACTIVE_REQUEST_POLLING_INTERVAL;
     private static final Duration MINIMUM_IDLE_WINDOW = Duration.ofMillis(500);
     private static final long IDLE_WINDOW_NOT_STARTED = -1L;
 
@@ -101,7 +102,7 @@ public class JavaScriptWaitManager {
             return false;
         }
 
-        var requiredIdleWindow = networkActivityObserved[0] ? MINIMUM_IDLE_WINDOW : ACTIVE_REQUEST_POLLING_INTERVAL;
+        var requiredIdleWindow = networkActivityObserved[0] ? MINIMUM_IDLE_WINDOW : INITIAL_IDLE_OBSERVATION_WINDOW;
         return (nowMillis - idleSinceMillis[0]) >= requiredIdleWindow.toMillis();
     }
 

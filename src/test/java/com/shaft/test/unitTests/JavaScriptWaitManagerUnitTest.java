@@ -127,6 +127,7 @@ public class JavaScriptWaitManagerUnitTest {
 
         Assert.assertFalse(firstIdlePoll, "First zero-request poll should not complete before a follow-up observation");
         Assert.assertTrue(secondIdlePoll, "No network activity should only wait for the short initial observation window");
+        Assert.assertFalse(networkActivityObserved[0], "No-activity path should not be marked as activity-observed");
     }
 
     @Test(description = "Verify deferred network activity after an idle first poll is still synchronized")
