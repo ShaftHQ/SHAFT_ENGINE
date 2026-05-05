@@ -100,6 +100,28 @@ public interface Allure extends EngineProperties<Allure> {
     String customTitle();
 
     /**
+     * Opt-in switch to enforce usage of the configured Allure 3 CLI version
+     * ({@code SHAFT.Properties.internal.allure3Version()}).
+     *
+     * <p>Property key: {@code allure.forceConfiguredCliVersion} — default: {@code false}
+     *
+     * <p>When enabled:
+     * <ul>
+     *   <li>SHAFT checks {@code allure --version} for a PATH-installed binary.</li>
+     *   <li>If the version does not exactly match {@code allure3Version}, SHAFT ignores it.</li>
+     *   <li>SHAFT then uses {@code npx --yes allure@<allure3Version>} (or downloaded Node.js fallback).</li>
+     * </ul>
+     *
+     * <p>When disabled (default), SHAFT uses any PATH-installed {@code allure} binary first,
+     * regardless of its version, preserving the legacy behavior.
+     *
+     * @return {@code true} to enforce the configured Allure 3 CLI version; {@code false} otherwise
+     */
+    @Key("allure.forceConfiguredCliVersion")
+    @DefaultValue("false")
+    boolean forceConfiguredCliVersion();
+
+    /**
      * Returns a fluent {@link SetProperty} builder for programmatically overriding Allure properties.
      *
      * <p>Example:
@@ -207,6 +229,17 @@ public interface Allure extends EngineProperties<Allure> {
          */
         public SetProperty customTitle(String value) {
             setProperty("allure.customTitle", value);
+            return this;
+        }
+
+        /**
+         * Overrides the {@code allure.forceConfiguredCliVersion} property at runtime.
+         *
+         * @param value {@code true} to enforce configured {@code allure3Version} and ignore mismatched PATH-installed allure binaries
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty forceConfiguredCliVersion(boolean value) {
+            setProperty("allure.forceConfiguredCliVersion", String.valueOf(value));
             return this;
         }
 

@@ -102,16 +102,42 @@ public class AllureManagerUnitTest {
 
         Method scriptMethod = AllureManager.class.getDeclaredMethod("writeGenerateReportShellFilesToProjectDirectory");
         scriptMethod.setAccessible(true);
-        scriptMethod.invoke(null);
 
         String scriptFileName = SystemUtils.IS_OS_WINDOWS ? "generate_allure_report.bat" : "generate_allure_report.sh";
         Path scriptPath = Path.of(scriptFileName);
         try {
+            SHAFT.Properties.allure.set().forceConfiguredCliVersion(true);
+            scriptMethod.invoke(null);
             String content = Files.readString(scriptPath, StandardCharsets.UTF_8);
 
             SHAFT.Validations.assertThat().object(content.contains("allure@" + SHAFT.Properties.internal.allure3Version()))
                     .isEqualTo(true).perform();
             SHAFT.Validations.assertThat().object(content.contains("allure --version")).isEqualTo(true).perform();
+        } finally {
+            SHAFT.Properties.allure.set().forceConfiguredCliVersion(false);
+            Files.deleteIfExists(scriptPath);
+        }
+    }
+
+    @Test(description = "Generated allure serve script should preserve legacy PATH-first behavior when enforcement is disabled")
+    public void generatedAllureServeScriptShouldUseLegacyPathFirstFlowWhenEnforcementDisabled() throws Exception {
+        Field pathField = AllureManager.class.getDeclaredField("allureResultsFolderPath");
+        pathField.setAccessible(true);
+        pathField.set(null, "allure-results/");
+
+        Method scriptMethod = AllureManager.class.getDeclaredMethod("writeGenerateReportShellFilesToProjectDirectory");
+        scriptMethod.setAccessible(true);
+
+        String scriptFileName = SystemUtils.IS_OS_WINDOWS ? "generate_allure_report.bat" : "generate_allure_report.sh";
+        Path scriptPath = Path.of(scriptFileName);
+        try {
+            SHAFT.Properties.allure.set().forceConfiguredCliVersion(false);
+            scriptMethod.invoke(null);
+            String content = Files.readString(scriptPath, StandardCharsets.UTF_8);
+
+            SHAFT.Validations.assertThat().object(content.contains("allure@" + SHAFT.Properties.internal.allure3Version()))
+                    .isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(content.contains("allure --version")).isEqualTo(false).perform();
         } finally {
             Files.deleteIfExists(scriptPath);
         }

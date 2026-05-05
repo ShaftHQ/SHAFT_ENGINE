@@ -35,8 +35,9 @@ import java.util.regex.Pattern;
  *
  * <p><b>Allure 3 CLI resolution order (batteries-included):</b>
  * <ol>
- *   <li>A globally installed {@code allure} binary on {@code PATH}, <b>only when its version exactly
- *       matches</b> {@code SHAFT.Properties.internal.allure3Version()}.</li>
+ *   <li>A globally installed {@code allure} binary on {@code PATH}.</li>
+ *   <li>If {@code allure.forceConfiguredCliVersion=true}, SHAFT verifies that system {@code allure}
+ *       exactly matches {@code SHAFT.Properties.internal.allure3Version()}; mismatched versions are ignored.</li>
  *   <li>{@code npx} on {@code PATH} → {@code npx --yes allure@<version>} (auto-downloads the configured version).</li>
  *   <li>Portable Node.js downloaded to {@code ~/.m2/repository/nodejs/} → its bundled
  *       {@code npx} → same {@code npx --yes allure@<version>} invocation.</li>
@@ -213,27 +214,45 @@ public class AllureManager {
         // --config allurerc.yaml is passed explicitly so the singleFile/groupBy/reportName options
         // written by writeAllureConfig() are honoured when the user runs the script manually.
         String allure3Version = SHAFT.Properties.internal.allure3Version();
+        boolean enforceConfiguredCliVersion = SHAFT.Properties.allure.forceConfiguredCliVersion();
         String resultsPath = getResultsPath();
         String serveArguments = "serve --config allurerc.yaml \"" + resultsPath + "\"";
         List<String> commandsToServeAllureReport;
         if (SystemUtils.IS_OS_WINDOWS) {
-            commandsToServeAllureReport = Arrays.asList(
-                    "@echo off",
-                    "set \"EXPECTED_ALLURE_VERSION=" + allure3Version + "\"",
-                    "set \"ALLURE_COMMAND=npx --yes allure@" + allure3Version + "\"",
-                    "where allure >nul 2>&1 && (for /f \"tokens=*\" %%v in ('allure --version 2^>nul') do set \"ALLURE_VERSION=%%v\")",
-                    "if /i \"%ALLURE_VERSION%\"==\"%EXPECTED_ALLURE_VERSION%\" set \"ALLURE_COMMAND=allure\"",
-                    "%ALLURE_COMMAND% " + serveArguments,
-                    "pause", "exit");
+            if (enforceConfiguredCliVersion) {
+                commandsToServeAllureReport = Arrays.asList(
+                        "@echo off",
+                        "set \"EXPECTED_ALLURE_VERSION=" + allure3Version + "\"",
+                        "set \"ALLURE_COMMAND=npx --yes allure@" + allure3Version + "\"",
+                        "where allure >nul 2>&1 && (for /f \"tokens=*\" %%v in ('allure --version 2^>nul') do set \"ALLURE_VERSION=%%v\")",
+                        "if /i \"%ALLURE_VERSION%\"==\"%EXPECTED_ALLURE_VERSION%\" set \"ALLURE_COMMAND=allure\"",
+                        "%ALLURE_COMMAND% " + serveArguments,
+                        "pause", "exit");
+            } else {
+                commandsToServeAllureReport = Arrays.asList(
+                        "@echo off",
+                        "where allure >nul 2>&1 && (allure " + serveArguments + ") || (npx --yes allure@" + allure3Version + " " + serveArguments + ")",
+                        "pause", "exit");
+            }
             internalFileSession.writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
         } else {
-            commandsToServeAllureReport = Arrays.asList(
-                    "#!/bin/bash",
-                    "if command -v allure >/dev/null 2>&1 && [ \"$(allure --version 2>/dev/null)\" = \"" + allure3Version + "\" ]; then",
-                    "  allure " + serveArguments,
-                    "else",
-                    "  npx --yes allure@" + allure3Version + " " + serveArguments,
-                    "fi");
+            if (enforceConfiguredCliVersion) {
+                commandsToServeAllureReport = Arrays.asList(
+                        "#!/bin/bash",
+                        "if command -v allure >/dev/null 2>&1 && [ \"$(allure --version 2>/dev/null)\" = \"" + allure3Version + "\" ]; then",
+                        "  allure " + serveArguments,
+                        "else",
+                        "  npx --yes allure@" + allure3Version + " " + serveArguments,
+                        "fi");
+            } else {
+                commandsToServeAllureReport = Arrays.asList(
+                        "#!/bin/bash",
+                        "if command -v allure >/dev/null 2>&1; then",
+                        "  allure " + serveArguments,
+                        "else",
+                        "  npx --yes allure@" + allure3Version + " " + serveArguments,
+                        "fi");
+            }
             internalFileSession.writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
             // make script executable on Unix-based shells
             internalTerminalSession.performTerminalCommand("chmod u+x generate_allure_report.sh");
@@ -536,7 +555,10 @@ public class AllureManager {
      *
      * <p>Resolution order:
      * <ol>
-     *   <li>{@code allure} binary on {@code PATH} only if its version equals configured {@code allure3Version}.</li>
+     *   <li>{@code allure} binary on {@code PATH} (always preferred when
+     *       {@code allure.forceConfiguredCliVersion=false}).</li>
+     *   <li>When {@code allure.forceConfiguredCliVersion=true}, system {@code allure} is used only if
+     *       its version equals configured {@code allure3Version}; otherwise it is ignored.</li>
      *   <li>{@code npx} on {@code PATH} → {@code npx --yes allure@<version>}.</li>
      *   <li>Portable Node.js downloaded to {@value #NODEJS_CACHE_DIR} → its {@code npx}.</li>
      * </ol>
@@ -567,9 +589,18 @@ public class AllureManager {
             // nodeLtsVersion only affects the download fallback; still try allure/npx on PATH
         }
 
-        // 1. allure binary on PATH, only when version exactly matches configured allure3Version
+        boolean enforceConfiguredCliVersion = SHAFT.Properties.allure.forceConfiguredCliVersion();
+
+        // 1. allure binary on PATH
         boolean allureOnPath = isExecutableOnPath("allure");
         if (allureOnPath) {
+            if (!enforceConfiguredCliVersion) {
+                cachedAllureCommandPrefix = "allure";
+                ReportManager.logDiscrete("Allure 3 CLI resolved: using system 'allure' binary."
+                        + " Set allure.forceConfiguredCliVersion=true to enforce configured allure@" + allure3Version + ".");
+                return cachedAllureCommandPrefix;
+            }
+
             String systemAllureVersion = readSystemAllureVersion();
             if (allure3Version.equals(systemAllureVersion)) {
                 cachedAllureCommandPrefix = "allure";
