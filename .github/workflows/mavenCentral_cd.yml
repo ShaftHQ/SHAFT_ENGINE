@@ -79,9 +79,10 @@ jobs:
           version = os.environ["RELEASE_VERSION"]
           fallback_url = f"https://github.com/ShaftHQ/shafthq.github.io/pulls?q=is%3Apr+is%3Aopen+{version}"
           blog_post_url = fallback_url
+          blog_post_link_label = "Release Blog Post Search"
           api_url = "https://api.github.com/repos/ShaftHQ/shafthq.github.io/pulls?state=open&per_page=100&sort=updated&direction=desc"
-          max_poll_attempts = 20
-          poll_interval_seconds = 15
+          max_poll_attempts = 12
+          poll_interval_seconds = 10
 
           for attempt in range(max_poll_attempts):
               try:
@@ -115,6 +116,7 @@ jobs:
 
               if matched_pull_request:
                   blog_post_url = matched_pull_request["html_url"]
+                  blog_post_link_label = "Release Blog Post PR"
                   break
 
               print(f"Blog post PR not found yet for {version} (attempt {attempt + 1}/{max_poll_attempts}).")
@@ -122,8 +124,9 @@ jobs:
 
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as github_env:
               github_env.write(f"BLOG_POST_URL={blog_post_url}\n")
+              github_env.write(f"BLOG_POST_LINK_LABEL={blog_post_link_label}\n")
 
-          print(f"Resolved BLOG_POST_URL={blog_post_url}")
+          print(f"Resolved BLOG_POST_URL={blog_post_url} ({blog_post_link_label})")
           PY
       - name: Announce Release on Slack
         env:
@@ -131,6 +134,7 @@ jobs:
           RELEASE_VERSION: ${{ env.RELEASE_VERSION }}
           RELEASE_URL: ${{ steps.create_release.outputs.html_url }}
           BLOG_POST_URL: ${{ env.BLOG_POST_URL }}
+          BLOG_POST_LINK_LABEL: ${{ env.BLOG_POST_LINK_LABEL }}
         run: |
           python <<'PY'
           import json
@@ -144,7 +148,7 @@ jobs:
               raise SystemExit(0)
 
           payload = {
-              "text": f"🚀 SHAFT Engine {os.environ['RELEASE_VERSION']} is now released!\n• GitHub Release: {os.environ['RELEASE_URL']}\n• Release Blog Post PR: {os.environ['BLOG_POST_URL']}"
+              "text": f"🚀 SHAFT Engine {os.environ['RELEASE_VERSION']} is now released!\n• GitHub Release: {os.environ['RELEASE_URL']}\n• {os.environ['BLOG_POST_LINK_LABEL']}: {os.environ['BLOG_POST_URL']}"
           }
           request = urllib.request.Request(
               webhook,
