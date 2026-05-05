@@ -20,20 +20,26 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class RealtimeReporterServerUnitTest {
-    private static final String BASE_URL = "http://localhost:1111";
+    private String baseUrl;
+    private boolean originalAllureAutoOpen;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         RealtimeReporter.stopServer();
+        originalAllureAutoOpen = SHAFT.Properties.allure.automaticallyOpen();
         SHAFT.Properties.allure.set().automaticallyOpen(false);
         Method startServer = RealtimeReporter.class.getDeclaredMethod("startServer");
         startServer.setAccessible(true);
         startServer.invoke(null);
+        var dashboardUrlField = RealtimeReporter.class.getDeclaredField("DASHBOARD_URL");
+        dashboardUrlField.setAccessible(true);
+        baseUrl = (String) dashboardUrlField.get(null);
     }
 
     @AfterMethod(alwaysRun = true)
     public void teardown() {
         RealtimeReporter.stopServer();
+        SHAFT.Properties.allure.set().automaticallyOpen(originalAllureAutoOpen);
         Properties.clearForCurrentThread();
     }
 
@@ -97,7 +103,7 @@ public class RealtimeReporterServerUnitTest {
     }
 
     private HttpResponse request(String method, String path) throws Exception {
-        HttpURLConnection connection = (HttpURLConnection) new URL(BASE_URL + path).openConnection();
+        HttpURLConnection connection = (HttpURLConnection) new URL(baseUrl + path).openConnection();
         connection.setRequestMethod(method);
         connection.setConnectTimeout(5000);
         connection.setReadTimeout(5000);
@@ -105,8 +111,8 @@ public class RealtimeReporterServerUnitTest {
         InputStream stream = code >= 400 ? connection.getErrorStream() : connection.getInputStream();
         String body = "";
         if (stream != null) {
-            try (InputStream ignored = stream; ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-                ignored.transferTo(baos);
+            try (InputStream responseStream = stream; ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                responseStream.transferTo(baos);
                 body = baos.toString(StandardCharsets.UTF_8);
             }
         }

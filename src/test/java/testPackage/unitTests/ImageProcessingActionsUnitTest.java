@@ -9,26 +9,27 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Map;
 
 public class ImageProcessingActionsUnitTest {
-    private static final FileActions fileActions = FileActions.getInstance(true);
+    private static final FileActions testFileActions = FileActions.getInstance(true);
     private static final Path TEMP_DIR = Path.of("target", "temp", "imageProcessingUnitTests");
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
-        fileActions.deleteFolder(TEMP_DIR.toString());
-        fileActions.createFolder(TEMP_DIR.toString());
-        setAiFolderPath(TEMP_DIR.toAbsolutePath().toString() + "/");
+        testFileActions.deleteFolder(TEMP_DIR.toString());
+        testFileActions.createFolder(TEMP_DIR.toString());
+        setAiFolderPath(TEMP_DIR.toAbsolutePath() + File.separator);
         clearLocatorHashCache();
     }
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
-        fileActions.deleteFolder(TEMP_DIR.toString());
+        testFileActions.deleteFolder(TEMP_DIR.toString());
     }
 
     @Test
@@ -47,7 +48,7 @@ public class ImageProcessingActionsUnitTest {
         By locator = By.id("avatar");
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
         byte[] imageBytes = "img".getBytes(StandardCharsets.UTF_8);
-        fileActions.writeToFile(TEMP_DIR.resolve(hashed + ".png").toString(), imageBytes);
+        testFileActions.writeToFile(TEMP_DIR.resolve(hashed + ".png").toString(), imageBytes);
 
         Assert.assertEquals(ImageProcessingActions.getReferenceImage(locator), imageBytes);
         Assert.assertEquals(ImageProcessingActions.getShutterbugDifferencesImage(locator), new byte[0]);
@@ -67,7 +68,7 @@ public class ImageProcessingActionsUnitTest {
 
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
         Assert.assertTrue(result);
-        Assert.assertTrue(fileActions.doesFileExist(TEMP_DIR.resolve(hashed + ".png").toString()));
+        Assert.assertTrue(testFileActions.doesFileExist(TEMP_DIR.resolve(hashed + ".png").toString()));
     }
 
     @Test
@@ -79,9 +80,9 @@ public class ImageProcessingActionsUnitTest {
     public void compareImageFoldersShouldFailWhenFolderCountsMismatch() {
         Path reference = TEMP_DIR.resolve("reference");
         Path test = TEMP_DIR.resolve("test");
-        fileActions.createFolder(reference.toString());
-        fileActions.createFolder(test.toString());
-        fileActions.writeToFile(reference.resolve("one.txt").toString(), "1");
+        testFileActions.createFolder(reference.toString());
+        testFileActions.createFolder(test.toString());
+        testFileActions.writeToFile(reference.resolve("one.txt").toString(), "1");
         Assert.assertThrows(Throwable.class, () -> ImageProcessingActions.compareImageFolders(reference.toString(), test.toString(), 90));
     }
 

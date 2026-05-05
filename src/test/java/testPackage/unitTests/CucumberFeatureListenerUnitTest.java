@@ -33,7 +33,7 @@ public class CucumberFeatureListenerUnitTest {
         Method getStringBuilder = CucumberFeatureListener.class.getDeclaredMethod("getStringBuilder", List.class);
         getStringBuilder.setAccessible(true);
         String value = getStringBuilder.invoke(null, List.of(List.of("A", "B"), List.of())).toString();
-        Assert.assertTrue(value.contains("A\tB"));
+        Assert.assertEquals(value, "A\tB\n");
 
         Method translate = CucumberFeatureListener.class.getDeclaredMethod("translateTestCaseStatus", Result.class);
         translate.setAccessible(true);
