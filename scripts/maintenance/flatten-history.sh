@@ -62,7 +62,7 @@ with out_path.open('w', encoding='utf-8') as f:
     for email,(total,names) in sorted(by_email.items(), key=lambda kv:(-kv[1][0], kv[0])):
         canonical=max(names.items(), key=lambda x:(x[1],x[0]))[0]
         aliases='; '.join(f"{n} ({cnt})" for n,cnt in sorted(names.items(), key=lambda x:(-x[1],x[0])))
-        f.write(f"{total}\t{canonical}\t{email}\t{aliases}\\n")
+        f.write(f"{total}\t{canonical}\t{email}\t{aliases}\n")
 PY
 
 echo "[4/8] Building maintainer manifest..."
@@ -77,15 +77,15 @@ for line in (Path(os.environ['AUDIT_DIR']) / 'pre-maintainers-normalized.tsv').r
     rows.append((int(total),name,email,aliases))
 out = Path(os.environ['AUDIT_DIR']) / 'CONTRIBUTORS_HISTORY.md'
 with out.open('w', encoding='utf-8') as f:
-    f.write('# Maintainer History Manifest (Pre-Flatten Baseline)\\n\\n')
-    f.write('Generated from full-history `git shortlog -se --all` before flattening.\\n')
-    f.write('Normalization key: lower-cased email. Aliases preserve all observed display names.\\n\\n')
-    f.write(f'- Distinct normalized emails: **{len(rows)}**\\n')
-    f.write(f'- Total attributed commits in baseline: **{sum(r[0] for r in rows)}**\\n\\n')
-    f.write('| Commits | Canonical Name | Email | Observed Aliases |\\n')
-    f.write('|---:|---|---|---|\\n')
+    f.write('# Maintainer History Manifest (Pre-Flatten Baseline)\n\n')
+    f.write('Generated from full-history `git shortlog -se --all` before flattening.\n')
+    f.write('Normalization key: lower-cased email. Aliases preserve all observed display names.\n\n')
+    f.write(f'- Distinct normalized emails: **{len(rows)}**\n')
+    f.write(f'- Total attributed commits in baseline: **{sum(r[0] for r in rows)}**\n\n')
+    f.write('| Commits | Canonical Name | Email | Observed Aliases |\n')
+    f.write('|---:|---|---|---|\n')
     for total,name,email,aliases in rows:
-        f.write(f"| {total} | {name.replace('|','\\\\|')} | `{email}` | {aliases.replace('|','\\\\|').replace('; ','<br>')} |\\n")
+        f.write(f"| {total} | {name.replace('|','\\\\|')} | `{email}` | {aliases.replace('|','\\\\|').replace('; ','<br>')} |\n")
 PY
 
 echo "[5/8] Rewrite mode: single-commit snapshot for maximum clone-size reduction."
@@ -113,13 +113,11 @@ git switch --orphan "$FLATTEN_BRANCH"
 git rm -rf . >/dev/null 2>&1 || true
 git checkout "$BASE_REF" -- .
 cp "$AUDIT_DIR/CONTRIBUTORS_HISTORY.md" "$REPO_ROOT/CONTRIBUTORS_HISTORY.md"
-if [[ -z "$(git config --get user.name || true)" ]]; then
-  git config --local user.name "History Rewrite Bot"
-fi
-if [[ -z "$(git config --get user.email || true)" ]]; then
-  git config --local user.email "history-rewrite-bot@users.noreply.github.com"
-fi
 git add -A
+GIT_AUTHOR_NAME="${GIT_AUTHOR_NAME:-History Rewrite Bot}" \
+GIT_AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-history-rewrite-bot@users.noreply.github.com}" \
+GIT_COMMITTER_NAME="${GIT_COMMITTER_NAME:-History Rewrite Bot}" \
+GIT_COMMITTER_EMAIL="${GIT_COMMITTER_EMAIL:-history-rewrite-bot@users.noreply.github.com}" \
 git commit -m "Flatten git history and preserve maintainer manifest"
 
 git count-objects -vH > "$AUDIT_DIR/post-count-objects.txt"
