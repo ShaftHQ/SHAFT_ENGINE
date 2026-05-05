@@ -35,6 +35,14 @@ public interface Log4j extends EngineProperties<Log4j> {
     @DefaultValue("false")
     boolean appenderConsoleLayoutDisableAnsi();
 
+    @Key("appender.console.layout.noConsoleNoAnsi")
+    @DefaultValue("false")
+    boolean appenderConsoleLayoutNoConsoleNoAnsi();
+
+    @Key("appender.console.layout.charset")
+    @DefaultValue("UTF-8")
+    String appenderConsoleLayoutCharset();
+
     @Key("appender.console.layout.pattern")
     @DefaultValue("%highlight{[%p]}{FATAL=red blink, ERROR=red bold, WARN=yellow bold, INFO=fg_#0060a8 bold, DEBUG=fg_#43b02a bold, TRACE=black} %style{%m} %style{| @%d{hh:mm:ss a}}{bright_black} %n")
     String appenderConsoleLayoutPattern();
@@ -66,6 +74,10 @@ public interface Log4j extends EngineProperties<Log4j> {
     @Key("appender.file.layout.pattern")
     @DefaultValue("[%-5level] %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %c{1} - %msg%n")
     String appenderFileLayoutPattern();
+
+    @Key("appender.file.layout.charset")
+    @DefaultValue("UTF-8")
+    String appenderFileLayoutCharset();
 
     @Key("appender.file.filter.threshold.type")
     @DefaultValue("ThresholdFilter")
