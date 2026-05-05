@@ -32,7 +32,7 @@
     </scm>
 
     <properties>
-        <surefireArgLine></surefireArgLine>
+        <surefireArgLine>--enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow</surefireArgLine>
         <surefire.excludedGroups>allure3-visual-demo</surefire.excludedGroups>
         <!-- Dependency Versions -->
         <log4j2.version>2.25.4</log4j2.version>
