@@ -114,10 +114,20 @@ git rm -rf . >/dev/null 2>&1 || true
 git checkout "$BASE_REF" -- .
 cp "$AUDIT_DIR/CONTRIBUTORS_HISTORY.md" "$REPO_ROOT/CONTRIBUTORS_HISTORY.md"
 git add -A
-GIT_AUTHOR_NAME="${GIT_AUTHOR_NAME:-History Rewrite Bot}" \
-GIT_AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-history-rewrite-bot@users.noreply.github.com}" \
-GIT_COMMITTER_NAME="${GIT_COMMITTER_NAME:-History Rewrite Bot}" \
-GIT_COMMITTER_EMAIL="${GIT_COMMITTER_EMAIL:-history-rewrite-bot@users.noreply.github.com}" \
+AUTHOR_NAME="${GIT_AUTHOR_NAME:-$(git config --get user.name || true)}"
+AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-$(git config --get user.email || true)}"
+COMMITTER_NAME="${GIT_COMMITTER_NAME:-$AUTHOR_NAME}"
+COMMITTER_EMAIL="${GIT_COMMITTER_EMAIL:-$AUTHOR_EMAIL}"
+
+: "${AUTHOR_NAME:=History Rewrite Bot}"
+: "${AUTHOR_EMAIL:=history-rewrite-bot@users.noreply.github.com}"
+: "${COMMITTER_NAME:=History Rewrite Bot}"
+: "${COMMITTER_EMAIL:=history-rewrite-bot@users.noreply.github.com}"
+
+GIT_AUTHOR_NAME="$AUTHOR_NAME" \
+GIT_AUTHOR_EMAIL="$AUTHOR_EMAIL" \
+GIT_COMMITTER_NAME="$COMMITTER_NAME" \
+GIT_COMMITTER_EMAIL="$COMMITTER_EMAIL" \
 git commit -m "Flatten git history and preserve maintainer manifest"
 
 git count-objects -vH > "$AUDIT_DIR/post-count-objects.txt"
