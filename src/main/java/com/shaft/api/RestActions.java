@@ -310,17 +310,16 @@ public class RestActions {
             failAction(jsonPath, rootCauseException);
         }
         if (searchPool != null) {
-            passAction(jsonPath);
+            ReportManager.logDiscrete("Get response JSON value; " + jsonPath + ".", Level.DEBUG);
             return searchPool;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath \"" + jsonPath + "\"");
-            passAction(jsonPath);
+            ReportManager.logDiscrete("Get response JSON value; " + jsonPath + ".", Level.DEBUG);
             return null;
         }
     }
 
     /**
-     * Extracts a string value from an arbitrary response object by evaluating a JSONPath expression.
      * Supports REST-Assured {@link Response}, {@link String}, {@link org.json.JSONObject},
      * {@link org.json.JSONArray}, {@link java.util.List}, and {@link java.util.HashMap} inputs.
      *
@@ -392,11 +391,11 @@ public class RestActions {
             failAction(jsonPath, rootCauseException);
         }
         if (searchPool != null) {
-            passAction(jsonPath);
+            ReportManager.logDiscrete("Get response JSON value; " + jsonPath + ".", Level.DEBUG);
             return searchPool;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath \"" + jsonPath + "\"");
-            passAction(jsonPath);
+            ReportManager.logDiscrete("Get response JSON value; " + jsonPath + ".", Level.DEBUG);
             return null;
         }
     }
@@ -436,11 +435,11 @@ public class RestActions {
         }
 
         if (searchPool != null) {
-            passAction(jsonPath);
+            ReportManager.logDiscrete("Get response JSON value as list; " + jsonPath + ".", Level.DEBUG);
             return searchPool;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath \"" + jsonPath + "\"");
-            passAction(jsonPath);
+            ReportManager.logDiscrete("Get response JSON value as list; " + jsonPath + ".", Level.DEBUG);
             return null;
         }
     }
@@ -471,7 +470,7 @@ public class RestActions {
         if (Objects.equals(value, "")) {
             failAction("Can't find the reference value [" + valueReference + "] in the list with the [" + jsonPathToValueReference + "] JSON Path");
         } else {
-            passAction(value);
+            ReportManager.logDiscrete("Get response JSON value from list; " + value + ".", Level.DEBUG);
         }
         return value;
     }
@@ -494,11 +493,11 @@ public class RestActions {
 
         }
         if (searchPool != null) {
-            passAction(xmlPath);
+            ReportManager.logDiscrete("Get response XML value; " + xmlPath + ".", Level.DEBUG);
             return searchPool;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath \"" + xmlPath + "\"");
-            passAction(xmlPath);
+            ReportManager.logDiscrete("Get response XML value; " + xmlPath + ".", Level.DEBUG);
             return null;
         }
     }
@@ -521,11 +520,11 @@ public class RestActions {
 
         }
         if (output != null) {
-            passAction(xmlPath);
+            ReportManager.logDiscrete("Get response XML value; " + xmlPath + ".", Level.DEBUG);
             return output;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath \"" + xmlPath + "\"");
-            passAction(xmlPath);
+            ReportManager.logDiscrete("Get response XML value; " + xmlPath + ".", Level.DEBUG);
             return null;
         }
     }
@@ -555,11 +554,11 @@ public class RestActions {
             searchPool = Arrays.asList(nodes.toArray());
         }
         if (searchPool != null) {
-            passAction(xmlPath);
+            ReportManager.logDiscrete("Get response XML value as list; " + xmlPath + ".", Level.DEBUG);
             return searchPool;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath \"" + xmlPath + "\"");
-            passAction(xmlPath);
+            ReportManager.logDiscrete("Get response XML value as list; " + xmlPath + ".", Level.DEBUG);
             return null;
         }
     }
@@ -572,7 +571,7 @@ public class RestActions {
      */
     public static int getResponseStatusCode(Response response) {
         int statusCode = response.getStatusCode();
-        passAction(String.valueOf(statusCode));
+        ReportManager.logDiscrete("Get response status code; " + statusCode + ".", Level.DEBUG);
         return statusCode;
     }
 
@@ -584,7 +583,7 @@ public class RestActions {
      */
     public static long getResponseTime(Response response) {
         long time = response.timeIn(TimeUnit.MILLISECONDS);
-        passAction(String.valueOf(time));
+        ReportManager.logDiscrete("Get response time; " + time + "ms.", Level.DEBUG);
         return time;
     }
 
@@ -1382,17 +1381,17 @@ public class RestActions {
             boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             var statusCode = response.getStatusCode();
-            ReportManager.logDiscrete("Response status code: \"" + statusCode + "\", status line: \"" + response.getStatusLine() + "\"");
+            ReportManager.logDiscrete("Response status code: \"" + statusCode + "\", status line: \"" + response.getStatusLine() + "\"", Level.DEBUG);
             if (AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE) {
                 if (targetStatusCode != 0) {
                     if (targetStatusCode == statusCode) {
-                        ReportManager.log("Actual response status code \"" + statusCode + "\" matches the expected one \"" + targetStatusCode + "\".");
+                        ReportManager.logDiscrete("Actual response status code \"" + statusCode + "\" matches the expected one \"" + targetStatusCode + "\".", Level.DEBUG);
                     } else {
                         failAction("Actual response status code \"" + statusCode + "\" does not match the expected one \"" + targetStatusCode + "\".");
                     }
                 } else {
                     if (statusCode >= 200 && statusCode < 300) {
-                        ReportManager.log("Actual response status code \"" + statusCode + "\" is successful (Between 200 and 299).");
+                        ReportManager.logDiscrete("Actual response status code \"" + statusCode + "\" is successful (Between 200 and 299).", Level.DEBUG);
                     } else {
                         failAction("Actual response status code \"" + statusCode + "\" is a failure (Not between 200 and 299).");
                     }
