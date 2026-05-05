@@ -4,12 +4,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.internal.AllureManager;
+import org.apache.commons.lang3.SystemUtils;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  * Unit tests for private helper behavior in {@link AllureManager}.
@@ -88,5 +92,36 @@ public class AllureManagerUnitTest {
         SHAFT.Validations.assertThat().object(exception.getCause().getClass().getName())
                 .isEqualTo(IllegalStateException.class.getName()).perform();
         SHAFT.Validations.assertThat().object(exception.getCause().getMessage()).isEqualTo("Utility class").perform();
+    }
+
+    @Test(description = "Generated allure serve script should verify installed allure version before using it")
+    public void generatedAllureServeScriptShouldCheckVersionBeforeUsingSystemAllure() throws Exception {
+        Field pathField = AllureManager.class.getDeclaredField("allureResultsFolderPath");
+        pathField.setAccessible(true);
+        pathField.set(null, "allure-results/");
+
+        Method scriptMethod = AllureManager.class.getDeclaredMethod("writeGenerateReportShellFilesToProjectDirectory");
+        scriptMethod.setAccessible(true);
+        scriptMethod.invoke(null);
+
+        String scriptFileName = SystemUtils.IS_OS_WINDOWS ? "generate_allure_report.bat" : "generate_allure_report.sh";
+        Path scriptPath = Path.of(scriptFileName);
+        String content = Files.readString(scriptPath, StandardCharsets.UTF_8);
+
+        SHAFT.Validations.assertThat().object(content.contains("allure@" + SHAFT.Properties.internal.allure3Version()))
+                .isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(content.contains("allure --version")).isEqualTo(true).perform();
+
+        Files.deleteIfExists(scriptPath);
+    }
+
+    @Test(description = "extractSemVerFromText should parse SemVer-like versions and return null when absent")
+    public void extractSemVerFromTextShouldParseExpectedPatterns() throws Exception {
+        Method extractorMethod = AllureManager.class.getDeclaredMethod("extractSemVerFromText", String.class);
+        extractorMethod.setAccessible(true);
+
+        SHAFT.Validations.assertThat().object(extractorMethod.invoke(null, "allure 3.3.1").toString()).isEqualTo("3.3.1").perform();
+        SHAFT.Validations.assertThat().object(extractorMethod.invoke(null, "v3.3.1-beta.2").toString()).isEqualTo("3.3.1-beta.2").perform();
+        SHAFT.Validations.assertThat().object(extractorMethod.invoke(null, "unknown version")).isNull().perform();
     }
 }
