@@ -756,7 +756,10 @@ Follow these steps in order when preparing a new SHAFT release:
 
 ### 1. Update Version Numbers (Three Places — Always All)
 - **`pom.xml`** (line 6): change `<version>OLD</version>` to `<version>NEW</version>`.  The comment next to it reminds you to also update `Internal.java`.
-- **`src/main/java/com/shaft/properties/internal/Internal.java`**: change the `@DefaultValue` of `shaftEngineVersion()` to match the new version.
+- **`src/main/java/com/shaft/properties/internal/Internal.java`**:
+  - change the `@DefaultValue` of `shaftEngineVersion()` to match the new release version.
+  - also check and update `allure3Version()` to the latest stable Allure 3 npm package version.
+  - also check and update `nodeLtsVersion()` to the latest Node.js LTS patch version.
 - **All example `pom.xml` files** under `src/main/resources/examples/` (7 files — TestNG, JUnit, Cucumber variants): change `<shaft_engine.version>OLD</shaft_engine.version>` to `<shaft_engine.version>NEW</shaft_engine.version>`.  You can do this in bulk with:
   ```bash
   find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<shaft_engine.version>OLD</shaft_engine.version>|<shaft_engine.version>NEW</shaft_engine.version>|g'
@@ -800,21 +803,32 @@ find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<maven-surefi
 find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<surefire-testng.version>OLD</surefire-testng.version>|<surefire-testng.version>NEW</surefire-testng.version>|g'
 ```
 
-### 3. Verify No Stable Dependency Updates Are Skipped
-Run `mvn versions:display-dependency-updates` and update any dependency that has a **stable** (non-beta, non-RC, non-milestone, non-alpha) newer version.  Pre-release updates should be skipped.
+### 3. Dependency Currency Gate (Direct + Property/Managed + Transitive Coverage via BOM/Management)
+Run:
+```bash
+mvn versions:display-dependency-updates versions:display-plugin-updates versions:display-property-updates -DgenerateBackupPoms=false
+```
+Then:
+- update any dependency/property/plugin that has a **stable** newer version.
+- skip pre-release updates (`alpha`, `beta`, `rc`, `milestone`, `M*`).
+- treat this step as mandatory before finalizing the release PR.
 
-### 3. Compile and Test
+### 4. Validate Build
 ```bash
 mvn clean install -DskipTests -Dgpg.skip    # must succeed
-mvn test -Dtest=<AffectedTests>             # must pass
 ```
 
-### 4. Commit and Merge to `main`
+> [!NOTE]
+> For **release-generation-only** PRs (version bumps/workflow/docs for release automation with no production logic change),
+> skip baseline/full test-suite reruns to keep release preparation lightweight; rely on pre-release validation already completed and CI on merge.
+
+### 5. Commit and Merge to `main`
 Merging to `main` automatically triggers the **Maven Central Continuous Delivery** workflow (`mavenCentral_cd.yml`), which:
 1. Substitutes `$RELEASE_VERSION` in `.github/RELEASE_BODY_TEMPLATE.md` and uses it as the release body.
 2. Creates a GitHub Release via `ncipollo/release-action` with `generateReleaseNotes: true` **and** `bodyFile`.
-3. Deploys the artifact to Maven Central.
-4. Dispatches a `shaft-engine-release` event to `ShaftHQ/shafthq.github.io` (user guide repo) via `BOT_TOKEN`.
+3. Dispatches a `shaft-engine-release` event to `ShaftHQ/shafthq.github.io` (user guide repo) via `BOT_TOKEN`.
+4. Resolves the generated release-blog-post PR link and sends it in the Slack release announcement (when `SLACK_WEBHOOK_URL` is configured).
+5. Deploys the artifact to Maven Central.
 
 > [!IMPORTANT]
 > **How release notes are assembled — do not break this contract:**
@@ -864,9 +878,12 @@ See: https://github.com/ShaftHQ/shafthq.github.io/issues/468
 ### Checklist
 - [ ] `pom.xml` version updated
 - [ ] `Internal.java` `shaftEngineVersion` `@DefaultValue` updated
+- [ ] `Internal.java` `allure3Version` checked/updated to latest stable
+- [ ] `Internal.java` `nodeLtsVersion` checked/updated to latest LTS patch
 - [ ] All 7 example `pom.xml` files under `src/main/resources/examples/` updated — bump `<shaft_engine.version>` manually (use bulk `sed` command above) **or** wait for the **Sync Sample Projects SHAFT Version** workflow to open a PR automatically after the release is published
 - [ ] All 7 example `pom.xml` files synced with main `pom.xml` for plugin/dependency versions — the **Sync Sample Projects SHAFT Version** workflow handles `jdk.version`, `aspectjweaver.version`, `maven-compiler-plugin.version`, `maven-resources-plugin.version`, `maven-surefire-plugin.version`, and `surefire-testng.version` automatically; manually verify only if the workflow fails
-- [ ] No stable dependency updates skipped — the **Code Quality Scan** workflow flags these weekly; check for open issues with the `dependencies` label before releasing
+- [ ] Dependency currency gate executed: `versions:display-dependency-updates`, `versions:display-plugin-updates`, and `versions:display-property-updates`
+- [ ] No stable dependency/plugin/property updates skipped
 - [ ] Compiles: `mvn clean install -DskipTests -Dgpg.skip`
 - [ ] PR merged to `main`
 

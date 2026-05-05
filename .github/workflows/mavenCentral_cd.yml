@@ -57,6 +57,94 @@ jobs:
           bodyFile: /tmp/release_body.md
           name: ${{ env.RELEASE_VERSION }}
           tag: ${{ env.RELEASE_VERSION }}
+      - name: Notify User Guide Repository
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ secrets.BOT_TOKEN }}
+          repository: ShaftHQ/shafthq.github.io
+          event-type: shaft-engine-release
+          client-payload: '{"tag_name": "${{ env.RELEASE_VERSION }}", "version": "${{ env.RELEASE_VERSION }}", "release_url": "${{ steps.create_release.outputs.html_url }}"}'
+      - name: Resolve Release Blog Post Link
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          RELEASE_VERSION: ${{ env.RELEASE_VERSION }}
+        run: |
+          python <<'PY'
+          import json
+          import os
+          import time
+          import urllib.request
+
+          token = os.environ["BOT_TOKEN"]
+          version = os.environ["RELEASE_VERSION"]
+          fallback_url = f"https://github.com/ShaftHQ/shafthq.github.io/pulls?q=is%3Apr+is%3Aopen+{version}"
+          blog_post_url = fallback_url
+          api_url = "https://api.github.com/repos/ShaftHQ/shafthq.github.io/pulls?state=open&per_page=100&sort=updated&direction=desc"
+
+          for _ in range(20):
+              request = urllib.request.Request(
+                  api_url,
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/vnd.github+json",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "User-Agent": "shaft-release-workflow",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  pull_requests = json.load(response)
+
+              matched_pull_request = None
+              for pull_request in pull_requests:
+                  title = pull_request.get("title", "")
+                  body = pull_request.get("body", "") or ""
+                  head_reference = pull_request.get("head", {}).get("ref", "")
+                  author = pull_request.get("user", {}).get("login", "")
+                  searchable_text = f"{title} {head_reference} {body}"
+                  if version in searchable_text and author == "github-actions[bot]":
+                      matched_pull_request = pull_request
+                      break
+
+              if matched_pull_request:
+                  blog_post_url = matched_pull_request["html_url"]
+                  break
+
+              time.sleep(15)
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as github_env:
+              github_env.write(f"BLOG_POST_URL={blog_post_url}\n")
+
+          print(f"Resolved BLOG_POST_URL={blog_post_url}")
+          PY
+      - name: Announce Release on Slack
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RELEASE_VERSION: ${{ env.RELEASE_VERSION }}
+          RELEASE_URL: ${{ steps.create_release.outputs.html_url }}
+          BLOG_POST_URL: ${{ env.BLOG_POST_URL }}
+        run: |
+          python <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          payload = {
+              "text": f"🚀 SHAFT Engine {os.environ['RELEASE_VERSION']} is now released!\n• GitHub Release: {os.environ['RELEASE_URL']}\n• Release Blog Post PR: {os.environ['BLOG_POST_URL']}"
+          }
+          request = urllib.request.Request(
+              os.environ["SLACK_WEBHOOK_URL"],
+              data=json.dumps(payload).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          with urllib.request.urlopen(request, timeout=20) as response:
+              if response.status >= 300:
+                  raise RuntimeError(f"Slack webhook returned status {response.status}")
+          PY
+      - name: Skip Slack Announcement (secret not configured)
+        if: ${{ secrets.SLACK_WEBHOOK_URL == '' }}
+        run: echo "SLACK_WEBHOOK_URL is not configured; skipping Slack announcement."
       - name: Setup Prerequisites
         run: |
           git config --global user.signingKey "${{ secrets.GPG_KEYNAME }}"
@@ -70,10 +158,3 @@ jobs:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
         run: mvn --batch-mode deploy "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
-      - name: Notify User Guide Repository
-        uses: peter-evans/repository-dispatch@v4
-        with:
-          token: ${{ secrets.BOT_TOKEN }}
-          repository: ShaftHQ/shafthq.github.io
-          event-type: shaft-engine-release
-          client-payload: '{"tag_name": "${{ env.RELEASE_VERSION }}", "version": "${{ env.RELEASE_VERSION }}", "release_url": "${{ steps.create_release.outputs.html_url }}"}'

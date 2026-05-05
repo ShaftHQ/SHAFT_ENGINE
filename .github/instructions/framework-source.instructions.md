@@ -108,6 +108,12 @@ When fixing a bug or unexpected behavior in framework source files, you **must**
 - Make the **smallest possible change** — do not refactor unrelated code
 - Run regression tests to confirm no other behavior is broken
 
+### Release Metadata Updates in `Internal.java`
+When preparing a SHAFT release and editing `src/main/java/com/shaft/properties/internal/Internal.java`, update/verify these keys together:
+- `shaftEngineVersion` (must match root `pom.xml` project version)
+- `allure3Version` (latest stable Allure 3 npm package)
+- `nodeLtsVersion` (latest Node.js LTS patch)
+
 ### ⛔ Mandatory Pre-Commit Rules (No Exceptions)
 > **You MUST NEVER commit untested framework code. There are no exceptions to these rules.**
 
