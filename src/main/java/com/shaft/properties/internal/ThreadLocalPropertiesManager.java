@@ -14,6 +14,7 @@ package com.shaft.properties.internal;
  */
 public final class ThreadLocalPropertiesManager {
 
+    private static final java.util.Properties globalOverrides = new java.util.Properties();
     private static final ThreadLocal<java.util.Properties> threadLocalOverrides =
             ThreadLocal.withInitial(java.util.Properties::new);
 
@@ -33,6 +34,31 @@ public final class ThreadLocalPropertiesManager {
     }
 
     /**
+     * Sets a property override globally for all threads.
+     *
+     * @param key   the property key
+     * @param value the property value
+     */
+    public static void setGlobalProperty(String key, String value) {
+        synchronized (globalOverrides) {
+            globalOverrides.setProperty(key, value);
+        }
+    }
+
+    /**
+     * Returns a snapshot of global property overrides.
+     *
+     * @return global property overrides
+     */
+    public static java.util.Properties getGlobalOverrides() {
+        java.util.Properties copy = new java.util.Properties();
+        synchronized (globalOverrides) {
+            copy.putAll(globalOverrides);
+        }
+        return copy;
+    }
+
+    /**
      * Returns the effective value for the given property key by checking the
      * current thread's overrides first and falling back to the corresponding
      * system property.  This is the single-key equivalent of
@@ -46,6 +72,12 @@ public final class ThreadLocalPropertiesManager {
      */
     public static String getProperty(String key) {
         String value = threadLocalOverrides.get().getProperty(key);
+        if (value != null) {
+            return value;
+        }
+        synchronized (globalOverrides) {
+            value = globalOverrides.getProperty(key);
+        }
         return value != null ? value : System.getProperty(key);
     }
 
@@ -75,6 +107,9 @@ public final class ThreadLocalPropertiesManager {
     public static java.util.Properties getEffectiveProperties() {
         java.util.Properties merged = new java.util.Properties();
         merged.putAll(System.getProperties());
+        synchronized (globalOverrides) {
+            merged.putAll(globalOverrides);
+        }
         merged.putAll(threadLocalOverrides.get());
         return merged;
     }

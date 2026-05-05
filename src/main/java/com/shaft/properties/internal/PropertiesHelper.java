@@ -94,11 +94,11 @@ public class PropertiesHelper {
         //load paths as the default properties path is needed for the next step
         Properties.basePaths = ConfigFactory.create(Paths.class);
         //set key system properties that are needed for the framework to function
-        System.setProperty("rp.properties.path", SHAFT.Properties.paths.properties());
-        System.setProperty("webdriver.http.factory", "jdk-http-client");
-        System.setProperty("log4j.configurationFile", PropertyFileManager.getLog4jConfigPath());
-        System.setProperty("allure.testng.hide.configuration.failures", "true");
-        System.setProperty("allure.testng.hide.disabled.tests", "true");
+        ThreadLocalPropertiesManager.setGlobalProperty("rp.properties.path", SHAFT.Properties.paths.properties());
+        ThreadLocalPropertiesManager.setGlobalProperty("webdriver.http.factory", "jdk-http-client");
+        ThreadLocalPropertiesManager.setGlobalProperty("log4j.configurationFile", PropertyFileManager.getLog4jConfigPath());
+        ThreadLocalPropertiesManager.setGlobalProperty("allure.testng.hide.configuration.failures", "true");
+        ThreadLocalPropertiesManager.setGlobalProperty("allure.testng.hide.disabled.tests", "true");
     }
 
     /**
@@ -294,7 +294,7 @@ public class PropertiesHelper {
                 SHAFT.Properties.healenium.set().healEnabled(false);
                 SHAFT.Properties.flags.set().autoMaximizeBrowserWindow(false);
                 SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
-                SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(true);
+                SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(false);
                 SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("AI");
                 SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
                 SHAFT.Properties.visuals.set().screenshotParamsWatermark(true);
@@ -302,6 +302,10 @@ public class PropertiesHelper {
                 SHAFT.Properties.visuals.set().videoParamsRecordVideo(false);
                 SHAFT.Properties.reporting.set().debugMode(false);
                 SHAFT.Properties.reporting.set().captureElementName(false);
+                SHAFT.Properties.reporting.set().captureWebDriverLogs(false);
+                SHAFT.Properties.reporting.set().attachFullLog(false);
+                SHAFT.Properties.performance.set().generatePerformanceReport(false);
+                SHAFT.Properties.flags.set().telemetryEnabled(false);
                 SHAFT.Properties.web.set().headlessExecution(false);
                 if (maximumPerformanceMode == 2 && !DriverFactory.DriverType.SAFARI.getValue().equals(SHAFT.Properties.web.targetBrowserName())) {
                     SHAFT.Properties.web.set().headlessExecution(true);

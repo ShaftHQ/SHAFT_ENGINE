@@ -54,5 +54,10 @@ public interface Performance extends EngineProperties<Performance> {
             setProperty("lightHouseExecution.port", String.valueOf(value));
             return this;
         }
+
+        public SetProperty generatePerformanceReport(boolean value) {
+            setProperty("generatePerformanceReport", String.valueOf(value));
+            return this;
+        }
     }
 }

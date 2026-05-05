@@ -98,7 +98,7 @@ public class AllureManager {
         /*
          * Force screenshot link to be shown in the results as a link not text
          */
-        System.setProperty("org.uncommons.reportng.escape-output", "false");
+        ThreadLocalPropertiesManager.setGlobalProperty("org.uncommons.reportng.escape-output", "false");
         allureResultsFolderPath = SHAFT.Properties.paths.allureResults();
         cleanAllureReportDirectory();
         cleanAllureResultsDirectory();
