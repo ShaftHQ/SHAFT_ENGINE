@@ -41,7 +41,7 @@ du -sh .git > "$AUDIT_DIR/pre-dotgit-size.txt"
 git rev-list --objects --all | git cat-file --batch-check='%(objecttype) %(objectname) %(objectsize) %(rest)' | awk '$1=="blob"{print $3"\t"$2"\t"$4}' | sort -nr | sed -n '1,100p' > "$AUDIT_DIR/pre-largest-blobs.txt"
 
 echo "[3/8] Building normalized maintainer map..."
-AUDIT_DIR="$AUDIT_DIR" python - <<'PY'
+AUDIT_DIR="$AUDIT_DIR" python3 - <<'PY'
 from pathlib import Path
 import os
 import re, collections
@@ -58,7 +58,7 @@ for c,n,e in rows:
     by_email[e][0]+=c
     by_email[e][1][n]+=c
 with out_path.open('w', encoding='utf-8') as f:
-    f.write('total_commits\tcanonical_name\temail\taliases\\n')
+    f.write('total_commits\tcanonical_name\temail\taliases\n')
     for email,(total,names) in sorted(by_email.items(), key=lambda kv:(-kv[1][0], kv[0])):
         canonical=max(names.items(), key=lambda x:(x[1],x[0]))[0]
         aliases='; '.join(f"{n} ({cnt})" for n,cnt in sorted(names.items(), key=lambda x:(-x[1],x[0])))
@@ -66,7 +66,7 @@ with out_path.open('w', encoding='utf-8') as f:
 PY
 
 echo "[4/8] Building maintainer manifest..."
-AUDIT_DIR="$AUDIT_DIR" python - <<'PY'
+AUDIT_DIR="$AUDIT_DIR" python3 - <<'PY'
 from pathlib import Path
 import os
 rows=[]
@@ -114,10 +114,10 @@ git rm -rf . >/dev/null 2>&1 || true
 git checkout "$BASE_REF" -- .
 cp "$AUDIT_DIR/CONTRIBUTORS_HISTORY.md" "$REPO_ROOT/CONTRIBUTORS_HISTORY.md"
 if [[ -z "$(git config --get user.name || true)" ]]; then
-  git config user.name "History Rewrite Bot"
+  git config --local user.name "History Rewrite Bot"
 fi
 if [[ -z "$(git config --get user.email || true)" ]]; then
-  git config user.email "history-rewrite-bot@users.noreply.github.com"
+  git config --local user.email "history-rewrite-bot@users.noreply.github.com"
 fi
 git add -A
 git commit -m "Flatten git history and preserve maintainer manifest"

@@ -12,7 +12,7 @@ Optimize clone/fetch performance by flattening repository history and reducing h
 1. Ensure full history is present (`git fetch --unshallow origin` when required).
 2. Generate baseline artifacts and manifest:
    ```bash
-   /home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/scripts/maintenance/flatten-history.sh
+   scripts/maintenance/flatten-history.sh
    ```
 3. Review baseline files in `/tmp/shaft-history-rewrite/`:
    - `pre-maintainers-shortlog.txt`
@@ -30,7 +30,7 @@ Optimize clone/fetch performance by flattening repository history and reducing h
 ```bash
 TARGET_BRANCH=main \
 FLATTEN_BRANCH=history/flattened-main \
-/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/scripts/maintenance/flatten-history.sh --execute
+scripts/maintenance/flatten-history.sh --execute
 ```
 
 > The script auto-configures a local fallback git identity when `user.name`/`user.email` are not set.

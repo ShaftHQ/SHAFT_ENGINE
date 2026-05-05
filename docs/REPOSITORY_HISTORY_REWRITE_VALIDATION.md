@@ -6,7 +6,7 @@ This validation was executed in an isolated temporary clone (`/tmp/shaft-history
 TARGET_BRANCH=copilot/optimize-repository-cloning-performance \
 FLATTEN_BRANCH=history/flattened-main \
 AUDIT_DIR=/tmp/shaft-history-audit/rewrite-run \
-/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/scripts/maintenance/flatten-history.sh --execute
+scripts/maintenance/flatten-history.sh --execute
 ```
 
 ## Results
