@@ -33,6 +33,8 @@ FLATTEN_BRANCH=history/flattened-main \
 /home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/scripts/maintenance/flatten-history.sh --execute
 ```
 
+> The script auto-configures a local fallback git identity when `user.name`/`user.email` are not set.
+
 ## Validation Checklist
 - Maintainer manifest exists and is committed: `CONTRIBUTORS_HISTORY.md`
 - Object/pack improvement:
@@ -46,6 +48,7 @@ FLATTEN_BRANCH=history/flattened-main \
   /usr/bin/time -f '%E real' git clone --no-local <rewritten-repo-url> /tmp/clone-rewritten
   ```
 - Ref/tag integrity review completed (release tags preserved only if intentionally recreated).
+- Example measured results are documented in `docs/REPOSITORY_HISTORY_REWRITE_VALIDATION.md`.
 
 ## Maintainer Cutover Procedure (Force Push)
 1. Announce maintenance window and temporary push freeze.

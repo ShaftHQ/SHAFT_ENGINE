@@ -38,7 +38,7 @@ git shortlog -se --all > "$AUDIT_DIR/pre-maintainers-shortlog.txt"
 git log --all --format='%aN <%aE>|%cN <%cE>' | tr '|' '\n' | sed '/^$/d' | sort -u > "$AUDIT_DIR/pre-identities-raw.txt"
 git count-objects -vH > "$AUDIT_DIR/pre-count-objects.txt"
 du -sh .git > "$AUDIT_DIR/pre-dotgit-size.txt"
-git rev-list --objects --all | git cat-file --batch-check='%(objecttype) %(objectname) %(objectsize) %(rest)' | awk '$1=="blob"{print $3"\t"$2"\t"$4}' | sort -nr | head -100 > "$AUDIT_DIR/pre-largest-blobs.txt"
+git rev-list --objects --all | git cat-file --batch-check='%(objecttype) %(objectname) %(objectsize) %(rest)' | awk '$1=="blob"{print $3"\t"$2"\t"$4}' | sort -nr | sed -n '1,100p' > "$AUDIT_DIR/pre-largest-blobs.txt"
 
 echo "[3/8] Building normalized maintainer map..."
 AUDIT_DIR="$AUDIT_DIR" python - <<'PY'
@@ -65,7 +65,7 @@ with out_path.open('w', encoding='utf-8') as f:
         f.write(f"{total}\t{canonical}\t{email}\t{aliases}\\n")
 PY
 
-echo "[4/8] Refreshing maintainer manifest in repository root..."
+echo "[4/8] Building maintainer manifest..."
 AUDIT_DIR="$AUDIT_DIR" python - <<'PY'
 from pathlib import Path
 import os
@@ -75,7 +75,7 @@ for line in (Path(os.environ['AUDIT_DIR']) / 'pre-maintainers-normalized.tsv').r
         continue
     total,name,email,aliases=line.split('\t',3)
     rows.append((int(total),name,email,aliases))
-out=Path('CONTRIBUTORS_HISTORY.md')
+out = Path(os.environ['AUDIT_DIR']) / 'CONTRIBUTORS_HISTORY.md'
 with out.open('w', encoding='utf-8') as f:
     f.write('# Maintainer History Manifest (Pre-Flatten Baseline)\\n\\n')
     f.write('Generated from full-history `git shortlog -se --all` before flattening.\\n')
@@ -91,14 +91,16 @@ PY
 echo "[5/8] Rewrite mode: single-commit snapshot for maximum clone-size reduction."
 
 echo "[6/8] Planned rewrite commands:"
-echo "  git switch --orphan '$FLATTEN_BRANCH' '$BASE_REF'"
-echo "  git reset"
+echo "  git switch --orphan '$FLATTEN_BRANCH'"
+echo "  git rm -rf ."
+echo "  git checkout '$BASE_REF' -- ."
 echo "  git add -A"
 echo "  git commit -m 'Flatten git history and preserve maintainer manifest'"
 
 echo "[7/8] Baseline artifacts saved in: $AUDIT_DIR"
 
 if [[ "$EXECUTE" != true ]]; then
+  cp "$AUDIT_DIR/CONTRIBUTORS_HISTORY.md" "$REPO_ROOT/CONTRIBUTORS_HISTORY.md"
   echo "Dry run complete. Re-run with --execute to perform orphan-branch flattening locally."
   exit 0
 fi
@@ -107,8 +109,16 @@ echo "[8/8] Executing orphan-branch flattening locally..."
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 BACKUP_REF="backup/pre-flatten-${TARGET_BRANCH}-${STAMP}"
 git branch "$BACKUP_REF" "$BASE_REF"
-git switch --orphan "$FLATTEN_BRANCH" "$BASE_REF"
-git reset
+git switch --orphan "$FLATTEN_BRANCH"
+git rm -rf . >/dev/null 2>&1 || true
+git checkout "$BASE_REF" -- .
+cp "$AUDIT_DIR/CONTRIBUTORS_HISTORY.md" "$REPO_ROOT/CONTRIBUTORS_HISTORY.md"
+if [[ -z "$(git config --get user.name || true)" ]]; then
+  git config user.name "History Rewrite Bot"
+fi
+if [[ -z "$(git config --get user.email || true)" ]]; then
+  git config user.email "history-rewrite-bot@users.noreply.github.com"
+fi
 git add -A
 git commit -m "Flatten git history and preserve maintainer manifest"
 
