@@ -34,6 +34,9 @@
     <properties>
         <surefireArgLine>--enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow</surefireArgLine>
         <surefire.excludedGroups>allure3-visual-demo</surefire.excludedGroups>
+        <jdk.version>25</jdk.version>
+        <lombok.version>1.18.46</lombok.version>
+        <maven.min.version>3.9.0</maven.min.version>
         <!-- Dependency Versions -->
         <log4j2.version>2.25.4</log4j2.version>
         <netty.version>4.2.13.Final</netty.version>
@@ -735,7 +738,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.46</version>
+            <version>${lombok.version}</version>
             <scope>provided</scope>
         </dependency>
 
@@ -891,18 +894,42 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.15.0</version>
                 <configuration>
-                    <source>25</source>
-                    <target>25</target>
+                    <release>${jdk.version}</release>
                     <encoding>UTF-8</encoding>
                     <meminitial>4096m</meminitial>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
-                            <version>1.18.46</version>
+                            <version>${lombok.version}</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.6.2</version>
+                <executions>
+                    <execution>
+                        <id>enforce-toolchain</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[${jdk.version},26)</version>
+                                    <message>This project requires JDK ${jdk.version}.x only. Install/use that JDK before building.</message>
+                                </requireJavaVersion>
+                                <requireMavenVersion>
+                                    <version>[${maven.min.version},)</version>
+                                    <message>This project requires Maven ${maven.min.version}+.</message>
+                                </requireMavenVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -1161,6 +1188,10 @@
                         </dependencies>
                         <configuration>
                             <encoding>UTF-8</encoding>
+                            <!-- Exclude optional BrowserStack SDK from default test runtime to avoid AspectJ instrumentation noise in local/CI runs. -->
+                            <classpathDependencyExcludes>
+                                <classpathDependencyExclude>com.browserstack:browserstack-java-sdk</classpathDependencyExclude>
+                            </classpathDependencyExcludes>
                             <!-- Exclude intentionally-failing visual-demo tests from default CI runs.
                                  Run them explicitly with -Dgroups=allure3-visual-demo when needed,
                                  or override -Dsurefire.excludedGroups to customize exclusions. -->
@@ -1220,6 +1251,10 @@
                         </dependencies>
                         <configuration>
                             <encoding>UTF-8</encoding>
+                            <!-- Exclude optional BrowserStack SDK from default test runtime to avoid AspectJ instrumentation noise in local/CI runs. -->
+                            <classpathDependencyExcludes>
+                                <classpathDependencyExclude>com.browserstack:browserstack-java-sdk</classpathDependencyExclude>
+                            </classpathDependencyExcludes>
                             <systemPropertyVariables>
                                 <testng.dtd.http>true</testng.dtd.http>
                                 <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>
