@@ -2,6 +2,7 @@ package testPackage.unitTests;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
+import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -89,6 +90,7 @@ public class BrowserStackPropertiesUnitTest {
         Assert.assertEquals(SHAFT.Properties.browserStack.appiumVersion(), "3.2.0");
         Assert.assertFalse(SHAFT.Properties.browserStack.acceptInsecureCerts());
         Assert.assertTrue(SHAFT.Properties.browserStack.debug());
+        Assert.assertEquals(ThreadLocalPropertiesManager.getProperty("browserStack.enableBiometric"), "true");
         Assert.assertTrue(SHAFT.Properties.browserStack.networkLogs());
         Assert.assertEquals(SHAFT.Properties.browserStack.geoLocation(), "FR");
         Assert.assertEquals(SHAFT.Properties.browserStack.buildName(), "build-1");
@@ -106,6 +108,7 @@ public class BrowserStackPropertiesUnitTest {
         CountDownLatch threadBRead = new CountDownLatch(1);
         AtomicReference<String> threadBObserved = new AtomicReference<>();
 
+        // Platform threads are used here to keep deterministic join/teardown behavior in this isolation test.
         Thread threadA = Thread.ofPlatform().start(() -> {
             try {
                 SHAFT.Properties.browserStack.set().userName("thread-a-user");
@@ -118,6 +121,7 @@ public class BrowserStackPropertiesUnitTest {
             }
         });
 
+        // Platform threads are used here to keep deterministic join/teardown behavior in this isolation test.
         Thread threadB = Thread.ofPlatform().start(() -> {
             try {
                 threadASet.await();
