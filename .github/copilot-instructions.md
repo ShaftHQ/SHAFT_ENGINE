@@ -821,6 +821,7 @@ mvn clean install -DskipTests -Dgpg.skip    # must succeed
 > [!NOTE]
 > For **release-generation-only** PRs (version metadata updates, release-workflow improvements, or release-doc updates that do not modify framework source code or test logic),
 > skip baseline/full test-suite reruns to keep release preparation lightweight; rely on pre-release validation already completed and CI on merge.
+> If any file under `src/main/java/` or `src/test/java/` is modified, the mandatory pre-commit rules apply in full. In all cases, `mvn clean install -DskipTests -Dgpg.skip` must pass before commit.
 
 ### 5. Commit and Merge to `main`
 Merging to `main` automatically triggers the **Maven Central Continuous Delivery** workflow (`mavenCentral_cd.yml`), which:

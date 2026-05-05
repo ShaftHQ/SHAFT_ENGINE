@@ -107,8 +107,9 @@ jobs:
                   body = pull_request.get("body", "") or ""
                   head_reference = pull_request.get("head", {}).get("ref", "")
                   author = pull_request.get("user", {}).get("login", "")
+                  title_lower = title.lower()
                   searchable_text = f"{title} {head_reference} {body}"
-                  if version in searchable_text and author == "github-actions[bot]":
+                  if version in searchable_text and author == "github-actions[bot]" and ("release" in title_lower or "blog" in title_lower):
                       matched_pull_request = pull_request
                       break
 
@@ -135,6 +136,7 @@ jobs:
           import json
           import os
           import urllib.request
+          import urllib.error
 
           webhook = os.environ.get("SLACK_WEBHOOK_URL", "")
           if not webhook:
@@ -150,10 +152,13 @@ jobs:
               headers={"Content-Type": "application/json"},
               method="POST",
           )
-          with urllib.request.urlopen(request, timeout=20) as response:
-              response_body = response.read().decode("utf-8", errors="replace")
-              if response.status >= 300:
-                  raise RuntimeError(f"Slack webhook returned status {response.status}: {response_body}")
+          try:
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  response.read()
+                  print(f"Slack webhook accepted with status {response.status}.")
+          except urllib.error.HTTPError as error:
+              response_body = error.read().decode("utf-8", errors="replace")
+              raise RuntimeError(f"Slack webhook returned status {error.code}: {response_body}") from error
           PY
       - name: Setup Prerequisites
         run: |
