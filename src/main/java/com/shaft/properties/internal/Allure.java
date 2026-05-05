@@ -96,7 +96,7 @@ public interface Allure extends EngineProperties<Allure> {
      * @return the report title string
      */
     @Key("allure.customTitle")
-    @DefaultValue("Test run report")
+    @DefaultValue("SHAFT-powered test report")
     String customTitle();
 
     /**
@@ -118,7 +118,7 @@ public interface Allure extends EngineProperties<Allure> {
      * @return {@code true} to enforce the configured Allure 3 CLI version; {@code false} otherwise
      */
     @Key("allure.forceConfiguredCliVersion")
-    @DefaultValue("false")
+    @DefaultValue("true")
     boolean forceConfiguredCliVersion();
 
     /**

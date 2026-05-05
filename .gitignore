@@ -39,3 +39,4 @@ OpenLHReport.js
 browserstack.yml
 /log/nohup.out
 log/
+/video/

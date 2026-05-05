@@ -56,6 +56,7 @@ import java.util.concurrent.TimeUnit;
 public class DriverFactoryHelper {
     private static final String WEB_DRIVER_MANAGER_MESSAGE = "Identifying OS/Driver combination. Please note that if a new browser/driver executable will be downloaded it may take some time depending on your connection...";
     private static final String WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE = "Identifying target OS/Browser and setting up the dockerized environment automatically. Please note that if a new docker container will be downloaded it may take some time depending on your connection...";
+    private static final String SELENIUM_WEBSOCKET_LISTENER_LOGGER = "org.openqa.selenium.remote.http.WebSocket$Listener";
     private static final ThreadLocal<WebDriverManager> webDriverManager = new ThreadLocal<>();
     @Getter(AccessLevel.PUBLIC)
     private static final Dimension TARGET_WINDOW_SIZE = new Dimension(1920, 1080);
@@ -364,6 +365,9 @@ public class DriverFactoryHelper {
     @Step("Close Driver Session")
     public void closeDriver(WebDriver driver) {
         if (driver != null) {
+            java.util.logging.Logger seleniumWebSocketLogger = java.util.logging.Logger.getLogger(SELENIUM_WEBSOCKET_LISTENER_LOGGER);
+            java.util.logging.Level previousWebSocketLoggerLevel = seleniumWebSocketLogger.getLevel();
+            seleniumWebSocketLogger.setLevel(java.util.logging.Level.SEVERE);
             if (SHAFT.Properties.visuals.videoParamsScope().equals("DriverSession")) {
                 RecordManager.attachVideoRecording();
             }
@@ -388,6 +392,7 @@ public class DriverFactoryHelper {
             } catch (Exception e) {
                 ReportManagerHelper.logDiscrete(e);
             } finally {
+                seleniumWebSocketLogger.setLevel(previousWebSocketLoggerLevel);
                 webDriverManager.remove();
                 ReportManager.log("Successfully Closed Driver.");
             }
