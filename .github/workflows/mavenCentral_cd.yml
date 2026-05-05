@@ -80,8 +80,10 @@ jobs:
           fallback_url = f"https://github.com/ShaftHQ/shafthq.github.io/pulls?q=is%3Apr+is%3Aopen+{version}"
           blog_post_url = fallback_url
           api_url = "https://api.github.com/repos/ShaftHQ/shafthq.github.io/pulls?state=open&per_page=100&sort=updated&direction=desc"
+          max_poll_attempts = 20
+          poll_interval_seconds = 15
 
-          for _ in range(20):
+          for _ in range(max_poll_attempts):
               request = urllib.request.Request(
                   api_url,
                   headers={
@@ -109,7 +111,7 @@ jobs:
                   blog_post_url = matched_pull_request["html_url"]
                   break
 
-              time.sleep(15)
+              time.sleep(poll_interval_seconds)
 
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as github_env:
               github_env.write(f"BLOG_POST_URL={blog_post_url}\n")

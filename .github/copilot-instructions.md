@@ -803,7 +803,7 @@ find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<maven-surefi
 find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<surefire-testng.version>OLD</surefire-testng.version>|<surefire-testng.version>NEW</surefire-testng.version>|g'
 ```
 
-### 3. Dependency Currency Gate (Direct + Property/Managed + Transitive Coverage via BOM/Management)
+### 3. Dependency Currency Gate
 Run:
 ```bash
 mvn versions:display-dependency-updates versions:display-plugin-updates versions:display-property-updates -DgenerateBackupPoms=false
