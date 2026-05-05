@@ -22,7 +22,7 @@ public class BrowserStackPropertiesUnitTest {
 
     @Test(description = "Validate BrowserStack default property values")
     public void testBrowserStackDefaults() {
-        // BrowserStack credentials are bundled as shared defaults in this project; assert non-blank without embedding literal values.
+        // BrowserStack credentials are bundled as shared non-production test defaults in this project; assert non-blank without embedding literal values.
         assertFalse(SHAFT.Properties.browserStack.userName().isBlank());
         assertFalse(SHAFT.Properties.browserStack.accessKey().isBlank());
         assertEquals(SHAFT.Properties.browserStack.platformVersion(), "");
@@ -143,7 +143,11 @@ public class BrowserStackPropertiesUnitTest {
         if (threadA.isAlive() || threadB.isAlive()) {
             threadA.interrupt();
             threadB.interrupt();
-            throw new IllegalStateException("Timed out waiting for BrowserStack thread isolation test to complete.");
+            threadA.join(1000);
+            threadB.join(1000);
+            if (threadA.isAlive() || threadB.isAlive()) {
+                throw new IllegalStateException("Timed out waiting for BrowserStack thread isolation test to complete.");
+            }
         }
         assertEquals(threadBObserved.get(), defaultUserName);
     }
