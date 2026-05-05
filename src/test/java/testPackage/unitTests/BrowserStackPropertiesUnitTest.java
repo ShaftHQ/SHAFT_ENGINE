@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * Unit tests for BrowserStack properties defaults and thread-local overrides.
  */
 public class BrowserStackPropertiesUnitTest {
+    private static final int THREAD_JOIN_TIMEOUT_MS = 5000;
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
@@ -137,8 +138,8 @@ public class BrowserStackPropertiesUnitTest {
         threadA.start();
         threadB.start();
 
-        threadA.join(5000);
-        threadB.join(5000);
+        threadA.join(THREAD_JOIN_TIMEOUT_MS);
+        threadB.join(THREAD_JOIN_TIMEOUT_MS);
         if (threadA.isAlive() || threadB.isAlive()) {
             threadA.interrupt();
             threadB.interrupt();
