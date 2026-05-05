@@ -21,7 +21,7 @@ public class BrowserStackPropertiesUnitTest {
 
     @Test(description = "Validate BrowserStack default property values")
     public void testBrowserStackDefaults() {
-        // Intentionally avoid asserting exact literal defaults for credentials to prevent secret-like values in test code.
+        // BrowserStack credentials are bundled as shared defaults in this project; assert non-blank without embedding literal values.
         assertFalse(SHAFT.Properties.browserStack.userName().isBlank());
         assertFalse(SHAFT.Properties.browserStack.accessKey().isBlank());
         assertEquals(SHAFT.Properties.browserStack.platformVersion(), "");
@@ -50,8 +50,8 @@ public class BrowserStackPropertiesUnitTest {
     @Test(description = "Validate BrowserStack fluent setters update values and support chaining")
     public void testBrowserStackSetterChainingAndReads() {
         SHAFT.Properties.browserStack.set()
-                .userName("user-1")
-                .accessKey("key-1")
+                .userName("test-username")
+                .accessKey("mock-access-key")
                 .platformVersion("15")
                 .deviceName("Pixel 9")
                 .appUrl("bs://app-1")
@@ -75,8 +75,8 @@ public class BrowserStackPropertiesUnitTest {
                 .platformsList("[{\"deviceName\":\"Pixel 9\"}]")
                 .customBrowserStackYmlPath("config/browserstack.yml");
 
-        assertEquals(SHAFT.Properties.browserStack.userName(), "user-1");
-        assertEquals(SHAFT.Properties.browserStack.accessKey(), "key-1");
+        assertEquals(SHAFT.Properties.browserStack.userName(), "test-username");
+        assertEquals(SHAFT.Properties.browserStack.accessKey(), "mock-access-key");
         assertEquals(SHAFT.Properties.browserStack.platformVersion(), "15");
         assertEquals(SHAFT.Properties.browserStack.deviceName(), "Pixel 9");
         assertEquals(SHAFT.Properties.browserStack.appUrl(), "bs://app-1");
@@ -110,7 +110,7 @@ public class BrowserStackPropertiesUnitTest {
         AtomicReference<String> threadBObserved = new AtomicReference<>();
 
         // Platform threads are used here to keep deterministic join/teardown behavior in this isolation test.
-        Thread threadA = Thread.ofPlatform().start(() -> {
+        Thread threadA = Thread.ofPlatform().unstarted(() -> {
             try {
                 SHAFT.Properties.browserStack.set().userName("thread-a-user");
                 threadASet.countDown();
@@ -122,7 +122,7 @@ public class BrowserStackPropertiesUnitTest {
             }
         });
 
-        Thread threadB = Thread.ofPlatform().start(() -> {
+        Thread threadB = Thread.ofPlatform().unstarted(() -> {
             try {
                 threadASet.await();
                 threadBObserved.set(SHAFT.Properties.browserStack.userName());
@@ -134,8 +134,14 @@ public class BrowserStackPropertiesUnitTest {
             }
         });
 
+        threadA.start();
+        threadB.start();
+
         threadA.join(5000);
         threadB.join(5000);
+        if (threadA.isAlive() || threadB.isAlive()) {
+            throw new RuntimeException("Timed out waiting for BrowserStack thread isolation test to complete.");
+        }
 
         assertFalse(threadA.isAlive());
         assertFalse(threadB.isAlive());
