@@ -22,6 +22,7 @@ public class BrowserStackPropertiesUnitTest {
 
     @Test(description = "Validate BrowserStack default property values")
     public void testBrowserStackDefaults() {
+        // Intentionally avoid asserting exact literal defaults for credentials to prevent secret-like values in test code.
         Assert.assertFalse(SHAFT.Properties.browserStack.userName().isBlank());
         Assert.assertFalse(SHAFT.Properties.browserStack.accessKey().isBlank());
         Assert.assertEquals(SHAFT.Properties.browserStack.platformVersion(), "");
@@ -90,6 +91,7 @@ public class BrowserStackPropertiesUnitTest {
         Assert.assertEquals(SHAFT.Properties.browserStack.appiumVersion(), "3.2.0");
         Assert.assertFalse(SHAFT.Properties.browserStack.acceptInsecureCerts());
         Assert.assertTrue(SHAFT.Properties.browserStack.debug());
+        // BrowserStack exposes a setter for enableBiometric but no public getter; verify via thread-local effective value.
         Assert.assertEquals(ThreadLocalPropertiesManager.getProperty("browserStack.enableBiometric"), "true");
         Assert.assertTrue(SHAFT.Properties.browserStack.networkLogs());
         Assert.assertEquals(SHAFT.Properties.browserStack.geoLocation(), "FR");
