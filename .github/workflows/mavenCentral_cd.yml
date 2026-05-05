@@ -84,17 +84,22 @@ jobs:
           poll_interval_seconds = 15
 
           for attempt in range(max_poll_attempts):
-              request = urllib.request.Request(
-                  api_url,
-                  headers={
-                      "Authorization": f"Bearer {token}",
-                      "Accept": "application/vnd.github+json",
-                      "X-GitHub-Api-Version": "2022-11-28",
-                      "User-Agent": "shaft-release-workflow",
-                  },
-              )
-              with urllib.request.urlopen(request, timeout=20) as response:
-                  pull_requests = json.load(response)
+              try:
+                  request = urllib.request.Request(
+                      api_url,
+                      headers={
+                          "Authorization": f"Bearer {token}",
+                          "Accept": "application/vnd.github+json",
+                          "X-GitHub-Api-Version": "2022-11-28",
+                          "User-Agent": "shaft-release-workflow",
+                      },
+                  )
+                  with urllib.request.urlopen(request, timeout=20) as response:
+                      pull_requests = json.load(response)
+              except Exception as error:
+                  print(f"Failed to query release blog post PRs on attempt {attempt + 1}/{max_poll_attempts}: {error}")
+                  time.sleep(poll_interval_seconds)
+                  continue
 
               matched_pull_request = None
               for pull_request in pull_requests:
@@ -120,7 +125,6 @@ jobs:
           print(f"Resolved BLOG_POST_URL={blog_post_url}")
           PY
       - name: Announce Release on Slack
-        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           RELEASE_VERSION: ${{ env.RELEASE_VERSION }}
@@ -132,11 +136,16 @@ jobs:
           import os
           import urllib.request
 
+          webhook = os.environ.get("SLACK_WEBHOOK_URL", "")
+          if not webhook:
+              print("SLACK_WEBHOOK_URL is not configured; skipping Slack announcement.")
+              raise SystemExit(0)
+
           payload = {
               "text": f"🚀 SHAFT Engine {os.environ['RELEASE_VERSION']} is now released!\n• GitHub Release: {os.environ['RELEASE_URL']}\n• Release Blog Post PR: {os.environ['BLOG_POST_URL']}"
           }
           request = urllib.request.Request(
-              os.environ["SLACK_WEBHOOK_URL"],
+              webhook,
               data=json.dumps(payload).encode("utf-8"),
               headers={"Content-Type": "application/json"},
               method="POST",
@@ -146,9 +155,6 @@ jobs:
               if response.status >= 300:
                   raise RuntimeError(f"Slack webhook returned status {response.status}: {response_body}")
           PY
-      - name: Skip Slack Announcement (secret not configured)
-        if: ${{ secrets.SLACK_WEBHOOK_URL == '' }}
-        run: echo "SLACK_WEBHOOK_URL is not configured; skipping Slack announcement."
       - name: Setup Prerequisites
         run: |
           git config --global user.signingKey "${{ secrets.GPG_KEYNAME }}"
