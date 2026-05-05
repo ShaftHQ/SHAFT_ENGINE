@@ -44,18 +44,37 @@ import java.util.*;
  */
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class ElementActions extends FluentWebDriverAction {
+    /**
+     * Creates an element actions instance using a lazily initialized default driver helper.
+     */
     public ElementActions() {
         initialize();
     }
 
+    /**
+     * Creates an element actions instance bound to an existing WebDriver.
+     *
+     * @param driver the active WebDriver session to use
+     */
     public ElementActions(WebDriver driver) {
         initialize(driver);
     }
 
+    /**
+     * Creates an element actions instance bound to an existing WebDriver with optional silent logging.
+     *
+     * @param driver the active WebDriver session to use
+     * @param isSilent {@code true} to suppress non-critical action logs; {@code false} otherwise
+     */
     public ElementActions(WebDriver driver, boolean isSilent) {
         initialize(driver, isSilent);
     }
 
+    /**
+     * Creates an element actions instance bound to an existing driver helper.
+     *
+     * @param helper the driver factory helper that manages the underlying WebDriver
+     */
     public ElementActions(DriverFactoryHelper helper) {
         initialize(helper);
     }

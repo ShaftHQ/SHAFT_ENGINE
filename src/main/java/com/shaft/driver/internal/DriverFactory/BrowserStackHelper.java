@@ -17,7 +17,17 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Pattern;
 
+/**
+ * BrowserStack integration helper for preparing capabilities and creating remote sessions.
+ */
 public class BrowserStackHelper {
+
+    /**
+     * Creates a new BrowserStack helper instance.
+     */
+    public BrowserStackHelper() {
+        super();
+    }
     private static final String hubUrl = "hub-cloud.browserstack.com/wd/hub";
     private static final String serviceUri = "https://api-cloud.browserstack.com/";
     private static final String appUploadServiceName = "app-automate/upload";

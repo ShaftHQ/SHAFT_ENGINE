@@ -20,8 +20,18 @@ import java.net.URI;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Cucumber test-run listener that bridges Cucumber events to SHAFT reporting and Allure.
+ */
 @SuppressWarnings("unused")
 public class CucumberTestRunnerListener extends AllureCucumber7Jvm {
+
+    /**
+     * Creates a new Cucumber test runner listener.
+     */
+    public CucumberTestRunnerListener() {
+        super();
+    }
     /** The name of the most recently started Cucumber scenario, used for report labelling. */
     private static String lastStartedScenarioName;
 

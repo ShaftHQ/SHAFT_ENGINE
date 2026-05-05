@@ -9,9 +9,17 @@ import org.openqa.selenium.Keys;
 
 import java.util.Objects;
 
+/**
+ * Cucumber step definitions for element-level interactions.
+ */
 public class ElementSteps {
     private final ThreadLocal<SHAFT.GUI.WebDriver> driver;
 
+    /**
+     * Creates element steps with the provided thread-local driver container.
+     *
+     * @param driver thread-local SHAFT web driver holder
+     */
     public ElementSteps(ThreadLocal<SHAFT.GUI.WebDriver> driver) {
         this.driver = Objects.requireNonNullElseGet(driver, ThreadLocal::new);
     }

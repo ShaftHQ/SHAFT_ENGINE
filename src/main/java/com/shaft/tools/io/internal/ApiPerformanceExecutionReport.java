@@ -26,6 +26,12 @@ import java.util.Map;
  * API performance-tracking infrastructure.
  */
 public class ApiPerformanceExecutionReport {
+    /**
+     * Creates a new API performance execution report helper instance.
+     */
+    public ApiPerformanceExecutionReport() {
+        super();
+    }
     private static final DateTimeFormatter READABLE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
     private static final DateTimeFormatter FILENAME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSSS-a").withZone(ZoneId.systemDefault());
 

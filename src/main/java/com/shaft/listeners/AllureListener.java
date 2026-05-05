@@ -45,6 +45,13 @@ import java.nio.charset.StandardCharsets;
 public class AllureListener implements StepLifecycleListener, FixtureLifecycleListener, TestLifecycleListener,
         ContainerLifecycleListener {
 
+    /**
+     * Creates a new Allure lifecycle listener instance.
+     */
+    public AllureListener() {
+        super();
+    }
+
     //Before each step starts inside the methods
     @Override
     public void beforeStepStart(StepResult result) {

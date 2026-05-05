@@ -89,11 +89,19 @@ public class CucumberFeatureListener extends AllureCucumber7Jvm {
     private final EventHandler<WriteEvent> writeEventHandler = this::handleWriteEvent;
     private final EventHandler<EmbedEvent> embedEventHandler = this::handleEmbedEvent;
 
+    /**
+     * Creates a feature listener using the default Allure lifecycle singleton.
+     */
     @SuppressWarnings("unused")
     public CucumberFeatureListener() {
         this(Allure.getLifecycle());
     }
 
+    /**
+     * Creates a feature listener using the provided Allure lifecycle.
+     *
+     * @param lifecycle the Allure lifecycle instance that receives Cucumber events
+     */
     public CucumberFeatureListener(final AllureLifecycle lifecycle) {
         this.lifecycle = lifecycle;
         // custom code

@@ -25,6 +25,12 @@ public final class AndroidApkBadgingReader {
     private static final Pattern PACKAGE_LINE = Pattern.compile("^package:\\s*name='([^']+)'");
     private static final Pattern LAUNCHABLE_LINE = Pattern.compile("^launchable-activity:\\s*name='([^']+)'");
 
+    /**
+     * Parsed package metadata from {@code aapt dump badging}.
+     *
+     * @param packageName the Android package name (e.g. {@code com.example.app})
+     * @param launchableActivity the launchable activity class name, or {@code null} when unavailable
+     */
     public record PackageActivity(String packageName, String launchableActivity) {
     }
 
@@ -32,6 +38,8 @@ public final class AndroidApkBadgingReader {
     }
 
     /**
+     * Reads APK metadata using {@code aapt dump badging} and extracts package/activity information.
+     *
      * @param apk existing .apk file on disk
      * @return package and first launchable activity when {@code dump badging} succeeds
      */
@@ -85,7 +93,11 @@ public final class AndroidApkBadgingReader {
     }
 
     /**
-     * Parses {@code aapt dump badging} / {@code aapt2 dump badging} stdout (for unit tests and tooling).
+     * Parses {@code aapt dump badging} / {@code aapt2 dump badging} standard output.
+     *
+     * @param output raw badging command output to parse
+     * @return parsed package and launchable activity when available
+     * @throws IOException if reading the provided output fails
      */
     public static Optional<PackageActivity> parseAaptDumpBadgingOutput(String output) throws IOException {
         if (output == null || output.isBlank()) {
