@@ -298,7 +298,7 @@ public class NativeValidationsBuilder {
      * @throws IllegalStateException if called outside text-based assertions
      */
     public TextDirectionValidationsBuilder direction() {
-        return buildTextDirectionBuilder("textDirection", "direction");
+        return buildTextDirectionBuilder("textDirection", "direction", "direction");
     }
 
     /**
@@ -308,7 +308,7 @@ public class NativeValidationsBuilder {
      * @throws IllegalStateException if called outside text-based assertions
      */
     public TextDirectionValidationsBuilder alignment() {
-        return buildTextDirectionBuilder("textAlignment", "alignment");
+        return buildTextDirectionBuilder("textAlignment", "alignment", "alignment");
     }
 
     /**
@@ -318,7 +318,7 @@ public class NativeValidationsBuilder {
      * @throws IllegalStateException if called outside text-based assertions
      */
     public TextDirectionValidationsBuilder orientation() {
-        return buildTextDirectionBuilder("textOrientation", "orientation");
+        return buildTextDirectionBuilder("textOrientation", "orientation", "orientation");
     }
 
     /**
@@ -328,7 +328,7 @@ public class NativeValidationsBuilder {
      * @throws IllegalStateException if called outside text-based assertions
      */
     public TextDirectionValidationsBuilder displayStyle() {
-        return buildTextDirectionBuilder("textDisplayStyle", "display style");
+        return buildTextDirectionBuilder("textDisplayStyle", "display style", "displayStyle");
     }
 
     /**
@@ -353,8 +353,8 @@ public class NativeValidationsBuilder {
         }
     }
 
-    private TextDirectionValidationsBuilder buildTextDirectionBuilder(String metadataAttribute, String reportLabel) {
-        ensureTextAssertionContext(reportLabel);
+    private TextDirectionValidationsBuilder buildTextDirectionBuilder(String metadataAttribute, String reportLabel, String apiName) {
+        ensureTextAssertionContext(apiName);
         reportMessageBuilder.append(reportLabel).append(" ");
         NativeValidationsBuilder metadataBuilder;
         if (locator != null) {
