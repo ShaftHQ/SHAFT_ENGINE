@@ -819,7 +819,7 @@ mvn clean install -DskipTests -Dgpg.skip    # must succeed
 ```
 
 > [!NOTE]
-> For **release-generation-only** PRs (version bumps/workflow/docs for release automation with no production logic change),
+> For **release-generation-only** PRs (version metadata updates, release-workflow improvements, or release-doc updates that do not modify framework source code or test logic),
 > skip baseline/full test-suite reruns to keep release preparation lightweight; rely on pre-release validation already completed and CI on merge.
 
 ### 5. Commit and Merge to `main`
