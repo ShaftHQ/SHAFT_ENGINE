@@ -36,6 +36,7 @@
         <surefire.excludedGroups>allure3-visual-demo</surefire.excludedGroups>
         <!-- Dependency Versions -->
         <log4j2.version>2.25.4</log4j2.version>
+        <netty.version>4.2.13.Final</netty.version>
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install "-DskipTests" "-Dgpg.skip"</installToLocalRepository>
         <publishJavaDocs>mvn resources:resources javadoc:javadoc scm-publish:publish-scm</publishJavaDocs>
@@ -66,6 +67,13 @@
                 <groupId>io.cucumber</groupId>
                 <artifactId>cucumber-bom</artifactId>
                 <version>7.34.3</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
