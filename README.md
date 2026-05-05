@@ -62,6 +62,7 @@ SHAFT Engine is an open-source **Java test automation framework** built on top o
 - [🚀 Why SHAFT?](#-why-shaft)
 - [💡 See the Difference](#-see-the-difference)
 - [⚡ Quick Start](#-quick-start)
+- [🧭 Allure CLI Version Enforcement (Opt-in)](#-allure-cli-version-enforcement-opt-in)
 - [✨ Key Features](#-key-features)
 - [🌍 Success Partners](#-success-partners)
 - [📚 Documentation](#-documentation)
@@ -228,6 +229,20 @@ public class QuickStartTest {
 ```
 
 📖 **[Complete Quick Start Guide →](docs/QUICK_START.md)** — includes TestNG, JUnit 5, and Cucumber examples.
+
+---
+
+## 🧭 Allure CLI Version Enforcement (Opt-in)
+
+By default, SHAFT keeps legacy behavior and uses any `allure` binary found on your `PATH` first.
+
+If you want SHAFT to strictly enforce the configured Allure 3 CLI version (`SHAFT.Properties.internal.allure3Version()`), enable:
+
+```properties
+allure.forceConfiguredCliVersion=true
+```
+
+When enabled, SHAFT checks `allure --version` and only uses system `allure` when it exactly matches the configured `allure3Version`; otherwise it ignores the PATH binary and runs `npx --yes allure@<allure3Version>` (with portable Node.js fallback when needed).
 
 ---
 
@@ -420,4 +435,3 @@ Made with ❤️ by the [SHAFT community](https://github.com/ShaftHQ/SHAFT_ENGIN
   
   SIMILAR PROJECTS: Selenide, Serenity BDD, FluentSelenium, Karate DSL, Geb
 -->
-
