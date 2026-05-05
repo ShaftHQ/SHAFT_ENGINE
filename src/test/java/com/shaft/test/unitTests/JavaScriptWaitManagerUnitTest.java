@@ -118,7 +118,7 @@ public class JavaScriptWaitManagerUnitTest {
     }
 
     @Test(description = "Verify idle window check uses a short observation window when there were no network requests")
-    public void testIdleWindowUsesShortObservationWindowWhenNoNetworkActivityWasObserved() throws Exception {
+    public void testShortObservationWindowWhenIdle() throws Exception {
         Method method = getHasMetMinimumIdleWindowMethod();
         long[] idleSinceMillis = {getIdleWindowNotStartedMarker()};
         boolean[] networkActivityObserved = {false};
@@ -131,7 +131,7 @@ public class JavaScriptWaitManagerUnitTest {
     }
 
     @Test(description = "Verify deferred network activity after an idle first poll is still synchronized")
-    public void testIdleWindowHandlesDeferredNetworkActivityAfterFirstIdlePoll() throws Exception {
+    public void testDeferredNetworkActivityDetection() throws Exception {
         Method method = getHasMetMinimumIdleWindowMethod();
         long[] idleSinceMillis = {getIdleWindowNotStartedMarker()};
         boolean[] networkActivityObserved = {false};
