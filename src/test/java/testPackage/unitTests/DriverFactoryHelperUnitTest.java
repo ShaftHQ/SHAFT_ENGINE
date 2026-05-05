@@ -11,6 +11,8 @@ import java.lang.reflect.Method;
 
 public class DriverFactoryHelperUnitTest {
     private String savedExecutionAddress;
+    private String savedTargetPlatform;
+    private String savedMobileBrowserName;
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
@@ -18,6 +20,34 @@ public class DriverFactoryHelperUnitTest {
             SHAFT.Properties.platform.set().executionAddress(savedExecutionAddress);
             DriverFactoryHelper.initializeSystemProperties();
         }
+        if (savedTargetPlatform != null) {
+            SHAFT.Properties.platform.set().targetPlatform(savedTargetPlatform);
+        }
+        if (savedMobileBrowserName != null) {
+            SHAFT.Properties.mobile.set().browserName(savedMobileBrowserName);
+        }
+    }
+
+    @Test(description = "Launch screenshot attachment should only be enabled for native mobile automation")
+    public void shouldAttachLaunchScreenshot_onlyForNativeMobileExecution() throws Exception {
+        savedTargetPlatform = SHAFT.Properties.platform.targetPlatform();
+        savedMobileBrowserName = SHAFT.Properties.mobile.browserName();
+
+        Method shouldAttachLaunchScreenshotMethod = DriverFactoryHelper.class.getDeclaredMethod("shouldAttachLaunchScreenshot");
+        shouldAttachLaunchScreenshotMethod.setAccessible(true);
+
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+
+        SHAFT.Properties.platform.set().targetPlatform("android");
+        SHAFT.Properties.mobile.set().browserName("");
+        boolean nativeMobileResult = (boolean) shouldAttachLaunchScreenshotMethod.invoke(helper);
+
+        SHAFT.Properties.platform.set().targetPlatform("windows");
+        SHAFT.Properties.mobile.set().browserName("chrome");
+        boolean webResult = (boolean) shouldAttachLaunchScreenshotMethod.invoke(helper);
+
+        SHAFT.Validations.assertThat().object(nativeMobileResult).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(webResult).isEqualTo(false).perform();
     }
 
     @Test(description = "initializeSystemProperties should not append a trailing slash for browserstack keyword execution address")

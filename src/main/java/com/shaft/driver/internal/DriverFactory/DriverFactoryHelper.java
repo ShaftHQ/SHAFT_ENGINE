@@ -722,15 +722,28 @@ public class DriverFactoryHelper {
      * @return attachment list {@code [type, name, InputStream]}, or {@code null} on failure
      */
     private List<Object> captureLaunchScreenshot() {
+        if (!shouldAttachLaunchScreenshot()) {
+            return null;
+        }
         try {
             byte[] screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-            if (screenshot != null && screenshot.length > 0) {
+            if (screenshot.length > 0) {
                 return Arrays.asList("Screenshot", "App Launch Screenshot", new ByteArrayInputStream(screenshot));
             }
         } catch (Exception e) {
             ReportManager.logDiscrete("Could not capture launch screenshot [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
         }
         return null;
+    }
+
+    /**
+     * Determines whether a launch screenshot should be attached to the "Successfully Opened" step.
+     * This attachment is only relevant for native mobile app launches.
+     *
+     * @return {@code true} when running native mobile automation; otherwise {@code false}
+     */
+    private boolean shouldAttachLaunchScreenshot() {
+        return isMobileNativeExecution();
     }
 
     private void attachWebDriverLogs() {

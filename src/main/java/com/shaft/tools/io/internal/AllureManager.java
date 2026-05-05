@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -56,6 +57,8 @@ public class AllureManager {
     // ─── Allure 3 report paths & config ────────────────────────────────────────
     private static final String allureReportPath = "allure-report";
     private static final String allureConfigFileName = "allurerc.yaml";
+    private static final String allureRealtimeOutputDirectory = System.getProperty("user.dir") + File.separator + "target" + File.separator + "allure-realtime-report";
+    private static final String allureRealtimeLogFile = System.getProperty("user.dir") + File.separator + "target" + File.separator + "allure-watch.log";
 
     // ─── Portable Node.js bootstrap ────────────────────────────────────────────
     /** Cache directory for the downloaded portable Node.js distribution. */
@@ -74,6 +77,7 @@ public class AllureManager {
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
     private static String allureResultsFolderPath = "";
     private static String allureOutPutDirectory = "";
+    private static volatile Process realtimeMonitoringProcess;
 
     /**
      * Initialises the Allure reporting environment before a test suite begins.
@@ -104,6 +108,7 @@ public class AllureManager {
         cleanAllureResultsDirectory();
         writeGenerateReportShellFilesToProjectDirectory();
         writeEnvironmentVariablesToAllureResultsDirectory();
+        startRealtimeMonitoringIfEligible();
     }
 
     /**
@@ -119,6 +124,7 @@ public class AllureManager {
      * }</pre>
      */
     public static void openAllureReportAfterExecution() {
+        stopRealtimeMonitoring();
         writeAllureReport();
         copyAndOpenAllure();
     }
@@ -181,9 +187,10 @@ public class AllureManager {
      * }</pre>
      */
     public static void generateAllureReportArchive() {
-        if (Boolean.TRUE.equals(SHAFT.Properties.allure.generateArchive())) {
+        if (SHAFT.Properties.allure.generateArchive()) {
             ReportManager.logDiscrete("Generating Allure Report Archive...");
             ReportHelper.disableLogging();
+            stopRealtimeMonitoring();
             writeAllureReport();
             createAllureReportArchive();
             ReportHelper.enableLogging();
@@ -294,7 +301,7 @@ public class AllureManager {
         patchMissingStatusDetailsInResults(getResultsPath());
 
         // Write allurerc.yaml with current settings (including custom title and optional history path)
-        writeAllureConfig(customReportName);
+        writeAllureConfig(customReportName, allureOutPutDirectory, true);
 
         // Resolve the Allure 3 CLI (downloading Node.js if needed) and generate the report
         String cmd = getCommandToCreateAllureReport();
@@ -313,9 +320,10 @@ public class AllureManager {
      *
      * @param reportName the display name for the generated report
      */
-    private static void writeAllureConfig(String reportName) {
+    private static void writeAllureConfig(String reportName, String outputDirectory, boolean singleFile) {
         String safeReportName = escapeYamlString(reportName);
-        String safeOutputDir = escapeYamlString(allureOutPutDirectory.replace("\\", "/"));
+        String safeOutputDir = escapeYamlString(outputDirectory.replace("\\", "/"));
+        String safeCustomLogo = escapeYamlString(SHAFT.Properties.allure.customLogo());
         var configBuilder = new StringBuilder();
         configBuilder.append("name: \"").append(safeReportName).append("\"\n");
         configBuilder.append("output: \"").append(safeOutputDir).append("\"\n");
@@ -331,7 +339,10 @@ public class AllureManager {
         configBuilder.append("  awesome:\n");
         configBuilder.append("    options:\n");
         configBuilder.append("      reportName: \"").append(safeReportName).append("\"\n");
-        configBuilder.append("      singleFile: true\n");
+        configBuilder.append("      singleFile: ").append(singleFile).append("\n");
+        if (!safeCustomLogo.isBlank()) {
+            configBuilder.append("      logo: \"").append(safeCustomLogo).append("\"\n");
+        }
         configBuilder.append("      reportLanguage: \"en\"\n");
         configBuilder.append("      open: false\n");
         configBuilder.append("      groupBy:\n");
@@ -342,6 +353,81 @@ public class AllureManager {
         internalFileSession.writeToFile(
                 System.getProperty("user.dir") + File.separator + allureConfigFileName,
                 configBuilder.toString());
+    }
+
+    private static void startRealtimeMonitoringIfEligible() {
+        if (!SHAFT.Properties.allure.realtimeMonitoring()) {
+            return;
+        }
+        if (!isRealtimeMonitoringExecutionContextEligible()) {
+            return;
+        }
+
+        String prefix = resolveAllureCommandPrefix();
+        if (!isManagedAllure3CommandPrefix(prefix)) {
+            ReportManager.logDiscrete("Allure real-time monitoring is disabled: supported only with SHAFT-managed Allure 3 (npx allure@<version>). "
+                    + "System allure binaries are intentionally excluded.");
+            return;
+        }
+        if (realtimeMonitoringProcess != null && realtimeMonitoringProcess.isAlive()) {
+            return;
+        }
+
+        internalFileSession.createFolder(allureRealtimeOutputDirectory);
+        writeAllureConfig(SHAFT.Properties.allure.customTitle(), allureRealtimeOutputDirectory, false);
+
+        String configPath = System.getProperty("user.dir") + File.separator + allureConfigFileName;
+        String command = prefix + " watch --config \"" + configPath + "\" \""
+                + getResultsPath() + "\" --output \"" + allureRealtimeOutputDirectory + "\" --open";
+        realtimeMonitoringProcess = startLongRunningCommand(command);
+        if (realtimeMonitoringProcess != null && realtimeMonitoringProcess.isAlive()) {
+            ReportManager.logDiscrete("Allure real-time monitoring started.");
+        }
+    }
+
+    private static boolean isRealtimeMonitoringExecutionContextEligible() {
+        boolean isRemoteExecution = !"local".equalsIgnoreCase(SHAFT.Properties.platform.executionAddress().trim());
+        boolean isLocalHeadlessWebExecution = "local".equalsIgnoreCase(SHAFT.Properties.platform.executionAddress().trim())
+                && SHAFT.Properties.web.headlessExecution();
+        return isRemoteExecution || isLocalHeadlessWebExecution;
+    }
+
+    private static boolean isManagedAllure3CommandPrefix(String prefix) {
+        return prefix != null && prefix.contains("allure@");
+    }
+
+    private static Process startLongRunningCommand(String command) {
+        try {
+            ProcessBuilder processBuilder = SystemUtils.IS_OS_WINDOWS
+                    ? new ProcessBuilder("powershell.exe", "-NoProfile", "-Command", command)
+                    : new ProcessBuilder("sh", "-c", command);
+            processBuilder.directory(new File(System.getProperty("user.dir")));
+            processBuilder.redirectErrorStream(true);
+            processBuilder.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(allureRealtimeLogFile)));
+            return processBuilder.start();
+        } catch (IOException e) {
+            ReportManager.logDiscrete("Failed to start Allure real-time monitoring: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private static void stopRealtimeMonitoring() {
+        Process process = realtimeMonitoringProcess;
+        realtimeMonitoringProcess = null;
+        if (process == null || !process.isAlive()) {
+            return;
+        }
+
+        process.destroy();
+        try {
+            if (!process.waitFor(5, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+            }
+            ReportManager.logDiscrete("Allure real-time monitoring stopped.");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            process.destroyForcibly();
+        }
     }
 
     /**
