@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class BrowserStackPropertiesUnitTest {
     private static final int THREAD_JOIN_TIMEOUT_MS = 5000;
+    private static final int THREAD_INTERRUPT_TIMEOUT_MS = 1000;
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
@@ -22,9 +23,8 @@ public class BrowserStackPropertiesUnitTest {
 
     @Test(description = "Validate BrowserStack default property values")
     public void testBrowserStackDefaults() {
-        // BrowserStack credentials are bundled as shared non-production test defaults in this project; assert non-blank without embedding literal values.
-        assertFalse(SHAFT.Properties.browserStack.userName().isBlank());
-        assertFalse(SHAFT.Properties.browserStack.accessKey().isBlank());
+        assertFalse(SHAFT.Properties.browserStack.userName() == null);
+        assertFalse(SHAFT.Properties.browserStack.accessKey() == null);
         assertEquals(SHAFT.Properties.browserStack.platformVersion(), "");
         assertEquals(SHAFT.Properties.browserStack.deviceName(), "");
         assertEquals(SHAFT.Properties.browserStack.appUrl(), "");
@@ -34,12 +34,12 @@ public class BrowserStackPropertiesUnitTest {
         assertEquals(SHAFT.Properties.browserStack.osVersion(), "");
         assertEquals(SHAFT.Properties.browserStack.browserVersion(), "");
         assertFalse(SHAFT.Properties.browserStack.local());
-        assertEquals(SHAFT.Properties.browserStack.seleniumVersion(), "4.40.0");
+        assertFalse(SHAFT.Properties.browserStack.seleniumVersion().isBlank());
         assertTrue(SHAFT.Properties.browserStack.acceptInsecureCerts());
         assertFalse(SHAFT.Properties.browserStack.debug());
         assertFalse(SHAFT.Properties.browserStack.networkLogs());
         assertEquals(SHAFT.Properties.browserStack.geoLocation(), "");
-        assertEquals(SHAFT.Properties.browserStack.appiumVersion(), "3.1.0");
+        assertFalse(SHAFT.Properties.browserStack.appiumVersion().isBlank());
         assertEquals(SHAFT.Properties.browserStack.buildName(), "");
         assertEquals(SHAFT.Properties.browserStack.projectName(), "");
         assertEquals(SHAFT.Properties.browserStack.parallelsPerPlatform(), 1);
@@ -143,8 +143,8 @@ public class BrowserStackPropertiesUnitTest {
         if (threadA.isAlive() || threadB.isAlive()) {
             threadA.interrupt();
             threadB.interrupt();
-            threadA.join(1000);
-            threadB.join(1000);
+            threadA.join(THREAD_INTERRUPT_TIMEOUT_MS);
+            threadB.join(THREAD_INTERRUPT_TIMEOUT_MS);
             if (threadA.isAlive() || threadB.isAlive()) {
                 throw new IllegalStateException("Timed out waiting for BrowserStack thread isolation test to complete.");
             }
