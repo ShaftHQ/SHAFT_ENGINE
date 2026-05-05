@@ -507,7 +507,7 @@ public class ValidationsHelper2 {
                 ? CheckpointType.ASSERTION : CheckpointType.VERIFICATION;
         String checkpointMessage = this.validationCategoryString + ": expected \"" + expected + "\", actual \"" + actual + "\"";
         // handle reporting & failure based on validation category
-        ReportManager.logDiscrete("Expected \"" + expected + "\", and actual \"" + actual + "\"");
+        ReportManager.logDiscrete("Expected \"" + expected + "\", and actual \"" + actual + "\"", Level.DEBUG);
         if (!validationState) {
             String failureMessage = this.validationCategoryString.replace("erify", "erificat") + "ion failed; expected " + expected + ", but found " + actual;
             // Format failure message using CustomSoftAssert for enhanced stack trace reporting

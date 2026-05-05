@@ -1,14 +1,30 @@
 package testPackage.unitTests;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.listeners.internal.RetryAnalyzer;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.PropertyFileManager;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.ReportManagerHelper;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.testng.ITestNGMethod;
+import org.testng.ITestResult;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
+import java.io.File;
+import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests to verify that SHAFT configuration properties are correctly
@@ -181,6 +197,164 @@ public class ThreadLocalPropertiesTest {
         } finally {
             SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetryCount);
         }
+    }
+
+    @Test(description = "Reporting logging remains enabled by default on fresh worker threads")
+    public void testReportingDisableLoggingDefaultsToFalseOnFreshThread() throws InterruptedException {
+        final boolean[] disableLoggingInWorkerThread = {true};
+
+        Thread workerThread = new Thread(() -> {
+            try {
+                Properties.clearForCurrentThread();
+                disableLoggingInWorkerThread[0] = SHAFT.Properties.reporting.disableLogging();
+            } finally {
+                Properties.clearForCurrentThread();
+            }
+        });
+        workerThread.start();
+        workerThread.join(THREAD_JOIN_TIMEOUT_MS);
+
+        Assert.assertFalse(workerThread.isAlive(), "Worker thread should finish within timeout");
+        Assert.assertFalse(disableLoggingInWorkerThread[0],
+                "Fresh worker threads should inherit logging enabled by default");
+    }
+
+    @Test(description = "Failed-test retry enables debug file logging diagnostics")
+    public void testRetryEnablesDebugFileLogging() throws java.io.IOException {
+        int originalRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+        File logFile = new File(SHAFT.Properties.log4j.appenderFile_FileName());
+        Level originalRootLogLevel = getRootLogLevel();
+        if (logFile.exists()) {
+            logFile.delete();
+        }
+
+        ITestNGMethod testMethod = mock(ITestNGMethod.class);
+        when(testMethod.getMethodName()).thenReturn("retryLoggingTest");
+        ITestResult testResult = mock(ITestResult.class);
+        when(testResult.getMethod()).thenReturn(testMethod);
+
+        try {
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(1);
+            Assert.assertTrue(new RetryAnalyzer().retry(testResult), "Retry should be scheduled for the first failure");
+            Assert.assertTrue(logFile.isFile(), "Retry diagnostics should ensure the log file exists");
+            Assert.assertTrue(logFile.length() > 0, "Retry diagnostics should write to the log file");
+            Assert.assertEquals(getRootLogLevel(), Level.DEBUG,
+                    "Retry diagnostics should temporarily push the root log level to debug");
+            String retryLog = Files.readString(logFile.toPath(), StandardCharsets.UTF_8);
+            Assert.assertTrue(retryLog.contains("[DEBUG"),
+                    "Retry diagnostics should include at least one debug-level entry");
+            ReportManagerHelper.attachEngineLog("retry-diagnostics-test");
+            Assert.assertFalse(logFile.exists(), "Generated retry diagnostics log should be attached and removed");
+            Assert.assertEquals(getRootLogLevel(), originalRootLogLevel,
+                    "Retry diagnostics should restore the root log level after attaching logs");
+        } finally {
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetryCount);
+            if (logFile.exists()) {
+                logFile.delete();
+            }
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Retry diagnostics should reject a directory path as the debug log target")
+    public void retryDiagnosticsShouldRejectDirectoryLogPath() throws Exception {
+        String originalLogFilePath = SHAFT.Properties.log4j.appenderFile_FileName();
+        Path nonFileLogPath = Files.createTempDirectory("shaft-debug-log-directory");
+
+        Method ensureLogFileExists = ReportManagerHelper.class.getDeclaredMethod("ensureLogFileExists");
+        ensureLogFileExists.setAccessible(true);
+
+        try {
+            ThreadLocalPropertiesManager.setProperty("appender.file.fileName", nonFileLogPath.toString());
+            boolean isLogFileReady = (boolean) ensureLogFileExists.invoke(null);
+            Assert.assertFalse(isLogFileReady,
+                    "Retry diagnostics should reject non-regular log file paths");
+        } finally {
+            ThreadLocalPropertiesManager.setProperty("appender.file.fileName", originalLogFilePath);
+            Files.deleteIfExists(nonFileLogPath);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Retry diagnostics debug log writer should preserve unicode content")
+    public void retryDiagnosticsDebugLogWriterShouldPreserveUnicodeCharacters() throws Exception {
+        String originalLogFilePath = SHAFT.Properties.log4j.appenderFile_FileName();
+        Path tempDirectory = Files.createTempDirectory("shaft-debug-log-utf8");
+        Path logFilePath = tempDirectory.resolve("retry-diagnostics.log");
+        String unicodeLogEntry = "Retry diagnostics UTF-8 check - مرحبا 🌍";
+
+        Method enableDebugFileLogging = ReportManagerHelper.class.getDeclaredMethod("enableDebugFileLogging");
+        enableDebugFileLogging.setAccessible(true);
+        Method writeToDebugLogFile = ReportManagerHelper.class
+                .getDeclaredMethod("writeToDebugLogFile", String.class, Level.class);
+        writeToDebugLogFile.setAccessible(true);
+        Method resetRetryDiagnosticLogging = ReportManagerHelper.class
+                .getDeclaredMethod("resetRetryDiagnosticLogging");
+        resetRetryDiagnosticLogging.setAccessible(true);
+
+        try {
+            ThreadLocalPropertiesManager.setProperty("appender.file.fileName", logFilePath.toString());
+            ReportManager.logDiscrete("Initialize logger for UTF-8 retry diagnostics test");
+            enableDebugFileLogging.invoke(null);
+            writeToDebugLogFile.invoke(null, unicodeLogEntry, Level.DEBUG);
+
+            String writtenLog = Files.readString(logFilePath, StandardCharsets.UTF_8);
+            Assert.assertTrue(writtenLog.contains(unicodeLogEntry),
+                    "Retry debug log writer should preserve Unicode characters when written/read as UTF-8");
+        } finally {
+            resetRetryDiagnosticLogging.invoke(null);
+            ThreadLocalPropertiesManager.setProperty("appender.file.fileName", originalLogFilePath);
+            Files.deleteIfExists(logFilePath);
+            Files.deleteIfExists(tempDirectory);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    private Level getRootLogLevel() {
+        return ((LoggerContext) LogManager.getContext(false)).getConfiguration().getRootLogger().getLevel();
+    }
+
+    @Test(description = "Engine log attachment should collapse consecutive duplicate lines")
+    public void testConsecutiveDuplicateLinesAreCollapsed() throws Exception {
+        String duplicatedLog = String.join(System.lineSeparator(),
+                "[INFO] action-one",
+                "[INFO] action-one",
+                "[DEBUG] action-one details",
+                "[DEBUG] action-one details",
+                "[INFO] action-two");
+
+        Method deduplicateMethod = ReportManagerHelper.class
+                .getDeclaredMethod("deduplicateConsecutiveLogLines", byte[].class);
+        deduplicateMethod.setAccessible(true);
+
+        byte[] processed = (byte[]) deduplicateMethod.invoke(null, duplicatedLog.getBytes(StandardCharsets.UTF_8));
+        String processedLog = new String(processed, StandardCharsets.UTF_8);
+
+        long actionOneInfoCount = processedLog.lines().filter(line -> line.equals("[INFO] action-one")).count();
+        long actionOneDebugCount = processedLog.lines().filter(line -> line.equals("[DEBUG] action-one details")).count();
+        Assert.assertEquals(actionOneInfoCount, 1,
+                "Consecutive duplicate INFO lines should be collapsed before attachment");
+        Assert.assertEquals(actionOneDebugCount, 1,
+                "Consecutive duplicate DEBUG lines should be collapsed before attachment");
+    }
+
+    @Test(description = "Engine log attachment should preserve non-consecutive repeated lines")
+    public void testNonConsecutiveRepeatedLinesArePreserved() throws Exception {
+        String duplicatedLog = String.join(System.lineSeparator(),
+                "[INFO] action-one",
+                "[DEBUG] context",
+                "[INFO] action-one");
+
+        Method deduplicateMethod = ReportManagerHelper.class
+                .getDeclaredMethod("deduplicateConsecutiveLogLines", byte[].class);
+        deduplicateMethod.setAccessible(true);
+
+        byte[] processed = (byte[]) deduplicateMethod.invoke(null, duplicatedLog.getBytes(StandardCharsets.UTF_8));
+        String processedLog = new String(processed, StandardCharsets.UTF_8);
+
+        long actionOneInfoCount = processedLog.lines().filter(line -> line.equals("[INFO] action-one")).count();
+        Assert.assertEquals(actionOneInfoCount, 2,
+                "Non-consecutive repeated INFO lines represent different events and should remain");
     }
 
     @Test(description = "Thread-local mobile_ properties do not leak to other threads")

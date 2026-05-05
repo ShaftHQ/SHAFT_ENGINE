@@ -1,7 +1,10 @@
 package testPackage.properties;
 
 import com.shaft.driver.SHAFT;
+import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.util.Locale;
 
 public class Log4jTests {
     String name;
@@ -43,6 +46,13 @@ public class Log4jTests {
         rootLogger = SHAFT.Properties.log4j.rootLogger();
         loggerAppName = SHAFT.Properties.log4j.loggerAppName();
         loggerAppLevel = SHAFT.Properties.log4j.loggerAppLevel();
+
+        Assert.assertTrue(rootLogger.toLowerCase(Locale.ROOT).startsWith("info"),
+                "Default root logger level should be info");
+        Assert.assertFalse(rootLogger.contains("LOGFILE"),
+                "Default root logger should keep file logging disabled until retry diagnostics enable it");
+        Assert.assertTrue(rootLogger.contains("ReportPortalAppender"),
+                "Default root logger should stay aligned with the bundled default log4j2.properties appenders");
     }
 
 }

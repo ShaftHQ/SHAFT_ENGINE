@@ -5,7 +5,9 @@ import com.shaft.tools.internal.support.AndroidApkBadgingReader;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import lombok.Getter;
+import org.aeonbits.owner.ConfigFactory;
 import org.apache.commons.io.FileUtils;
+import org.apache.logging.log4j.Level;
 import org.openqa.selenium.MutableCapabilities;
 
 import java.io.File;
@@ -24,6 +26,7 @@ public final class PropertyFileManager {
 
     @Getter
     private static final String CUSTOM_PROPERTIES_FOLDER_PATH = "src/main/resources/properties";
+    private static final String LOG4J_PROPERTIES_FILE = "log4j2.properties";
 
     private PropertyFileManager() {
         throw new IllegalStateException("Utility class");
@@ -119,6 +122,45 @@ public final class PropertyFileManager {
         return customDriverOptions;
     }
 
+    /**
+     * Resolves the Log4j2 configuration path, preferring the copied/custom properties file
+     * and falling back to the bundled default file when the custom file has not been created yet.
+     *
+     * @return the Log4j2 configuration file path to use during logger initialization
+     */
+    public static String getLog4jConfigPath() {
+        Paths paths = ConfigFactory.create(Paths.class, ThreadLocalPropertiesManager.getEffectiveProperties());
+        String log4jConfigPath = appendFileName(paths.properties(), LOG4J_PROPERTIES_FILE);
+        if (!new File(log4jConfigPath).isFile()) {
+            log4jConfigPath = appendFileName(paths.defaultProperties(), LOG4J_PROPERTIES_FILE);
+        }
+        return log4jConfigPath;
+    }
+
+    /**
+     * Resolves the effective Log4j file-appender path using the typed Log4j properties.
+     *
+     * @return the effective log file path for retry diagnostics and full-log attachments
+     */
+    public static String getLogFilePath() {
+        return ConfigFactory.create(Log4j.class, ThreadLocalPropertiesManager.getEffectiveProperties())
+                .appenderFile_FileName();
+    }
+
+    /**
+     * Joins a folder path and a file name while preserving an existing trailing separator.
+     *
+     * @param folderPath the folder path to append to
+     * @param fileName   the file name to append
+     * @return the combined file path
+     */
+    private static String appendFileName(String folderPath, String fileName) {
+        if (folderPath.endsWith("/") || folderPath.endsWith(File.separator)) {
+            return folderPath + fileName;
+        }
+        return folderPath + File.separator + fileName;
+    }
+
     public static HashMap<String, Object> getCustomBrowserstackCapabilities() {
         HashMap<String, Object> browserstackOptions = new HashMap<>();
         java.util.Properties props = ThreadLocalPropertiesManager.getEffectiveProperties();
@@ -139,7 +181,7 @@ public final class PropertyFileManager {
 
     private static void readPropertyFiles(String propertiesFolderPath) {
         if (propertiesFolderPath != null) {
-            ReportManager.logDiscrete("Reading properties directory: " + propertiesFolderPath);
+            ReportManager.logDiscrete("Reading properties directory: " + propertiesFolderPath, Level.DEBUG);
             try {
                 java.util.Properties properties = new java.util.Properties();
                 if (propertiesFolderPath.contains(".jar")) {
@@ -156,7 +198,7 @@ public final class PropertyFileManager {
                     File propertyFile;
                     for (int i = 0; i < propertiesFilesList.size(); i++) {
                         propertyFile = (File) (propertiesFilesList.toArray())[i];
-                        ReportManager.logDiscrete("Loading properties file: " + propertyFile);
+                        ReportManager.logDiscrete("Loading properties file: " + propertyFile, Level.DEBUG);
                         loadPropertiesFileIntoSystemProperties(properties, propertyFile);
                     }
                 } else {

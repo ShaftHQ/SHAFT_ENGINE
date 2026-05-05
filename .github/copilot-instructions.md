@@ -181,6 +181,14 @@ Before submitting a pull request, ensure:
 - Add JavaDocs for all public methods and classes
 - Follow existing code formatting and style patterns in the repository
 
+### Logging Rules
+- Every SHAFT-performed step/action must emit **exactly one** `INFO`-level log message that describes the action outcome.
+- Every SHAFT-performed step/action must emit **at least one** `DEBUG`-level companion log message with diagnostic context.
+- Default logging must remain lightweight: root log level is `INFO`, console logging is enabled, and file logging is disabled unless explicitly enabled for diagnostics.
+- Failed-test retry handling is the only default path that enables debug file logging; it must create the log file, attach it to Allure, delete it after attachment, and restore the previous root log level.
+- Do not add duplicate `INFO` logs through separate loggers for the same action; route action logs through SHAFT reporting/logging helpers so formatting and wording remain consistent.
+- When changing any SHAFT Engine class that performs actions or steps, list the affected classes in the PR notes and verify these logging rules for each class.
+
 #### Code Quality Examples
 
 **Example 1 – ThreadLocal for thread-safe parallel driver management:**

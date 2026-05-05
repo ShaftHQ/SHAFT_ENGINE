@@ -7,7 +7,6 @@ import com.shaft.listeners.CucumberFeatureListener;
 import com.shaft.listeners.JunitListener;
 import com.shaft.listeners.internal.JunitListenerHelper;
 import com.shaft.properties.internal.PropertyFileManager;
-import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import io.qameta.allure.Allure;
@@ -20,12 +19,16 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.testng.ITestResult;
 import org.testng.Reporter;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -72,6 +75,8 @@ public class ReportManagerHelper {
     private static final AtomicInteger openIssuesForPassedTestsCounter = new AtomicInteger(0);
     private static final AtomicInteger failedTestsWithoutOpenIssuesCounter = new AtomicInteger(0);
     private static final StackWalker STACK_WALKER = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
+    private static volatile boolean debugFileLoggingEnabled = false;
+    private static volatile Level previousRootLogLevel;
     // TODO: refactor to regular class that can be instantiated within the test
     private static List<List<String>> listOfOpenIssuesForFailedTests = Collections.synchronizedList(new ArrayList<>());
     private static List<List<String>> listOfOpenIssuesForPassedTests = Collections.synchronizedList(new ArrayList<>());
@@ -197,13 +202,113 @@ public class ReportManagerHelper {
 
     private static void initializeLogger() {
         // delete previous run execution log
-        if (ThreadLocalPropertiesManager.getProperty("appender.file.fileName") != null)
-            FileActions.getInstance(true).deleteFile(ThreadLocalPropertiesManager.getProperty("appender.file.fileName"));
+        FileActions.getInstance(true).deleteFile(getLogFilePath());
         // initialize log4j, used by some transitive dependencies
         BasicConfigurator.configure();
         // initialize log4j2
-        Configurator.initialize(null, PropertyFileManager.getCUSTOM_PROPERTIES_FOLDER_PATH() + "/log4j2.properties");
+        Configurator.initialize(null, PropertyFileManager.getLog4jConfigPath());
         logger = LogManager.getLogger(ReportManager.class.getName());
+    }
+
+    /**
+     * Enables debug-level file logging for diagnostic retry evidence.
+     */
+    public static void enableDebugFileLogging() {
+        if (logger == null) {
+            initializeLogger();
+        }
+        if (!ensureLogFileExists()) {
+            return;
+        }
+        if (!debugFileLoggingEnabled) {
+            previousRootLogLevel = getCurrentRootLogLevel();
+        }
+        debugFileLoggingEnabled = true;
+        Configurator.setRootLevel(Level.DEBUG);
+        logger.debug("Enabled debug-level file logging for retry diagnostics.");
+        writeToDebugLogFile("Enabled debug-level file logging for retry diagnostics.", Level.DEBUG);
+    }
+
+    private static String getLogFilePath() {
+        return PropertyFileManager.getLogFilePath();
+    }
+
+    private static Level getCurrentRootLogLevel() {
+        try {
+            return ((LoggerContext) LogManager.getContext(false)).getConfiguration().getRootLogger().getLevel();
+        } catch (Exception e) {
+            return Level.INFO;
+        }
+    }
+
+    private static void resetRetryDiagnosticLogging() {
+        debugFileLoggingEnabled = false;
+        if (previousRootLogLevel != null) {
+            Configurator.setRootLevel(previousRootLogLevel);
+            previousRootLogLevel = null;
+        }
+    }
+
+    private static boolean ensureLogFileExists() {
+        File logFile = new File(getLogFilePath());
+        if (logFile.exists() && !logFile.isFile()) {
+            logDebugFileSetupFailure("Debug log path exists but is not a regular file: " + logFile);
+            return false;
+        }
+        File parent = logFile.getParentFile();
+        if (parent != null && !parent.exists() && !parent.mkdirs()) {
+            logDebugFileSetupFailure("Could not create debug log directory: " + parent);
+            return false;
+        }
+        try {
+            if (!logFile.exists() && !logFile.createNewFile()) {
+                logDebugFileSetupFailure("Could not create debug log file: " + logFile);
+                return false;
+            }
+            return true;
+        } catch (IOException e) {
+            logDebugFileSetupFailure("Could not create debug log file: " + logFile, e);
+            return false;
+        }
+    }
+
+    private static void logDebugFileSetupFailure(String message) {
+        logDebugFileSetupFailure(message, null);
+    }
+
+    private static void logDebugFileSetupFailure(String message, Throwable throwable) {
+        if (logger != null) {
+            if (throwable != null) {
+                logger.warn(message, throwable);
+            } else {
+                logger.warn(message);
+            }
+        }
+    }
+
+    private static void writeToDebugLogFile(String logText, Level logLevel) {
+        if (!debugFileLoggingEnabled || !ensureLogFileExists()) {
+            return;
+        }
+        synchronized (ReportManagerHelper.class) {
+            if (!debugFileLoggingEnabled) {
+                return;
+            }
+            try (var writer = Files.newBufferedWriter(Path.of(getLogFilePath()), StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
+                writer.write(String.format("[%-5s] %s | %s%n", logLevel.name(), java.time.LocalDateTime.now(), logText.trim()));
+            } catch (IOException e) {
+                if (logger != null) {
+                    logger.warn("Failed to write debug log file: {}", e.getMessage());
+                }
+            }
+        }
+    }
+
+    private static void writeToDebugLogFileIfEnabled(String logText, Level logLevel) {
+        if (debugFileLoggingEnabled) {
+            writeToDebugLogFile(logText, logLevel);
+        }
     }
 
     public static void logImportantEntry(String logText, Level logLevel) {
@@ -352,23 +457,62 @@ public class ReportManagerHelper {
     }
 
     public static void attachEngineLog(String executionEndTimestamp) {
-        if (SHAFT.Properties.reporting != null && SHAFT.Properties.reporting.attachFullLog()) {
-            String engineLogCreated = "Successfully created attachment '" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
-                    + "Execution log" + "'";
+        String logFilePath = getLogFilePath();
+        File logFile = new File(logFilePath);
+        boolean shouldAttachRetryDiagnostics = debugFileLoggingEnabled;
+        boolean shouldAttachFullLog = SHAFT.Properties.reporting != null && SHAFT.Properties.reporting.attachFullLog();
+        if (shouldAttachFullLog || shouldAttachRetryDiagnostics) {
             var initialLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
-            createLogEntry(engineLogCreated, true);
-            byte[] engineLog = new byte[0];
+            byte[] engineLog;
             try {
-                engineLog = FileActions.getInstance(true).readFileAsByteArray(ThreadLocalPropertiesManager.getProperty("appender.file.fileName"));
-                FileActions.getInstance(true).deleteFile(ThreadLocalPropertiesManager.getProperty("appender.file.fileName"));
+                if (!logFile.isFile() || logFile.length() == 0) {
+                    logDebugFileSetupFailure("Skipping engine log attachment because the log file is missing or empty: " + logFilePath);
+                    return;
+                }
+                engineLog = FileActions.getInstance(true).readFileAsByteArray(logFilePath);
+                FileActions.getInstance(true).deleteFile(logFilePath);
             } catch (Exception throwable) {
                 logDiscrete(throwable);
+                logDebugFileSetupFailure("Could not read engine log attachment: " + logFilePath, throwable);
+                return;
+            } finally {
+                if (shouldAttachRetryDiagnostics) {
+                    resetRetryDiagnosticLogging();
+                }
+                ReportManagerHelper.setDiscreteLogging(initialLoggingState);
             }
-            ReportManagerHelper.setDiscreteLogging(initialLoggingState);
-            createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Execution log: " + executionEndTimestamp,
-                    new ByteArrayInputStream(engineLog));
+            if (engineLog.length > 0) {
+                engineLog = deduplicateConsecutiveLogLines(engineLog);
+                createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Execution log: " + executionEndTimestamp,
+                        new ByteArrayInputStream(engineLog));
+                createLogEntry("Successfully created attachment '" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
+                        + "Execution log" + "'", true);
+            }
         }
+    }
+
+    /**
+     * Removes only immediately repeated lines from the engine log before attaching it to Allure.
+     * Non-consecutive repeated lines are preserved because they can represent distinct events.
+     *
+     * @param engineLog raw engine log bytes
+     * @return processed log bytes with consecutive duplicate lines collapsed
+     */
+    private static byte[] deduplicateConsecutiveLogLines(byte[] engineLog) {
+        if (engineLog.length == 0) {
+            return new byte[0];
+        }
+        String engineLogContent = new String(engineLog, StandardCharsets.UTF_8);
+        String previousLine = null;
+        List<String> deduplicatedLines = new ArrayList<>();
+        for (String currentLine : (Iterable<String>) engineLogContent.lines()::iterator) {
+            if (!currentLine.equals(previousLine)) {
+                deduplicatedLines.add(currentLine);
+                previousLine = currentLine;
+            }
+        }
+        return String.join(System.lineSeparator(), deduplicatedLines).getBytes(StandardCharsets.UTF_8);
     }
 
     public static void attachIssuesLog(String executionEndTimestamp) {
@@ -486,6 +630,8 @@ public class ReportManagerHelper {
                 initializeLogger();
             }
             logger.log(loglevel, logText.trim());
+            createDebugCompanionLogEntry(logText.trim(), loglevel);
+            writeToDebugLogFileIfEnabled(logText.trim(), loglevel);
             forwardToRealtimeReporter(logText.trim());
         }
     }
@@ -503,6 +649,8 @@ public class ReportManagerHelper {
                     initializeLogger();
                 }
                 logger.log(Level.INFO, logText.trim());
+                createDebugCompanionLogEntry(logText.trim(), Level.INFO);
+                writeToDebugLogFileIfEnabled(logText.trim(), Level.INFO);
             }
             forwardToRealtimeReporter(logText.trim());
         }
@@ -585,7 +733,27 @@ public class ReportManagerHelper {
             initializeLogger();
         }
         logger.log(loglevel, log);
+        createDebugCompanionLogEntry(logText.trim(), loglevel);
+        writeToDebugLogFileIfEnabled(logText.trim(), loglevel);
         setDiscreteLogging(initialLoggingStatus);
+    }
+
+    /**
+     * Emits the DEBUG companion entry required for each SHAFT action log without
+     * creating a duplicate DEBUG entry when the original log is already DEBUG level.
+     *
+     * @param logText     the action log text to include in the diagnostic entry
+     * @param sourceLevel the level of the original action log entry
+     */
+    private static void createDebugCompanionLogEntry(String logText, Level sourceLevel) {
+        if (!Level.DEBUG.equals(sourceLevel)) {
+            String caller = getCallingMethodFullName();
+            String debugLogText = caller == null || caller.isBlank()
+                    ? "Debug action details: " + logText
+                    : "Debug action details [caller=" + caller + "]: " + logText;
+            logger.debug(debugLogText);
+            writeToDebugLogFileIfEnabled(debugLogText, Level.DEBUG);
+        }
     }
 
     /**
@@ -711,6 +879,9 @@ public class ReportManagerHelper {
     }
 
     private static void logAttachmentAction(String attachmentType, String attachmentName, ByteArrayOutputStream attachmentContent) {
+        if (attachmentType.contains(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE)) {
+            return;
+        }
         createLogEntry("Successfully created attachment '" + attachmentType + " - " + attachmentName + "'", Level.INFO);
         if (debugMode && !attachmentType.contains(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE)
                 && !attachmentType.equalsIgnoreCase("Selenium WebDriver Logs")

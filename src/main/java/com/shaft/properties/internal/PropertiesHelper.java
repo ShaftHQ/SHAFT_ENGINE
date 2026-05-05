@@ -8,6 +8,7 @@ import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.ConfigFactory;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.logging.log4j.Level;
 import org.openqa.selenium.remote.Browser;
 
 import java.awt.*;
@@ -95,7 +96,7 @@ public class PropertiesHelper {
         //set key system properties that are needed for the framework to function
         System.setProperty("rp.properties.path", SHAFT.Properties.paths.properties());
         System.setProperty("webdriver.http.factory", "jdk-http-client");
-        System.setProperty("log4j.configurationFile", SHAFT.Properties.paths.properties() + "log4j2.properties");
+        System.setProperty("log4j.configurationFile", PropertyFileManager.getLog4jConfigPath());
         System.setProperty("allure.testng.hide.configuration.failures", "true");
         System.setProperty("allure.testng.hide.disabled.tests", "true");
     }
@@ -281,9 +282,9 @@ public class PropertiesHelper {
     }
 
     private static void attachPropertyFiles() {
-        ReportManager.logDiscrete("Reading properties directory: " + TARGET_PROPERTIES_FOLDER_PATH);
+        ReportManager.logDiscrete("Reading properties directory: " + TARGET_PROPERTIES_FOLDER_PATH, Level.DEBUG);
         FileUtils.listFiles(new File(TARGET_PROPERTIES_FOLDER_PATH), new String[]{"properties"},
-                false).forEach(propertyFile -> ReportManager.logDiscrete("Loading properties file: " + propertyFile));
+                false).forEach(propertyFile -> ReportManager.logDiscrete("Loading properties file: " + propertyFile, Level.DEBUG));
     }
 
     private static void overridePropertiesForMaximumPerformanceMode() {
