@@ -170,7 +170,7 @@ mvn archetype:generate \
   -DarchetypeArtifactId=shaft-archetype
 ```
 
-### Option 3: Add to an Existing Project
+### Option 3: Add to an Existing Project (Maven-only Policy)
 
 <details>
 <summary><b>Maven</b> — add to your <code>pom.xml</code></summary>
@@ -185,16 +185,7 @@ mvn archetype:generate \
 ```
 </details>
 
-<details>
-<summary><b>Gradle (Kotlin DSL)</b> — add to your <code>build.gradle.kts</code></summary>
-
-```kotlin
-dependencies {
-    // Get the latest version from Maven Central ↓
-    testImplementation("io.github.shafthq:SHAFT_ENGINE:<version>")
-}
-```
-</details>
+> ℹ️ This repository enforces a Maven-only execution policy for global consistency across local IDE runs and CI/CD pipelines.
 
 > 💡 Check the latest version: [![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/SHAFT_ENGINE?style=flat-square&label=latest%20version)](https://central.sonatype.com/artifact/io.github.shafthq/SHAFT_ENGINE)
 
@@ -344,7 +335,7 @@ Browse, search, and understand the SHAFT Engine codebase using [**Google Code Wi
 We love contributions from the community! Here's how you can get involved:
 
 - 🐛 [Report a bug](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/new?template=bug_report.md) — found something broken? Let us know
-- 💡 [Request a feature](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/new?template=feature_request.md) — have an idea? We'd love to hear it
+- 💡 [Request a feature](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/new?template=feature_request.md) — have an idea? we'd love to hear it
 - 🔀 [Submit a pull request](https://github.com/ShaftHQ/SHAFT_ENGINE/pulls) — jump right in and help build SHAFT
 
 Read our [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) to get started.

@@ -1,7 +1,9 @@
 package testPackage.properties;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.PropertiesHelper;
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.Locale;
@@ -28,6 +30,11 @@ public class Log4jTests {
     String rootLogger;
     String loggerAppName;
     String loggerAppLevel;
+
+    @BeforeClass(alwaysRun = true)
+    public void beforeClass() {
+        PropertiesHelper.initialize();
+    }
 
     @Test
     public void test() {
