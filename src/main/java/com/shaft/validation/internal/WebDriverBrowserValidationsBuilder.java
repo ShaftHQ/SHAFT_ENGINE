@@ -55,4 +55,16 @@ public class WebDriverBrowserValidationsBuilder {
         return new NativeValidationsBuilder(this);
     }
 
+    /**
+     * Use this to check against the current page text content.
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    public NativeValidationsBuilder text() {
+        this.validationMethod = "browserAttributeEquals";
+        this.browserAttribute = "text";
+        reportMessageBuilder.append("text ");
+        return new NativeValidationsBuilder(this);
+    }
+
 }

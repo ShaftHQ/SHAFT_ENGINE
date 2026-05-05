@@ -9,7 +9,9 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class ValidationTests {
-    private final By locator = SHAFT.GUI.Locator.hasTagName("input").build();
+    private final By locator = By.id("primaryInput");
+    private final By arabicLocator = By.id("arabicInput");
+    private final By englishLocator = By.id("englishInput");
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @Test(description = "Assert that assertEquals works as expected when the two values are equal.")
@@ -209,6 +211,40 @@ public class ValidationTests {
         driver.get().element().assertThat(locator).text().doesNotEqualIgnoringCaseSensitivity("AutomaTion").perform();
     }
 
+    @Test(groups = {"WebBased"})
+    public void assertElementTextLanguageArabicAndDirection_expectedToPass() {
+        driver.get().element().assertThat(arabicLocator).text().language().is("ar").perform();
+        driver.get().element().assertThat(arabicLocator).text().direction().isRightToLeft().perform();
+        driver.get().element().assertThat(arabicLocator).text().isArabic().perform();
+    }
+
+    @Test(groups = {"WebBased"})
+    public void assertElementTextLanguageEnglishAndDirection_expectedToPass() {
+        driver.get().element().assertThat(englishLocator).text().language().is("en").perform();
+        driver.get().element().assertThat(englishLocator).text().alignment().isLeftToRight().perform();
+    }
+
+    @Test(groups = {"WebBased"})
+    public void assertElementTextLanguageSpanishAndFrenchAndGerman_expectedToPass() {
+        driver.get().browser().navigateToURL("data:text/html,<html><body><p id='localized'>Espa%C3%B1ol Fran%C3%A7ais Stra%C3%9Fe</p></body></html>");
+        By localizedLocator = By.id("localized");
+        driver.get().element().assertThat(localizedLocator).text().language().is("es").perform();
+        driver.get().element().assertThat(localizedLocator).text().language().is("fr").perform();
+        driver.get().element().assertThat(localizedLocator).text().language().is("de").perform();
+    }
+
+    @Test(groups = {"WebBased"})
+    public void assertBrowserTextLanguageAndDirection_expectedToPass() {
+        driver.get().browser().assertThat().text().language().is("ar").perform();
+        driver.get().browser().assertThat().text().direction().isRightToLeft().perform();
+        driver.get().browser().assertThat().text().isArabic().perform();
+    }
+
+    @Test(groups = {"WebBased"}, expectedExceptions = {IllegalArgumentException.class})
+    public void assertTextLanguageUnsupportedCode_expectedToFail() {
+        driver.get().element().assertThat(englishLocator).text().language().is("xx").perform();
+    }
+
     @Test
     public void assertFileExists_true_expectedToPass() {
         Validations.assertThat().file("src/main/java/com/shaft/gui/element/", "ElementActions.java").exists().perform();
@@ -231,13 +267,20 @@ public class ValidationTests {
 
     @AfterMethod(onlyForGroups = {"WebBased"}, alwaysRun = true)
     public void afterMethod() {
-        driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+            driver.remove();
+        }
     }
 
     @BeforeMethod(onlyForGroups = {"WebBased"})
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        String testElement = "data:text/html,<input type=\"text\"><br><br>";
+        String testElement = "data:text/html,<html dir='rtl'><body>"
+                + "<input id='primaryInput' type='text'>"
+                + "<input id='englishInput' type='text' dir='ltr' value='Automation'>"
+                + "<input id='arabicInput' type='text' dir='rtl' value='%D9%85%D8%B1%D8%AD%D8%A8%D8%A7'>"
+                + "</body></html>";
         driver.get().browser().navigateToURL(testElement);
     }
 }
