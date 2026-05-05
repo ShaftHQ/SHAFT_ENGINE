@@ -15,6 +15,8 @@ public class JavaScriptWaitManager {
     private static final List<String> COMPLETE_READY_STATES = List.of("loaded", "complete");
     private static final Duration ACTIVE_REQUEST_POLLING_INTERVAL = Duration.ofMillis(200);
     private static final Duration MINIMUM_IDLE_WINDOW = Duration.ofMillis(500);
+    private static final long IDLE_WINDOW_NOT_STARTED = -1L;
+    private static final long NETWORK_ACTIVITY_SEEN = -2L;
 
     private JavaScriptWaitManager() {
         throw new IllegalStateException("Utility class");
@@ -48,7 +50,7 @@ public class JavaScriptWaitManager {
 
     private static void waitUntilNoActiveNetworkRequests(WebDriver driver) {
         //Wait for active XHR/fetch requests to remain idle for the minimum quiet window
-        final long[] idleSinceMillis = {-1L};
+        final long[] idleSinceMillis = {IDLE_WINDOW_NOT_STARTED};
         new SynchronizationManager(driver).fluentWait().pollingEvery(ACTIVE_REQUEST_POLLING_INTERVAL).until(f -> {
             if (f instanceof JavascriptExecutor javascriptExecutor) {
                 try {
@@ -76,9 +78,9 @@ public class JavaScriptWaitManager {
      * <p>
      * State machine behavior:
      * <ul>
-     *   <li>On the first poll where {@code activeRequests == 0}, the quiet-window start time is captured.</li>
+     *   <li>If there has been no observed network activity, the method returns {@code true} immediately.</li>
+     *   <li>After observing {@code activeRequests > 0}, the first zero-activity poll captures the quiet-window start time.</li>
      *   <li>On subsequent zero-activity polls, the method returns {@code true} once the quiet window is reached.</li>
-     *   <li>On any poll where {@code activeRequests > 0}, the quiet-window state is reset.</li>
      * </ul>
      *
      * @param activeRequests  current number of active network requests
@@ -87,14 +89,21 @@ public class JavaScriptWaitManager {
      * @return {@code true} when the quiet window has been satisfied, otherwise {@code false}
      */
     private static boolean hasMetMinimumIdleWindow(long activeRequests, long[] idleSinceMillis, long nowMillis) {
-        if (activeRequests == 0) {
-            if (idleSinceMillis[0] < 0) {
-                idleSinceMillis[0] = nowMillis;
-            }
-            return (nowMillis - idleSinceMillis[0]) >= MINIMUM_IDLE_WINDOW.toMillis();
+        if (activeRequests > 0) {
+            idleSinceMillis[0] = NETWORK_ACTIVITY_SEEN;
+            return false;
         }
-        idleSinceMillis[0] = -1L;
-        return false;
+
+        if (idleSinceMillis[0] == IDLE_WINDOW_NOT_STARTED) {
+            return true;
+        }
+
+        if (idleSinceMillis[0] == NETWORK_ACTIVITY_SEEN) {
+            idleSinceMillis[0] = nowMillis;
+            return false;
+        }
+
+        return (nowMillis - idleSinceMillis[0]) >= MINIMUM_IDLE_WINDOW.toMillis();
     }
 
     private static void waitForDocumentReadyState(WebDriver driver) {

@@ -4,6 +4,8 @@ import com.shaft.tools.internal.support.JavaScriptHelper;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.lang.reflect.Method;
+
 /**
  * Unit tests for JavaScriptWaitManager and JavaScriptHelper.
  * Validates the JavaScript snippets used for network and framework readiness checks
@@ -95,5 +97,35 @@ public class JavaScriptWaitManagerUnitTest {
         Assert.assertNotNull(script, "JQUERY_ACTIVE_STATE script should not be null");
         Assert.assertTrue(script.contains("jQuery"),
                 "Script should reference jQuery to check for active AJAX requests");
+    }
+
+    @Test(description = "Verify idle window check returns immediately when there were no network requests")
+    public void testIdleWindowReturnsImmediatelyWhenNoNetworkActivityWasObserved() throws Exception {
+        Method method = Class.forName("com.shaft.gui.browser.internal.JavaScriptWaitManager")
+                .getDeclaredMethod("hasMetMinimumIdleWindow", long.class, long[].class, long.class);
+        method.setAccessible(true);
+
+        long[] idleSinceMillis = {-1L};
+        boolean result = (boolean) method.invoke(null, 0L, idleSinceMillis, 1000L);
+
+        Assert.assertTrue(result, "No network activity should not force a fixed idle-window delay");
+    }
+
+    @Test(description = "Verify idle window still applies after real network activity is observed")
+    public void testIdleWindowAppliesAfterNetworkActivity() throws Exception {
+        Method method = Class.forName("com.shaft.gui.browser.internal.JavaScriptWaitManager")
+                .getDeclaredMethod("hasMetMinimumIdleWindow", long.class, long[].class, long.class);
+        method.setAccessible(true);
+
+        long[] idleSinceMillis = {-1L};
+        boolean duringActivity = (boolean) method.invoke(null, 2L, idleSinceMillis, 1000L);
+        boolean firstIdlePoll = (boolean) method.invoke(null, 0L, idleSinceMillis, 1200L);
+        boolean beforeQuietWindowEnds = (boolean) method.invoke(null, 0L, idleSinceMillis, 1600L);
+        boolean afterQuietWindowEnds = (boolean) method.invoke(null, 0L, idleSinceMillis, 1800L);
+
+        Assert.assertFalse(duringActivity, "Should not pass while active requests are still in flight");
+        Assert.assertFalse(firstIdlePoll, "First idle poll after network activity should start the quiet window");
+        Assert.assertFalse(beforeQuietWindowEnds, "Should wait until the full quiet window elapses");
+        Assert.assertTrue(afterQuietWindowEnds, "Should pass once the quiet window has elapsed");
     }
 }
