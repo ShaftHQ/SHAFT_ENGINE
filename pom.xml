@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>io.github.shafthq</groupId>
 	<artifactId>SHAFT_MCP</artifactId>
-	<version>10.2.20260424</version> <!-- Update this version in Dockerfile, src/main/resources/application.properties, HELP.md, readme.md on every release -->
+	<version>10.2.20260501</version> <!-- Update this version in Dockerfile, src/main/resources/application.properties, HELP.md, readme.md on every release -->
 	<name>SHAFT_MCP</name>
 	<description>Agentic SHAFT_Engine with Spring AI</description>
     <url>https://shafthq.github.io/</url>

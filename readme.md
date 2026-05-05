@@ -227,7 +227,7 @@ cd /path/to/ShaftHQ/SHAFT_MCP
 mvn clean package -DskipTests -Dgpg.skip
 ```
 
-This will create: `target/SHAFT_MCP-10.2.20260424.jar`
+This will create: `target/SHAFT_MCP-10.2.20260501.jar`
 
 #### Step 2: Configure Claude Desktop
 
@@ -247,7 +247,7 @@ This will create: `target/SHAFT_MCP-10.2.20260424.jar`
       "command": "java",
       "args": [
         "-jar",
-        "/FULL/PATH/TO/SHAFT_MCP/target/SHAFT_MCP-10.2.20260424.jar"
+        "/FULL/PATH/TO/SHAFT_MCP/target/SHAFT_MCP-10.2.20260501.jar"
       ]
     }
   }
@@ -356,7 +356,7 @@ You can add additional MCP servers alongside SHAFT MCP:
   "mcpServers": {
     "shaft-mcp": {
       "command": "java",
-      "args": ["-jar", "/path/to/SHAFT_MCP-10.2.20260424.jar"]
+      "args": ["-jar", "/path/to/SHAFT_MCP-10.2.20260501.jar"]
     },
     "github": {
       "command": "npx",
