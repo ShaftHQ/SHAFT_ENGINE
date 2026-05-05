@@ -37,6 +37,13 @@ import org.openqa.selenium.remote.Browser;
 @SuppressWarnings({"UnusedReturnValue", "unused"})
 public class DriverFactory {
 
+    /**
+     * Creates a new driver factory instance.
+     */
+    public DriverFactory() {
+        super();
+    }
+
     private static final Logger logger = LogManager.getLogger(DriverFactory.class);
 
     private DriverFactoryHelper helper;
@@ -61,6 +68,11 @@ public class DriverFactory {
         }
     }
 
+    /**
+     * Ensures SHAFT properties are initialized before driver creation.
+     *
+     * @return {@code true} when properties are initialized and ready for use
+     */
     public static boolean reloadProperties() {
         if (!com.shaft.properties.internal.Properties.isInitialized()) {
             logger.warn("Execution Listeners are not loaded properly... Self-Healing... Initializing minimalistic test run...");
@@ -133,6 +145,11 @@ public class DriverFactory {
         return helper;
     }
 
+    /**
+     * Returns the managed WebDriver instance from this factory.
+     *
+     * @return the active WebDriver session
+     */
     public WebDriver getDriver() {
         return getHelper().getDriver();
     }
@@ -185,9 +202,44 @@ public class DriverFactory {
      */
     @Getter
     public enum DriverType {
-        SIKULI("SikuliActions"), BROWSERSTACK("BrowserStack"), LAMBDATEST("LambdaTest"), DATABASE("DatabaseActions"), TERMINAL("TerminalActions"), API("RestActions"), FIREFOX(Browser.FIREFOX.browserName()), CHROME(Browser.CHROME.browserName()), SAFARI(Browser.SAFARI.browserName()),
-        IE(Browser.IE.browserName()), EDGE(Browser.EDGE.browserName()), CHROMIUM("Chromium"), WEBKIT("Webkit"), APPIUM_CHROME("chrome"),
-        APPIUM_CHROMIUM("Chromium"), APPIUM_BROWSER("Browser"), APPIUM_SAMSUNG_BROWSER("samsung"), APPIUM_MOBILE_NATIVE("NativeMobileApp"), APPIUM_FLUTTER("Flutter");
+        /** Sikuli desktop automation execution. */
+        SIKULI("SikuliActions"),
+        /** BrowserStack cloud execution. */
+        BROWSERSTACK("BrowserStack"),
+        /** LambdaTest cloud execution. */
+        LAMBDATEST("LambdaTest"),
+        /** Database actions driver. */
+        DATABASE("DatabaseActions"),
+        /** Terminal actions driver. */
+        TERMINAL("TerminalActions"),
+        /** REST API actions driver. */
+        API("RestActions"),
+        /** Firefox browser execution. */
+        FIREFOX(Browser.FIREFOX.browserName()),
+        /** Chrome browser execution. */
+        CHROME(Browser.CHROME.browserName()),
+        /** Safari browser execution. */
+        SAFARI(Browser.SAFARI.browserName()),
+        /** Internet Explorer browser execution. */
+        IE(Browser.IE.browserName()),
+        /** Microsoft Edge browser execution. */
+        EDGE(Browser.EDGE.browserName()),
+        /** Chromium browser execution. */
+        CHROMIUM("Chromium"),
+        /** WebKit browser execution. */
+        WEBKIT("Webkit"),
+        /** Appium Chrome browser execution. */
+        APPIUM_CHROME("chrome"),
+        /** Appium Chromium browser execution. */
+        APPIUM_CHROMIUM("Chromium"),
+        /** Appium generic browser execution. */
+        APPIUM_BROWSER("Browser"),
+        /** Appium Samsung browser execution. */
+        APPIUM_SAMSUNG_BROWSER("samsung"),
+        /** Appium native mobile app execution. */
+        APPIUM_MOBILE_NATIVE("NativeMobileApp"),
+        /** Appium Flutter app execution. */
+        APPIUM_FLUTTER("Flutter");
 
         private final String value;
 

@@ -1,5 +1,8 @@
 package com.shaft.tools.io.internal;
 
+/**
+ * Represents the category of a recorded checkpoint.
+ */
 public enum CheckpointType {
     /** A hard assertion that fails the test immediately on failure. */
     ASSERTION,

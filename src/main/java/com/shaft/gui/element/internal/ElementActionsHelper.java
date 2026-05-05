@@ -33,12 +33,21 @@ import java.awt.*;
 import java.util.*;
 import java.util.List;
 
+/**
+ * Helper utilities for low-level element discovery, interaction, and reporting.
+ */
 public class ElementActionsHelper {
+    /** Masking character used when obfuscating sensitive values in logs and reports. */
     public static final String OBFUSCATED_STRING = "•";
     private static final boolean GET_ELEMENT_HTML = true; //TODO: expose parameter
     private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 100; // milliseconds
     private final boolean isSilent;
 
+    /**
+     * Creates a new element actions helper.
+     *
+     * @param isSilent {@code true} to suppress non-critical report logs; {@code false} otherwise
+     */
     public ElementActionsHelper(boolean isSilent) {
         this.isSilent = isSilent;
     }
@@ -117,6 +126,13 @@ public class ElementActionsHelper {
         }
     }
 
+    /**
+     * Waits for an on-screen image reference to appear within the current viewport.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementReferenceScreenshot path to the reference image file
+     * @return list containing current screenshot, reference screenshot bytes, and matched coordinates
+     */
     public List<Object> waitForElementPresence(WebDriver driver, String elementReferenceScreenshot) {
         long startTime = System.currentTimeMillis();
         long elapsedTime;
@@ -160,6 +176,14 @@ public class ElementActionsHelper {
     }
 
     //TODO: keep enhancing this method until we only need to make ONE WebDriver call per element in case of Type and Click (including element name)
+    /**
+     * Waits for an element to be present (and optionally visible), then returns collected metadata.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementLocator locator of the target element
+     * @param checkForVisibility whether visibility must be validated
+     * @return element information payload used by downstream action methods
+     */
     public List<Object> waitForElementPresence(WebDriver driver, By elementLocator, boolean checkForVisibility) {
         boolean isValidToCheckForVisibility = isValidToCheckForVisibility(elementLocator, checkForVisibility);
         var isMobileExecution = DriverFactoryHelper.isMobileNativeExecution() || DriverFactoryHelper.isMobileWebExecution();
@@ -301,6 +325,13 @@ public class ElementActionsHelper {
         }
     }
 
+    /**
+     * Scrolls through the page until the target element is found or timeout is reached.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementLocator locator of the target element
+     * @return element information including match count and first matched element
+     */
     public List<Object> scrollToFindElement(WebDriver driver, By elementLocator) {
         var elementInformation = new ArrayList<>();
         try {
@@ -335,6 +366,14 @@ public class ElementActionsHelper {
 
 
     //TODO: delete this method after understanding what the heck it's supposed to be doing!
+    /**
+     * Waits until an element is clickable and optionally performs a follow-up action.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementLocator locator of the target element
+     * @param actionToExecute optional action name to execute after clickability is confirmed
+     * @return {@code true} when the element is clickable; otherwise {@code false}
+     */
     public boolean waitForElementToBeClickable(WebDriver driver, By elementLocator, String actionToExecute) {
         SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails();
 
@@ -360,6 +399,14 @@ public class ElementActionsHelper {
         return true;
     }
 
+    /**
+     * Waits until the element text differs from the specified value.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementLocator locator of the target element
+     * @param textShouldNotBe text value that must no longer be present
+     * @return {@code true} when the condition is met; otherwise {@code false}
+     */
     public boolean waitForElementTextToBeNot(WebDriver driver, By elementLocator, String textShouldNotBe) {
         try {
             new SynchronizationManager(driver).fluentWait()
@@ -371,16 +418,36 @@ public class ElementActionsHelper {
         return true;
     }
 
+    /**
+     * Executes a native mobile JavaScript command through the driver.
+     *
+     * @param driver the active WebDriver instance
+     * @param command mobile command expression (for example, {@code mobile: scroll})
+     * @param parameters command parameters map
+     */
     public void executeNativeMobileCommandUsingJavascript(WebDriver driver, String command, Map<String, String> parameters) {
         ((JavascriptExecutor) driver).executeScript(command, parameters);
     }
 
+    /**
+     * Submits a form element using JavaScript in non-mobile executions.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementLocator locator of the form element to submit
+     */
     public void submitFormUsingJavascript(WebDriver driver, By elementLocator) {
         if (DriverFactoryHelper.isNotMobileExecution()) {
             ((JavascriptExecutor) driver).executeScript("arguments[0].submit();", this.identifyUniqueElement(driver, elementLocator).get(1));
         }
     }
 
+    /**
+     * Changes a web element visibility state by setting inline style via JavaScript.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementLocator locator of the target element
+     * @param desiredIsVisibleState {@code true} to show element; {@code false} to hide it
+     */
     public void changeWebElementVisibilityUsingJavascript(WebDriver driver, By elementLocator, boolean desiredIsVisibleState) {
         if (DriverFactoryHelper.isNotMobileExecution()) {
 
@@ -392,6 +459,16 @@ public class ElementActionsHelper {
         }
     }
 
+    /**
+     * Captures an action screenshot for reporting, with pass/fail aware behavior.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementLocator locator of the target element, or {@code null} for full page
+     * @param actionName current action name
+     * @param testData current action test data
+     * @param passFailStatus current action status
+     * @return screenshot attachment payload
+     */
     public List<Object> takeScreenshot(WebDriver driver, By elementLocator, String actionName, String testData, boolean passFailStatus) {
         if (passFailStatus) {
             try {
@@ -413,6 +490,13 @@ public class ElementActionsHelper {
         return new ArrayList<>();
     }
 
+    /**
+     * Resolves a human-readable element name for reporting purposes.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementLocator locator of the target element
+     * @return accessible name when available; otherwise formatted locator text
+     */
     public String getElementName(WebDriver driver, By elementLocator) {
         if (SHAFT.Properties.reporting.captureElementName()) {
             try {
@@ -439,6 +523,13 @@ public class ElementActionsHelper {
         return JavaHelper.formatLocatorToString(elementLocator);
     }
 
+    /**
+     * Performs a keyboard-based clipboard action on the active element.
+     *
+     * @param driver the active WebDriver instance
+     * @param action clipboard action to execute
+     * @return {@code true} when action succeeds; otherwise {@code false}
+     */
     public boolean performClipboardActions(WebDriver driver, ClipboardAction action) {
         try {
             Keys cmdCtrl = SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(Platform.MAC.name()) ? Keys.COMMAND : Keys.CONTROL;
@@ -459,6 +550,13 @@ public class ElementActionsHelper {
         }
     }
 
+    /**
+     * Checks whether a target class appears in the provided throwable stack trace.
+     *
+     * @param classObject class to search for
+     * @param throwable throwable containing stack trace frames
+     * @return {@code true} when class is found in the stack trace; otherwise {@code false}
+     */
     public boolean isFoundInStacktrace(Class<?> classObject, Throwable throwable) {
         var targetClassName = classObject.getName();
         for (StackTraceElement element : throwable.getStackTrace()) {
@@ -469,10 +567,24 @@ public class ElementActionsHelper {
         return false;
     }
 
+    /**
+     * Identifies a unique matching element while enforcing visibility checks.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementLocator locator of the target element
+     * @return element information payload for the matched element
+     */
     public List<Object> identifyUniqueElement(WebDriver driver, By elementLocator) {
         return identifyUniqueElement(driver, elementLocator, true);
     }
 
+    /**
+     * Identifies a unique matching element without visibility checks.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementLocator locator of the target element
+     * @return element information payload for the matched element
+     */
     public List<Object> identifyUniqueElementIgnoringVisibility(WebDriver driver, By elementLocator) {
         return identifyUniqueElement(driver, elementLocator, false);
     }
@@ -509,6 +621,14 @@ public class ElementActionsHelper {
         return matchingElementsInformation;
     }
 
+    /**
+     * Collects element-match metadata for the supplied locator.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementLocator locator of the target element
+     * @param checkForVisibility whether visibility must be validated
+     * @return list containing count and resolved element details
+     */
     public List<Object> getMatchingElementsInformation(WebDriver driver, By elementLocator, boolean checkForVisibility) {
         if (elementLocator == null) {
             var elementInformation = new ArrayList<>();
@@ -540,6 +660,15 @@ public class ElementActionsHelper {
         return Integer.parseInt(this.getMatchingElementsInformation(driver, elementLocator, false).getFirst().toString());
     }
 
+    /**
+     * Reports a successful element action with a single screenshot attachment.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementLocator locator of the target element
+     * @param testData test data associated with the action
+     * @param screenshot screenshot attachment payload
+     * @param elementName resolved element name for reporting
+     */
     public void passAction(WebDriver driver, By elementLocator, String testData, List<Object> screenshot, String elementName) {
         //TODO: open calling methods, and test if Appium can also fetch the element name instead of passing null
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
@@ -548,25 +677,69 @@ public class ElementActionsHelper {
         passAction(driver, elementLocator, actionName, testData, attachments, elementName);
     }
 
+    /**
+     * Reports a successful element action with optional attachments.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementLocator locator of the target element
+     * @param actionName action name to report
+     * @param testData test data associated with the action
+     * @param screenshots screenshot attachments payload
+     * @param elementName resolved element name for reporting
+     */
     public void passAction(WebDriver driver, By elementLocator, String actionName, String testData, List<List<Object>> screenshots, String elementName) {
         reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, true);
     }
 
+    /**
+     * Reports a failed element action using inferred action name and optional root cause.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementLocator locator of the target element
+     * @param rootCauseException optional root cause exceptions
+     */
     public void failAction(WebDriver driver, By elementLocator, Throwable... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(driver, actionName, null, elementLocator, null, rootCauseException);
     }
 
+    /**
+     * Reports a failed element action with test data and optional root cause.
+     *
+     * @param driver the active WebDriver instance
+     * @param testData test data associated with the action
+     * @param elementLocator locator of the target element
+     * @param rootCauseException optional root cause exceptions
+     */
     public void failAction(WebDriver driver, String testData, By elementLocator, Throwable... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(driver, actionName, testData, elementLocator, null, rootCauseException);
     }
 
+    /**
+     * Reports a failed element action with explicit attachments and optional root cause.
+     *
+     * @param driver the active WebDriver instance
+     * @param testData test data associated with the action
+     * @param elementLocator locator of the target element
+     * @param attachments pre-collected attachments
+     * @param rootCauseException optional root cause exceptions
+     */
     public void failAction(WebDriver driver, String testData, By elementLocator, List<List<Object>> attachments, Throwable... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(driver, actionName, testData, elementLocator, attachments, rootCauseException);
     }
 
+    /**
+     * Reports a failed element action using explicit action metadata and optional root cause.
+     *
+     * @param driver the active WebDriver instance
+     * @param actionName action name to report
+     * @param testData test data associated with the action
+     * @param elementLocator locator of the target element
+     * @param screenshots optional screenshot attachments
+     * @param rootCauseException optional root cause exceptions
+     */
     public void failAction(WebDriver driver, String actionName, String testData, By elementLocator, List<List<Object>> screenshots, Throwable... rootCauseException) {
         //TODO: merge all fail actions, make all methods call this one, get elementName where applicable instead of reporting null
         //this condition works if this is the first level of failure, but the first level is usually caught by the calling method
@@ -619,6 +792,15 @@ public class ElementActionsHelper {
         }
     }
 
+    /**
+     * Builds a user-facing report message for element actions.
+     *
+     * @param actionName action name
+     * @param testData action test data
+     * @param elementName resolved element name
+     * @param passFailStatus action status flag
+     * @return formatted report message
+     */
     public String createReportMessage(String actionName, String testData, String elementName, Boolean passFailStatus) {
         String message = "";
 
@@ -706,6 +888,19 @@ public class ElementActionsHelper {
         }
     }
 
+    /**
+     * Finalizes action reporting by logging formatted message and attachments.
+     *
+     * @param driver the active WebDriver instance
+     * @param actionName action name, or {@code null} to infer from stack trace
+     * @param testData action test data
+     * @param elementLocator locator of the target element
+     * @param screenshots pre-collected screenshots
+     * @param elementName resolved element name
+     * @param passFailStatus action status flag
+     * @param rootCauseException optional root cause exceptions
+     * @return final report message
+     */
     public String reportActionResult(WebDriver driver, String actionName, String testData, By elementLocator, List<List<Object>> screenshots, String elementName, Boolean passFailStatus, Throwable... rootCauseException) {
         if (actionName == null) {
             actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
@@ -729,9 +924,19 @@ public class ElementActionsHelper {
         return message;
     }
 
+    /**
+     * Strategies used to extract textual content from a web element.
+     */
     @Getter
     public enum TextDetectionStrategy {
-        TEXT("text"), CONTENT("textContent"), VALUE("value"), UNDEFINED("undefined");
+        /** Reads text via WebElement#getText(). */
+        TEXT("text"),
+        /** Reads text via DOM textContent property. */
+        CONTENT("textContent"),
+        /** Reads text via DOM value property. */
+        VALUE("value"),
+        /** Represents an unresolved text strategy. */
+        UNDEFINED("undefined");
         private final String value;
 
         TextDetectionStrategy(String strategy) {

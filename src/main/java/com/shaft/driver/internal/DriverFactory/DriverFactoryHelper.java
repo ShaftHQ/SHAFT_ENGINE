@@ -50,6 +50,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Internal helper responsible for initializing, managing, and closing WebDriver sessions.
+ */
 public class DriverFactoryHelper {
     private static final String WEB_DRIVER_MANAGER_MESSAGE = "Identifying OS/Driver combination. Please note that if a new browser/driver executable will be downloaded it may take some time depending on your connection...";
     private static final String WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE = "Identifying target OS/Browser and setting up the dockerized environment automatically. Please note that if a new docker container will be downloaded it may take some time depending on your connection...";
@@ -71,9 +74,17 @@ public class DriverFactoryHelper {
     @Getter
     private WebDriver driver;
 
+    /**
+     * Creates a helper instance without an attached WebDriver.
+     */
     public DriverFactoryHelper() {
     }
 
+    /**
+     * Creates a helper instance attached to an existing WebDriver session.
+     *
+     * @param driver the active WebDriver session
+     */
     public DriverFactoryHelper(WebDriver driver) {
         setDriver(driver);
     }
@@ -316,6 +327,9 @@ public class DriverFactoryHelper {
         }
     }
 
+    /**
+     * Initializes and normalizes system-level execution properties before driver creation.
+     */
     public static void initializeSystemProperties() {
         PropertiesHelper.postProcessing();
         var executionAddress = SHAFT.Properties.platform.executionAddress().trim();
@@ -324,6 +338,9 @@ public class DriverFactoryHelper {
                 : "http://" + executionAddress;
     }
 
+    /**
+     * Closes the currently attached driver session and clears the local driver reference.
+     */
     public void closeDriver() {
         closeDriver(driver);
         setDriver(null);
@@ -729,6 +746,9 @@ public class DriverFactoryHelper {
         }
     }
 
+    /**
+     * Initializes a driver using the currently configured target browser/mobile settings.
+     */
     public void initializeDriver() {
         var mobile_browserName = SHAFT.Properties.mobile.browserName();
         String targetBrowserName = SHAFT.Properties.web.targetBrowserName();
@@ -743,10 +763,20 @@ public class DriverFactoryHelper {
         initializeDriver(getDriverTypeFromName((mobile_browserName.isBlank()) ? targetBrowserName : mobile_browserName), null);
     }
 
+    /**
+     * Initializes a driver using the supplied driver type and default options.
+     *
+     * @param driverType the desired driver type
+     */
     public void initializeDriver(@NonNull DriverType driverType) {
         initializeDriver(driverType, null);
     }
 
+    /**
+     * Initializes a driver using configured browser name and custom capabilities.
+     *
+     * @param customDriverOptions custom capabilities to merge into default options
+     */
     public void initializeDriver(MutableCapabilities customDriverOptions) {
         var mobile_browserName = SHAFT.Properties.mobile.browserName();
         String targetBrowserName;
@@ -761,6 +791,12 @@ public class DriverFactoryHelper {
         initializeDriver((getDriverTypeFromName(DriverFactoryHelper.targetBrowserName)), customDriverOptions);
     }
 
+    /**
+     * Initializes a driver using an explicit driver type and optional custom capabilities.
+     *
+     * @param driverType the desired driver type
+     * @param customDriverOptions custom capabilities to merge into default options
+     */
     public void initializeDriver(@NonNull DriverType driverType, MutableCapabilities customDriverOptions) {
         initializeSystemProperties();
         try {
@@ -820,6 +856,11 @@ public class DriverFactoryHelper {
         }
     }
 
+    /**
+     * Attaches the helper to an already initialized native WebDriver session.
+     *
+     * @param driver existing WebDriver instance
+     */
     public void initializeDriver(@NonNull WebDriver driver) {
         initializeSystemProperties();
         ReportManager.log("Attaching to existing driver session '" + driver + "'.");

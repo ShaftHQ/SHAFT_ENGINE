@@ -87,11 +87,28 @@ public class DatabaseActions {
         }
     }
 
+    /**
+     * Creates a database actions instance using structured connection parameters.
+     *
+     * @param databaseType the target database type
+     * @param ip the database server host or IP address
+     * @param port the database server port
+     * @param name the target database name
+     * @param username the database username
+     * @param password the database password
+     * @return a configured database actions instance
+     */
     public static DatabaseActions getInstance(DatabaseType databaseType, String ip, String port, String name, String username,
                                               String password) {
         return new DatabaseActions(databaseType, ip, port, name, username, password);
     }
 
+    /**
+     * Creates a database actions instance using a raw JDBC connection string.
+     *
+     * @param customConnectionString full JDBC connection string
+     * @return a configured database actions instance
+     */
     public static DatabaseActions getInstance(String customConnectionString) {
         return new DatabaseActions(customConnectionString);
     }
@@ -330,18 +347,41 @@ public class DatabaseActions {
         return str.toString().trim();
     }
 
+    /**
+     * Returns the latest thread-local SELECT result as a text table.
+     *
+     * @return string representation of the latest result set
+     */
     public String getResult() {
         return DatabaseActions.getResult(resultSetThreadLocal.get());
     }
 
+    /**
+     * Returns rows whose {@code columnName} matches {@code knownCellValue} from the latest result set.
+     *
+     * @param columnName the column used for matching
+     * @param knownCellValue the expected cell value in the target column
+     * @return tab-separated row data matching the requested value
+     */
     public String getRow(String columnName, String knownCellValue) {
         return DatabaseActions.getRow(resultSetThreadLocal.get(), columnName, knownCellValue);
     }
 
+    /**
+     * Returns all values from a column in the latest thread-local result set.
+     *
+     * @param columnName the column to read
+     * @return newline-separated values from the target column
+     */
     public String getColumn(String columnName) {
         return DatabaseActions.getColumn(resultSetThreadLocal.get(), columnName);
     }
 
+    /**
+     * Returns the number of rows in the latest thread-local result set.
+     *
+     * @return row count for the latest executed query
+     */
     public int getRowCount() {
         return rowCountThreadLocal.get();
     }
@@ -423,6 +463,11 @@ public class DatabaseActions {
         return executeDataManipulationQueries(sql, "UPDATE");
     }
 
+    /**
+     * Executes a DDL statement (for example, CREATE/ALTER/DROP).
+     *
+     * @param sql the DDL SQL statement to execute
+     */
     public void executeDDLStatement(String sql) {
         executeDataManipulationQueries(sql, "DDL");
     }
@@ -546,8 +591,22 @@ public class DatabaseActions {
         }
     }
 
+    /**
+     * Supported relational database engines for JDBC connection construction.
+     */
     public enum DatabaseType {
-        MY_SQL, SQL_SERVER, POSTGRES_SQL, ORACLE, ORACLE_SERVICE_NAME, IBM_DB2
+        /** MySQL database type. */
+        MY_SQL,
+        /** Microsoft SQL Server database type. */
+        SQL_SERVER,
+        /** PostgreSQL database type. */
+        POSTGRES_SQL,
+        /** Oracle database type using SID notation. */
+        ORACLE,
+        /** Oracle database type using service-name notation. */
+        ORACLE_SERVICE_NAME,
+        /** IBM DB2 database type. */
+        IBM_DB2
     }
 
     /**

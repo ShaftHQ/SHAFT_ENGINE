@@ -11,6 +11,9 @@ import org.openqa.selenium.WebElement;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Container for captured element metadata used by SHAFT element actions.
+ */
 @Setter
 @SuppressWarnings("unused")
 public class ElementInformation {
@@ -35,6 +38,19 @@ public class ElementInformation {
     @Getter
     private Element element = null;
 
+    /**
+     * Creates an empty element information container.
+     */
+    public ElementInformation() {
+        super();
+    }
+
+    /**
+     * Creates an {@link ElementInformation} instance from the legacy list payload structure.
+     *
+     * @param elementInformation list payload returned by helper methods
+     * @return mapped {@link ElementInformation} instance
+     */
     public static ElementInformation fromList(List<Object> elementInformation) {
         var temp = new ElementInformation();
         temp.setNumberOfFoundElements((int) elementInformation.get(0));
@@ -73,6 +89,11 @@ public class ElementInformation {
         return new Element("");
     }
 
+    /**
+     * Returns the detected element text using SHAFT's text-resolution strategy.
+     *
+     * @return resolved element text
+     */
     public String getElementText() {
         if (this.element == null)
             this.setElement(parseElement(this));
@@ -80,6 +101,11 @@ public class ElementInformation {
         return this.elementText;
     }
 
+    /**
+     * Returns the element tag name.
+     *
+     * @return HTML tag name for the represented element
+     */
     public String getElementTag() {
         if (this.element == null)
             this.setElement(parseElement(this));
@@ -87,6 +113,11 @@ public class ElementInformation {
         return this.elementTag;
     }
 
+    /**
+     * Converts this object into the legacy list payload structure.
+     *
+     * @return list payload compatible with existing helper contracts
+     */
     public List<Object> toList() {
         var temp = new ArrayList<>();
         temp.add(numberOfFoundElements);

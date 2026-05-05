@@ -12,6 +12,12 @@ import java.util.List;
  * This improves the developer experience when debugging test failures in IDEs and CI logs.
  */
 public class CustomSoftAssert extends SoftAssert {
+    /**
+     * Creates a new custom soft assertion collector.
+     */
+    public CustomSoftAssert() {
+        super();
+    }
     // List to store failure details
     private final List<String> failureMessages = new ArrayList<>();
     
@@ -51,6 +57,9 @@ public class CustomSoftAssert extends SoftAssert {
         super.assertAll();
     }
 
+    /**
+     * Clears all currently collected assertion failure messages.
+     */
     public void clearFailures() {
         failureMessages.clear();
     }
