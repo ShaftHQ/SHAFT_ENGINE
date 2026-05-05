@@ -8,6 +8,11 @@ import com.shaft.validation.ValidationEnums;
 public class TextDirectionValidationsBuilder {
     private final NativeValidationsBuilder nativeValidationsBuilder;
 
+    /**
+     * Package-private constructor to enforce creation through parent fluent builders.
+     *
+     * @param nativeValidationsBuilder parent native builder carrying assertion context
+     */
     TextDirectionValidationsBuilder(NativeValidationsBuilder nativeValidationsBuilder) {
         this.nativeValidationsBuilder = nativeValidationsBuilder;
     }

@@ -436,10 +436,15 @@ public class ValidationsHelper2 {
     }
 
     private String getPageText(WebDriver driver) {
+        // Fallback order keeps behavior stable across DOM variants:
+        // body.innerText -> documentElement.innerText -> empty string.
         return executeJavascript(driver, "return (document.body && document.body.innerText) || document.documentElement.innerText || '';");
     }
 
     private String getPageTextDirection(WebDriver driver) {
+        // Direction cascade:
+        // documentElement dir attribute -> body dir attribute -> body computed direction
+        // -> documentElement computed direction -> default ltr.
         return normalizeDirection(executeJavascript(driver,
                 "const doc=document.documentElement; const body=document.body; const bodyStyle=body?window.getComputedStyle(body):null; " +
                         "const dir=(doc.getAttribute('dir')|| (body?body.getAttribute('dir'):'') || (bodyStyle?bodyStyle.direction:'') || getComputedStyle(doc).direction || 'ltr'); return dir;"));
