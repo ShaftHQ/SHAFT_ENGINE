@@ -86,7 +86,7 @@ public interface Allure extends EngineProperties<Allure> {
      * @return a URL string for the custom logo image
      */
     @Key("allure.customLogo")
-    @DefaultValue("https://github.com/ShaftHQ/SHAFT_ENGINE/blob/main/src/main/resources/images/shaft_white.png?raw=true")
+    @DefaultValue("https://github.com/ShaftHQ/SHAFT_ENGINE/blob/main/src/main/resources/images/shaft.png?raw=true")
     String customLogo();
 
     /**
@@ -96,7 +96,7 @@ public interface Allure extends EngineProperties<Allure> {
      * @return the report title string
      */
     @Key("allure.customTitle")
-    @DefaultValue("Test run report")
+    @DefaultValue("SHAFT-powered test report")
     String customTitle();
 
     /**
@@ -118,8 +118,23 @@ public interface Allure extends EngineProperties<Allure> {
      * @return {@code true} to enforce the configured Allure 3 CLI version; {@code false} otherwise
      */
     @Key("allure.forceConfiguredCliVersion")
-    @DefaultValue("false")
+    @DefaultValue("true")
     boolean forceConfiguredCliVersion();
+
+    /**
+     * Enables SHAFT-managed real-time Allure 3 report monitoring via {@code allure watch}.
+     *
+     * <p>Property key: {@code allure.realtimeMonitoring} — default: {@code true}
+     *
+     * <p>When enabled, SHAFT automatically starts monitoring only for supported contexts
+     * (remote execution or local headless execution) and only when using a managed Allure 3 CLI
+     * command (npx-based resolution).
+     *
+     * @return {@code true} to allow real-time monitoring when eligible; {@code false} to disable it
+     */
+    @Key("allure.realtimeMonitoring")
+    @DefaultValue("false")
+    boolean realtimeMonitoring();
 
     /**
      * Returns a fluent {@link SetProperty} builder for programmatically overriding Allure properties.
@@ -240,6 +255,17 @@ public interface Allure extends EngineProperties<Allure> {
          */
         public SetProperty forceConfiguredCliVersion(boolean value) {
             setProperty("allure.forceConfiguredCliVersion", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code allure.realtimeMonitoring} property at runtime.
+         *
+         * @param value {@code true} to allow real-time monitoring when eligible; {@code false} to disable it
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty realtimeMonitoring(boolean value) {
+            setProperty("allure.realtimeMonitoring", String.valueOf(value));
             return this;
         }
 

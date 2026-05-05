@@ -67,7 +67,7 @@ public interface Visuals extends EngineProperties<Visuals> {
     int animatedGifFrameDelay();
 
     @Key("videoParams_recordVideo")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean videoParamsRecordVideo();
 
     @Key("videoParams_scope")
@@ -75,7 +75,7 @@ public interface Visuals extends EngineProperties<Visuals> {
     String videoParamsScope();
 
     @Key("whenToTakePageSourceSnapshot")
-    @DefaultValue("Never")
+    @DefaultValue("failuresOnly")
     String whenToTakePageSourceSnapshot();
 
     default SetProperty set() {

@@ -56,6 +56,7 @@ import java.util.concurrent.TimeUnit;
 public class DriverFactoryHelper {
     private static final String WEB_DRIVER_MANAGER_MESSAGE = "Identifying OS/Driver combination. Please note that if a new browser/driver executable will be downloaded it may take some time depending on your connection...";
     private static final String WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE = "Identifying target OS/Browser and setting up the dockerized environment automatically. Please note that if a new docker container will be downloaded it may take some time depending on your connection...";
+    private static final String SELENIUM_WEBSOCKET_LISTENER_LOGGER = "org.openqa.selenium.remote.http.WebSocket$Listener";
     private static final ThreadLocal<WebDriverManager> webDriverManager = new ThreadLocal<>();
     @Getter(AccessLevel.PUBLIC)
     private static final Dimension TARGET_WINDOW_SIZE = new Dimension(1920, 1080);
@@ -364,6 +365,9 @@ public class DriverFactoryHelper {
     @Step("Close Driver Session")
     public void closeDriver(WebDriver driver) {
         if (driver != null) {
+            java.util.logging.Logger seleniumWebSocketLogger = java.util.logging.Logger.getLogger(SELENIUM_WEBSOCKET_LISTENER_LOGGER);
+            java.util.logging.Level previousWebSocketLoggerLevel = seleniumWebSocketLogger.getLevel();
+            seleniumWebSocketLogger.setLevel(java.util.logging.Level.SEVERE);
             if (SHAFT.Properties.visuals.videoParamsScope().equals("DriverSession")) {
                 RecordManager.attachVideoRecording();
             }
@@ -388,6 +392,7 @@ public class DriverFactoryHelper {
             } catch (Exception e) {
                 ReportManagerHelper.logDiscrete(e);
             } finally {
+                seleniumWebSocketLogger.setLevel(previousWebSocketLoggerLevel);
                 webDriverManager.remove();
                 ReportManager.log("Successfully Closed Driver.");
             }
@@ -717,15 +722,28 @@ public class DriverFactoryHelper {
      * @return attachment list {@code [type, name, InputStream]}, or {@code null} on failure
      */
     private List<Object> captureLaunchScreenshot() {
+        if (!shouldAttachLaunchScreenshot()) {
+            return null;
+        }
         try {
             byte[] screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-            if (screenshot != null && screenshot.length > 0) {
+            if (screenshot.length > 0) {
                 return Arrays.asList("Screenshot", "App Launch Screenshot", new ByteArrayInputStream(screenshot));
             }
         } catch (Exception e) {
             ReportManager.logDiscrete("Could not capture launch screenshot [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
         }
         return null;
+    }
+
+    /**
+     * Determines whether a launch screenshot should be attached to the "Successfully Opened" step.
+     * This attachment is only relevant for native mobile app launches.
+     *
+     * @return {@code true} when running native mobile automation; otherwise {@code false}
+     */
+    private boolean shouldAttachLaunchScreenshot() {
+        return isMobileNativeExecution();
     }
 
     private void attachWebDriverLogs() {

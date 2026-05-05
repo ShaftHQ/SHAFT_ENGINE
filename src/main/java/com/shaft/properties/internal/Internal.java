@@ -29,20 +29,21 @@ public interface Internal extends EngineProperties<Internal> {
      * Version of the Allure 3 npm package used when the CLI is not already on {@code PATH}.
      * SHAFT invokes {@code npx --yes allure@<version>} to download and cache the package
      * automatically.  Update this value here to upgrade the bundled CLI across the engine
-     * without changing {@code AllureManager} or any CI script.
+     * without changing {@code AllureManager} or any CI script. Use this url for the latest version <a href="https://github.com/allure-framework/allure3/releases">Allure3Releases</a>
      */
     @Key("allure3Version")
-    @DefaultValue("3.3.1")
+    @DefaultValue("3.7.0")
     String allure3Version();
 
     /**
      * Version of the portable Node.js LTS distribution that SHAFT downloads when neither
      * {@code allure} nor {@code npx} is available on {@code PATH}.  The archive is cached
      * in {@code ~/.m2/repository/nodejs/} so it is only downloaded once per machine.
-     * Update this value here to upgrade the bundled Node.js runtime.
+     * Update this value here to upgrade the bundled Node.js runtime. Use this url for the latest version <a href="https://nodejs.org/en/about/previous-releases#looking-for-the-latest-release-of-a-version-branch">NodeJsLTS</a>
+     *
      */
     @Key("nodeLtsVersion")
-    @DefaultValue("20.19.1")
+    @DefaultValue("24.15.0")
     String nodeLtsVersion();
 
     /**

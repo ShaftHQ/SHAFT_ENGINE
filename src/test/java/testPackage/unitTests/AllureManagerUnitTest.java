@@ -7,6 +7,7 @@ import com.shaft.tools.io.internal.AllureManager;
 import org.apache.commons.lang3.SystemUtils;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -140,6 +141,28 @@ public class AllureManagerUnitTest {
             SHAFT.Validations.assertThat().object(content.contains("allure --version")).isEqualTo(false).perform();
         } finally {
             Files.deleteIfExists(scriptPath);
+        }
+    }
+
+    @Test(description = "writeAllureConfig should inject allure.customLogo in awesome plugin options")
+    public void writeAllureConfigShouldInjectCustomLogo() throws Exception {
+        Method writeAllureConfigMethod = AllureManager.class.getDeclaredMethod("writeAllureConfig", String.class, String.class, boolean.class);
+        writeAllureConfigMethod.setAccessible(true);
+
+        String originalCustomLogo = SHAFT.Properties.allure.customLogo();
+        String testCustomLogo = "https://example.com/custom-logo.png";
+        Path configPath = Path.of("allurerc.yaml");
+        try {
+            SHAFT.Properties.allure.set().customLogo(testCustomLogo);
+            String testOutputDirectory = (System.getProperty("user.dir") + File.separator + "target" + File.separator + "allure-report-test").replace("\\", "/");
+            writeAllureConfigMethod.invoke(null, "Unit Test Report", testOutputDirectory, true);
+
+            String yaml = Files.readString(configPath, StandardCharsets.UTF_8);
+            SHAFT.Validations.assertThat().object(yaml.contains("logo: \"" + testCustomLogo + "\"")).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(yaml.contains("singleFile: true")).isEqualTo(true).perform();
+        } finally {
+            SHAFT.Properties.allure.set().customLogo(originalCustomLogo);
+            Files.deleteIfExists(configPath);
         }
     }
 

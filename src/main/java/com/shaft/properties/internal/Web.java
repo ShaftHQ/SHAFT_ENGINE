@@ -27,7 +27,7 @@ public interface Web extends EngineProperties<Web> {
     String targetBrowserName();
 
     @Key("forceBrowserDownload")
-    @DefaultValue("false")
+    @DefaultValue("true")
     boolean forceBrowserDownload();
 
     @Key("headlessExecution")
