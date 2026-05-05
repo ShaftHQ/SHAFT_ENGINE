@@ -256,12 +256,12 @@ public class ThreadLocalPropertiesTest {
     }
 
     @Test(description = "Failed-test retry enables debug file logging diagnostics")
-    public void testRetryEnablesDebugFileLogging() throws java.io.IOException {
+    public void testRetryDiagnosticsLoggingLifecycle() throws java.io.IOException {
         int originalRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
         File logFile = new File(SHAFT.Properties.log4j.appenderFile_FileName());
         Level originalRootLogLevel = getRootLogLevel();
         if (logFile.exists()) {
-            logFile.delete();
+            Files.deleteIfExists(logFile.toPath());
         }
 
         ITestNGMethod testMethod = mock(ITestNGMethod.class);
@@ -285,15 +285,13 @@ public class ThreadLocalPropertiesTest {
                     "Retry diagnostics should restore the root log level after attaching logs");
         } finally {
             SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetryCount);
-            if (logFile.exists()) {
-                logFile.delete();
-            }
+            Files.deleteIfExists(logFile.toPath());
             Properties.clearForCurrentThread();
         }
     }
 
     @Test(description = "Retry diagnostics should reject a directory path as the debug log target")
-    public void retryDiagnosticsShouldRejectDirectoryLogPath() throws Exception {
+    public void testRetryDiagnosticsRejectsDirectoryLogPath() throws Exception {
         String originalLogFilePath = SHAFT.Properties.log4j.appenderFile_FileName();
         Path nonFileLogPath = Files.createTempDirectory("shaft-debug-log-directory");
 
@@ -313,7 +311,7 @@ public class ThreadLocalPropertiesTest {
     }
 
     @Test(description = "Retry diagnostics debug log writer should preserve unicode content")
-    public void retryDiagnosticsDebugLogWriterShouldPreserveUnicodeCharacters() throws Exception {
+    public void testRetryDiagnosticsDebugLogWriterPreservesUnicodeCharacters() throws Exception {
         String originalLogFilePath = SHAFT.Properties.log4j.appenderFile_FileName();
         Path tempDirectory = Files.createTempDirectory("shaft-debug-log-utf8");
         Path logFilePath = tempDirectory.resolve("retry-diagnostics.log");

@@ -8,6 +8,7 @@ import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.MalformedURLException;
 
 public class DriverFactoryHelperUnitTest {
     private String savedExecutionAddress;
@@ -42,11 +43,16 @@ public class DriverFactoryHelperUnitTest {
         SHAFT.Properties.mobile.set().browserName("");
         boolean nativeMobileResult = (boolean) shouldAttachLaunchScreenshotMethod.invoke(helper);
 
+        SHAFT.Properties.platform.set().targetPlatform("ios");
+        SHAFT.Properties.mobile.set().browserName("");
+        boolean iosNativeMobileResult = (boolean) shouldAttachLaunchScreenshotMethod.invoke(helper);
+
         SHAFT.Properties.platform.set().targetPlatform("windows");
         SHAFT.Properties.mobile.set().browserName("chrome");
         boolean webResult = (boolean) shouldAttachLaunchScreenshotMethod.invoke(helper);
 
         SHAFT.Validations.assertThat().object(nativeMobileResult).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(iosNativeMobileResult).isEqualTo(true).perform();
         SHAFT.Validations.assertThat().object(webResult).isEqualTo(false).perform();
     }
 
@@ -76,7 +82,10 @@ public class DriverFactoryHelperUnitTest {
         return new Object[][]{
                 {"127.0.0.1:4723", "http://127.0.0.1:4723/"},
                 {"http://127.0.0.1:4723", "http://127.0.0.1:4723/"},
-                {"http://127.0.0.1:4723/wd/hub", "http://127.0.0.1:4723/wd/hub/"}
+                {"http://127.0.0.1:4723/wd/hub", "http://127.0.0.1:4723/wd/hub/"},
+                {"https://127.0.0.1:4723", "https://127.0.0.1:4723/"},
+                {"https://127.0.0.1:4723/wd/hub", "https://127.0.0.1:4723/wd/hub/"},
+                {"://bad-url", "http://bad-url/"}
         };
     }
 
@@ -97,7 +106,14 @@ public class DriverFactoryHelperUnitTest {
 
         DriverFactoryHelper.initializeSystemProperties();
 
-        SHAFT.Validations.assertThat().object(getTargetHubUrl()).isEqualTo("http://localhost:4444").perform();
+        String targetHubUrl = getTargetHubUrl();
+        SHAFT.Validations.assertThat().object(targetHubUrl).isEqualTo("http://localhost:4444").perform();
+
+        Method normalizeRemoteServerPingBaseUrlMethod = DriverFactoryHelper.class.getDeclaredMethod("normalizeRemoteServerPingBaseUrl", String.class);
+        normalizeRemoteServerPingBaseUrlMethod.setAccessible(true);
+        String normalizedPingBaseUrl = (String) normalizeRemoteServerPingBaseUrlMethod.invoke(null, targetHubUrl);
+
+        SHAFT.Validations.assertThat().object(normalizedPingBaseUrl).isEqualTo("http://localhost:4444/").perform();
     }
 
     @Test(description = "initializeSystemProperties should preserve https scheme without corruption")
@@ -130,6 +146,30 @@ public class DriverFactoryHelperUnitTest {
         String result = (String) redactMethod.invoke(null, "http://localhost:4723/wd/hub");
 
         SHAFT.Validations.assertThat().object(result).isEqualTo("http://localhost:4723/wd/hub").perform();
+    }
+
+    @Test(description = "normalizeRemoteServerPingBaseUrl should throw MalformedURLException for an empty authority URL")
+    public void normalizeRemoteServerPingBaseUrl_throwsForMalformedUrl() throws Exception {
+        Method normalizeRemoteServerPingBaseUrlMethod = DriverFactoryHelper.class.getDeclaredMethod("normalizeRemoteServerPingBaseUrl", String.class);
+        normalizeRemoteServerPingBaseUrlMethod.setAccessible(true);
+
+        try {
+            normalizeRemoteServerPingBaseUrlMethod.invoke(null, "http://");
+            SHAFT.Validations.assertThat().object("no exception thrown").isEqualTo("MalformedURLException expected").perform();
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            SHAFT.Validations.assertThat().object(e.getCause() instanceof MalformedURLException).isEqualTo(true).perform();
+        }
+    }
+
+    @Test(description = "redactUriCredentials should return original input when URL is malformed")
+    public void redactUriCredentials_malformedUrl() throws Exception {
+        Method redactMethod = DriverFactoryHelper.class.getDeclaredMethod("redactUriCredentials", String.class);
+        redactMethod.setAccessible(true);
+
+        String malformedUrl = "http://[invalid";
+        String result = (String) redactMethod.invoke(null, malformedUrl);
+
+        SHAFT.Validations.assertThat().object(result).isEqualTo(malformedUrl).perform();
     }
 
     private static String getTargetHubUrl() throws NoSuchFieldException, IllegalAccessException {
