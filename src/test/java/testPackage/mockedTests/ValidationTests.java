@@ -267,7 +267,10 @@ public class ValidationTests {
 
     @AfterMethod(onlyForGroups = {"WebBased"}, alwaysRun = true)
     public void afterMethod() {
-        driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+            driver.remove();
+        }
     }
 
     @BeforeMethod(onlyForGroups = {"WebBased"})
