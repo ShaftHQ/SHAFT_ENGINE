@@ -320,6 +320,7 @@ public class RestActions {
     }
 
     /**
+     * Extracts a string value from an arbitrary response object by evaluating a JSONPath expression.
      * Supports REST-Assured {@link Response}, {@link String}, {@link org.json.JSONObject},
      * {@link org.json.JSONArray}, {@link java.util.List}, and {@link java.util.HashMap} inputs.
      *
