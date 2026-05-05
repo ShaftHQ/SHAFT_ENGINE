@@ -98,7 +98,10 @@ jobs:
                   with urllib.request.urlopen(request, timeout=20) as response:
                       pull_requests = json.load(response)
               except Exception as error:
-                  print(f"Failed to query release blog post PRs on attempt {attempt + 1}/{max_poll_attempts}: {error}")
+                  if attempt + 1 < max_poll_attempts:
+                      print(f"Failed to query release blog post PRs on attempt {attempt + 1}/{max_poll_attempts}: {error}. Retrying...")
+                  else:
+                      print(f"Failed to query release blog post PRs on attempt {attempt + 1}/{max_poll_attempts}: {error}. Falling back to search URL.")
                   time.sleep(poll_interval_seconds)
                   continue
 
@@ -119,7 +122,10 @@ jobs:
                   blog_post_link_label = "Release Blog Post PR"
                   break
 
-              print(f"Blog post PR not found yet for {version} (attempt {attempt + 1}/{max_poll_attempts}).")
+              if attempt + 1 < max_poll_attempts:
+                  print(f"Blog post PR not found yet for {version} (attempt {attempt + 1}/{max_poll_attempts}). Retrying...")
+              else:
+                  print(f"Blog post PR not found for {version} after {max_poll_attempts} attempts. Falling back to search URL.")
               time.sleep(poll_interval_seconds)
 
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as github_env:
