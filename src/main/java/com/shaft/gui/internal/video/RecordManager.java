@@ -69,12 +69,8 @@ public class RecordManager {
                 && !SHAFT.Properties.web.headlessExecution()
                 && recorder.get() == null) {
             BasicConfigurator.configure();
-            // Keep System.setProperty for the video-recorder library which reads from system props,
-            // and also set via thread-local for SHAFT's thread-safe property resolution.
-            System.setProperty("video.save.mode", VideoSaveMode.ALL.name());
-            System.setProperty("video.folder", "target/video");
-            ThreadLocalPropertiesManager.setProperty("video.save.mode", VideoSaveMode.ALL.name());
-            ThreadLocalPropertiesManager.setProperty("video.folder", "target/video");
+            ThreadLocalPropertiesManager.setGlobalProperty("video.save.mode", VideoSaveMode.ALL.name());
+            ThreadLocalPropertiesManager.setGlobalProperty("video.folder", "target/video");
             recorder.set(RecorderFactory.getRecorder(RecorderType.MONTE));
 //            recorder.set(RecorderFactory.getRecorder(VideoRecorder.conf().recorderType()));
             recorder.get().start();

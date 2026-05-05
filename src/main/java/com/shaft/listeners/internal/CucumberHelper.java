@@ -2,6 +2,7 @@ package com.shaft.listeners.internal;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.listeners.TestNGListener;
+import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.internal.FirestoreRestClient;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.internal.*;
@@ -82,7 +83,7 @@ public class CucumberHelper {
         failedScenarioIds.clear();
         TestNGListener.engineSetup(ProjectStructureManager.RunType.CUCUMBER);
         //set cucumber options
-        System.setProperty("cucumber.options",
+        ThreadLocalPropertiesManager.setGlobalProperty("cucumber.options",
                 " --dry-run " + SHAFT.Properties.cucumber.cucumberExecutionDryRun() +
                         " --features " + SHAFT.Properties.cucumber.cucumberFeatures() +
                         " --name " + SHAFT.Properties.cucumber.cucumberFilterName() +

@@ -20,8 +20,8 @@ public interface Flags extends EngineProperties<Flags> {
         // Engine-wide flags are updated under a dedicated lock and then safely
         // published through the volatile Properties.baseFlags reference.
         synchronized (Properties.class) {
-            System.setProperty(key, value);
-            Properties.baseFlags = ConfigFactory.create(Flags.class);
+            ThreadLocalPropertiesManager.setGlobalProperty(key, value);
+            Properties.baseFlags = ConfigFactory.create(Flags.class, ThreadLocalPropertiesManager.getGlobalOverrides());
         }
         ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
@@ -247,6 +247,11 @@ public interface Flags extends EngineProperties<Flags> {
 
         public SetProperty disableSslCertificateCheck(boolean value) {
             setProperty("disableSslCertificateCheck", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty telemetryEnabled(boolean value) {
+            setProperty("telemetry.enabled", String.valueOf(value));
             return this;
         }
 

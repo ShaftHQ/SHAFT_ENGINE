@@ -199,6 +199,42 @@ public class ThreadLocalPropertiesTest {
         }
     }
 
+    @Test(description = "Global overrides should take precedence over system properties")
+    public void testGlobalOverridesTakePrecedenceOverSystemProperties() {
+        String key = "shaft.test.global.override";
+        String systemValue = "fromSystem";
+        String globalValue = "fromGlobal";
+
+        System.setProperty(key, systemValue);
+        try {
+            ThreadLocalPropertiesManager.setGlobalProperty(key, globalValue);
+
+            Assert.assertEquals(ThreadLocalPropertiesManager.getProperty(key), globalValue,
+                    "Global override should take precedence over system property");
+            Assert.assertEquals(ThreadLocalPropertiesManager.getEffectiveProperties().getProperty(key), globalValue,
+                    "Effective properties should expose the global override value");
+        } finally {
+            System.clearProperty(key);
+        }
+    }
+
+    @Test(description = "Flags setters should update SHAFT global properties without mutating JVM system properties")
+    public void testFlagsSetterDoesNotMutateJvmSystemProperties() {
+        int originalRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+        String originalSystemRetryCount = System.getProperty("retryMaximumNumberOfAttempts");
+        int updatedRetryCount = originalRetryCount == 7 ? 6 : 7;
+
+        try {
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(updatedRetryCount);
+            Assert.assertEquals(SHAFT.Properties.flags.retryMaximumNumberOfAttempts(), updatedRetryCount,
+                    "Flag setter should update the effective SHAFT flag value");
+            Assert.assertEquals(System.getProperty("retryMaximumNumberOfAttempts"), originalSystemRetryCount,
+                    "Flag setter should not mutate JVM system properties");
+        } finally {
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetryCount);
+        }
+    }
+
     @Test(description = "Reporting logging remains enabled by default on fresh worker threads")
     public void testReportingDisableLoggingDefaultsToFalseOnFreshThread() throws InterruptedException {
         final boolean[] disableLoggingInWorkerThread = {true};

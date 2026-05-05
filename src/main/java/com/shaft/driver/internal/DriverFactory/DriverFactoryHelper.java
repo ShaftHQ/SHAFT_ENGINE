@@ -435,9 +435,7 @@ public class DriverFactoryHelper {
                 case EDGE -> {
                     // Fix for Microsoft Edge CDN migration from msedgedriver.azureedge.net to msedgedriver.microsoft.com
                     // This ensures Selenium Manager uses the correct download URL for EdgeDriver.
-                    // Keep System.setProperty because Selenium Manager reads from system props.
-                    System.setProperty("SE_DRIVER_MIRROR_URL", "https://msedgedriver.microsoft.com");
-                    ThreadLocalPropertiesManager.setProperty("SE_DRIVER_MIRROR_URL", "https://msedgedriver.microsoft.com");
+                    ThreadLocalPropertiesManager.setGlobalProperty("SE_DRIVER_MIRROR_URL", "https://msedgedriver.microsoft.com");
                     setDriver(new EdgeDriver(optionsManager.getEdOptions()));
                     disableCacheEdgeAndChrome();
                 }
