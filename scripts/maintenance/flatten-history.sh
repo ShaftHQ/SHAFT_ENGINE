@@ -49,15 +49,19 @@ echo "[3/8] Building normalized maintainer map..."
 AUDIT_DIR="$AUDIT_DIR" python3 - <<'PY'
 from pathlib import Path
 import os
+import sys
 import re, collections
 audit_dir = Path(os.environ['AUDIT_DIR'])
 in_path = audit_dir / 'pre-maintainers-shortlog.txt'
 out_path = audit_dir / 'pre-maintainers-normalized.tsv'
 rows=[]
+skipped=0
 for line in in_path.read_text(encoding='utf-8').splitlines():
     m=re.match(r'\s*(\d+)\s+(.+?)\s+<([^>]+)>\s*$', line)
     if m:
         rows.append((int(m.group(1)), m.group(2).strip(), m.group(3).strip().lower()))
+    else:
+        skipped += 1
 by_email=collections.defaultdict(lambda:[0,collections.Counter()])
 for c,n,e in rows:
     by_email[e][0]+=c
@@ -68,6 +72,8 @@ with out_path.open('w', encoding='utf-8') as f:
         canonical=max(names.items(), key=lambda x:(x[1],x[0]))[0]
         aliases='; '.join(f"{n} ({cnt})" for n,cnt in sorted(names.items(), key=lambda x:(-x[1],x[0])))
         f.write(f"{total}\t{canonical}\t{email}\t{aliases}\n")
+if skipped:
+    print(f"Warning: skipped {skipped} malformed shortlog line(s).", file=sys.stderr)
 PY
 
 echo "[4/8] Building maintainer manifest..."
@@ -125,9 +131,9 @@ COMMITTER_NAME="${GIT_COMMITTER_NAME:-$AUTHOR_NAME}"
 COMMITTER_EMAIL="${GIT_COMMITTER_EMAIL:-$AUTHOR_EMAIL}"
 
 : "${AUTHOR_NAME:=History Rewrite Bot}"
-: "${AUTHOR_EMAIL:=history-rewrite-bot@users.noreply.github.com}"
+: "${AUTHOR_EMAIL:=history-rewrite-bot+shaft_engine@users.noreply.github.com}"
 : "${COMMITTER_NAME:=History Rewrite Bot}"
-: "${COMMITTER_EMAIL:=history-rewrite-bot@users.noreply.github.com}"
+: "${COMMITTER_EMAIL:=history-rewrite-bot+shaft_engine@users.noreply.github.com}"
 
 GIT_AUTHOR_NAME="$AUTHOR_NAME" \
 GIT_AUTHOR_EMAIL="$AUTHOR_EMAIL" \

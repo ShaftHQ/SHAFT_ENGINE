@@ -34,6 +34,7 @@ scripts/maintenance/flatten-history.sh --execute
 ```
 
 > The script auto-configures a local fallback git identity when `user.name`/`user.email` are not set.
+> You can override rewrite commit identity explicitly with `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, and `GIT_COMMITTER_EMAIL`.
 
 ## Validation Checklist
 - Maintainer manifest exists and is committed: `CONTRIBUTORS_HISTORY.md`
