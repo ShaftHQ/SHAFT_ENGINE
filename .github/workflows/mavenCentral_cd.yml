@@ -83,7 +83,7 @@ jobs:
           max_poll_attempts = 20
           poll_interval_seconds = 15
 
-          for _ in range(max_poll_attempts):
+          for attempt in range(max_poll_attempts):
               request = urllib.request.Request(
                   api_url,
                   headers={
@@ -111,6 +111,7 @@ jobs:
                   blog_post_url = matched_pull_request["html_url"]
                   break
 
+              print(f"Blog post PR not found yet for {version} (attempt {attempt + 1}/{max_poll_attempts}).")
               time.sleep(poll_interval_seconds)
 
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as github_env:
@@ -141,8 +142,9 @@ jobs:
               method="POST",
           )
           with urllib.request.urlopen(request, timeout=20) as response:
+              response_body = response.read().decode("utf-8", errors="replace")
               if response.status >= 300:
-                  raise RuntimeError(f"Slack webhook returned status {response.status}")
+                  raise RuntimeError(f"Slack webhook returned status {response.status}: {response_body}")
           PY
       - name: Skip Slack Announcement (secret not configured)
         if: ${{ secrets.SLACK_WEBHOOK_URL == '' }}
