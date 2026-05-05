@@ -16,7 +16,6 @@ public class JavaScriptWaitManager {
     private static final Duration ACTIVE_REQUEST_POLLING_INTERVAL = Duration.ofMillis(200);
     private static final Duration MINIMUM_IDLE_WINDOW = Duration.ofMillis(500);
     private static final long IDLE_WINDOW_NOT_STARTED = -1L;
-    private static final long NETWORK_ACTIVITY_SEEN = -2L;
 
     private JavaScriptWaitManager() {
         throw new IllegalStateException("Utility class");
@@ -51,6 +50,7 @@ public class JavaScriptWaitManager {
     private static void waitUntilNoActiveNetworkRequests(WebDriver driver) {
         //Wait for active XHR/fetch requests to remain idle for the minimum quiet window
         final long[] idleSinceMillis = {IDLE_WINDOW_NOT_STARTED};
+        final boolean[] networkActivityObserved = {false};
         new SynchronizationManager(driver).fluentWait().pollingEvery(ACTIVE_REQUEST_POLLING_INTERVAL).until(f -> {
             if (f instanceof JavascriptExecutor javascriptExecutor) {
                 try {
@@ -61,7 +61,7 @@ public class JavaScriptWaitManager {
                     } else if (returnedValue != null) {
                         activeRequests = Long.parseLong(returnedValue.toString());
                     }
-                    return hasMetMinimumIdleWindow(activeRequests, idleSinceMillis, System.currentTimeMillis());
+                    return hasMetMinimumIdleWindow(activeRequests, idleSinceMillis, networkActivityObserved, System.currentTimeMillis());
                 } catch (Exception exception) {
                     // force return in case of unexpected exception
                     // e.g. org.openqa.selenium.JavascriptException if the script cannot execute
@@ -78,32 +78,31 @@ public class JavaScriptWaitManager {
      * <p>
      * State machine behavior:
      * <ul>
-     *   <li>If there has been no observed network activity, the method returns {@code true} immediately.</li>
+     *   <li>If there has been no observed network activity, the method waits for one follow-up poll.</li>
      *   <li>After observing {@code activeRequests > 0}, the first zero-activity poll captures the quiet-window start time.</li>
      *   <li>On subsequent zero-activity polls, the method returns {@code true} once the quiet window is reached.</li>
      * </ul>
      *
-     * @param activeRequests  current number of active network requests
-     * @param idleSinceMillis single-element state holder for quiet-window start timestamp
-     * @param nowMillis       current time in milliseconds
+     * @param activeRequests          current number of active network requests
+     * @param idleSinceMillis         single-element state holder for quiet-window start timestamp
+     * @param networkActivityObserved single-element state holder that tracks whether any request was observed
+     * @param nowMillis               current time in milliseconds
      * @return {@code true} when the quiet window has been satisfied, otherwise {@code false}
      */
-    private static boolean hasMetMinimumIdleWindow(long activeRequests, long[] idleSinceMillis, long nowMillis) {
+    private static boolean hasMetMinimumIdleWindow(long activeRequests, long[] idleSinceMillis, boolean[] networkActivityObserved, long nowMillis) {
         if (activeRequests > 0) {
-            idleSinceMillis[0] = NETWORK_ACTIVITY_SEEN;
+            networkActivityObserved[0] = true;
+            idleSinceMillis[0] = IDLE_WINDOW_NOT_STARTED;
             return false;
         }
 
         if (idleSinceMillis[0] == IDLE_WINDOW_NOT_STARTED) {
-            return true;
-        }
-
-        if (idleSinceMillis[0] == NETWORK_ACTIVITY_SEEN) {
             idleSinceMillis[0] = nowMillis;
             return false;
         }
 
-        return (nowMillis - idleSinceMillis[0]) >= MINIMUM_IDLE_WINDOW.toMillis();
+        var requiredIdleWindow = networkActivityObserved[0] ? MINIMUM_IDLE_WINDOW : ACTIVE_REQUEST_POLLING_INTERVAL;
+        return (nowMillis - idleSinceMillis[0]) >= requiredIdleWindow.toMillis();
     }
 
     private static void waitForDocumentReadyState(WebDriver driver) {
