@@ -106,13 +106,15 @@ public class AllureManagerUnitTest {
 
         String scriptFileName = SystemUtils.IS_OS_WINDOWS ? "generate_allure_report.bat" : "generate_allure_report.sh";
         Path scriptPath = Path.of(scriptFileName);
-        String content = Files.readString(scriptPath, StandardCharsets.UTF_8);
+        try {
+            String content = Files.readString(scriptPath, StandardCharsets.UTF_8);
 
-        SHAFT.Validations.assertThat().object(content.contains("allure@" + SHAFT.Properties.internal.allure3Version()))
-                .isEqualTo(true).perform();
-        SHAFT.Validations.assertThat().object(content.contains("allure --version")).isEqualTo(true).perform();
-
-        Files.deleteIfExists(scriptPath);
+            SHAFT.Validations.assertThat().object(content.contains("allure@" + SHAFT.Properties.internal.allure3Version()))
+                    .isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(content.contains("allure --version")).isEqualTo(true).perform();
+        } finally {
+            Files.deleteIfExists(scriptPath);
+        }
     }
 
     @Test(description = "extractSemVerFromText should parse SemVer-like versions and return null when absent")
@@ -120,8 +122,12 @@ public class AllureManagerUnitTest {
         Method extractorMethod = AllureManager.class.getDeclaredMethod("extractSemVerFromText", String.class);
         extractorMethod.setAccessible(true);
 
-        SHAFT.Validations.assertThat().object(extractorMethod.invoke(null, "allure 3.3.1").toString()).isEqualTo("3.3.1").perform();
-        SHAFT.Validations.assertThat().object(extractorMethod.invoke(null, "v3.3.1-beta.2").toString()).isEqualTo("3.3.1-beta.2").perform();
-        SHAFT.Validations.assertThat().object(extractorMethod.invoke(null, "unknown version")).isNull().perform();
+        Object plainSemVer = extractorMethod.invoke(null, "allure 3.3.1");
+        Object preReleaseSemVer = extractorMethod.invoke(null, "v3.3.1-beta.2");
+        Object missingSemVer = extractorMethod.invoke(null, "unknown version");
+
+        SHAFT.Validations.assertThat().object(plainSemVer).isEqualTo("3.3.1").perform();
+        SHAFT.Validations.assertThat().object(preReleaseSemVer).isEqualTo("3.3.1-beta.2").perform();
+        SHAFT.Validations.assertThat().object(missingSemVer).isNull().perform();
     }
 }
