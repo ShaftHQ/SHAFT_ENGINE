@@ -140,11 +140,10 @@ public class BrowserStackPropertiesUnitTest {
         threadA.join(5000);
         threadB.join(5000);
         if (threadA.isAlive() || threadB.isAlive()) {
-            throw new RuntimeException("Timed out waiting for BrowserStack thread isolation test to complete.");
+            threadA.interrupt();
+            threadB.interrupt();
+            throw new IllegalStateException("Timed out waiting for BrowserStack thread isolation test to complete.");
         }
-
-        assertFalse(threadA.isAlive());
-        assertFalse(threadB.isAlive());
         assertEquals(threadBObserved.get(), defaultUserName);
     }
 
