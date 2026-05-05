@@ -56,6 +56,7 @@ scripts/maintenance/flatten-history.sh --execute
    ```bash
    git clone --mirror <repo-url> /tmp/repo-backup-mirror.git
    ```
+   Replace `<repo-url>` with the full repository URL, for example: `https://github.com/ShaftHQ/SHAFT_ENGINE.git`.
 3. Push rewritten branch to a staging remote for verification.
 4. After approval, force-update protected default branch (maintainer operation only).
 5. Broadcast migration instructions to contributors:

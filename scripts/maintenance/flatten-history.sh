@@ -23,6 +23,11 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "Error: python3 is required but not found in PATH." >&2
+  exit 1
+fi
+
 mkdir -p "$AUDIT_DIR"
 
 echo "[1/8] Ensuring full history is available..."
