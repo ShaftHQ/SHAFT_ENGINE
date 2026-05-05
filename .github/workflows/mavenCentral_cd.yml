@@ -99,9 +99,9 @@ jobs:
                       pull_requests = json.load(response)
               except Exception as error:
                   if attempt + 1 < max_poll_attempts:
-                      print(f"Failed to query release blog post PRs on attempt {attempt + 1}/{max_poll_attempts}: {error}. Retrying...")
+                      print(f"Failed to query release blog post prs on attempt {attempt + 1}/{max_poll_attempts}: {error}. Retrying...")
                   else:
-                      print(f"Failed to query release blog post PRs on attempt {attempt + 1}/{max_poll_attempts}: {error}. Falling back to search URL.")
+                      print(f"Failed to query release blog post prs on attempt {attempt + 1}/{max_poll_attempts}: {error}. Falling back to search URL.")
                   time.sleep(poll_interval_seconds)
                   continue
 
