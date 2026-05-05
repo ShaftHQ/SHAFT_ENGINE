@@ -12,6 +12,13 @@ import java.lang.reflect.Method;
  * without requiring a running browser.
  */
 public class JavaScriptWaitManagerUnitTest {
+    private static long getIdleWindowNotStartedMarker() throws Exception {
+        var field = Class.forName("com.shaft.gui.browser.internal.JavaScriptWaitManager")
+                .getDeclaredField("IDLE_WINDOW_NOT_STARTED");
+        field.setAccessible(true);
+        return field.getLong(null);
+    }
+
     private static Method getHasMetMinimumIdleWindowMethod() throws Exception {
         Method method = Class.forName("com.shaft.gui.browser.internal.JavaScriptWaitManager")
                 .getDeclaredMethod("hasMetMinimumIdleWindow", long.class, long[].class, long.class);
@@ -108,7 +115,7 @@ public class JavaScriptWaitManagerUnitTest {
     @Test(description = "Verify idle window check returns immediately when there were no network requests")
     public void testIdleWindowReturnsImmediatelyWhenNoNetworkActivityWasObserved() throws Exception {
         Method method = getHasMetMinimumIdleWindowMethod();
-        long[] idleSinceMillis = {-1L};
+        long[] idleSinceMillis = {getIdleWindowNotStartedMarker()};
         boolean result = (boolean) method.invoke(null, 0L, idleSinceMillis, 1000L);
 
         Assert.assertTrue(result, "No network activity should not force a fixed idle-window delay");
@@ -117,7 +124,7 @@ public class JavaScriptWaitManagerUnitTest {
     @Test(description = "Verify idle window still applies after real network activity is observed")
     public void testIdleWindowAppliesAfterNetworkActivity() throws Exception {
         Method method = getHasMetMinimumIdleWindowMethod();
-        long[] idleSinceMillis = {-1L};
+        long[] idleSinceMillis = {getIdleWindowNotStartedMarker()};
         boolean duringActivity = (boolean) method.invoke(null, 2L, idleSinceMillis, 1000L);
         boolean firstIdlePoll = (boolean) method.invoke(null, 0L, idleSinceMillis, 1200L);
         boolean beforeQuietWindowEnds = (boolean) method.invoke(null, 0L, idleSinceMillis, 1600L);
