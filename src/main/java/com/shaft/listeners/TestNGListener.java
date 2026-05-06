@@ -1,10 +1,5 @@
 package com.shaft.listeners;
 
-import com.epam.reportportal.listeners.ItemStatus;
-import com.epam.reportportal.service.ReportPortal;
-import com.epam.reportportal.testng.ITestNGService;
-import com.epam.reportportal.testng.TestNGService;
-import com.epam.reportportal.utils.MemoizingSupplier;
 import com.shaft.api.RequestBuilder;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.ImageProcessingActions;
@@ -69,7 +64,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
 
     private static final Logger logger = LogManager.getLogger(TestNGListener.class);
 
-    public static final Supplier<ITestNGService> REPORT_PORTAL_SERVICE = new MemoizingSupplier<>(() -> new TestNGService(ReportPortal.builder().build()));
+    private static volatile Object reportPortalService;
     private static final List<ITestNGMethod> passedTests = Collections.synchronizedList(new ArrayList<>());
     private static final List<ITestNGMethod> failedTests = Collections.synchronizedList(new ArrayList<>());
     private static final List<ITestNGMethod> skippedTests = Collections.synchronizedList(new ArrayList<>());
@@ -84,7 +79,59 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     private static XmlTest xmlTest;
     @Getter
     private static boolean isReportPortalEnabled;
-    private ITestNGService reportPortalTestNGService;
+    private Object reportPortalTestNGService;
+
+    private static Object getReportPortalService() {
+        if (reportPortalService == null) {
+            synchronized (TestNGListener.class) {
+                if (reportPortalService == null) {
+                    try {
+                        Class<?> rpBuilderClass = Class.forName("com.epam.reportportal.service.ReportPortal");
+                        Object rpBuilder = rpBuilderClass.getMethod("builder").invoke(null);
+                        Object rp = rpBuilder.getClass().getMethod("build").invoke(rpBuilder);
+                        Class<?> serviceClass = Class.forName("com.epam.reportportal.testng.TestNGService");
+                        // Find single-arg constructor
+                        Object service = null;
+                        for (var c : serviceClass.getDeclaredConstructors()) {
+                            if (c.getParameterCount() == 1) {
+                                try { service = c.newInstance(rp); break; } catch (Exception ignored) {}
+                            }
+                        }
+                        reportPortalService = service != null ? service : new Object();
+                    } catch (ReflectiveOperationException | ClassNotFoundException e) {
+                        ReportManager.logDiscrete("ReportPortal agent not available: " + e.getMessage());
+                        reportPortalService = new Object(); // sentinel to avoid retry
+                    }
+                }
+            }
+        }
+        return reportPortalService;
+    }
+
+    private static void invokeRpMethod(Object service, String method, Object... args) {
+        if (service == null || !isReportPortalEnabled) return;
+        try {
+            for (var m : service.getClass().getMethods()) {
+                if (m.getName().equals(method) && m.getParameterCount() == args.length) {
+                    m.invoke(service, args);
+                    return;
+                }
+            }
+            ReportManagerHelper.logDiscrete("ReportPortal method not found: " + method);
+        } catch (ReflectiveOperationException e) {
+            ReportManagerHelper.logDiscrete("ReportPortal " + method + " failed: " + e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object itemStatusValue(String name) {
+        try {
+            Class<?> cls = Class.forName("com.epam.reportportal.listeners.ItemStatus");
+            return Enum.valueOf((Class<Enum>) cls, name);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     public static ProjectStructureManager.RunType identifyRunType() {
         Supplier<Stream<?>> stacktraceSupplier = () -> Arrays.stream((new Throwable()).getStackTrace()).map(StackTraceElement::getClassName);
@@ -146,17 +193,17 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onExecutionStart() {
         engineSetup(ProjectStructureManager.RunType.TESTNG);
-        this.reportPortalTestNGService = REPORT_PORTAL_SERVICE.get();
-        if (REPORT_PORTAL_INSTANCES.incrementAndGet() > 1) {
-            String warning = "WARNING! More than one ReportPortal listener is added";
-            ReportManagerHelper.logDiscrete(warning, Level.WARN);
-        }
         String rpEnableValue = ThreadLocalPropertiesManager.getProperty("rp.enable");
         TestNGListener.isReportPortalEnabled = rpEnableValue != null && Boolean.parseBoolean(rpEnableValue.trim());
         if (TestNGListener.isReportPortalEnabled) {
+            if (REPORT_PORTAL_INSTANCES.incrementAndGet() > 1) {
+                String warning = "WARNING! More than one ReportPortal listener is added";
+                ReportManagerHelper.logDiscrete(warning, Level.WARN);
+            }
+            this.reportPortalTestNGService = getReportPortalService();
             String info = "Initializing ReportPortal Reporting Environment.";
             ReportManagerHelper.logDiscrete(info, Level.INFO);
-            this.reportPortalTestNGService.startLaunch();
+            invokeRpMethod(this.reportPortalTestNGService, "startLaunch");
         }
     }
 
@@ -187,7 +234,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     public void onStart(ISuite suite) {
         TestNGListenerHelper.setTotalNumberOfTests(suite);
         executionStartTime = System.currentTimeMillis();
-        if (isReportPortalEnabled) this.reportPortalTestNGService.startTestSuite(suite);
+        invokeRpMethod(this.reportPortalTestNGService, "startTestSuite", suite);
         // Populate real-time dashboard with planned tests
         RealtimeReporter.initialize(suite.getName());
         List<RealtimeReporter.TestCard> planned = suite.getAllMethods().stream()
@@ -208,7 +255,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
 
     @Override
     public void onFinish(ISuite suite) {
-        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestSuite(suite);
+        invokeRpMethod(this.reportPortalTestNGService, "finishTestSuite", suite);
     }
 
     @Override
@@ -219,17 +266,17 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         Arrays.stream(testContext.getAllTestMethods())
                 .filter(ITestNGMethod::isTest)
                 .forEach(method -> method.setRetryAnalyzerClass(RetryAnalyzer.class));
-        if (isReportPortalEnabled) this.reportPortalTestNGService.startTest(testContext);
+        invokeRpMethod(this.reportPortalTestNGService, "startTest", testContext);
     }
 
     @Override
     public void onFinish(ITestContext testContext) {
-        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTest(testContext);
+        invokeRpMethod(this.reportPortalTestNGService, "finishTest", testContext);
     }
 
     @Override
     public void beforeConfiguration(ITestResult testResult) {
-        if (isReportPortalEnabled) this.reportPortalTestNGService.startConfiguration(testResult);
+        invokeRpMethod(this.reportPortalTestNGService, "startConfiguration", testResult);
     }
 
     @Override
@@ -237,24 +284,24 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         if (testResult.getThrowable() != null) {
             TestNGListenerHelper.setPendingConfigFailure(testResult.getThrowable());
         }
-        if (isReportPortalEnabled) this.reportPortalTestNGService.sendReportPortalMsg(testResult);
-        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestMethod(ItemStatus.FAILED, testResult);
+        invokeRpMethod(this.reportPortalTestNGService, "sendReportPortalMsg", testResult);
+        invokeRpMethod(this.reportPortalTestNGService, "finishTestMethod", itemStatusValue("FAILED"), testResult);
     }
 
     @Override
     public void onConfigurationSuccess(ITestResult testResult) {
-        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestMethod(ItemStatus.PASSED, testResult);
+        invokeRpMethod(this.reportPortalTestNGService, "finishTestMethod", itemStatusValue("PASSED"), testResult);
     }
 
     @Override
     public void onConfigurationSkip(ITestResult testResult) {
-        if (isReportPortalEnabled) this.reportPortalTestNGService.startConfiguration(testResult);
-        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestMethod(ItemStatus.SKIPPED, testResult);
+        invokeRpMethod(this.reportPortalTestNGService, "startConfiguration", testResult);
+        invokeRpMethod(this.reportPortalTestNGService, "finishTestMethod", itemStatusValue("SKIPPED"), testResult);
     }
 
     @Override
     public void onTestFailedButWithinSuccessPercentage(ITestResult result) {
-        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestMethod(ItemStatus.FAILED, result);
+        invokeRpMethod(this.reportPortalTestNGService, "finishTestMethod", itemStatusValue("FAILED"), result);
     }
 
     /**
@@ -401,12 +448,12 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         RealtimeReporter.onExecutionFinished();
         AllureManager.openAllureReportAfterExecution();
         AllureManager.generateAllureReportArchive();
-        if (isReportPortalEnabled) this.reportPortalTestNGService.finishLaunch();
+        invokeRpMethod(this.reportPortalTestNGService, "finishLaunch");
     }
 
     @Override
     public void onTestStart(ITestResult testResult) {
-        if (isReportPortalEnabled) this.reportPortalTestNGService.startTestMethod(testResult);
+        invokeRpMethod(this.reportPortalTestNGService, "startTestMethod", testResult);
         String id = RealtimeReporter.buildTestId(
                 testResult.getTestClass().getName(),
                 testResult.getMethod().getMethodName());
@@ -420,7 +467,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
                 testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), "",
                 ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
-        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestMethod(ItemStatus.PASSED, testResult);
+        invokeRpMethod(this.reportPortalTestNGService, "finishTestMethod", itemStatusValue("PASSED"), testResult);
         String id = RealtimeReporter.buildTestId(
                 testResult.getTestClass().getName(),
                 testResult.getMethod().getMethodName());
@@ -434,8 +481,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
                 testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), testResult.getThrowable().getMessage(),
                 ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
-        if (isReportPortalEnabled) this.reportPortalTestNGService.sendReportPortalMsg(testResult);
-        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestMethod(ItemStatus.FAILED, testResult);
+        invokeRpMethod(this.reportPortalTestNGService, "sendReportPortalMsg", testResult);
+        invokeRpMethod(this.reportPortalTestNGService, "finishTestMethod", itemStatusValue("FAILED"), testResult);
         String id = RealtimeReporter.buildTestId(
                 testResult.getTestClass().getName(),
                 testResult.getMethod().getMethodName());
@@ -450,7 +497,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
                 testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), throwableMessage,
                 ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
-        if (isReportPortalEnabled) this.reportPortalTestNGService.finishTestMethod(ItemStatus.SKIPPED, testResult);
+        invokeRpMethod(this.reportPortalTestNGService, "finishTestMethod", itemStatusValue("SKIPPED"), testResult);
         String id = RealtimeReporter.buildTestId(
                 testResult.getTestClass().getName(),
                 testResult.getMethod().getMethodName());
