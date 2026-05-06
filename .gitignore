@@ -35,7 +35,9 @@ OpenLHReport.js
 /src/test/resources/testDataFiles/allure-results/
 /src/test/resources/META-INF/services/
 /.idea/
-/.run/
+/.run/*
+!/.run/
+!/.run/*.xml
 browserstack.yml
 /log/nohup.out
 log/
