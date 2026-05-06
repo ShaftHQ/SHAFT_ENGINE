@@ -19,9 +19,9 @@ class AppliToolsHelper {
                            ValidationEnums.VisualValidationEngine engine) {
         Eyes eyes = new Eyes();
         eyes.setLogHandler(new LogHandler() {
-            public void open() {}
+            public void open() { /* no-op */ }
             public void onMessage(boolean b, String s) { ReportManager.logDiscrete(s); }
-            public void close() {}
+            public void close() { /* no-op */ }
         });
         eyes.setApiKey(SHAFT.Properties.paths.applitoolsApiKey());
         MatchLevel targetMatchLevel = switch (engine) {

@@ -72,6 +72,7 @@ class OpenCVHelper {
                 switch (attemptNumber) {
                     case 1 -> matchMethod = Imgproc.TM_SQDIFF_NORMED;
                     case 2 -> matchMethod = Imgproc.TM_CCORR_NORMED;
+                    default -> { /* keep TM_CCOEFF_NORMED */ }
                 }
 
                 Imgproc.matchTemplate(img, templ, result, matchMethod);
@@ -149,6 +150,7 @@ class OpenCVHelper {
         return Collections.emptyList();
     }
 
+    @SuppressWarnings("PMD.NPathComplexity")
     static byte[] highlightElement(byte[] targetScreenshot,
                                    org.openqa.selenium.Rectangle elementLocation, java.awt.Color highlightColor) {
         Mat img;
