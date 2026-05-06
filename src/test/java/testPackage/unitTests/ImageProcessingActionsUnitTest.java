@@ -86,6 +86,43 @@ public class ImageProcessingActionsUnitTest {
         Assert.assertThrows(Throwable.class, () -> ImageProcessingActions.compareImageFolders(reference.toString(), test.toString(), 90));
     }
 
+    @Test(description = "ImageProcessingActions has no hard Shutterbug imports in field/method types")
+    public void testNoHardShutterbugImport() {
+        for (var field : ImageProcessingActions.class.getDeclaredFields()) {
+            Assert.assertFalse(field.getType().getName().contains("selenium_shutterbug"),
+                    "No field should reference selenium-shutterbug types");
+        }
+        for (var m : ImageProcessingActions.class.getDeclaredMethods()) {
+            Assert.assertFalse(m.getReturnType().getName().contains("selenium_shutterbug"),
+                    "No method return type should reference selenium-shutterbug");
+            for (var p : m.getParameterTypes())
+                Assert.assertFalse(p.getName().contains("selenium_shutterbug"),
+                        "No parameter type should reference selenium-shutterbug");
+        }
+    }
+
+    @Test(description = "ImageProcessingActions has no hard OpenCV imports in field/method types")
+    public void testNoHardOpenCVImport() {
+        for (var field : ImageProcessingActions.class.getDeclaredFields()) {
+            Assert.assertFalse(field.getType().getName().startsWith("org.opencv"),
+                    "No field should reference org.opencv types");
+            Assert.assertFalse(field.getType().getName().startsWith("nu.pattern"),
+                    "No field should reference nu.pattern (OpenCV loader) types");
+        }
+    }
+
+    @Test(description = "ImageProcessingActions has no hard Applitools imports in field/method types")
+    public void testNoHardApplitoolsImport() {
+        for (var field : ImageProcessingActions.class.getDeclaredFields()) {
+            Assert.assertFalse(field.getType().getName().startsWith("com.applitools"),
+                    "No field should reference com.applitools types");
+        }
+        for (var m : ImageProcessingActions.class.getDeclaredMethods()) {
+            Assert.assertFalse(m.getReturnType().getName().startsWith("com.applitools"),
+                    "No return type should reference com.applitools");
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private static Map<String, String> getLocatorHashCache() throws Exception {
         Field mapField = ImageProcessingActions.class.getDeclaredField("locatorHashMapping");
