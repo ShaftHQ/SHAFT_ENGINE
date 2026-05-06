@@ -265,11 +265,7 @@ public class AllureManager {
             if (enforceConfiguredCliVersion) {
                 commandsToServeAllureReport = Arrays.asList(
                         "@echo off",
-                        "set \"EXPECTED_ALLURE_VERSION=" + allure3Version + "\"",
-                        "set \"ALLURE_COMMAND=npx --yes allure@" + allure3Version + "\"",
-                        "where allure >nul 2>&1 && (for /f \"tokens=*\" %%v in ('allure --version 2^>nul') do set \"ALLURE_VERSION=%%v\")",
-                        "if /i \"%ALLURE_VERSION%\"==\"%EXPECTED_ALLURE_VERSION%\" set \"ALLURE_COMMAND=allure\"",
-                        "%ALLURE_COMMAND% " + serveArguments,
+                        "npx --yes allure@" + allure3Version + " " + serveArguments,
                         "pause", "exit");
             } else {
                 commandsToServeAllureReport = Arrays.asList(
@@ -282,11 +278,7 @@ public class AllureManager {
             if (enforceConfiguredCliVersion) {
                 commandsToServeAllureReport = Arrays.asList(
                         "#!/bin/bash",
-                        "if command -v allure >/dev/null 2>&1 && [ \"$(allure --version 2>/dev/null)\" = \"" + allure3Version + "\" ]; then",
-                        "  allure " + serveArguments,
-                        "else",
-                        "  npx --yes allure@" + allure3Version + " " + serveArguments,
-                        "fi");
+                        "npx --yes allure@" + allure3Version + " " + serveArguments);
             } else {
                 commandsToServeAllureReport = Arrays.asList(
                         "#!/bin/bash",
@@ -419,11 +411,10 @@ public class AllureManager {
             return;
         }
 
-        // Start real-time monitoring using the proper allure3 watch command:
-        // npx allure watch <allureResultsDir>
-        // This continuously monitors the results directory for changes and refreshes
-        // the report automatically in the browser.
-        String command = prefix + " watch \"" + getResultsPath() + "\"";
+        // Explicitly pass --open so watch launches the browser instead of only starting the server.
+        String command = prefix + " watch "
+                + (SHAFT.Properties.allure.automaticallyOpen() ? "--open " : "")
+                + "\"" + getResultsPath() + "\"";
         realtimeMonitoringProcess = startLongRunningCommand(command);
         if (realtimeMonitoringProcess != null && realtimeMonitoringProcess.isAlive()) {
             ReportManager.logDiscrete("Allure real-time monitoring started.");
@@ -431,10 +422,8 @@ public class AllureManager {
     }
 
     private static boolean isRealtimeMonitoringExecutionContextEligible() {
-        boolean isRemoteExecution = !"local".equalsIgnoreCase(SHAFT.Properties.platform.executionAddress().trim());
-        boolean isLocalHeadlessWebExecution = "local".equalsIgnoreCase(SHAFT.Properties.platform.executionAddress().trim())
-                && SHAFT.Properties.web.headlessExecution();
-        return isRemoteExecution || isLocalHeadlessWebExecution;
+        // Allure 3 watch supports local and remote contexts; keep this hook for future policy gates.
+        return true;
     }
 
     private static Process startLongRunningCommand(String command) {
@@ -666,8 +655,8 @@ public class AllureManager {
         String resultsPath = getResultsPath();
 
         if (cachedIsAllure2) {
-            // Allure 2: use --clean to remove stale output, no --config (Allure 2 does not use allurerc.yaml)
-            return prefix + " generate \"" + resultsPath + "\" --clean -o \"" + allureOutPutDirectory + "\"";
+            // Allure 2: generate a single-file report so opening the produced HTML works offline.
+            return prefix + " generate \"" + resultsPath + "\" --single-file --clean -o \"" + allureOutPutDirectory + "\"";
         }
 
         // Allure 3: pass --config explicitly so allurerc.yaml is always applied
@@ -728,12 +717,29 @@ public class AllureManager {
 
         boolean enforceConfiguredCliVersion = SHAFT.Properties.allure.forceConfiguredCliVersion();
 
-        // 1. allure binary on PATH — always read version to detect allure2
+        // Enforced mode intentionally bypasses any system allure detection (including Allure 2).
+        if (enforceConfiguredCliVersion) {
+            if (isExecutableOnPath("npx")) {
+                cachedAllureCommandPrefix = "npx --yes allure@" + allure3Version;
+                ReportManager.logDiscrete("Allure 3 CLI resolved: using configured npx allure@" + allure3Version + ".");
+                return cachedAllureCommandPrefix;
+            }
+            ReportManager.logDiscrete("Node.js not found on PATH. Downloading portable Node.js v" + nodeLtsVersion + " to bootstrap Allure 3 CLI...");
+            String downloadedNpxPath = downloadNodeJsPortable();
+            if (downloadedNpxPath != null) {
+                cachedAllureCommandPrefix = q(downloadedNpxPath) + " --yes allure@" + allure3Version;
+                ReportManager.logDiscrete("Allure 3 CLI resolved: using downloaded Node.js npx.");
+                return cachedAllureCommandPrefix;
+            }
+            cachedAllureCommandPrefix = "";
+            return null;
+        }
+
+        // Legacy mode: prefer system allure and allow Allure 2 compatibility when detected.
         boolean allureOnPath = isExecutableOnPath("allure");
         if (allureOnPath) {
             String systemAllureVersion = readSystemAllureVersion();
 
-            // If allure2 is detected, activate compatibility mode regardless of forceConfiguredCliVersion.
             if (systemAllureVersion != null && systemAllureVersion.startsWith("2.")) {
                 cachedIsAllure2 = true;
                 cachedAllureCommandPrefix = "allure";
@@ -744,38 +750,18 @@ public class AllureManager {
                 return cachedAllureCommandPrefix;
             }
 
-            // Allure 3 (or unknown version) on PATH
-            if (!enforceConfiguredCliVersion) {
-                cachedAllureCommandPrefix = "allure";
-                ReportManager.logDiscrete("Allure 3 CLI resolved: using system 'allure' binary."
-                        + " Set allure.forceConfiguredCliVersion=true to enforce configured allure@" + allure3Version + ".");
-                return cachedAllureCommandPrefix;
-            }
-
-            // enforceConfiguredCliVersion=true: require exact version match
-            if (allure3Version.equals(systemAllureVersion)) {
-                cachedAllureCommandPrefix = "allure";
-                ReportManager.logDiscrete("Allure 3 CLI resolved: using system 'allure' binary (version " + systemAllureVersion + ").");
-                return cachedAllureCommandPrefix;
-            }
-            if (systemAllureVersion == null) {
-                ReportManager.logDiscrete("System 'allure' binary found but its version could not be determined."
-                        + " Ignoring it and using configured allure@" + allure3Version + ".");
-            } else {
-                ReportManager.logDiscrete("System 'allure' version " + systemAllureVersion
-                        + " does not match configured allure@" + allure3Version
-                        + ". Ignoring system 'allure' and using configured version.");
-            }
+            cachedAllureCommandPrefix = "allure";
+            ReportManager.logDiscrete("Allure 3 CLI resolved: using system 'allure' binary."
+                    + " Set allure.forceConfiguredCliVersion=true to force configured npx allure@" + allure3Version + ".");
+            return cachedAllureCommandPrefix;
         }
 
-        // 2. npx on PATH
         if (isExecutableOnPath("npx")) {
             cachedAllureCommandPrefix = "npx --yes allure@" + allure3Version;
             ReportManager.logDiscrete("Allure 3 CLI resolved: using system npx.");
             return cachedAllureCommandPrefix;
         }
 
-        // 3. Download portable Node.js and use its npx
         ReportManager.logDiscrete("Node.js not found on PATH. Downloading portable Node.js v" + nodeLtsVersion + " to bootstrap Allure 3 CLI...");
         String downloadedNpxPath = downloadNodeJsPortable();
         if (downloadedNpxPath != null) {
@@ -784,8 +770,7 @@ public class AllureManager {
             return cachedAllureCommandPrefix;
         }
 
-        // Nothing worked
-        cachedAllureCommandPrefix = ""; // sentinel: tried but failed
+        cachedAllureCommandPrefix = "";
         return null;
     }
 
@@ -796,22 +781,39 @@ public class AllureManager {
      */
     private static String readSystemAllureVersion() {
         try {
-            ProcessBuilder pb = new ProcessBuilder("allure", "--version");
+            ProcessBuilder pb = SystemUtils.IS_OS_WINDOWS
+                    ? new ProcessBuilder("cmd.exe", "/c", "allure", "--version")
+                    : new ProcessBuilder("allure", "--version");
             pb.redirectErrorStream(true);
             Process process = pb.start();
             byte[] outputBytes = process.getInputStream().readAllBytes();
             int exitCode = process.waitFor();
-            if (exitCode != 0) {
-                return null;
-            }
             String output = new String(outputBytes, StandardCharsets.UTF_8).trim();
-            return extractSemVerFromText(output);
+            return parseAllureVersionCommandOutput(output, exitCode);
         } catch (IOException | InterruptedException e) {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
         }
         return null;
+    }
+
+    /**
+     * Extracts an Allure version from {@code allure --version} output.
+     *
+     * <p>Some system wrappers print a valid version token while still returning a non-zero
+     * exit code. In that case we still trust the parsed SemVer token to avoid false negatives.
+     *
+     * @param output   merged stdout/stderr output from the command
+     * @param exitCode process exit code
+     * @return extracted SemVer-like token, or {@code null} when unavailable
+     */
+    private static String parseAllureVersionCommandOutput(String output, int exitCode) {
+        String parsedVersion = extractSemVerFromText(output);
+        if (parsedVersion == null && exitCode != 0) {
+            return null;
+        }
+        return parsedVersion;
     }
 
     /**

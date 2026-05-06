@@ -138,9 +138,9 @@ public class AllureManagerUnitTest {
             scriptMethod.invoke(null);
             String content = Files.readString(scriptPath, StandardCharsets.UTF_8);
 
-            SHAFT.Validations.assertThat().object(content.contains("allure@" + SHAFT.Properties.internal.allure3Version()))
+            SHAFT.Validations.assertThat().object(content.contains("npx --yes allure@" + SHAFT.Properties.internal.allure3Version()))
                     .isEqualTo(true).perform();
-            SHAFT.Validations.assertThat().object(content.contains("allure --version")).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(content.contains("allure --version")).isEqualTo(false).perform();
         } finally {
             SHAFT.Properties.allure.set().forceConfiguredCliVersion(false);
             Files.deleteIfExists(scriptPath);
@@ -207,6 +207,16 @@ public class AllureManagerUnitTest {
         SHAFT.Validations.assertThat().object(missingSemVer).isNull().perform();
     }
 
+    @Test(description = "parseAllureVersionCommandOutput should still parse version tokens from non-zero command output")
+    public void parseAllureVersionCommandOutputShouldParseSemVerEvenWhenExitCodeIsNonZero() throws Exception {
+        Method parserMethod = AllureManager.class.getDeclaredMethod("parseAllureVersionCommandOutput", String.class, int.class);
+        parserMethod.setAccessible(true);
+
+        Object parsedVersion = parserMethod.invoke(null, "warning: fallback mode\n3.7.0\n", 1);
+
+        SHAFT.Validations.assertThat().object(parsedVersion).isEqualTo("3.7.0").perform();
+    }
+
     /**
      * Helper that resets the cached CLI resolution state in AllureManager so that each test
      * that modifies it starts from a clean slate.
@@ -228,7 +238,8 @@ public class AllureManagerUnitTest {
         getCommandMethod.setAccessible(true);
         String command = (String) getCommandMethod.invoke(null);
 
-        // Allure 2: must use --clean, must NOT use --config or allurerc.yaml
+        // Allure 2: must use --single-file and --clean, must NOT use --config or allurerc.yaml
+        SHAFT.Validations.assertThat().object(command).contains("--single-file").perform();
         SHAFT.Validations.assertThat().object(command).contains("--clean").perform();
         SHAFT.Validations.assertThat().object(command.contains("--config")).isEqualTo(false).perform();
         SHAFT.Validations.assertThat().object(command.contains("allurerc.yaml")).isEqualTo(false).perform();
@@ -286,17 +297,24 @@ public class AllureManagerUnitTest {
         setStaticField(AllureManager.class, "cachedIsAllure2", false);
         setStaticField(AllureManager.class, "allureResultsFolderPath", "allure-results");
 
-        // Build the expected watch command the same way the production code does
-        String prefix = (String) getStaticField(AllureManager.class, "cachedAllureCommandPrefix");
-        String resultsPath = "allure-results"; // getResultsPath with no trailing separator
+        String originalAutomaticallyOpen = String.valueOf(SHAFT.Properties.allure.automaticallyOpen());
+        try {
+            SHAFT.Properties.allure.set().automaticallyOpen(true);
 
-        String expectedCommand = prefix + " watch \"" + resultsPath + "\"";
+            // Build the expected watch command the same way the production code does
+            String prefix = (String) getStaticField(AllureManager.class, "cachedAllureCommandPrefix");
+            String resultsPath = "allure-results"; // getResultsPath with no trailing separator
 
-        // The proper watch command must NOT include --config, --output, or --open flags
-        SHAFT.Validations.assertThat().object(expectedCommand.contains("--config")).isEqualTo(false).perform();
-        SHAFT.Validations.assertThat().object(expectedCommand.contains("--output")).isEqualTo(false).perform();
-        SHAFT.Validations.assertThat().object(expectedCommand.contains("--open")).isEqualTo(false).perform();
-        SHAFT.Validations.assertThat().object(expectedCommand).contains("watch").perform();
-        SHAFT.Validations.assertThat().object(expectedCommand).contains("allure-results").perform();
+            String expectedCommand = prefix + " watch --open \"" + resultsPath + "\"";
+
+            // Watch command should include --open when automatic browser opening is enabled.
+            SHAFT.Validations.assertThat().object(expectedCommand.contains("--config")).isEqualTo(false).perform();
+            SHAFT.Validations.assertThat().object(expectedCommand.contains("--output")).isEqualTo(false).perform();
+            SHAFT.Validations.assertThat().object(expectedCommand.contains("--open")).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(expectedCommand).contains("watch").perform();
+            SHAFT.Validations.assertThat().object(expectedCommand).contains("allure-results").perform();
+        } finally {
+            SHAFT.Properties.allure.set().automaticallyOpen(Boolean.parseBoolean(originalAutomaticallyOpen));
+        }
     }
 }
