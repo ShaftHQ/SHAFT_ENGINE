@@ -43,4 +43,17 @@ public class TestNGListenerReflectionUnitTest {
         assertFalse(TestNGListener.isReportPortalEnabled(),
                 "isReportPortalEnabled() must return false unless set by onExecutionStart");
     }
+
+    @Test(description = "log4j2 default config contains no ReportPortalLog4j2Appender reference")
+    public void testLog4j2DefaultConfigHasNoRpAppender() throws Exception {
+        var url = TestNGListenerReflectionUnitTest.class
+                .getClassLoader()
+                .getResource("properties/default/log4j2.properties");
+        assertNotNull(url, "default log4j2.properties must exist on classpath");
+        String content = new String(url.openStream().readAllBytes());
+        assertFalse(content.contains("ReportPortalLog4j2Appender"),
+                "default log4j2.properties must not reference ReportPortalLog4j2Appender");
+        assertFalse(content.contains("ReportPortalAppender"),
+                "default log4j2.properties must not include ReportPortalAppender in rootLogger");
+    }
 }
