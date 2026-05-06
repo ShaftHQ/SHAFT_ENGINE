@@ -6,14 +6,13 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Unit tests for the static utility methods of {@link RestActions} that do
+ * Unit tests for static utility methods of {@link RestActions} that do
  * NOT require live HTTP requests.  Specifically covers:
  * <ul>
  *   <li>{@link RestActions#formatXML(String)}</li>
@@ -23,7 +22,7 @@ import java.util.Map;
  *   <li>{@link RestActions.ParametersType} enum</li>
  * </ul>
  */
-public class TextLanguageValidationsBuilderUnitTest {
+public class RestActionsUtilsUnitTest {
 
     @AfterMethod(alwaysRun = true)
     public void resetState() {

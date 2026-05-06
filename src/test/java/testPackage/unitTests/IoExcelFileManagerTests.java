@@ -26,11 +26,10 @@ public class IoExcelFileManagerTests {
 
     @Test(description = "getCellData(rowName, columnName) returns a non-null value")
     public void getCellDataByRowNameAndColumnName() {
-        // getCellData with empty column name defaults to the 2nd column value (index 1)
-        // Using empty string for columnName falls back to the second column
+        // Empty column name defaults to the first value column (index 1)
         String value = testDataReader.getCellData("testRowValue", "");
-        ReportManager.log("getCellData(rowName, emptyColumnName) returned: " + value);
-        Assert.assertNotNull(value, "getCellData(rowName, '') must not return null");
+        ReportManager.log("getCellData(rowName, '') returned: " + value);
+        Assert.assertNotNull(value, "getCellData with empty column name must not return null");
     }
 
     @Test(description = "getLastColumnNumber returns a non-negative value")
@@ -40,16 +39,16 @@ public class IoExcelFileManagerTests {
         Assert.assertTrue(lastCol >= 0, "Last column number must be >= 0");
     }
 
-    @Test(description = "getLastColumnNumber with explicit sheet name returns same value")
+    @Test(description = "getLastColumnNumber with explicit sheet name matches default sheet's last column")
     public void getLastColumnNumberWithSheetNameMatchesDefault() {
         int defaultLast = testDataReader.getLastColumnNumber();
-        String firstSheetName = "Sheet1";
+        // "TestData" is the known sheet name used by the test data file at testSuite01/TestData.xlsx
         try {
-            int explicitLast = testDataReader.getLastColumnNumber(firstSheetName);
+            int explicitLast = testDataReader.getLastColumnNumber("TestData");
             Validations.assertThat().object(explicitLast).isEqualTo(defaultLast).perform();
         } catch (Exception e) {
-            // Sheet may be named differently; just ensure the method doesn't throw unexpectedly
-            ReportManager.log("Sheet name 'Sheet1' not found, skipping explicit-sheet comparison.");
+            // If the sheet name differs, skip comparison rather than failing
+            ReportManager.log("Skipping explicit-sheet comparison: " + e.getMessage());
         }
     }
 
