@@ -82,4 +82,17 @@ public class PdfFileManagerUnitTest {
                 PdfFileManager.DeleteFileAfterValidationStatus.valueOf("FALSE");
         Assert.assertEquals(status, PdfFileManager.DeleteFileAfterValidationStatus.FALSE);
     }
+
+    // ─── 3-argument constructor ───────────────────────────────────────────────
+
+    @Test(description = "PdfFileManager(folder, file, retries) constructor finds existing file")
+    public void threeArgConstructorWithExistingFileShouldNotThrow() {
+        // The sample PDF lives at: src/test/resources/testDataFiles/sample.pdf
+        // Split into folder + filename for the 3-arg constructor
+        PdfFileManager manager = new PdfFileManager(
+                "src/test/resources/testDataFiles/", "sample.pdf", 1);
+        String content = manager.readFileContent();
+        Assert.assertNotNull(content, "3-arg constructor: readFileContent must not return null");
+        Assert.assertFalse(content.isBlank(), "3-arg constructor: readFileContent must not be blank");
+    }
 }

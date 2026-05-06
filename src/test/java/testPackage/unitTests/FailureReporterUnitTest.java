@@ -89,11 +89,25 @@ public class FailureReporterUnitTest {
         }
     }
 
-    @Test(description = "fail(message): message with 'Assert' (upper case) throws AssertionError")
-    public void failWithUpperCaseAssertMessageThrowsAssertionError() {
+    // ─── fail(Class<?>, String, Throwable) ────────────────────────────────────
+
+    @Test(description = "fail(class, message, throwable): throws RuntimeException for regular message")
+    public void failWithClassMessageAndThrowableThrowsRuntimeException() {
+        Throwable rootCause = new IllegalStateException("root cause");
         try {
-            FailureReporter.fail("Assert that value is not null");
-            Assert.fail("Expected AssertionError");
+            FailureReporter.fail(FailureReporterUnitTest.class, "something went wrong", rootCause);
+            Assert.fail("Expected RuntimeException to be thrown");
+        } catch (RuntimeException e) {
+            Assert.assertNotNull(e.getMessage(), "RuntimeException must carry a message");
+        }
+    }
+
+    @Test(description = "fail(class, message with assert, throwable): throws AssertionError")
+    public void failWithClassAndAssertMessageThrowsAssertionError() {
+        Throwable rootCause = new RuntimeException("inner");
+        try {
+            FailureReporter.fail(FailureReporterUnitTest.class, "assertion failed here", rootCause);
+            Assert.fail("Expected AssertionError to be thrown");
         } catch (AssertionError e) {
             Assert.assertNotNull(e.getMessage());
         }
