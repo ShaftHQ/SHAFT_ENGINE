@@ -63,7 +63,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         IExecutionListener, ISuiteListener, IInvokedMethodListener, ITestListener, IResultListener2, IMethodInterceptor {
 
     private static final Logger logger = LogManager.getLogger(TestNGListener.class);
-
+    private static final java.util.concurrent.ConcurrentHashMap<String, Object> itemStatusCache = new java.util.concurrent.ConcurrentHashMap<>();
     private static volatile Object reportPortalService;
     private static final List<ITestNGMethod> passedTests = Collections.synchronizedList(new ArrayList<>());
     private static final List<ITestNGMethod> failedTests = Collections.synchronizedList(new ArrayList<>());
@@ -128,8 +128,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
             ReportManagerHelper.logDiscrete(e);
         }
     }
-
-    private static final java.util.concurrent.ConcurrentHashMap<String, Object> itemStatusCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
     private static Object itemStatusValue(String name) {

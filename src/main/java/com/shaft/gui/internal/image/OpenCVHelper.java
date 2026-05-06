@@ -32,7 +32,7 @@ class OpenCVHelper {
         var libName = "";
         try {
             //https://github.com/openpnp/opencv#api
-            libName = org.opencv.core.Core.NATIVE_LIBRARY_NAME;
+            libName = Core.NATIVE_LIBRARY_NAME;
             OpenCV.loadLocally();
             ReportManager.logDiscrete("Loaded OpenCV \"" + libName + "\".");
         } catch (Throwable throwable) {
@@ -83,7 +83,7 @@ class OpenCVHelper {
                 double minMaxVal;
                 double matchAccuracy;
 
-                org.opencv.core.Point matchLoc;
+                Point matchLoc;
                 //noinspection ConstantValue
                 if (matchMethod == Imgproc.TM_SQDIFF || matchMethod == Imgproc.TM_SQDIFF_NORMED) {
                     matchLoc = mmr.minLoc;
@@ -142,7 +142,7 @@ class OpenCVHelper {
                     ReportManager.log("Successfully identified the element using AI; OpenCV. " + accuracyMessage);
                 }
                 return Arrays.asList(x, y);
-            } catch (org.opencv.core.CvException e) {
+            } catch (CvException e) {
                 ReportManagerHelper.logDiscrete(e);
                 ReportManager.log("Failed to identify the element using AI; openCV core exception.");
             }
@@ -156,11 +156,11 @@ class OpenCVHelper {
         Mat img;
         try {
             img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
-        } catch (java.lang.UnsatisfiedLinkError unsatisfiedLinkError) {
+        } catch (UnsatisfiedLinkError unsatisfiedLinkError) {
             load();
             try {
                 img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
-            } catch (java.lang.UnsatisfiedLinkError e) {
+            } catch (UnsatisfiedLinkError e) {
                 ReportManager.logDiscrete("OpenCV not available for element highlighting after retry.");
                 return targetScreenshot;
             }
