@@ -48,7 +48,7 @@ public class TestNGListenerReflectionUnitTest {
     public void testLog4j2DefaultConfigHasNoRpAppender() throws Exception {
         var url = TestNGListenerReflectionUnitTest.class
                 .getClassLoader()
-                .getResource("properties/default/log4j2.properties");
+                .getResource("resources/properties/default/log4j2.properties");
         assertNotNull(url, "default log4j2.properties must exist on classpath");
         String content = new String(url.openStream().readAllBytes());
         assertFalse(content.contains("ReportPortalLog4j2Appender"),
