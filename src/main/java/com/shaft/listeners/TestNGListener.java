@@ -123,9 +123,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
                     return;
                 }
             }
-            ReportManagerHelper.logDiscrete("ReportPortal method not found: " + method);
+            ReportManagerHelper.logDiscrete("ReportPortal method not found: " + method, Level.WARN);
         } catch (ReflectiveOperationException e) {
-            ReportManagerHelper.logDiscrete("ReportPortal " + method + " failed: " + e.getMessage());
+            ReportManagerHelper.logDiscrete(e);
         }
     }
 

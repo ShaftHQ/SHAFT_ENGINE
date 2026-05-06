@@ -116,7 +116,7 @@ public class RecordManager {
                         .getMethod("doVideoProcessing", boolean.class, String.class)
                         .invoke(null, ReportManagerHelper.isCurrentTestPassed(), rawPath);
                 inputStream = new FileInputStream(encodeRecording(pathToRecording));
-            } catch (ReflectiveOperationException | ClassNotFoundException | FileNotFoundException e) {
+            } catch (ReflectiveOperationException | FileNotFoundException e) {
                 ReportManagerHelper.logDiscrete(e);
             }
             recorder.remove();
