@@ -109,6 +109,18 @@ public class ImageProcessingActionsUnitTest {
             Assert.assertFalse(field.getType().getName().startsWith("nu.pattern"),
                     "No field should reference nu.pattern (OpenCV loader) types");
         }
+        for (var m : ImageProcessingActions.class.getDeclaredMethods()) {
+            Assert.assertFalse(m.getReturnType().getName().startsWith("org.opencv"),
+                    "No method return type should reference org.opencv");
+            Assert.assertFalse(m.getReturnType().getName().startsWith("nu.pattern"),
+                    "No method return type should reference nu.pattern");
+            for (var p : m.getParameterTypes()) {
+                Assert.assertFalse(p.getName().startsWith("org.opencv"),
+                        "No parameter type should reference org.opencv");
+                Assert.assertFalse(p.getName().startsWith("nu.pattern"),
+                        "No parameter type should reference nu.pattern");
+            }
+        }
     }
 
     @Test(description = "ImageProcessingActions has no hard Applitools imports in field/method types")

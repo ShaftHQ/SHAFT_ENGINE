@@ -156,7 +156,12 @@ class OpenCVHelper {
             img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
         } catch (java.lang.UnsatisfiedLinkError unsatisfiedLinkError) {
             load();
-            img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
+            try {
+                img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
+            } catch (java.lang.UnsatisfiedLinkError e) {
+                ReportManager.logDiscrete("OpenCV not available for element highlighting after retry.");
+                return targetScreenshot;
+            }
         }
 
         int outlineThickness = 5;
@@ -168,10 +173,6 @@ class OpenCVHelper {
         // IOS Native | macOS Browser | Linux Browser scaled | -> Repositioning
         if (SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(org.openqa.selenium.Platform.IOS.name())
                 || SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(org.openqa.selenium.Platform.MAC.name())
-                || (
-                SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(org.openqa.selenium.Platform.LINUX.name())
-                        && SHAFT.Properties.visuals.screenshotParamsScalingFactor() != Double.parseDouble("1")
-        )
                 || (
                 SHAFT.Properties.platform.targetPlatform().equalsIgnoreCase(org.openqa.selenium.Platform.LINUX.name())
                         && SHAFT.Properties.visuals.screenshotParamsScalingFactor() != Double.parseDouble("1")
@@ -218,11 +219,11 @@ class OpenCVHelper {
         Imgproc.rectangle(img, startPoint, endPoint, highlightColorScalar, outlineThickness, 8, 0);
 
         java.awt.Image tmpImg = HighGui.toBufferedImage(img);
-        java.awt.image.BufferedImage image = (java.awt.image.BufferedImage) tmpImg;
-        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        BufferedImage image = (BufferedImage) tmpImg;
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
-            javax.imageio.ImageIO.write(image, "jpg", baos);
-        } catch (java.io.IOException e) {
+            ImageIO.write(image, "jpg", baos);
+        } catch (IOException e) {
             ReportManagerHelper.logDiscrete(e);
         }
         return baos.toByteArray();

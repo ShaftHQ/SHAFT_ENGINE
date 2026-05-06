@@ -9,13 +9,14 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.validation.ValidationEnums;
 
 class AppliToolsHelper {
 
     private AppliToolsHelper() {}
 
     static boolean compare(byte[] elementScreenshot, String hashedLocatorName,
-                           ImageProcessingActions.VisualValidationEngine engine) {
+                           ValidationEnums.VisualValidationEngine engine) {
         Eyes eyes = new Eyes();
         eyes.setLogHandler(new LogHandler() {
             public void open() {}

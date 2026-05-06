@@ -22,6 +22,7 @@ class ShutterbugHelper {
             var snapshot = Shutterbug.shootElement(driver, elementLocator, CaptureElement.VIEWPORT, true);
             return snapshot.equalsWithDiff(referenceImagePath, resultingImagePath, threshold);
         } catch (IOException e) {
+            ReportManager.logDiscrete("Shutterbug screenshot capture failed: " + e.getMessage());
             ReportManagerHelper.logDiscrete(e);
             return false;
         } catch (UnableToCompareImagesException | UnsupportedCommandException e) {

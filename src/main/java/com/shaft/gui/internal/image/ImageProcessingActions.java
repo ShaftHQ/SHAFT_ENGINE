@@ -213,7 +213,8 @@ public class ImageProcessingActions {
             }
         }
         // all the other cases of Eyes
-        return AppliToolsHelper.compare(elementScreenshot, hashedLocatorName, visualValidationEngine);
+        return AppliToolsHelper.compare(elementScreenshot, hashedLocatorName,
+                com.shaft.validation.ValidationEnums.VisualValidationEngine.valueOf(visualValidationEngine.name()));
     }
 
     private static void compareImageFolders(File[] referenceFiles, File[] testFiles, File[] testProcessingFiles,
