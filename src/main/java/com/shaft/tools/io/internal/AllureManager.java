@@ -27,18 +27,31 @@ import java.util.regex.Pattern;
 
 /**
  * Internal utility class that manages the Allure reporting lifecycle for SHAFT test runs.
- * Responsibilities include initialising the results directory, generating an {@code allurerc.yaml}
- * configuration file, bootstrapping the Allure 3 CLI (downloaded automatically when not present),
- * invoking it to produce the single-file HTML report, and optionally producing a ZIP archive.
+ * Responsibilities include initialising the results directory, optionally generating an
+ * {@code allurerc.yaml} configuration file, bootstrapping the Allure 3 CLI (downloaded
+ * automatically when not present), invoking it to produce the HTML report, and optionally
+ * producing a ZIP archive.
  *
  * <p>This class is not intended for direct use in test code. It is invoked automatically by the
  * SHAFT framework listeners at suite start and finish.
  *
+ * <p><b>Allure 2 compatibility:</b> when a system {@code allure} binary on {@code PATH} reports
+ * a version starting with {@code 2.}, SHAFT automatically switches to Allure 2 compatibility mode.
+ * In this mode the {@code allurerc.yaml} configuration is not written, the Allure 3-specific
+ * {@code statusDetails} patch is skipped, the generate command uses the Allure 2 CLI flags
+ * ({@code --clean}), and real-time monitoring is disabled (Allure 2 does not support
+ * {@code allure watch}).
+ *
  * <p><b>Allure 3 CLI resolution order (batteries-included):</b>
  * <ol>
- *   <li>A globally installed {@code allure} binary on {@code PATH}.</li>
- *   <li>If {@code allure.forceConfiguredCliVersion=true}, SHAFT verifies that system {@code allure}
- *       exactly matches {@code SHAFT.Properties.internal.allure3Version()}; mismatched versions are ignored.</li>
+ *   <li>A globally installed {@code allure} binary on {@code PATH}.
+ *       <ul>
+ *         <li>If the binary reports a 2.x version, Allure 2 compatibility mode is activated.</li>
+ *         <li>If {@code allure.forceConfiguredCliVersion=true}, SHAFT additionally verifies that
+ *             the 3.x binary exactly matches {@code SHAFT.Properties.internal.allure3Version()};
+ *             mismatched versions are ignored and resolution falls through to npx.</li>
+ *       </ul>
+ *   </li>
  *   <li>{@code npx} on {@code PATH} → {@code npx --yes allure@<version>} (auto-downloads the configured version).</li>
  *   <li>Portable Node.js downloaded to {@code ~/.m2/repository/nodejs/} → its bundled
  *       {@code npx} → same {@code npx --yes allure@<version>} invocation.</li>
@@ -57,7 +70,6 @@ public class AllureManager {
     // ─── Allure 3 report paths & config ────────────────────────────────────────
     private static final String allureReportPath = "allure-report";
     private static final String allureConfigFileName = "allurerc.yaml";
-    private static final String allureRealtimeOutputDirectory = System.getProperty("user.dir") + File.separator + "target" + File.separator + "allure-realtime-report";
     private static final String allureRealtimeLogFile = System.getProperty("user.dir") + File.separator + "target" + File.separator + "allure-watch.log";
 
     // ─── Portable Node.js bootstrap ────────────────────────────────────────────
@@ -69,6 +81,9 @@ public class AllureManager {
     /** Cached resolved command prefix for allure (e.g. {@code "allure"} or {@code "npx --yes allure@3.x.x"}).
      *  {@code null} means resolution has not happened yet; {@code ""} means no CLI was found. */
     private static volatile String cachedAllureCommandPrefix = null;
+    /** {@code true} when the system {@code allure} binary on {@code PATH} reported a 2.x version,
+     *  causing SHAFT to activate Allure 2 compatibility mode for this JVM lifetime. */
+    private static volatile boolean cachedIsAllure2 = false;
     private static final Pattern SEMVER_IN_TEXT_PATTERN = Pattern.compile("([0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.]+)?)");
 
     // ─── SHAFT internal helpers ─────────────────────────────────────────────────
@@ -104,6 +119,8 @@ public class AllureManager {
          */
         ThreadLocalPropertiesManager.setGlobalProperty("org.uncommons.reportng.escape-output", "false");
         allureResultsFolderPath = SHAFT.Properties.paths.allureResults();
+        // Resolve the Allure CLI now so cachedIsAllure2 is set before we generate the helper scripts.
+        resolveAllureCommandPrefix();
         cleanAllureReportDirectory();
         cleanAllureResultsDirectory();
         writeGenerateReportShellFilesToProjectDirectory();
@@ -218,11 +235,30 @@ public class AllureManager {
     private static void writeGenerateReportShellFilesToProjectDirectory() {
         // create generate_allure_report.sh or generate_allure_report.bat
         // These scripts re-generate the report from allure-results and serve it via HTTP.
-        // --config allurerc.yaml is passed explicitly so the singleFile/groupBy/reportName options
-        // written by writeAllureConfig() are honoured when the user runs the script manually.
+        String resultsPath = getResultsPath();
+
+        if (cachedIsAllure2) {
+            // Allure 2 mode: simple serve command, no --config needed.
+            if (SystemUtils.IS_OS_WINDOWS) {
+                List<String> commands = Arrays.asList(
+                        "@echo off",
+                        "allure serve \"" + resultsPath + "\"",
+                        "pause", "exit");
+                internalFileSession.writeToFile("", "generate_allure_report.bat", commands);
+            } else {
+                List<String> commands = Arrays.asList(
+                        "#!/bin/bash",
+                        "allure serve \"" + resultsPath + "\"");
+                internalFileSession.writeToFile("", "generate_allure_report.sh", commands);
+                internalTerminalSession.performTerminalCommand("chmod u+x generate_allure_report.sh");
+            }
+            return;
+        }
+
+        // Allure 3 mode: --config allurerc.yaml is passed explicitly so the singleFile/groupBy/reportName
+        // options written by writeAllureConfig() are honoured when the user runs the script manually.
         String allure3Version = SHAFT.Properties.internal.allure3Version();
         boolean enforceConfiguredCliVersion = SHAFT.Properties.allure.forceConfiguredCliVersion();
-        String resultsPath = getResultsPath();
         String serveArguments = "serve --config allurerc.yaml \"" + resultsPath + "\"";
         List<String> commandsToServeAllureReport;
         if (SystemUtils.IS_OS_WINDOWS) {
@@ -294,22 +330,26 @@ public class AllureManager {
         var customReportName = SHAFT.Properties.allure.customTitle();
         internalFileSession.createFolder(allureOutPutDirectory);
 
-        // Pre-process result files to ensure every step has a statusDetails object.
-        // The awesome plugin's renderer crashes with a TypeError when step.statusDetails is
-        // undefined (absent from passing steps). Adding an empty object prevents the crash
-        // and allows test details to be opened without JavaScript console errors.
-        patchMissingStatusDetailsInResults(getResultsPath());
+        if (!cachedIsAllure2) {
+            // Pre-process result files to ensure every step has a statusDetails object.
+            // The awesome plugin's renderer crashes with a TypeError when step.statusDetails is
+            // undefined (absent from passing steps). Adding an empty object prevents the crash
+            // and allows test details to be opened without JavaScript console errors.
+            patchMissingStatusDetailsInResults(getResultsPath());
 
-        // Write allurerc.yaml with current settings (including custom title and optional history path)
-        writeAllureConfig(customReportName, allureOutPutDirectory, true);
+            // Write allurerc.yaml with current settings (including custom title and optional history path)
+            writeAllureConfig(customReportName, allureOutPutDirectory, true);
+        }
 
-        // Resolve the Allure 3 CLI (downloading Node.js if needed) and generate the report
+        // Resolve the Allure CLI and generate the report
         String cmd = getCommandToCreateAllureReport();
         if (cmd != null && !cmd.isBlank()) {
             internalTerminalSession.performTerminalCommand(cmd);
         } else {
-            ReportManager.logDiscrete("Allure report generation skipped: could not resolve the Allure 3 CLI."
-                    + " Install Node.js (https://nodejs.org) and re-run to generate the report.");
+            ReportManager.logDiscrete("Allure report generation skipped: could not resolve the Allure CLI."
+                    + (cachedIsAllure2
+                    ? " Ensure 'allure' (version 2) is on PATH."
+                    : " Install Node.js (https://nodejs.org) and re-run to generate the report."));
         }
     }
 
@@ -363,22 +403,27 @@ public class AllureManager {
             return;
         }
 
-        String prefix = resolveAllureCommandPrefix();
-        if (!isManagedAllure3CommandPrefix(prefix)) {
-            ReportManager.logDiscrete("Allure real-time monitoring is disabled: supported only with SHAFT-managed Allure 3 (npx allure@<version>). "
-                    + "System allure binaries are intentionally excluded.");
+        // Allure 2 does not support the 'watch' command
+        if (cachedIsAllure2) {
+            ReportManager.logDiscrete("Allure real-time monitoring is not supported with Allure 2.");
             return;
         }
+
+        String prefix = resolveAllureCommandPrefix();
+        if (prefix == null || prefix.isBlank()) {
+            ReportManager.logDiscrete("Allure real-time monitoring skipped: Allure CLI could not be resolved.");
+            return;
+        }
+
         if (realtimeMonitoringProcess != null && realtimeMonitoringProcess.isAlive()) {
             return;
         }
 
-        internalFileSession.createFolder(allureRealtimeOutputDirectory);
-        writeAllureConfig(SHAFT.Properties.allure.customTitle(), allureRealtimeOutputDirectory, false);
-
-        String configPath = System.getProperty("user.dir") + File.separator + allureConfigFileName;
-        String command = prefix + " watch --config \"" + configPath + "\" \""
-                + getResultsPath() + "\" --output \"" + allureRealtimeOutputDirectory + "\" --open";
+        // Start real-time monitoring using the proper allure3 watch command:
+        // npx allure watch <allureResultsDir>
+        // This continuously monitors the results directory for changes and refreshes
+        // the report automatically in the browser.
+        String command = prefix + " watch \"" + getResultsPath() + "\"";
         realtimeMonitoringProcess = startLongRunningCommand(command);
         if (realtimeMonitoringProcess != null && realtimeMonitoringProcess.isAlive()) {
             ReportManager.logDiscrete("Allure real-time monitoring started.");
@@ -390,10 +435,6 @@ public class AllureManager {
         boolean isLocalHeadlessWebExecution = "local".equalsIgnoreCase(SHAFT.Properties.platform.executionAddress().trim())
                 && SHAFT.Properties.web.headlessExecution();
         return isRemoteExecution || isLocalHeadlessWebExecution;
-    }
-
-    private static boolean isManagedAllure3CommandPrefix(String prefix) {
-        return prefix != null && prefix.contains("allure@");
     }
 
     private static Process startLongRunningCommand(String command) {
@@ -623,9 +664,14 @@ public class AllureManager {
         String prefix = resolveAllureCommandPrefix();
         if (prefix == null) return null;
         String resultsPath = getResultsPath();
+
+        if (cachedIsAllure2) {
+            // Allure 2: use --clean to remove stale output, no --config (Allure 2 does not use allurerc.yaml)
+            return prefix + " generate \"" + resultsPath + "\" --clean -o \"" + allureOutPutDirectory + "\"";
+        }
+
+        // Allure 3: pass --config explicitly so allurerc.yaml is always applied
         String configPath = System.getProperty("user.dir") + File.separator + allureConfigFileName;
-        // Always quote paths to handle spaces; always pass --config explicitly so
-        // allurerc.yaml is guaranteed to be applied regardless of the working directory.
         return prefix + " generate --config \"" + configPath + "\" \""
                 + resultsPath + "\" -o \"" + allureOutPutDirectory + "\"";
     }
@@ -635,16 +681,21 @@ public class AllureManager {
     // ═══════════════════════════════════════════════════════════════════════════
 
     /**
-     * Resolves the command prefix used to invoke the Allure 3 CLI.
+     * Resolves the command prefix used to invoke the Allure CLI.
      *
      * <p>The result is computed once and cached for the JVM lifetime.
      *
      * <p>Resolution order:
      * <ol>
-     *   <li>{@code allure} binary on {@code PATH} (always preferred when
-     *       {@code allure.forceConfiguredCliVersion=false}).</li>
-     *   <li>When {@code allure.forceConfiguredCliVersion=true}, system {@code allure} is used only if
-     *       its version equals configured {@code allure3Version}; otherwise it is ignored.</li>
+     *   <li>{@code allure} binary on {@code PATH} — version is always read first:
+     *     <ul>
+     *       <li>If the version starts with {@code 2.}, Allure 2 compatibility mode is activated
+     *           ({@link #cachedIsAllure2} is set to {@code true}) and {@code "allure"} is returned.</li>
+     *       <li>If not {@code forceConfiguredCliVersion}, the 3.x (or unknown) binary is used directly.</li>
+     *       <li>If {@code forceConfiguredCliVersion=true}, the version must exactly match
+     *           {@code allure3Version}; otherwise the binary is ignored and resolution falls through.</li>
+     *     </ul>
+     *   </li>
      *   <li>{@code npx} on {@code PATH} → {@code npx --yes allure@<version>}.</li>
      *   <li>Portable Node.js downloaded to {@value #NODEJS_CACHE_DIR} → its {@code npx}.</li>
      * </ol>
@@ -677,9 +728,22 @@ public class AllureManager {
 
         boolean enforceConfiguredCliVersion = SHAFT.Properties.allure.forceConfiguredCliVersion();
 
-        // 1. allure binary on PATH
+        // 1. allure binary on PATH — always read version to detect allure2
         boolean allureOnPath = isExecutableOnPath("allure");
         if (allureOnPath) {
+            String systemAllureVersion = readSystemAllureVersion();
+
+            // If allure2 is detected, activate compatibility mode regardless of forceConfiguredCliVersion.
+            if (systemAllureVersion != null && systemAllureVersion.startsWith("2.")) {
+                cachedIsAllure2 = true;
+                cachedAllureCommandPrefix = "allure";
+                ReportManager.logDiscrete("Allure 2 CLI detected on PATH (version " + systemAllureVersion + ")."
+                        + " Activating Allure 2 compatibility mode."
+                        + " Features specific to Allure 3 (allurerc.yaml, real-time monitoring) are disabled.");
+                return cachedAllureCommandPrefix;
+            }
+
+            // Allure 3 (or unknown version) on PATH
             if (!enforceConfiguredCliVersion) {
                 cachedAllureCommandPrefix = "allure";
                 ReportManager.logDiscrete("Allure 3 CLI resolved: using system 'allure' binary."
@@ -687,7 +751,7 @@ public class AllureManager {
                 return cachedAllureCommandPrefix;
             }
 
-            String systemAllureVersion = readSystemAllureVersion();
+            // enforceConfiguredCliVersion=true: require exact version match
             if (allure3Version.equals(systemAllureVersion)) {
                 cachedAllureCommandPrefix = "allure";
                 ReportManager.logDiscrete("Allure 3 CLI resolved: using system 'allure' binary (version " + systemAllureVersion + ").");
