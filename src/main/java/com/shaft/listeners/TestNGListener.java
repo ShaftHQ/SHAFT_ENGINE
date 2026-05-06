@@ -94,11 +94,17 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
                         Object service = null;
                         for (var c : serviceClass.getDeclaredConstructors()) {
                             if (c.getParameterCount() == 1) {
-                                try { service = c.newInstance(rp); break; } catch (Exception ignored) {}
+                                try {
+                                    c.setAccessible(true);
+                                    service = c.newInstance(rp);
+                                    break;
+                                } catch (Exception ignored) {
+                                    // try next constructor
+                                }
                             }
                         }
                         reportPortalService = service != null ? service : new Object();
-                    } catch (ReflectiveOperationException | ClassNotFoundException e) {
+                    } catch (ReflectiveOperationException e) {
                         ReportManager.logDiscrete("ReportPortal agent not available: " + e.getMessage());
                         reportPortalService = new Object(); // sentinel to avoid retry
                     }
@@ -109,7 +115,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     }
 
     private static void invokeRpMethod(Object service, String method, Object... args) {
-        if (service == null || !isReportPortalEnabled) return;
+        if (service == null || service.getClass() == Object.class || !isReportPortalEnabled) return;
         try {
             for (var m : service.getClass().getMethods()) {
                 if (m.getName().equals(method) && m.getParameterCount() == args.length) {
@@ -123,14 +129,18 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         }
     }
 
+    private static final java.util.concurrent.ConcurrentHashMap<String, Object> itemStatusCache = new java.util.concurrent.ConcurrentHashMap<>();
+
     @SuppressWarnings("unchecked")
     private static Object itemStatusValue(String name) {
-        try {
-            Class<?> cls = Class.forName("com.epam.reportportal.listeners.ItemStatus");
-            return Enum.valueOf((Class<Enum>) cls, name);
-        } catch (Exception e) {
-            return null;
-        }
+        return itemStatusCache.computeIfAbsent(name, k -> {
+            try {
+                Class<?> cls = Class.forName("com.epam.reportportal.listeners.ItemStatus");
+                return Enum.valueOf((Class<Enum>) cls, k);
+            } catch (Exception e) {
+                return new Object(); // sentinel — invokeRpMethod guards against Object.class
+            }
+        });
     }
 
     public static ProjectStructureManager.RunType identifyRunType() {
