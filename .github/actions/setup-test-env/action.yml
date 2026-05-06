@@ -26,3 +26,7 @@ runs:
         java-version: ${{ inputs.java-version }}
         distribution: 'zulu'
         cache: 'maven'
+    - name: Enforce UTF-8 JVM defaults
+      shell: bash
+      run: |
+        echo 'JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8' >> "$GITHUB_ENV"

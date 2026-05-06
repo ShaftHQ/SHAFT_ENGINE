@@ -131,7 +131,7 @@ public interface Allure extends EngineProperties<Allure> {
      * @return {@code true} to allow real-time monitoring when Allure 3 is available; {@code false} to disable it
      */
     @Key("allure.realtimeMonitoring")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean realtimeMonitoring();
 
     /**

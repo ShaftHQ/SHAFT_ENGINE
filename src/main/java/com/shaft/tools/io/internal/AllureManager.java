@@ -429,7 +429,7 @@ public class AllureManager {
     private static Process startLongRunningCommand(String command) {
         try {
             ProcessBuilder processBuilder = SystemUtils.IS_OS_WINDOWS
-                    ? new ProcessBuilder("powershell.exe", "-NoProfile", "-Command", command)
+                    ? new ProcessBuilder("cmd.exe", "/c", command)
                     : new ProcessBuilder("sh", "-c", command);
             processBuilder.directory(new File(System.getProperty("user.dir")));
             processBuilder.redirectErrorStream(true);
