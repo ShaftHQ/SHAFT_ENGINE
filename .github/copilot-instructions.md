@@ -1120,6 +1120,24 @@ These guidelines apply to GitHub Copilot coding agent sessions working on this r
 3. **Edge cases** — if a test revealed an unexpected edge case, document it near the relevant SHAFT API section.
 4. **Workflow improvements** — if a CI/CD workflow behaved unexpectedly, note the root cause and the correct fix.
 
+### Persistent Memory Ledger (Mandatory for Non-Trivial Sessions)
+- Store high-value learnings in `.github/copilot-memory.md` using a compact append-only format.
+- Add entries only for reusable lessons (root-cause patterns, CI traps, tooling constraints, flaky-test signatures).
+- Prefer updating an existing entry over creating duplicates.
+- Link each entry to concrete evidence when available (file path, test class, workflow name, issue/PR number).
+
+### Instruction Hygiene and Continuous Revision
+- Keep `.github/copilot-instructions.md` focused on stable policy; move long examples to scoped files under `.github/instructions/` or `.github/skills/`.
+- When adding new guidance, remove or merge conflicting/duplicate guidance in the same PR.
+- For each meaningful instruction update, include a one-line rationale in `.github/copilot-memory.md` to preserve decision context.
+
+### Token / Context Budget Protocol
+- Start every task with a minimal context load: only read files directly related to the request first.
+- Escalate context progressively (read additional files only when a concrete uncertainty remains).
+- Prefer path-scoped instruction files over repeating broad global rules in responses.
+- In final responses, prioritize: decisions, changed files, verification status, and next actions. Avoid restating long policy text.
+- If the same constraint appears in multiple places, keep a single canonical source and reference it instead of duplicating content.
+
 ### When to Update These Instructions
 - When a significant new SHAFT API surface is added (add usage examples to the relevant section).
 - When a PDCA cycle reveals that a guideline was incorrect or incomplete (correct it directly).

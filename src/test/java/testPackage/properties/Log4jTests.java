@@ -21,6 +21,9 @@ public class Log4jTests {
         String appenderConsoleLayoutCharset = SHAFT.Properties.log4j.appenderConsoleLayoutCharset();
         String appenderFileLayoutCharset = SHAFT.Properties.log4j.appenderFileLayoutCharset();
         String rootLogger = SHAFT.Properties.log4j.rootLogger();
+        String jvmFileEncoding = System.getProperty("file.encoding", "");
+        String jvmStdoutEncoding = System.getProperty("stdout.encoding", "");
+        String jvmStderrEncoding = System.getProperty("stderr.encoding", "");
 
         Assert.assertTrue(rootLogger.toLowerCase(Locale.ROOT).startsWith("info"),
                 "Default root logger level should be info");
@@ -34,6 +37,12 @@ public class Log4jTests {
                 "Console layout charset should be UTF-8 for proper Unicode and Arabic rendering");
         Assert.assertEquals(appenderFileLayoutCharset.toUpperCase(Locale.ROOT), "UTF-8",
                 "File layout charset should be UTF-8 for proper Unicode and Arabic rendering");
+        Assert.assertEquals(jvmFileEncoding.toUpperCase(Locale.ROOT), "UTF-8",
+                "JVM file.encoding should be UTF-8 to keep Unicode test data stable across environments");
+        Assert.assertEquals(jvmStdoutEncoding.toUpperCase(Locale.ROOT), "UTF-8",
+                "JVM stdout.encoding should be UTF-8 to avoid garbled console output");
+        Assert.assertEquals(jvmStderrEncoding.toUpperCase(Locale.ROOT), "UTF-8",
+                "JVM stderr.encoding should be UTF-8 to avoid garbled error output");
     }
 
 }

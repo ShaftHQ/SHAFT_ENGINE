@@ -103,19 +103,18 @@ public interface Allure extends EngineProperties<Allure> {
      * Opt-in switch to enforce usage of the configured Allure 3 CLI version
      * ({@code SHAFT.Properties.internal.allure3Version()}).
      *
-     * <p>Property key: {@code allure.forceConfiguredCliVersion} — default: {@code false}
+     * <p>Property key: {@code allure.forceConfiguredCliVersion} — default: {@code true}
      *
      * <p>When enabled:
      * <ul>
-     *   <li>SHAFT checks {@code allure --version} for a PATH-installed binary.</li>
-     *   <li>If the version does not exactly match {@code allure3Version}, SHAFT ignores it.</li>
-     *   <li>SHAFT then uses {@code npx --yes allure@<allure3Version>} (or downloaded Node.js fallback).</li>
+     *   <li>SHAFT bypasses system {@code allure} binary detection (including Allure 2 compatibility checks).</li>
+     *   <li>SHAFT uses managed Allure 3 resolution only: {@code npx --yes allure@<allure3Version>} (or downloaded Node.js fallback).</li>
      * </ul>
      *
-     * <p>When disabled (default), SHAFT uses any PATH-installed {@code allure} binary first,
-     * regardless of its version, preserving the legacy behavior.
+     * <p>When disabled, SHAFT uses PATH-first behavior and may activate Allure 2 compatibility mode
+     * when a system 2.x binary is detected.
      *
-     * @return {@code true} to enforce the configured Allure 3 CLI version; {@code false} otherwise
+     * @return {@code true} to enforce configured Allure 3 CLI usage; {@code false} for legacy PATH-first behavior
      */
     @Key("allure.forceConfiguredCliVersion")
     @DefaultValue("true")
@@ -126,11 +125,10 @@ public interface Allure extends EngineProperties<Allure> {
      *
      * <p>Property key: {@code allure.realtimeMonitoring} — default: {@code true}
      *
-     * <p>When enabled, SHAFT automatically starts monitoring only for supported contexts
-     * (remote execution or local headless execution) and only when using a managed Allure 3 CLI
-     * command (npx-based resolution).
+     * <p>When enabled, SHAFT starts monitoring when Allure 3 CLI resolution succeeds. This feature
+     * is unavailable in Allure 2 compatibility mode.
      *
-     * @return {@code true} to allow real-time monitoring when eligible; {@code false} to disable it
+     * @return {@code true} to allow real-time monitoring when Allure 3 is available; {@code false} to disable it
      */
     @Key("allure.realtimeMonitoring")
     @DefaultValue("false")
