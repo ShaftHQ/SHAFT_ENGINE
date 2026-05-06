@@ -12,6 +12,7 @@ import org.testng.annotations.Test;
 
 import java.lang.reflect.Method;
 import java.util.List;
+import org.testng.annotations.Test;
 
 public class DriverFactoryHelperAdditionalUnitTest {
     @AfterMethod(alwaysRun = true)
@@ -86,5 +87,21 @@ public class DriverFactoryHelperAdditionalUnitTest {
         WebDriver driver = org.mockito.Mockito.mock(WebDriver.class);
         helper.initializeDriver(driver);
         Assert.assertEquals(helper.getDriver(), driver);
+    }
+
+    @Test(description = "DriverFactoryHelper has no hard SelfHealingDriver field or return type")
+    public void testNoHardSelfHealingDriverReference() throws Exception {
+        for (var field : DriverFactoryHelper.class.getDeclaredFields()) {
+            Assert.assertFalse(field.getType().getName().contains("SelfHealingDriver"),
+                    "No field type should reference SelfHealingDriver (optional dep)");
+        }
+        for (var m : DriverFactoryHelper.class.getDeclaredMethods()) {
+            Assert.assertFalse(m.getReturnType().getName().contains("SelfHealingDriver"),
+                    "No method return type should reference SelfHealingDriver");
+            for (var p : m.getParameterTypes()) {
+                Assert.assertFalse(p.getName().contains("SelfHealingDriver"),
+                        "No method parameter type should reference SelfHealingDriver");
+            }
+        }
     }
 }

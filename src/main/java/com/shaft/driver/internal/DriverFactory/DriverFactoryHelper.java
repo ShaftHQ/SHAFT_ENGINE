@@ -1,6 +1,5 @@
 package com.shaft.driver.internal.DriverFactory;
 
-import com.epam.healenium.SelfHealingDriver;
 import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
@@ -867,8 +866,13 @@ public class DriverFactoryHelper {
 
         if (SHAFT.Properties.healenium.healEnabled()) {
             ReportManager.logDiscrete("Initializing Healenium's Self Healing Driver...");
-//            driver =ThreadGuard.protect(SelfHealingDriver.create(driver)));
-            setDriver(SelfHealingDriver.create(driver));
+            try {
+                Class<?> cls = Class.forName("com.epam.healenium.SelfHealingDriver");
+                WebDriver healedDriver = (WebDriver) cls.getMethod("create", WebDriver.class).invoke(null, driver);
+                setDriver(healedDriver);
+            } catch (ReflectiveOperationException e) {
+                ReportManager.logDiscrete("Healenium SelfHealingDriver not available: " + e.getMessage());
+            }
         }
     }
 
