@@ -1,10 +1,5 @@
 package com.shaft.gui.internal.video;
 
-import com.automation.remarks.video.RecorderFactory;
-import com.automation.remarks.video.RecordingUtils;
-import com.automation.remarks.video.enums.RecorderType;
-import com.automation.remarks.video.enums.VideoSaveMode;
-import com.automation.remarks.video.recorder.IVideoRecorder;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
@@ -18,12 +13,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.log4j.BasicConfigurator;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
-import ws.schild.jave.Encoder;
-import ws.schild.jave.EncoderException;
-import ws.schild.jave.MultimediaObject;
-import ws.schild.jave.encode.AudioAttributes;
-import ws.schild.jave.encode.EncodingAttributes;
-import ws.schild.jave.encode.VideoAttributes;
 
 import java.io.*;
 import java.nio.file.Path;
@@ -31,7 +20,7 @@ import java.time.Duration;
 import java.util.Base64;
 
 public class RecordManager {
-    private static final ThreadLocal<IVideoRecorder> recorder = new ThreadLocal<>();
+    private static final ThreadLocal<Object> recorder = new ThreadLocal<>();
     private static final ThreadLocal<WebDriver> videoDriver = new ThreadLocal<>();
     private static boolean isRecordingStarted = false;
 
@@ -69,11 +58,18 @@ public class RecordManager {
                 && !SHAFT.Properties.web.headlessExecution()
                 && recorder.get() == null) {
             BasicConfigurator.configure();
-            ThreadLocalPropertiesManager.setGlobalProperty("video.save.mode", VideoSaveMode.ALL.name());
+            ThreadLocalPropertiesManager.setGlobalProperty("video.save.mode", "ALL");
             ThreadLocalPropertiesManager.setGlobalProperty("video.folder", "target/video");
-            recorder.set(RecorderFactory.getRecorder(RecorderType.MONTE));
-//            recorder.set(RecorderFactory.getRecorder(VideoRecorder.conf().recorderType()));
-            recorder.get().start();
+            try {
+                Class<?> recorderTypeClass = Class.forName("com.automation.remarks.video.enums.RecorderType");
+                Object monteType = Enum.valueOf((Class<Enum>) recorderTypeClass, "MONTE");
+                Class<?> factoryClass = Class.forName("com.automation.remarks.video.RecorderFactory");
+                Object rec = factoryClass.getMethod("getRecorder", recorderTypeClass).invoke(null, monteType);
+                recorder.set(rec);
+                rec.getClass().getMethod("start").invoke(rec);
+            } catch (ReflectiveOperationException e) {
+                ReportManager.logDiscrete("video-recorder-testng not available: " + e.getMessage());
+            }
         }
     }
 
@@ -110,12 +106,18 @@ public class RecordManager {
         String testMethodName = ReportManagerHelper.getTestMethodName();
 
         if (SHAFT.Properties.visuals.videoParamsRecordVideo() && recorder.get() != null) {
-            pathToRecording = RecordingUtils.doVideoProcessing(ReportManagerHelper.isCurrentTestPassed(), recorder.get().stopAndSave(System.currentTimeMillis() + "_" + testMethodName));
             try {
+                Object rec = recorder.get();
+                String rawPath = (String) rec.getClass()
+                        .getMethod("stopAndSave", String.class)
+                        .invoke(rec, System.currentTimeMillis() + "_" + testMethodName);
+                Class<?> utilsClass = Class.forName("com.automation.remarks.video.RecordingUtils");
+                pathToRecording = (String) utilsClass
+                        .getMethod("doVideoProcessing", boolean.class, String.class)
+                        .invoke(null, ReportManagerHelper.isCurrentTestPassed(), rawPath);
                 inputStream = new FileInputStream(encodeRecording(pathToRecording));
-            } catch (FileNotFoundException e) {
+            } catch (ReflectiveOperationException | ClassNotFoundException | FileNotFoundException e) {
                 ReportManagerHelper.logDiscrete(e);
-//                inputStream = new ByteArrayInputStream(new byte[0]);
             }
             recorder.remove();
 
@@ -145,17 +147,27 @@ public class RecordManager {
         File source = new File(pathToRecording);
         File target = new File(pathToRecording.replace("avi", "mp4"));
         try {
+            Class<?> audioAttrClass = Class.forName("ws.schild.jave.encode.AudioAttributes");
+            Object audio = audioAttrClass.getDeclaredConstructor().newInstance();
+            audioAttrClass.getMethod("setCodec", String.class).invoke(audio, "libvorbis");
 
-            AudioAttributes audio = new AudioAttributes();
-            audio.setCodec("libvorbis");
-            VideoAttributes video = new VideoAttributes();
-            EncodingAttributes attrs = new EncodingAttributes();
-            attrs.setOutputFormat("mp4");
-            attrs.setAudioAttributes(audio);
-            attrs.setVideoAttributes(video);
-            Encoder encoder = new Encoder();
-            encoder.encode(new MultimediaObject(source), target, attrs);
-        } catch (EncoderException e) {
+            Class<?> videoAttrClass = Class.forName("ws.schild.jave.encode.VideoAttributes");
+            Object video = videoAttrClass.getDeclaredConstructor().newInstance();
+
+            Class<?> encAttrClass = Class.forName("ws.schild.jave.encode.EncodingAttributes");
+            Object attrs = encAttrClass.getDeclaredConstructor().newInstance();
+            encAttrClass.getMethod("setOutputFormat", String.class).invoke(attrs, "mp4");
+            encAttrClass.getMethod("setAudioAttributes", audioAttrClass).invoke(attrs, audio);
+            encAttrClass.getMethod("setVideoAttributes", videoAttrClass).invoke(attrs, video);
+
+            Class<?> multimediaClass = Class.forName("ws.schild.jave.MultimediaObject");
+            Object mm = multimediaClass.getDeclaredConstructor(File.class).newInstance(source);
+
+            Class<?> encoderClass = Class.forName("ws.schild.jave.Encoder");
+            Object encoder = encoderClass.getDeclaredConstructor().newInstance();
+            encoderClass.getMethod("encode", multimediaClass, File.class, encAttrClass)
+                    .invoke(encoder, mm, target, attrs);
+        } catch (ReflectiveOperationException e) {
             ReportManagerHelper.logDiscrete(e);
         }
         return target;

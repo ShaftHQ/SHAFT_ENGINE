@@ -116,4 +116,23 @@ public class RecordManagerTest {
         // Should not throw any exception
         RecordManager.attachVideoRecording();
     }
+
+    @Test(description = "RecordManager has no hard IVideoRecorder field type")
+    public void testNoHardIVideoRecorderField() throws Exception {
+        var field = RecordManager.class.getDeclaredField("recorder");
+        assertFalse(field.getType().getName().contains("IVideoRecorder"),
+                "recorder field must not be typed IVideoRecorder (optional dep)");
+    }
+
+    @Test(description = "RecordManager has no hard jave-core types in method signatures")
+    public void testNoHardJaveCoreUsage() {
+        for (var m : RecordManager.class.getDeclaredMethods()) {
+            assertFalse(m.getReturnType().getName().startsWith("ws.schild.jave"),
+                    "No return type should reference jave-core");
+            for (var p : m.getParameterTypes()) {
+                assertFalse(p.getName().startsWith("ws.schild.jave"),
+                        "No parameter type should reference jave-core");
+            }
+        }
+    }
 }
