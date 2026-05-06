@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SHAFT Coverage Test Page</title>
+    <style>
+        #hiddenEl { display: none; }
+        #visibleEl { color: red; font-size: 16px; }
+        #disabledInput { background: #eee; }
+    </style>
+</head>
+<body dir="ltr">
+<h1 id="pageTitle">Coverage Test Page</h1>
+
+<!-- Element state tests -->
+<div id="visibleEl">I am visible</div>
+<div id="hiddenEl">I am hidden</div>
+<input id="enabledInput" type="text" value="hello" />
+<input id="disabledInput" type="text" value="disabled" disabled />
+<input id="checkboxChecked" type="checkbox" checked />
+<input id="checkboxUnchecked" type="checkbox" />
+<select id="selectEl">
+    <option value="opt1" selected>Option 1</option>
+    <option value="opt2">Option 2</option>
+</select>
+
+<!-- Direction tests (LTR page context) -->
+<p id="ltrText" dir="ltr" style="direction:ltr">Hello World - Left to Right</p>
+<p id="rtlText" dir="rtl" style="direction:rtl" lang="ar">مرحبا بالعالم</p>
+<p id="englishText">This is English text for language detection.</p>
+
+<!-- Link for URL tests -->
+<a id="testLink" href="#section1">Go to section</a>
+<div id="section1">Section 1 content</div>
+
+<!-- Form elements -->
+<form id="testForm">
+    <input id="textInput" type="text" value="test value" />
+    <button id="submitBtn" type="submit">Submit</button>
+</form>
+</body>
+</html>

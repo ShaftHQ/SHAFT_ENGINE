@@ -32,6 +32,8 @@
     </scm>
 
     <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <surefireArgLine>--enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8</surefireArgLine>
         <surefire.excludedGroups>allure3-visual-demo</surefire.excludedGroups>
         <jdk.version>25</jdk.version>
@@ -49,7 +51,7 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- JUNIT5 BOM -->
+            <!-- JUNIT6 BOM -->
             <!-- https://mvnrepository.com/artifact/org.junit/junit-bom -->
             <dependency>
                 <groupId>org.junit</groupId>
@@ -175,6 +177,192 @@
                 <artifactId>javassist</artifactId>
                 <version>3.31.0-GA</version>
             </dependency>
+            <!-- Convergence pins for transitive conflicts introduced by monolithic dependency loading -->
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>4.34.1</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.api-client</groupId>
+                <artifactId>google-api-client</artifactId>
+                <version>2.9.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.http-client</groupId>
+                <artifactId>google-http-client</artifactId>
+                <version>2.1.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.http-client</groupId>
+                <artifactId>google-http-client-gson</artifactId>
+                <version>2.1.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.auth</groupId>
+                <artifactId>google-auth-library-oauth2-http</artifactId>
+                <version>1.47.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.auth</groupId>
+                <artifactId>google-auth-library-credentials</artifactId>
+                <version>1.47.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.api.grpc</groupId>
+                <artifactId>proto-google-common-protos</artifactId>
+                <version>2.71.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.api.grpc</groupId>
+                <artifactId>proto-google-cloud-kms-v1</artifactId>
+                <version>0.186.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.errorprone</groupId>
+                <artifactId>error_prone_annotations</artifactId>
+                <version>2.49.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.checkerframework</groupId>
+                <artifactId>checker-qual</artifactId>
+                <version>4.1.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jdk8</artifactId>
+                <version>2.3.21</version>
+            </dependency>
+            <dependency>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>animal-sniffer-annotations</artifactId>
+                <version>1.27</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-api</artifactId>
+                <version>1.81.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-util</artifactId>
+                <version>1.81.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-context</artifactId>
+                <version>1.81.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents</groupId>
+                <artifactId>httpcore</artifactId>
+                <version>4.4.16</version>
+            </dependency>
+            <dependency>
+                <groupId>org.aeonbits.owner</groupId>
+                <artifactId>owner-java8</artifactId>
+                <version>1.0.12</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jsoup</groupId>
+                <artifactId>jsoup</artifactId>
+                <version>1.22.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.json</groupId>
+                <artifactId>json</artifactId>
+                <version>20251224</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mozilla</groupId>
+                <artifactId>rhino</artifactId>
+                <version>1.9.1</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.crypto.tink</groupId>
+                <artifactId>tink</artifactId>
+                <version>1.21.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.testng</groupId>
+                <artifactId>testng</artifactId>
+                <version>7.12.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.bonigarcia</groupId>
+                <artifactId>webdrivermanager</artifactId>
+                <version>6.3.4</version>
+            </dependency>
+            <dependency>
+                <groupId>org.seleniumhq.selenium</groupId>
+                <artifactId>selenium-java</artifactId>
+                <version>4.43.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.appium</groupId>
+                <artifactId>java-client</artifactId>
+                <version>10.1.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.aspectj</groupId>
+                <artifactId>aspectjweaver</artifactId>
+                <version>1.9.25.1</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.datatype</groupId>
+                <artifactId>jackson-datatype-jdk8</artifactId>
+                <version>2.21.3</version>
+            </dependency>
+            <dependency>
+                <groupId>org.brotli</groupId>
+                <artifactId>dec</artifactId>
+                <version>0.1.2</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-logging</groupId>
+                <artifactId>commons-logging</artifactId>
+                <version>1.3.6</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.code.findbugs</groupId>
+                <artifactId>jsr305</artifactId>
+                <version>3.0.2</version>
+            </dependency>
+            <dependency>
+                <groupId>javax.annotation</groupId>
+                <artifactId>javax.annotation-api</artifactId>
+                <version>1.3.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.api</groupId>
+                <artifactId>api-common</artifactId>
+                <version>2.63.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.j2objc</groupId>
+                <artifactId>j2objc-annotations</artifactId>
+                <version>3.1</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>failureaccess</artifactId>
+                <version>1.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.auto.value</groupId>
+                <artifactId>auto-value-annotations</artifactId>
+                <version>1.11.1</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.oauth-client</groupId>
+                <artifactId>google-oauth-client</artifactId>
+                <version>1.39.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.reactivestreams</groupId>
+                <artifactId>reactive-streams</artifactId>
+                <version>1.0.4</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -201,7 +389,7 @@
             <artifactId>commons-csv</artifactId>
             <version>1.14.1</version>
         </dependency>
-        <!-- JUNIT5 DEPENDENCIES -->
+        <!-- JUNIT6 DEPENDENCIES -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -424,6 +612,12 @@
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>
             <version>3.0.7</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- REST ASSURED -->
@@ -431,6 +625,12 @@
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
             <version>6.0.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.atlassian.oai</groupId>
@@ -483,7 +683,6 @@
             <groupId>com.applitools</groupId>
             <artifactId>eyes-images-java4</artifactId>
             <version>4.14.0</version>
-            <optional>true</optional>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -496,7 +695,6 @@
             <groupId>org.openpnp</groupId>
             <artifactId>opencv</artifactId>
             <version>4.9.0-0</version>
-            <optional>true</optional>
         </dependency>
 
         <!-- Healenium -->
@@ -505,7 +703,6 @@
             <groupId>com.epam.healenium</groupId>
             <artifactId>healenium-web</artifactId>
             <version>3.6.0</version>
-            <optional>true</optional>
             <exclusions>
                 <exclusion>
                     <groupId>org.seleniumhq.selenium</groupId>
@@ -576,7 +773,6 @@
             <groupId>com.assertthat</groupId>
             <artifactId>selenium-shutterbug</artifactId>
             <version>1.6</version>
-            <optional>true</optional>
             <exclusions>
                 <exclusion>
                     <groupId>org.seleniumhq.selenium</groupId>
@@ -602,25 +798,21 @@
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
             <version>9.7.0</version>
-            <optional>true</optional>
         </dependency>
         <dependency>
              <groupId>com.microsoft.sqlserver</groupId>
              <artifactId>mssql-jdbc</artifactId>
              <version>13.4.0.jre11</version>
-             <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>42.7.11</version>
-            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>com.ibm.db2.jcc</groupId>
             <artifactId>db2jcc</artifactId>
             <version>db2jcc4</version>
-            <optional>true</optional>
         </dependency>
         <!-- <dependency> -->
         <!-- <groupId>com.oracle.jdbc</groupId> -->
@@ -636,7 +828,6 @@
             <groupId>ws.schild</groupId>
             <artifactId>jave-core</artifactId>
             <version>3.5.0</version>
-            <optional>true</optional>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -650,7 +841,6 @@
             <groupId>com.automation-remarks</groupId>
             <artifactId>video-recorder-testng</artifactId>
             <version>2.0</version>
-            <optional>true</optional>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -673,7 +863,6 @@
             <groupId>com.automation-remarks</groupId>
             <artifactId>video-recorder-junit5</artifactId>
             <version>2.0</version>
-            <optional>true</optional>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -758,7 +947,6 @@
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink-awskms</artifactId>
             <version>2.0.0</version>
-            <optional>true</optional>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.auto.service</groupId>
@@ -770,11 +958,14 @@
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink-gcpkms</artifactId>
             <version>1.10.0</version>
-            <optional>true</optional>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.auto.service</groupId>
                     <artifactId>auto-service-annotations</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -789,9 +980,31 @@
         <dependency>
             <groupId>com.browserstack</groupId>
             <artifactId>browserstack-java-sdk</artifactId>
-            <version>1.57.3</version>
+            <version>1.58.0</version>
             <scope>runtime</scope>
-            <optional>true</optional>
+            <exclusions>
+                <!-- Rely on SHAFT-controlled direct dependencies to avoid old transitive duplicates -->
+                <exclusion>
+                    <groupId>org.seleniumhq.selenium</groupId>
+                    <artifactId>selenium-java</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.appium</groupId>
+                    <artifactId>java-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.testng</groupId>
+                    <artifactId>testng</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.aeonbits.owner</groupId>
+                    <artifactId>owner-java8</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.jsoup</groupId>
+                    <artifactId>jsoup</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.aeonbits.owner/owner -->
@@ -839,7 +1052,6 @@
             <groupId>com.epam.reportportal</groupId>
             <artifactId>agent-java-testng</artifactId>
             <version>5.6.8</version>
-            <optional>true</optional>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -852,7 +1064,6 @@
             <groupId>com.epam.reportportal</groupId>
             <artifactId>logger-java-log4j</artifactId>
             <version>5.4.0</version>
-            <optional>true</optional>
         </dependency>
     </dependencies>
 
@@ -895,7 +1106,7 @@
                 <version>3.15.0</version>
                 <configuration>
                     <release>${jdk.version}</release>
-                    <encoding>UTF-8</encoding>
+                    <encoding>${project.build.sourceEncoding}</encoding>
                     <meminitial>4096m</meminitial>
                     <annotationProcessorPaths>
                         <path>
@@ -926,10 +1137,54 @@
                                     <version>[${maven.min.version},)</version>
                                     <message>This project requires Maven ${maven.min.version}+.</message>
                                 </requireMavenVersion>
+                                <requireReleaseDeps>
+                                    <message>Only stable release dependencies are allowed (no snapshots).</message>
+                                </requireReleaseDeps>
+                                <requirePluginVersions>
+                                    <message>All Maven plugins must declare explicit versions.</message>
+                                </requirePluginVersions>
+                                <banDynamicVersions>
+                                    <message>Dynamic dependency versions are not allowed.</message>
+                                </banDynamicVersions>
+                                <banDuplicatePomDependencyVersions>
+                                    <message>Duplicate dependency declarations are not allowed in pom.xml.</message>
+                                </banDuplicatePomDependencyVersions>
+                                <dependencyConvergence>
+                                    <message>Dependency convergence failed. Align conflicting transitive versions via dependencyManagement.</message>
+                                </dependencyConvergence>
+                                <requireUpperBoundDeps>
+                                    <message>Upper bound dependency violations detected. Keep the highest compatible stable versions.</message>
+                                </requireUpperBoundDeps>
+                                <bannedDependencies>
+                                    <searchTransitive>true</searchTransitive>
+                                    <message>Use SHAFT standard logging stack only (Log4j2 + SLF4J bridge).</message>
+                                    <excludes>
+                                        <exclude>log4j:log4j</exclude>
+                                        <exclude>org.slf4j:slf4j-log4j12</exclude>
+                                        <exclude>ch.qos.logback:logback-classic</exclude>
+                                        <exclude>commons-logging:commons-logging</exclude>
+                                    </excludes>
+                                </bannedDependencies>
                             </rules>
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>versions-maven-plugin</artifactId>
+                <version>2.21.0</version>
+                <configuration>
+                    <allowMajorUpdates>true</allowMajorUpdates>
+                    <ruleSet>
+                        <ignoreVersions>
+                            <ignoreVersion>
+                                <type>regex</type>
+                                <version>(?i).*(alpha|beta|rc|cr|m[0-9]+|ea|preview|milestone).*</version>
+                            </ignoreVersion>
+                        </ignoreVersions>
+                    </ruleSet>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -1022,6 +1277,26 @@
                     <encoding>UTF-8</encoding>
                     <outputDirectory>target/classes</outputDirectory>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>3.5.0</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <version>3.1.4</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>3.1.4</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-site-plugin</artifactId>
+                <version>3.21.0</version>
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>
@@ -1199,12 +1474,14 @@
                             <systemPropertyVariables>
                                 <testng.dtd.http>true</testng.dtd.http>
                                 <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>
+                                <alwaysLogDiscreetly>true</alwaysLogDiscreetly>
+                                <log4j2.disableAnsi>true</log4j2.disableAnsi>
                             </systemPropertyVariables>
                             <testFailureIgnore>true</testFailureIgnore>
                             <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                             <failIfNoTests>false</failIfNoTests>
                             <trimStackTrace>false</trimStackTrace>
-                            <useFile>false</useFile>
+                            <useFile>true</useFile>
                             <argLine>
                                 @{argLine} ${surefireArgLine}
                                 -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.25.1/aspectjweaver-1.9.25.1.jar"
@@ -1258,12 +1535,14 @@
                             <systemPropertyVariables>
                                 <testng.dtd.http>true</testng.dtd.http>
                                 <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>
+                                <alwaysLogDiscreetly>true</alwaysLogDiscreetly>
+                                <log4j2.disableAnsi>true</log4j2.disableAnsi>
                             </systemPropertyVariables>
                             <testFailureIgnore>true</testFailureIgnore>
                             <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                             <failIfNoTests>false</failIfNoTests>
                             <trimStackTrace>false</trimStackTrace>
-                            <useFile>false</useFile>
+                            <useFile>true</useFile>
                             <argLine>
                                 @{argLine} ${surefireArgLine}
                                 -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.25.1/aspectjweaver-1.9.25.1.jar"
@@ -1300,7 +1579,6 @@
                     <groupId>ws.schild</groupId>
                     <artifactId>jave-nativebin-linux64</artifactId>
                     <version>3.5.0</version>
-                    <optional>true</optional>
                 </dependency>
             </dependencies>
         </profile>
@@ -1317,7 +1595,6 @@
                     <groupId>ws.schild</groupId>
                     <artifactId>jave-nativebin-linux-arm64</artifactId>
                     <version>3.5.0</version>
-                    <optional>true</optional>
                 </dependency>
             </dependencies>
         </profile>
@@ -1334,7 +1611,6 @@
                     <groupId>ws.schild</groupId>
                     <artifactId>jave-nativebin-win64</artifactId>
                     <version>3.5.0</version>
-                    <optional>true</optional>
                 </dependency>
             </dependencies>
         </profile>
@@ -1351,7 +1627,6 @@
                     <groupId>ws.schild</groupId>
                     <artifactId>jave-nativebin-osx64</artifactId>
                     <version>3.5.0</version>
-                    <optional>true</optional>
                 </dependency>
             </dependencies>
         </profile>
@@ -1368,7 +1643,6 @@
                     <groupId>ws.schild</groupId>
                     <artifactId>jave-nativebin-osxm1</artifactId>
                     <version>3.5.0</version>
-                    <optional>true</optional>
                 </dependency>
             </dependencies>
         </profile>
