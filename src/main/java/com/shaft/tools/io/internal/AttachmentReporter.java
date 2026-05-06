@@ -114,6 +114,8 @@ public class AttachmentReporter {
                 ReportPortal.emitLog(attachmentDescription, "INFO", Calendar.getInstance().getTime(), file);
             } catch (IOException e) {
                 throw new RuntimeException(e);
+            } catch (NoClassDefFoundError ignored) {
+                // agent-java-testng not on classpath
             }
         }
     }

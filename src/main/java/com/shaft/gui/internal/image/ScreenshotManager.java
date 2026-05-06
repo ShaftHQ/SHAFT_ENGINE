@@ -2,6 +2,7 @@ package com.shaft.gui.internal.image;
 
 import com.epam.healenium.SelfHealingDriver;
 import com.shaft.driver.SHAFT;
+import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
@@ -49,7 +50,7 @@ public class ScreenshotManager {
     }
 
     public byte[] takeScreenshot(WebDriver driver, By targetElementLocator) {
-        if (driver instanceof SelfHealingDriver selfHealingDriver) {
+        if (JavaHelper.isClassAvailable("com.epam.healenium.SelfHealingDriver") && driver instanceof SelfHealingDriver selfHealingDriver) {
             driver = selfHealingDriver.getDelegate();
         }
 

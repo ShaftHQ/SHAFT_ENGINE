@@ -245,6 +245,15 @@ public class JavaHelper {
                 + word.substring(1).toLowerCase();
     }
 
+    public static boolean isClassAvailable(String className) {
+        try {
+            Class.forName(className);
+            return true;
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
+            return false;
+        }
+    }
+
     public static String appendTestDataToRelativePath(String relativePath) {
         if (FileActions.getInstance(true).doesFileExist(relativePath)) {
             //file path is valid

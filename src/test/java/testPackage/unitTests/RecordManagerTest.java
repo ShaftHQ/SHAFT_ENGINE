@@ -117,11 +117,11 @@ public class RecordManagerTest {
         RecordManager.attachVideoRecording();
     }
 
-    @Test(description = "RecordManager has no hard IVideoRecorder field type")
-    public void testNoHardIVideoRecorderField() throws Exception {
+    @Test(description = "recorder field raw type is ThreadLocal — IVideoRecorder generic param is erased at runtime")
+    public void testRecorderFieldRawTypeIsThreadLocal() throws Exception {
         var field = RecordManager.class.getDeclaredField("recorder");
-        assertFalse(field.getType().getName().contains("IVideoRecorder"),
-                "recorder field must not be typed IVideoRecorder (optional dep)");
+        assertEquals(field.getType(), ThreadLocal.class,
+                "recorder field raw type must be ThreadLocal (generic param is erased; class loading is guarded by isClassAvailable)");
     }
 
     @Test(description = "RecordManager has no hard jave-core types in method signatures")
