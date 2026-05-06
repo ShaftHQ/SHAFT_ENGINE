@@ -23,6 +23,32 @@ import java.nio.file.Path;
 public class AllureManagerUnitTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    /**
+     * Sets a static private field on {@code clazz} via reflection.
+     *
+     * @param clazz     the class that declares the field
+     * @param fieldName the field name
+     * @param value     the value to assign (use {@code null} to clear a reference)
+     */
+    private static void setStaticField(Class<?> clazz, String fieldName, Object value) throws Exception {
+        Field field = clazz.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(null, value);
+    }
+
+    /**
+     * Reads a static private field on {@code clazz} via reflection.
+     *
+     * @param clazz     the class that declares the field
+     * @param fieldName the field name
+     * @return the current field value
+     */
+    private static Object getStaticField(Class<?> clazz, String fieldName) throws Exception {
+        Field field = clazz.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return field.get(null);
+    }
+
     @Test(description = "patchStatusDetailsInJson should normalize step statusDetails and prune empty fixtures")
     public void patchStatusDetailsInJsonShouldNormalizeNodesAndPruneEmptyFixtures() throws Exception {
         String input = """
@@ -187,32 +213,16 @@ public class AllureManagerUnitTest {
      */
     @AfterMethod(alwaysRun = true)
     public void resetAllureManagerCachedState() throws Exception {
-        Field cachedPrefix = AllureManager.class.getDeclaredField("cachedAllureCommandPrefix");
-        cachedPrefix.setAccessible(true);
-        cachedPrefix.set(null, null);
-
-        Field cachedIsAllure2 = AllureManager.class.getDeclaredField("cachedIsAllure2");
-        cachedIsAllure2.setAccessible(true);
-        cachedIsAllure2.set(null, false);
+        setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
+        setStaticField(AllureManager.class, "cachedIsAllure2", false);
     }
 
     @Test(description = "getCommandToCreateAllureReport should use allure2 --clean syntax when cachedIsAllure2 is true")
     public void getCommandToCreateAllureReportShouldUseAllure2SyntaxWhenAllure2Detected() throws Exception {
-        Field cachedPrefixField = AllureManager.class.getDeclaredField("cachedAllureCommandPrefix");
-        cachedPrefixField.setAccessible(true);
-        cachedPrefixField.set(null, "allure");
-
-        Field cachedIsAllure2Field = AllureManager.class.getDeclaredField("cachedIsAllure2");
-        cachedIsAllure2Field.setAccessible(true);
-        cachedIsAllure2Field.set(null, true);
-
-        Field resultsPathField = AllureManager.class.getDeclaredField("allureResultsFolderPath");
-        resultsPathField.setAccessible(true);
-        resultsPathField.set(null, "allure-results");
-
-        Field outputDirField = AllureManager.class.getDeclaredField("allureOutPutDirectory");
-        outputDirField.setAccessible(true);
-        outputDirField.set(null, "target/allure-report");
+        setStaticField(AllureManager.class, "cachedAllureCommandPrefix", "allure");
+        setStaticField(AllureManager.class, "cachedIsAllure2", true);
+        setStaticField(AllureManager.class, "allureResultsFolderPath", "allure-results");
+        setStaticField(AllureManager.class, "allureOutPutDirectory", "target/allure-report");
 
         Method getCommandMethod = AllureManager.class.getDeclaredMethod("getCommandToCreateAllureReport");
         getCommandMethod.setAccessible(true);
@@ -228,21 +238,10 @@ public class AllureManagerUnitTest {
 
     @Test(description = "getCommandToCreateAllureReport should use allure3 --config syntax when allure3 is detected")
     public void getCommandToCreateAllureReportShouldUseAllure3SyntaxWhenAllure3Detected() throws Exception {
-        Field cachedPrefixField = AllureManager.class.getDeclaredField("cachedAllureCommandPrefix");
-        cachedPrefixField.setAccessible(true);
-        cachedPrefixField.set(null, "allure");
-
-        Field cachedIsAllure2Field = AllureManager.class.getDeclaredField("cachedIsAllure2");
-        cachedIsAllure2Field.setAccessible(true);
-        cachedIsAllure2Field.set(null, false);
-
-        Field resultsPathField = AllureManager.class.getDeclaredField("allureResultsFolderPath");
-        resultsPathField.setAccessible(true);
-        resultsPathField.set(null, "allure-results");
-
-        Field outputDirField = AllureManager.class.getDeclaredField("allureOutPutDirectory");
-        outputDirField.setAccessible(true);
-        outputDirField.set(null, "target/allure-report");
+        setStaticField(AllureManager.class, "cachedAllureCommandPrefix", "allure");
+        setStaticField(AllureManager.class, "cachedIsAllure2", false);
+        setStaticField(AllureManager.class, "allureResultsFolderPath", "allure-results");
+        setStaticField(AllureManager.class, "allureOutPutDirectory", "target/allure-report");
 
         Method getCommandMethod = AllureManager.class.getDeclaredMethod("getCommandToCreateAllureReport");
         getCommandMethod.setAccessible(true);
@@ -258,18 +257,9 @@ public class AllureManagerUnitTest {
 
     @Test(description = "Generated allure serve script should use allure2 syntax (no --config) when cachedIsAllure2 is true")
     public void generatedAllureServeScriptShouldUseAllure2SyntaxWhenAllure2Detected() throws Exception {
-        Field pathField = AllureManager.class.getDeclaredField("allureResultsFolderPath");
-        pathField.setAccessible(true);
-        pathField.set(null, "allure-results/");
-
-        Field cachedIsAllure2Field = AllureManager.class.getDeclaredField("cachedIsAllure2");
-        cachedIsAllure2Field.setAccessible(true);
-        cachedIsAllure2Field.set(null, true);
-
-        // Also set cachedAllureCommandPrefix so resolveAllureCommandPrefix() returns quickly
-        Field cachedPrefixField = AllureManager.class.getDeclaredField("cachedAllureCommandPrefix");
-        cachedPrefixField.setAccessible(true);
-        cachedPrefixField.set(null, "allure");
+        setStaticField(AllureManager.class, "allureResultsFolderPath", "allure-results/");
+        setStaticField(AllureManager.class, "cachedIsAllure2", true);
+        setStaticField(AllureManager.class, "cachedAllureCommandPrefix", "allure");
 
         Method scriptMethod = AllureManager.class.getDeclaredMethod("writeGenerateReportShellFilesToProjectDirectory");
         scriptMethod.setAccessible(true);
@@ -292,20 +282,12 @@ public class AllureManagerUnitTest {
     @Test(description = "watchCommandShouldUseSimpleAllure3SyntaxWithOnlyResultsDir when allure3 is used for realtime monitoring")
     public void watchCommandShouldUseSimpleAllure3SyntaxWithOnlyResultsDir() throws Exception {
         // Simulate allure3 state
-        Field cachedPrefixField = AllureManager.class.getDeclaredField("cachedAllureCommandPrefix");
-        cachedPrefixField.setAccessible(true);
-        cachedPrefixField.set(null, "npx --yes allure@3.5.0");
-
-        Field cachedIsAllure2Field = AllureManager.class.getDeclaredField("cachedIsAllure2");
-        cachedIsAllure2Field.setAccessible(true);
-        cachedIsAllure2Field.set(null, false);
-
-        Field resultsPathField = AllureManager.class.getDeclaredField("allureResultsFolderPath");
-        resultsPathField.setAccessible(true);
-        resultsPathField.set(null, "allure-results");
+        setStaticField(AllureManager.class, "cachedAllureCommandPrefix", "npx --yes allure@3.5.0");
+        setStaticField(AllureManager.class, "cachedIsAllure2", false);
+        setStaticField(AllureManager.class, "allureResultsFolderPath", "allure-results");
 
         // Build the expected watch command the same way the production code does
-        String prefix = (String) cachedPrefixField.get(null);
+        String prefix = (String) getStaticField(AllureManager.class, "cachedAllureCommandPrefix");
         String resultsPath = "allure-results"; // getResultsPath with no trailing separator
 
         String expectedCommand = prefix + " watch \"" + resultsPath + "\"";

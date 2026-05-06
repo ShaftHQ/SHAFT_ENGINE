@@ -737,9 +737,10 @@ public class AllureManager {
             if (systemAllureVersion != null && systemAllureVersion.startsWith("2.")) {
                 cachedIsAllure2 = true;
                 cachedAllureCommandPrefix = "allure";
-                ReportManager.logDiscrete("Allure 2 CLI detected on PATH (version " + systemAllureVersion + ")."
-                        + " Activating Allure 2 compatibility mode."
-                        + " Features specific to Allure 3 (allurerc.yaml, real-time monitoring) are disabled.");
+                ReportManager.logDiscrete(
+                        String.format("Allure 2 CLI detected on PATH (version %s). Activating Allure 2 compatibility mode."
+                                + " Features specific to Allure 3 (allurerc.yaml, real-time monitoring) are disabled.",
+                                systemAllureVersion));
                 return cachedAllureCommandPrefix;
             }
 
