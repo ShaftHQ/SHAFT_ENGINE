@@ -278,31 +278,11 @@ public class AndroidTouchActionsCoverageUnitTest {
         Object isFound = attemptW3cCompliantActionsScroll.invoke(touchActions, TouchActions.SwipeDirection.DOWN, null, By.id("target"));
         SHAFT.Validations.assertThat().object(isFound).isEqualTo(true).perform();
 
-        try {
-            touchActions.tap(By.id("target"));
-        } catch (Throwable ignored) {
-            // Intentionally ignored: wrapper lines are still executed and covered.
-        }
-        try {
-            touchActions.doubleTap(By.id("target"));
-        } catch (Throwable ignored) {
-            // Intentionally ignored: wrapper lines are still executed and covered.
-        }
-        try {
-            touchActions.longTap(By.id("target"));
-        } catch (Throwable ignored) {
-            // Intentionally ignored: wrapper lines are still executed and covered.
-        }
-        try {
-            touchActions.swipeToElement(By.id("source"), By.id("target"));
-        } catch (Throwable ignored) {
-            // Intentionally ignored: wrapper lines are still executed and covered.
-        }
-        try {
-            touchActions.swipeByOffset(By.id("target"), 10, 10);
-        } catch (Throwable ignored) {
-            // Intentionally ignored: wrapper lines are still executed and covered.
-        }
+        executeWrapperForCoverage(() -> touchActions.tap(By.id("target")));
+        executeWrapperForCoverage(() -> touchActions.doubleTap(By.id("target")));
+        executeWrapperForCoverage(() -> touchActions.longTap(By.id("target")));
+        executeWrapperForCoverage(() -> touchActions.swipeToElement(By.id("source"), By.id("target")));
+        executeWrapperForCoverage(() -> touchActions.swipeByOffset(By.id("target"), 10, 10));
     }
 
     private AndroidDriver createMockAndroidDriver() {
@@ -324,5 +304,15 @@ public class AndroidTouchActionsCoverageUnitTest {
 
     private byte[] getValidPngBytes() {
         return Base64.getDecoder().decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn8YkQAAAAASUVORK5CYII=");
+    }
+
+    private void executeWrapperForCoverage(Runnable action) {
+        try {
+            action.run();
+        } catch (RuntimeException runtimeException) {
+            SHAFT.Validations.assertThat().object(runtimeException.getMessage() != null).isTrue().perform();
+        } catch (AssertionError assertionError) {
+            SHAFT.Validations.assertThat().object(assertionError.getMessage() != null).isTrue().perform();
+        }
     }
 }
