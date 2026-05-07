@@ -23,11 +23,11 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class XrayIntegrationHelperCoverageUnitTest {
-    private static final Path TEMP_DIR = Path.of("target", "temp", "xrayCoverage");
+    private Path tempDir;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
-        Files.createDirectories(TEMP_DIR);
+        tempDir = Files.createTempDirectory("xrayCoverage-");
         SHAFT.Properties.jira.set()
                 .jiraUrl("http://127.0.0.1")
                 .authType("Basic")
@@ -40,7 +40,9 @@ public class XrayIntegrationHelperCoverageUnitTest {
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
-        FileActions.getInstance(true).deleteFolder(TEMP_DIR.toString());
+        if (tempDir != null) {
+            FileActions.getInstance(true).deleteFolder(tempDir.toString());
+        }
         Properties.clearForCurrentThread();
         setStaticField("_JiraAuthorization", "user:pass");
         setStaticField("_TestExecutionID", null);
@@ -114,9 +116,9 @@ public class XrayIntegrationHelperCoverageUnitTest {
 
         server.start();
 
-        Path cucumberReport = TEMP_DIR.resolve("cucumber.json");
-        Path testNgReport = TEMP_DIR.resolve("testng.xml");
-        Path attachment = TEMP_DIR.resolve("attachment.txt");
+        Path cucumberReport = tempDir.resolve("cucumber.json");
+        Path testNgReport = tempDir.resolve("testng.xml");
+        Path attachment = tempDir.resolve("attachment.txt");
         Files.writeString(cucumberReport, "[{\"elements\":[]}]", StandardCharsets.UTF_8);
         Files.writeString(testNgReport, "<testng-results/>", StandardCharsets.UTF_8);
         Files.writeString(attachment, "evidence", StandardCharsets.UTF_8);
@@ -163,9 +165,9 @@ public class XrayIntegrationHelperCoverageUnitTest {
             Assert.assertEquals(renameRequests.get(), 0);
 
             SHAFT.Properties.jira.set().jiraUrl("http://127.0.0.1:1");
-            XrayIntegrationHelper.importTestNGResults(TEMP_DIR.resolve("does-not-exist.xml").toString());
+            XrayIntegrationHelper.importTestNGResults(tempDir.resolve("does-not-exist.xml").toString());
             Assert.assertNull(XrayIntegrationHelper.createIssue(List.of(), "test", "desc"));
-            XrayIntegrationHelper.attachFilesToIssue("BUG-404", List.of(TEMP_DIR.resolve("missing.log").toString()));
+            XrayIntegrationHelper.attachFilesToIssue("BUG-404", List.of(tempDir.resolve("missing.log").toString()));
             XrayIntegrationHelper.link2Tickets("TKT-404", "TKT-405");
         } finally {
             server.stop(0);
