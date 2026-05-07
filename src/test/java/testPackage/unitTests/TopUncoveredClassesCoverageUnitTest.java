@@ -19,6 +19,7 @@ import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -88,8 +89,9 @@ public class TopUncoveredClassesCoverageUnitTest {
         Path oldReport = reportDir.resolve("AccessibilityReport_Home_old.html");
         Path newReport = reportDir.resolve("AccessibilityReport_Home_new.html");
         Files.writeString(oldReport, "old", StandardCharsets.UTF_8);
-        Thread.sleep(5);
         Files.writeString(newReport, "new", StandardCharsets.UTF_8);
+        Files.setLastModifiedTime(oldReport, FileTime.fromMillis(System.currentTimeMillis() - 10_000));
+        Files.setLastModifiedTime(newReport, FileTime.fromMillis(System.currentTimeMillis()));
 
         Path latest = AccessibilityHelper.getLatestReportPath("Home");
         Assert.assertNotNull(latest);
