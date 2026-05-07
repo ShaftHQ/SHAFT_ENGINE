@@ -243,7 +243,7 @@ public class CSVFileManagerUnitTest {
 
     @Test(description = "getSpecificColumnName returns null for invalid index")
     public void getSpecificColumnNameReturnsNullForInvalidIndex() {
-        Assert.assertNull(csv.getSpecificColumnName(0), "Invalid index should return null column name");
+        Assert.assertNull(csv.getSpecificColumnName(-1), "Invalid index should return null column name");
     }
 
     @Test(description = "getSpecificColumnData handles unexpected runtime exceptions")
