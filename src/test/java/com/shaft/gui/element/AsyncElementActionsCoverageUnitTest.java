@@ -2,7 +2,9 @@ package com.shaft.gui.element;
 
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.enums.internal.ClipboardAction;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -21,7 +23,7 @@ import static org.mockito.Mockito.when;
 public class AsyncElementActionsCoverageUnitTest {
 
     @Test
-    public void asyncActionsShouldDelegateToElementActionsAndClipboardHelper() {
+    public void asyncActionsShouldDelegateToElementActions() {
         DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
         WebDriver driver = mock(WebDriver.class);
         when(helper.getDriver()).thenReturn(driver);
@@ -76,7 +78,8 @@ public class AsyncElementActionsCoverageUnitTest {
         DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
         when(helper.getDriver()).thenReturn(mock(WebDriver.class));
 
-        try (MockedConstruction<ElementActions> ignored = Mockito.mockConstruction(ElementActions.class)) {
+        try (MockedConstruction<ElementActions> ignored = Mockito.mockConstruction(ElementActions.class);
+             MockedStatic<ReportManagerHelper> reportManagerHelperMocked = Mockito.mockStatic(ReportManagerHelper.class)) {
             AsyncElementActions asyncElementActions = new AsyncElementActions(helper);
             Thread actionThread = Thread.ofVirtual().start(() -> {
                 try {
@@ -94,6 +97,7 @@ public class AsyncElementActionsCoverageUnitTest {
 
             Thread.currentThread().interrupt();
             Assert.assertSame(asyncElementActions.synchronize(), asyncElementActions);
+            reportManagerHelperMocked.verify(() -> ReportManagerHelper.log(Mockito.isA(InterruptedException.class)));
             Thread.interrupted();
             actionThread.join();
         }
