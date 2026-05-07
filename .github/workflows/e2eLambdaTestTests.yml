@@ -3,7 +3,7 @@ name: E2E LambdaTest Tests
 on:
   workflow_dispatch:
   schedule:
-    - cron: '00 1 * * *'
+    - cron: "0 1 * * *"
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -115,7 +115,7 @@ jobs:
           node-version: 'lts/*'
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTDesktopWeb*.*|.*LambdaTestSetPropertyCoverageUnitTest.*]"
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTDesktopWeb.*], %regex[.*LambdaTestHelperUnitTest.*], %regex[.*LambdaTestSetPropertyCoverageUnitTest.*]"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
