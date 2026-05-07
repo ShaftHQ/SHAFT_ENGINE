@@ -22,6 +22,7 @@ public class TestNGListenerCoverageUnitTest {
     public void afterMethod() throws Exception {
         setReportPortalEnabled(false);
         TestNGListenerHelper.setPendingConfigFailure(null);
+        com.shaft.properties.internal.Properties.clearForCurrentThread();
     }
 
     @Test
