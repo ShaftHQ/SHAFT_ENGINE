@@ -81,9 +81,8 @@ public class RecordManager {
     public static void attachVideoRecording(Path pathToRecording) {
         if (pathToRecording != null) {
             String testMethodName = ReportManagerHelper.getTestMethodName();
-            try {
-                byte[] bytes = Files.readAllBytes(pathToRecording);
-                ReportManagerHelper.attach("Video Recording", testMethodName, new ByteArrayInputStream(bytes));
+            try (InputStream in = Files.newInputStream(pathToRecording)) {
+                ReportManagerHelper.attach("Video Recording", testMethodName, in);
             } catch (IOException e) {
                 ReportManagerHelper.logDiscrete(e);
             }
@@ -114,7 +113,7 @@ public class RecordManager {
             pathToRecording = RecordingUtils.doVideoProcessing(ReportManagerHelper.isCurrentTestPassed(), recorder.get().stopAndSave(System.currentTimeMillis() + "_" + testMethodName));
             try {
                 File encoded = encodeRecording(pathToRecording);
-                inputStream = new ByteArrayInputStream(Files.readAllBytes(encoded.toPath()));
+                inputStream = new FileInputStream(encoded);
             } catch (IOException e) {
                 ReportManagerHelper.logDiscrete(e);
             }

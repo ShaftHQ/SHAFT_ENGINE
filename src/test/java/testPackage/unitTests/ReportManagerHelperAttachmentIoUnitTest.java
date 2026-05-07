@@ -16,6 +16,7 @@ import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.stream.Stream;
 
@@ -57,16 +58,18 @@ public class ReportManagerHelperAttachmentIoUnitTest {
         }
     }
 
-    private static long countRpTestFilesInTempDir() throws IOException {
-        Path tmp = Path.of(System.getProperty("java.io.tmpdir"));
-        if (!Files.isDirectory(tmp)) {
-            return 0L;
+    private static void deleteRecursively(Path root) throws IOException {
+        if (root == null || Files.notExists(root)) {
+            return;
         }
-        try (Stream<Path> stream = Files.list(tmp)) {
-            return stream
-                    .map(p -> p.getFileName().toString())
-                    .filter(name -> name.startsWith("rp-test"))
-                    .count();
+        try (Stream<Path> walk = Files.walk(root)) {
+            walk.sorted(Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    Files.deleteIfExists(p);
+                } catch (IOException ignored) {
+                    // best-effort teardown of isolated tmpdir
+                }
+            });
         }
     }
 
@@ -94,23 +97,39 @@ public class ReportManagerHelperAttachmentIoUnitTest {
      */
     @Test
     public void shouldNotLeaveReportPortalTempFilesBehindWhenEmitSucceeds() throws Exception {
-        long before = countRpTestFilesInTempDir();
+        Path isolated = Files.createTempDirectory("rpmgr-attachment-io-");
+        String originalTmpdir = System.getProperty("java.io.tmpdir");
 
-        ByteArrayOutputStream content = new ByteArrayOutputStream();
-        content.write("sample".getBytes(StandardCharsets.UTF_8));
+        System.setProperty("java.io.tmpdir", isolated.toAbsolutePath().toString());
+        try {
+            ByteArrayOutputStream content = new ByteArrayOutputStream();
+            content.write("sample".getBytes(StandardCharsets.UTF_8));
 
-        try (MockedStatic<TestNGListener> tl = mockStatic(TestNGListener.class);
-             MockedStatic<ReportPortal> rp = mockStatic(ReportPortal.class)) {
-            tl.when(TestNGListener::isReportPortalEnabled).thenReturn(true);
-            rp.when(() -> ReportPortal.emitLog(anyString(), anyString(), any(Date.class), any(File.class)))
-                    .thenAnswer(invocation -> null);
+            try (MockedStatic<TestNGListener> tl = mockStatic(TestNGListener.class);
+                 MockedStatic<ReportPortal> rp = mockStatic(ReportPortal.class)) {
+                tl.when(TestNGListener::isReportPortalEnabled).thenReturn(true);
+                rp.when(() -> ReportPortal.emitLog(anyString(), anyString(), any(Date.class), any(File.class)))
+                        .thenAnswer(invocation -> null);
 
-            AttachmentReporter.attachBasedOnFileType(
-                    "screenshot", "s.png", content, "screenshot - s.png");
+                AttachmentReporter.attachBasedOnFileType(
+                        "screenshot", "s.png", content, "screenshot - s.png");
+            }
+
+            try (Stream<Path> listed = Files.list(isolated)) {
+                long leftover = listed
+                        .map(p -> p.getFileName().toString())
+                        .filter(name -> name.startsWith("rp-test"))
+                        .count();
+                assertEquals(leftover, 0L,
+                        "rp-test* temp files for ReportPortal should be removed under isolated tmpdir");
+            }
+        } finally {
+            if (originalTmpdir != null) {
+                System.setProperty("java.io.tmpdir", originalTmpdir);
+            } else {
+                System.clearProperty("java.io.tmpdir");
+            }
+            deleteRecursively(isolated);
         }
-
-        long after = countRpTestFilesInTempDir();
-        assertEquals(after, before,
-                "rp-test* temp file count should not increase after ReportPortal attachment");
     }
 }

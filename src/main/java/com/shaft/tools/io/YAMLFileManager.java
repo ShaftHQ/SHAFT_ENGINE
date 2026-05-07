@@ -61,7 +61,7 @@ public class YAMLFileManager {
 
         List<Object> testDataFileAttachment;
         try {
-            byte[] raw = Files.readAllBytes(Paths.get(filePath));
+            byte[] raw = Files.readAllBytes(Paths.get(this.filePath));
             testDataFileAttachment = List.of("Test Data", "YAML", new ByteArrayInputStream(raw));
         } catch (IOException e) {
             ReportManagerHelper.logDiscrete(e);
@@ -69,7 +69,7 @@ public class YAMLFileManager {
         }
 
         ReportManagerHelper.log(
-                "Loaded Test Data: \"" + filePath + "\".",
+                "Loaded Test Data: \"" + this.filePath + "\".",
                 List.of(testDataFileAttachment)
         );
     }

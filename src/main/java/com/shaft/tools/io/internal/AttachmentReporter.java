@@ -8,7 +8,6 @@ import io.qameta.allure.Allure;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.IOException;
 import java.util.Calendar;
 import java.util.LinkedHashMap;
 import java.util.function.BiConsumer;
@@ -113,7 +112,7 @@ public class AttachmentReporter {
                 file = File.createTempFile("rp-test", fileExtension);
                 Files.write(content.toByteArray(), file);
                 ReportPortal.emitLog(attachmentDescription, "INFO", Calendar.getInstance().getTime(), file);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 ReportManagerHelper.logDiscrete(e);
             } finally {
                 if (file != null) {
