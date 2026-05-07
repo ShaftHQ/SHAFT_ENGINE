@@ -92,7 +92,7 @@ public class FlagsSetPropertyCoverageUnitTest {
     }
 
     @Test(description = "Coverage: exercise all Flags.SetProperty fluent setters and verify effective values")
-    public void testFlagsSetPropertyFluentSetters() {
+    public void testFluentSettersModifyFlagsAndReturnSameInstance() {
         String targetClearBeforeTypingMode = "native".equalsIgnoreCase(originalClearBeforeTypingMode) ? "backspace" : "native";
         String targetScrollingMode = "javascript".equalsIgnoreCase(originalScrollingMode) ? "actions" : "javascript";
 
