@@ -105,23 +105,23 @@ public class ElementActionsCoverageUnitTest {
                     when(mock.typeAppend(any(By.class), any(CharSequence[].class))).thenReturn(mock);
                     when(mock.typeSecure(any(By.class), any(CharSequence[].class))).thenReturn(mock);
                 })) {
-            invokeAndIgnoreFailures(() -> elementActions.click(locator));
-            invokeAndIgnoreFailures(() -> elementActions.clickUsingJavascript(locator));
-            invokeAndIgnoreFailures(() -> elementActions.scrollToElement(locator));
-            invokeAndIgnoreFailures(() -> elementActions.clickAndHold(locator));
-            invokeAndIgnoreFailures(() -> elementActions.doubleClick(locator));
-            invokeAndIgnoreFailures(() -> elementActions.dragAndDrop(locator, By.id("destination")));
-            invokeAndIgnoreFailures(() -> elementActions.dragAndDropByOffset(locator, 5, 10));
-            invokeAndIgnoreFailures(() -> elementActions.hover(locator));
-            invokeAndIgnoreFailures(() -> elementActions.hoverAndClick(List.of(locator), By.id("clickable")));
-            invokeAndIgnoreFailures(() -> elementActions.setValueUsingJavaScript(locator, "value"));
-            invokeAndIgnoreFailures(() -> elementActions.type(locator, "text"));
-            invokeAndIgnoreFailures(() -> elementActions.clear(locator));
-            invokeAndIgnoreFailures(() -> elementActions.typeAppend(locator, "append"));
-            invokeAndIgnoreFailures(() -> elementActions.typeSecure(locator, "secret"));
+            Assert.assertNotNull(elementActions.click(locator));
+            Assert.assertNotNull(elementActions.clickUsingJavascript(locator));
+            Assert.assertNotNull(elementActions.scrollToElement(locator));
+            Assert.assertNotNull(elementActions.clickAndHold(locator));
+            Assert.assertNotNull(elementActions.doubleClick(locator));
+            Assert.assertNotNull(elementActions.dragAndDrop(locator, By.id("destination")));
+            Assert.assertNotNull(elementActions.dragAndDropByOffset(locator, 5, 10));
+            Assert.assertNotNull(elementActions.hover(locator));
+            Assert.assertNotNull(elementActions.hoverAndClick(List.of(locator), By.id("clickable")));
+            Assert.assertNotNull(elementActions.setValueUsingJavaScript(locator, "value"));
+            Assert.assertNotNull(elementActions.type(locator, "text"));
+            Assert.assertNotNull(elementActions.clear(locator));
+            Assert.assertNotNull(elementActions.typeAppend(locator, "append"));
+            Assert.assertNotNull(elementActions.typeSecure(locator, "secret"));
         }
 
-        invokeAndIgnoreFailures(() -> elementActions.captureScreenshot(locator));
+        Assert.assertNotNull(elementActions.captureScreenshot(locator));
     }
 
     @Test
