@@ -108,12 +108,19 @@ public class AttachmentReporter {
     private static void attachFileBased(String attachmentDescription, String contentType, ByteArrayOutputStream content, String fileExtension) {
         Allure.addAttachment(attachmentDescription, contentType, new ByteArrayInputStream(content.toByteArray()), fileExtension);
         if (TestNGListener.isReportPortalEnabled()) {
+            File file = null;
             try {
-                File file = File.createTempFile("rp-test", fileExtension);
+                file = File.createTempFile("rp-test", fileExtension);
                 Files.write(content.toByteArray(), file);
                 ReportPortal.emitLog(attachmentDescription, "INFO", Calendar.getInstance().getTime(), file);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                ReportManagerHelper.logDiscrete(e);
+            } finally {
+                if (file != null) {
+                    if (!file.delete()) {
+                        file.deleteOnExit();
+                    }
+                }
             }
         }
     }

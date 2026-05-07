@@ -26,6 +26,7 @@ import ws.schild.jave.encode.EncodingAttributes;
 import ws.schild.jave.encode.VideoAttributes;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Base64;
@@ -81,9 +82,9 @@ public class RecordManager {
         if (pathToRecording != null) {
             String testMethodName = ReportManagerHelper.getTestMethodName();
             try {
-                ReportManagerHelper.attach("Video Recording", testMethodName,
-                        new FileInputStream(pathToRecording.toString()));
-            } catch (FileNotFoundException e) {
+                byte[] bytes = Files.readAllBytes(pathToRecording);
+                ReportManagerHelper.attach("Video Recording", testMethodName, new ByteArrayInputStream(bytes));
+            } catch (IOException e) {
                 ReportManagerHelper.logDiscrete(e);
             }
         }
@@ -112,10 +113,10 @@ public class RecordManager {
         if (SHAFT.Properties.visuals.videoParamsRecordVideo() && recorder.get() != null) {
             pathToRecording = RecordingUtils.doVideoProcessing(ReportManagerHelper.isCurrentTestPassed(), recorder.get().stopAndSave(System.currentTimeMillis() + "_" + testMethodName));
             try {
-                inputStream = new FileInputStream(encodeRecording(pathToRecording));
-            } catch (FileNotFoundException e) {
+                File encoded = encodeRecording(pathToRecording);
+                inputStream = new ByteArrayInputStream(Files.readAllBytes(encoded.toPath()));
+            } catch (IOException e) {
                 ReportManagerHelper.logDiscrete(e);
-//                inputStream = new ByteArrayInputStream(new byte[0]);
             }
             recorder.remove();
 

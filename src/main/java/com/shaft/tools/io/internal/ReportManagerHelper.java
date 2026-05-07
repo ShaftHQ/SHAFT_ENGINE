@@ -859,23 +859,25 @@ public class ReportManagerHelper {
     }
 
     private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
-        if (attachmentContent != null) {
-            var byteArrayOutputStream = new ByteArrayOutputStream();
-            try {
-                attachmentContent.transferTo(byteArrayOutputStream);
-            } catch (IOException e) {
-                var error = "Error while creating Attachment";
-                if (logger == null) {
-                    initializeLogger();
-                }
-                logger.error(error, e);
-                Reporter.log(error, false);
-            }
-            String attachmentDescription = attachmentType + " - " + attachmentName;
-            AttachmentReporter.attachBasedOnFileType(attachmentType, attachmentName, byteArrayOutputStream, attachmentDescription);
-            logAttachmentAction(attachmentType, attachmentName, byteArrayOutputStream);
-            forwardAttachmentToRealtimeReporter(attachmentType, attachmentName, byteArrayOutputStream);
+        if (attachmentContent == null) {
+            return;
         }
+        var byteArrayOutputStream = new ByteArrayOutputStream();
+        try (InputStream in = attachmentContent) {
+            in.transferTo(byteArrayOutputStream);
+        } catch (IOException e) {
+            var error = "Error while creating Attachment";
+            if (logger == null) {
+                initializeLogger();
+            }
+            logger.error(error, e);
+            Reporter.log(error, false);
+            return;
+        }
+        String attachmentDescription = attachmentType + " - " + attachmentName;
+        AttachmentReporter.attachBasedOnFileType(attachmentType, attachmentName, byteArrayOutputStream, attachmentDescription);
+        logAttachmentAction(attachmentType, attachmentName, byteArrayOutputStream);
+        forwardAttachmentToRealtimeReporter(attachmentType, attachmentName, byteArrayOutputStream);
     }
 
     private static void logAttachmentAction(String attachmentType, String attachmentName, ByteArrayOutputStream attachmentContent) {
@@ -890,10 +892,13 @@ public class ReportManagerHelper {
                 && !attachmentType.toLowerCase().contains("engine logs")) {
             String timestamp = TIMESTAMP_FORMATTER.format(ZonedDateTime.now());
 
-            String theString;
-            var br = new BufferedReader(
-                    new InputStreamReader(new ByteArrayInputStream(attachmentContent.toByteArray()), StandardCharsets.UTF_8));
-            theString = br.lines().collect(Collectors.joining(System.lineSeparator()));
+            String theString = "";
+            try (var br = new BufferedReader(
+                    new InputStreamReader(new ByteArrayInputStream(attachmentContent.toByteArray()), StandardCharsets.UTF_8))) {
+                theString = br.lines().collect(Collectors.joining(System.lineSeparator()));
+            } catch (IOException e) {
+                logDiscrete(e);
+            }
             if (!theString.isEmpty()) {
                 String logEntry = REPORT_MANAGER_PREFIX + "Debugging Attachment Entry" + " @" + timestamp
                         + System.lineSeparator() + theString + System.lineSeparator();

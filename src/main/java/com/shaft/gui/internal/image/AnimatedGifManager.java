@@ -84,7 +84,8 @@ public class AnimatedGifManager {
         // stop and attach
         if (SHAFT.Properties.visuals.createAnimatedGif() && !gifRelativePathWithFileName.get().isEmpty()) {
             try {
-                ReportManagerHelper.attach("Animated Gif", String.valueOf(System.currentTimeMillis()), new FileInputStream(gifRelativePathWithFileName.get()));
+                byte[] gifBytes = java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(gifRelativePathWithFileName.get()));
+                ReportManagerHelper.attach("Animated Gif", String.valueOf(System.currentTimeMillis()), new ByteArrayInputStream(gifBytes));
                 if (gifWriter.get() != null) {
                     gifManager.get().close();
                 }
@@ -100,9 +101,6 @@ public class AnimatedGifManager {
                 String gifRelativePath = gifRelativePathWithFileName.get();
                 gifRelativePathWithFileName.remove();
                 return gifRelativePath;
-            } catch (FileNotFoundException e) {
-                // this happens when the gif fails to start, maybe the browser window was
-                // already closed
             } catch (IOException | NullPointerException | IllegalStateException e) {
                 ReportManagerHelper.logDiscrete(e);
             }

@@ -34,12 +34,14 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -534,15 +536,23 @@ public class ImageProcessingActions {
             // fetch the related reference screenshot file name using the current file
             // name/number as index
             String relatedReferenceFileName = referenceFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
-
-            List<Object> referenceScreenshotAttachment = Arrays.asList("Reference Screenshot", relatedReferenceFileName,
-                    new FileInputStream(referenceProcessingFolder + FileSystems.getDefault().getSeparator()
-                            + screenshot.getName()));
-
             String relatedTestFileName = testFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
 
-            List<Object> testScreenshotAttachment = Arrays.asList("Test Screenshot", relatedTestFileName,
-                    new FileInputStream(screenshot));
+            List<Object> referenceScreenshotAttachment;
+            List<Object> testScreenshotAttachment;
+            try {
+                byte[] refBytes = Files.readAllBytes(Paths.get(
+                        referenceProcessingFolder + FileSystems.getDefault().getSeparator()
+                                + screenshot.getName()));
+                byte[] testBytes = Files.readAllBytes(screenshot.toPath());
+                referenceScreenshotAttachment = Arrays.asList("Reference Screenshot", relatedReferenceFileName,
+                        new ByteArrayInputStream(refBytes));
+                testScreenshotAttachment = Arrays.asList("Test Screenshot", relatedTestFileName,
+                        new ByteArrayInputStream(testBytes));
+            } catch (IOException ioEx) {
+                ReportManagerHelper.logDiscrete(ioEx);
+                continue;
+            }
 
             ReportManagerHelper.log(
                     "Test Screenshot [" + relatedTestFileName + "] and related Reference Image ["

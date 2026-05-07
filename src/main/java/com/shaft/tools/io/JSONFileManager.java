@@ -8,11 +8,13 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.restassured.path.json.JsonPath;
 import io.restassured.path.json.exception.JsonPathException;
 
-import java.io.FileInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -55,10 +57,10 @@ public class JSONFileManager {
         List<List<Object>> attachments = new ArrayList<>();
         List<Object> testDataFileAttachment = null;
         try {
-            testDataFileAttachment = Arrays.asList("Test Data", "JSON",
-                    new FileInputStream(jsonFilePath));
-        } catch (FileNotFoundException e) {
-            //unreachable code because if the file was not found then the reader would have failed at a previous step
+            byte[] raw = Files.readAllBytes(Paths.get(jsonFilePath));
+            testDataFileAttachment = Arrays.asList("Test Data", "JSON", new ByteArrayInputStream(raw));
+        } catch (IOException e) {
+            ReportManagerHelper.logDiscrete(e);
         }
         attachments.add(testDataFileAttachment);
         ReportManagerHelper.log("Loaded Test Data: \"" + jsonFilePath + "\".", attachments);

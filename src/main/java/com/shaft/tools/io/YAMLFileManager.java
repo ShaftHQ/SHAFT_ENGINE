@@ -6,9 +6,12 @@ import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.yaml.snakeyaml.Yaml;
 
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -56,15 +59,13 @@ public class YAMLFileManager {
         this.filePath = JavaHelper.appendTestDataToRelativePath(filePath);
         this.data = getData();
 
-        List<Object> testDataFileAttachment = new ArrayList<>();
+        List<Object> testDataFileAttachment;
         try {
-            testDataFileAttachment = List.of(
-                    "Test Data",
-                    "YAML",
-                    new FileInputStream(filePath)
-            );
-        } catch (FileNotFoundException ignore) {
-            // unreachable code because if the file was not found then the get data method will fail while loading the file
+            byte[] raw = Files.readAllBytes(Paths.get(filePath));
+            testDataFileAttachment = List.of("Test Data", "YAML", new ByteArrayInputStream(raw));
+        } catch (IOException e) {
+            ReportManagerHelper.logDiscrete(e);
+            testDataFileAttachment = List.of();
         }
 
         ReportManagerHelper.log(
