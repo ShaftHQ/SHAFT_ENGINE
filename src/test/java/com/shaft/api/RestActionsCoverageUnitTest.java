@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.restassured.builder.RequestSpecBuilder;
-import io.restassured.config.EncoderConfig;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.http.ContentType;
 import io.restassured.http.Cookie;
@@ -15,6 +14,7 @@ import io.restassured.http.Header;
 import io.restassured.http.Headers;
 import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
+import io.restassured.specification.FilterableRequestSpecification;
 import io.restassured.specification.RequestSpecification;
 import com.shaft.validation.Validations;
 import org.mockito.Mockito;
@@ -23,12 +23,11 @@ import org.testng.annotations.Test;
 
 import com.sun.net.httpserver.HttpServer;
 
+import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,54 +70,38 @@ public class RestActionsCoverageUnitTest {
                 queryParams, RestActions.ParametersType.QUERY, null, ContentType.ANY, cookies, headers, RestAssuredConfig.config(), true, false);
         Validations.assertThat().object(querySpec).isNotNull().perform();
 
+        Map<String, Object> formParams = new LinkedHashMap<>();
+        formParams.put("username", "shaft");
+        formParams.put("page", 1);
+        RequestSpecification formSpec = actions.prepareRequestSpecs(
+                formParams, RestActions.ParametersType.FORM, null, ContentType.ANY, cookies, headers, RestAssuredConfig.config(), true, true);
+        Validations.assertThat().object(formSpec).isNotNull().perform();
+        String formContentType = ((FilterableRequestSpecification) formSpec).getContentType();
+        Validations.assertThat().object(formContentType).doesNotContain("multipart/form-data").perform();
+
         Path tempFile = Files.createTempFile("shaft-rest", ".txt");
-        Files.writeString(tempFile, "payload");
-        Map<String, Object> multipartParams = new LinkedHashMap<>();
-        multipartParams.put("file", tempFile.toFile());
-        multipartParams.put("description", "text-part");
-        RequestSpecification multipartSpec = actions.prepareRequestSpecs(
-                multipartParams, RestActions.ParametersType.MULTIPART, null, ContentType.ANY, cookies, headers, RestAssuredConfig.config(), true, true);
-        Validations.assertThat().object(multipartSpec).isNotNull().perform();
-        Files.deleteIfExists(tempFile);
-    }
-
-    @Test
-    public void privateRequestBuilderHelpersAreCoveredViaReflection() throws Exception {
-        RestActions actions = new RestActions("http://localhost/");
-
-        RequestSpecBuilder builder = new RequestSpecBuilder();
-        Method setConfigs = RestActions.class.getDeclaredMethod("setConfigs", RequestSpecBuilder.class, List.class);
-        setConfigs.setAccessible(true);
-        List<RestAssuredConfig> configs = List.of(
-                RestAssuredConfig.config(),
-                RestAssuredConfig.config().encoderConfig(new EncoderConfig().appendDefaultContentCharsetToContentTypeIfUndefined(false))
-        );
-        Object returnedBuilder = setConfigs.invoke(actions, builder, configs);
-        Validations.assertThat().object(returnedBuilder).isNotNull().perform();
-
-        Method prepareRequestBodyList = RestActions.class.getDeclaredMethod(
-                "prepareRequestBody", RequestSpecBuilder.class, List.class, RestActions.ParametersType.class);
-        prepareRequestBodyList.setAccessible(true);
-        Method prepareRequestBodyMap = RestActions.class.getDeclaredMethod(
-                "prepareRequestBody", RequestSpecBuilder.class, Map.class, RestActions.ParametersType.class);
-        prepareRequestBodyMap.setAccessible(true);
-
-        Path tempFile = Files.createTempFile("shaft-legacy-form", ".bin");
-        Files.writeString(tempFile, "legacy");
-        List<List<Object>> params = new ArrayList<>();
-        params.add(List.of("filePart", tempFile.toFile()));
-        params.add(List.of("textPart", "value"));
-
-        prepareRequestBodyList.invoke(actions, new RequestSpecBuilder(), params, RestActions.ParametersType.FORM);
-        prepareRequestBodyList.invoke(actions, new RequestSpecBuilder(), List.of(List.of("q", "1")), RestActions.ParametersType.QUERY);
-        prepareRequestBodyMap.invoke(actions, new RequestSpecBuilder(), Map.of("k", "v"), RestActions.ParametersType.FORM);
-        Files.deleteIfExists(tempFile);
+        try {
+            Files.writeString(tempFile, "payload");
+            Map<String, Object> multipartParams = new LinkedHashMap<>();
+            multipartParams.put("file", tempFile.toFile());
+            multipartParams.put("description", "text-part");
+            RequestSpecification multipartSpec = actions.prepareRequestSpecs(
+                    multipartParams, RestActions.ParametersType.MULTIPART, null, ContentType.ANY, cookies, headers, RestAssuredConfig.config(), true, true);
+            Validations.assertThat().object(multipartSpec).isNotNull().perform();
+            String multipartContentType = ((FilterableRequestSpecification) multipartSpec).getContentType();
+            Validations.assertThat().object(multipartContentType).contains("multipart/form-data").perform();
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
     }
 
     @Test
     public void sendRequestSupportsAllHttpMethods() throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/resource", exchange -> {
+            try (InputStream requestBody = exchange.getRequestBody()) {
+                requestBody.readAllBytes();
+            }
             byte[] body = "{\"ok\":true}".getBytes();
             exchange.sendResponseHeaders(200, body.length);
             try (OutputStream os = exchange.getResponseBody()) {
@@ -166,6 +149,13 @@ public class RestActionsCoverageUnitTest {
     }
 
     @Test
+    public void prepareReportMessageReturnsEmptyWhenResponseIsNull() {
+        RestActions actions = new RestActions("http://localhost/");
+        String message = actions.prepareReportMessage(null, 200, RestActions.RequestType.GET, "users", ContentType.JSON, null);
+        Validations.assertThat().object(message).isEqualTo("").perform();
+    }
+
+    @Test
     public void evaluateResponseStatusCodeAndStaticActionHelpersAreCovered() {
         RestActions actions = new RestActions("http://localhost/");
         Response ok = Mockito.mock(Response.class);
@@ -207,6 +197,9 @@ public class RestActionsCoverageUnitTest {
     public void graphQlOverloadsAreCoveredAgainstLocalServer() throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/graphql", exchange -> {
+            try (InputStream requestBody = exchange.getRequestBody()) {
+                requestBody.readAllBytes();
+            }
             byte[] body = "{\"data\":{\"ok\":true}}".getBytes();
             exchange.sendResponseHeaders(200, body.length);
             try (OutputStream os = exchange.getResponseBody()) {
@@ -225,6 +218,37 @@ public class RestActionsCoverageUnitTest {
             Validations.assertThat().object(RestActions.sendGraphQlRequestWithHeader(baseUri, "{ ping }", "{\"id\":1}", "fragment", "Authorization", "Bearer token").statusCode()).isEqualTo(200).perform();
         } finally {
             server.stop(0);
+        }
+    }
+
+    @Test
+    public void compareJsonCoversEqualsContainsAndIgnoringOrderStrategies() throws Exception {
+        Path equalsFile = Files.createTempFile("restactions-expected-equals", ".json");
+        Path containsFile = Files.createTempFile("restactions-expected-contains", ".json");
+        Path orderFile = Files.createTempFile("restactions-expected-order", ".json");
+        try {
+            Files.writeString(equalsFile, "{\"id\":1,\"name\":\"shaft\"}");
+            Files.writeString(containsFile, "{\"name\":\"shaft\"}");
+            Files.writeString(orderFile, "[{\"name\":\"a\"},{\"name\":\"b\"}]");
+
+            Response objectResponse = Mockito.mock(Response.class);
+            Mockito.when(objectResponse.asString()).thenReturn("{\"id\":1,\"name\":\"shaft\"}");
+            Mockito.when(objectResponse.asPrettyString()).thenReturn("{\"id\":1,\"name\":\"shaft\"}");
+
+            Response arrayResponse = Mockito.mock(Response.class);
+            Mockito.when(arrayResponse.asString()).thenReturn("[{\"name\":\"b\"},{\"name\":\"a\"}]");
+            Mockito.when(arrayResponse.asPrettyString()).thenReturn("[{\"name\":\"b\"},{\"name\":\"a\"}]");
+
+            Validations.assertThat().object(RestActions.compareJSON(
+                    objectResponse, equalsFile.toString(), RestActions.ComparisonType.EQUALS)).isTrue().perform();
+            Validations.assertThat().object(RestActions.compareJSON(
+                    objectResponse, containsFile.toString(), RestActions.ComparisonType.CONTAINS)).isTrue().perform();
+            Validations.assertThat().object(RestActions.compareJSON(
+                    arrayResponse, orderFile.toString(), RestActions.ComparisonType.EQUALS_IGNORING_ORDER)).isTrue().perform();
+        } finally {
+            Files.deleteIfExists(equalsFile);
+            Files.deleteIfExists(containsFile);
+            Files.deleteIfExists(orderFile);
         }
     }
 }
