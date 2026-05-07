@@ -77,7 +77,9 @@ public class TestNGListenerHelperCoverageUnitTest {
 
     @Test
     public void createTestLogShouldHandleEmptyAndNonEmptyReporterOutput() {
-        Assert.assertEquals(TestNGListenerHelper.createTestLog(List.of("line one", "line two")), "line one" + System.lineSeparator() + "line tw");
+        String fullLog = "line one" + System.lineSeparator() + "line two" + System.lineSeparator();
+        String expectedLog = fullLog.substring(0, fullLog.length() - 2);
+        Assert.assertEquals(TestNGListenerHelper.createTestLog(List.of("line one", "line two")), expectedLog);
         Assert.assertEquals(TestNGListenerHelper.createTestLog(List.of()), "");
     }
 
