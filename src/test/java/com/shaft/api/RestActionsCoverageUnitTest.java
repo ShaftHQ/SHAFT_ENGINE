@@ -16,8 +16,8 @@ import io.restassured.http.Headers;
 import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
+import com.shaft.validation.Validations;
 import org.mockito.Mockito;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
@@ -46,9 +46,11 @@ public class RestActionsCoverageUnitTest {
         SHAFT.API mockDriver = Mockito.mock(SHAFT.API.class);
         RestActions actions = new RestActions("http://localhost/", mockDriver);
 
-        Assert.assertSame(actions.getDriver(), mockDriver);
-        Assert.assertEquals(actions.prepareRequestURL("http://localhost/", "a=1", "users"), "http://localhost/users?a=1");
-        Assert.assertEquals(actions.prepareRequestURL("http://localhost/", "", "users"), "http://localhost/users");
+        Validations.assertThat().object(actions.getDriver()).isEqualTo(mockDriver).perform();
+        Validations.assertThat().object(actions.prepareRequestURL("http://localhost/", "a=1", "users"))
+                .isEqualTo("http://localhost/users?a=1").perform();
+        Validations.assertThat().object(actions.prepareRequestURL("http://localhost/", "", "users"))
+                .isEqualTo("http://localhost/users").perform();
     }
 
     @Test
@@ -61,13 +63,13 @@ public class RestActionsCoverageUnitTest {
 
         RequestSpecification bodySpec = actions.prepareRequestSpecs(
                 null, null, "{\"name\":\"shaft\"}", ContentType.JSON, cookies, headers, RestAssuredConfig.config(), true, true);
-        Assert.assertNotNull(bodySpec);
+        Validations.assertThat().object(bodySpec).isNotNull().perform();
 
         Map<String, Object> queryParams = new LinkedHashMap<>();
         queryParams.put("q", "value");
         RequestSpecification querySpec = actions.prepareRequestSpecs(
                 queryParams, RestActions.ParametersType.QUERY, null, ContentType.ANY, cookies, headers, RestAssuredConfig.config(), true, false);
-        Assert.assertNotNull(querySpec);
+        Validations.assertThat().object(querySpec).isNotNull().perform();
 
         Path tempFile = Files.createTempFile("shaft-rest", ".txt");
         Files.writeString(tempFile, "payload");
@@ -76,7 +78,8 @@ public class RestActionsCoverageUnitTest {
         multipartParams.put("description", "text-part");
         RequestSpecification multipartSpec = actions.prepareRequestSpecs(
                 multipartParams, RestActions.ParametersType.MULTIPART, null, ContentType.ANY, cookies, headers, RestAssuredConfig.config(), true, true);
-        Assert.assertNotNull(multipartSpec);
+        Validations.assertThat().object(multipartSpec).isNotNull().perform();
+        Files.deleteIfExists(tempFile);
     }
 
     @Test
@@ -91,7 +94,7 @@ public class RestActionsCoverageUnitTest {
                 RestAssuredConfig.config().encoderConfig(new EncoderConfig().appendDefaultContentCharsetToContentTypeIfUndefined(false))
         );
         Object returnedBuilder = setConfigs.invoke(actions, builder, configs);
-        Assert.assertNotNull(returnedBuilder);
+        Validations.assertThat().object(returnedBuilder).isNotNull().perform();
 
         Method prepareRequestBodyList = RestActions.class.getDeclaredMethod(
                 "prepareRequestBody", RequestSpecBuilder.class, List.class, RestActions.ParametersType.class);
@@ -109,6 +112,7 @@ public class RestActionsCoverageUnitTest {
         prepareRequestBodyList.invoke(actions, new RequestSpecBuilder(), params, RestActions.ParametersType.FORM);
         prepareRequestBodyList.invoke(actions, new RequestSpecBuilder(), List.of(List.of("q", "1")), RestActions.ParametersType.QUERY);
         prepareRequestBodyMap.invoke(actions, new RequestSpecBuilder(), Map.of("k", "v"), RestActions.ParametersType.FORM);
+        Files.deleteIfExists(tempFile);
     }
 
     @Test
@@ -129,11 +133,11 @@ public class RestActionsCoverageUnitTest {
             RestActions actions = new RestActions("http://127.0.0.1:" + port + "/");
             RequestSpecification specs = new RequestSpecBuilder().build();
 
-            Assert.assertEquals(actions.sendRequest(RestActions.RequestType.GET, url, specs).getStatusCode(), 200);
-            Assert.assertEquals(actions.sendRequest(RestActions.RequestType.POST, url, specs).getStatusCode(), 200);
-            Assert.assertEquals(actions.sendRequest(RestActions.RequestType.PATCH, url, specs).getStatusCode(), 200);
-            Assert.assertEquals(actions.sendRequest(RestActions.RequestType.PUT, url, specs).getStatusCode(), 200);
-            Assert.assertEquals(actions.sendRequest(RestActions.RequestType.DELETE, url, specs).getStatusCode(), 200);
+            Validations.assertThat().object(actions.sendRequest(RestActions.RequestType.GET, url, specs).getStatusCode()).isEqualTo(200).perform();
+            Validations.assertThat().object(actions.sendRequest(RestActions.RequestType.POST, url, specs).getStatusCode()).isEqualTo(200).perform();
+            Validations.assertThat().object(actions.sendRequest(RestActions.RequestType.PATCH, url, specs).getStatusCode()).isEqualTo(200).perform();
+            Validations.assertThat().object(actions.sendRequest(RestActions.RequestType.PUT, url, specs).getStatusCode()).isEqualTo(200).perform();
+            Validations.assertThat().object(actions.sendRequest(RestActions.RequestType.DELETE, url, specs).getStatusCode()).isEqualTo(200).perform();
         } finally {
             server.stop(0);
         }
@@ -156,9 +160,9 @@ public class RestActionsCoverageUnitTest {
 
         String message = actions.prepareReportMessage(response, 200, RestActions.RequestType.GET, "users", ContentType.JSON, "a=1");
 
-        Assert.assertTrue(message.contains("GET"));
-        Assert.assertEquals(actions.getSessionHeaders().get("Authorization"), "Bearer abc123");
-        Assert.assertEquals(actions.getSessionHeaders().get("X-XSRF-TOKEN"), "csrf-header");
+        Validations.assertThat().object(message).contains("GET").perform();
+        Validations.assertThat().object(actions.getSessionHeaders().get("Authorization")).isEqualTo("Bearer abc123").perform();
+        Validations.assertThat().object(actions.getSessionHeaders().get("X-XSRF-TOKEN")).isEqualTo("csrf-header").perform();
     }
 
     @Test
@@ -167,25 +171,25 @@ public class RestActionsCoverageUnitTest {
         Response ok = Mockito.mock(Response.class);
         Mockito.when(ok.getStatusCode()).thenReturn(200);
         Mockito.when(ok.getStatusLine()).thenReturn("HTTP/1.1 200 OK");
-        Assert.assertTrue(actions.evaluateResponseStatusCode(ok, 0));
+        Validations.assertThat().object(actions.evaluateResponseStatusCode(ok, 0)).isTrue().perform();
 
         Response mismatch = Mockito.mock(Response.class);
         Mockito.when(mismatch.getStatusCode()).thenReturn(500);
         Mockito.when(mismatch.getStatusLine()).thenReturn("HTTP/1.1 500 Internal Server Error");
-        Assert.assertThrows(RuntimeException.class, () -> actions.evaluateResponseStatusCode(mismatch, 200));
+        org.testng.Assert.assertThrows(RuntimeException.class, () -> actions.evaluateResponseStatusCode(mismatch, 200));
 
         RestActions.passAction("covered-path");
-        Assert.assertThrows(RuntimeException.class,
+        org.testng.Assert.assertThrows(RuntimeException.class,
                 () -> RestActions.failAction("force-failure", new RuntimeException("boom")));
     }
 
     @Test
     public void getResponseJsonValueSupportsMultipleInputShapes() throws Exception {
-        Assert.assertEquals(RestActions.getResponseJSONValue("{\"name\":\"shaft\"}", "$.name"), "shaft");
-        Assert.assertEquals(RestActions.getResponseJSONValue(new org.json.JSONObject("{\"id\":7}"), "id"), "7");
-        Assert.assertEquals(RestActions.getResponseJSONValue(new org.json.JSONArray("[{\"value\":\"x\"}]"), "[0].value"), "x");
-        Assert.assertEquals(RestActions.getResponseJSONValue(List.of(Map.of("k", "v")), "[0].k"), "v");
-        Assert.assertEquals(RestActions.getResponseJSONValue(new java.util.HashMap<>(Map.of("key", "value")), "key"), "value");
+        Validations.assertThat().object(RestActions.getResponseJSONValue("{\"name\":\"shaft\"}", "$.name")).isEqualTo("shaft").perform();
+        Validations.assertThat().object(RestActions.getResponseJSONValue(new org.json.JSONObject("{\"id\":7}"), "id")).isEqualTo("7").perform();
+        Validations.assertThat().object(RestActions.getResponseJSONValue(new org.json.JSONArray("[{\"value\":\"x\"}]"), "[0].value")).isEqualTo("x").perform();
+        Validations.assertThat().object(RestActions.getResponseJSONValue(List.of(Map.of("k", "v")), "[0].k")).isEqualTo("v").perform();
+        Validations.assertThat().object(RestActions.getResponseJSONValue(new java.util.HashMap<>(Map.of("key", "value")), "key")).isEqualTo("value").perform();
     }
 
     @Test
@@ -194,9 +198,9 @@ public class RestActionsCoverageUnitTest {
         ObjectNode objectNode = mapper.createObjectNode().put("name", "shaft");
         ArrayNode arrayNode = mapper.createArrayNode().add("a").add("b");
 
-        Assert.assertNotNull(RestActions.parseBodyToJson(objectNode));
-        Assert.assertNotNull(RestActions.parseBodyToJson(arrayNode));
-        Assert.assertNotNull(RestActions.parseBodyToJson(Map.of("x", 1)));
+        Validations.assertThat().object(RestActions.parseBodyToJson(objectNode)).isNotNull().perform();
+        Validations.assertThat().object(RestActions.parseBodyToJson(arrayNode)).isNotNull().perform();
+        Validations.assertThat().object(RestActions.parseBodyToJson(Map.of("x", 1))).isNotNull().perform();
     }
 
     @Test
@@ -213,12 +217,12 @@ public class RestActionsCoverageUnitTest {
 
         try {
             String baseUri = "http://127.0.0.1:" + server.getAddress().getPort() + "/";
-            Assert.assertEquals(RestActions.sendGraphQlRequest(baseUri, "{ ping }").statusCode(), 200);
-            Assert.assertEquals(RestActions.sendGraphQlRequest(baseUri, "{ ping }", "{\"id\":1}").statusCode(), 200);
-            Assert.assertEquals(RestActions.sendGraphQlRequest(baseUri, "{ ping }", "{\"id\":1}", "fragment").statusCode(), 200);
-            Assert.assertEquals(RestActions.sendGraphQlRequestWithHeader(baseUri, "{ ping }", "Authorization", "Bearer token").statusCode(), 200);
-            Assert.assertEquals(RestActions.sendGraphQlRequestWithHeader(baseUri, "{ ping }", "{\"id\":1}", "Authorization", "Bearer token").statusCode(), 200);
-            Assert.assertEquals(RestActions.sendGraphQlRequestWithHeader(baseUri, "{ ping }", "{\"id\":1}", "fragment", "Authorization", "Bearer token").statusCode(), 200);
+            Validations.assertThat().object(RestActions.sendGraphQlRequest(baseUri, "{ ping }").statusCode()).isEqualTo(200).perform();
+            Validations.assertThat().object(RestActions.sendGraphQlRequest(baseUri, "{ ping }", "{\"id\":1}").statusCode()).isEqualTo(200).perform();
+            Validations.assertThat().object(RestActions.sendGraphQlRequest(baseUri, "{ ping }", "{\"id\":1}", "fragment").statusCode()).isEqualTo(200).perform();
+            Validations.assertThat().object(RestActions.sendGraphQlRequestWithHeader(baseUri, "{ ping }", "Authorization", "Bearer token").statusCode()).isEqualTo(200).perform();
+            Validations.assertThat().object(RestActions.sendGraphQlRequestWithHeader(baseUri, "{ ping }", "{\"id\":1}", "Authorization", "Bearer token").statusCode()).isEqualTo(200).perform();
+            Validations.assertThat().object(RestActions.sendGraphQlRequestWithHeader(baseUri, "{ ping }", "{\"id\":1}", "fragment", "Authorization", "Bearer token").statusCode()).isEqualTo(200).perform();
         } finally {
             server.stop(0);
         }
