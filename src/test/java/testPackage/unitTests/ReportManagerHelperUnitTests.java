@@ -19,8 +19,16 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ReportManagerHelperUnitTests {
 
     @BeforeMethod(alwaysRun = true)
+    public void beforeMethod() throws Exception {
+        resetReportManagerHelperState();
+    }
+
     @AfterMethod(alwaysRun = true)
-    public void resetReportManagerHelperState() throws Exception {
+    public void afterMethod() throws Exception {
+        resetReportManagerHelperState();
+    }
+
+    private void resetReportManagerHelperState() throws Exception {
         getPrivateStaticField("issuesLog", AtomicReference.class).set("");
         getPrivateStaticField("issueCounter", AtomicInteger.class).set(1);
         ReportManagerHelper.setOpenIssuesForFailedTestsCounter(0);
