@@ -44,9 +44,15 @@ import java.util.Set;
 import java.util.logging.Level;
 
 public class DriverFactoryHelperAdditionalUnitTest {
+    private final boolean savedDisableCache = SHAFT.Properties.flags.disableCache();
+    private final boolean savedAutoMaximizeBrowserWindow = SHAFT.Properties.flags.autoMaximizeBrowserWindow();
+
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
         SHAFT.Properties.platform.set().enableBiDi(true);
+        SHAFT.Properties.flags.set()
+                .disableCache(savedDisableCache)
+                .autoMaximizeBrowserWindow(savedAutoMaximizeBrowserWindow);
         Properties.clearForCurrentThread();
     }
 
@@ -76,7 +82,7 @@ public class DriverFactoryHelperAdditionalUnitTest {
                 .isEqualTo("http://localhost:4444/wd/hub/").perform();
         try {
             normalize.invoke(null, "http://bad host");
-            SHAFT.Validations.assertThat().object("no exception").isEqualTo("MalformedURLException").perform();
+            throw new AssertionError("Expected MalformedURLException but no exception was thrown.");
         } catch (InvocationTargetException invocationTargetException) {
             SHAFT.Validations.assertThat().object(invocationTargetException.getCause() instanceof java.net.MalformedURLException)
                     .isEqualTo(true).perform();
@@ -190,8 +196,8 @@ public class DriverFactoryHelperAdditionalUnitTest {
         Method connectToRemoteServer = DriverFactoryHelper.class.getDeclaredMethod("connectToRemoteServer", org.openqa.selenium.Capabilities.class);
         connectToRemoteServer.setAccessible(true);
         try {
-            connectToRemoteServer.invoke(null, new DesiredCapabilities());
-            SHAFT.Validations.assertThat().object("no exception").isEqualTo("exception expected").perform();
+            connectToRemoteServer.invoke(null, new MutableCapabilities());
+            throw new AssertionError("Expected exception from connectToRemoteServer but no exception was thrown.");
         } catch (InvocationTargetException invocationTargetException) {
             SHAFT.Validations.assertThat().object(invocationTargetException.getCause() != null).isEqualTo(true).perform();
         }
@@ -199,8 +205,8 @@ public class DriverFactoryHelperAdditionalUnitTest {
         Method attemptRemoteServerConnection = DriverFactoryHelper.class.getDeclaredMethod("attemptRemoteServerConnection", org.openqa.selenium.Capabilities.class);
         attemptRemoteServerConnection.setAccessible(true);
         try {
-            attemptRemoteServerConnection.invoke(null, new DesiredCapabilities());
-            SHAFT.Validations.assertThat().object("no exception").isEqualTo("failure expected").perform();
+            attemptRemoteServerConnection.invoke(null, new MutableCapabilities());
+            throw new AssertionError("Expected exception from attemptRemoteServerConnection but no exception was thrown.");
         } catch (InvocationTargetException invocationTargetException) {
             SHAFT.Validations.assertThat().object(invocationTargetException.getCause() != null).isEqualTo(true).perform();
         }
@@ -218,8 +224,8 @@ public class DriverFactoryHelperAdditionalUnitTest {
         Method setRemoteDriverInstance = DriverFactoryHelper.class.getDeclaredMethod("setRemoteDriverInstance", org.openqa.selenium.Capabilities.class);
         setRemoteDriverInstance.setAccessible(true);
         try {
-            setRemoteDriverInstance.invoke(helper, new DesiredCapabilities());
-            SHAFT.Validations.assertThat().object("no exception").isEqualTo("failure expected").perform();
+            setRemoteDriverInstance.invoke(helper, new MutableCapabilities());
+            throw new AssertionError("Expected exception from setRemoteDriverInstance but no exception was thrown.");
         } catch (InvocationTargetException invocationTargetException) {
             SHAFT.Validations.assertThat().object(invocationTargetException.getCause() != null).isEqualTo(true).perform();
         }
@@ -228,7 +234,7 @@ public class DriverFactoryHelperAdditionalUnitTest {
         createNewRemoteDriverInstance.setAccessible(true);
         try {
             createNewRemoteDriverInstance.invoke(helper, com.shaft.driver.DriverFactory.DriverType.APPIUM_MOBILE_NATIVE);
-            SHAFT.Validations.assertThat().object("no exception").isEqualTo("failure expected").perform();
+            throw new AssertionError("Expected exception from createNewRemoteDriverInstance but no exception was thrown.");
         } catch (InvocationTargetException invocationTargetException) {
             SHAFT.Validations.assertThat().object(invocationTargetException.getCause() != null).isEqualTo(true).perform();
         }
@@ -288,7 +294,7 @@ public class DriverFactoryHelperAdditionalUnitTest {
         createNewDockerizedDriverInstance.setAccessible(true);
         try {
             createNewDockerizedDriverInstance.invoke(helper, com.shaft.driver.DriverFactory.DriverType.IE);
-            SHAFT.Validations.assertThat().object("no exception").isEqualTo("failure expected").perform();
+            throw new AssertionError("Expected exception from createNewDockerizedDriverInstance but no exception was thrown.");
         } catch (InvocationTargetException invocationTargetException) {
             SHAFT.Validations.assertThat().object(invocationTargetException.getCause() != null).isEqualTo(true).perform();
         }
