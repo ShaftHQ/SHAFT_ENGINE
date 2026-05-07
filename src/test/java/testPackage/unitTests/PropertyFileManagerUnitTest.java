@@ -1,20 +1,42 @@
 package testPackage.unitTests;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.PropertyFileManager;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
+import java.io.File;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.nio.file.Files;
 import java.util.Map;
 
 public class PropertyFileManagerUnitTest {
     private String savedMobileApp;
+    private String savedMobileAppPackage;
+    private String savedMobileAppActivity;
+    private String savedSkipApkInference;
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
         if (savedMobileApp != null) {
             SHAFT.Properties.mobile.set().app(savedMobileApp);
         }
+        if (savedMobileAppPackage != null) {
+            SHAFT.Properties.mobile.set().appPackage(savedMobileAppPackage);
+        }
+        if (savedMobileAppActivity != null) {
+            SHAFT.Properties.mobile.set().appActivity(savedMobileAppActivity);
+        }
+        if (savedSkipApkInference != null) {
+            System.setProperty("shaft.skipApkPackageActivityInference", savedSkipApkInference);
+        } else {
+            System.clearProperty("shaft.skipApkPackageActivityInference");
+        }
+        Properties.clearForCurrentThread();
     }
 
     @Test(description = "getAppiumDesiredCapabilities should preserve BrowserStack bs:// app URL without path resolution")
@@ -48,5 +70,101 @@ public class PropertyFileManagerUnitTest {
         Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
 
         SHAFT.Validations.assertThat().object(caps.get("mobile_app")).isEqualTo(httpsUrl).perform();
+    }
+
+    @Test(description = "getAppiumDesiredCapabilities should resolve src/ relative app paths to absolute paths")
+    public void getAppiumDesiredCapabilities_resolvesSrcRelativePath() {
+        savedMobileApp = SHAFT.Properties.mobile.app();
+        String relativePath = "src/test/resources/testDataFiles/simpleJSON.json";
+        SHAFT.Properties.mobile.set().app(relativePath);
+
+        Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
+
+        String expectedPath = new File(relativePath).getAbsolutePath();
+        SHAFT.Validations.assertThat().object(caps.get("mobile_app")).isEqualTo(expectedPath).perform();
+    }
+
+    @Test(description = "getAppiumDesiredCapabilities should resolve non-absolute app paths under user.dir")
+    public void getAppiumDesiredCapabilities_resolvesUserDirRelativePath() {
+        savedMobileApp = SHAFT.Properties.mobile.app();
+        String relativePath = "pom.xml";
+        SHAFT.Properties.mobile.set().app(relativePath);
+
+        Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
+
+        String expectedPath = new File(System.getProperty("user.dir"), relativePath).getAbsolutePath();
+        SHAFT.Validations.assertThat().object(caps.get("mobile_app")).isEqualTo(expectedPath).perform();
+    }
+
+    @Test(description = "getAppiumDesiredCapabilities should skip APK package/activity inference when opt-out flag is true")
+    public void getAppiumDesiredCapabilities_skipsApkInferenceWhenFlagIsEnabled() throws Exception {
+        savedMobileApp = SHAFT.Properties.mobile.app();
+        savedMobileAppPackage = SHAFT.Properties.mobile.appPackage();
+        savedMobileAppActivity = SHAFT.Properties.mobile.appActivity();
+        savedSkipApkInference = System.getProperty("shaft.skipApkPackageActivityInference");
+
+        File tempApk = Files.createTempFile("shaft-skip-inference", ".apk").toFile();
+        tempApk.deleteOnExit();
+        SHAFT.Properties.mobile.set().app(tempApk.getAbsolutePath());
+        SHAFT.Properties.mobile.set().appPackage("");
+        SHAFT.Properties.mobile.set().appActivity("");
+        System.setProperty("shaft.skipApkPackageActivityInference", "true");
+
+        Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
+
+        SHAFT.Validations.assertThat().object(caps.get("mobile_appPackage")).isEqualTo("").perform();
+        SHAFT.Validations.assertThat().object(caps.get("mobile_appActivity")).isEqualTo("").perform();
+    }
+
+    @Test(description = "getAppiumDesiredCapabilities should keep provided appPackage/appActivity values for APK app")
+    public void getAppiumDesiredCapabilities_keepsProvidedPackageAndActivity() throws Exception {
+        savedMobileApp = SHAFT.Properties.mobile.app();
+        savedMobileAppPackage = SHAFT.Properties.mobile.appPackage();
+        savedMobileAppActivity = SHAFT.Properties.mobile.appActivity();
+        savedSkipApkInference = System.getProperty("shaft.skipApkPackageActivityInference");
+
+        File tempApk = Files.createTempFile("shaft-existing-identifiers", ".apk").toFile();
+        tempApk.deleteOnExit();
+        SHAFT.Properties.mobile.set().app(tempApk.getAbsolutePath());
+        SHAFT.Properties.mobile.set().appPackage("com.example.app");
+        SHAFT.Properties.mobile.set().appActivity("com.example.app.MainActivity");
+        System.setProperty("shaft.skipApkPackageActivityInference", "false");
+
+        Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
+
+        SHAFT.Validations.assertThat().object(caps.get("mobile_appPackage")).isEqualTo("com.example.app").perform();
+        SHAFT.Validations.assertThat().object(caps.get("mobile_appActivity")).isEqualTo("com.example.app.MainActivity").perform();
+    }
+
+    @Test(description = "private constructor should throw IllegalStateException")
+    public void constructor_throwsIllegalStateException() throws Exception {
+        Constructor<PropertyFileManager> constructor = PropertyFileManager.class.getDeclaredConstructor();
+        constructor.setAccessible(true);
+
+        InvocationTargetException thrown = Assert.expectThrows(InvocationTargetException.class, constructor::newInstance);
+        SHAFT.Validations.assertThat().object(thrown.getCause() instanceof IllegalStateException).isEqualTo(true).perform();
+    }
+
+    @Test(description = "readPropertyFiles should handle missing directory and invalid jar URI gracefully")
+    public void readPropertyFiles_handlesMissingAndInvalidJarPaths() throws Exception {
+        Method readPropertyFiles = PropertyFileManager.class.getDeclaredMethod("readPropertyFiles", String.class);
+        readPropertyFiles.setAccessible(true);
+
+        readPropertyFiles.invoke(null, "/path/that/does/not/exist");
+        readPropertyFiles.invoke(null, "invalid-archive.jar!broken");
+    }
+
+    @Test(description = "loadPropertiesFileIntoSystemProperties should gracefully handle non-readable file input")
+    public void loadPropertiesFileIntoSystemProperties_handlesIOException() throws Exception {
+        Method loadMethod = PropertyFileManager.class.getDeclaredMethod(
+                "loadPropertiesFileIntoSystemProperties",
+                java.util.Properties.class,
+                File.class
+        );
+        loadMethod.setAccessible(true);
+        File directory = Files.createTempDirectory("shaft-property-file-dir").toFile();
+        directory.deleteOnExit();
+
+        loadMethod.invoke(null, new java.util.Properties(), directory);
     }
 }
