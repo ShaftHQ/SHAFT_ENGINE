@@ -8,6 +8,7 @@ import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Files;
 import java.util.List;
 
@@ -46,7 +47,7 @@ public class PropertiesHelperInitializationUnitTest {
 
     @Test
     public void defaultCustomPropertiesTemplateShouldContainCommonDefaultsAndDocumentationLink() throws IOException {
-        String customTemplateContent = Files.readString(new File(PROPERTIES_FOLDER_PATH + "/default/custom.properties").toPath());
+        String customTemplateContent = Files.readString(Path.of(PROPERTIES_FOLDER_PATH, "default", "custom.properties"));
 
         Assert.assertTrue(customTemplateContent.contains("https://shafthq.github.io/"),
                 "custom.properties template should include a user guide link.");
