@@ -159,8 +159,10 @@ public class TerminalActionsUnitTest {
     }
 
     @AfterMethod(alwaysRun = true)
-    public void cleanup() {
-        com.shaft.cli.FileActions.getInstance(true).deleteFolder(TEMP_DIR.toString());
+    public void cleanup() throws Exception {
+        if (Files.exists(TEMP_DIR)) {
+            com.shaft.cli.FileActions.getInstance(true).deleteFolder(TEMP_DIR.toString());
+        }
     }
 
     @Test(description = "performTerminalCommands should execute split commands and capture logs")
