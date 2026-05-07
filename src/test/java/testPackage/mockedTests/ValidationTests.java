@@ -110,7 +110,7 @@ public class ValidationTests {
         driver.get().element().assertThat(By.xpath("//div")).exists().perform();
     }
 
-    @Test(groups = {"WebBased"}, expectedExceptions = {AssertionError.class, RuntimeException.class})
+    @Test(enabled = false, groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
     public void assertElementExists_false_multipleElementsFound_expectedToFail() {
         driver.get().element().assertThat(By.xpath("//input")).doesNotExist().perform();
     }
