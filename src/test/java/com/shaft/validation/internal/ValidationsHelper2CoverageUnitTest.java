@@ -34,7 +34,7 @@ public class ValidationsHelper2CoverageUnitTest {
     }
 
     @Test(description = "Covers hard-assert equality and number validation pass paths")
-    public void validateEqualsAndNumberShouldCoverPassAndFailBranches() {
+    public void validateEqualsAndNumberShouldCoverPassPaths() {
         ValidationsHelper2 hardAssertHelper = new ValidationsHelper2(ValidationEnums.ValidationCategory.HARD_ASSERT);
 
         hardAssertHelper.validateEquals("same", "same", ValidationEnums.ValidationComparisonType.EQUALS,
@@ -156,6 +156,8 @@ public class ValidationsHelper2CoverageUnitTest {
 
         Method formatAssertionError = ValidationsHelper2.class.getDeclaredMethod("formatAssertionErrorWithAutoDetectedPackage", AssertionError.class);
         formatAssertionError.setAccessible(true);
+        Method performValidation = ValidationsHelper2.class.getDeclaredMethod("performValidation", Object.class, Object.class, Object.class, ValidationEnums.ValidationType.class);
+        performValidation.setAccessible(true);
 
         ValidationsHelper2 helper = new ValidationsHelper2(ValidationEnums.ValidationCategory.HARD_ASSERT);
 
@@ -179,5 +181,8 @@ public class ValidationsHelper2CoverageUnitTest {
         Assert.assertNotNull(formatted);
         Assert.assertTrue(formatted.contains("Assertion Failed"));
         Assert.assertNull(formatAssertionError.invoke(null, (Object) null));
+
+        Assert.assertEquals(performValidation.invoke(helper, "a", "b", ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE), false);
+        Assert.assertEquals(performValidation.invoke(helper, 3, 3, ValidationEnums.NumbersComparativeRelation.EQUALS, ValidationEnums.ValidationType.POSITIVE), true);
     }
 }
