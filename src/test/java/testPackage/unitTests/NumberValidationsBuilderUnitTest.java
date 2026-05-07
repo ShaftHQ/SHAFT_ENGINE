@@ -242,12 +242,7 @@ public class NumberValidationsBuilderUnitTest {
 
     @Test(description = "equals: non-matching numbers should throw AssertionError")
     public void equalsWithNonMatchingNumbersShouldThrowAssertionError() {
-        try {
-            Validations.assertThat().number(15).equals(20);
-            Assert.fail("Expected AssertionError for equals with non-matching numbers");
-        } catch (AssertionError e) {
-            Assert.assertNotNull(e.getMessage());
-        }
+        Assert.assertThrows(AssertionError.class, () -> Validations.assertThat().number(15).equals(20));
     }
 
     @Test(description = "response time: less than relation should pass using mocked response")
