@@ -8,6 +8,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -26,7 +28,6 @@ import java.util.Map;
 public class CSVFileManagerUnitTest {
 
     private static final String CSV_FILE = "src/test/resources/testDataFiles/TestData.csv";
-
     private CSVFileManager csv;
 
     @BeforeMethod
@@ -201,5 +202,127 @@ public class CSVFileManagerUnitTest {
     public void getCellCountByColumnIndexZeroReturnsThree() {
         int count = csv.getCellCount(0);
         Assert.assertEquals(count, 3, "getCellCount by index 0 should return 3 for TestData.csv");
+    }
+
+    // ─── error and edge paths ────────────────────────────────────────────────
+
+    @Test(description = "constructor throws runtime exception when file is missing")
+    public void constructorThrowsRuntimeExceptionWhenFileIsMissing() {
+        Assert.expectThrows(RuntimeException.class, () -> new CSVFileManager("missing_CSVFileManagerUnitTest.csv"));
+    }
+
+    @Test(description = "getRows catches failures when row records are unavailable")
+    public void getRowsCatchesFailuresWhenRowRecordsAreUnavailable() {
+        setPrivateField(csv, "RowRecords", null);
+        Assert.assertTrue(csv.getRows().isEmpty(), "Rows should be empty when records are unavailable");
+    }
+
+    @Test(description = "getColumns catches failures when parser records are unavailable")
+    public void getColumnsCatchesFailuresWhenParserRecordsAreUnavailable() {
+        setPrivateField(csv, "records", null);
+        Assert.assertTrue(csv.getColumns().isEmpty(), "Columns should be empty when parser records are unavailable");
+    }
+
+    @Test(description = "getColumnsWithData catches runtime exceptions from row retrieval")
+    public void getColumnsWithDataCatchesRuntimeExceptions() {
+        CSVFileManager csvWithBrokenRows = new CSVFileManager(CSV_FILE) {
+            @Override
+            public List<String[]> getRows() {
+                throw new RuntimeException("broken rows");
+            }
+        };
+        Assert.assertTrue(csvWithBrokenRows.getColumnsWithData().isEmpty(),
+                "Columns-with-data should be empty when row retrieval fails");
+    }
+
+    @Test(description = "getLastColumn returns null when source has no header rows")
+    public void getLastColumnReturnsNullWhenColumnsAreUnavailable() {
+        setPrivateField(csv, "records", null);
+        Assert.assertNull(csv.getLastColumn(), "Unavailable columns should return null last column");
+    }
+
+    @Test(description = "getSpecificColumnName returns null for invalid index")
+    public void getSpecificColumnNameReturnsNullForInvalidIndex() {
+        Assert.assertNull(csv.getSpecificColumnName(0), "Invalid index should return null column name");
+    }
+
+    @Test(description = "getSpecificColumnData handles unexpected runtime exceptions")
+    public void getSpecificColumnDataHandlesUnexpectedRuntimeExceptions() {
+        CSVFileManager csvWithBrokenMapping = new CSVFileManager(CSV_FILE) {
+            @Override
+            public Map<String, List<String>> getColumnsWithData() {
+                throw new RuntimeException("broken mapping");
+            }
+        };
+        Assert.assertTrue(csvWithBrokenMapping.getSpecificColumnData("barCode").isEmpty(),
+                "Column data should be empty when mapping fails unexpectedly");
+        Assert.assertTrue(csvWithBrokenMapping.getSpecificColumnData(1).isEmpty(),
+                "Column data by index should be empty when mapping fails unexpectedly");
+    }
+
+    @Test(description = "getCellData returns null when file content is unavailable")
+    public void getCellDataReturnsNullWhenFileContentIsUnavailable() {
+        Assert.assertNull(csv.getCellData(99, "barCode"), "Invalid row should return null cell by name");
+        Assert.assertNull(csv.getCellData(99, 1), "Invalid row should return null cell by index");
+    }
+
+    @Test(description = "getFirstColumn returns null when columns are unavailable")
+    public void getFirstColumnReturnsNullWhenColumnsAreUnavailable() {
+        setPrivateField(csv, "records", null);
+        Assert.assertNull(csv.getFirstColumn(), "Unavailable columns should return null first column");
+    }
+
+    @Test(description = "getMinCellValue by name returns NaN for non-numeric input")
+    public void getMinCellValueByNameReturnsNaNForNonNumericInput() {
+        double min = csv.getMinCellValue("amountCalculated");
+        Assert.assertTrue(Double.isNaN(min), "Non-numeric column should return NaN");
+    }
+
+    @Test(description = "getMinCellValue by index returns NaN for non-numeric input")
+    public void getMinCellValueByIndexReturnsNaNForNonNumericInput() {
+        double min = csv.getMinCellValue(3);
+        Assert.assertTrue(Double.isNaN(min), "Non-numeric column index should return NaN");
+    }
+
+    @Test(description = "getMaxCellValue by name parses numeric columns and returns expected max")
+    public void getMaxCellValueByNameParsesNumericColumnsAndReturnsExpectedMax() {
+        double max = csv.getMaxCellValue("totalDiscount");
+        Assert.assertEquals(max, 9_999_999_999d, "Expected max totalDiscount from test data");
+    }
+
+    @Test(description = "getMaxCellValue by name returns NaN for non-numeric input")
+    public void getMaxCellValueByNameReturnsNaNForNonNumericInput() {
+        double max = csv.getMaxCellValue("amountCalculated");
+        Assert.assertTrue(Double.isNaN(max), "Non-numeric column should return NaN");
+    }
+
+    @Test(description = "getMaxCellValue by index returns NaN for non-numeric input")
+    public void getMaxCellValueByIndexReturnsNaNForNonNumericInput() {
+        double max = csv.getMaxCellValue(3);
+        Assert.assertTrue(Double.isNaN(max), "Non-numeric column index should return NaN");
+    }
+
+    @Test(description = "getCellCount catches unexpected runtime exceptions")
+    public void getCellCountCatchesUnexpectedRuntimeExceptions() {
+        CSVFileManager csvWithEmptyMapping = new CSVFileManager(CSV_FILE) {
+            @Override
+            public Map<String, List<String>> getColumnsWithData() {
+                return new HashMap<>();
+            }
+        };
+        Assert.assertEquals(csvWithEmptyMapping.getCellCount("barCode"), 0,
+                "Cell count by name should fallback to zero when mapping is incomplete");
+        Assert.assertEquals(csvWithEmptyMapping.getCellCount(0), 0,
+                "Cell count by index should fallback to zero when mapping is incomplete");
+    }
+
+    private void setPrivateField(CSVFileManager target, String fieldName, Object value) {
+        try {
+            Field field = CSVFileManager.class.getDeclaredField(fieldName);
+            field.setAccessible(true);
+            field.set(target, value);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
