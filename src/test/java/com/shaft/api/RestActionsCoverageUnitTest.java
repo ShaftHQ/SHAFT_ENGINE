@@ -69,7 +69,7 @@ public class RestActionsCoverageUnitTest {
                 queryParams, RestActions.ParametersType.QUERY, null, ContentType.ANY, cookies, headers, RestAssuredConfig.config(), true, false);
         Assert.assertNotNull(querySpec);
 
-        Path tempFile = Files.createTempFile(Path.of("/tmp"), "shaft-rest", ".txt");
+        Path tempFile = Files.createTempFile("shaft-rest", ".txt");
         Files.writeString(tempFile, "payload");
         Map<String, Object> multipartParams = new LinkedHashMap<>();
         multipartParams.put("file", tempFile.toFile());
@@ -100,7 +100,7 @@ public class RestActionsCoverageUnitTest {
                 "prepareRequestBody", RequestSpecBuilder.class, Map.class, RestActions.ParametersType.class);
         prepareRequestBodyMap.setAccessible(true);
 
-        Path tempFile = Files.createTempFile(Path.of("/tmp"), "shaft-legacy-form", ".bin");
+        Path tempFile = Files.createTempFile("shaft-legacy-form", ".bin");
         Files.writeString(tempFile, "legacy");
         List<List<Object>> params = new ArrayList<>();
         params.add(List.of("filePart", tempFile.toFile()));
