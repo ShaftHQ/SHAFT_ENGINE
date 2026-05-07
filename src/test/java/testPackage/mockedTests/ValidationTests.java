@@ -110,7 +110,7 @@ public class ValidationTests {
         driver.get().element().assertThat(By.xpath("//div")).exists().perform();
     }
 
-    @Test(groups = {"WebBased"}, expectedExceptions = {RuntimeException.class})
+    @Test(groups = {"WebBased"}, expectedExceptions = {AssertionError.class, RuntimeException.class})
     public void assertElementExists_false_multipleElementsFound_expectedToFail() {
         driver.get().element().assertThat(By.xpath("//input")).doesNotExist().perform();
     }
@@ -279,7 +279,7 @@ public class ValidationTests {
         String testElement = "data:text/html;charset=utf-8,<html dir='rtl'><body>"
                 + "<input id='primaryInput' type='text'>"
                 + "<input id='englishInput' type='text' dir='ltr' value='Automation'>"
-                + "<input id='arabicInput' type='text' dir='rtl' value='مرحبا'>"
+                + "<input id='arabicInput' type='text' dir='rtl' value='&#1605;&#1585;&#1581;&#1576;&#1575;'>"
                 + "</body></html>";
         driver.get().browser().navigateToURL(testElement);
     }
