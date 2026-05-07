@@ -7,6 +7,13 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Unit tests for {@link PdfFileManager}.
  * Uses the pre-existing sample PDF at
@@ -15,9 +22,18 @@ import org.testng.annotations.Test;
 public class PdfFileManagerUnitTest {
 
     private static final String SAMPLE_PDF = "src/test/resources/testDataFiles/sample.pdf";
+    private final List<Path> temporaryFiles = new ArrayList<>();
 
     @AfterMethod(alwaysRun = true)
     public void resetState() {
+        temporaryFiles.forEach(path -> {
+            try {
+                Files.deleteIfExists(path);
+            } catch (IOException ignored) {
+                // no-op cleanup
+            }
+        });
+        temporaryFiles.clear();
         ValidationsHelper.resetVerificationStateAfterFailing();
     }
 
@@ -46,6 +62,15 @@ public class PdfFileManagerUnitTest {
         // Verify the file still exists after the call
         java.io.File file = new java.io.File(SAMPLE_PDF);
         Assert.assertTrue(file.exists(), "Sample PDF must still exist after read with deleteAfterReading=false");
+    }
+
+    @Test(description = "readFileContent(path, true) deletes copied file after reading")
+    public void staticReadFileContentWithTrueDeleteRemovesFile() throws IOException {
+        Path copiedPdf = createTemporaryPdfCopy();
+        String content = PdfFileManager.readFileContent(copiedPdf.toString(), true);
+        Assert.assertNotNull(content, "readFileContent with delete=true must not return null");
+        Assert.assertFalse(content.isBlank(), "readFileContent with delete=true must return non-blank content");
+        Assert.assertFalse(Files.exists(copiedPdf), "Copied PDF should be deleted when delete=true");
     }
 
     // ─── constructor + instance readFileContent ───────────────────────────────
@@ -94,5 +119,109 @@ public class PdfFileManagerUnitTest {
         String content = manager.readFileContent();
         Assert.assertNotNull(content, "3-arg constructor: readFileContent must not return null");
         Assert.assertFalse(content.isBlank(), "3-arg constructor: readFileContent must not be blank");
+    }
+
+    @Test(description = "readPDFContentFromDownloadedPDF(FALSE) returns PDF text and keeps copied file")
+    public void readPdfContentWithoutDeletingFileShouldKeepCopiedFile() throws IOException {
+        Path copiedPdf = createTemporaryPdfCopy();
+        PdfFileManager manager = new PdfFileManager(copiedPdf.toString());
+        String content = manager.readPDFContentFromDownloadedPDF(PdfFileManager.DeleteFileAfterValidationStatus.FALSE);
+        Assert.assertNotNull(content, "readPDFContentFromDownloadedPDF(FALSE) must not return null");
+        Assert.assertTrue(Files.exists(copiedPdf), "Copied PDF must remain when delete status is FALSE");
+    }
+
+    @Test(description = "readPDFContentFromDownloadedPDF(start,end,FALSE) reads requested page range")
+    public void readPdfContentWithPageRangeShouldReturnText() {
+        PdfFileManager manager = new PdfFileManager(SAMPLE_PDF);
+        String content = manager.readPDFContentFromDownloadedPDF(1, 1, PdfFileManager.DeleteFileAfterValidationStatus.FALSE);
+        Assert.assertNotNull(content, "readPDFContentFromDownloadedPDF(start,end,FALSE) must not return null");
+    }
+
+    @Test(description = "readPDFContentFromDownloadedPDF(TRUE) deletes copied file after reading")
+    public void readPdfContentWithDeleteStatusTrueShouldDeleteCopiedFile() throws IOException {
+        Path copiedPdf = createTemporaryPdfCopy();
+        PdfFileManager manager = new PdfFileManager(copiedPdf.toString());
+        String content = manager.readPDFContentFromDownloadedPDF(PdfFileManager.DeleteFileAfterValidationStatus.TRUE);
+        Assert.assertNotNull(content, "readPDFContentFromDownloadedPDF(TRUE) must not return null");
+        Assert.assertFalse(Files.exists(copiedPdf), "Copied PDF must be deleted when delete status is TRUE");
+    }
+
+    @Test(description = "readFileContent throws when file path does not exist")
+    public void staticReadFileContentWithMissingFileShouldThrowRuntimeException() {
+        try {
+            PdfFileManager.readFileContent("src/test/resources/testDataFiles/does-not-exist.pdf");
+            Assert.fail("Expected RuntimeException for missing static PDF path");
+        } catch (RuntimeException exception) {
+            Assert.assertTrue(exception.getMessage().contains("doesn't exist"),
+                    "Missing-file static read should fail with a missing-file message");
+        }
+    }
+
+    @Test(description = "PdfFileManager(path) throws when file path does not exist")
+    public void constructorWithMissingFileShouldThrowRuntimeException() {
+        try {
+            new PdfFileManager("src/test/resources/testDataFiles/does-not-exist.pdf");
+            Assert.fail("Expected RuntimeException for missing constructor PDF path");
+        } catch (RuntimeException exception) {
+            Assert.assertTrue(exception.getMessage().contains("Couldn't find the provided file"),
+                    "Missing-file constructor should fail with constructor validation message");
+        }
+    }
+
+    @Test(description = "PdfFileManager(folder,file,retries) throws when file path does not exist")
+    public void threeArgConstructorWithMissingFileShouldThrowRuntimeException() {
+        try {
+            new PdfFileManager("src/test/resources/testDataFiles/", "does-not-exist.pdf", 1);
+            Assert.fail("Expected RuntimeException for missing 3-arg constructor PDF path");
+        } catch (RuntimeException exception) {
+            Assert.assertTrue(exception.getMessage().contains("Couldn't find the provided file"),
+                    "Missing-file 3-arg constructor should fail with constructor validation message");
+        }
+    }
+
+    @Test(description = "readFileContent throws when target file is not a valid PDF")
+    public void staticReadFileContentWithCorruptedPdfShouldThrowRuntimeException() throws IOException {
+        Path corruptedPdf = createCorruptedPdfPlaceholder();
+        RuntimeException exception =
+                Assert.expectThrows(RuntimeException.class, () -> PdfFileManager.readFileContent(corruptedPdf.toString()));
+        Assert.assertTrue(exception.getMessage().contains("Failed to read this PDF file"),
+                "Corrupted PDF static read should fail with parse/read error message");
+    }
+
+    @Test(description = "readFileContent throws when target path points to an existing directory")
+    public void staticReadFileContentWithDirectoryPathShouldThrowRuntimeException() {
+        Assert.expectThrows(RuntimeException.class,
+                () -> PdfFileManager.readFileContent("src/test/resources/testDataFiles"));
+    }
+
+    @Test(description = "readPDFContentFromDownloadedPDF throws when target file is not a valid PDF")
+    public void readPdfContentFromDownloadedPdfWithCorruptedPdfShouldThrowRuntimeException() throws IOException {
+        Path corruptedPdf = createCorruptedPdfPlaceholder();
+        PdfFileManager manager = new PdfFileManager(corruptedPdf.toString());
+        RuntimeException exception = Assert.expectThrows(RuntimeException.class,
+                () -> manager.readPDFContentFromDownloadedPDF(PdfFileManager.DeleteFileAfterValidationStatus.FALSE));
+        Assert.assertTrue(exception.getMessage().contains("Couldn't get the document that was parsed"),
+                "Corrupted PDF downloaded-flow read should fail with parsing error message");
+    }
+
+    @Test(description = "readPDFContentFromDownloadedPDF throws when target path points to a directory")
+    public void readPdfContentFromDownloadedPdfWithDirectoryPathShouldThrowRuntimeException() {
+        PdfFileManager manager = new PdfFileManager("src/test/resources/testDataFiles");
+        Assert.expectThrows(RuntimeException.class,
+                () -> manager.readPDFContentFromDownloadedPDF(PdfFileManager.DeleteFileAfterValidationStatus.FALSE));
+    }
+
+    private Path createTemporaryPdfCopy() throws IOException {
+        Path copiedPdf = Files.createTempFile("shaft-pdf-file-manager-", ".pdf");
+        temporaryFiles.add(copiedPdf);
+        Files.copy(Path.of(SAMPLE_PDF), copiedPdf, StandardCopyOption.REPLACE_EXISTING);
+        return copiedPdf;
+    }
+
+    private Path createCorruptedPdfPlaceholder() throws IOException {
+        Path corruptedPdf = Files.createTempFile("shaft-corrupted-pdf-", ".pdf");
+        temporaryFiles.add(corruptedPdf);
+        Files.writeString(corruptedPdf, "this is not a valid pdf");
+        return corruptedPdf;
     }
 }
