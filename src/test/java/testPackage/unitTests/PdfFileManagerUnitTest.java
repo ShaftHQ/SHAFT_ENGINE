@@ -71,7 +71,6 @@ public class PdfFileManagerUnitTest {
         Assert.assertNotNull(content, "readFileContent with delete=true must not return null");
         Assert.assertFalse(content.isBlank(), "readFileContent with delete=true must return non-blank content");
         Assert.assertFalse(Files.exists(copiedPdf), "Copied PDF should be deleted when delete=true");
-        temporaryFiles.remove(copiedPdf);
     }
 
     // ─── constructor + instance readFileContent ───────────────────────────────
@@ -145,7 +144,6 @@ public class PdfFileManagerUnitTest {
         String content = manager.readPDFContentFromDownloadedPDF(PdfFileManager.DeleteFileAfterValidationStatus.TRUE);
         Assert.assertNotNull(content, "readPDFContentFromDownloadedPDF(TRUE) must not return null");
         Assert.assertFalse(Files.exists(copiedPdf), "Copied PDF must be deleted when delete status is TRUE");
-        temporaryFiles.remove(copiedPdf);
     }
 
     @Test(description = "readFileContent throws when file path does not exist")
@@ -184,7 +182,10 @@ public class PdfFileManagerUnitTest {
     @Test(description = "readFileContent throws when target file is not a valid PDF")
     public void staticReadFileContentWithCorruptedPdfShouldThrowRuntimeException() throws IOException {
         Path corruptedPdf = createCorruptedPdfPlaceholder();
-        Assert.expectThrows(RuntimeException.class, () -> PdfFileManager.readFileContent(corruptedPdf.toString()));
+        RuntimeException exception =
+                Assert.expectThrows(RuntimeException.class, () -> PdfFileManager.readFileContent(corruptedPdf.toString()));
+        Assert.assertTrue(exception.getMessage().contains("Failed to read this PDF file"),
+                "Corrupted PDF static read should fail with parse/read error message");
     }
 
     @Test(description = "readFileContent throws when target path points to an existing directory")
@@ -197,8 +198,10 @@ public class PdfFileManagerUnitTest {
     public void readPdfContentFromDownloadedPdfWithCorruptedPdfShouldThrowRuntimeException() throws IOException {
         Path corruptedPdf = createCorruptedPdfPlaceholder();
         PdfFileManager manager = new PdfFileManager(corruptedPdf.toString());
-        Assert.expectThrows(RuntimeException.class,
+        RuntimeException exception = Assert.expectThrows(RuntimeException.class,
                 () -> manager.readPDFContentFromDownloadedPDF(PdfFileManager.DeleteFileAfterValidationStatus.FALSE));
+        Assert.assertTrue(exception.getMessage().contains("Couldn't get the document that was parsed"),
+                "Corrupted PDF downloaded-flow read should fail with parsing error message");
     }
 
     @Test(description = "readPDFContentFromDownloadedPDF throws when target path points to a directory")
