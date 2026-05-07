@@ -27,6 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class LightHouseGenerateReportCoverageUnitTest {
+    private static final String AMPERSAND_PLACEHOLDER = "N898";
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() {
@@ -79,9 +80,9 @@ public class LightHouseGenerateReportCoverageUnitTest {
             Assert.assertEquals(mockedTerminalActions.constructed().size(), 2);
             verify(mockedTerminalActions.constructed().getFirst(), times(1))
                     .performTerminalCommand(Mockito.argThat(command ->
-                            command.startsWith("node GenerateLHScript.js")
-                                    && command.contains("--port=9999")
-                                    && command.contains("N898")));
+                                    command.startsWith("node GenerateLHScript.js")
+                                            && command.contains("--port=9999")
+                                    && command.contains(AMPERSAND_PLACEHOLDER)));
             verify(mockedTerminalActions.constructed().get(1), times(1))
                     .performTerminalCommand("node OpenLHReport.js");
         }
