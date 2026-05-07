@@ -7,6 +7,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
@@ -104,6 +105,8 @@ public class WebDriverListenerCoverageUnitTest {
 
         SHAFT.Validations.assertThat().object(getElementName.invoke(listener, accessibleElement)).isEqualTo("\"CTA\"").perform();
         SHAFT.Validations.assertThat().object(getElementName.invoke(listener, blankNameElement)).isEqualTo("element").perform();
+        Assert.assertThrows(java.lang.reflect.InvocationTargetException.class,
+                () -> getElementName.invoke(listener, failingElement));
 
         listener.afterGet(driver, "https://example.com");
         listener.beforeClick(failingElement);
