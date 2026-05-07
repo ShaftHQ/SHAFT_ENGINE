@@ -159,7 +159,7 @@ public class DriverFactoryCoverageUnitTest {
     }
 
     @Test
-    public void readLastMinuteUpdatedPropertiesShouldApplyXmlParametersAndDetectBrowserNameInTestName() {
+    public void getHelperShouldApplyTestNGXmlParametersAndInferPlatformFromTestName() {
         SHAFT.Properties.platform.set().targetPlatform("WINDOWS");
         DriverFactory factory = new DriverFactory();
         XmlTest xmlTest = org.mockito.Mockito.mock(XmlTest.class);
