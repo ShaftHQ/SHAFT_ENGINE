@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Ensures APK badging parsing (used to infer {@code mobile_appPackage} / {@code mobile_appActivity}) is stable.
@@ -116,18 +117,13 @@ public class AndroidApkBadgingReaderUnitTest {
 
     @Test(description = "Reader should use newest build-tools entries, skip missing aapt, and parse valid output")
     public void readPackageAndLaunchableActivity_prefersNewestBuildToolsAndParsesOutput() throws IOException {
-        String androidHome = System.getenv("ANDROID_HOME");
-        if (androidHome == null || androidHome.isBlank()) {
-            androidHome = System.getenv("ANDROID_SDK_ROOT");
-        }
-        if (androidHome == null || androidHome.isBlank()) {
-            throw new SkipException("ANDROID_HOME or ANDROID_SDK_ROOT must be available.");
-        }
+        String androidHome = resolveAndroidHomeOrSkip();
 
         Path buildTools = Path.of(androidHome, "build-tools");
-        Path successDir = buildTools.resolve("zz_cov_success_" + System.nanoTime());
-        Path noExecDir = buildTools.resolve("zz_cov_noexec_" + System.nanoTime());
+        Path successDir = buildTools.resolve("test_success_" + UUID.randomUUID());
+        Path noExecDir = buildTools.resolve("test_noexec_" + UUID.randomUUID());
         Path fakeApk = Files.createTempFile("fake-readable-", ".apk");
+        String executableName = System.getProperty("os.name", "").toLowerCase().contains("win") ? "aapt2.exe" : "aapt2";
 
         try {
             Files.createDirectories(successDir);
@@ -137,7 +133,6 @@ public class AndroidApkBadgingReaderUnitTest {
             Files.setLastModifiedTime(successDir, FileTime.fromMillis(System.currentTimeMillis() - 5000));
             Files.setLastModifiedTime(noExecDir, FileTime.fromMillis(System.currentTimeMillis()));
 
-            String executableName = System.getProperty("os.name", "").toLowerCase().contains("win") ? "aapt2.exe" : "aapt2";
             Path fakeAapt2 = successDir.resolve(executableName);
             String script = """
                     #!/bin/sh
@@ -156,8 +151,7 @@ public class AndroidApkBadgingReaderUnitTest {
             Assert.assertEquals(result.get().packageName(), "com.coverage.reader");
             Assert.assertEquals(result.get().launchableActivity(), "com.coverage.reader.MainActivity");
         } finally {
-            deleteIfExists(successDir.resolve("aapt2"));
-            deleteIfExists(successDir.resolve("aapt2.exe"));
+            deleteIfExists(successDir.resolve(executableName));
             deleteIfExists(successDir);
             deleteIfExists(noExecDir);
             deleteIfExists(fakeApk);
@@ -166,20 +160,14 @@ public class AndroidApkBadgingReaderUnitTest {
 
     @Test(description = "Reader should handle command start failures and continue scanning build-tools versions")
     public void readPackageAndLaunchableActivity_handlesAaptStartFailure() throws IOException {
-        String androidHome = System.getenv("ANDROID_HOME");
-        if (androidHome == null || androidHome.isBlank()) {
-            androidHome = System.getenv("ANDROID_SDK_ROOT");
-        }
-        if (androidHome == null || androidHome.isBlank()) {
-            throw new SkipException("ANDROID_HOME or ANDROID_SDK_ROOT must be available.");
-        }
+        String androidHome = resolveAndroidHomeOrSkip();
 
         Path buildTools = Path.of(androidHome, "build-tools");
-        Path failingDir = buildTools.resolve("zz_cov_failing_" + System.nanoTime());
+        Path failingDir = buildTools.resolve("test_failing_" + UUID.randomUUID());
         Path fakeApk = Files.createTempFile("fake-failing-", ".apk");
+        String executableName = System.getProperty("os.name", "").toLowerCase().contains("win") ? "aapt2.exe" : "aapt2";
         try {
             Files.createDirectories(failingDir);
-            String executableName = System.getProperty("os.name", "").toLowerCase().contains("win") ? "aapt2.exe" : "aapt2";
             Path failingExecutable = failingDir.resolve(executableName);
             Files.writeString(failingExecutable, "#!/bin/sh\necho should-not-run\n");
             failingExecutable.toFile().setExecutable(false);
@@ -188,11 +176,21 @@ public class AndroidApkBadgingReaderUnitTest {
             Files.writeString(fakeApk, "placeholder");
             Assert.assertTrue(AndroidApkBadgingReader.readPackageAndLaunchableActivity(fakeApk.toFile()).isEmpty());
         } finally {
-            deleteIfExists(failingDir.resolve("aapt2"));
-            deleteIfExists(failingDir.resolve("aapt2.exe"));
+            deleteIfExists(failingDir.resolve(executableName));
             deleteIfExists(failingDir);
             deleteIfExists(fakeApk);
         }
+    }
+
+    private static String resolveAndroidHomeOrSkip() {
+        String androidHome = System.getenv("ANDROID_HOME");
+        if (androidHome == null || androidHome.isBlank()) {
+            androidHome = System.getenv("ANDROID_SDK_ROOT");
+        }
+        if (androidHome == null || androidHome.isBlank()) {
+            throw new SkipException("ANDROID_HOME or ANDROID_SDK_ROOT must be available.");
+        }
+        return androidHome;
     }
 
     private static void deleteIfExists(Path path) throws IOException {
