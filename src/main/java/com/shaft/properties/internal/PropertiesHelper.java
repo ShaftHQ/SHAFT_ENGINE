@@ -253,7 +253,7 @@ public class PropertiesHelper {
         var propertiesFolderPath = Properties.paths.properties();
         boolean isExternalRun = propertiesFolderPath.contains("file:") && propertiesFolderPath.contains(".jar!");
 
-        Arrays.asList("/cucumber.properties", "/custom.properties", "/customWebdriverCapabilities.properties", "/log4j2.properties", "/TestNG.properties", "/reportportal.properties", "/junit-platform.properties")
+        Arrays.asList("/custom.properties")
                 .forEach(file -> {
                     if (!fileActions.doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + file)) {
                         if (isExternalRun) {
