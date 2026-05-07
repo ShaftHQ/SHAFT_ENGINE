@@ -8,7 +8,6 @@ import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.util.List;
 
@@ -35,7 +34,7 @@ public class PropertiesHelperInitializationUnitTest {
     public void initializeDefaultPropertiesShouldOnlyGenerateCustomPropertiesInTargetFolder() throws Exception {
         GENERATED_ROOT_PROPERTIES.forEach(this::deleteGeneratedPropertyFile);
 
-        invokeInitializeDefaultProperties();
+        PropertiesHelper.initialize();
 
         Assert.assertTrue(new File(PROPERTIES_FOLDER_PATH, "custom.properties").isFile(),
                 "custom.properties should be generated in the target properties folder.");
@@ -69,9 +68,4 @@ public class PropertiesHelperInitializationUnitTest {
         }
     }
 
-    private void invokeInitializeDefaultProperties() throws Exception {
-        Method method = PropertiesHelper.class.getDeclaredMethod("initializeDefaultProperties", boolean.class);
-        method.setAccessible(true);
-        method.invoke(null, false);
-    }
 }
