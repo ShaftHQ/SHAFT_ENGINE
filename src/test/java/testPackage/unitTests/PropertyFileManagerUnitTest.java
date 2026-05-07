@@ -104,16 +104,19 @@ public class PropertyFileManagerUnitTest {
         savedSkipApkInference = System.getProperty("shaft.skipApkPackageActivityInference");
 
         File tempApk = Files.createTempFile("shaft-skip-inference", ".apk").toFile();
-        tempApk.deleteOnExit();
-        SHAFT.Properties.mobile.set().app(tempApk.getAbsolutePath());
-        SHAFT.Properties.mobile.set().appPackage("");
-        SHAFT.Properties.mobile.set().appActivity("");
-        System.setProperty("shaft.skipApkPackageActivityInference", "true");
+        try {
+            SHAFT.Properties.mobile.set().app(tempApk.getAbsolutePath());
+            SHAFT.Properties.mobile.set().appPackage("");
+            SHAFT.Properties.mobile.set().appActivity("");
+            System.setProperty("shaft.skipApkPackageActivityInference", "true");
 
-        Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
+            Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
 
-        SHAFT.Validations.assertThat().object(caps.get("mobile_appPackage")).isEqualTo("").perform();
-        SHAFT.Validations.assertThat().object(caps.get("mobile_appActivity")).isEqualTo("").perform();
+            SHAFT.Validations.assertThat().object(caps.get("mobile_appPackage")).isEqualTo("").perform();
+            SHAFT.Validations.assertThat().object(caps.get("mobile_appActivity")).isEqualTo("").perform();
+        } finally {
+            Files.deleteIfExists(tempApk.toPath());
+        }
     }
 
     @Test(description = "getAppiumDesiredCapabilities should keep provided appPackage/appActivity values for APK app")
@@ -124,16 +127,19 @@ public class PropertyFileManagerUnitTest {
         savedSkipApkInference = System.getProperty("shaft.skipApkPackageActivityInference");
 
         File tempApk = Files.createTempFile("shaft-existing-identifiers", ".apk").toFile();
-        tempApk.deleteOnExit();
-        SHAFT.Properties.mobile.set().app(tempApk.getAbsolutePath());
-        SHAFT.Properties.mobile.set().appPackage("com.example.app");
-        SHAFT.Properties.mobile.set().appActivity("com.example.app.MainActivity");
-        System.setProperty("shaft.skipApkPackageActivityInference", "false");
+        try {
+            SHAFT.Properties.mobile.set().app(tempApk.getAbsolutePath());
+            SHAFT.Properties.mobile.set().appPackage("com.example.app");
+            SHAFT.Properties.mobile.set().appActivity("com.example.app.MainActivity");
+            System.setProperty("shaft.skipApkPackageActivityInference", "false");
 
-        Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
+            Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
 
-        SHAFT.Validations.assertThat().object(caps.get("mobile_appPackage")).isEqualTo("com.example.app").perform();
-        SHAFT.Validations.assertThat().object(caps.get("mobile_appActivity")).isEqualTo("com.example.app.MainActivity").perform();
+            SHAFT.Validations.assertThat().object(caps.get("mobile_appPackage")).isEqualTo("com.example.app").perform();
+            SHAFT.Validations.assertThat().object(caps.get("mobile_appActivity")).isEqualTo("com.example.app.MainActivity").perform();
+        } finally {
+            Files.deleteIfExists(tempApk.toPath());
+        }
     }
 
     @Test(description = "private constructor should throw IllegalStateException")
@@ -149,9 +155,21 @@ public class PropertyFileManagerUnitTest {
     public void readPropertyFiles_handlesMissingAndInvalidJarPaths() throws Exception {
         Method readPropertyFiles = PropertyFileManager.class.getDeclaredMethod("readPropertyFiles", String.class);
         readPropertyFiles.setAccessible(true);
+        String markerKey = "shaft.property.manager.read.marker";
+        String markerValue = "stable-value";
+        System.setProperty(markerKey, markerValue);
 
-        readPropertyFiles.invoke(null, "/path/that/does/not/exist");
-        readPropertyFiles.invoke(null, "invalid-archive.jar!broken");
+        try {
+            int beforePropertiesCount = System.getProperties().size();
+            readPropertyFiles.invoke(null, "/path/that/does/not/exist");
+            readPropertyFiles.invoke(null, "invalid-archive.jar!broken");
+            SHAFT.Validations.assertThat().object(System.getProperty(markerKey)).isEqualTo(markerValue).perform();
+            SHAFT.Validations.assertThat().object(System.getProperties().size() >= beforePropertiesCount).isEqualTo(true).perform();
+        } catch (InvocationTargetException e) {
+            Assert.fail("readPropertyFiles should handle invalid paths internally", e.getCause());
+        } finally {
+            System.clearProperty(markerKey);
+        }
     }
 
     @Test(description = "loadPropertiesFileIntoSystemProperties should gracefully handle non-readable file input")
@@ -163,8 +181,20 @@ public class PropertyFileManagerUnitTest {
         );
         loadMethod.setAccessible(true);
         File directory = Files.createTempDirectory("shaft-property-file-dir").toFile();
-        directory.deleteOnExit();
+        String key = "shaft.property.manager.ioexception";
+        String previousValue = "before-load";
+        System.setProperty(key, previousValue);
+        java.util.Properties properties = new java.util.Properties();
+        properties.setProperty(key, "from-file-load");
 
-        loadMethod.invoke(null, new java.util.Properties(), directory);
+        try {
+            loadMethod.invoke(null, properties, directory);
+        } catch (InvocationTargetException e) {
+            Assert.fail("loadPropertiesFileIntoSystemProperties should handle IO errors internally", e.getCause());
+        } finally {
+            Files.deleteIfExists(directory.toPath());
+        }
+        SHAFT.Validations.assertThat().object(System.getProperty(key)).isEqualTo(previousValue).perform();
+        System.clearProperty(key);
     }
 }
