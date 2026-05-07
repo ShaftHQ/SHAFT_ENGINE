@@ -34,7 +34,7 @@ public class RealtimeReporterServerUnitTest {
         startServer.setAccessible(true);
         startServer.invoke(null);
         if (!RealtimeReporter.isRunning()) {
-            throw new SkipException("RealtimeReporter server is not available on localhost:8181 in this environment.");
+            throw new SkipException("RealtimeReporter server is not available in this environment.");
         }
         var dashboardUrlField = RealtimeReporter.class.getDeclaredField("DASHBOARD_URL");
         dashboardUrlField.setAccessible(true);

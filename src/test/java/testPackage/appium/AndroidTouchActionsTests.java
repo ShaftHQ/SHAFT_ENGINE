@@ -192,6 +192,7 @@ public class AndroidTouchActionsTests extends MobileTest {
         driver.get().touch()
                 .tap(AppiumBy.accessibilityId("Drag"))
                 .swipeToElement(AppiumBy.accessibilityId("drag-l2"), AppiumBy.accessibilityId("drop-l2"));
+        // Validate the actual drop target is present after drag-and-drop.
         driver.get().assertThat()
                 .element(AppiumBy.accessibilityId("drop-l2"))
                 .exists()
