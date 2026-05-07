@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class ReportManagerHelperUnitTest {
+public class ReportManagerHelperUnitTests {
 
     @BeforeMethod(alwaysRun = true)
     @AfterMethod(alwaysRun = true)
@@ -80,6 +80,20 @@ public class ReportManagerHelperUnitTest {
     }
 
     @Test
+    public void deduplicateConsecutiveLogLinesShouldHandleEdgeCases() throws Exception {
+        Method deduplicateMethod = ReportManagerHelper.class.getDeclaredMethod("deduplicateConsecutiveLogLines", byte[].class);
+        deduplicateMethod.setAccessible(true);
+
+        byte[] empty = (byte[]) deduplicateMethod.invoke(null, new byte[0]);
+        byte[] singleLine = (byte[]) deduplicateMethod.invoke(null, "single".getBytes(StandardCharsets.UTF_8));
+        byte[] onlyNewlines = (byte[]) deduplicateMethod.invoke(null, "\n\n".getBytes(StandardCharsets.UTF_8));
+
+        SHAFT.Validations.assertThat().object(new String(empty, StandardCharsets.UTF_8)).isEqualTo("").perform();
+        SHAFT.Validations.assertThat().object(new String(singleLine, StandardCharsets.UTF_8)).isEqualTo("single").perform();
+        SHAFT.Validations.assertThat().object(new String(onlyNewlines, StandardCharsets.UTF_8)).isEqualTo("").perform();
+    }
+
+    @Test
     public void inferMimeTypeFromAttachmentShouldReturnExpectedMimeTypes() throws Exception {
         Method inferMimeTypeMethod = ReportManagerHelper.class.getDeclaredMethod("inferMimeTypeFromAttachment", String.class, String.class);
         inferMimeTypeMethod.setAccessible(true);
@@ -87,11 +101,19 @@ public class ReportManagerHelperUnitTest {
         String imagePng = (String) inferMimeTypeMethod.invoke(null, "Screenshot", "result.png");
         String gif = (String) inferMimeTypeMethod.invoke(null, "Animated GIF", "result");
         String mp4 = (String) inferMimeTypeMethod.invoke(null, "Recording", "video.mp4");
+        String json = (String) inferMimeTypeMethod.invoke(null, "Response JSON", "payload.json");
+        String xml = (String) inferMimeTypeMethod.invoke(null, "Response XML", "payload.xml");
+        String csv = (String) inferMimeTypeMethod.invoke(null, "Report CSV", "report.csv");
+        String html = (String) inferMimeTypeMethod.invoke(null, "Page Snapshot", "index.html");
         String fallback = (String) inferMimeTypeMethod.invoke(null, "Unknown", "data.bin");
 
         SHAFT.Validations.assertThat().object(imagePng).isEqualTo("image/png").perform();
         SHAFT.Validations.assertThat().object(gif).isEqualTo("image/gif").perform();
         SHAFT.Validations.assertThat().object(mp4).isEqualTo("video/mp4").perform();
+        SHAFT.Validations.assertThat().object(json).isEqualTo("application/json").perform();
+        SHAFT.Validations.assertThat().object(xml).isEqualTo("text/xml").perform();
+        SHAFT.Validations.assertThat().object(csv).isEqualTo("text/csv").perform();
+        SHAFT.Validations.assertThat().object(html).isEqualTo("text/html").perform();
         SHAFT.Validations.assertThat().object(fallback).isEqualTo("text/plain").perform();
     }
 
