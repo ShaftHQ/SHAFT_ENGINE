@@ -15,14 +15,14 @@ public class ProgressBarLoggerCoverageUnitTest {
     }
 
     @Test
-    public void shouldUseAnsiColorsShouldRespectCucumberAnsiDisabledProperty() {
+    public void shouldUseAnsiColorsWhenCucumberAnsiDisabledShouldReturnFalse() {
         System.setProperty("cucumber.ansi-colors.disabled", "true");
 
         Assert.assertFalse(ProgressBarLogger.shouldUseAnsiColors());
     }
 
     @Test
-    public void shouldUseAnsiColorsShouldMatchConsoleAvailabilityWhenNotDisabled() {
+    public void shouldUseAnsiColorsWhenNotDisabledShouldMatchConsoleAvailability() {
         System.setProperty("cucumber.ansi-colors.disabled", "false");
 
         Assert.assertEquals(ProgressBarLogger.shouldUseAnsiColors(), System.console() != null);
