@@ -193,7 +193,8 @@ public class AndroidTouchActionsTests extends MobileTest {
                 .tap(AppiumBy.accessibilityId("Drag"))
                 .swipeToElement(AppiumBy.accessibilityId("drag-l2"), AppiumBy.accessibilityId("drop-l2"));
         driver.get().assertThat()
-                .element(AppiumBy.accessibilityId("drag-l2"))
-                .exists();
+                .element(AppiumBy.accessibilityId("drop-l2"))
+                .exists()
+                .perform();
     }
 }

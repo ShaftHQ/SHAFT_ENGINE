@@ -36,7 +36,7 @@ public class FileActionsUnitTest {
         Assert.assertTrue(testFileActions.doesFileExist(renamedPath));
         Assert.assertEquals(testFileActions.readFile(renamedPath), "line-1");
 
-        testFileActions.renameFile(renamedPath, "renamed.txt");
+        testFileActions.renameFile(new File(renamedPath).getAbsolutePath(), "renamed.txt");
         Assert.assertTrue(testFileActions.doesFileExist(TEMP_DIR.resolve("").toString() + File.separator, "renamed.txt", 1));
 
         byte[] bytes = "bytes-content".getBytes(StandardCharsets.UTF_8);
