@@ -8,6 +8,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -182,18 +183,18 @@ public class ReportManagerHelperUnitTests {
     }
 
     @Test
-    public void testNgContextHelpersShouldReturnCurrentMethodData() {
+    public void testNGContextHelpersShouldReturnCurrentMethodData() {
         String currentClassName = ReportManagerHelper.getTestClassName();
         String currentMethodName = ReportManagerHelper.getTestMethodName();
-        Boolean currentStatus = ReportManagerHelper.isCurrentTestPassed();
+        Boolean testPassed = ReportManagerHelper.isCurrentTestPassed();
 
         SHAFT.Validations.assertThat().object(currentClassName).contains("testPackage.unitTests.ReportManagerHelperUnitTests").perform();
-        SHAFT.Validations.assertThat().object(currentMethodName).isEqualTo("testNgContextHelpersShouldReturnCurrentMethodData").perform();
-        SHAFT.Validations.assertThat().object(currentStatus).isNotNull().perform();
+        SHAFT.Validations.assertThat().object(currentMethodName).isEqualTo("testNGContextHelpersShouldReturnCurrentMethodData").perform();
+        SHAFT.Validations.assertThat().object(testPassed).isNotNull().perform();
     }
 
     @Test
-    public void loggingAndAttachmentMethodsShouldExecuteWithoutThrowing() {
+    public void loggingAndAttachmentMethodsShouldExecuteWithoutThrowing() throws Exception {
         ReportManagerHelper.setDebugMode(true);
         ReportManagerHelper.setTotalNumberOfTests(4);
         ReportManagerHelper.setFeatureName("Feature A");
@@ -238,16 +239,25 @@ public class ReportManagerHelperUnitTests {
         ReportManagerHelper.logDiscrete(new RuntimeException("discrete exception"));
         ReportManagerHelper.logDiscrete(new RuntimeException("discrete exception warning"), Level.WARN);
         ReportManagerHelper.logDiscrete("discrete text", Level.INFO);
+
+        int testCaseCounter = getPrivateStaticField("testCasesCounter", AtomicInteger.class).get();
+        SHAFT.Validations.assertThat().object(testCaseCounter).isEqualTo(3).perform();
     }
 
     @Test
     public void debugFileLoggingShouldCreateAndAttachEngineLog() throws Exception {
+        Method getLogFilePathMethod = ReportManagerHelper.class.getDeclaredMethod("getLogFilePath");
+        getLogFilePathMethod.setAccessible(true);
+        String logFilePath = (String) getLogFilePathMethod.invoke(null);
+
         ReportManagerHelper.enableDebugFileLogging();
         ReportManagerHelper.writeStepToReport("debug log entry");
+        SHAFT.Validations.assertThat().object(new File(logFilePath).isFile()).isTrue().perform();
         ReportManagerHelper.attachEngineLog("execution-end");
 
         boolean debugFileLoggingEnabled = getPrivateStaticField("debugFileLoggingEnabled", Boolean.class);
         SHAFT.Validations.assertThat().object(debugFileLoggingEnabled).isFalse().perform();
+        SHAFT.Validations.assertThat().object(new File(logFilePath).exists()).isFalse().perform();
     }
 
     @Test
@@ -258,14 +268,15 @@ public class ReportManagerHelperUnitTests {
         addSpacingMethod.setAccessible(true);
         Method getStepStatusMethod = ReportManagerHelper.class.getDeclaredMethod("getStepStatus", String.class);
         getStepStatusMethod.setAccessible(true);
+        int separatorWidth = getPrivateStaticField("SEPARATOR_WIDTH", Integer.class);
 
         String separator = (String) createSeparatorMethod.invoke(null, '=');
         String doubleLineSeparator = (String) createSeparatorMethod.invoke(null, '═');
         String spaced = (String) addSpacingMethod.invoke(null, "one\ntwo");
         Object failedStatus = getStepStatusMethod.invoke(null, "step failed");
 
-        SHAFT.Validations.assertThat().object(separator.length()).isEqualTo(144).perform();
-        SHAFT.Validations.assertThat().object(doubleLineSeparator.length()).isEqualTo(144).perform();
+        SHAFT.Validations.assertThat().object(separator.length()).isEqualTo(separatorWidth).perform();
+        SHAFT.Validations.assertThat().object(doubleLineSeparator.length()).isEqualTo(separatorWidth).perform();
         SHAFT.Validations.assertThat().object(spaced).contains("one").perform();
         SHAFT.Validations.assertThat().object(failedStatus.toString()).isEqualTo("FAILED").perform();
     }
@@ -288,21 +299,23 @@ public class ReportManagerHelperUnitTests {
         ReportManagerHelper.attachIssuesLog("execution-end");
 
         SHAFT.Validations.assertThat().object(ReportManagerHelper.getIssueCounter()).isEqualTo(1).perform();
+        SHAFT.Validations.assertThat().object(getPrivateStaticFieldUnchecked("issuesLog", AtomicReference.class).get())
+                .contains("ClassA.testOne").perform();
     }
 
     @Test
     public void utilityConstructorShouldThrowIllegalStateException() throws Exception {
         Constructor<ReportManagerHelper> constructor = ReportManagerHelper.class.getDeclaredConstructor();
         constructor.setAccessible(true);
-        boolean illegalStateThrown = false;
+        InvocationTargetException invocationTargetException = null;
         try {
             constructor.newInstance();
         } catch (InvocationTargetException e) {
-            illegalStateThrown = true;
-            SHAFT.Validations.assertThat().object(e.getCause().getClass().getName()).isEqualTo("java.lang.IllegalStateException").perform();
-            SHAFT.Validations.assertThat().object(e.getCause().getMessage()).isEqualTo("Utility class").perform();
+            invocationTargetException = e;
         }
-        SHAFT.Validations.assertThat().object(illegalStateThrown).isTrue().perform();
+        SHAFT.Validations.assertThat().object(invocationTargetException).isNotNull().perform();
+        SHAFT.Validations.assertThat().object(invocationTargetException.getCause().getClass().getName()).isEqualTo("java.lang.IllegalStateException").perform();
+        SHAFT.Validations.assertThat().object(invocationTargetException.getCause().getMessage()).isEqualTo("Utility class").perform();
     }
 
     private static <T> T getPrivateStaticField(String fieldName, Class<T> type) throws Exception {
@@ -315,5 +328,13 @@ public class ReportManagerHelperUnitTests {
         Field field = ReportManagerHelper.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(null, value);
+    }
+
+    private static <T> T getPrivateStaticFieldUnchecked(String fieldName, Class<T> type) {
+        try {
+            return getPrivateStaticField(fieldName, type);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }
