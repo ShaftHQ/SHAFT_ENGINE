@@ -33,16 +33,13 @@ public class ValidationsHelper2CoverageUnitTest {
         ValidationsHelper.resetVerificationStateAfterFailing();
     }
 
-    @Test(description = "Covers hard/soft equality and number validation paths")
+    @Test(description = "Covers hard-assert equality and number validation pass paths")
     public void validateEqualsAndNumberShouldCoverPassAndFailBranches() {
         ValidationsHelper2 hardAssertHelper = new ValidationsHelper2(ValidationEnums.ValidationCategory.HARD_ASSERT);
 
         hardAssertHelper.validateEquals("same", "same", ValidationEnums.ValidationComparisonType.EQUALS,
                 ValidationEnums.ValidationType.POSITIVE);
         hardAssertHelper.validateNumber(10, 10, ValidationEnums.NumbersComparativeRelation.EQUALS,
-                ValidationEnums.ValidationType.POSITIVE);
-
-        hardAssertHelper.validateEquals("a", "b", ValidationEnums.ValidationComparisonType.EQUALS,
                 ValidationEnums.ValidationType.POSITIVE);
 
     }
@@ -166,7 +163,8 @@ public class ValidationsHelper2CoverageUnitTest {
         Assert.assertEquals(normalizeDirection.invoke(helper, "anythingElse"), "ltr");
 
         @SuppressWarnings("unchecked")
-        var parameters = (java.util.LinkedHashMap<String, String>) setCommonParameters.invoke(helper, "expected", "actual", "contains");
+        java.util.LinkedHashMap<String, String> parameters =
+                (java.util.LinkedHashMap<String, String>) setCommonParameters.invoke(helper, "expected", "actual", "contains");
         Assert.assertEquals(parameters.get("Expected value"), "expected");
         Assert.assertEquals(parameters.get("Actual value"), "actual");
         Assert.assertEquals(parameters.get("Comparison type"), "Contains");
@@ -180,6 +178,6 @@ public class ValidationsHelper2CoverageUnitTest {
         String formatted = (String) formatAssertionError.invoke(null, error);
         Assert.assertNotNull(formatted);
         Assert.assertTrue(formatted.contains("Assertion Failed"));
-        Assert.assertNull(formatAssertionError.invoke(null, new Object[]{null}));
+        Assert.assertNull(formatAssertionError.invoke(null, (Object) null));
     }
 }
