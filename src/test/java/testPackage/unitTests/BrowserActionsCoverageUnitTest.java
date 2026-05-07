@@ -57,7 +57,7 @@ public class BrowserActionsCoverageUnitTest {
 
         when(driver.getTitle()).thenReturn("Example title");
         when(driver.getPageSource()).thenReturn("<html><body>example</body></html>");
-        when(driver.getWindowHandle()).thenReturn("window-1", "window-2", "window-2", "window-2");
+        when(driver.getWindowHandle()).thenReturn("window-1");
         when(driver.getWindowHandles()).thenReturn(Set.of("window-1", "window-2"));
 
         when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn("img".getBytes());
@@ -100,22 +100,16 @@ public class BrowserActionsCoverageUnitTest {
         Assert.assertEquals(browserActions.getWindowSize(), "(1200, 800)");
         Assert.assertEquals(browserActions.getWindowHeight(), "800");
         Assert.assertEquals(browserActions.getWindowWidth(), "1200");
-        Assert.assertEquals(browserActions.getWindowHandles(), List.of("window-1", "window-2"));
+        List<String> windowHandles = browserActions.getWindowHandles();
+        Assert.assertEquals(windowHandles.size(), 2);
+        Assert.assertTrue(windowHandles.contains("window-1"));
+        Assert.assertTrue(windowHandles.contains("window-2"));
         Assert.assertNotNull(browserActions.accessibility());
     }
 
     @Test
     public void shouldCoverNavigationAndWindowControlMethods() {
-        when(driver.getCurrentUrl()).thenReturn(
-                "https://example.com/start",
-                "https://example.com/target",
-                "https://example.com/target",
-                "https://example.com/page1",
-                "https://example.com/page2",
-                "https://example.com/page2",
-                "https://example.com/page1",
-                "https://example.com/page1",
-                "https://example.com/page2");
+        when(driver.getCurrentUrl()).thenReturn("https://example.com/start", "https://example.com/target");
         Mockito.doReturn("window-1", "window-2", "window-2", "window-3").when(driver).getWindowHandle();
 
         browserActions.navigateToURL("https://example.com/target", "https://example.com/target");
@@ -124,7 +118,9 @@ public class BrowserActionsCoverageUnitTest {
         Assert.assertThrows(RuntimeException.class,
                 () -> browserActions.navigateToURL("https://example.com/new-window", WindowType.WINDOW));
 
+        when(driver.getCurrentUrl()).thenReturn("https://example.com/page2", "https://example.com/page1");
         browserActions.navigateBack();
+        when(driver.getCurrentUrl()).thenReturn("https://example.com/page1", "https://example.com/page2");
         browserActions.navigateForward();
         browserActions.refreshCurrentPage();
 
