@@ -42,7 +42,7 @@ public class ImageProcessingActionsUnitTest {
     public void setup() throws Exception {
         testFileActions.deleteFolder(TEMP_DIR.toString());
         testFileActions.createFolder(TEMP_DIR.toString());
-        setAiFolderPath(TEMP_DIR.toAbsolutePath() + File.separator);
+        setAiFolderPath(TEMP_DIR.toAbsolutePath().toString() + File.separator);
         clearLocatorHashCache();
     }
 
@@ -85,7 +85,7 @@ public class ImageProcessingActionsUnitTest {
         testFileActions.writeToFile(TEMP_DIR.resolve(hashed + "_shutterbug.png").toString(), shutterbugBytes);
 
         try (MockedStatic<ScreenshotHelper> screenshotHelperMock = org.mockito.Mockito.mockStatic(ScreenshotHelper.class)) {
-            screenshotHelperMock.when(ScreenshotHelper::getAiAidedElementIdentificationFolderPath).thenReturn(TEMP_DIR.toAbsolutePath() + File.separator);
+            screenshotHelperMock.when(ScreenshotHelper::getAiAidedElementIdentificationFolderPath).thenReturn(TEMP_DIR.toAbsolutePath().toString() + File.separator);
             Assert.assertEquals(ImageProcessingActions.getReferenceImage(locator), imageBytes);
             Assert.assertEquals(ImageProcessingActions.getShutterbugDifferencesImage(locator), shutterbugBytes);
         }
@@ -155,6 +155,7 @@ public class ImageProcessingActionsUnitTest {
         boolean result = ImageProcessingActions.compareAgainstBaseline(
                 org.mockito.Mockito.mock(WebDriver.class),
                 locator,
+                // empty screenshot forces OpenCV lookup to return no match against an existing baseline image
                 new byte[0],
                 ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV
         );
