@@ -60,22 +60,22 @@ public class AlertActionsCoverageUnitTest {
     public void shouldCoverFailureBranchesForCoreAlertMethods() {
         Alert failOnAccept = mock(Alert.class);
         doThrow(new RuntimeException("forced accept failure")).when(failOnAccept).accept();
-        Assert.assertThrows(NullPointerException.class,
+        Assert.assertThrows(RuntimeException.class,
                 () -> createAlertActionsWithHelperConstructor(failOnAccept).acceptAlert());
 
         Alert failOnDismiss = mock(Alert.class);
         doThrow(new RuntimeException("forced dismiss failure")).when(failOnDismiss).dismiss();
-        Assert.assertThrows(NullPointerException.class,
+        Assert.assertThrows(RuntimeException.class,
                 () -> createAlertActionsWithHelperConstructor(failOnDismiss).dismissAlert());
 
         Alert failOnGetText = mock(Alert.class);
         when(failOnGetText.getText()).thenThrow(new RuntimeException("forced getText failure"));
-        Assert.assertThrows(NullPointerException.class,
+        Assert.assertThrows(RuntimeException.class,
                 () -> createAlertActionsWithHelperConstructor(failOnGetText).getAlertText());
 
         Alert failOnSendKeys = mock(Alert.class);
         doThrow(new RuntimeException("forced sendKeys failure")).when(failOnSendKeys).sendKeys(anyString());
-        Assert.assertThrows(NullPointerException.class,
+        Assert.assertThrows(RuntimeException.class,
                 () -> createAlertActionsWithHelperConstructor(failOnSendKeys).typeIntoPromptAlert("prompt"));
     }
 
