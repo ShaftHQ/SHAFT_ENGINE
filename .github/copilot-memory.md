@@ -18,3 +18,9 @@ Purpose: keep high-signal, reusable learnings from implementation sessions in on
 - Evidence: `pom.xml`, `.mvn/jvm.config`, `.github/actions/setup-test-env/action.yml`, `src/test/java/testPackage/properties/Log4jTests.java`
 - Action taken: Added explicit UTF-8 JVM flags and coverage assertions to prevent regressions.
 
+- Date: 2026-05-08
+- Area: Agent knowledge migration / instruction hygiene
+- Trigger: Request to scan repository skills, tools, instructions, and memory for a smooth AI-agent migration without knowledge loss.
+- Lesson: Use `docs/AGENT_KNOWLEDGE_MIGRATION.md` for future migration tasks: create or link a ticket, branch before editing, progressively scan instruction/memory/skill files, favor executable configuration over stale prose, update the memory ledger, commit, and open a PR; if GitHub publication access is missing, explicitly report the limitation and provide a PR handoff.
+- Evidence: `docs/AGENT_KNOWLEDGE_MIGRATION.md`, `docs/tickets/2026-05-08-agent-knowledge-migration.md`, `.github/copilot-instructions.md`, `CLAUDE.md`
+- Action taken: Added a migration runbook, local ticket, global instruction reference, Claude guidance, and this memory entry.

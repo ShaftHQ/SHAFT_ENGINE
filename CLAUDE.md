@@ -3,6 +3,10 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 It is a living document — update it at the end of every non-trivial session with new patterns, constraints, and learnings.
 
+## Repository Knowledge Migration
+
+When a session asks to scan, consolidate, migrate, or preserve repository knowledge, use `docs/AGENT_KNOWLEDGE_MIGRATION.md` as the canonical runbook. Create or link a task ticket first, create a dedicated task branch before editing, scan instruction/memory/skill/tool files with progressive disclosure, reconcile conflicts in favor of scoped instructions and executable config, update `.github/copilot-memory.md` with reusable lessons, commit the work, and open a PR for human collaboration; if GitHub publication access is unavailable, report the limitation and provide a PR handoff.
+
 ## Commands
 
 ```bash
