@@ -152,12 +152,12 @@ public class DriverFactoryHelper {
     @SneakyThrows({InterruptedException.class, MalformedURLException.class})
     private static int attemptRemoteServerPing() {
         boolean serverReady = false;
-        var session = new SHAFT.API(normalizeRemoteServerPingBaseUrl(TARGET_HUB_URL));
+        var pingUrl = normalizeRemoteServerPingBaseUrl(TARGET_HUB_URL) + "status/";
         var statusCode = 500;
         var startTime = System.currentTimeMillis();
         do {
             try {
-                statusCode = session.get("status/").perform().getResponse().andReturn().statusCode();
+                statusCode = com.shaft.tools.internal.support.HttpPingUtility.getStatusCode(pingUrl, 5000);
                 if (statusCode >= 200 && statusCode < 300) {
                     serverReady = true;
                 }
