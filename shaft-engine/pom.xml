@@ -70,6 +70,13 @@
 
 
     <dependencies>
+        <!-- SHAFT CORE -->
+        <dependency>
+            <groupId>io.github.shafthq</groupId>
+            <artifactId>shaft-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- TESTNG DEPENDENCIES -->
         <dependency>
             <groupId>org.testng</groupId>

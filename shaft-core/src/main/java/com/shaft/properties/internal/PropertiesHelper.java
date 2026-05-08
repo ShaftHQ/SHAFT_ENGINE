@@ -1,0 +1,316 @@
+package com.shaft.properties.internal;
+
+import com.shaft.cli.FileActions;
+import com.shaft.enums.internal.Screenshots;
+import com.shaft.tools.io.ReportManager;
+import org.aeonbits.owner.ConfigFactory;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.SystemUtils;
+import org.apache.logging.log4j.Level;
+
+import java.awt.*;
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+/**
+ * Initializes and post-processes framework configuration properties for runtime.
+ *
+ * <p>This helper loads default/custom property files, configures typed OWNER interfaces,
+ * and applies platform-specific overrides after initialization.</p>
+ *
+ * <p>Thread safety: this class uses static state and should be initialized during engine
+ * startup before parallel execution begins.</p>
+ */
+public class PropertiesHelper {
+    private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "src/main/resources/properties/default";
+    private static final String TARGET_PROPERTIES_FOLDER_PATH = DEFAULT_PROPERTIES_FOLDER_PATH.replace("/default", "");
+    private static final AtomicBoolean postProcessingDone = new AtomicBoolean(false);
+
+    /**
+     * Initializes framework properties for standard execution.
+     */
+    public static void initialize() {
+        //initialize default properties
+        initializeDefaultProperties(false);
+        //attach property files
+        attachPropertyFiles();
+        //load properties
+        loadProperties();
+        // Reset post-processing guard so next postProcessing() call re-evaluates overrides
+        postProcessingDone.set(false);
+    }
+
+    /**
+     * Initializes framework properties for AI-agent execution mode.
+     */
+    public static void initializeAiAgent() {
+        //initialize default properties
+        initializeDefaultProperties(true);
+        //attach property files
+        attachPropertyFiles();
+        //load properties
+        loadProperties();
+        // Reset post-processing guard so next postProcessing() call re-evaluates overrides
+        postProcessingDone.set(false);
+    }
+
+    private static void loadProperties() {
+        //read custom property files (if any) into system properties
+        PropertyFileManager.readCustomPropertyFiles();
+        // Clear any stale per-thread overrides from before the load (e.g., during re-initialization).
+        Properties.clearForCurrentThread();
+        //load base property objects - these are the global defaults inherited by all test threads.
+        Properties.basePaths = ConfigFactory.create(Paths.class); //reload paths in case the user changed something
+        Properties.basePlatform = ConfigFactory.create(Platform.class);
+        Properties.baseWeb = ConfigFactory.create(Web.class);
+        Properties.baseMobile = ConfigFactory.create(Mobile.class);
+        Properties.baseBrowserStack = ConfigFactory.create(BrowserStack.class);
+        Properties.internal = ConfigFactory.create(Internal.class);
+        Properties.baseFlags = ConfigFactory.create(Flags.class);
+        Properties.cucumber = ConfigFactory.create(Cucumber.class);
+        Properties.baseHealenium = ConfigFactory.create(Healenium.class);
+        Properties.baseJira = ConfigFactory.create(Jira.class);
+        Properties.basePattern = ConfigFactory.create(Pattern.class);
+        Properties.baseReporting = ConfigFactory.create(Reporting.class);
+        Properties.baseAllure = ConfigFactory.create(Allure.class);
+        Properties.baseTinkey = ConfigFactory.create(Tinkey.class);
+        Properties.testNG = ConfigFactory.create(TestNG.class);
+        Properties.log4j = ConfigFactory.create(Log4j.class);
+        Properties.baseVisuals = ConfigFactory.create(Visuals.class);
+        Properties.baseTimeouts = ConfigFactory.create(Timeouts.class);
+        Properties.basePerformance = ConfigFactory.create(Performance.class);
+        Properties.baseLambdaTest = ConfigFactory.create(LambdaTest.class);
+        Properties.baseApi = ConfigFactory.create(API.class);
+        Properties.initialized = true;
+    }
+
+    public static void setKeySystemProperties() {
+        //load paths as the default properties path is needed for the next step
+        Properties.basePaths = ConfigFactory.create(Paths.class);
+        //set key system properties that are needed for the framework to function
+        ThreadLocalPropertiesManager.setGlobalProperty("rp.properties.path", Properties.paths.properties());
+        ThreadLocalPropertiesManager.setGlobalProperty("webdriver.http.factory", "jdk-http-client");
+        ThreadLocalPropertiesManager.setGlobalProperty("log4j.configurationFile", PropertyFileManager.getLog4jConfigPath());
+        ThreadLocalPropertiesManager.setGlobalProperty("allure.testng.hide.configuration.failures", "true");
+        ThreadLocalPropertiesManager.setGlobalProperty("allure.testng.hide.disabled.tests", "true");
+    }
+
+    /**
+     * Applies runtime overrides based on platform and execution context.
+     */
+    public static void postProcessing() {
+        if (!postProcessingDone.compareAndSet(false, true)) {
+            return;
+        }
+        ReportManager.logDiscrete("Post processing some properties to support platforms-specific restrictions.");
+        overrideScreenShotTypeForMacPlatform();
+        overrideForcedFlagsForMobilePlatforms();
+        overrideTargetOperatingSystemForLocalExecution();
+        overrideScreenScalingFactorForWindows();
+        overrideScreenMaximizationForRemoteExecution();
+        overridePropertiesForMaximumPerformanceMode();
+        setMobilePlatform();
+        overrideScreenShotTypeForAnimatedGIF();
+        overrideScreenshotTypeForSafariBrowser();
+        overrideScreenshotTypeForParallelExecution();
+    }
+
+    private static void overrideScreenshotTypeForParallelExecution() {
+        if (!Properties.testNG.parallel().equals("NONE"))
+            Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
+    }
+
+    private static void overrideScreenScalingFactorForWindows() {
+        if (Properties.platform.targetPlatform().equalsIgnoreCase("WINDOWS")) {
+            try {
+                int res = Toolkit.getDefaultToolkit().getScreenResolution();
+                double scale = (double) res / 96;
+                Properties.visuals.set().screenshotParamsScalingFactor(scale);
+            } catch (java.awt.HeadlessException headlessException) {
+                //ignore the exception if running in headless OS => used by claude
+            }
+        }
+    }
+
+    private static void overrideForcedFlagsForMobilePlatforms() {
+        if (Arrays.asList("android",
+                "ios").contains(Properties.platform.targetPlatform().toLowerCase())) {
+            Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
+            Properties.flags.set().clearBeforeTypingMode("off");
+            Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(false);
+            Properties.flags.set().enableTrueNativeMode(true);
+            Properties.flags.set().forceCheckTextWasTypedCorrectly(false);
+            Properties.flags.set().respectBuiltInWaitsInNativeMode(false);
+            Properties.flags.set().handleNonSelectDropDown(false);
+            Properties.flags.set().validateSwipeToElement(false);
+            Properties.flags.set().scrollingMode("w3c");
+        }
+    }
+
+    private static void overrideScreenShotTypeForMacPlatform() {
+        if (Properties.platform.targetPlatform().equalsIgnoreCase("MAC")) {
+            Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
+        }
+    }
+
+    private static void overrideScreenMaximizationForRemoteExecution() {
+        if (!Properties.platform.executionAddress().equalsIgnoreCase("local")) {
+            Properties.flags.set().autoMaximizeBrowserWindow(false);
+        }
+    }
+
+    private static void overrideScreenShotTypeForAnimatedGIF() {
+        if (Properties.visuals.createAnimatedGif()) {
+            Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
+        }
+    }
+
+    private static void overrideTargetOperatingSystemForLocalExecution() {
+        var executionAddress = Properties.platform.executionAddress();
+        if (executionAddress.equals("local")) {
+            if (SystemUtils.IS_OS_WINDOWS) {
+                Properties.platform.set().targetPlatform("WINDOWS");
+            } else if (SystemUtils.IS_OS_LINUX) {
+                Properties.platform.set().targetPlatform("LINUX");
+            } else if (SystemUtils.IS_OS_MAC) {
+                Properties.platform.set().targetPlatform("MAC");
+            }
+        }
+    }
+
+    private static void overrideScreenshotTypeForSafariBrowser() {
+        if (Properties.web.targetBrowserName().equalsIgnoreCase("safari")) {
+            Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
+        }
+    }
+
+    public static void setMobilePlatform() {
+        String targetOperatingSystem = Properties.platform.targetPlatform();
+        if (Arrays.asList("android", "ios").contains(targetOperatingSystem.toLowerCase())) {
+            Properties.mobile.set().platformName(Properties.platform.targetPlatform().toLowerCase());
+        }
+    }
+
+    private static void downloadDefaultProperties(){
+        ReportManager.logDiscrete("Downloading default properties to user.home...");
+
+        var propertiesFolderPath = "target" + File.separator + "temp" + File.separator + "properties";
+        Properties.paths.set().properties(propertiesFolderPath);
+
+        Arrays.asList(
+                "TestNG.properties",
+                "cucumber.properties",
+                "custom.properties",
+                "customWebdriverCapabilities.properties",
+                "junit-platform.properties",
+                "log4j2.properties",
+                "reportportal.properties").forEach(PropertiesHelper::downloadPropertiesFile);
+    }
+
+    private static void initializeDefaultProperties(boolean forceDownload) {
+        if (forceDownload){
+            downloadDefaultProperties();
+        } else {
+            URL propertiesFolder = PropertyFileManager.class.getResource(DEFAULT_PROPERTIES_FOLDER_PATH.replace("src/main", "") + "/");
+            var propertiesFolderPath = "";
+            if (propertiesFolder != null) {
+                propertiesFolderPath = propertiesFolder.getFile();
+            } else {
+                propertiesFolderPath = DEFAULT_PROPERTIES_FOLDER_PATH;
+            }
+            Properties.paths.set().properties(propertiesFolderPath);
+
+            boolean isExternalRun = propertiesFolderPath.contains("file:") && propertiesFolderPath.contains(".jar!");
+
+            var fileActions = FileActions.getInstance(true);
+
+            // always override default properties
+            if (isExternalRun) {
+                try {
+                    if (propertiesFolderPath.contains("file:")) {
+                        fileActions.copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
+                    } else {
+                        throw new IOException("Properties folder path does not contain 'file:' protocol, indicating it is not running from a jar file.");
+                    }
+                } catch (Throwable ignored) {
+                    ReportManager.logDiscrete("Failed to copy default properties from jar.");
+                    downloadDefaultProperties();
+                }
+            }
+        }
+        // override target properties only if they do not exist
+        overrideTargetProperties();
+    }
+
+    private static void overrideTargetProperties(){
+        var fileActions = FileActions.getInstance(true);
+        var propertiesFolderPath = Properties.paths.properties();
+        boolean isExternalRun = propertiesFolderPath.contains("file:") && propertiesFolderPath.contains(".jar!");
+
+        Arrays.asList("/custom.properties")
+                .forEach(file -> {
+                    if (!fileActions.doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + file)) {
+                        if (isExternalRun) {
+                            var tempPath = propertiesFolderPath.replace("/default", "");
+                            try {
+                                if (tempPath.contains("file:")) {
+                                    fileActions.copyFileFromJar(tempPath, TARGET_PROPERTIES_FOLDER_PATH, file.replace("/", ""));
+                                } else {
+                                    throw new IOException("Properties folder path does not contain 'file:' protocol, indicating it is not running from a jar file.");
+                                }
+                            } catch (Throwable ignored) {
+                                fileActions.copyFile(tempPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);
+                            }
+                        } else {
+                            fileActions.copyFile(propertiesFolderPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);
+                        }
+                    }
+                });
+        Properties.paths.set().properties(TARGET_PROPERTIES_FOLDER_PATH);
+    }
+
+    private static void downloadPropertiesFile(String fileName) {
+        var baseURI = "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/main/src/main/resources/properties/default/";
+        FileActions.getInstance(true).downloadFile(baseURI + fileName,
+                Properties.paths.properties() + File.separator + fileName);
+    }
+
+    private static void attachPropertyFiles() {
+        ReportManager.logDiscrete("Reading properties directory: " + TARGET_PROPERTIES_FOLDER_PATH, Level.DEBUG);
+        FileUtils.listFiles(new File(TARGET_PROPERTIES_FOLDER_PATH), new String[]{"properties"},
+                false).forEach(propertyFile -> ReportManager.logDiscrete("Loading properties file: " + propertyFile, Level.DEBUG));
+    }
+
+    private static void overridePropertiesForMaximumPerformanceMode() {
+        int maximumPerformanceMode = Properties.flags.maximumPerformanceMode();
+        switch (maximumPerformanceMode) {
+            case 1, 2 -> {
+                Properties.healenium.set().healEnabled(false);
+                Properties.flags.set().autoMaximizeBrowserWindow(false);
+                Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
+                Properties.visuals.set().screenshotParamsHighlightElements(false);
+                Properties.visuals.set().screenshotParamsHighlightMethod("AI");
+                Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
+                Properties.visuals.set().screenshotParamsWatermark(true);
+                Properties.visuals.set().createAnimatedGif(false);
+                Properties.visuals.set().videoParamsRecordVideo(false);
+                Properties.reporting.set().debugMode(false);
+                Properties.reporting.set().captureElementName(false);
+                Properties.reporting.set().captureWebDriverLogs(false);
+                Properties.reporting.set().attachFullLog(false);
+                Properties.performance.set().generatePerformanceReport(false);
+                Properties.flags.set().telemetryEnabled(false);
+                Properties.web.set().headlessExecution(false);
+                if (maximumPerformanceMode == 2 && !"safari".equals(Properties.web.targetBrowserName())) {
+                    Properties.web.set().headlessExecution(true);
+                }
+            }
+            case 0 -> {
+                // do nothing
+            }
+        }
+    }
+}

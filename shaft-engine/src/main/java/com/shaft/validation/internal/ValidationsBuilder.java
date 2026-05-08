@@ -44,6 +44,13 @@ public class ValidationsBuilder {
         return new NumberValidationsBuilder(this);
     }
 
+    /**
+     * Build a file validation to check against the target file
+     *
+     * @param folderRelativePath relative path to the targetDirectory
+     * @param fileName           target fileName
+     * @return a FileValidationsBuilder object to continue building your validation
+     */
     public WebDriverElementValidationsBuilder element(WebDriver driver, By locator) {
         reportMessageBuilder.append("the element located by \"").append(JavaHelper.formatLocatorToString(locator)).append("\" ");
         return new WebDriverElementValidationsBuilder(validationCategory, driver, locator, reportMessageBuilder);

@@ -1,0 +1,139 @@
+package com.shaft.properties.internal;
+
+import com.shaft.tools.io.ReportManager;
+import org.aeonbits.owner.Config.Sources;
+import org.aeonbits.owner.ConfigFactory;
+
+/**
+ * Configuration properties interface for mobile and Appium testing in the SHAFT framework.
+ * Controls device name, platform version, app path, automation engine, and Appium server settings.
+ *
+ * <p>Use {@link #set()} to override values programmatically:
+ * <pre>{@code
+ * SHAFT.Properties.mobile.set().deviceName("Pixel_5").platformVersion("13.0");
+ * }</pre>
+ */
+@SuppressWarnings("unused")
+@Sources({"system:properties",
+        "file:src/main/resources/properties/MobileCapabilities.properties",
+        "file:src/main/resources/properties/default/MobileCapabilities.properties",
+        "classpath:MobileCapabilities.properties",
+})
+public interface Mobile extends EngineProperties<Mobile> {
+
+    private static void setProperty(String key, String value) {
+        ThreadLocalPropertiesManager.setProperty(key, value);
+        Properties.mobileOverride.set(ConfigFactory.create(Mobile.class, ThreadLocalPropertiesManager.getOverrides()));
+        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
+    }
+
+    @Key("platformName")
+    @DefaultValue("")
+    String platformName();
+
+    @Key("mobile_platformVersion")
+    @DefaultValue("")
+    String platformVersion();
+
+    @Key("mobile_deviceName")
+    @DefaultValue("")
+    String deviceName();
+
+    @Key("mobile_automationName")
+    @DefaultValue("UiAutomator2")
+    String automationName();
+
+    @Key("mobile_udid")
+    @DefaultValue("")
+    String udid();
+
+    @Key("browserName")
+    @DefaultValue("")
+    String browserName();
+
+    @Key("MobileBrowserVersion")
+    @DefaultValue("")
+    String browserVersion();
+
+    @Key("mobile_app")
+    @DefaultValue("")
+    String app();
+
+    @Key("mobile_appPackage")
+    @DefaultValue("")
+    String appPackage();
+
+    @Key("mobile_appActivity")
+    @DefaultValue("")
+    String appActivity();
+
+    default SetProperty set() {
+        return new SetProperty();
+    }
+
+    class SetProperty implements EngineProperties.SetProperty {
+
+        public SetProperty selfManagedAndroidSDKVersion(int value) {
+            setProperty("selfManagedAndroidSDKVersion", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty selfManaged(boolean value) {
+            setProperty("selfManaged", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty platformName(String value) {
+            setProperty("platformName", value);
+            return this;
+        }
+
+        public SetProperty platformVersion(String value) {
+            setProperty("mobile_platformVersion", value);
+            return this;
+        }
+
+        public SetProperty deviceName(String value) {
+            setProperty("mobile_deviceName", value);
+            return this;
+        }
+
+        /**
+         * @param value io.appium.java_client.remote.AutomationName
+         */
+        public SetProperty automationName(String value) {
+            setProperty("mobile_automationName", value);
+            return this;
+        }
+
+        public SetProperty udid(String value) {
+            setProperty("mobile_udid", value);
+            return this;
+        }
+
+        public SetProperty browserName(String value) {
+            setProperty("browserName", value);
+            return this;
+        }
+
+        public SetProperty browserVersion(String value) {
+            setProperty("MobileBrowserVersion", value);
+            return this;
+        }
+
+        public SetProperty app(String value) {
+            setProperty("mobile_app", value);
+            return this;
+        }
+
+        public SetProperty appPackage(String value) {
+            setProperty("mobile_appPackage", value);
+            return this;
+        }
+
+        public SetProperty appActivity(String value) {
+            setProperty("mobile_appActivity", value);
+            return this;
+        }
+    }
+}

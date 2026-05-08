@@ -6,6 +6,7 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.PropertyFileManager;
+import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.remote.options.UnhandledPromptBehavior;
@@ -104,7 +105,7 @@ public class OptionsManager {
                 // Enable BiDi
                 ffOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
                 //merge customWebDriverCapabilities.properties
-                ffOptions = ffOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
+                ffOptions = ffOptions.merge(getCustomWebDriverDesiredCapabilities());
                 //merge hardcoded custom options
                 if (customDriverOptions != null) {
                     ffOptions = ffOptions.merge(customDriverOptions);
@@ -134,7 +135,7 @@ public class OptionsManager {
                     ieOptions.setCapability("acceptInsecureCerts",true);
                 }
                 //merge customWebDriverCapabilities.properties
-                ieOptions = ieOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
+                ieOptions = ieOptions.merge(getCustomWebDriverDesiredCapabilities());
                 //merge hardcoded custom options
                 if (customDriverOptions != null) {
                     ieOptions = ieOptions.merge(customDriverOptions);
@@ -175,7 +176,7 @@ public class OptionsManager {
                     sfOptions.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS,true);
                 }
                 //merge customWebDriverCapabilities.properties
-                sfOptions = sfOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
+                sfOptions = sfOptions.merge(getCustomWebDriverDesiredCapabilities());
                 //merge hardcoded custom options
                 if (customDriverOptions != null) {
                     sfOptions = sfOptions.merge(customDriverOptions);
@@ -183,7 +184,7 @@ public class OptionsManager {
                 ReportManager.logDiscrete(sfOptions.toString());
             }
             case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_CHROME, APPIUM_CHROMIUM, APPIUM_FLUTTER ->
-                    appiumCapabilities = new DesiredCapabilities(PropertyFileManager.getCustomWebDriverDesiredCapabilities().merge(customDriverOptions));
+                    appiumCapabilities = new DesiredCapabilities(getCustomWebDriverDesiredCapabilities().merge(customDriverOptions));
             default ->
                     DriverFactoryHelper.failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
         }
@@ -478,7 +479,7 @@ public class OptionsManager {
         if (SHAFT.Properties.platform.enableBiDi())
             options.enableBiDi();
         //merge customWebdriverCapabilities.properties
-        options = (ChromiumOptions<?>) options.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
+        options = (ChromiumOptions<?>) options.merge(getCustomWebDriverDesiredCapabilities());
         //merge hardcoded custom options
         if (customDriverOptions != null) {
             options = (ChromiumOptions<?>) options.merge(customDriverOptions);
@@ -506,5 +507,16 @@ public class OptionsManager {
         logPrefs.enable(LogType.BROWSER, java.util.logging.Level.ALL);
         logPrefs.enable(LogType.DRIVER, java.util.logging.Level.ALL);
         return logPrefs;
+    }
+
+    private static MutableCapabilities getCustomWebDriverDesiredCapabilities() {
+        MutableCapabilities customDriverOptions = new MutableCapabilities();
+        java.util.Properties props = ThreadLocalPropertiesManager.getEffectiveProperties();
+        props.forEach((key, value) -> {
+            if (String.valueOf(key).startsWith("capabilities.") && !String.valueOf(value).isBlank()) {
+                customDriverOptions.setCapability(String.valueOf(key).split("capabilities.")[1], String.valueOf(value));
+            }
+        });
+        return customDriverOptions;
     }
 }
