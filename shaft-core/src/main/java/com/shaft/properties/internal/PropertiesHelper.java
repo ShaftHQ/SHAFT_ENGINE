@@ -172,11 +172,11 @@ public class PropertiesHelper {
         var executionAddress = Properties.platform.executionAddress();
         if (executionAddress.equals("local")) {
             if (SystemUtils.IS_OS_WINDOWS) {
-                Properties.platform.set().targetPlatform("WINDOWS");
+                Properties.platform.set().targetPlatform("windows");
             } else if (SystemUtils.IS_OS_LINUX) {
-                Properties.platform.set().targetPlatform("LINUX");
+                Properties.platform.set().targetPlatform("linux");
             } else if (SystemUtils.IS_OS_MAC) {
-                Properties.platform.set().targetPlatform("MAC");
+                Properties.platform.set().targetPlatform("mac");
             }
         }
     }
