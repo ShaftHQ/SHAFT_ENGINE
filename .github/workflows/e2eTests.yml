@@ -1,10 +1,12 @@
 name: E2E Tests
 
+concurrency:
+  group: e2e-tests-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
-  pull_request:
+  push:
     branches: [ main ]
-    paths-ignore:
-      - '**.md'
   schedule:
     - cron: '00 1 * * *'
   workflow_dispatch:
