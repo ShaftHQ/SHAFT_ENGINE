@@ -33,7 +33,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.validationMethod = "elementExists";
         reportMessageBuilder.append("exists.");
-        var executor = new ValidationsExecutor(this);
+        var executor = new WebDriverValidationsExecutor(this);
         executor.internalPerform();
         return executor;
     }
@@ -47,7 +47,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         this.validationMethod = "elementExists";
         reportMessageBuilder.append("does not exist.");
-        var executor = new ValidationsExecutor(this);
+        var executor = new WebDriverValidationsExecutor(this);
         executor.internalPerform();
         return executor;
     }
@@ -64,7 +64,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG;
         reportMessageBuilder.append("matches the reference image \"").append(ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG).append("\".");
-        var executor = new ValidationsExecutor(this);
+        var executor = new WebDriverValidationsExecutor(this);
         executor.internalPerform();
         return executor;
     }
@@ -80,7 +80,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = visualValidationEngine;
         reportMessageBuilder.append("matches the reference image \"").append(visualValidationEngine).append("\".");
-        var executor = new ValidationsExecutor(this);
+        var executor = new WebDriverValidationsExecutor(this);
         executor.internalPerform();
         return executor;
     }
@@ -97,7 +97,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_OPENCV;
         reportMessageBuilder.append("does not match the reference image \"").append(ValidationEnums.VisualValidationEngine.EXACT_OPENCV).append("\".");
-        var executor = new ValidationsExecutor(this);
+        var executor = new WebDriverValidationsExecutor(this);
         executor.internalPerform();
         return executor;
     }
@@ -113,7 +113,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = visualValidationEngine;
         reportMessageBuilder.append("does not match the reference image \"").append(visualValidationEngine).append("\".");
-        var executor = new ValidationsExecutor(this);
+        var executor = new WebDriverValidationsExecutor(this);
         executor.internalPerform();
         return executor;
     }
@@ -128,21 +128,21 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = attribute;
         reportMessageBuilder.append("Attribute \"").append(attribute).append("\" ");
-        return new NativeValidationsBuilder(this);
+        return new WebNativeValidationsBuilder(this);
     }
 
     public NativeValidationsBuilder domAttribute(String domAttribute) {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = domAttribute;
         reportMessageBuilder.append("DOM attribute \"").append(domAttribute).append("\" ");
-        return new NativeValidationsBuilder(this);
+        return new WebNativeValidationsBuilder(this);
     }
 
     public NativeValidationsBuilder domProperty(String domProperty) {
         this.validationMethod = "elementDomPropertyEquals";
         this.elementAttribute = domProperty;
         reportMessageBuilder.append("DOM property \"").append(domProperty).append("\" ");
-        return new NativeValidationsBuilder(this);
+        return new WebNativeValidationsBuilder(this);
     }
 
     /**
@@ -155,7 +155,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementPropertyEquals";
         this.elementAttribute = domProperty;
         reportMessageBuilder.append("DOM property \"").append(domProperty).append("\" ");
-        return new NativeValidationsBuilder(this);
+        return new WebNativeValidationsBuilder(this);
     }
 
     /**
@@ -167,7 +167,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "selected";
         reportMessageBuilder.append("is selected; selected attribute ");
-        return new NativeValidationsBuilder(this).isTrue();
+        return new WebNativeValidationsBuilder(this).isTrue();
     }
 
     /**
@@ -179,7 +179,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "checked";
         reportMessageBuilder.append("is checked; checked attribute ");
-        return new NativeValidationsBuilder(this).isTrue();
+        return new WebNativeValidationsBuilder(this).isTrue();
     }
 
     /**
@@ -191,7 +191,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "hidden";
         reportMessageBuilder.append("is visible; hidden attribute ");
-        return new NativeValidationsBuilder(this).isEqualTo("null");
+        return new WebNativeValidationsBuilder(this).isEqualTo("null");
     }
 
     /**
@@ -203,7 +203,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "disabled";
         reportMessageBuilder.append("is enabled; disabled attribute ");
-        return new NativeValidationsBuilder(this).isEqualTo("null");
+        return new WebNativeValidationsBuilder(this).isEqualTo("null");
     }
 
     /**
@@ -215,7 +215,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "selected";
         reportMessageBuilder.append("is not selected; selected attribute ");
-        return new NativeValidationsBuilder(this).isEqualTo("null");
+        return new WebNativeValidationsBuilder(this).isEqualTo("null");
     }
 
     /**
@@ -227,7 +227,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "checked";
         reportMessageBuilder.append("is not checked; checked attribute ");
-        return new NativeValidationsBuilder(this).isEqualTo("null");
+        return new WebNativeValidationsBuilder(this).isEqualTo("null");
     }
 
     /**
@@ -239,7 +239,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "hidden";
         reportMessageBuilder.append("is hidden; hidden attribute ");
-        return new NativeValidationsBuilder(this).isTrue();
+        return new WebNativeValidationsBuilder(this).isTrue();
     }
 
     /**
@@ -251,7 +251,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "disabled";
         reportMessageBuilder.append("is disabled; disabled attribute ");
-        return new NativeValidationsBuilder(this).isTrue();
+        return new WebNativeValidationsBuilder(this).isTrue();
     }
 
     /**
@@ -263,7 +263,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "text";
         reportMessageBuilder.append("text ");
-        return new NativeValidationsBuilder(this);
+        return new WebNativeValidationsBuilder(this);
     }
 
     /**
@@ -275,7 +275,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "textTrimmed";
         reportMessageBuilder.append("text trimmed ");
-        return new NativeValidationsBuilder(this);
+        return new WebNativeValidationsBuilder(this);
     }
 
     /**
@@ -288,7 +288,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationMethod = "elementCssPropertyEquals";
         this.elementCssProperty = elementCssProperty;
         reportMessageBuilder.append("CSS property \"").append(elementCssProperty).append("\" ");
-        return new NativeValidationsBuilder(this);
+        return new WebNativeValidationsBuilder(this);
     }
 
 

@@ -1,13 +1,17 @@
 package com.shaft.validation.internal;
 
-import com.shaft.api.validation.internal.RestValidationsBuilder;
 import com.shaft.validation.ValidationEnums;
 
 @SuppressWarnings("unused")
 public class JSONValidationsBuilder extends NativeValidationsBuilder {
     //TODO: implement all the methods
-    public JSONValidationsBuilder(RestValidationsBuilder restValidationsBuilder) {
-        super(restValidationsBuilder);
+    /** For REST subclasses in shaft-api (avoids circular dependency on RestValidationsBuilder). */
+    protected JSONValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
+                                     String validationMethod,
+                                     String jsonPath,
+                                     Object response,
+                                     StringBuilder reportMessageBuilder) {
+        super(validationCategory, validationMethod, jsonPath, response, reportMessageBuilder);
     }
 
     /**

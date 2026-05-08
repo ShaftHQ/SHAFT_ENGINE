@@ -27,7 +27,7 @@ public class WebDriverBrowserValidationsBuilder {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = browserAttribute;
         reportMessageBuilder.append("attribute \"").append(browserAttribute).append("\" ");
-        return new NativeValidationsBuilder(this);
+        return new WebNativeValidationsBuilder(this);
     }
 
     /**
@@ -40,7 +40,7 @@ public class WebDriverBrowserValidationsBuilder {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = "currenturl";
         reportMessageBuilder.append("URL ");
-        return new NativeValidationsBuilder(this);
+        return new WebNativeValidationsBuilder(this);
     }
 
     /**
@@ -52,7 +52,7 @@ public class WebDriverBrowserValidationsBuilder {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = "title";
         reportMessageBuilder.append("title ");
-        return new NativeValidationsBuilder(this);
+        return new WebNativeValidationsBuilder(this);
     }
 
     /**
@@ -64,7 +64,7 @@ public class WebDriverBrowserValidationsBuilder {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = "text";
         reportMessageBuilder.append("text ");
-        return new NativeValidationsBuilder(this);
+        return new WebNativeValidationsBuilder(this);
     }
 
 }

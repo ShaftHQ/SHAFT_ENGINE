@@ -8,6 +8,7 @@ import com.shaft.validation.Validations;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.internal.ValidationsBuilder;
 import com.shaft.validation.internal.ValidationsExecutor;
+import com.shaft.validation.internal.WebDriverValidationsExecutor;
 import com.shaft.validation.internal.ValidationsHelper;
 import io.restassured.builder.ResponseBuilder;
 import io.restassured.response.Response;
@@ -92,7 +93,7 @@ public class ValidationsExecutorCoverageUnitTest {
         WebDriver mockedDriver = org.mockito.Mockito.mock(WebDriver.class);
         var webBuilder = new ValidationsBuilder(ValidationEnums.ValidationCategory.SOFT_ASSERT)
                 .element(mockedDriver, By.id("coverage-id"));
-        Assert.assertNotNull(new ValidationsExecutor(webBuilder));
+        Assert.assertNotNull(new WebDriverValidationsExecutor(webBuilder));
     }
 
     private static void setBuilderField(Object target, String fieldName, Object value) throws Exception {

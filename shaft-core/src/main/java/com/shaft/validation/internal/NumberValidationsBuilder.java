@@ -1,6 +1,5 @@
 package com.shaft.validation.internal;
 
-import com.shaft.api.validation.internal.RestValidationsBuilder;
 import com.shaft.validation.ValidationEnums;
 
 public class NumberValidationsBuilder {
@@ -22,13 +21,17 @@ public class NumberValidationsBuilder {
         this.reportMessageBuilder = validationsBuilder.reportMessageBuilder;
     }
 
-    public NumberValidationsBuilder(RestValidationsBuilder restValidationsBuilder) {
-        this.validationCategory = restValidationsBuilder.validationCategory;
-        this.validationMethod = restValidationsBuilder.validationMethod;
-        this.jsonPath = restValidationsBuilder.jsonPath;
-        this.response = restValidationsBuilder.response;
-
-        this.reportMessageBuilder = restValidationsBuilder.reportMessageBuilder;
+    /** For REST subclasses in shaft-api (avoids circular dependency on RestValidationsBuilder). */
+    protected NumberValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
+                                       String validationMethod,
+                                       String jsonPath,
+                                       Object response,
+                                       StringBuilder reportMessageBuilder) {
+        this.validationCategory = validationCategory;
+        this.validationMethod = validationMethod;
+        this.jsonPath = jsonPath;
+        this.response = response;
+        this.reportMessageBuilder = reportMessageBuilder;
     }
 
     /**

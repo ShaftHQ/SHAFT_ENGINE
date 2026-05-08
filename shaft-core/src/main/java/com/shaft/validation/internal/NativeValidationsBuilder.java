@@ -1,16 +1,13 @@
 package com.shaft.validation.internal;
 
-import com.shaft.api.validation.internal.RestValidationsBuilder;
 import com.shaft.validation.ValidationEnums;
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
 
 public class NativeValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
     protected final String validationMethod;
     protected final StringBuilder reportMessageBuilder;
-    protected WebDriver driver;
-    protected By locator;
+    protected Object driver;
+    protected Object locator;
     protected ValidationEnums.ValidationType validationType;
     protected String elementAttribute;
     protected String elementCssProperty;
@@ -23,26 +20,6 @@ public class NativeValidationsBuilder {
     protected String folderRelativePath;
     protected String fileName;
 
-    public NativeValidationsBuilder(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
-        this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
-        this.driver = webDriverElementValidationsBuilder.driver;
-        this.locator = webDriverElementValidationsBuilder.locator;
-        this.validationMethod = webDriverElementValidationsBuilder.validationMethod;
-        this.elementAttribute = webDriverElementValidationsBuilder.elementAttribute;
-        this.elementCssProperty = webDriverElementValidationsBuilder.elementCssProperty;
-
-        this.reportMessageBuilder = webDriverElementValidationsBuilder.reportMessageBuilder;
-    }
-
-    public NativeValidationsBuilder(WebDriverBrowserValidationsBuilder webDriverBrowserValidationsBuilder) {
-        this.validationCategory = webDriverBrowserValidationsBuilder.validationCategory;
-        this.driver = webDriverBrowserValidationsBuilder.driver;
-        this.validationMethod = webDriverBrowserValidationsBuilder.validationMethod;
-        this.browserAttribute = webDriverBrowserValidationsBuilder.browserAttribute;
-
-        this.reportMessageBuilder = webDriverBrowserValidationsBuilder.reportMessageBuilder;
-    }
-
     public NativeValidationsBuilder(ValidationsBuilder validationsBuilder) {
         this.validationCategory = validationsBuilder.validationCategory;
         this.validationMethod = validationsBuilder.validationMethod;
@@ -51,13 +28,36 @@ public class NativeValidationsBuilder {
         this.reportMessageBuilder = validationsBuilder.reportMessageBuilder;
     }
 
-    public NativeValidationsBuilder(RestValidationsBuilder restValidationsBuilder) {
-        this.validationCategory = restValidationsBuilder.validationCategory;
-        this.validationMethod = restValidationsBuilder.validationMethod;
-        this.jsonPath = restValidationsBuilder.jsonPath;
-        this.response = restValidationsBuilder.response;
+    /** For REST subclasses in shaft-api (avoids circular dependency on RestValidationsBuilder). */
+    protected NativeValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
+                                       String validationMethod,
+                                       String jsonPath,
+                                       Object response,
+                                       StringBuilder reportMessageBuilder) {
+        this.validationCategory = validationCategory;
+        this.validationMethod = validationMethod;
+        this.jsonPath = jsonPath;
+        this.response = response;
+        this.reportMessageBuilder = reportMessageBuilder;
+    }
 
-        this.reportMessageBuilder = restValidationsBuilder.reportMessageBuilder;
+    /** For WebDriver subclasses in shaft-engine / shaft-web (avoids circular dependency on WebDriver/By). */
+    protected NativeValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
+                                       String validationMethod,
+                                       Object driver,
+                                       Object locator,
+                                       String elementAttribute,
+                                       String elementCssProperty,
+                                       String browserAttribute,
+                                       StringBuilder reportMessageBuilder) {
+        this.validationCategory = validationCategory;
+        this.validationMethod = validationMethod;
+        this.driver = driver;
+        this.locator = locator;
+        this.elementAttribute = elementAttribute;
+        this.elementCssProperty = elementCssProperty;
+        this.browserAttribute = browserAttribute;
+        this.reportMessageBuilder = reportMessageBuilder;
     }
 
     public NativeValidationsBuilder(FileValidationsBuilder fileValidationsBuilder) {
@@ -69,7 +69,7 @@ public class NativeValidationsBuilder {
         this.reportMessageBuilder = fileValidationsBuilder.reportMessageBuilder;
     }
 
-    private NativeValidationsBuilder(NativeValidationsBuilder sourceBuilder, String validationMethod, String elementAttribute, String browserAttribute) {
+    protected NativeValidationsBuilder(NativeValidationsBuilder sourceBuilder, String validationMethod, String elementAttribute, String browserAttribute) {
         this.validationCategory = sourceBuilder.validationCategory;
         this.driver = sourceBuilder.driver;
         this.locator = sourceBuilder.locator;
@@ -296,7 +296,6 @@ public class NativeValidationsBuilder {
      * Use this under text assertions to validate text direction as LTR/RTL.
      *
      * @return a TextDirectionValidationsBuilder object to continue building direction validations
-     * @throws IllegalStateException if called outside text-based assertions
      */
     public TextDirectionValidationsBuilder direction() {
         return buildTextDirectionBuilder("textDirection", "direction", "direction");
@@ -306,7 +305,6 @@ public class NativeValidationsBuilder {
      * Use this under text assertions to validate text alignment as LTR/RTL.
      *
      * @return a TextDirectionValidationsBuilder object to continue building alignment validations
-     * @throws IllegalStateException if called outside text-based assertions
      */
     public TextDirectionValidationsBuilder alignment() {
         return buildTextDirectionBuilder("textAlignment", "alignment", "alignment");
@@ -316,7 +314,6 @@ public class NativeValidationsBuilder {
      * Use this under text assertions to validate text orientation as LTR/RTL.
      *
      * @return a TextDirectionValidationsBuilder object to continue building orientation validations
-     * @throws IllegalStateException if called outside text-based assertions
      */
     public TextDirectionValidationsBuilder orientation() {
         return buildTextDirectionBuilder("textOrientation", "orientation", "orientation");
@@ -326,7 +323,6 @@ public class NativeValidationsBuilder {
      * Use this under text assertions to validate text display style as LTR/RTL.
      *
      * @return a TextDirectionValidationsBuilder object to continue building display style validations
-     * @throws IllegalStateException if called outside text-based assertions
      */
     public TextDirectionValidationsBuilder displayStyle() {
         return buildTextDirectionBuilder("textDisplayStyle", "display style", "displayStyle");
