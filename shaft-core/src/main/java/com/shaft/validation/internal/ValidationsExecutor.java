@@ -242,10 +242,10 @@ public class ValidationsExecutor {
         String json = toJsonString(response);
         try {
             if (jsonPath.contains("?")) {
-                List<String> list = JsonPath.read(json, jsonPath);
-                return list.isEmpty() ? null : list.getFirst();
+                List<Object> list = JsonPath.read(json, jsonPath);
+                return list.isEmpty() ? null : String.valueOf(list.getFirst());
             }
-            return String.valueOf(JsonPath.read(json, jsonPath));
+            return String.valueOf((Object) JsonPath.read(json, jsonPath));
         } catch (PathNotFoundException e) {
             return null;
         }
@@ -278,6 +278,8 @@ public class ValidationsExecutor {
         } catch (ClassNotFoundException e) {
             throw new UnsupportedOperationException("ValidationsHelper not available — shaft-engine required for " + methodName, e);
         } catch (ReflectiveOperationException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof AssertionError ae) throw ae;
             throw new RuntimeException("Failed to invoke ValidationsHelper." + methodName, e);
         }
     }
@@ -291,6 +293,8 @@ public class ValidationsExecutor {
         } catch (ClassNotFoundException e) {
             throw new UnsupportedOperationException("ValidationsHelper2 not available — shaft-engine required for " + methodName, e);
         } catch (ReflectiveOperationException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof AssertionError ae) throw ae;
             throw new RuntimeException("Failed to invoke ValidationsHelper2." + methodName, e);
         }
     }

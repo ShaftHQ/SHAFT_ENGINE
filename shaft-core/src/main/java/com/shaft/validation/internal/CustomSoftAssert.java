@@ -78,7 +78,8 @@ public class CustomSoftAssert extends SoftAssert {
         List<String> clickableLines = new ArrayList<>();
         for (StackTraceElement element : trace) {
             if (element.getClassName().startsWith(packageName) && element.getLineNumber() > 0) {
-                String link = "(" + element.getFileName() + ":" + element.getLineNumber() + ")";
+                String fileName = element.getFileName() != null ? element.getFileName() : "Unknown";
+                String link = "(" + fileName + ":" + element.getLineNumber() + ")";
                 clickableLines.add("  at " + element.getClassName() + "." + element.getMethodName() + link);
             }
         }

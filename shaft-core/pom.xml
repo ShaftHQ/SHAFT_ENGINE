@@ -213,10 +213,15 @@
             <groupId>com.epam.reportportal</groupId>
             <artifactId>logger-java-log4j</artifactId>
         </dependency>
-        <!-- Rest Assured (XrayIntegrationHelper, JSONFileManager) -->
+        <!-- Rest Assured (XrayIntegrationHelper, JSONFileManager, ValidationsExecutor REST cases) -->
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
+        </dependency>
+        <!-- JSONPath (ValidationsExecutor JSON extraction) -->
+        <dependency>
+            <groupId>com.jayway.jsonpath</groupId>
+            <artifactId>json-path</artifactId>
         </dependency>
         <!-- Lombok -->
         <dependency>

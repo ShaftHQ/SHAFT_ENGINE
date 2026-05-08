@@ -282,7 +282,10 @@ public class TestNGListenerHelper {
      */
     public static void skipTestsWithLinkedIssues(ITestResult iTestResult) {
         if (Properties.flags.skipTestsWithLinkedIssues()) {
-            var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
+            var constructorOrMethod = iTestResult.getMethod().getConstructorOrMethod();
+            if (constructorOrMethod == null) return;
+            var method = constructorOrMethod.getMethod();
+            if (method == null) return;
             Issue issue = method.getAnnotation(Issue.class);
             if (issue != null) {
                 SkipException ex = new SkipException("Skipping Test as it's expected to fail due to open issue: [" + issue.value() + "]");
@@ -307,7 +310,10 @@ public class TestNGListenerHelper {
      * @return issue value(s), or empty string if none exist
      */
     public static String getIssueAnnotationValue(ITestResult iTestResult) {
-        var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
+        var constructorOrMethod = iTestResult.getMethod().getConstructorOrMethod();
+        if (constructorOrMethod == null) return "";
+        var method = constructorOrMethod.getMethod();
+        if (method == null) return "";
         Issue issue = method.getAnnotation(Issue.class);
         Issues issues = method.getAnnotation(Issues.class);
         if (issues != null) {
@@ -330,7 +336,10 @@ public class TestNGListenerHelper {
      * @return TMS link value(s), or empty string if none exist
      */
     public static String getTmsLinkAnnotationValue(ITestResult iTestResult) {
-        var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
+        var constructorOrMethod = iTestResult.getMethod().getConstructorOrMethod();
+        if (constructorOrMethod == null) return "";
+        var method = constructorOrMethod.getMethod();
+        if (method == null) return "";
         TmsLink tmsLink = method.getAnnotation(TmsLink.class);
         TmsLinks tmsLinks = method.getAnnotation(TmsLinks.class);
         if (tmsLinks != null) {
