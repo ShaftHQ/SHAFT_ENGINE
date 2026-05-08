@@ -48,10 +48,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.when;
-
+import static org.mockito.Mockito.*;
 
 @Test(singleThreaded = true)
 public class JunitListenerApiCoverageUnitTest {
@@ -73,15 +70,18 @@ public class JunitListenerApiCoverageUnitTest {
         when(session.getLauncher()).thenReturn(launcher);
 
         AtomicReference<TestExecutionListener> capturedListener = new AtomicReference<>();
-        Mockito.doAnswer(invocation -> {
+        doAnswer(invocation -> {
             Object argument = invocation.getArgument(0);
-            if (argument instanceof TestExecutionListener[] listeners) {
-                capturedListener.set(listeners[0]);
-            } else if (argument instanceof TestExecutionListener listener) {
-                capturedListener.set(listener);
+            if (argument instanceof TestExecutionListener[]) {
+                TestExecutionListener[] listeners = (TestExecutionListener[]) argument;
+                if (listeners.length > 0) {
+                    capturedListener.set(listeners[0]);
+                }
+            } else if (argument instanceof TestExecutionListener) {
+                capturedListener.set((TestExecutionListener) argument);
             }
             return null;
-        }).when(launcher).registerTestExecutionListeners(any(TestExecutionListener[].class));
+        }).when(launcher).registerTestExecutionListeners(any());
 
         TestPlan testPlan = mock(TestPlan.class);
         TestIdentifier rootNode = mockContainerIdentifier("[engine:junit-jupiter]", "JUnit Jupiter");
@@ -91,9 +91,9 @@ public class JunitListenerApiCoverageUnitTest {
                 "com.example.SampleTest",
                 "sampleMethod");
 
-        when(testPlan.getRoots()).thenReturn(java.util.Set.of(rootNode));
-        when(testPlan.getChildren(rootNode)).thenReturn(java.util.Set.of(methodTest));
-        when(testPlan.getChildren(methodTest)).thenReturn(java.util.Set.of());
+        when(testPlan.getRoots()).thenReturn(Set.of(rootNode));
+        when(testPlan.getChildren(rootNode)).thenReturn(Set.of(methodTest));
+        when(testPlan.getChildren(methodTest)).thenReturn(Set.of());
 
         TestIdentifier failedTest = mockMethodIdentifier(
                 "[engine:junit-jupiter]/[class:com.example.SampleTest]/[method:failedMethod()]",
@@ -151,6 +151,8 @@ public class JunitListenerApiCoverageUnitTest {
             junitListenerHelperMock.verify(() -> JunitListenerHelper.logTestInformation(methodTest));
             reportManagerHelperMock.verify(() -> ReportManagerHelper.logEngineClosure());
             Assert.assertFalse(JunitListener.getIsLastFinishedTestOK(), "A failure/abort/skipped sequence should leave last finished test status as false.");
+        }
+
         Properties.clearForCurrentThread();
     }
 
@@ -175,101 +177,109 @@ public class JunitListenerApiCoverageUnitTest {
                  MockedStatic<RequestBuilder> requestBuilderMock = Mockito.mockStatic(RequestBuilder.class)) {
 
                 requestBuilderMock.when(RequestBuilder::getPerformanceData).thenReturn(Collections.emptyMap());
-                realtimeReporterMock.when(() -> RealtimeReporter.buildTestId(Mockito.anyString(), Mockito.anyString()))
+                realtimeReporterMock.when(() -> RealtimeReporter.buildTestId(anyString(), anyString()))
                         .thenAnswer(invocation -> invocation.getArgument(0, String.class) + "#" + invocation.getArgument(1, String.class));
-                realtimeReporterMock.when(() -> RealtimeReporter.classNameToFilePath(Mockito.anyString())).thenReturn("");
+                realtimeReporterMock.when(() -> RealtimeReporter.classNameToFilePath(anyString())).thenReturn("");
 
-            LauncherSession session = Mockito.mock(LauncherSession.class);
-            Launcher launcher = Mockito.mock(Launcher.class);
-            Mockito.when(session.getLauncher()).thenReturn(launcher);
-            Mockito.doAnswer(invocation -> {
-                capturedExecutionListener.set(invocation.getArgument(0));
-                return null;
-            }).when(launcher).registerTestExecutionListeners(Mockito.any(TestExecutionListener.class));
+                LauncherSession session = Mockito.mock(LauncherSession.class);
+                Launcher launcher = Mockito.mock(Launcher.class);
+                Mockito.when(session.getLauncher()).thenReturn(launcher);
+                doAnswer(invocation -> {
+                    Object arg = invocation.getArgument(0);
+                    if (arg instanceof TestExecutionListener) {
+                        capturedExecutionListener.set((TestExecutionListener) arg);
+                    } else if (arg instanceof TestExecutionListener[]) {
+                        TestExecutionListener[] listeners = (TestExecutionListener[]) arg;
+                        if (listeners.length > 0) {
+                            capturedExecutionListener.set(listeners[0]);
+                        }
+                    }
+                    return null;
+                }).when(launcher).registerTestExecutionListeners(any());
 
-            JunitListener listener = new JunitListener();
-            listener.launcherSessionOpened(session);
-            Assert.assertNotNull(capturedExecutionListener.get(), "JUnit listener should register a TestExecutionListener.");
+                JunitListener listener = new JunitListener();
+                listener.launcherSessionOpened(session);
+                Assert.assertNotNull(capturedExecutionListener.get(), "JUnit listener should register a TestExecutionListener.");
 
-            TestIdentifier rootNode = createIdentifier(
-                    "[engine:junit-jupiter]/[class:testPackage.Root]",
-                    "Root",
-                    TestDescriptor.Type.CONTAINER,
-                    Optional.empty());
-            TestIdentifier methodBackedTest = createIdentifier(
-                    "[engine:junit-jupiter]/[class:testPackage.SampleTests]/[method:sampleMethod()]",
-                    "sampleMethod()",
-                    TestDescriptor.Type.TEST,
-                    Optional.of(MethodSource.from("testPackage.SampleTests", "sampleMethod")));
-            TestIdentifier displayNameOnlyTest = createIdentifier(
-                    "[engine:junit-jupiter]/[class:testPackage.SampleTests]/[method:displayNameOnly()]",
-                    "displayNameOnly",
-                    TestDescriptor.Type.TEST,
-                    Optional.empty());
+                TestIdentifier rootNode = createIdentifier(
+                        "[engine:junit-jupiter]/[class:testPackage.Root]",
+                        "Root",
+                        TestDescriptor.Type.CONTAINER,
+                        Optional.empty());
+                TestIdentifier methodBackedTest = createIdentifier(
+                        "[engine:junit-jupiter]/[class:testPackage.SampleTests]/[method:sampleMethod()]",
+                        "sampleMethod()",
+                        TestDescriptor.Type.TEST,
+                        Optional.of(MethodSource.from("testPackage.SampleTests", "sampleMethod")));
+                TestIdentifier displayNameOnlyTest = createIdentifier(
+                        "[engine:junit-jupiter]/[class:testPackage.SampleTests]/[method:displayNameOnly()]",
+                        "displayNameOnly",
+                        TestDescriptor.Type.TEST,
+                        Optional.empty());
 
-            TestPlan testPlan = Mockito.mock(TestPlan.class);
-            Mockito.when(testPlan.getRoots()).thenReturn(Set.of(rootNode));
-            Mockito.when(testPlan.getChildren(rootNode)).thenReturn(Set.of(methodBackedTest, displayNameOnlyTest));
-            Mockito.when(testPlan.getChildren(methodBackedTest)).thenReturn(Set.of());
-            Mockito.when(testPlan.getChildren(displayNameOnlyTest)).thenReturn(Set.of());
+                TestPlan testPlan = Mockito.mock(TestPlan.class);
+                Mockito.when(testPlan.getRoots()).thenReturn(Set.of(rootNode));
+                Mockito.when(testPlan.getChildren(rootNode)).thenReturn(Set.of(methodBackedTest, displayNameOnlyTest));
+                Mockito.when(testPlan.getChildren(methodBackedTest)).thenReturn(Set.of());
+                Mockito.when(testPlan.getChildren(displayNameOnlyTest)).thenReturn(Set.of());
 
-            TestExecutionListener testExecutionListener = capturedExecutionListener.get();
-            testExecutionListener.testPlanExecutionStarted(testPlan);
+                TestExecutionListener testExecutionListener = capturedExecutionListener.get();
+                testExecutionListener.testPlanExecutionStarted(testPlan);
 
-            realtimeReporterMock.verify(() -> RealtimeReporter.initialize("JUnit Test Run"));
-            realtimeReporterMock.verify(() -> RealtimeReporter.onTestsPlanned(Mockito.argThat(planned -> {
-                if (planned.size() != 2) {
-                    return false;
-                }
-                boolean foundMethodSourceCard = planned.stream().anyMatch(card -> "testPackage.SampleTests".equals(card.className)
-                        && "sampleMethod".equals(card.methodName));
-                boolean foundDisplayNameCard = planned.stream().anyMatch(card -> "".equals(card.className)
-                        && "displayNameOnly".equals(card.methodName));
-                return foundMethodSourceCard && foundDisplayNameCard;
-            })));
-            testngListenerMock.verify(() -> TestNGListener.engineSetup(ProjectStructureManager.RunType.JUNIT));
+                realtimeReporterMock.verify(() -> RealtimeReporter.initialize("JUnit Test Run"));
+                realtimeReporterMock.verify(() -> RealtimeReporter.onTestsPlanned(Mockito.argThat(planned -> {
+                    if (planned.size() != 2) {
+                        return false;
+                    }
+                    boolean foundMethodSourceCard = planned.stream().anyMatch(card -> "testPackage.SampleTests".equals(card.className)
+                            && "sampleMethod".equals(card.methodName));
+                    boolean foundDisplayNameCard = planned.stream().anyMatch(card -> "".equals(card.className)
+                            && "displayNameOnly".equals(card.methodName));
+                    return foundMethodSourceCard && foundDisplayNameCard;
+                })));
+                testngListenerMock.verify(() -> TestNGListener.engineSetup(ProjectStructureManager.RunType.JUNIT));
 
-            testExecutionListener.executionStarted(rootNode);
-            realtimeReporterMock.verify(() -> RealtimeReporter.onTestStarted(Mockito.anyString()), Mockito.never());
+                testExecutionListener.executionStarted(rootNode);
+                realtimeReporterMock.verify(() -> RealtimeReporter.onTestStarted(Mockito.anyString()), Mockito.never());
 
-            testExecutionListener.executionStarted(methodBackedTest);
-            realtimeReporterMock.verify(() -> RealtimeReporter.setCurrentTestId("testPackage.SampleTests#sampleMethod"));
-            realtimeReporterMock.verify(() -> RealtimeReporter.onTestStarted("testPackage.SampleTests#sampleMethod"));
+                testExecutionListener.executionStarted(methodBackedTest);
+                realtimeReporterMock.verify(() -> RealtimeReporter.setCurrentTestId("testPackage.SampleTests#sampleMethod"));
+                realtimeReporterMock.verify(() -> RealtimeReporter.onTestStarted("testPackage.SampleTests#sampleMethod"));
 
-            testExecutionListener.executionFinished(methodBackedTest, TestExecutionResult.successful());
-            testExecutionListener.executionFinished(methodBackedTest, TestExecutionResult.failed(new RuntimeException("boom")));
-            testExecutionListener.executionFinished(displayNameOnlyTest, TestExecutionResult.failed(null));
-            testExecutionListener.executionSkipped(displayNameOnlyTest, "skip reason");
+                testExecutionListener.executionFinished(methodBackedTest, TestExecutionResult.successful());
+                testExecutionListener.executionFinished(methodBackedTest, TestExecutionResult.failed(new RuntimeException("boom")));
+                testExecutionListener.executionFinished(displayNameOnlyTest, TestExecutionResult.failed(null));
+                testExecutionListener.executionSkipped(displayNameOnlyTest, "skip reason");
 
-            testExecutionListener.testPlanExecutionFinished(testPlan);
-            waitBrieflyForAsyncTeardown(Duration.ofSeconds(1));
+                testExecutionListener.testPlanExecutionFinished(testPlan);
+                waitBrieflyForAsyncTeardown(Duration.ofSeconds(1));
 
-            reportManagerHelperMock.verify(() -> ReportManagerHelper.setDiscreteLogging(Mockito.anyBoolean()), Mockito.atLeastOnce());
-            recordManagerMock.verify(RecordManager::attachVideoRecording, Mockito.atLeastOnce());
-            animatedGifManagerMock.verify(AnimatedGifManager::attachAnimatedGif, Mockito.atLeastOnce());
-            realtimeReporterMock.verify(() -> RealtimeReporter.onTestFinished(
-                    Mockito.eq("testPackage.SampleTests#sampleMethod"), Mockito.eq(RealtimeReporter.TestStatus.PASSED), Mockito.isNull()));
-            realtimeReporterMock.verify(() -> RealtimeReporter.onTestFinished(
-                    Mockito.eq("testPackage.SampleTests#sampleMethod"), Mockito.eq(RealtimeReporter.TestStatus.FAILED), Mockito.any(Throwable.class)));
-            realtimeReporterMock.verify(() -> RealtimeReporter.onTestFinished(
-                    Mockito.eq("#displayNameOnly"), Mockito.eq(RealtimeReporter.TestStatus.FAILED), Mockito.any(Throwable.class)));
-            realtimeReporterMock.verify(() -> RealtimeReporter.onTestFinished(
-                    Mockito.eq("#displayNameOnly"), Mockito.eq(RealtimeReporter.TestStatus.SKIPPED), Mockito.isNull()));
-            realtimeReporterMock.verify(RealtimeReporter::clearCurrentTestId, Mockito.atLeastOnce());
+                reportManagerHelperMock.verify(() -> ReportManagerHelper.setDiscreteLogging(Mockito.anyBoolean()), Mockito.atLeastOnce());
+                recordManagerMock.verify(RecordManager::attachVideoRecording, Mockito.atLeastOnce());
+                animatedGifManagerMock.verify(AnimatedGifManager::attachAnimatedGif, Mockito.atLeastOnce());
+                realtimeReporterMock.verify(() -> RealtimeReporter.onTestFinished(
+                        Mockito.eq("testPackage.SampleTests#sampleMethod"), Mockito.eq(RealtimeReporter.TestStatus.PASSED), Mockito.isNull()));
+                realtimeReporterMock.verify(() -> RealtimeReporter.onTestFinished(
+                        Mockito.eq("testPackage.SampleTests#sampleMethod"), Mockito.eq(RealtimeReporter.TestStatus.FAILED), Mockito.any(Throwable.class)));
+                realtimeReporterMock.verify(() -> RealtimeReporter.onTestFinished(
+                        Mockito.eq("#displayNameOnly"), Mockito.eq(RealtimeReporter.TestStatus.FAILED), Mockito.any(Throwable.class)));
+                realtimeReporterMock.verify(() -> RealtimeReporter.onTestFinished(
+                        Mockito.eq("#displayNameOnly"), Mockito.eq(RealtimeReporter.TestStatus.SKIPPED), Mockito.isNull()));
+                realtimeReporterMock.verify(RealtimeReporter::clearCurrentTestId, Mockito.atLeastOnce());
 
-            jiraHelperMock.verify(JiraHelper::reportExecutionStatusToJira);
-            googleTinkMock.verify(GoogleTink::encrypt);
-            allureManagerMock.verify(AllureManager::generateAllureReportArchive);
-            allureManagerMock.verify(AllureManager::openAllureReportAfterExecution);
-            executionSummaryReportMock.verify(() -> ExecutionSummaryReport.generateExecutionSummaryReport(Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyLong(), Mockito.anyLong()));
-            reportManagerHelperMock.verify(ReportManagerHelper::logEngineClosure);
+                jiraHelperMock.verify(JiraHelper::reportExecutionStatusToJira);
+                googleTinkMock.verify(GoogleTink::encrypt);
+                allureManagerMock.verify(AllureManager::generateAllureReportArchive);
+                allureManagerMock.verify(AllureManager::openAllureReportAfterExecution);
+                executionSummaryReportMock.verify(() -> ExecutionSummaryReport.generateExecutionSummaryReport(Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyLong(), Mockito.anyLong()));
+                reportManagerHelperMock.verify(ReportManagerHelper::logEngineClosure);
 
-            Assert.assertFalse(JunitListener.getIsLastFinishedTestOK(), "Last finished test should be marked as not OK after failed/skipped outcomes.");
+                Assert.assertFalse(JunitListener.getIsLastFinishedTestOK(), "Last finished test should be marked as not OK after failed/skipped outcomes.");
 
-            setStaticField("isEngineReady", true);
-            listener.launcherSessionOpened(session);
-            Mockito.verify(launcher, Mockito.times(1)).registerTestExecutionListeners(Mockito.any(TestExecutionListener.class));
-        }
+                setStaticField("isEngineReady", true);
+                listener.launcherSessionOpened(session);
+                Mockito.verify(launcher, Mockito.times(1)).registerTestExecutionListeners(Mockito.any());
+            }
         } finally {
             SHAFT.Properties.visuals.set().videoParamsScope(originalVideoScope);
         }
@@ -285,7 +295,7 @@ public class JunitListenerApiCoverageUnitTest {
 
         new JunitListener().launcherSessionOpened(session);
 
-        Mockito.verify(launcher, never()).registerTestExecutionListeners(any(TestExecutionListener[].class));
+        Mockito.verify(launcher, never()).registerTestExecutionListeners(any());
     }
 
     @Test
@@ -360,7 +370,8 @@ public class JunitListenerApiCoverageUnitTest {
         field.setAccessible(true);
         return field.get(null);
     }
-      
+
+    @Test
     public void engineTearDownShouldComputeFlakyFailedAndSkippedTelemetryBuckets() throws Exception {
         TestIdentifier passedOnly = createIdentifier(
                 "[engine:junit-jupiter]/[class:testPackage.TelemetryTests]/[method:passedOnly()]",
