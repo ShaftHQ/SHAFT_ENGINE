@@ -41,7 +41,7 @@
         <maven.min.version>3.9.0</maven.min.version>
         <!-- Dependency Versions -->
         <log4j2.version>2.26.0</log4j2.version>
-        <netty.version>4.2.13.Final</netty.version>
+        <netty.version>5.0.0.Alpha2</netty.version>
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install "-DskipTests" "-Dgpg.skip"</installToLocalRepository>
         <publishJavaDocs>mvn resources:resources javadoc:javadoc scm-publish:publish-scm</publishJavaDocs>
