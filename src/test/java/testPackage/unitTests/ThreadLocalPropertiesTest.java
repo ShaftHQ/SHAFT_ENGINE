@@ -31,6 +31,7 @@ import static org.mockito.Mockito.when;
  * resolved through {@link ThreadLocalPropertiesManager} rather than
  * relying solely on {@code System.getProperties()}.
  */
+@Test(singleThreaded = true)
 public class ThreadLocalPropertiesTest {
 
     private static final long THREAD_JOIN_TIMEOUT_MS = 5000;

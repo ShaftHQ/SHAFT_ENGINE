@@ -2,9 +2,15 @@ package testPackage.unitTests;
 
 import com.shaft.validation.Validations;
 import com.shaft.validation.internal.ValidationsHelper;
+import io.restassured.response.Response;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
+
+import java.util.concurrent.TimeUnit;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for {@code NumberValidationsBuilder} number comparison methods.
@@ -227,5 +233,31 @@ public class NumberValidationsBuilderUnitTest {
     @Test(description = "isGreaterThan: large difference should pass quickly")
     public void isGreaterThanLargeDifferenceShouldPass() {
         Validations.assertThat().number(1_000_000).isGreaterThan(1).perform();
+    }
+
+    @Test(description = "equals: matching numbers should return true")
+    public void equalsWithMatchingNumbersShouldReturnTrue() {
+        Assert.assertTrue(Validations.assertThat().number(15).equals(15));
+    }
+
+    @Test(description = "equals: non-matching numbers should throw AssertionError")
+    public void equalsWithNonMatchingNumbersShouldThrowAssertionError() {
+        Assert.assertThrows(AssertionError.class, () -> Validations.assertThat().number(15).equals(20));
+    }
+
+    @Test(description = "response time: less than relation should pass using mocked response")
+    public void responseTimeIsLessThanShouldPass() {
+        Response response = mock(Response.class);
+        when(response.timeIn(TimeUnit.MILLISECONDS)).thenReturn(40L);
+
+        Validations.assertThat().response(response).time().isLessThan(100).perform();
+    }
+
+    @Test(description = "response time: less than or equals relation should pass using mocked response")
+    public void responseTimeIsLessThanOrEqualsShouldPass() {
+        Response response = mock(Response.class);
+        when(response.timeIn(TimeUnit.MILLISECONDS)).thenReturn(100L);
+
+        Validations.assertThat().response(response).time().isLessThanOrEquals(100).perform();
     }
 }
