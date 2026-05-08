@@ -68,6 +68,41 @@ They are also declared in `.mvn/jvm.config` for local runs. Do not remove them �
 
 ---
 
+## Monorepo Structure (as of 2026-05-08, branch `Monorepo-Shaft-mvp` / PR #2646)
+
+The project is being migrated from a monolithic artifact to a 6-module Maven monorepo.
+Dependency chain flows strictly top-down — never add a `shaft-web` dep to `shaft-core` or `shaft-api`.
+
+```
+shaft-bom
+  └─► shaft-core
+        ├─► shaft-api
+        ├─► shaft-db
+        └─► shaft-web
+              └─► shaft-engine   (thin aggregator / backwards-compat umbrella)
+```
+
+| Module | Package root | Contents |
+|--------|-------------|----------|
+| `shaft-bom` | — | BOM POM only — all version pins live here |
+| `shaft-core` | `com.shaft.{cli,enums,listeners,performance,properties,tools,validation}` | Core framework: property system, tools, listeners, primitive validation, CLI |
+| `shaft-api` | `com.shaft.api` | REST — `RestActions`, `RequestBuilder`, `ApiValidations`, REST validation builders |
+| `shaft-db` | `com.shaft.db` | `DatabaseActions` |
+| `shaft-web` | `com.shaft.{driver,gui,cucumber,validation(web)}` | WebDriver, Appium, Playwright, browser/element actions, web validation builders, all test suites |
+| `shaft-engine` | — | Empty aggregator POM; depends only on `shaft-web`; published for backwards compat |
+
+**Run tests after monorepo migration:**
+```powershell
+# Windows — must set JAVA_HOME explicitly
+$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-25.0.3.9-hotspot"
+mvn test -pl shaft-web -am
+```
+
+**Where new code belongs:**
+- REST API features → `shaft-api`; Database → `shaft-db`; GUI/driver/browser → `shaft-web`; Core properties/tools/enums → `shaft-core`; Version pins → `shaft-bom`; Tests → `shaft-web/src/test/`
+
+---
+
 ## Architecture
 
 SHAFT_ENGINE is a unified test automation framework (Java 25, Maven) built as a **batteries-included library** consumed by downstream test projects. The entire public API surfaces through one facade class: `com.shaft.driver.SHAFT`.
@@ -132,10 +167,36 @@ By shadow  = Locator.hasTagName("button").insideShadowDom(hostLocator).build();
 ```
 
 ### SHAFT assertions (never use TestNG/JUnit Assert directly)
+
+Three entry points — use the right one:
+
+| Entry point | Use for | Returns |
+|-------------|---------|---------|
+| `Validations` (`shaft-core`) | Primitives, objects, numbers, files, JSON, collections | `ValidationsBuilder` |
+| `WebValidations` (`shaft-web`) | WebDriver elements, browser state | `WebValidationsBuilder` |
+| `ApiValidations` (`shaft-api`) | REST responses (`Response` objects) | `RestValidationsBuilder` |
+
 ```java
-driver.assertThat().browser().title().contains("Expected");
-driver.assertThat().element(locator).domProperty("value").isEqualTo("");
-Validations.assertThat().response(response).extractedJsonValue("$.id").isEqualTo("1").perform();
+// element / browser assertions
+WebValidations.assertThat().element(locator).text().isEqualTo("Expected");
+WebValidations.assertThat().browser().title().contains("Dashboard");
+
+// REST response assertions
+ApiValidations.assertThat(response).extractedJsonValue("$.id").isEqualTo("1").perform();
+
+// primitive / object assertions
+Validations.assertThat().object(actual).isEqualTo(expected).perform();
+```
+
+**Anti-pattern (eliminated in PR #2646):** Do NOT call `Validations.assertThat().response(...)` —
+`response()` now only exists on `ApiValidations`. Do NOT create classes in `shaft-web` at the same
+FQCN as `shaft-core` classes (class-shadowing was the root cause of the old pattern).
+
+```java
+// ❌ old — no longer compiles after PR #2646
+Validations.assertThat().response(response).extractedJsonValue("$.id")...
+// ✅ new
+ApiValidations.assertThat(response).extractedJsonValue("$.id")...
 ```
 
 ### Test data
@@ -452,3 +513,33 @@ Add entries to the **Session Learnings Log** section below. Keep each entry comp
 - Area: Encoding / Unicode
 - Lesson: Enforce UTF-8 at all runtime layers (Maven JVM, Surefire forked JVMs, and CI environment) — do not rely on host defaults.
 - Evidence: `pom.xml`, `.mvn/jvm.config`, `setup-test-env/action.yml`, `testPackage/properties/Log4jTests.java` (from copilot-memory.md)
+
+- Date: 2026-05-08
+- Area: Architecture / Monorepo
+- Lesson: Project was migrated from a monolith to a 6-module Maven monorepo on branch `Monorepo-Shaft-mvp` (PR #2646). All tests now live in `shaft-web`; run with `mvn test -pl shaft-web -am`. Never add shaft-web as a dependency of shaft-core or shaft-api.
+- Evidence: PR #2646, branch `Monorepo-Shaft-mvp`, 11 commits starting at `31b1105`
+
+- Date: 2026-05-08
+- Area: Architecture / Validation
+- Lesson: `ValidationsBuilder` class-shadowing was eliminated. `shaft-web` no longer has a `ValidationsBuilder` at `com.shaft.validation.internal.ValidationsBuilder`. Use `WebValidations` for element/browser, `ApiValidations` for REST responses, `Validations` for primitives. `Validations.assertThat().response(...)` no longer compiles.
+- Evidence: PR #2646 commit `c75cc407cf`, 23 call sites updated, 25 files changed
+
+- Date: 2026-05-08
+- Area: Environment / Windows
+- Lesson: On Windows, `new File("/tmp/...").isAbsolute()` returns false (JDK only considers paths absolute when they start with a drive letter). Fixed in `JavaHelper.appendTestDataToRelativePath` by adding `|| relativePath.startsWith("/")` guard.
+- Evidence: `shaft-core/.../JavaHelper.java`, commit `7781b8b`
+
+- Date: 2026-05-08
+- Area: Environment / Windows
+- Lesson: `FileInputStream` left open without try-with-resources holds a file lock on Windows, preventing `File.delete()` in test cleanup. Always use try-with-resources for `FileInputStream` in `PropertyFileManager` (and the deferred `ExcelFileManager`, `RecordManager`).
+- Evidence: `shaft-core/.../PropertyFileManager.java`, commit `d0e27ca`
+
+- Date: 2026-05-08
+- Area: Environment / PowerShell
+- Lesson: PowerShell does not support `$(cat <<'EOF'...EOF)` bash heredoc syntax. Use PowerShell `@'...'@` here-strings when passing multiline strings to native executables (`git commit -m`, `gh pr create --body`).
+- Evidence: Session 2026-05-08, PR creation for #2646 and #2647
+
+- Date: 2026-05-08
+- Area: Pattern / grep / multiline
+- Lesson: Single-line `grep` patterns miss Java fluent chains split across lines (e.g., `Validations.assertThat()\n.response(res)`). When doing impact analysis for method-level refactors, also grep with multiline mode or read files directly after the first compile pass.
+- Evidence: Session 2026-05-08, 3 rounds of compile-error discovery during ValidationsBuilder fix
