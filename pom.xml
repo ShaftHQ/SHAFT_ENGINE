@@ -52,7 +52,7 @@
         <surefireArgLine/>
     </properties>
 
-    <!-- shaft-bom dependencyManagement import added in Task 2 once shaft-bom module exists -->
+    <!-- Each child module imports shaft-bom in its own <dependencyManagement> -->
 
     <build>
         <pluginManagement>

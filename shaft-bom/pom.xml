@@ -1,0 +1,662 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.shafthq</groupId>
+        <artifactId>shaft-engine-parent</artifactId>
+        <version>10.2.20260506</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>shaft-bom</artifactId>
+    <version>10.2.20260506</version>
+    <packaging>pom</packaging>
+
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>SHAFT Engine Bill of Materials — centralised version management for all SHAFT modules and their dependencies</description>
+    <url>https://shafthq.github.io/</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>http://www.opensource.org/licenses/mit-license.php</url>
+        </license>
+    </licenses>
+    <developers>
+        <developer>
+            <name>Mohab Mohie</name>
+            <email>Mohab.MohieElDeen@outlook.com</email>
+            <organization>GitHub</organization>
+            <organizationUrl>https://github.com/ShaftHQ</organizationUrl>
+        </developer>
+    </developers>
+    <scm>
+        <connection>scm:git:https://github.com/ShaftHQ/SHAFT_ENGINE.git</connection>
+        <developerConnection>scm:git:ssh://github.com/ShaftHQ/SHAFT_ENGINE.git</developerConnection>
+        <url>https://github.com/ShaftHQ/SHAFT_ENGINE</url>
+    </scm>
+
+    <properties>
+        <log4j2.version>2.26.0</log4j2.version>
+        <netty.version>4.2.13.Final</netty.version>
+        <lombok.version>1.18.46</lombok.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- ============================================================ -->
+            <!-- SHAFT modules — version-managed so consumers skip <version>  -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>io.github.shafthq</groupId>
+                <artifactId>shaft-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.shafthq</groupId>
+                <artifactId>shaft-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.shafthq</groupId>
+                <artifactId>shaft-db</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.shafthq</groupId>
+                <artifactId>shaft-web</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.shafthq</groupId>
+                <artifactId>SHAFT_ENGINE</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- JUnit 6 — pinned from junit-bom 6.0.3                       -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>6.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-api</artifactId>
+                <version>6.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-engine</artifactId>
+                <version>6.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-params</artifactId>
+                <version>6.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.platform</groupId>
+                <artifactId>junit-platform-launcher</artifactId>
+                <version>6.0.3</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- Allure — pinned from allure-bom 2.34.0                      -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>io.qameta.allure</groupId>
+                <artifactId>allure-junit5</artifactId>
+                <version>2.34.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.qameta.allure</groupId>
+                <artifactId>allure-testng</artifactId>
+                <version>2.34.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.qameta.allure</groupId>
+                <artifactId>allure-java-commons</artifactId>
+                <version>2.34.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.qameta.allure</groupId>
+                <artifactId>allure-cucumber7-jvm</artifactId>
+                <version>2.34.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.qameta.allure</groupId>
+                <artifactId>allure-rest-assured</artifactId>
+                <version>2.34.0</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- Cucumber — pinned from cucumber-bom 7.34.3                  -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>io.cucumber</groupId>
+                <artifactId>cucumber-java</artifactId>
+                <version>7.34.3</version>
+            </dependency>
+            <dependency>
+                <groupId>io.cucumber</groupId>
+                <artifactId>cucumber-testng</artifactId>
+                <version>7.34.3</version>
+            </dependency>
+            <dependency>
+                <groupId>io.cucumber</groupId>
+                <artifactId>cucumber-picocontainer</artifactId>
+                <version>7.34.3</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- Jackson                                                       -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>2.21.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>2.21</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>2.21.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.datatype</groupId>
+                <artifactId>jackson-datatype-jsr310</artifactId>
+                <version>2.21.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-yaml</artifactId>
+                <version>2.21.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.datatype</groupId>
+                <artifactId>jackson-datatype-jdk8</artifactId>
+                <version>2.21.3</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- Commons / utilities                                           -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>33.6.0-jre</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>failureaccess</artifactId>
+                <version>1.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>3.20.0</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>2.22.0</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-codec</groupId>
+                <artifactId>commons-codec</artifactId>
+                <version>1.22.0</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-logging</groupId>
+                <artifactId>commons-logging</artifactId>
+                <version>1.3.6</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-csv</artifactId>
+                <version>1.14.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.yaml</groupId>
+                <artifactId>snakeyaml</artifactId>
+                <version>2.6</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.code.gson</groupId>
+                <artifactId>gson</artifactId>
+                <version>2.14.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.json</groupId>
+                <artifactId>json</artifactId>
+                <version>20251224</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jsoup</groupId>
+                <artifactId>jsoup</artifactId>
+                <version>1.22.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mozilla</groupId>
+                <artifactId>rhino</artifactId>
+                <version>1.9.1</version>
+            </dependency>
+            <dependency>
+                <groupId>com.jayway.jsonpath</groupId>
+                <artifactId>json-path</artifactId>
+                <version>3.0.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.skyscreamer</groupId>
+                <artifactId>jsonassert</artifactId>
+                <version>1.5.3</version>
+            </dependency>
+            <dependency>
+                <groupId>me.tongfei</groupId>
+                <artifactId>progressbar</artifactId>
+                <version>0.10.2</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- Logging                                                       -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>2.0.17</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>jcl-over-slf4j</artifactId>
+                <version>2.0.17</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-slf4j2-impl</artifactId>
+                <version>${log4j2.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-core</artifactId>
+                <version>${log4j2.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-1.2-api</artifactId>
+                <version>${log4j2.version}</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- HTTP                                                          -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>org.apache.httpcomponents</groupId>
+                <artifactId>httpclient</artifactId>
+                <version>4.5.14</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents</groupId>
+                <artifactId>httpcore</artifactId>
+                <version>4.4.16</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents.client5</groupId>
+                <artifactId>httpclient5</artifactId>
+                <version>5.6.1</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- REST / API testing                                            -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>io.rest-assured</groupId>
+                <artifactId>rest-assured</artifactId>
+                <version>6.0.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.rest-assured</groupId>
+                <artifactId>json-schema-validator</artifactId>
+                <version>6.0.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.atlassian.oai</groupId>
+                <artifactId>swagger-request-validator-restassured</artifactId>
+                <version>2.46.1</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- Google / gRPC / Tink                                         -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-netty-shaded</artifactId>
+                <version>1.81.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-api</artifactId>
+                <version>1.81.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-util</artifactId>
+                <version>1.81.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-context</artifactId>
+                <version>1.81.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>4.34.1</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.api-client</groupId>
+                <artifactId>google-api-client</artifactId>
+                <version>2.9.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.http-client</groupId>
+                <artifactId>google-http-client</artifactId>
+                <version>2.1.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.http-client</groupId>
+                <artifactId>google-http-client-gson</artifactId>
+                <version>2.1.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.auth</groupId>
+                <artifactId>google-auth-library-oauth2-http</artifactId>
+                <version>1.47.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.auth</groupId>
+                <artifactId>google-auth-library-credentials</artifactId>
+                <version>1.47.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.api.grpc</groupId>
+                <artifactId>proto-google-common-protos</artifactId>
+                <version>2.71.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.api.grpc</groupId>
+                <artifactId>proto-google-cloud-kms-v1</artifactId>
+                <version>0.186.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.errorprone</groupId>
+                <artifactId>error_prone_annotations</artifactId>
+                <version>2.49.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.api</groupId>
+                <artifactId>api-common</artifactId>
+                <version>2.63.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.oauth-client</groupId>
+                <artifactId>google-oauth-client</artifactId>
+                <version>1.39.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.j2objc</groupId>
+                <artifactId>j2objc-annotations</artifactId>
+                <version>3.1</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.auto.value</groupId>
+                <artifactId>auto-value-annotations</artifactId>
+                <version>1.11.1</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.code.findbugs</groupId>
+                <artifactId>jsr305</artifactId>
+                <version>3.0.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.crypto.tink</groupId>
+                <artifactId>tink</artifactId>
+                <version>1.21.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.crypto.tink</groupId>
+                <artifactId>tink-awskms</artifactId>
+                <version>2.0.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.crypto.tink</groupId>
+                <artifactId>tink-gcpkms</artifactId>
+                <version>1.10.0</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- Test frameworks                                               -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>org.testng</groupId>
+                <artifactId>testng</artifactId>
+                <version>7.12.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>5.23.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.aspectj</groupId>
+                <artifactId>aspectjweaver</artifactId>
+                <version>1.9.25.1</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- WebDriver / Appium / BrowserStack                            -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>org.seleniumhq.selenium</groupId>
+                <artifactId>selenium-java</artifactId>
+                <version>4.43.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.appium</groupId>
+                <artifactId>java-client</artifactId>
+                <version>10.1.1</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.bonigarcia</groupId>
+                <artifactId>webdrivermanager</artifactId>
+                <version>6.3.4</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.ashwithpoojary98</groupId>
+                <artifactId>appium_flutterfinder_java</artifactId>
+                <version>1.0.14</version>
+            </dependency>
+            <dependency>
+                <groupId>com.browserstack</groupId>
+                <artifactId>browserstack-java-sdk</artifactId>
+                <version>1.58.1</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- Visual / image processing                                     -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>com.applitools</groupId>
+                <artifactId>eyes-images-java4</artifactId>
+                <version>4.14.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openpnp</groupId>
+                <artifactId>opencv</artifactId>
+                <version>4.9.0-0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.epam.healenium</groupId>
+                <artifactId>healenium-web</artifactId>
+                <version>3.6.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.assertthat</groupId>
+                <artifactId>selenium-shutterbug</artifactId>
+                <version>1.6</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- Accessibility                                                 -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>com.deque.html.axe-core</groupId>
+                <artifactId>selenium</artifactId>
+                <version>4.11.3</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- Video recording                                               -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>ws.schild</groupId>
+                <artifactId>jave-core</artifactId>
+                <version>3.5.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.automation-remarks</groupId>
+                <artifactId>video-recorder-testng</artifactId>
+                <version>2.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.automation-remarks</groupId>
+                <artifactId>video-recorder-junit5</artifactId>
+                <version>2.0</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- Office / document processing                                  -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi</artifactId>
+                <version>5.5.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi-ooxml</artifactId>
+                <version>5.5.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.pdfbox</groupId>
+                <artifactId>pdfbox</artifactId>
+                <version>3.0.7</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- Database connectors                                           -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>com.mysql</groupId>
+                <artifactId>mysql-connector-j</artifactId>
+                <version>9.7.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.microsoft.sqlserver</groupId>
+                <artifactId>mssql-jdbc</artifactId>
+                <version>13.4.0.jre11</version>
+            </dependency>
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>42.7.11</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ibm.db2.jcc</groupId>
+                <artifactId>db2jcc</artifactId>
+                <version>db2jcc4</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- SSH / remote terminal                                         -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>com.github.mwiede</groupId>
+                <artifactId>jsch</artifactId>
+                <version>2.28.2</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- ReportPortal                                                  -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>com.epam.reportportal</groupId>
+                <artifactId>agent-java-testng</artifactId>
+                <version>5.6.8</version>
+            </dependency>
+            <dependency>
+                <groupId>com.epam.reportportal</groupId>
+                <artifactId>logger-java-log4j</artifactId>
+                <version>5.4.0</version>
+            </dependency>
+
+            <!-- ============================================================ -->
+            <!-- Misc annotations / compile-time                               -->
+            <!-- ============================================================ -->
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.checkerframework</groupId>
+                <artifactId>checker-qual</artifactId>
+                <version>4.1.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jdk8</artifactId>
+                <version>2.3.21</version>
+            </dependency>
+            <dependency>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>animal-sniffer-annotations</artifactId>
+                <version>1.27</version>
+            </dependency>
+            <dependency>
+                <groupId>org.javassist</groupId>
+                <artifactId>javassist</artifactId>
+                <version>3.31.0-GA</version>
+            </dependency>
+            <dependency>
+                <groupId>javax.annotation</groupId>
+                <artifactId>javax.annotation-api</artifactId>
+                <version>1.3.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.reactivestreams</groupId>
+                <artifactId>reactive-streams</artifactId>
+                <version>1.0.4</version>
+            </dependency>
+            <dependency>
+                <groupId>org.brotli</groupId>
+                <artifactId>dec</artifactId>
+                <version>0.1.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.aeonbits.owner</groupId>
+                <artifactId>owner-java8</artifactId>
+                <version>1.0.12</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+</project>
