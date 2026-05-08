@@ -3,7 +3,7 @@ package testPackage.legacy;
 import com.shaft.api.RestActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
-import com.shaft.validation.Validations;
+import com.shaft.api.validation.ApiValidations;
 import io.restassured.response.Response;
 import org.testng.annotations.Test;
 
@@ -18,8 +18,7 @@ public class MatchJsonSchemaTests {
                 .performRequest().getResponse();
 
 
-        Validations.assertThat()
-                .response(res)
+        ApiValidations.assertThat(res)
                 .matchesSchema(SHAFT.Properties.paths.testData() + "schema.json")
                 .perform();
 

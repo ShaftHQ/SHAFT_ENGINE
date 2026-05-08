@@ -1,7 +1,7 @@
 package poms;
 
 import com.shaft.gui.element.ElementActions;
-import com.shaft.validation.Validations;
+import com.shaft.validation.WebValidations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
@@ -15,7 +15,7 @@ public class GoogleSearchResults {
     }
 
     public void assertResultsStatsExistsAndIsNotEmpty() {
-            Validations.assertThat()
+            WebValidations.assertThat()
                     .element(driver, resultsStats_label)
                     .text()
                     .doesNotEqual("")

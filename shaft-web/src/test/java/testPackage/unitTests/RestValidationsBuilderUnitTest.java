@@ -1,7 +1,7 @@
 package testPackage.unitTests;
 
 import com.shaft.api.RestActions;
-import com.shaft.validation.Validations;
+import com.shaft.api.validation.ApiValidations;
 import com.shaft.validation.internal.ValidationsHelper;
 import io.restassured.response.Response;
 import org.testng.annotations.AfterMethod;
@@ -56,7 +56,7 @@ public class RestValidationsBuilderUnitTest {
     @Test(description = "extractedJsonValue isEqualTo: string field equals expected")
     public void extractedJsonValueIsEqualToShouldPass() {
         if (post1Response != null) {
-            Validations.assertThat().response(post1Response)
+            ApiValidations.assertThat(post1Response)
                     .extractedJsonValue("userId").isEqualTo("1").perform();
         }
     }
@@ -64,7 +64,7 @@ public class RestValidationsBuilderUnitTest {
     @Test(description = "extractedJsonValue contains: string field contains partial text")
     public void extractedJsonValueContainsShouldPass() {
         if (post1Response != null) {
-            Validations.assertThat().response(post1Response)
+            ApiValidations.assertThat(post1Response)
                     .extractedJsonValue("title").contains("sunt").perform();
         }
     }
@@ -72,7 +72,7 @@ public class RestValidationsBuilderUnitTest {
     @Test(description = "extractedJsonValue isNotNull: existing field should not be null")
     public void extractedJsonValueIsNotNullShouldPass() {
         if (post1Response != null) {
-            Validations.assertThat().response(post1Response)
+            ApiValidations.assertThat(post1Response)
                     .extractedJsonValue("body").isNotNull().perform();
         }
     }
@@ -82,7 +82,7 @@ public class RestValidationsBuilderUnitTest {
     @Test(description = "extractedJsonValueAsList: root path returns non-null list")
     public void extractedJsonValueAsListShouldPass() {
         if (postsResponse != null) {
-            Validations.assertThat().response(postsResponse)
+            ApiValidations.assertThat(postsResponse)
                     .extractedJsonValueAsList("$").isNotNull().perform();
         }
     }
@@ -92,7 +92,7 @@ public class RestValidationsBuilderUnitTest {
     @Test(description = "body contains: response body contains expected text")
     public void bodyContainsShouldPass() {
         if (post1Response != null) {
-            Validations.assertThat().response(post1Response)
+            ApiValidations.assertThat(post1Response)
                     .body().contains("userId").perform();
         }
     }
@@ -100,7 +100,7 @@ public class RestValidationsBuilderUnitTest {
     @Test(description = "body isNotNull: response body should not be null")
     public void bodyIsNotNullShouldPass() {
         if (post1Response != null) {
-            Validations.assertThat().response(post1Response)
+            ApiValidations.assertThat(post1Response)
                     .body().isNotNull().perform();
         }
     }
@@ -110,7 +110,7 @@ public class RestValidationsBuilderUnitTest {
     @Test(description = "time isGreaterThan 0: response time should be positive")
     public void timeIsGreaterThanZeroShouldPass() {
         if (post1Response != null) {
-            Validations.assertThat().response(post1Response)
+            ApiValidations.assertThat(post1Response)
                     .time().isGreaterThan(0).perform();
         }
     }
@@ -118,7 +118,7 @@ public class RestValidationsBuilderUnitTest {
     @Test(description = "time isGreaterThanOrEquals 0: response time should be >= 0")
     public void timeIsGreaterThanOrEqualsZeroShouldPass() {
         if (post1Response != null) {
-            Validations.assertThat().response(post1Response)
+            ApiValidations.assertThat(post1Response)
                     .time().isGreaterThanOrEquals(0).perform();
         }
     }
@@ -128,7 +128,7 @@ public class RestValidationsBuilderUnitTest {
     @Test(description = "isEqualToFileContent: response matches reference JSON file")
     public void isEqualToFileContentShouldPass() {
         if (post1Response != null) {
-            Validations.assertThat().response(post1Response)
+            ApiValidations.assertThat(post1Response)
                     .isEqualToFileContent(POST1_REFERENCE_FILE);
         }
     }
@@ -136,7 +136,7 @@ public class RestValidationsBuilderUnitTest {
     @Test(description = "isEqualToFileContentIgnoringOrder: response matches reference JSON ignoring order")
     public void isEqualToFileContentIgnoringOrderShouldPass() {
         if (post1Response != null) {
-            Validations.assertThat().response(post1Response)
+            ApiValidations.assertThat(post1Response)
                     .isEqualToFileContentIgnoringOrder(POST1_REFERENCE_FILE);
         }
     }
@@ -144,7 +144,7 @@ public class RestValidationsBuilderUnitTest {
     @Test(description = "doesNotEqualFileContent: response should not equal different file")
     public void doesNotEqualFileContentShouldPass() {
         if (post1Response != null) {
-            Validations.assertThat().response(post1Response)
+            ApiValidations.assertThat(post1Response)
                     .doesNotEqualFileContent("jsonFileManagerTestData.json");
         }
     }
@@ -153,7 +153,7 @@ public class RestValidationsBuilderUnitTest {
     public void doesNotEqualFileContentIgnoringOrderShouldPass() {
         if (post1Response != null) {
             try {
-                Validations.assertThat().response(post1Response)
+                ApiValidations.assertThat(post1Response)
                         .doesNotEqualFileContentIgnoringOrder("jsonFileManagerTestData.json");
             } catch (AssertionError | RuntimeException ignored) {
                 // branch coverage only
@@ -164,7 +164,7 @@ public class RestValidationsBuilderUnitTest {
     @Test(description = "containsFileContent: response body contains reference file content")
     public void containsFileContentShouldPass() {
         if (post1Response != null) {
-            Validations.assertThat().response(post1Response)
+            ApiValidations.assertThat(post1Response)
                     .containsFileContent(POST1_REFERENCE_FILE);
         }
     }
@@ -172,7 +172,7 @@ public class RestValidationsBuilderUnitTest {
     @Test(description = "doesNotContainFileContent: response body should not contain different file")
     public void doesNotContainFileContentShouldPass() {
         if (post1Response != null) {
-            Validations.assertThat().response(post1Response)
+            ApiValidations.assertThat(post1Response)
                     .doesNotContainFileContent("jsonFileManagerTestData.json");
         }
     }
@@ -180,7 +180,7 @@ public class RestValidationsBuilderUnitTest {
     @Test(description = "matchesSchema: response body matches expected JSON schema")
     public void matchesSchemaShouldPass() {
         if (post1Response != null) {
-            Validations.assertThat().response(post1Response)
+            ApiValidations.assertThat(post1Response)
                     .matchesSchema(POST1_SCHEMA_FILE);
         }
     }
@@ -189,7 +189,7 @@ public class RestValidationsBuilderUnitTest {
     public void doesNotMatchSchemaShouldPass() {
         if (post1Response != null) {
             try {
-                Validations.assertThat().response(post1Response)
+                ApiValidations.assertThat(post1Response)
                         .doesNotMatchSchema("schema.json");
             } catch (AssertionError | RuntimeException ignored) {
                 // branch coverage only
@@ -202,14 +202,14 @@ public class RestValidationsBuilderUnitTest {
     @Test(description = "verifyThat response body: soft assertion on body text")
     public void verifyThatResponseBodyShouldPass() {
         if (post1Response != null) {
-            Validations.verifyThat().response(post1Response).body().contains("userId").perform();
+            ApiValidations.verifyThat(post1Response).body().contains("userId").perform();
         }
     }
 
     @Test(description = "verifyThat extractedJsonValue: soft assertion on JSON field")
     public void verifyThatExtractedJsonValueShouldPass() {
         if (post1Response != null) {
-            Validations.verifyThat().response(post1Response)
+            ApiValidations.verifyThat(post1Response)
                     .extractedJsonValue("userId").isEqualTo("1").perform();
         }
     }

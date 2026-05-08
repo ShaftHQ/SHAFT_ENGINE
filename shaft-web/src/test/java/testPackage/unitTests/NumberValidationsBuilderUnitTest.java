@@ -1,5 +1,6 @@
 package testPackage.unitTests;
 
+import com.shaft.api.validation.ApiValidations;
 import com.shaft.validation.Validations;
 import com.shaft.validation.internal.ValidationsHelper;
 import io.restassured.response.Response;
@@ -250,7 +251,7 @@ public class NumberValidationsBuilderUnitTest {
         Response response = mock(Response.class);
         when(response.timeIn(TimeUnit.MILLISECONDS)).thenReturn(40L);
 
-        Validations.assertThat().response(response).time().isLessThan(100).perform();
+        ApiValidations.assertThat(response).time().isLessThan(100).perform();
     }
 
     @Test(description = "response time: less than or equals relation should pass using mocked response")
@@ -258,6 +259,6 @@ public class NumberValidationsBuilderUnitTest {
         Response response = mock(Response.class);
         when(response.timeIn(TimeUnit.MILLISECONDS)).thenReturn(100L);
 
-        Validations.assertThat().response(response).time().isLessThanOrEquals(100).perform();
+        ApiValidations.assertThat(response).time().isLessThanOrEquals(100).perform();
     }
 }

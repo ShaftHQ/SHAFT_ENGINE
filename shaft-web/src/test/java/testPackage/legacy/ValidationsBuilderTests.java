@@ -2,6 +2,7 @@ package testPackage.legacy;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
+import com.shaft.api.validation.ApiValidations;
 import com.shaft.validation.Validations;
 import io.restassured.builder.ResponseBuilder;
 import io.restassured.response.Response;
@@ -92,14 +93,12 @@ public class ValidationsBuilderTests {
         Response response = (new ResponseBuilder()).setBody(FileActions.getInstance().readFile(referenceJsonFilePath))
                 .setStatusCode(200).build();
 
-        Validations.verifyThat()
-                .response(response)
+        ApiValidations.verifyThat(response)
                 .isEqualToFileContent(referenceJsonFilePath)
                 .withCustomReportMessage("checking that the response is equal to the json file")
                 .perform();
 
-        Validations.verifyThat()
-                .response(response)
+        ApiValidations.verifyThat(response)
                 .extractedJsonValue("data.totalRows")
                 .isEqualTo("107")
                 .withCustomReportMessage("checking that data.totalRows is equal to 107")

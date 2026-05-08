@@ -1,5 +1,6 @@
 package testPackage.unitTests;
 
+import com.shaft.api.validation.ApiValidations;
 import com.shaft.validation.Validations;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.internal.NativeValidationsBuilder;
@@ -293,7 +294,7 @@ public class NativeValidationsBuilderUnitTest {
 
     @Test(description = "rest and file fluent entry points should create native builder instances")
     public void restAndFileEntryPointsShouldCreateNativeBuilderInstances() {
-        Assert.assertNotNull(Validations.assertThat().response(new Object()).extractedJsonValue("$.key"));
+        Assert.assertNotNull(ApiValidations.assertThat(new Object()).extractedJsonValue("$.key"));
         Assert.assertNotNull(Validations.assertThat().file("target/", "sample.txt").content());
     }
 

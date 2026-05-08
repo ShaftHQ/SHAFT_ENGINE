@@ -3,7 +3,7 @@ package testPackage.legacy;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.validation.Validations;
+import com.shaft.validation.WebValidations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.support.locators.RelativeLocator;
@@ -34,7 +34,7 @@ public class RelativeLocatorsTests {
         By firstSearchResultRelatively = RelativeLocator.with(searchResults).below(searchBox);
 
         //this method makes writing locators much easier! And now we can perform our validation
-        Validations.assertThat()
+        WebValidations.assertThat()
                 .element(driver.get().getDriver(), firstSearchResultRelatively)
                 .text()
                 .doesNotEqual("")

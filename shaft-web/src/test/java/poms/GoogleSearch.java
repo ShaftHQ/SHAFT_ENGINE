@@ -1,7 +1,7 @@
 package poms;
 
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.validation.Validations;
+import com.shaft.validation.WebValidations;
 import lombok.Getter;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -26,7 +26,7 @@ public class GoogleSearch {
     }
 
     public void assertPageIsOpen() {
-            Validations.assertThat()
+            WebValidations.assertThat()
                     .element(driver, googleLogo_image)
                     .exists()
                     .perform();

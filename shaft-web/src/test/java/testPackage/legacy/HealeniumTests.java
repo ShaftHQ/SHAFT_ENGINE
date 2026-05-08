@@ -5,6 +5,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Validations;
+import com.shaft.validation.WebValidations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.testng.annotations.AfterMethod;
@@ -46,7 +47,7 @@ public class HealeniumTests {
 
         //confirm that the locator is working
         try {
-            Validations.assertThat().element(driver.get().getDriver(), googleLogo_image).exists().perform();
+            WebValidations.assertThat().element(driver.get().getDriver(), googleLogo_image).exists().perform();
             ReportManager.log("Successfully Found Element on initial check");
         }catch (AssertionError e){
             Validations.assertThat().forceFail()
@@ -58,7 +59,7 @@ public class HealeniumTests {
 
         //confirm that self healing is working
         try {
-            Validations.assertThat().element(driver.get().getDriver(), googleLogo_image).exists().perform();
+            WebValidations.assertThat().element(driver.get().getDriver(), googleLogo_image).exists().perform();
             ReportManager.log("Successfully Healed the locator and Found Element.");
         }catch (AssertionError e){
             Validations.assertThat().forceFail()

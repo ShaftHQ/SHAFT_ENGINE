@@ -4,10 +4,12 @@ import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
+import com.shaft.api.validation.ApiValidations;
 import com.shaft.validation.Validations;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.internal.ValidationsBuilder;
 import com.shaft.validation.internal.ValidationsExecutor;
+import com.shaft.validation.internal.WebValidationsBuilder;
 import com.shaft.validation.internal.WebDriverValidationsExecutor;
 import com.shaft.validation.internal.ValidationsHelper;
 import io.restassured.builder.ResponseBuilder;
@@ -53,11 +55,11 @@ public class ValidationsExecutorCoverageUnitTest {
                 .setStatusCode(200)
                 .build();
 
-        Validations.verifyThat().response(response).isEqualToFileContent("post1Response.json").perform();
-        Validations.verifyThat().response(response).extractedJsonValue("id").isEqualTo("1").perform();
-        Validations.verifyThat().response(response).extractedJsonValueAsList("$..id").isEqualTo("1").perform();
-        Validations.verifyThat().response(response).body().contains("sunt aut facere").perform();
-        Validations.verifyThat().response(response).time().isLessThanOrEquals(0).perform();
+        ApiValidations.verifyThat(response).isEqualToFileContent("post1Response.json").perform();
+        ApiValidations.verifyThat(response).extractedJsonValue("id").isEqualTo("1").perform();
+        ApiValidations.verifyThat(response).extractedJsonValueAsList("$..id").isEqualTo("1").perform();
+        ApiValidations.verifyThat(response).body().contains("sunt aut facere").perform();
+        ApiValidations.verifyThat(response).time().isLessThanOrEquals(0).perform();
         Path schemaFile = Files.createTempFile("post1-schema-", ".json");
         Files.writeString(schemaFile, """
                 {
@@ -72,7 +74,7 @@ public class ValidationsExecutorCoverageUnitTest {
                   }
                 }
                 """);
-        Validations.verifyThat().response(response).matchesSchema(schemaFile.toAbsolutePath().toString()).perform();
+        ApiValidations.verifyThat(response).matchesSchema(schemaFile.toAbsolutePath().toString()).perform();
     }
 
     @Test(description = "Covers condition/default branches and constructor paths not reached through fluent APIs")
@@ -91,7 +93,7 @@ public class ValidationsExecutorCoverageUnitTest {
         invokeInternalPerform(defaultExecutor);
 
         WebDriver mockedDriver = org.mockito.Mockito.mock(WebDriver.class);
-        var webBuilder = new ValidationsBuilder(ValidationEnums.ValidationCategory.SOFT_ASSERT)
+        var webBuilder = new WebValidationsBuilder(ValidationEnums.ValidationCategory.SOFT_ASSERT)
                 .element(mockedDriver, By.id("coverage-id"));
         Assert.assertNotNull(new WebDriverValidationsExecutor(webBuilder));
     }

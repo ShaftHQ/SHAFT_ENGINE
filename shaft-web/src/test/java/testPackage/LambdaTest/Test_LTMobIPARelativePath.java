@@ -2,7 +2,7 @@ package testPackage.LambdaTest;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.validation.Validations;
+import com.shaft.validation.WebValidations;
 import io.appium.java_client.AppiumBy;
 import org.openqa.selenium.Platform;
 import org.testng.annotations.AfterMethod;
@@ -18,7 +18,7 @@ public class Test_LTMobIPARelativePath {
 
         new ElementActions(driver.get().getDriver()).performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
         new ElementActions(driver.get().getDriver()).type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
-        Validations.assertThat()
+        WebValidations.assertThat()
                 .element(driver.get().getDriver(), AppiumBy.accessibilityId("Text Output"))
                 .text()
                 .isEqualTo("hello@browserstack.com")

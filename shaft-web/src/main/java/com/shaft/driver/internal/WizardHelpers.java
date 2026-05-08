@@ -1,6 +1,7 @@
 package com.shaft.driver.internal;
 
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.validation.WebValidations;
 import com.shaft.validation.internal.*;
 import org.openqa.selenium.By;
 
@@ -13,11 +14,11 @@ public class WizardHelpers {
         }
 
         public WebDriverBrowserValidationsBuilder browser() {
-            return com.shaft.validation.Validations.assertThat().browser(helper.getDriver());
+            return WebValidations.assertThat().browser(helper.getDriver());
         }
 
         public WebDriverElementValidationsBuilder element(By locator) {
-            return com.shaft.validation.Validations.assertThat().element(helper.getDriver(), locator);
+            return WebValidations.assertThat().element(helper.getDriver(), locator);
         }
 
         public NativeValidationsBuilder object(boolean object) {
@@ -32,11 +33,11 @@ public class WizardHelpers {
         }
 
         public WebDriverBrowserValidationsBuilder browser() {
-            return com.shaft.validation.Validations.verifyThat().browser(helper.getDriver());
+            return WebValidations.verifyThat().browser(helper.getDriver());
         }
 
         public WebDriverElementValidationsBuilder element(By locator) {
-            return com.shaft.validation.Validations.verifyThat().element(helper.getDriver(), locator);
+            return WebValidations.verifyThat().element(helper.getDriver(), locator);
         }
 
         public NativeValidationsBuilder object(boolean accessible)

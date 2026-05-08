@@ -1,7 +1,7 @@
 package testPackage.legacy;
 
 import com.shaft.api.RestActions;
-import com.shaft.validation.Validations;
+import com.shaft.api.validation.ApiValidations;
 import io.restassured.response.Response;
 
 public class GraphqlRequestTests {
@@ -11,7 +11,7 @@ public class GraphqlRequestTests {
     public void sendGraphqlRequestUsingQuery(){
         String query = "{company {ceo}}";
         Response response = RestActions.sendGraphQlRequest(spacex_base_uri,query);
-        Validations.assertThat().response(response).extractedJsonValue("data.company.ceo").equals("Elon Musk");
+        ApiValidations.assertThat(response).extractedJsonValue("data.company.ceo").equals("Elon Musk");
     }
 //    @Test
     public void sendGraphqlRequestUsingMutationAndVariables(){
@@ -27,6 +27,6 @@ public class GraphqlRequestTests {
         String variables = """
                 {"name": "sherlock holmes","rocket": "221B Baker Street"}""";
         Response response = RestActions.sendGraphQlRequest(spacex_base_uri,mutation,variables);
-        Validations.assertThat().response(response).extractedJsonValue("data.insert_users.returning[0].name").equals("sherlock holmes");
+        ApiValidations.assertThat(response).extractedJsonValue("data.insert_users.returning[0].name").equals("sherlock holmes");
     }
 }

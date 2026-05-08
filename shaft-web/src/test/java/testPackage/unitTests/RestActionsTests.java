@@ -2,6 +2,7 @@ package testPackage.unitTests;
 
 import com.shaft.api.RestActions;
 import com.shaft.api.RestActions.RequestType;
+import com.shaft.api.validation.ApiValidations;
 import com.shaft.validation.Validations;
 import io.restassured.response.Response;
 import org.testng.annotations.Test;
@@ -21,7 +22,7 @@ public class RestActionsTests {
         List<Object> postsList = RestActions.getResponseJSONValueAsList(posts, "$");
         Objects.requireNonNull(postsList).forEach(post -> {
             if (Objects.equals(RestActions.getResponseJSONValue(post, "title"), "qui est esse")) {
-                Validations.assertThat().response(post).extractedJsonValue("body").contains("qui neque nisi nulla").perform();
+                ApiValidations.assertThat(post).extractedJsonValue("body").contains("qui neque nisi nulla").perform();
             }
         });
     }
@@ -34,7 +35,7 @@ public class RestActionsTests {
 
         Objects.requireNonNull(RestActions.getResponseJSONValueAsList(users, "$")).forEach(user -> {
             if (Objects.equals(RestActions.getResponseJSONValue(user, "name"), "Leanne Graham")) {
-                Validations.assertThat().response(user).extractedJsonValue("email").equals("Sincere@april.biz");
+                ApiValidations.assertThat(user).extractedJsonValue("email").equals("Sincere@april.biz");
             }
 
         });

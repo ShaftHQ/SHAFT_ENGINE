@@ -1,6 +1,7 @@
 package testPackage.legacy;
 
 import com.shaft.validation.Validations;
+import com.shaft.validation.WebValidations;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import poms.GoogleSearch;
@@ -12,7 +13,7 @@ public class AssertEqualsTests extends Tests {
     public void test_assertElementAttribute() {
         driver.get().element().type(GoogleSearch.getSearchBox_textField(),
                 "INC_004010050:Another SCHEDULER with the same name [Duplicate Job Name] already exists.");
-        Validations.assertThat().element(driver.get().getDriver(), GoogleSearch.getSearchBox_textField()).text().matchesRegex("INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.").perform();
+        WebValidations.assertThat().element(driver.get().getDriver(), GoogleSearch.getSearchBox_textField()).text().matchesRegex("INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.").perform();
     }
 
     @Test
@@ -27,7 +28,7 @@ public class AssertEqualsTests extends Tests {
     public void test_verifyElementAttribute() {
         driver.get().element().type(GoogleSearch.getSearchBox_textField(),
                 "© Copyright 2014-2017 Incorta, Inc Version: Rel3.3-dev Build May 29, 2018 15:30");
-        Validations.verifyThat().element(driver.get().getDriver(), GoogleSearch.getSearchBox_textField())
+        WebValidations.verifyThat().element(driver.get().getDriver(), GoogleSearch.getSearchBox_textField())
                 .text()
                 .matchesRegex("([\\s\\S]*Rel3.3[\\s\\S]*)")
                 .perform();

@@ -2,7 +2,7 @@ package testPackage.mockedTests;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.validation.ValidationEnums;
-import com.shaft.validation.Validations;
+import com.shaft.validation.WebValidations;
 import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -252,29 +252,29 @@ public class E2ECoverageTests {
 
     @Test(description = "verifyThat element exists via Validations facade")
     public void verifyThatElementExistsShouldPass() {
-        Validations.verifyThat().element(driver.get().getDriver(), VISIBLE_EL).exists().perform();
+        WebValidations.verifyThat().element(driver.get().getDriver(), VISIBLE_EL).exists().perform();
     }
 
     @Test(description = "verifyThat element isVisible via Validations facade")
     public void verifyThatElementIsVisibleShouldPass() {
-        Validations.verifyThat().element(driver.get().getDriver(), VISIBLE_EL).isVisible().perform();
+        WebValidations.verifyThat().element(driver.get().getDriver(), VISIBLE_EL).isVisible().perform();
     }
 
     @Test(description = "assertThat element with custom report message")
     public void assertThatElementWithCustomMessageShouldPass() {
-        Validations.assertThat().element(driver.get().getDriver(), VISIBLE_EL).isVisible()
+        WebValidations.assertThat().element(driver.get().getDriver(), VISIBLE_EL).isVisible()
                 .withCustomReportMessage("Visible element must be visible").perform();
     }
 
     @Test(description = "assertThat browser title via Validations facade")
     public void assertThatBrowserTitleContainsShouldPass() {
-        Validations.assertThat().browser(driver.get().getDriver()).title()
+        WebValidations.assertThat().browser(driver.get().getDriver()).title()
                 .contains("Coverage Test Page").perform();
     }
 
     @Test(description = "assertThat element text via Validations facade")
     public void assertThatElementTextShouldPass() {
-        Validations.assertThat().element(driver.get().getDriver(), VISIBLE_EL)
+        WebValidations.assertThat().element(driver.get().getDriver(), VISIBLE_EL)
                 .text().isEqualTo("I am visible").perform();
     }
 }

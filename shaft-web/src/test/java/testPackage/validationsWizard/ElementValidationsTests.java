@@ -1,6 +1,6 @@
 package testPackage.validationsWizard;
 
-import com.shaft.validation.Validations;
+import com.shaft.validation.WebValidations;
 import org.openqa.selenium.By;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -11,47 +11,47 @@ public class ElementValidationsTests extends Tests {
 
     @Test
     public void exists() {
-        Validations.assertThat().element(driver.get().getDriver(), button).exists().perform();
+        WebValidations.assertThat().element(driver.get().getDriver(), button).exists().perform();
     }
 
     @Test
     public void matchesReferenceImage() {
-        Validations.assertThat().element(driver.get().getDriver(), button).matchesReferenceImage().perform();
+        WebValidations.assertThat().element(driver.get().getDriver(), button).matchesReferenceImage().perform();
     }
 
     @Test
     public void isVisible() {
-        Validations.assertThat().element(driver.get().getDriver(), button).isVisible().perform();
+        WebValidations.assertThat().element(driver.get().getDriver(), button).isVisible().perform();
     }
 
     @Test
     public void isEnabled() {
-        Validations.assertThat().element(driver.get().getDriver(), button).isEnabled().perform();
+        WebValidations.assertThat().element(driver.get().getDriver(), button).isEnabled().perform();
     }
 
     @Test
     public void isNotChecked() {
-        Validations.assertThat().element(driver.get().getDriver(), button).isNotChecked().perform();
+        WebValidations.assertThat().element(driver.get().getDriver(), button).isNotChecked().perform();
     }
 
     @Test
     public void isNotSelected() {
-        Validations.assertThat().element(driver.get().getDriver(), button).isNotSelected().perform();
+        WebValidations.assertThat().element(driver.get().getDriver(), button).isNotSelected().perform();
     }
 
     @Test
     public void attribute() {
-        Validations.assertThat().element(driver.get().getDriver(), button).attribute("alt").isEqualTo("Google").perform();
+        WebValidations.assertThat().element(driver.get().getDriver(), button).attribute("alt").isEqualTo("Google").perform();
     }
 
     @Test
     public void text() {
-        Validations.assertThat().element(driver.get().getDriver(), button).text().isEqualTo("Go").perform();
+        WebValidations.assertThat().element(driver.get().getDriver(), button).text().isEqualTo("Go").perform();
     }
 
     @Test
     public void cssProperty() {
-        Validations.assertThat().element(driver.get().getDriver(), button).cssProperty("appearance").matchesRegex("(auto|button)").perform();
+        WebValidations.assertThat().element(driver.get().getDriver(), button).cssProperty("appearance").matchesRegex("(auto|button)").perform();
     }
 
     @BeforeMethod

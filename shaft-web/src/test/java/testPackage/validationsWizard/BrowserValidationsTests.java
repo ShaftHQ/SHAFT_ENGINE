@@ -2,7 +2,7 @@ package testPackage.validationsWizard;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.validation.Validations;
+import com.shaft.validation.WebValidations;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -12,12 +12,12 @@ public class BrowserValidationsTests {
 
     @Test
     public void url() {
-        Validations.assertThat().browser(driver.get().getDriver()).url().contains("google.com").perform();
+        WebValidations.assertThat().browser(driver.get().getDriver()).url().contains("google.com").perform();
     }
 
     @Test
     public void title() {
-        Validations.assertThat().browser(driver.get().getDriver()).title().contains("oogle").perform();
+        WebValidations.assertThat().browser(driver.get().getDriver()).title().contains("oogle").perform();
     }
 
     @BeforeMethod
