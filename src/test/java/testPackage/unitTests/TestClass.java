@@ -3,7 +3,6 @@ package testPackage.unitTests;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.locator.Locator;
 import org.openqa.selenium.By;
-import org.openqa.selenium.Keys;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import testPackage.Tests;
@@ -11,28 +10,27 @@ import testPackage.Tests;
 public class TestClass extends Tests {
     SHAFT.TestData.JSON testData;
 
-    String targetUrl = "https://duckduckgo.com/";
+    String targetUrl = SHAFT.Properties.paths.testData() + "searchFixture.html";
 
-    By searchBox = Locator.hasAnyTagName().hasAttribute("id", "searchbox_input").build(); // DuckDuckGo search box (id changed from legacy 'search_form_input_homepage')
-    By firstSearchResult = Locator.hasTagName("article").isFirst().build(); // synonym to By.xpath("(//article)[1]");
+    By searchBox = Locator.hasAnyTagName().hasAttribute("id", "searchbox_input").build();
+    By firstSearchResult = Locator.hasTagName("article").isFirst().build();
 
-    @Test(enabled = false)
-    public void navigateToDuckDuckGoAndAssertBrowserTitleIsDisplayedCorrectly() {
+    @Test
+    public void navigateToSearchFixtureAndAssertBrowserTitleIsDisplayedCorrectly() {
         driver.get().browser().navigateToURL(targetUrl)
-                .and().assertThat().title().contains(testData.getTestData("expectedTitle"));
+                .and().assertThat().title().isEqualTo("SHAFT Search Fixture");
     }
 
-    @Test(enabled = false)
-    public void navigateToDuckDuckGoAndAssertSearchBoxIsVisible() {
+    @Test
+    public void navigateToSearchFixtureAndAssertSearchBoxIsVisible() {
         driver.get().browser().navigateToURL(targetUrl)
                 .and().element().assertThat(searchBox).isVisible();
     }
 
-    @Test(enabled = false)
+    @Test
     public void searchForQueryAndAssert() {
-        // this test will fail when duckduckgo detects that a bot is using it and shows a captcha instead of search results
         driver.get().browser().navigateToURL(targetUrl)
-                .and().element().type(searchBox, testData.getTestData("searchQuery") + Keys.ENTER)
+                .and().element().type(searchBox, testData.getTestData("searchQuery"))
                 .and().assertThat(firstSearchResult).text().doesNotEqual(testData.getTestData("unexpectedInFirstResult"));
     }
 

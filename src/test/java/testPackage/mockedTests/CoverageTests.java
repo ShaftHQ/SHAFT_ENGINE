@@ -39,13 +39,14 @@ public class CoverageTests {
             driver.get().browser().navigateToURLWithBasicAuthentication("https://authenticationtest.com/HTTPAuth/", "user", "pass", "https://authenticationtest.com/loginSuccess/");
     }
 
-    @Test(enabled = false)
+    @Test
     public void alerts_getText_and_accept() {
-        driver.get().browser().navigateToURL("https://kitchen.applitools.com/ingredients/alert");
+        driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "alertFixture.html");
         var alert = driver.get().element().click(By.id("alert-button"))
                 .and().alert();
         alert.getAlertText();
         alert.acceptAlert();
+        driver.get().element().assertThat(By.id("alert-result")).text().isEqualTo("accepted").perform();
     }
 
     @Test(expectedExceptions = {RuntimeException.class})
@@ -91,18 +92,20 @@ public class CoverageTests {
         }
     }
 
-    @Test(enabled = false)
+    @Test
     public void alerts_dismiss() {
-        driver.get().browser().navigateToURL("https://kitchen.applitools.com/ingredients/alert");
+        driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "alertFixture.html");
         driver.get().element().click(By.id("confirm-button"))
                 .and().alert().dismissAlert();
+        driver.get().element().assertThat(By.id("confirm-result")).text().isEqualTo("false").perform();
     }
 
-    @Test(enabled = false)
+    @Test
     public void alerts_type() {
-        driver.get().browser().navigateToURL("https://kitchen.applitools.com/ingredients/alert");
+        driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "alertFixture.html");
         driver.get().element().click(By.id("prompt-button"))
                 .and().alert().typeIntoPromptAlert("nachos").acceptAlert();
+        driver.get().element().assertThat(By.id("prompt-result")).text().isEqualTo("nachos").perform();
     }
 
     @Test(enabled = false)
