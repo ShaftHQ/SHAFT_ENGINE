@@ -1,0 +1,248 @@
+name: Measure Code Coverage
+
+on:
+  push:
+    branches:
+      - claude/test-coverage-github-actions-NC97z
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  measure_coverage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+        with:
+          token: ${{ github.token }}
+
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+
+      - name: Connect to PostgreSQL
+        run: |
+          cd src/main/resources/docker-compose/postgres/
+          npm install pg
+          node client.js
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+
+      - name: Start Selenium Grid
+        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=4 --scale edge=0 --scale firefox=4 -d
+
+      - name: Wait for Selenium Grid
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:4444/status | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('value',{}).get('ready') else 1)" 2>/dev/null; then
+              echo "Selenium Grid is ready"
+              break
+            fi
+            echo "Waiting for grid... attempt $i/30"
+            sleep 5
+          done
+          docker ps
+
+      # Run 1: API, CLI, File, Properties, YAML, CSV, Excel, PDF tests
+      # JaCoCo append=true by default — creates target/jacoco.exec
+      - name: Run API and File tests
+        continue-on-error: true
+        run: |
+          mvn -e test \
+            "-DdefaultElementIdentificationTimeout=5" \
+            "-DretryMaximumNumberOfAttempts=1" \
+            "-Dtest=%regex[.*API.*], %regex[.*Api.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*], %regex[.*YAML.*], %regex[.*Yaml.*], %regex[.*yaml.*], %regex[.*CLIWizard.*], %regex[.*TerminalActions.*], %regex[.*properties.Mobile.*], %regex[.*CSVFileManagerUnitTest.*], %regex[.*PdfFileManager.*], %regex[.*ExcelFileManager.*]"
+
+      # Run 2: Database tests (appends to target/jacoco.exec)
+      - name: Run Database tests
+        continue-on-error: true
+        run: |
+          mvn -e test \
+            "-DretryMaximumNumberOfAttempts=1" \
+            "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
+
+      # Run 3: Browser Grid tests via GLOBAL_TESTING_SCOPE (appends to target/jacoco.exec)
+      - name: Run Browser Grid tests (Firefox)
+        continue-on-error: true
+        run: |
+          mvn -e test \
+            "-DdefaultElementIdentificationTimeout=5" \
+            "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" \
+            "-DretryMaximumNumberOfAttempts=1" \
+            "-DexecutionAddress=http://localhost:4444" \
+            "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" \
+            "-DheadlessExecution=true" \
+            "-Dtest=!%regex[.*DatabaseActions.*], !%regex[.*CLI.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*MobileWeb.*], !%regex[.*appium.Mobile.*], !%regex[.*properties.Mobile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*], !%regex[.*Flutter.*]"
+
+      # Run 4: Browser Grid tests (Chrome) — covers Chrome-specific code paths
+      - name: Run Browser Grid tests (Chrome)
+        continue-on-error: true
+        run: |
+          mvn -e test \
+            "-DdefaultElementIdentificationTimeout=5" \
+            "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" \
+            "-DretryMaximumNumberOfAttempts=1" \
+            "-DexecutionAddress=http://localhost:4444" \
+            "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" \
+            "-DheadlessExecution=true" \
+            "-Dtest=!%regex[.*DatabaseActions.*], !%regex[.*CLI.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*MobileWeb.*], !%regex[.*appium.Mobile.*], !%regex[.*properties.Mobile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*], !%regex[.*Flutter.*]"
+
+      # Run 5: Cucumber Grid tests (appends to target/jacoco.exec)
+      - name: Run Cucumber Grid tests
+        continue-on-error: true
+        run: |
+          mvn -e test \
+            "-DdefaultElementIdentificationTimeout=5" \
+            "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" \
+            "-DretryMaximumNumberOfAttempts=1" \
+            "-DexecutionAddress=http://localhost:4444" \
+            "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" \
+            "-DmaximumPerformanceMode=2" \
+            "-Dtest=%regex[.*(CucumberTests|CucumberFeatureListenerUnitTest|CucumberTestRunnerListenerUnitTest).*]"
+
+      # Generate final report from accumulated exec data (explicit report with correct output path)
+      - name: Generate JaCoCo Coverage Report
+        if: always()
+        run: |
+          if [ -f "target/jacoco.exec" ]; then
+            mvn jacoco:report \
+              "-Djacoco.dataFile=target/jacoco.exec" \
+              "-Djacoco.outputDirectory=target/jacoco" \
+              -Dgpg.skip || true
+          else
+            echo "::warning::No target/jacoco.exec found — tests may not have run"
+          fi
+
+      # Parse jacoco.csv and produce a readable markdown coverage report
+      - name: Generate Coverage Summary
+        if: always()
+        run: |
+          mkdir -p docs
+          if [ -f "target/jacoco/jacoco.csv" ]; then
+            cp target/jacoco/jacoco.csv docs/coverage-snapshot.csv
+            python3 - << 'PYEOF'
+          import csv, datetime, sys
+
+          rows = []
+          total_missed = 0
+          total_covered = 0
+          by_package = {}
+
+          with open('docs/coverage-snapshot.csv', 'r') as f:
+              reader = csv.DictReader(f)
+              for row in reader:
+                  rows.append(row)
+                  pkg = row['PACKAGE']
+                  im = int(row['INSTRUCTION_MISSED'])
+                  ic = int(row['INSTRUCTION_COVERED'])
+                  lm = int(row['LINE_MISSED'])
+                  lc = int(row['LINE_COVERED'])
+                  mm = int(row['METHOD_MISSED'])
+                  mc = int(row['METHOD_COVERED'])
+                  total_missed += im
+                  total_covered += ic
+                  if pkg not in by_package:
+                      by_package[pkg] = {'im': 0, 'ic': 0, 'lm': 0, 'lc': 0, 'mm': 0, 'mc': 0}
+                  by_package[pkg]['im'] += im
+                  by_package[pkg]['ic'] += ic
+                  by_package[pkg]['lm'] += lm
+                  by_package[pkg]['lc'] += lc
+                  by_package[pkg]['mm'] += mm
+                  by_package[pkg]['mc'] += mc
+
+          total = total_missed + total_covered
+          overall_pct = 100.0 * total_covered / total if total > 0 else 0
+
+          now = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
+          lines = []
+          lines.append('# JaCoCo Coverage Snapshot\n')
+          lines.append(f'Generated: {now}\n')
+          lines.append('')
+          lines.append(f'**Overall Instruction Coverage: {overall_pct:.1f}%** ({total_covered:,} / {total:,} instructions)\n')
+          lines.append('')
+          lines.append('| Package | Instructions | Lines | Methods |')
+          lines.append('|---------|:------------|:------|:--------|')
+
+          for pkg, d in sorted(by_package.items(), key=lambda x: x[1]['im'], reverse=True):
+              it = d['im'] + d['ic']
+              lt = d['lm'] + d['lc']
+              mt = d['mm'] + d['mc']
+              ip = 100.0 * d['ic'] / it if it > 0 else 0
+              lp = 100.0 * d['lc'] / lt if lt > 0 else 0
+              mp = 100.0 * d['mc'] / mt if mt > 0 else 0
+              lines.append(f'| `{pkg}` | {ip:.1f}% ({d["ic"]:,}/{it:,}) | {lp:.1f}% ({d["lc"]:,}/{lt:,}) | {mp:.1f}% ({d["mc"]:,}/{mt:,}) |')
+
+          lines.append('')
+          lines.append('## Top 20 Under-Covered Classes')
+          lines.append('')
+          lines.append('| Class | Package | Instruction Coverage |')
+          lines.append('|-------|---------|---------------------|')
+
+          class_rows = sorted(rows, key=lambda r: int(r['INSTRUCTION_MISSED']), reverse=True)[:20]
+          for r in class_rows:
+              im = int(r['INSTRUCTION_MISSED'])
+              ic = int(r['INSTRUCTION_COVERED'])
+              t = im + ic
+              pct = 100.0 * ic / t if t > 0 else 0
+              lines.append(f'| `{r["CLASS"]}` | `{r["PACKAGE"]}` | {pct:.1f}% ({ic:,}/{t:,}) |')
+
+          with open('docs/coverage-snapshot.md', 'w') as f:
+              f.write('\n'.join(lines) + '\n')
+
+          print(f'Coverage: {overall_pct:.1f}% ({total_covered:,}/{total:,} instructions)')
+          print(f'Packages: {len(by_package)}')
+          print(f'Classes:  {len(rows)}')
+          PYEOF
+          else
+            echo "::warning::No target/jacoco/jacoco.csv found — coverage report was not generated"
+            echo "# JaCoCo Coverage Snapshot" > docs/coverage-snapshot.md
+            echo "" >> docs/coverage-snapshot.md
+            echo "**No coverage data available.** The test run may have failed before producing a report." >> docs/coverage-snapshot.md
+          fi
+
+      - name: Upload jacoco.exec as artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: jacoco-exec
+          path: target/jacoco.exec
+          if-no-files-found: warn
+
+      - name: Upload coverage CSV as artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: jacoco-csv
+          path: target/jacoco/jacoco.csv
+          if-no-files-found: warn
+
+      - name: Commit Coverage Snapshot to Branch
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/coverage-snapshot.csv docs/coverage-snapshot.md 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No coverage snapshot changes to commit"
+          else
+            git commit -m "chore: update JaCoCo coverage snapshot [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
