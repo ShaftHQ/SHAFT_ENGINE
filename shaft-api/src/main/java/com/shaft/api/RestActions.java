@@ -296,7 +296,10 @@ public class RestActions {
                     Object jsonValue = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
                     searchPool = String.valueOf(jsonValue);
                 }
-            } catch (JSONException | PathNotFoundException rootCauseException) {
+            } catch (JSONException rootCauseException) {
+                ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
+                failAction(jsonPath, rootCauseException);
+            } catch (PathNotFoundException rootCauseException) {
                 ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
                 failAction(jsonPath, rootCauseException);
             }
@@ -385,7 +388,13 @@ public class RestActions {
         } catch (ClassCastException rootCauseException) {
             ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"", Level.ERROR);
             failAction(jsonPath, rootCauseException);
-        } catch (JsonPathException | JSONException | IllegalArgumentException rootCauseException) {
+        } catch (JsonPathException rootCauseException) {
+            ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
+            failAction(jsonPath, rootCauseException);
+        } catch (JSONException rootCauseException) {
+            ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
+            failAction(jsonPath, rootCauseException);
+        } catch (IllegalArgumentException rootCauseException) {
             ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
             failAction(jsonPath, rootCauseException);
         }
@@ -420,7 +429,10 @@ public class RestActions {
                 JSONArray jsonArray = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
                 jsonList = new ObjectMapper().readValue(Objects.requireNonNull(jsonArray).toString(), new TypeReference<>() {
                 });
-            } catch (JSONException | JsonProcessingException rootCauseException) {
+            } catch (JSONException rootCauseException) {
+                ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
+                failAction(jsonPath, rootCauseException);
+            } catch (JsonProcessingException rootCauseException) {
                 ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
                 failAction(jsonPath, rootCauseException);
             }
