@@ -1,0 +1,30 @@
+# Start setting up your prerequisites with selenoid_setup.yml, once done you can proceed here.
+# To execute this docker-compose yml file use `docker-compose -f selenoid.yml up -d`
+# Add the `-d` flag at the end for detached execution
+# This is where the server will run (point your tests here) http://localhost:8080/
+# This is where the UI will run (monitor your tests here) http://localhost:4444/status
+# To stop the execution, hit Ctrl+C, and then `docker-compose -f selenoid.yml down --remove-orphans`
+# TODO: Investigate problem with Safari instance
+version: '3'
+services:
+  selenoid:
+    network_mode: bridge
+    image: aerokube/selenoid:latest-release
+    volumes:
+      - "./selenoid:/etc/selenoid"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./../../../../selenoid/video:/opt/selenoid/video"
+      - "./../../../../selenoid/logs:/opt/selenoid/logs"
+    environment:
+      - OVERRIDE_VIDEO_OUTPUT_DIR=../../../../selenoid/video
+    command: ["-conf", "/etc/selenoid/browsers.json", "-video-output-dir", "/opt/selenoid/video", "-log-output-dir", "/opt/selenoid/logs"]
+    ports:
+      - "4444:4444"
+  selenoid-ui:
+    network_mode: bridge
+    image: aerokube/selenoid-ui:latest-release
+    links:
+      - selenoid
+    ports:
+      - "8080:8080"
+    command: [ "--selenoid-uri", "http://selenoid:4444" ]

@@ -1,0 +1,4 @@
+barCode,aName,clientName,amountCalculated,amountCalculatedPayed,discount,totalDiscount
+1234567890,!InvalidName,123456,-100,-200,-50,-150
+1061998,NameWith255Characters....................................................................................,Client@123,INVALID,INVALID,150067,1500
+barcode-001,@Name!,Client!123,10000000000,10000000000,26500,9999999999

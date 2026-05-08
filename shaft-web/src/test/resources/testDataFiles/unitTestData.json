@@ -1,0 +1,12 @@
+{
+  "username": "testUser",
+  "password": "testPass123",
+  "email": "test@example.com",
+  "age": "25",
+  "isActive": "true",
+  "emptyValue": "",
+  "specialChars": "!@#$%^&*()",
+  "url": "https://www.saucedemo.com",
+  "searchQuery": "selenium",
+  "expectedTitle": "Swag Labs"
+}

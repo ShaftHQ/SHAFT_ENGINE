@@ -1,0 +1,49 @@
+# https://github.com/healenium/healenium-backend
+# To execute this docker-compose yml file use `docker-compose -f healenium-backend.yml up -d`
+# Add the `-d` flag at the end for detached execution
+# http://localhost:7878/healenium/report/5254206f-d4de-49ce-a29b-8221d9f3b85b
+# Get the session key from the console log when you run using mvn clean test command, looks like this:
+# sessionKey= 5254206f-d4de-49ce-a29b-8221d9f3b85b
+# To stop the execution, hit Ctrl+C, and then `docker-compose -f healenium-backend.yml down --remove-orphans`
+version: "3.3"
+
+services:
+
+  db:
+    image: postgres:11-alpine
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./healenium-backend/db/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: always
+    environment:
+      - POSTGRES_DB=healenium
+      - POSTGRES_USER=healenium_user
+      - POSTGRES_PASSWORD=YDk2nmNs4s9aCP6K
+    networks:
+      - healenium
+
+  healenium:
+    image: healenium/hlm-backend:3.2.0
+    ports:
+      - "7878:7878"
+    links:
+      - db
+    restart: always
+    environment:
+      - SPRING_CONTAINER_NAME=healenium
+      - SPRING_POSTGRES_DB=healenium
+      - SPRING_POSTGRES_USER=healenium_user
+      - SPRING_POSTGRES_PASSWORD=YDk2nmNs4s9aCP6K
+      - SPRING_POSTGRES_URL=jdbc:postgresql://db:5432/healenium?currentSchema=healenium
+    networks:
+      - healenium
+
+  selector-imitator:
+    image: healenium/hlm-selector-imitator:1
+    restart: on-failure
+    ports:
+      - "8000:8000"
+
+networks:
+  healenium:

@@ -1,0 +1,20 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+
+<suite name="Suite02" verbose="10">
+    <test name="Test01">
+        <classes>
+            <class name="testPackage.mockedTests.ValidationTests">
+                <methods>
+                    <include name="assertEquals_true_expectedToPass"/>
+                    <include name="assertEquals_true_expectedToFail"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    <test name="Test02">
+        <classes>
+            <class name="testPackage.legacy.JsonActionsTests">
+            </class>
+        </classes>
+    </test>
+</suite>

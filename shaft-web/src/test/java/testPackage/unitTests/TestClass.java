@@ -1,0 +1,43 @@
+package testPackage.unitTests;
+
+import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.locator.Locator;
+import org.openqa.selenium.By;
+import org.openqa.selenium.Keys;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+import testPackage.Tests;
+
+public class TestClass extends Tests {
+    SHAFT.TestData.JSON testData;
+
+    String targetUrl = "https://duckduckgo.com/";
+
+    By searchBox = Locator.hasAnyTagName().hasAttribute("id", "searchbox_input").build(); // DuckDuckGo search box (id changed from legacy 'search_form_input_homepage')
+    By firstSearchResult = Locator.hasTagName("article").isFirst().build(); // synonym to By.xpath("(//article)[1]");
+
+    @Test(enabled = false)
+    public void navigateToDuckDuckGoAndAssertBrowserTitleIsDisplayedCorrectly() {
+        driver.get().browser().navigateToURL(targetUrl)
+                .and().assertThat().title().contains(testData.getTestData("expectedTitle"));
+    }
+
+    @Test(enabled = false)
+    public void navigateToDuckDuckGoAndAssertSearchBoxIsVisible() {
+        driver.get().browser().navigateToURL(targetUrl)
+                .and().element().assertThat(searchBox).isVisible();
+    }
+
+    @Test(enabled = false)
+    public void searchForQueryAndAssert() {
+        // this test will fail when duckduckgo detects that a bot is using it and shows a captcha instead of search results
+        driver.get().browser().navigateToURL(targetUrl)
+                .and().element().type(searchBox, testData.getTestData("searchQuery") + Keys.ENTER)
+                .and().assertThat(firstSearchResult).text().doesNotEqual(testData.getTestData("unexpectedInFirstResult"));
+    }
+
+    @BeforeClass
+    public void beforeClass() {
+        testData = new SHAFT.TestData.JSON("simpleJSON.json");
+    }
+}

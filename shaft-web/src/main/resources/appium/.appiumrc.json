@@ -1,0 +1,45 @@
+{
+  "server": {
+    "allow-cors": true,
+    "debug-log-spacing": true,
+    "allow-insecure": [
+      "adb_shell",
+      "chromedriver_autodownload"
+    ],
+    "keep-alive-timeout": 1800,
+    "local-timezone": true,
+    "log-no-colors": false,
+    "log-timestamp": true,
+    "long-stacktrace": true,
+    "relaxed-security": true,
+    "use-drivers": [
+      "xcuitest",
+      "uiautomator2"
+    ],
+    "use-plugins": [
+      "images"
+    ],
+    "plugin": {
+      "device-farm": {
+        "platform": "both",
+        "hub": "http://localhost:4723",
+        "cloud": {
+          "cloudName": "browserstack",
+          "url": "http://hub-cloud.browserstack.com/wd/hub",
+          "devices": [
+            {
+              "deviceName": "Google Pixel 7",
+              "os_version": "13.0",
+              "platform": "android"
+            },
+            {
+              "deviceName": "iPhone 14",
+              "os_version": "16",
+              "platform": "ios"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
