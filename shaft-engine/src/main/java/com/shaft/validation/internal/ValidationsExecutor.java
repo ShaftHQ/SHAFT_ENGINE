@@ -1,6 +1,7 @@
 package com.shaft.validation.internal;
 
 import com.shaft.api.RestActions;
+import com.shaft.api.validation.internal.RestValidationsBuilder;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
@@ -140,7 +141,7 @@ public class ValidationsExecutor {
         ReportManager.log(customReportMessage);
     }
 
-    protected void internalPerform() {
+    public void internalPerform() {
         JavaScriptWaitManager.waitForLazyLoading(driver.get());
         boolean generatedCustomReportMessage = false;
         if (customReportMessage.isBlank()) {

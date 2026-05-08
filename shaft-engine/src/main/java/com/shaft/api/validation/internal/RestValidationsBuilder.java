@@ -1,26 +1,35 @@
-package com.shaft.validation.internal;
+package com.shaft.api.validation.internal;
 
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.validation.ValidationEnums;
+import com.shaft.validation.internal.JSONValidationsBuilder;
+import com.shaft.validation.internal.NativeValidationsBuilder;
+import com.shaft.validation.internal.NumberValidationsBuilder;
+import com.shaft.validation.internal.ValidationsExecutor;
 
 
 @SuppressWarnings("unused")
 public class RestValidationsBuilder {
-    protected final ValidationEnums.ValidationCategory validationCategory;
-    protected final Object response;
-    protected final StringBuilder reportMessageBuilder;
-    protected String validationMethod;
-    protected ValidationEnums.ValidationType validationType;
-    protected String fileAbsolutePath;
-    protected RestActions.ComparisonType restComparisonType;
-    protected String jsonPath;
+    public final ValidationEnums.ValidationCategory validationCategory;
+    public final Object response;
+    public final StringBuilder reportMessageBuilder;
+    public String validationMethod;
+    public ValidationEnums.ValidationType validationType;
+    public String fileAbsolutePath;
+    public RestActions.ComparisonType restComparisonType;
+    public String jsonPath;
+
+    public RestValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, Object response) {
+        this.validationCategory = validationCategory;
+        this.response = response;
+        this.reportMessageBuilder = new StringBuilder("the API response ");
+    }
 
     public RestValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, Object response, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;
         this.response = response;
-
         this.reportMessageBuilder = reportMessageBuilder;
     }
 

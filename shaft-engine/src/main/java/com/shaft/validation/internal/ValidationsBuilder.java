@@ -1,5 +1,6 @@
 package com.shaft.validation.internal;
 
+import com.shaft.api.validation.internal.RestValidationsBuilder;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;

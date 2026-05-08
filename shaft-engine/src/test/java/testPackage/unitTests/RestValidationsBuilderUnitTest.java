@@ -9,7 +9,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
- * Unit tests for {@link com.shaft.validation.internal.RestValidationsBuilder}.
+ * Unit tests for {@link com.shaft.api.validation.internal.RestValidationsBuilder}.
  *
  * <p>Exercises all public methods: {@code extractedJsonValue},
  * {@code extractedJsonValueAsList}, {@code body}, {@code time},

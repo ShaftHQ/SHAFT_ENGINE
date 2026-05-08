@@ -15,7 +15,7 @@ import com.shaft.gui.element.internal.Actions;
 import com.shaft.listeners.internal.WebDriverListener;
 import com.shaft.tools.io.*;
 import com.shaft.tools.io.internal.ReportManagerHelper;
-import com.shaft.validation.internal.RestValidationsBuilder;
+import com.shaft.api.validation.internal.RestValidationsBuilder;
 import io.appium.java_client.AppiumDriver;
 import io.restassured.response.Response;
 import org.openqa.selenium.MutableCapabilities;

@@ -1,5 +1,6 @@
 package com.shaft.validation.internal;
 
+import com.shaft.api.validation.internal.RestValidationsBuilder;
 import com.shaft.validation.ValidationEnums;
 
 @SuppressWarnings("unused")

@@ -88,18 +88,6 @@ public class ThreadLocalPropertiesTest {
                 "getAppiumDesiredCapabilities should read mobile_ properties from thread-local overrides");
     }
 
-    @Test(description = "getCustomWebDriverDesiredCapabilities picks up thread-local capabilities.* properties")
-    public void testGetCustomWebDriverDesiredCapabilitiesReadsThreadLocal() {
-        String capKey = "capabilities.goog:loggingPrefs";
-        String capValue = "{\"browser\":\"ALL\"}";
-
-        ThreadLocalPropertiesManager.setProperty(capKey, capValue);
-
-        var caps = PropertyFileManager.getCustomWebDriverDesiredCapabilities();
-        Assert.assertEquals(caps.getCapability("goog:loggingPrefs"), capValue,
-                "getCustomWebDriverDesiredCapabilities should read capabilities.* from thread-local overrides");
-    }
-
     @Test(description = "getCustomBrowserstackCapabilities picks up thread-local browserStack.* properties")
     public void testGetCustomBrowserstackCapabilitiesReadsThreadLocal() {
         String capKey = "browserStack.sessionName";

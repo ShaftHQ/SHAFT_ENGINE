@@ -17,7 +17,7 @@ import com.shaft.tools.io.ExcelFileManager;
 import com.shaft.tools.io.JSONFileManager;
 import com.shaft.tools.io.YAMLFileManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
-import com.shaft.validation.internal.RestValidationsBuilder;
+import com.shaft.api.validation.internal.RestValidationsBuilder;
 import io.restassured.response.Response;
 import org.mockito.Mockito;
 import org.openqa.selenium.MutableCapabilities;
