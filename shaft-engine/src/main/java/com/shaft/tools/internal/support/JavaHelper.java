@@ -243,6 +243,22 @@ public class JavaHelper {
                 + word.substring(1).toLowerCase();
     }
 
+    /**
+     * Returns {@code true} if the named class is loadable from the current classloader.
+     * Used to guard calls to optional-module classes (shaft-web, shaft-api) so shaft-core
+     * listeners can silently skip features that require a module not on the classpath.
+     *
+     * @param className fully-qualified class name, e.g. {@code "com.shaft.gui.internal.video.RecordManager"}
+     */
+    public static boolean isClassAvailable(String className) {
+        try {
+            Class.forName(className, false, Thread.currentThread().getContextClassLoader());
+            return true;
+        } catch (ClassNotFoundException ignored) {
+            return false;
+        }
+    }
+
     public static String appendTestDataToRelativePath(String relativePath) {
         if (FileActions.getInstance(true).doesFileExist(relativePath)) {
             //file path is valid

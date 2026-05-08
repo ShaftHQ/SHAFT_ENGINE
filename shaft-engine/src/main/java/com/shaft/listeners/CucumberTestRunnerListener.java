@@ -2,8 +2,6 @@ package com.shaft.listeners;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.internal.image.AnimatedGifManager;
-import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -87,11 +85,22 @@ public class CucumberTestRunnerListener extends AllureCucumber7Jvm {
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
             if (SHAFT.Properties.visuals.videoParamsScope().equals("TestMethod")) {
-                RecordManager.attachVideoRecording();
+                invokeIfAvailable("com.shaft.gui.internal.video.RecordManager", "attachVideoRecording");
             }
-            AnimatedGifManager.attachAnimatedGif();
+            invokeIfAvailable("com.shaft.gui.internal.image.AnimatedGifManager", "attachAnimatedGif");
             ReportManagerHelper.attachTestLog(lastStartedScenarioName,
                     TestNGListenerHelper.createTestLog(Reporter.getOutput()));
+        }
+    }
+
+    private static void invokeIfAvailable(String className, String methodName) {
+        try {
+            var cls = Class.forName(className, false, Thread.currentThread().getContextClassLoader());
+            cls.getMethod(methodName).invoke(null);
+        } catch (ClassNotFoundException ignored) {
+            // shaft-web not on classpath — skip silently
+        } catch (Exception e) {
+            ReportManagerHelper.logDiscrete(e);
         }
     }
 

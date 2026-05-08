@@ -2,8 +2,6 @@ package com.shaft.listeners;
 
 import com.shaft.api.RequestBuilder;
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.internal.image.AnimatedGifManager;
-import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.listeners.internal.JiraHelper;
 import com.shaft.listeners.internal.JunitListenerHelper;
 import com.shaft.tools.internal.FirestoreRestClient;
@@ -159,9 +157,20 @@ public class JunitListener implements LauncherSessionListener {
     private void afterInvocation(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
         if (SHAFT.Properties.visuals.videoParamsScope().equals("TestMethod")) {
-            RecordManager.attachVideoRecording();
+            invokeIfAvailable("com.shaft.gui.internal.video.RecordManager", "attachVideoRecording");
         }
-        AnimatedGifManager.attachAnimatedGif();
+        invokeIfAvailable("com.shaft.gui.internal.image.AnimatedGifManager", "attachAnimatedGif");
+    }
+
+    private static void invokeIfAvailable(String className, String methodName) {
+        try {
+            var cls = Class.forName(className, false, Thread.currentThread().getContextClassLoader());
+            cls.getMethod(methodName).invoke(null);
+        } catch (ClassNotFoundException ignored) {
+            // shaft-web not on classpath — skip silently
+        } catch (Exception e) {
+            ReportManagerHelper.logDiscrete(e);
+        }
     }
 
     private void onTestSuccess(TestIdentifier testIdentifier) {

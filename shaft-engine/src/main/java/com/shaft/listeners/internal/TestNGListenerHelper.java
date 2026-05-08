@@ -3,9 +3,7 @@ package com.shaft.listeners.internal;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.enums.internal.Screenshots;
-import com.shaft.gui.internal.image.AnimatedGifManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
-import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Issue;
@@ -273,12 +271,12 @@ public class TestNGListenerHelper {
             List<String> attachments = new ArrayList<>();
             String attachment;
             if (SHAFT.Properties.visuals.videoParamsScope().equals("TestMethod")) {
-                RecordManager.attachVideoRecording();
-                attachment = RecordManager.getVideoRecordingFilePath();
+                invokeVoidIfAvailable("com.shaft.gui.internal.video.RecordManager", "attachVideoRecording");
+                attachment = invokeStringIfAvailable("com.shaft.gui.internal.video.RecordManager", "getVideoRecordingFilePath");
                 if (!attachment.isEmpty())
                     attachments.add(attachment);
             }
-            attachment = AnimatedGifManager.attachAnimatedGif();
+            attachment = invokeStringIfAvailable("com.shaft.gui.internal.image.AnimatedGifManager", "attachAnimatedGif");
             if (!attachment.isEmpty())
                 attachments.add(attachment);
 
@@ -435,6 +433,28 @@ public class TestNGListenerHelper {
                 }
                 ReportManagerHelper.logFinishedTestInformation(className, methodName, methodDescription, methodStatus);
             }
+        }
+    }
+
+    private static void invokeVoidIfAvailable(String className, String methodName) {
+        try {
+            var cls = Class.forName(className, false, Thread.currentThread().getContextClassLoader());
+            cls.getMethod(methodName).invoke(null);
+        } catch (ClassNotFoundException ignored) {
+        } catch (Exception e) {
+            ReportManagerHelper.logDiscrete(e);
+        }
+    }
+
+    private static String invokeStringIfAvailable(String className, String methodName) {
+        try {
+            var cls = Class.forName(className, false, Thread.currentThread().getContextClassLoader());
+            return (String) cls.getMethod(methodName).invoke(null);
+        } catch (ClassNotFoundException ignored) {
+            return "";
+        } catch (Exception e) {
+            ReportManagerHelper.logDiscrete(e);
+            return "";
         }
     }
 }

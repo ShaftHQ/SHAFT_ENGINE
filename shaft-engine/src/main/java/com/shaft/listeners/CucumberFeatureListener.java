@@ -17,8 +17,6 @@ package com.shaft.listeners;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.internal.image.AnimatedGifManager;
-import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.listeners.internal.CucumberHelper;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -238,9 +236,9 @@ public class CucumberFeatureListener extends AllureCucumber7Jvm {
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
             if (SHAFT.Properties.visuals.videoParamsScope().equals("TestMethod")) {
-                RecordManager.attachVideoRecording();
+                invokeIfAvailable("com.shaft.gui.internal.video.RecordManager", "attachVideoRecording");
             }
-            AnimatedGifManager.attachAnimatedGif();
+            invokeIfAvailable("com.shaft.gui.internal.image.AnimatedGifManager", "attachAnimatedGif");
             // configuration method attachment is not added to the report (Allure ->
             // threadContext.getCurrent(); -> empty)
             ReportManagerHelper.attachTestLog(lastStartedScenarioName,
@@ -516,5 +514,16 @@ public class CucumberFeatureListener extends AllureCucumber7Jvm {
                 return new ByteArrayInputStream(FileActions.getInstance(true).readFile(uri.getPath()).getBytes());
             }
         });
+    }
+
+    private static void invokeIfAvailable(String className, String methodName) {
+        try {
+            var cls = Class.forName(className, false, Thread.currentThread().getContextClassLoader());
+            cls.getMethod(methodName).invoke(null);
+        } catch (ClassNotFoundException ignored) {
+            // shaft-web not on classpath — skip silently
+        } catch (Exception e) {
+            ReportManagerHelper.logDiscrete(e);
+        }
     }
 }
