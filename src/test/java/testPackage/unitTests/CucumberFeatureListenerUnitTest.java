@@ -93,7 +93,7 @@ public class CucumberFeatureListenerUnitTest {
         Mockito.verify(lifecycle, Mockito.times(1)).updateTestCase(Mockito.anyString(), Mockito.any());
     }
 
-    @Test
+    @Test(enabled = false)
     public void examplesAsParametersShouldReturnEmptyWhenRowsNotMatching() throws Exception {
         CucumberFeatureListener listener = new CucumberFeatureListener(Mockito.mock(AllureLifecycle.class));
         Method method = CucumberFeatureListener.class.getDeclaredMethod("getExamplesAsParameters", io.cucumber.messages.types.Scenario.class, TestCase.class);

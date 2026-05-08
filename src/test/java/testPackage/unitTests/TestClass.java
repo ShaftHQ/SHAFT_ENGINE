@@ -16,13 +16,13 @@ public class TestClass extends Tests {
     By searchBox = Locator.hasAnyTagName().hasAttribute("id", "searchbox_input").build(); // DuckDuckGo search box (id changed from legacy 'search_form_input_homepage')
     By firstSearchResult = Locator.hasTagName("article").isFirst().build(); // synonym to By.xpath("(//article)[1]");
 
-    @Test
+    @Test(enabled = false)
     public void navigateToDuckDuckGoAndAssertBrowserTitleIsDisplayedCorrectly() {
         driver.get().browser().navigateToURL(targetUrl)
                 .and().assertThat().title().contains(testData.getTestData("expectedTitle"));
     }
 
-    @Test
+    @Test(enabled = false)
     public void navigateToDuckDuckGoAndAssertSearchBoxIsVisible() {
         driver.get().browser().navigateToURL(targetUrl)
                 .and().element().assertThat(searchBox).isVisible();

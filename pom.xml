@@ -40,7 +40,7 @@
         <lombok.version>1.18.46</lombok.version>
         <maven.min.version>3.9.0</maven.min.version>
         <!-- Dependency Versions -->
-        <log4j2.version>2.25.4</log4j2.version>
+        <log4j2.version>2.26.0</log4j2.version>
         <netty.version>4.2.13.Final</netty.version>
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install "-DskipTests" "-Dgpg.skip"</installToLocalRepository>
@@ -980,7 +980,7 @@
         <dependency>
             <groupId>com.browserstack</groupId>
             <artifactId>browserstack-java-sdk</artifactId>
-            <version>1.58.0</version>
+            <version>1.58.1</version>
             <scope>runtime</scope>
             <exclusions>
                 <!-- Rely on SHAFT-controlled direct dependencies to avoid old transitive duplicates -->
@@ -1477,9 +1477,10 @@
                                 <alwaysLogDiscreetly>true</alwaysLogDiscreetly>
                                 <log4j2.disableAnsi>true</log4j2.disableAnsi>
                             </systemPropertyVariables>
-                            <testFailureIgnore>true</testFailureIgnore>
-                            <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
-                            <failIfNoTests>false</failIfNoTests>
+                            <!-- Enforce strict failure behavior -->
+                            <testFailureIgnore>false</testFailureIgnore>
+                            <failIfNoSpecifiedTests>true</failIfNoSpecifiedTests>
+                            <failIfNoTests>true</failIfNoTests>
                             <trimStackTrace>false</trimStackTrace>
                             <useFile>true</useFile>
                             <argLine>
@@ -1538,9 +1539,10 @@
                                 <alwaysLogDiscreetly>true</alwaysLogDiscreetly>
                                 <log4j2.disableAnsi>true</log4j2.disableAnsi>
                             </systemPropertyVariables>
-                            <testFailureIgnore>true</testFailureIgnore>
-                            <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
-                            <failIfNoTests>false</failIfNoTests>
+                            <!-- Enforce strict failure behavior -->
+                            <testFailureIgnore>false</testFailureIgnore>
+                            <failIfNoSpecifiedTests>true</failIfNoSpecifiedTests>
+                            <failIfNoTests>true</failIfNoTests>
                             <trimStackTrace>false</trimStackTrace>
                             <useFile>true</useFile>
                             <argLine>
