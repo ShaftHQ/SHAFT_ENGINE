@@ -1,13 +1,18 @@
 package testPackage.unitTests;
 
 import com.shaft.tools.internal.support.JavaHelper;
+import com.shaft.driver.SHAFT;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
+import org.openqa.selenium.support.locators.RelativeLocator;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.UUID;
 
 /**
  * Unit tests for {@link JavaHelper} static utility methods.
@@ -237,6 +242,30 @@ public class JavaHelperUnitTest {
         Assert.assertEquals(result, -1, "Unknown comparison type should return -1");
     }
 
+    @Test(description = "compareTwoObjects: invalid comparison type negative path -> -1")
+    public void compareTwoObjectsInvalidComparisonTypeNegativeShouldReturnNegativeOne() {
+        int result = JavaHelper.compareTwoObjects("foo", "foo", 99, false);
+        Assert.assertEquals(result, -1, "Unknown comparison type should return -1 for negative validation as well");
+    }
+
+    @Test(description = "compareTwoObjects: unsupported comparison type object should return -2")
+    public void compareTwoObjectsUnsupportedComparisonTypeShouldReturnNegativeTwo() {
+        int result = JavaHelper.compareTwoObjects("foo", "foo", "unsupportedType", true);
+        Assert.assertEquals(result, -2, "Unsupported comparison type should return -2");
+    }
+
+    @Test(description = "compareTwoObjects: invalid regex positive should return -2")
+    public void compareTwoObjectsInvalidRegexPositiveShouldReturnNegativeTwo() {
+        int result = JavaHelper.compareTwoObjects("[", "123", 2, true);
+        Assert.assertEquals(result, -2, "Invalid regex should be handled and return -2 in positive validation");
+    }
+
+    @Test(description = "compareTwoObjects: invalid regex negative should return -2")
+    public void compareTwoObjectsInvalidRegexNegativeShouldReturnNegativeTwo() {
+        int result = JavaHelper.compareTwoObjects("[", "123", 2, false);
+        Assert.assertEquals(result, -2, "Invalid regex should be handled and return -2 in negative validation");
+    }
+
     @Test(description = "compareTwoObjects: null equals null literal positive → 1")
     public void compareTwoObjectsNullEqualsNullPositiveShouldReturnOne() {
         int result = JavaHelper.compareTwoObjects("null", "null", 1, true);
@@ -353,5 +382,50 @@ public class JavaHelperUnitTest {
         String result = JavaHelper.formatLocatorToString(By.cssSelector(".myClass"));
         Assert.assertNotNull(result, "Formatted locator should not be null");
         Assert.assertTrue(result.contains("myClass"), "Result should contain the CSS class name");
+    }
+
+    @Test(description = "formatLocatorToString: RelativeBy should use relative locator formatting branch")
+    public void formatLocatorToStringRelativeLocatorShouldUseRelativeFormatting() {
+        By relativeBy = RelativeLocator.with(By.tagName("input")).above(By.id("anchor"));
+        String result = JavaHelper.formatLocatorToString(relativeBy);
+        Assert.assertTrue(result.startsWith("Relative Locator:"),
+                "Relative locators should use dedicated formatting");
+    }
+
+    @Test(description = "appendTestDataToRelativePath: slash-prefixed non-existing path should be normalized and prefixed")
+    public void appendTestDataToRelativePathLeadingSlashShouldNormalizeAndPrefix() {
+        String input = "/javaHelperMissing_" + UUID.randomUUID() + ".json";
+        String result = JavaHelper.appendTestDataToRelativePath(input);
+        Assert.assertTrue(result.startsWith(SHAFT.Properties.paths.testData()),
+                "Path should be prefixed with configured test data directory");
+        Assert.assertFalse(result.contains("//"),
+                "Result should not contain duplicate slashes after normalization");
+    }
+
+    @Test(description = "appendTestDataToRelativePath: absolute path should be returned as-is")
+    public void appendTestDataToRelativePathAbsolutePathShouldBeReturnedAsIs() {
+        String absolutePath = "//tmp/javaHelperAbsolute_" + UUID.randomUUID() + ".json";
+        String expected = absolutePath.substring(1);
+        String result = JavaHelper.appendTestDataToRelativePath(absolutePath);
+        Assert.assertEquals(result, expected,
+                "Absolute file path should be returned as-is after slash normalization");
+    }
+
+    @Test(description = "appendTestDataToRelativePath: already-prefixed path should be unchanged")
+    public void appendTestDataToRelativePathContainingTestDataFolderShouldBeUnchanged() {
+        String prefixedPath = SHAFT.Properties.paths.testData() + "javaHelperMissing_" + UUID.randomUUID() + ".json";
+        String result = JavaHelper.appendTestDataToRelativePath(prefixedPath);
+        Assert.assertEquals(result, prefixedPath,
+                "Path that already contains test data folder should not be prefixed twice");
+    }
+
+    @Test(description = "utility constructor should throw IllegalStateException")
+    public void javaHelperConstructorShouldThrowIllegalStateException() throws Exception {
+        Constructor<JavaHelper> constructor = JavaHelper.class.getDeclaredConstructor();
+        constructor.setAccessible(true);
+
+        InvocationTargetException exception = Assert.expectThrows(InvocationTargetException.class, constructor::newInstance);
+        Assert.assertTrue(exception.getCause() instanceof IllegalStateException,
+                "Private utility constructor should throw IllegalStateException");
     }
 }

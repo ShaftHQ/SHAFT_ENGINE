@@ -43,13 +43,26 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 
+@Test(singleThreaded = true)
 public class DriverFactoryHelperAdditionalUnitTest {
     private final boolean savedDisableCache = SHAFT.Properties.flags.disableCache();
     private final boolean savedAutoMaximizeBrowserWindow = SHAFT.Properties.flags.autoMaximizeBrowserWindow();
+    private final String savedExecutionAddress = SHAFT.Properties.platform.executionAddress();
+    private final String savedTargetPlatform = SHAFT.Properties.platform.targetPlatform();
+    private final String savedMobileBrowserName = SHAFT.Properties.mobile.browserName();
+    private final String savedMobileAutomationName = SHAFT.Properties.mobile.automationName();
+    private final boolean savedCaptureWebDriverLogs = SHAFT.Properties.reporting.captureWebDriverLogs();
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
-        SHAFT.Properties.platform.set().enableBiDi(true);
+        SHAFT.Properties.reporting.set().captureWebDriverLogs(savedCaptureWebDriverLogs);
+        SHAFT.Properties.mobile.set()
+                .browserName(savedMobileBrowserName)
+                .automationName(savedMobileAutomationName);
+        SHAFT.Properties.platform.set()
+                .executionAddress(savedExecutionAddress)
+                .targetPlatform(savedTargetPlatform)
+                .enableBiDi(true);
         SHAFT.Properties.flags.set()
                 .disableCache(savedDisableCache)
                 .autoMaximizeBrowserWindow(savedAutoMaximizeBrowserWindow);

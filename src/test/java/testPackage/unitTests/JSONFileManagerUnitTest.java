@@ -71,6 +71,17 @@ public class JSONFileManagerUnitTest {
         Validations.assertThat().object(title).isEqualTo("JSONFileManager Unit Test Data").perform();
     }
 
+    @Test(description = "getTestData: missing key returns null")
+    public void getTestDataMissingKeyReturnsNull() {
+        String missingValue = jsonData.getTestData("missingKey");
+        Assert.assertNull(missingValue, "Missing keys should return null");
+    }
+
+    @Test(description = "getTestData: malformed JSONPath throws runtime exception")
+    public void getTestDataMalformedJsonPathThrowsRuntimeException() {
+        Assert.assertThrows(RuntimeException.class, () -> jsonData.getTestData("["));
+    }
+
     // ─── get() alias ──────────────────────────────────────────────────────────
 
     @Test(description = "get: alias returns the same value as getTestData")
@@ -117,6 +128,12 @@ public class JSONFileManagerUnitTest {
         Assert.assertEquals(scores.size(), 3, "scores list should have 3 entries");
     }
 
+    @Test(description = "getTestDataAsList: missing key returns null")
+    public void getTestDataAsListMissingKeyReturnsNull() {
+        List<?> missingList = jsonData.getTestDataAsList("missingList");
+        Assert.assertNull(missingList, "Missing list keys should return null");
+    }
+
     // ─── getTestDataAsMap ─────────────────────────────────────────────────────
 
     @Test(description = "getTestDataAsMap: object key returns non-null map")
@@ -139,6 +156,12 @@ public class JSONFileManagerUnitTest {
         Map<?, ?> config = jsonData.getTestDataAsMap("config");
         Object timeout = config.get("timeout");
         Assert.assertNotNull(timeout, "timeout value in config map must not be null");
+    }
+
+    @Test(description = "getTestDataAsMap: missing key returns null")
+    public void getTestDataAsMapMissingKeyReturnsNull() {
+        Map<?, ?> missingMap = jsonData.getTestDataAsMap("missingMap");
+        Assert.assertNull(missingMap, "Missing map keys should return null");
     }
 
     // ─── getTestDataAsJson ────────────────────────────────────────────────────
