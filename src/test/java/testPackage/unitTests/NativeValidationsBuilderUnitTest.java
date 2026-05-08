@@ -1,7 +1,15 @@
 package testPackage.unitTests;
 
 import com.shaft.validation.Validations;
+import com.shaft.validation.ValidationEnums;
+import com.shaft.validation.internal.NativeValidationsBuilder;
 import com.shaft.validation.internal.ValidationsHelper;
+import com.shaft.validation.internal.ValidationsExecutor;
+import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
+import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -257,6 +265,66 @@ public class NativeValidationsBuilderUnitTest {
         } catch (IllegalStateException e) {
             Assert.assertTrue(e.getMessage().contains("text()"));
         }
+    }
+
+    @Test(description = "text language builder should be available for browser text assertions")
+    public void languageBuilderInsideBrowserTextContextShouldPass() {
+        WebDriver driver = Mockito.mock(WebDriver.class);
+
+        NativeValidationsBuilder nativeValidationsBuilder = new WebDriverBrowserValidationsBuilder(
+                ValidationEnums.ValidationCategory.HARD_ASSERT, driver, new StringBuilder("the browser "))
+                .text();
+
+        Assert.assertNotNull(nativeValidationsBuilder.language());
+    }
+
+    @Test(description = "text direction-style builders should be available for element text assertions")
+    public void directionStyleBuildersInsideElementTextContextShouldPass() {
+        WebDriver driver = Mockito.mock(WebDriver.class);
+        NativeValidationsBuilder nativeValidationsBuilder = new WebDriverElementValidationsBuilder(
+                ValidationEnums.ValidationCategory.HARD_ASSERT, driver, By.id("sample"), new StringBuilder("the element "))
+                .text();
+
+        Assert.assertNotNull(nativeValidationsBuilder.direction());
+        Assert.assertNotNull(nativeValidationsBuilder.alignment());
+        Assert.assertNotNull(nativeValidationsBuilder.orientation());
+        Assert.assertNotNull(nativeValidationsBuilder.displayStyle());
+    }
+
+    @Test(description = "rest and file fluent entry points should create native builder instances")
+    public void restAndFileEntryPointsShouldCreateNativeBuilderInstances() {
+        Assert.assertNotNull(Validations.assertThat().response(new Object()).extractedJsonValue("$.key"));
+        Assert.assertNotNull(Validations.assertThat().file("target/", "sample.txt").content());
+    }
+
+    @Test(description = "equals override should return true for matching values")
+    public void equalsOverrideShouldReturnTrueForMatchingValues() {
+        Assert.assertTrue(Validations.assertThat().object("value").equals("value"));
+    }
+
+    @Test(description = "equals override should throw AssertionError for mismatched values")
+    public void equalsOverrideShouldThrowForMismatchedValues() {
+        Assert.expectThrows(AssertionError.class, () -> Validations.assertThat().object("value").equals("different"));
+    }
+
+    @Test(description = "isArabic should chain language and direction assertions for text context")
+    public void isArabicShouldChainLanguageAndDirectionAssertions() {
+        NativeValidationsBuilder nativeValidationsBuilder = new WebDriverBrowserValidationsBuilder(
+                ValidationEnums.ValidationCategory.HARD_ASSERT, Mockito.mock(WebDriver.class), new StringBuilder("the browser "))
+                .text();
+        NativeValidationsBuilder nativeValidationsBuilderSpy = Mockito.spy(nativeValidationsBuilder);
+        var languageBuilderMock = Mockito.mock(com.shaft.validation.internal.TextLanguageValidationsBuilder.class);
+        var directionBuilderMock = Mockito.mock(com.shaft.validation.internal.TextDirectionValidationsBuilder.class);
+        var validationsExecutorMock = Mockito.mock(ValidationsExecutor.class);
+
+        Mockito.doReturn(languageBuilderMock).when(nativeValidationsBuilderSpy).language();
+        Mockito.doReturn(directionBuilderMock).when(nativeValidationsBuilderSpy).direction();
+        Mockito.when(languageBuilderMock.is(ValidationEnums.TextLanguage.ARABIC)).thenReturn(validationsExecutorMock);
+        Mockito.when(directionBuilderMock.is(ValidationEnums.TextDirection.RTL)).thenReturn(validationsExecutorMock);
+
+        Assert.assertSame(nativeValidationsBuilderSpy.isArabic(), validationsExecutorMock);
+        Mockito.verify(languageBuilderMock).is(ValidationEnums.TextLanguage.ARABIC);
+        Mockito.verify(directionBuilderMock).is(ValidationEnums.TextDirection.RTL);
     }
 
 }

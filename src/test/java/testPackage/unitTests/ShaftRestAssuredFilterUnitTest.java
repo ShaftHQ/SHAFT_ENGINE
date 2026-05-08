@@ -2,8 +2,21 @@ package testPackage.unitTests;
 
 import com.shaft.api.ShaftRestAssuredFilter;
 import com.shaft.driver.SHAFT;
+import io.restassured.filter.FilterContext;
+import io.restassured.http.Cookie;
+import io.restassured.http.Cookies;
+import io.restassured.http.Header;
+import io.restassured.http.Headers;
+import io.restassured.response.Response;
+import io.restassured.response.ResponseBody;
+import io.restassured.specification.FilterableRequestSpecification;
+import io.restassured.specification.FilterableResponseSpecification;
+import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Unit tests for {@link ShaftRestAssuredFilter} — the SHAFT-native REST Assured filter
@@ -20,6 +33,71 @@ public class ShaftRestAssuredFilterUnitTest {
     @BeforeMethod
     public void setUp() {
         filter = new ShaftRestAssuredFilter();
+    }
+
+    @Test(description = "filter attaches textual request/response metadata and returns the downstream response")
+    public void filterShouldHandleTextualRequestAndResponse() {
+        FilterableRequestSpecification requestSpec = Mockito.mock(FilterableRequestSpecification.class);
+        FilterableResponseSpecification responseSpec = Mockito.mock(FilterableResponseSpecification.class);
+        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        Response response = Mockito.mock(Response.class);
+        ResponseBody<?> responseBody = Mockito.mock(ResponseBody.class);
+
+        Map<String, String> formParams = new LinkedHashMap<>();
+        formParams.put("k", "v");
+
+        Mockito.when(requestSpec.getMethod()).thenReturn("POST");
+        Mockito.when(requestSpec.getURI()).thenReturn("https://example.test/api");
+        Mockito.when(requestSpec.getHeaders())
+                .thenReturn(new Headers(new Header("Content-Type", "application/json")));
+        Mockito.when(requestSpec.getCookies())
+                .thenReturn(new Cookies(new Cookie.Builder("session", "abc").build()));
+        Mockito.when(requestSpec.getFormParams()).thenReturn(formParams);
+        Mockito.when(requestSpec.getBody()).thenReturn("{\"hello\":\"world\"}");
+        Mockito.when(requestSpec.getContentType()).thenReturn("application/json; charset=utf-8");
+
+        Mockito.when(filterContext.next(requestSpec, responseSpec)).thenReturn(response);
+        Mockito.when(response.getStatusLine()).thenReturn("HTTP/1.1 200 OK");
+        Mockito.when(response.getTime()).thenReturn(25L);
+        Mockito.when(response.getHeaders()).thenReturn(new Headers(new Header("Content-Type", "application/json")));
+        Mockito.when(response.getContentType()).thenReturn("application/json");
+        Mockito.when(response.getBody()).thenReturn(responseBody);
+        Mockito.when(responseBody.asString()).thenReturn("{\"ok\":true}");
+
+        Response actual = filter.filter(requestSpec, responseSpec, filterContext);
+
+        SHAFT.Validations.assertThat().object(actual).isEqualTo(response).perform();
+        Mockito.verify(filterContext).next(requestSpec, responseSpec);
+    }
+
+    @Test(description = "filter handles binary request and binary response bodies with normalized MIME types")
+    public void filterShouldHandleBinaryRequestAndResponse() {
+        FilterableRequestSpecification requestSpec = Mockito.mock(FilterableRequestSpecification.class);
+        FilterableResponseSpecification responseSpec = Mockito.mock(FilterableResponseSpecification.class);
+        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        Response response = Mockito.mock(Response.class);
+        ResponseBody<?> responseBody = Mockito.mock(ResponseBody.class);
+
+        Mockito.when(requestSpec.getMethod()).thenReturn("PUT");
+        Mockito.when(requestSpec.getURI()).thenReturn("https://example.test/binary");
+        Mockito.when(requestSpec.getHeaders()).thenReturn(new Headers());
+        Mockito.when(requestSpec.getCookies()).thenReturn(new Cookies());
+        Mockito.when(requestSpec.getFormParams()).thenReturn(new LinkedHashMap<>());
+        Mockito.when(requestSpec.getBody()).thenReturn(new byte[]{1, 2, 3});
+        Mockito.when(requestSpec.getContentType()).thenReturn(null);
+
+        Mockito.when(filterContext.next(requestSpec, responseSpec)).thenReturn(response);
+        Mockito.when(response.getStatusLine()).thenReturn("HTTP/1.1 201 Created");
+        Mockito.when(response.getTime()).thenReturn(7L);
+        Mockito.when(response.getHeaders()).thenReturn(new Headers());
+        Mockito.when(response.getContentType()).thenReturn("application/pdf; charset=binary");
+        Mockito.when(response.getBody()).thenReturn(responseBody);
+        Mockito.when(responseBody.asByteArray()).thenReturn(new byte[]{9, 8, 7});
+
+        Response actual = filter.filter(requestSpec, responseSpec, filterContext);
+
+        SHAFT.Validations.assertThat().object(actual).isEqualTo(response).perform();
+        Mockito.verify(filterContext).next(requestSpec, responseSpec);
     }
 
     // ─── looksLikeJson ────────────────────────────────────────────────────────

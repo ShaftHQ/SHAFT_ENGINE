@@ -37,8 +37,7 @@ public class PdfFileManager {
         file = new File(FileActions.getInstance(true).getAbsolutePath(folderName, fileName));
 
         if (!doesFileExist) {
-            FailureReporter.fail("Couldn't find the provided file [" + file
-                    + "]. It might need to wait more to download or the path isn't correct");
+            FailureReporter.fail("Couldn't find the provided file [" + file + "]. It might need to wait more to download or the path isn't correct");
         }
     }
 
@@ -47,8 +46,7 @@ public class PdfFileManager {
         boolean doesFileExist = FileActions.getInstance(true).doesFileExist(pdfFilePath);
         file = new File(FileActions.getInstance(true).getAbsolutePath(pdfFilePath));
         if (!doesFileExist) {
-            FailureReporter.fail("Couldn't find the provided file [" + file
-                    + "]. It might need to wait more to download or the path isn't correct");
+            FailureReporter.fail("Couldn't find the provided file [" + file + "]. It might need to wait more to download or the path isn't correct");
         }
     }
 
@@ -71,9 +69,7 @@ public class PdfFileManager {
                     FileActions.getInstance(true).deleteFile(relativeFilePath);
                 }
                 return fileContent;
-            } catch (IOException rootCauseException) {
-                FailureReporter.fail(PdfFileManager.class, "Failed to read this PDF file [" + relativeFilePath + "].", rootCauseException);
-            }
+            } catch (IOException rootCauseException) { FailureReporter.fail(PdfFileManager.class, "Failed to read this PDF file [" + relativeFilePath + "].", rootCauseException); }
 
         } else {
             FailureReporter.fail("This PDF file [" + relativeFilePath + "] doesn't exist.");
@@ -127,7 +123,6 @@ public class PdfFileManager {
     private PDFParser parseStreamDocument(RandomAccessReadBufferedFile stream) {
         try {
             parser = new PDFParser(stream);
-            parser.parse();
         } catch (IOException rootCauseException) {
             FailureReporter.fail(PdfFileManager.class, "Couldn't parse the stream that opened the document to be prepared to populate the COSDocument object.", rootCauseException);
         }
