@@ -96,7 +96,7 @@ jobs:
           node-version: '20'
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*API.*], %regex[.*Api.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*], %regex[.*YAML.*], %regex[.*Yaml.*], %regex[.*yaml.*], %regex[.*CLIWizard.*], %regex[.*TerminalActions.*], %regex[.*properties.Mobile.*], %regex[.*CSVFileManagerUnitTest.*], %regex[.*PdfFileManager.*]""
+        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*API.*], %regex[.*Api.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*], %regex[.*YAML.*], %regex[.*Yaml.*], %regex[.*yaml.*], %regex[.*CLIWizard.*], %regex[.*TerminalActions.*], %regex[.*properties.Mobile.*], %regex[.*CSVFileManagerUnitTest.*], %regex[.*PdfFileManager.*], %regex[.*ExcelFileManager.*]"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
