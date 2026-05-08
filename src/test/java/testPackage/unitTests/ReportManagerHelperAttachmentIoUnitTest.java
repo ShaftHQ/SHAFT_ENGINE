@@ -32,6 +32,7 @@ import static org.testng.Assert.assertTrue;
  *
  * @see <a href="https://shafthq.github.io/">SHAFT User Guide</a>
  */
+@Test(singleThreaded = true)
 public class ReportManagerHelperAttachmentIoUnitTest {
 
     private static final class CloseTrackingInputStream extends InputStream {

@@ -17,6 +17,8 @@ import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
 import java.io.*;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Iterator;
@@ -83,9 +85,8 @@ public class AnimatedGifManager {
     public static String attachAnimatedGif() {
         // stop and attach
         if (SHAFT.Properties.visuals.createAnimatedGif() && !gifRelativePathWithFileName.get().isEmpty()) {
-            try {
-                byte[] gifBytes = java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(gifRelativePathWithFileName.get()));
-                ReportManagerHelper.attach("Animated Gif", String.valueOf(System.currentTimeMillis()), new ByteArrayInputStream(gifBytes));
+            try (InputStream in = Files.newInputStream(Paths.get(gifRelativePathWithFileName.get()))) {
+                ReportManagerHelper.attach("Animated Gif", String.valueOf(System.currentTimeMillis()), in);
                 if (gifWriter.get() != null) {
                     gifManager.get().close();
                 }
