@@ -1,6 +1,6 @@
 package com.shaft.db;
 
-import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -508,7 +508,7 @@ public class DatabaseActions {
         if (!this.customConnectionString.isEmpty()) {
             connectionString = this.customConnectionString;
             try {
-                DriverManager.setLoginTimeout(SHAFT.Properties.timeouts.databaseLoginTimeout());
+                DriverManager.setLoginTimeout(Properties.timeouts.databaseLoginTimeout());
                 connection = DriverManager.getConnection(connectionString);
             } catch (SQLException rootCauseException) {
                 failAction(connectionString, rootCauseException);
@@ -531,10 +531,10 @@ public class DatabaseActions {
                 }
             }
             try {
-                DriverManager.setLoginTimeout(SHAFT.Properties.timeouts.databaseLoginTimeout());
+                DriverManager.setLoginTimeout(Properties.timeouts.databaseLoginTimeout());
                 connection = DriverManager.getConnection(connectionString, username, password);
                 if (!dbType.toString().equals("MY_SQL") && !dbType.toString().equals("POSTGRES_SQL")) {
-                    connection.setNetworkTimeout(Executors.newFixedThreadPool(1), SHAFT.Properties.timeouts.databaseNetworkTimeout() * 60000);
+                    connection.setNetworkTimeout(Executors.newFixedThreadPool(1), Properties.timeouts.databaseNetworkTimeout() * 60000);
                 }
 
             } catch (SQLException rootCauseException) {
@@ -556,7 +556,7 @@ public class DatabaseActions {
         try {
             statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
             // https://www.tutorialspoint.com/jdbc/jdbc-result-sets.htm
-            statement.setQueryTimeout(SHAFT.Properties.timeouts.databaseQueryTimeout());
+            statement.setQueryTimeout(Properties.timeouts.databaseQueryTimeout());
         } catch (SQLFeatureNotSupportedException rootCauseException) {
             if (!rootCauseException.getMessage().contains("org.postgresql.jdbc4.Jdbc4Statement.setQueryTimeout")) {
                 failAction(connection.toString(), rootCauseException);

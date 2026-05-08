@@ -77,6 +77,13 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- SHAFT DB -->
+        <dependency>
+            <groupId>io.github.shafthq</groupId>
+            <artifactId>shaft-db</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- TESTNG DEPENDENCIES -->
         <dependency>
             <groupId>org.testng</groupId>
