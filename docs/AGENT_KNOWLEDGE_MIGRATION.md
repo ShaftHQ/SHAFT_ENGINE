@@ -56,7 +56,7 @@ Perform a focused repository scan:
 
 ```bash
 find .. -name AGENTS.md -print
-rg --files -g '*instruction*' -g '*memory*' -g 'CLAUDE.md' -g '.github/skills/**'
+rg --files -g '*instruction*' -g '*memory*' -g 'CLAUDE.md' -g '.github/skills/**' .github CLAUDE.md
 ```
 
 Then read only the files required to understand the task. Prefer progressive disclosure over loading the entire repository into context.
