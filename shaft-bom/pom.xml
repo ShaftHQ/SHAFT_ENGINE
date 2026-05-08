@@ -152,6 +152,12 @@
                 <artifactId>cucumber-picocontainer</artifactId>
                 <version>7.34.3</version>
             </dependency>
+            <!-- Pin transitive dep from pretty-formatter to avoid dynamic version range -->
+            <dependency>
+                <groupId>io.cucumber</groupId>
+                <artifactId>query</artifactId>
+                <version>14.7.0</version>
+            </dependency>
 
             <!-- ============================================================ -->
             <!-- Jackson                                                       -->
