@@ -1,0 +1,3 @@
+# Generated property files — PropertiesHelper copies default/custom.properties here at runtime.
+# Only the default/ template directory is tracked.
+src/main/resources/properties/*.properties

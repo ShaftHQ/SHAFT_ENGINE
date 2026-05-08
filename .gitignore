@@ -1,44 +1,56 @@
-/target/
-/allure-results/
-/allure-report/
-/allure-report-check/
-/allurerc.yaml
-/extent-reports/
-/execution-summary/
-/test-output/
-/reports/
-/lighthouse-reports/
-/performanceReport/
-/generatedReport_*.zip
-/generatedReport/
-/generate_allure_report.sh
-/allure-results.zip
-/generate_allure_report.bat
-/accessibility-reports/
-.DS_Store
-/.git/
-*.iml
-ajcore*.txt
-debug.log
-# Extracted .class files (from JAR inspection)
-/org/
-/.classpath
-/.project
-/bin/
-/generateJdk.bat
-/generateJdk.sh
-/src/main/resources/properties/
+# Build output — matches in every module
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Test reports and results — matches in every module
+allure-results/
+allure-report/
+allure-report-check/
+allurerc.yaml
+allure-results.zip
+extent-reports/
+execution-summary/
+test-output/
+reports/
+lighthouse-reports/
+performanceReport/
+generatedReport_*.zip
+generatedReport/
+accessibility-reports/
+
+# Generated scripts (created by SHAFT at runtime) — matches in every module
+generate_allure_report.sh
+generate_allure_report.bat
 GenerateLHScript.js
 OpenLHReport.js
-/src/main/resources/docker-compose/android-emulator/
-/src/main/resources/docker-compose/data/
-/src/test/resources/testDataFiles/allure-results/
-/src/test/resources/META-INF/services/
+
+# Logs and recordings — matches in every module
+log/
+video/
+
+# Root-level IDE and tooling files only
 /.idea/
 /.run/*
 !/.run/
 !/.run/*.xml
+/.classpath
+/.project
+/bin/
+/org/
+/generateJdk.bat
+/generateJdk.sh
+
+# IDE files — matches anywhere
+.DS_Store
+*.iml
+*.iws
+*.ipr
+ajcore*.txt
+debug.log
+.vscode/
 browserstack.yml
-/log/nohup.out
-log/
-/video/
+
+# Claude Code session data
+.claude/
