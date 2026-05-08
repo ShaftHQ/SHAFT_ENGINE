@@ -110,11 +110,6 @@ public class ValidationTests {
         driver.get().element().assertThat(By.xpath("//div")).exists().perform();
     }
 
-    @Test(enabled = false, groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
-    public void assertElementExists_false_multipleElementsFound_expectedToFail() {
-        driver.get().element().assertThat(By.xpath("//input")).doesNotExist().perform();
-    }
-
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_literalComparison_expectedToPass() {
         driver.get().element().type(locator, "Automation")
@@ -231,13 +226,6 @@ public class ValidationTests {
         driver.get().element().assertThat(localizedLocator).text().language().is("es").perform();
         driver.get().element().assertThat(localizedLocator).text().language().is("fr").perform();
         driver.get().element().assertThat(localizedLocator).text().language().is("de").perform();
-    }
-
-    @Test(enabled = false, groups = {"WebBased"})
-    public void assertBrowserTextLanguageAndDirection_expectedToPass() {
-        driver.get().browser().assertThat().text().language().is("ar").perform();
-        driver.get().browser().assertThat().text().direction().isRightToLeft().perform();
-        driver.get().browser().assertThat().text().isArabic().perform();
     }
 
     @Test(groups = {"WebBased"}, expectedExceptions = {IllegalArgumentException.class})

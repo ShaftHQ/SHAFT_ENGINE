@@ -29,12 +29,6 @@ public class VisualValidationTests {
         driver.get().element().assertThat(firstRunElement).matchesReferenceImage(ValidationEnums.VisualValidationEngine.EXACT_OPENCV);
     }
 
-    @Test(enabled = false, dependsOnMethods = {"visualValidation_2ndRun_expectedToPass"}, expectedExceptions = {AssertionError.class})
-    public void visualValidation_2ndRun_expectedToFail(){
-        SHAFT.CLI.file().writeToFile(firstRunElementReferenceFilePath, new byte[0]);
-        driver.get().element().assertThat(firstRunElement).matchesReferenceImage(ValidationEnums.VisualValidationEngine.EXACT_OPENCV);
-    }
-
     @BeforeMethod
     public void beforeMethod(){
         driver.set(new SHAFT.GUI.WebDriver());

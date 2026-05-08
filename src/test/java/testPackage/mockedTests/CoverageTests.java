@@ -5,7 +5,6 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.remote.Browser;
 import org.testng.annotations.*;
-import testPackage.legacy.SearchOptimizationTest;
 
 public class CoverageTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
@@ -37,15 +36,6 @@ public class CoverageTests {
         driver.get().browser().getWindowWidth();
         if (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName()))
             driver.get().browser().navigateToURLWithBasicAuthentication("https://authenticationtest.com/HTTPAuth/", "user", "pass", "https://authenticationtest.com/loginSuccess/");
-    }
-
-    @Test(enabled = false)
-    public void alerts_getText_and_accept() {
-        driver.get().browser().navigateToURL("https://kitchen.applitools.com/ingredients/alert");
-        var alert = driver.get().element().click(By.id("alert-button"))
-                .and().alert();
-        alert.getAlertText();
-        alert.acceptAlert();
     }
 
     @Test(expectedExceptions = {RuntimeException.class})
@@ -89,33 +79,6 @@ public class CoverageTests {
         } catch (NoSuchSessionException noSuchSessionException) {
             // do nothing
         }
-    }
-
-    @Test(enabled = false)
-    public void alerts_dismiss() {
-        driver.get().browser().navigateToURL("https://kitchen.applitools.com/ingredients/alert");
-        driver.get().element().click(By.id("confirm-button"))
-                .and().alert().dismissAlert();
-    }
-
-    @Test(enabled = false)
-    public void alerts_type() {
-        driver.get().browser().navigateToURL("https://kitchen.applitools.com/ingredients/alert");
-        driver.get().element().click(By.id("prompt-button"))
-                .and().alert().typeIntoPromptAlert("nachos").acceptAlert();
-    }
-
-    @Test(enabled = false)
-    public void submitFormUsingJavaScript() {
-        By searchBox = SearchOptimizationTest.searchBox;
-        By searchResult = SHAFT.GUI.Locator.hasTagName("a").containsAttribute("href", "SHAFT_ENGINE").isFirst().build();
-        boolean isElementDisplayed = driver.get().browser().navigateToURL("https://www.google.com/ncr")
-                .and().element().type(searchBox, "SHAFT_Engine")
-                .and().clear(searchBox)
-                .and().element().type(searchBox, "SHAFT_Engine")
-                .and().submitFormUsingJavaScript(searchBox)
-                .and().get().isDisplayed(searchResult);
-        SHAFT.Validations.assertThat().object(isElementDisplayed).isEqualTo(true).withCustomReportMessage("target search result is displayed").perform();
     }
 
     @BeforeClass

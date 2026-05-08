@@ -23,19 +23,6 @@ public class AccessibilityTest {
        ANALYSIS METHODS
        ========================== */
 
-    @Test(description = "Analyze page with default configuration and assert cached result",enabled = false)
-    public void testAnalyzePageDefault() {
-        driver.get().browser()
-                .accessibility()
-                .analyzePage("HomePage")
-                .assertNoCriticalViolations("HomePage")
-                .assertIsAccessible();
-
-        // Verify cached result works
-        var result = driver.get().browser().accessibility().analyzeAndReturn("HomePage",false);
-        SHAFT.Report.log("Cached Violations Count: " + result.getViolationsCount());
-    }
-
     @Test(description = "Analyze page with custom configuration")
     public void testAnalyzePageWithConfig() {
         AccessibilityHelper.AccessibilityConfig config = new AccessibilityHelper.AccessibilityConfig()
@@ -156,18 +143,6 @@ public class AccessibilityTest {
         }
     }
 
-    @Test(description = "Soft verify no critical violations (expected failure)",enabled = false)
-    public void testVerifyNoCriticalViolations() {
-        try {
-            driver.get().browser()
-                    .accessibility()
-                    .analyzePage("VerifyCriticalPage")
-                    .verifyNoCriticalViolations("VerifyCriticalPage");
-        } catch (AssertionError e) {
-            SHAFT.Report.log("Expected failure caught [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
-        }
-    }
-
     @Test(description = "Hard assert page accessibility (expected failure)")
     public void testAssertIsAccessible() {
         try {
@@ -179,17 +154,6 @@ public class AccessibilityTest {
         }
     }
 
-
-    @Test(description = "Soft verify page accessibility (expected failure)",enabled = false)
-    public void testVerifyIsAccessible() {
-        try {
-            driver.get().browser()
-                    .accessibility()
-                    .verifyIsAccessible();
-        } catch (AssertionError e) {
-            SHAFT.Report.log("Expected failure caught [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
-        }
-    }
 
     @Test(description = "Assert no violations by impact levels (expected failure)")
     public void testAssertNoViolationsByImpact() {

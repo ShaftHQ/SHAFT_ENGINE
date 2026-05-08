@@ -93,29 +93,6 @@ public class CucumberFeatureListenerUnitTest {
         Mockito.verify(lifecycle, Mockito.times(1)).updateTestCase(Mockito.anyString(), Mockito.any());
     }
 
-    @Test(enabled = false)
-    public void examplesAsParametersShouldReturnEmptyWhenRowsNotMatching() throws Exception {
-        CucumberFeatureListener listener = new CucumberFeatureListener(Mockito.mock(AllureLifecycle.class));
-        Method method = CucumberFeatureListener.class.getDeclaredMethod("getExamplesAsParameters", io.cucumber.messages.types.Scenario.class, TestCase.class);
-        method.setAccessible(true);
-
-        io.cucumber.messages.types.Scenario scenario = Mockito.mock(io.cucumber.messages.types.Scenario.class);
-        io.cucumber.messages.types.Examples examples = Mockito.mock(io.cucumber.messages.types.Examples.class);
-        io.cucumber.messages.types.Location rowLocation = new io.cucumber.messages.types.Location(50L, 1L);
-        TableRow row = new TableRow(rowLocation, List.of(new TableCell(rowLocation, "value")), "row-id");
-        Mockito.when(examples.getTableBody()).thenReturn(List.of(row));
-        Mockito.when(examples.getTableHeader()).thenReturn(Optional.of(mockHeaderRow("h1")));
-        Mockito.when(scenario.getExamples()).thenReturn(List.of(examples));
-
-        TestCase testCase = Mockito.mock(TestCase.class);
-        io.cucumber.plugin.event.Location testCaseLocation = Mockito.mock(io.cucumber.plugin.event.Location.class);
-        Mockito.when(testCaseLocation.getLine()).thenReturn(99);
-        Mockito.when(testCase.getLocation()).thenReturn(testCaseLocation);
-
-        Object result = method.invoke(listener, scenario, testCase);
-        Assert.assertTrue(((List<?>) result).isEmpty());
-    }
-
     @Test
     public void lifecycleHandlersShouldProcessFeatureCaseStepsAndHooks() throws Exception {
         AllureLifecycle lifecycle = Mockito.mock(AllureLifecycle.class);

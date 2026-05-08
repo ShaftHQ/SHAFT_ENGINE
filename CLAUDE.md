@@ -265,10 +265,9 @@ Everything **except** these patterns:
 
 | Test class | Status | Reason | Resolution |
 |---|---|---|---|
-| `testPackage.appium.IOSBasicInteractionsTest` | ❌ **Not covered by any workflow** | Excluded from GLOBAL_TESTING_SCOPE via `!.*IOS.*`; iOS BrowserStack job only runs `MobileWebTest` | Needs a dedicated native iOS BrowserStack job, or explicit inclusion in the iOS web job |
-| `testPackage.appium.FlutterTest` | ⚠️ Intentionally not run | Excluded via `!.*Flutter.*`; all `@Test` methods have `groups = {"flutter"}` which no workflow enables | Intentional — no Flutter CI infrastructure configured |
-| `testPackage.appium.FileUploadDownloadTest` | ⚠️ Intentionally not run | All `@Test` methods have `enabled = false` | Intentional — tests are scaffolded but disabled |
 | `testPackage.appium.MobileTest` | N/A | Abstract base class | Cannot be instantiated directly |
+
+> **Note:** `IOSBasicInteractionsTest`, `FlutterTest`, and `FileUploadDownloadTest` were deleted in issue #2644 — all tests were disabled and no CI infrastructure existed to run them.
 
 ---
 
@@ -309,10 +308,22 @@ Do NOT use `stefanzweifel/git-auto-commit-action` in the blog workflow; use `pet
 
 ---
 
+## Standard Task Workflow
+
+For **every new task** given by the user, follow this pattern without exception:
+1. **Create a GitHub issue** describing the work scope (`mcp__github__issue_write`)
+2. **Create a branch** off `main` tied to that issue (`git checkout -b <branch-name>`)
+3. **Implement** the solution on that branch
+4. **Commit + push** with the issue number in the commit message
+5. **Update CLAUDE.md** with any new patterns or learnings from the session
+
+---
+
 ## Key Anti-Patterns
 - Do **not** call `System.getProperty()` or `System.setProperty()` in framework or test code — use `SHAFT.Properties.*` / `ThreadLocalPropertiesManager`.
 - Do **not** add `--clean` to `allure generate` commands (removed in Allure 3).
 - Do **not** leave `@Ignore`-annotated or all-commented-out test classes — delete them.
+- Do **not** leave `enabled=false` test methods anywhere in a class — delete the method. If ALL tests in a class are disabled, delete the entire file.
 - Do **not** add intentionally broken/failing tests; Allure `BROKEN` status fails CI.
 - Do **not** add new external binary dependencies without the three-tier resolution pattern.
 - Do **not** modify unrelated code while fixing a bug.
@@ -321,6 +332,7 @@ Do NOT use `stefanzweifel/git-auto-commit-action` in the blog workflow; use `pet
 - Do **not** modify `SHAFT.Properties.flags` in parallel tests without `@Test(singleThreaded = true)` + teardown reset.
 - Do **not** read CI workflow job names from copilot-instructions.md for Java version — always check `pom.xml`.
 - Do **not** add `## What's Changed` placeholder in `RELEASE_BODY_TEMPLATE.md` — it is appended automatically.
+- Do **not** keep test files that require external CI infrastructure (Healenium Docker, native iOS BrowserStack, local Flutter Appium) that is not wired into any workflow — delete them.
 
 ---
 
@@ -415,8 +427,8 @@ Add entries to the **Session Learnings Log** section below. Keep each entry comp
 
 - Date: 2026-05-08
 - Area: CI / Coverage
-- Lesson: `testPackage.appium.IOSBasicInteractionsTest` is the only test class in the repo with zero CI workflow coverage — it is excluded from GLOBAL_TESTING_SCOPE via `!.*IOS.*` and the iOS BrowserStack job only runs `MobileWebTest`.
-- Evidence: `.github/workflows/e2eTests.yml` lines 14-15 (GLOBAL_TESTING_SCOPE), issue #2503 comment 2026-05-08
+- Lesson: `testPackage.appium.IOSBasicInteractionsTest` had zero CI workflow coverage (excluded via `!.*IOS.*`, no native iOS BrowserStack job) — deleted in issue #2644 along with FlutterTest and FileUploadDownloadTest as part of dead-test cleanup.
+- Evidence: `.github/workflows/e2eTests.yml` lines 14-15 (GLOBAL_TESTING_SCOPE), issue #2644
 
 - Date: 2026-05-08
 - Area: CI / Coverage
@@ -452,3 +464,13 @@ Add entries to the **Session Learnings Log** section below. Keep each entry comp
 - Area: Encoding / Unicode
 - Lesson: Enforce UTF-8 at all runtime layers (Maven JVM, Surefire forked JVMs, and CI environment) — do not rely on host defaults.
 - Evidence: `pom.xml`, `.mvn/jvm.config`, `setup-test-env/action.yml`, `testPackage/properties/Log4jTests.java` (from copilot-memory.md)
+
+- Date: 2026-05-08
+- Area: Pattern / Task Workflow
+- Lesson: Every new task must follow: create GitHub issue → create branch → implement → commit/push → update CLAUDE.md. This is now codified in the "Standard Task Workflow" section.
+- Evidence: User instruction in session 2026-05-08, issue #2644
+
+- Date: 2026-05-08
+- Area: Anti-pattern / Dead Tests
+- Lesson: Deleted 13 entirely-dead test files and removed ~20 disabled methods from 9 partially-disabled files. Tests with `enabled=false` accumulate silently and erode CI signal — enforce the rule: delete disabled methods immediately, delete entire files when all tests are disabled.
+- Evidence: issue #2644, `src/test/java/testPackage/appium/`, `src/test/java/testPackage/legacy/`, `src/test/java/testPackage/locator/`

@@ -31,18 +31,6 @@ public class UploadFileTests extends Tests {
                 .assertThat(By.tagName("body")).text().contains("1 selected file");
     }
 
-    /**
-     * This case is disabled because it fails due to the presence of other hidden inputs on the page.
-     */
-    @Test(enabled = false)
-    public void uploadFileViaDragAndDropWithOtherHiddenInputsPresent() {
-        driver.get().browser()
-                .navigateToURL("https://the-internet.herokuapp.com/upload")
-                .element()
-                .dropFileToUpload(By.id("drag-drop-upload"), "src/test/resources/testDataFiles/sample.pdf")
-                .assertThat(By.id("content")).text().contains("✔");
-    }
-
     @Test
     public void uploadFileViaAjax(){
         driver.get().browser()
