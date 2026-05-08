@@ -201,8 +201,8 @@ public final class PropertyFileManager {
     }
 
     private static void loadPropertiesFileIntoSystemProperties(java.util.Properties properties, File propertyFile) {
-        try {
-            properties.load(new FileInputStream(propertyFile));
+        try (var fis = new FileInputStream(propertyFile)) {
+            properties.load(fis);
             // merge: effective properties (system + thread-local) override file-based properties
             properties.putAll(ThreadLocalPropertiesManager.getEffectiveProperties());
             // write merged result back to system properties so that ConfigFactory picks them up
