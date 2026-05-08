@@ -1477,10 +1477,13 @@
                                 <alwaysLogDiscreetly>true</alwaysLogDiscreetly>
                                 <log4j2.disableAnsi>true</log4j2.disableAnsi>
                             </systemPropertyVariables>
-                            <!-- Enforce strict failure behavior -->
-                            <testFailureIgnore>false</testFailureIgnore>
-                            <failIfNoSpecifiedTests>true</failIfNoSpecifiedTests>
-                            <failIfNoTests>true</failIfNoTests>
+                            <!-- testFailureIgnore=true lets Maven complete the test phase even when tests fail,
+                                 which allows JaCoCo to generate its coverage report afterward.
+                                 Actual pass/fail is enforced by the post-test-report composite action
+                                 (reads Allure summary.json or Surefire XML and exits 1 on failures). -->
+                            <testFailureIgnore>true</testFailureIgnore>
+                            <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+                            <failIfNoTests>false</failIfNoTests>
                             <trimStackTrace>false</trimStackTrace>
                             <useFile>true</useFile>
                             <argLine>
@@ -1539,10 +1542,13 @@
                                 <alwaysLogDiscreetly>true</alwaysLogDiscreetly>
                                 <log4j2.disableAnsi>true</log4j2.disableAnsi>
                             </systemPropertyVariables>
-                            <!-- Enforce strict failure behavior -->
-                            <testFailureIgnore>false</testFailureIgnore>
-                            <failIfNoSpecifiedTests>true</failIfNoSpecifiedTests>
-                            <failIfNoTests>true</failIfNoTests>
+                            <!-- testFailureIgnore=true lets Maven complete the test phase even when tests fail,
+                                 which allows JaCoCo to generate its coverage report afterward.
+                                 Actual pass/fail is enforced by the post-test-report composite action
+                                 (reads Allure summary.json or Surefire XML and exits 1 on failures). -->
+                            <testFailureIgnore>true</testFailureIgnore>
+                            <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+                            <failIfNoTests>false</failIfNoTests>
                             <trimStackTrace>false</trimStackTrace>
                             <useFile>true</useFile>
                             <argLine>

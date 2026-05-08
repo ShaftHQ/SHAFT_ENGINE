@@ -438,6 +438,16 @@ Add entries to the **Session Learnings Log** section below. Keep each entry comp
 - Lesson: `.github/copilot-instructions.md` states "Language: Java 21" — this is outdated and incorrect; always derive the canonical Java version from `pom.xml` `<jdk.version>`.
 - Evidence: `.github/copilot-instructions.md` line 8 vs `pom.xml` line 39
 
+- Date: 2026-05-08
+- Area: CI / Coverage / Anti-pattern
+- Lesson: `<testFailureIgnore>false</testFailureIgnore>` in Surefire causes Maven to exit (code 1) during the `test` phase when tests fail, before JaCoCo's `report` goal (also bound to `test` phase) runs — coverage is never generated. Always keep `testFailureIgnore=true` and delegate pass/fail enforcement to the `post-test-report` composite action, which reads Allure summary.json or Surefire XML and exits 1 on failures.
+- Evidence: `pom.xml` surefire config (lines 1484/1549), `.github/actions/post-test-report/action.yml` lines 141-154, issue #2642, PR for `claude/coverage-on-maven-failure-dbdnG`
+
+- Date: 2026-05-08
+- Area: Pattern / New PR workflow
+- Lesson: When working on a new scope of work: always create a new branch, self-assign the GitHub issue, implement the fix, commit, push, and open a draft PR assigning the user as reviewer.
+- Evidence: User instructions in session 2026-05-08
+
 - Date: 2026-05-07
 - Area: Encoding / Unicode
 - Lesson: Enforce UTF-8 at all runtime layers (Maven JVM, Surefire forked JVMs, and CI environment) — do not rely on host defaults.
