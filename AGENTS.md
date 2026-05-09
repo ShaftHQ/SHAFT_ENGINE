@@ -55,6 +55,7 @@ Important directories:
 - Test data belongs under `src/test/resources/testDataFiles/`; avoid hardcoding data in tests when existing guidance requires JSON test data.
 - For TestNG browser tests, existing instructions require fresh driver setup per test and `@AfterMethod(alwaysRun = true)` cleanup with `driver.quit()`.
 - For parallel tests, isolate state with `ThreadLocal` and avoid sharing driver instances across methods.
+- `@Test(singleThreaded = true)` serializes methods inside one TestNG class only; it does not isolate static SHAFT property setters from other classes in a parallel suite. Tests that assert behavior depending on global properties such as `executionAddress` must set those prerequisites inside the test (and rely on `@AfterMethod(alwaysRun = true)` cleanup) to avoid E2E flakes from cross-class property mutation.
 
 ## Code Style and Conventions
 - Public framework classes and public methods must have JavaDoc, including relevant `@param`, `@return`, and `@throws` tags.
