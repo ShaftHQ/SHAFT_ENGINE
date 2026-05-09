@@ -77,6 +77,11 @@ Important directories:
 - Reporting integrates with Allure and SHAFT report/log attachment helpers.
 - The framework is intended to be batteries-included: when adding external tool dependencies, use resolution patterns such as PATH, package manager, and self-download into the Maven repository rather than requiring users to install binaries manually.
 
+## GitHub API and CLI Authentication
+- Before using GitHub APIs, Actions artifacts/logs, or `gh`, normalize the token environment with `source scripts/ci/github-auth-env.sh`. This maps `GITHUB_TOKEN` to `GH_TOKEN` and `GH_TOKEN` to `GITHUB_TOKEN` without printing secret values.
+- If `gh` is missing and GitHub access is needed, install it in the current environment, then run `GH_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}" gh auth status -h github.com` to verify authentication without exposing the token.
+- Prefer authenticated `gh` commands for GitHub Actions artifacts, logs, issues, and PRs; anonymous REST calls can list some public metadata but cannot reliably download artifacts, read logs, or create issues.
+
 ## Agent Workflow
 - Start by reading this file plus any scoped instructions relevant to the files you will touch, especially `.github/instructions/framework-source.instructions.md` for `src/main/java/**/*.java` and `.github/instructions/java-tests.instructions.md` for `src/test/java/**/*.java`.
 - Follow existing PDCA-style guidance: plan, make the smallest focused change, validate, then refactor only as needed.
