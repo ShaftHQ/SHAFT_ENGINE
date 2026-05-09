@@ -1,0 +1,125 @@
+name: Refresh Agent Instructions
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly on Mondays at 04:37 UTC. Avoid minute 0 to reduce schedule congestion.
+    - cron: '37 4 * * 1'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: refresh-agent-instructions
+  cancel-in-progress: false
+
+jobs:
+  refresh-agent-instructions:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Default Branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Run Codex Agent Instruction Refresh
+        id: run-codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: .github/codex/prompts/refresh-agent-instructions.md
+          sandbox: workspace-write
+          safety-strategy: drop-sudo
+          allow-bots: true
+
+      - name: Check Changes and Enforce Allowlist
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t changed_files < <(
+            {
+              git diff --name-only --diff-filter=ACMRTD
+              git ls-files --others --exclude-standard
+            } | sort -u
+          )
+
+          if [ "${#changed_files[@]}" -eq 0 ]; then
+            echo "changes=false" >> "$GITHUB_OUTPUT"
+            echo "No agent instruction changes were proposed."
+            exit 0
+          fi
+
+          disallowed_files=()
+          for file in "${changed_files[@]}"; do
+            case "$file" in
+              AGENTS.md|*/AGENTS.md)
+                ;;
+              CLAUDE.md|GEMINI.md|.cursorrules|.windsurfrules|.clinerules)
+                ;;
+              MEMORY.md|NOTES.md|PLANS.md|HANDOFF.md)
+                ;;
+              .cursor/rules/*|.roo/*|.codex/*|.agents/*|.ai/*)
+                ;;
+              .github/codex/prompts/*|.github/copilot-instructions.md|.github/copilot-memory.md)
+                ;;
+              .github/instructions/*|.github/skills/*|docs/AGENT_KNOWLEDGE_MIGRATION.md)
+                ;;
+              *)
+                disallowed_files+=("$file")
+                ;;
+            esac
+          done
+
+          if [ "${#disallowed_files[@]}" -gt 0 ]; then
+            echo "::error::Codex changed files outside the agent-guidance allowlist. Refusing to open a pull request."
+            printf 'Disallowed files:\n'
+            printf ' - %s\n' "${disallowed_files[@]}"
+            printf '\nAll changed files:\n'
+            printf ' - %s\n' "${changed_files[@]}"
+            exit 1
+          fi
+
+          echo "changes=true" >> "$GITHUB_OUTPUT"
+          {
+            echo 'files<<EOF'
+            printf -- '- `%s`\n' "${changed_files[@]}"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Allowed agent instruction changes detected:"
+          printf ' - %s\n' "${changed_files[@]}"
+
+      - name: Create Pull Request
+        if: steps.changes.outputs.changes == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'docs: refresh agent instructions'
+          branch: automation/refresh-agent-instructions
+          delete-branch: true
+          title: 'docs: refresh agent instructions'
+          body: |
+            ## Summary
+            This automated PR refreshes durable Codex/agent instruction documentation using `openai/codex-action@v1`.
+
+            ### Changed instruction files
+            ${{ steps.changes.outputs.files }}
+
+            ## Files inspected by Codex
+            See the Codex summary below for the files or file groups inspected during the refresh.
+
+            ## Validation performed
+            - Enforced the workflow allowlist before opening this PR.
+            - No product-code validation was run because this workflow is limited to agent-guidance documentation.
+
+            ## Unresolved questions
+            - Review any “Verify before relying on this” items that Codex leaves in the updated documentation.
+
+            ## Codex summary
+            ${{ steps.run-codex.outputs.final-message }}
+
+            ## Safety note
+            No product code was intentionally changed. This workflow refuses to open a PR if Codex modifies files outside the agent-guidance allowlist.

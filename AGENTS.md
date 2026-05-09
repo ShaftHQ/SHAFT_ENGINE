@@ -86,6 +86,7 @@ Important directories:
 - Avoid broad refactors, dependency churn, release/version changes, generated artifact edits, or workflow rewrites unless explicitly requested.
 - Report commands run and results. Call out unvalidated assumptions and environment limitations.
 - For agent-instruction or memory migrations, see `docs/AGENT_KNOWLEDGE_MIGRATION.md` and keep durable guidance in long-lived instruction files rather than task reports.
+- A weekly/manual GitHub Actions workflow (`Refresh Agent Instructions`) uses `openai/codex-action@v1` to propose agent-guidance refreshes by pull request only; it requires the `OPENAI_API_KEY` Actions secret.
 
 ## Safety and Constraints
 - Do not expose secrets or copy values from `.env`, credential files, BrowserStack/LambdaTest variables, Maven Central credentials, GPG keys, or CI secrets.
