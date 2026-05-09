@@ -271,14 +271,19 @@ public class JavaHelper {
             //file path is valid
             return relativePath;
         } else {
-            // Strip a leading slash so "/foo.json" becomes "foo.json" (relative, gets prefixed)
-            // and "//tmp/foo.json" becomes "/tmp/foo.json" (absolute on Unix, returned below).
+            // "//path" is the cross-platform convention for an explicit absolute path:
+            // strip one slash so "//tmp/foo.json" → "/tmp/foo.json" and return immediately.
+            if (relativePath.startsWith("//")) {
+                return relativePath.substring(1);
+            }
+            // Native OS absolute paths that don't start with "/" (e.g. "C:\..." on Windows).
+            if (!relativePath.startsWith("/") && new java.io.File(relativePath).isAbsolute()) {
+                return relativePath;
+            }
+            // Single leading "/" is treated as an accidental prefix — strip it and fall through
+            // to the testData prepend logic below (works the same on Linux and Windows).
             if (relativePath.startsWith("/")) {
                 relativePath = relativePath.substring(1);
-            }
-            // Do not prepend testData path to absolute OS paths (e.g. /tmp/… on Unix, C:\… on Windows).
-            if (new java.io.File(relativePath).isAbsolute()) {
-                return relativePath;
             }
             var testDataFolderPath = Properties.paths.testData();
             if (relativePath.contains(testDataFolderPath)) {
