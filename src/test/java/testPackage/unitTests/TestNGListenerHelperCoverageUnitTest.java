@@ -168,11 +168,20 @@ public class TestNGListenerHelperCoverageUnitTest {
         Assert.assertEquals(suite.getThreadCount(), 4);
 
         TestNGListenerHelper.configureTestNGProperties(List.of(suite));
+        int expectedThreadCount = expectedConfiguredThreadCount();
         for (XmlTest expandedTest : suite.getTests()) {
-            Assert.assertEquals(expandedTest.getThreadCount(), 1);
+            Assert.assertEquals(expandedTest.getThreadCount(), expectedThreadCount);
             Assert.assertNotNull(expandedTest.getName());
         }
         Assert.assertTrue(suite.getDataProviderThreadCount() > 0);
+    }
+
+    private int expectedConfiguredThreadCount() {
+        double threadCount = SHAFT.Properties.testNG.threadCount();
+        if ("DYNAMIC".equals(SHAFT.Properties.testNG.parallelMode())) {
+            threadCount = threadCount * Runtime.getRuntime().availableProcessors();
+        }
+        return (int) Math.floor(threadCount);
     }
 
     @Test
