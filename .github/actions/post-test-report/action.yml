@@ -42,6 +42,7 @@ runs:
         files: ./target/jacoco/jacoco.xml
         verbose: true
         disable_search: true
+        handle_no_reports_found: true
     - name: Generate Allure Report Fallback
       if: always()
       shell: bash
