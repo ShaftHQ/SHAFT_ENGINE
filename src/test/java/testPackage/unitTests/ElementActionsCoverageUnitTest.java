@@ -83,7 +83,6 @@ public class ElementActionsCoverageUnitTest {
     public void shouldCoverBasicFluentAndActionWrappers() {
         By locator = By.id("sample");
 
-        invokeAndIgnoreFailures(ElementActions::new);
         Assert.assertNotNull(elementActions.and());
         Assert.assertNotNull(elementActions.assertThat(locator));
         Assert.assertNotNull(elementActions.verifyThat(locator));
