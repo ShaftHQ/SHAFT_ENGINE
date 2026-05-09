@@ -157,6 +157,14 @@ runs:
             exit 1
           fi
           echo "All tests passed according to Allure report."
+          # Cross-check: surefire XML may capture @AfterMethod/configuration failures
+          # that SHAFT's Allure listener does not record as test-level failures.
+          if ls target/surefire-reports/TEST-*.xml 1>/dev/null 2>&1; then
+            if grep -rq 'failures="[1-9]' target/surefire-reports/ || grep -rq 'errors="[1-9]' target/surefire-reports/; then
+              echo "::error::Surefire XML reports failures not captured in Allure summary. Check surefire-reports for details."
+              exit 1
+            fi
+          fi
         else
           echo "::warning::Allure report summary not found. Falling back to surefire reports."
           # Fallback: Check surefire reports if allure data is unavailable.
