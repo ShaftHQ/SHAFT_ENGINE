@@ -169,6 +169,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Consumer_Smoke:
+    if: always()
     needs: [Unit_shaft_core, Unit_shaft_api, Unit_shaft_db, Unit_shaft_web]
     runs-on: ubuntu-latest
     outputs:
