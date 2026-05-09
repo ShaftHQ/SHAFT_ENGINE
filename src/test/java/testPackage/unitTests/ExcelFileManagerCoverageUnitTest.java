@@ -20,58 +20,62 @@ import java.time.ZoneId;
 
 public class ExcelFileManagerCoverageUnitTest {
     private static final Path TEMP_DIRECTORY = Path.of("target", "temp", "excelFileManagerCoverage");
-    private Path excelFilePath;
-    private ExcelFileManager excelFileManager;
+    private final ThreadLocal<Path> excelFilePath = new ThreadLocal<>();
+    private final ThreadLocal<ExcelFileManager> excelFileManager = new ThreadLocal<>();
 
     @BeforeMethod(alwaysRun = true)
     public void beforeMethod() throws IOException {
         Files.createDirectories(TEMP_DIRECTORY);
-        excelFilePath = Files.createTempFile(TEMP_DIRECTORY, "coverage-", ".xlsx");
-        createWorkbook(excelFilePath);
-        excelFileManager = new ExcelFileManager(excelFilePath.toAbsolutePath().toString());
+        Path workbookPath = Files.createTempFile(TEMP_DIRECTORY, "coverage-", ".xlsx");
+        excelFilePath.set(workbookPath);
+        createWorkbook(workbookPath);
+        excelFileManager.set(new ExcelFileManager(workbookPath.toAbsolutePath().toString()));
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() throws IOException {
-        if (excelFilePath != null) {
-            Files.deleteIfExists(excelFilePath);
+        Path workbookPath = excelFilePath.get();
+        if (workbookPath != null) {
+            Files.deleteIfExists(workbookPath);
         }
+        excelFileManager.remove();
+        excelFilePath.remove();
     }
 
     @Test
     public void getCellDataShouldParseNumericDateBooleanAndBlankValues() {
-        Assert.assertEquals(excelFileManager.getCellData("numericRow", "testData1"), "42");
-        Assert.assertEquals(excelFileManager.getCellData("dateRow", "testData1"), "15/01/24");
-        Assert.assertEquals(excelFileManager.getCellData("booleanRow", "testData1"), "true");
-        Assert.assertEquals(excelFileManager.getCellData("blankRow", "testData1"), "");
+        Assert.assertEquals(excelFileManager.get().getCellData("numericRow", "testData1"), "42");
+        Assert.assertEquals(excelFileManager.get().getCellData("dateRow", "testData1"), "15/01/24");
+        Assert.assertEquals(excelFileManager.get().getCellData("booleanRow", "testData1"), "true");
+        Assert.assertEquals(excelFileManager.get().getCellData("blankRow", "testData1"), "");
     }
 
     @Test
     public void getCellDataShouldReturnEmptyStringWhenTargetCellIsMissing() {
-        Assert.assertEquals(excelFileManager.getCellData("missingCellRow", "testData1"), "");
+        Assert.assertEquals(excelFileManager.get().getCellData("missingCellRow", "testData1"), "");
     }
 
     @Test
     public void getLastColumnNumberShouldStopAtFirstNonStringHeader() {
-        Assert.assertEquals(excelFileManager.getLastColumnNumber("Sheet1"), 2);
+        Assert.assertEquals(excelFileManager.get().getLastColumnNumber("Sheet1"), 2);
     }
 
     @Test
     public void getCellDataShouldThrowWhenRowNameDoesNotExist() {
         Assert.expectThrows(RuntimeException.class,
-                () -> excelFileManager.getCellData("missingRow", "testData1"));
+                () -> excelFileManager.get().getCellData("missingRow", "testData1"));
     }
 
     @Test
     public void getCellDataShouldThrowWhenColumnNameDoesNotExist() {
         Assert.expectThrows(RuntimeException.class,
-                () -> excelFileManager.getCellData("numericRow", "missingColumn"));
+                () -> excelFileManager.get().getCellData("numericRow", "missingColumn"));
     }
 
     @Test
     public void getColumnNameUsingRowNameAndCellDataShouldThrowWhenCellDataDoesNotExist() {
         Assert.expectThrows(RuntimeException.class,
-                () -> excelFileManager.getColumnNameUsingRowNameAndCellData("Sheet1", "numericRow", "missingValue"));
+                () -> excelFileManager.get().getColumnNameUsingRowNameAndCellData("Sheet1", "numericRow", "missingValue"));
     }
 
     private static void createWorkbook(Path path) throws IOException {
