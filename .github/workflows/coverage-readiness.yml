@@ -1,0 +1,132 @@
+name: Coverage Readiness
+
+on:
+  workflow_dispatch:
+    inputs:
+      test-selector:
+        description: 'Maven Surefire -Dtest selector to execute before generating JaCoCo coverage'
+        required: true
+        default: 'PathParamTest,SwaggerContractTest'
+      coverage-metric:
+        description: 'JaCoCo metric to compare with the minimum when enforcement is enabled'
+        required: true
+        type: choice
+        options:
+          - line
+          - branch
+          - instruction
+          - method
+        default: line
+      coverage-minimum:
+        description: 'Minimum coverage percentage for the selected metric'
+        required: true
+        default: '80'
+      enforce-coverage:
+        description: 'Fail the workflow when the selected metric is below the minimum'
+        required: true
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - '.github/workflows/coverage-readiness.yml'
+      - '.github/workflows/e2eTests.yml'
+      - '.github/workflows/e2eLocalTests.yml'
+      - '.github/workflows/e2eLambdaTestTests.yml'
+      - 'scripts/ci/**'
+      - 'tests/scripts/**'
+      - 'src/test/java/com/shaft/api/**'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    env:
+      TEST_SELECTOR: ${{ github.event.inputs.test-selector || 'PathParamTest,SwaggerContractTest' }}
+      COVERAGE_METRIC: ${{ github.event.inputs.coverage-metric || 'line' }}
+      COVERAGE_MINIMUM: ${{ github.event.inputs.coverage-minimum || '80' }}
+      ENFORCE_COVERAGE: ${{ github.event.inputs.enforce-coverage || 'false' }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+
+      - name: Run CI script unit tests
+        run: python -m unittest discover -s tests/scripts -p 'test_*.py'
+
+      - name: Verify E2E workflow test inventory
+        run: scripts/ci/e2e_test_inventory.py --format markdown --fail-on-unselected | tee e2e-test-inventory.md
+
+      - name: Run selected Maven tests
+        id: maven_tests
+        continue-on-error: true
+        run: mvn -e test "-Dtest=${TEST_SELECTOR}" "-DgenerateAllureReportArchive=true" -Dgpg.skip
+
+      - name: Extract Allure failures
+        id: allure_failures
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ -d allure-results ]; then
+            scripts/ci/extract_allure_failures.py allure-results | tee allure-failures.md
+          else
+            echo 'No allure-results directory was generated.' | tee allure-failures.md
+          fi
+
+      - name: Generate JaCoCo report
+        if: always()
+        run: mvn jacoco:report -Dgpg.skip
+
+      - name: Summarize coverage
+        id: coverage
+        if: always()
+        run: |
+          enforce_args=()
+          if [ "${ENFORCE_COVERAGE}" = "true" ]; then
+            enforce_args+=(--enforce)
+          fi
+          scripts/ci/jacoco_coverage_gate.py target/jacoco/jacoco.csv \
+            --metric "${COVERAGE_METRIC}" \
+            --minimum "${COVERAGE_MINIMUM}" \
+            "${enforce_args[@]}" | tee jacoco-coverage-summary.md
+
+      - name: Publish job summary
+        if: always()
+        run: |
+          {
+            echo '## E2E Test Inventory'
+            cat e2e-test-inventory.md
+            echo
+            echo '## Allure Failures'
+            cat allure-failures.md
+            echo
+            echo '## JaCoCo Coverage'
+            cat jacoco-coverage-summary.md
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload readiness artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-readiness-artifacts
+          path: |
+            e2e-test-inventory.md
+            allure-failures.md
+            jacoco-coverage-summary.md
+            target/jacoco/**
+            target/surefire-reports/**
+            allure-results/**
+          if-no-files-found: ignore
+
+      - name: Fail on test failures
+        if: steps.maven_tests.outcome != 'success' || steps.allure_failures.outcome != 'success'
+        run: exit 1
