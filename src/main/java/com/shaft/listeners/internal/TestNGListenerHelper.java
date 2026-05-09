@@ -20,6 +20,7 @@ import org.testng.xml.XmlClass;
 import org.testng.xml.XmlSuite;
 import org.testng.xml.XmlTest;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -340,7 +341,10 @@ public class TestNGListenerHelper {
      * @return issue value(s), or empty string if none exist
      */
     public static String getIssueAnnotationValue(ITestResult iTestResult) {
-        var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
+        Method method = getJavaMethod(iTestResult);
+        if (method == null) {
+            return "";
+        }
         Issue issue = method.getAnnotation(Issue.class);
         Issues issues = method.getAnnotation(Issues.class);
         if (issues != null) {
@@ -363,7 +367,10 @@ public class TestNGListenerHelper {
      * @return TMS link value(s), or empty string if none exist
      */
     public static String getTmsLinkAnnotationValue(ITestResult iTestResult) {
-        var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
+        Method method = getJavaMethod(iTestResult);
+        if (method == null) {
+            return "";
+        }
         TmsLink tmsLink = method.getAnnotation(TmsLink.class);
         TmsLinks tmsLinks = method.getAnnotation(TmsLinks.class);
         if (tmsLinks != null) {
@@ -377,6 +384,13 @@ public class TestNGListenerHelper {
         } else {
             return "";
         }
+    }
+
+    private static Method getJavaMethod(ITestResult iTestResult) {
+        if (iTestResult == null || iTestResult.getMethod() == null || iTestResult.getMethod().getConstructorOrMethod() == null) {
+            return null;
+        }
+        return iTestResult.getMethod().getConstructorOrMethod().getMethod();
     }
 
     public static void failFast(ITestResult iTestResult) {
