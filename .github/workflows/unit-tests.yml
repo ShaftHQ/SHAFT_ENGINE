@@ -64,8 +64,9 @@ jobs:
               -exec grep -A2 'Key("allure3Version")' {} \; 2>/dev/null \
               | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/' || true)
             ALLURE3_VERSION=${ALLURE3_VERSION:-3.3.1}
+            printf 'plugins:\n  awesome:\n    options:\n      singleFile: true\n      reportLanguage: "en"\n      open: false\n' > allurerc.yaml
             mkdir -p allure-report
-            npx --yes allure@${ALLURE3_VERSION} generate allure-results -o allure-report --clean 2>/dev/null || true
+            npx --yes allure@${ALLURE3_VERSION} generate allure-results --config allurerc.yaml -o allure-report || true
             if [ -f "allure-report/index.html" ]; then
               mv allure-report/index.html allure-report/AllureReport.html
             fi
@@ -114,8 +115,9 @@ jobs:
               -exec grep -A2 'Key("allure3Version")' {} \; 2>/dev/null \
               | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/' || true)
             ALLURE3_VERSION=${ALLURE3_VERSION:-3.3.1}
+            printf 'plugins:\n  awesome:\n    options:\n      singleFile: true\n      reportLanguage: "en"\n      open: false\n' > allurerc.yaml
             mkdir -p allure-report
-            npx --yes allure@${ALLURE3_VERSION} generate allure-results -o allure-report --clean 2>/dev/null || true
+            npx --yes allure@${ALLURE3_VERSION} generate allure-results --config allurerc.yaml -o allure-report || true
             if [ -f "allure-report/index.html" ]; then
               mv allure-report/index.html allure-report/AllureReport.html
             fi
@@ -164,8 +166,9 @@ jobs:
               -exec grep -A2 'Key("allure3Version")' {} \; 2>/dev/null \
               | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/' || true)
             ALLURE3_VERSION=${ALLURE3_VERSION:-3.3.1}
+            printf 'plugins:\n  awesome:\n    options:\n      singleFile: true\n      reportLanguage: "en"\n      open: false\n' > allurerc.yaml
             mkdir -p allure-report
-            npx --yes allure@${ALLURE3_VERSION} generate allure-results -o allure-report --clean 2>/dev/null || true
+            npx --yes allure@${ALLURE3_VERSION} generate allure-results --config allurerc.yaml -o allure-report || true
             if [ -f "allure-report/index.html" ]; then
               mv allure-report/index.html allure-report/AllureReport.html
             fi
@@ -214,8 +217,9 @@ jobs:
               -exec grep -A2 'Key("allure3Version")' {} \; 2>/dev/null \
               | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/' || true)
             ALLURE3_VERSION=${ALLURE3_VERSION:-3.3.1}
+            printf 'plugins:\n  awesome:\n    options:\n      singleFile: true\n      reportLanguage: "en"\n      open: false\n' > allurerc.yaml
             mkdir -p allure-report
-            npx --yes allure@${ALLURE3_VERSION} generate allure-results -o allure-report --clean 2>/dev/null || true
+            npx --yes allure@${ALLURE3_VERSION} generate allure-results --config allurerc.yaml -o allure-report || true
             if [ -f "allure-report/index.html" ]; then
               mv allure-report/index.html allure-report/AllureReport.html
             fi
@@ -274,8 +278,9 @@ jobs:
               -exec grep -A2 'Key("allure3Version")' {} \; 2>/dev/null \
               | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/' || true)
             ALLURE3_VERSION=${ALLURE3_VERSION:-3.3.1}
+            printf 'plugins:\n  awesome:\n    options:\n      singleFile: true\n      reportLanguage: "en"\n      open: false\n' > allurerc.yaml
             mkdir -p allure-report
-            npx --yes allure@${ALLURE3_VERSION} generate allure-results -o allure-report --clean 2>/dev/null || true
+            npx --yes allure@${ALLURE3_VERSION} generate allure-results --config allurerc.yaml -o allure-report || true
             if [ -f "allure-report/index.html" ]; then
               mv allure-report/index.html allure-report/AllureReport.html
             fi
