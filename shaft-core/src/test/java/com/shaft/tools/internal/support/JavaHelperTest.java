@@ -8,7 +8,10 @@ class JavaHelperTest {
 
     @Test
     void unixStyleAbsolutePathShouldNotHaveTestDataPrepended() {
-        String result = JavaHelper.appendTestDataToRelativePath("/tmp/file.json");
+        // "//tmp/file.json" normalises to "/tmp/file.json" (absolute on Unix) → no testData prefix.
+        // Single-slash paths like "/file.json" are treated as relative with an accidental leading
+        // slash and DO get the testData folder prepended (see appendTestDataToRelativePath contract).
+        String result = JavaHelper.appendTestDataToRelativePath("//tmp/file.json");
         assertFalse(result.contains("testDataFiles"),
             "Unix-absolute path must not have testData folder prepended, got: " + result);
     }
