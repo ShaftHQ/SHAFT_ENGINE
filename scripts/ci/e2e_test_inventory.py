@@ -28,6 +28,7 @@ ENV_PATTERN = re.compile(r"^\s*([A-Z][A-Z0-9_]*)\s*:\s*(.+?)\s*$")
 GITHUB_ENV_REFERENCE_PATTERN = re.compile(r"\$\{\{\s*env\.([A-Z][A-Z0-9_]*)\s*}}")
 SHELL_ENV_REFERENCE_PATTERN = re.compile(r"\$\{([A-Z][A-Z0-9_]*)}")
 REGEX_SELECTOR_PATTERN = re.compile(r"%regex\[(.*)]")
+ABSTRACT_CLASS_PATTERN = re.compile(r"\babstract\s+class\s+")
 
 
 @dataclass(frozen=True)
@@ -98,6 +99,8 @@ def discover_test_classes(test_root: Path) -> list[JavaTestClass]:
     for java_file in sorted(test_root.rglob("*.java")):
         class_name = java_file.stem
         if not class_name.endswith(TEST_CLASS_SUFFIXES):
+            continue
+        if ABSTRACT_CLASS_PATTERN.search(java_file.read_text(encoding="utf-8")):
             continue
         classes.append(
             JavaTestClass(

@@ -66,6 +66,17 @@ class E2ETestInventoryTests(unittest.TestCase):
         self.assertIn("Discovered Java test classes: **2**", markdown)
         self.assertIn("`example.DatabaseActionsTests`", markdown)
 
+    def test_ignores_abstract_test_base_classes(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            test_root = Path(temp_dir) / "src/test/java/example"
+            test_root.mkdir(parents=True)
+            (test_root / "MobileTest.java").write_text("public abstract class MobileTest {}", encoding="utf-8")
+            (test_root / "ConcreteMobileTest.java").write_text("public class ConcreteMobileTest {}", encoding="utf-8")
+
+            test_classes = discover_test_classes(Path(temp_dir) / "src/test/java")
+
+        self.assertEqual([test_class.class_name for test_class in test_classes], ["ConcreteMobileTest"])
+
 
 if __name__ == "__main__":
     unittest.main()
