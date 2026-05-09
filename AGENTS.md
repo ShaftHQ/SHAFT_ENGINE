@@ -80,7 +80,17 @@ Important directories:
 
 ## GitHub API and CLI Authentication
 - Before using GitHub APIs, Actions artifacts/logs, or `gh`, normalize the token environment with `source scripts/ci/github-auth-env.sh`. This maps `GITHUB_TOKEN` to `GH_TOKEN` and `GH_TOKEN` to `GITHUB_TOKEN` without printing secret values.
-- If `gh` is missing and GitHub access is needed, install it in the current environment, then run `GH_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}" gh auth status -h github.com` to verify authentication without exposing the token.
+- If `gh` is missing and GitHub access is needed, provision the official GitHub CLI apt repository in the current Ubuntu/Debian environment before retrying:
+  ```bash
+  type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+  curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+  sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+  sudo apt update
+  sudo apt install gh -y
+  gh --version
+  ```
+- After `gh` is installed, run `GH_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}" gh auth status -h github.com` to verify authentication without exposing the token. GitHub CLI automation requires a `GH_TOKEN` or `GITHUB_TOKEN` secret with the scopes needed for the requested operation, such as `repo` and `workflow` for repository and workflow actions.
 - Prefer authenticated `gh` commands for GitHub Actions artifacts, logs, issues, and PRs; anonymous REST calls can list some public metadata but cannot reliably download artifacts, read logs, or create issues.
 
 ## Agent Workflow
