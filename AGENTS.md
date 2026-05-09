@@ -85,6 +85,7 @@ Important directories:
 
 ## Agent Workflow
 - Start by reading this file plus any scoped instructions relevant to the files you will touch, especially `.github/instructions/framework-source.instructions.md` for `src/main/java/**/*.java` and `.github/instructions/java-tests.instructions.md` for `src/test/java/**/*.java`.
+- When the user asks you to work on an issue, create a dedicated branch from that issue and ensure the branch is linked to the issue correctly. Open a draft pull request early with a generic implementation-plan description, continue working locally on that branch, and push changes to the remote branch once you reach a good implementation milestone. When the work is complete, push the latest code, mark the pull request ready for review, and notify the user that the pull request is ready for review.
 - Follow existing PDCA-style guidance: plan, make the smallest focused change, validate, then refactor only as needed.
 - For bug fixes, reproduce the issue and add/verify a failing test before changing framework code whenever practical.
 - Run the narrowest useful test first, then broader validation when the change warrants it.
