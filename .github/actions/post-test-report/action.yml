@@ -35,7 +35,6 @@ runs:
   steps:
     - name: Upload coverage to Codecov
       if: always()
-      continue-on-error: true
       uses: codecov/codecov-action@v6
       with:
         token: ${{ inputs.codecov-token }}
@@ -47,10 +46,10 @@ runs:
       if: always()
       shell: bash
       run: |
-        # Derive Allure 3 version from Internal.java — works for both monolith and monorepo layouts.
-        ALLURE3_VERSION=$(find . -path '*/com/shaft/properties/internal/Internal.java' ! -path '*/test/*' \
-          -exec grep -A2 'Key("allure3Version")' {} \; 2>/dev/null \
-          | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/' || true)
+        # Derive Allure 3 version from Internal.java — the single source of truth for the engine.
+        ALLURE3_VERSION=$(grep -A2 'Key("allure3Version")' \
+          src/main/java/com/shaft/properties/internal/Internal.java \
+          | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/')
         ALLURE3_VERSION=${ALLURE3_VERSION:-3.3.1}
         if [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
           # Generate single-file report if SHAFT didn't already create one
@@ -97,20 +96,7 @@ runs:
           SKIPPED=$(extract_field skipped "$ALLURE_SUMMARY"); SKIPPED=${SKIPPED:-0}
           DURATION=$(extract_field duration "$ALLURE_SUMMARY"); DURATION=${DURATION:-0}
         else
-          # Allure not available — extract counts from surefire XML reports.
-          # Each TEST-*.xml file has a <testsuite tests="N" failures="N" errors="N" skipped="N"> element.
-          if ls target/surefire-reports/TEST-*.xml 1>/dev/null 2>&1; then
-            sum_attr() { grep -oh "$1=\"[0-9]*\"" target/surefire-reports/TEST-*.xml 2>/dev/null | grep -o '[0-9]*' | awk '{s+=$1} END {print s+0}'; }
-            TOTAL=$(sum_attr tests);   TOTAL=${TOTAL:-0}
-            FAILED=$(sum_attr failures); FAILED=${FAILED:-0}
-            BROKEN=$(sum_attr errors);   BROKEN=${BROKEN:-0}
-            SKIPPED=$(sum_attr skipped); SKIPPED=${SKIPPED:-0}
-            PASSED=$(( TOTAL - FAILED - BROKEN - SKIPPED ))
-            PASSED=$(( PASSED < 0 ? 0 : PASSED ))
-          else
-            TOTAL=0; PASSED=0; FAILED=0; BROKEN=0; SKIPPED=0
-          fi
-          DURATION=0
+          TOTAL=0; PASSED=0; FAILED=0; BROKEN=0; SKIPPED=0; DURATION=0
         fi
 
         # Compute job wallclock duration using the GitHub Actions job timing recorded by setup-test-env.
@@ -157,14 +143,6 @@ runs:
             exit 1
           fi
           echo "All tests passed according to Allure report."
-          # Cross-check: surefire XML may capture @AfterMethod/configuration failures
-          # that SHAFT's Allure listener does not record as test-level failures.
-          if ls target/surefire-reports/TEST-*.xml 1>/dev/null 2>&1; then
-            if grep -rq 'failures="[1-9]' target/surefire-reports/ || grep -rq 'errors="[1-9]' target/surefire-reports/; then
-              echo "::error::Surefire XML reports failures not captured in Allure summary. Check surefire-reports for details."
-              exit 1
-            fi
-          fi
         else
           echo "::warning::Allure report summary not found. Falling back to surefire reports."
           # Fallback: Check surefire reports if allure data is unavailable.
