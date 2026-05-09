@@ -2,12 +2,28 @@ package com.shaft.api;
 
 import com.shaft.driver.SHAFT;
 import org.testng.annotations.*;
+
+import java.io.IOException;
 import java.util.*;
 
 public class PathParamTest {
-    private final SHAFT.API api = new SHAFT.API("https://petstore.swagger.io/v2");
+    private LocalApiTestServer apiTestServer;
+    private SHAFT.API api;
     private static final String GET_USER_BY_USERNAME = "/user/{username}";
     private static final String GET_RESOURCE_BY_USERNAME = "/{resource}/{username}";
+
+    @BeforeClass
+    public void setupLocalApiFixture() throws IOException {
+        apiTestServer = LocalApiTestServer.start();
+        api = new SHAFT.API(apiTestServer.baseUrl());
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void teardownLocalApiFixture() {
+        if (apiTestServer != null) {
+            apiTestServer.stop();
+        }
+    }
 
     /**
      * Test fetching user details by username using a Map for path parameters.

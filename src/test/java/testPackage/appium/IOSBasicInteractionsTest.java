@@ -2,11 +2,12 @@ package testPackage.appium;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.ElementActions;
+import com.shaft.properties.internal.Properties;
 import com.shaft.validation.Validations;
 import io.appium.java_client.AppiumBy;
 import org.openqa.selenium.Platform;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class IOSBasicInteractionsTest {
@@ -24,11 +25,12 @@ public class IOSBasicInteractionsTest {
     }
 
     @SuppressWarnings("CommentedOutCode")
-    @BeforeClass
+    @BeforeMethod
     public void setup() {
         // common attributes
         SHAFT.Properties.platform.set().targetPlatform(Platform.IOS.toString());
         SHAFT.Properties.mobile.set().automationName("XCUITest");
+        SHAFT.Properties.mobile.set().browserName("");
         System.setProperty("mobile_appWaitActivity", "*");
 
         // local self-managed instance routing to browserstack for ios
@@ -39,12 +41,12 @@ public class IOSBasicInteractionsTest {
 //        SHAFT.Properties.mobile.set().app(SHAFT.Properties.paths.testData() + "apps/BStackSampleApp.ipa");
 
         // remote browserstack server (new app version)
-//        SHAFT.Properties.platform.set().executionAddress("browserstack");
-//        SHAFT.Properties.browserStack.set().platformVersion("14");
-//        SHAFT.Properties.browserStack.set().deviceName("iPhone 12 Pro Max");
-//        SHAFT.Properties.browserStack.set().appName("TestApp");
-//        SHAFT.Properties.browserStack.set().appRelativeFilePath(SHAFT.Properties.paths.testData() +  "apps/BStackSampleApp.ipa");
-//        SHAFT.Properties.browserStack.set().appUrl("");
+        SHAFT.Properties.platform.set().executionAddress("browserstack");
+        SHAFT.Properties.browserStack.set().osVersion("16");
+        SHAFT.Properties.browserStack.set().deviceName("iPhone 14");
+        SHAFT.Properties.browserStack.set().appName("BStackSampleApp.ipa");
+        SHAFT.Properties.browserStack.set().appRelativeFilePath(SHAFT.Properties.paths.testData() +  "apps/BStackSampleApp.ipa");
+        SHAFT.Properties.browserStack.set().appUrl("");
 
         // remote browserstack server (existing app version)
 //        System.setProperty("browserStack.platformVersion", "14");
@@ -56,9 +58,12 @@ public class IOSBasicInteractionsTest {
 
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     public void teardown() {
-        if (driver.get() != null)
+        if (driver.get() != null) {
             driver.get().quit();
+            driver.remove();
+        }
+        Properties.clearForCurrentThread();
     }
 }
