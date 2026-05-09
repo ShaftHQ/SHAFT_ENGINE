@@ -24,3 +24,10 @@ Purpose: keep high-signal, reusable learnings from implementation sessions in on
 - Lesson: Use `docs/AGENT_KNOWLEDGE_MIGRATION.md` for future migration tasks: create or link a ticket, branch before editing, progressively scan instruction/memory/skill files, favor executable configuration over stale prose, update the memory ledger, commit, and open a PR; if GitHub publication access is missing, explicitly report the limitation and provide a PR handoff.
 - Evidence: `docs/AGENT_KNOWLEDGE_MIGRATION.md`, `docs/tickets/2026-05-08-agent-knowledge-migration.md`, `.github/copilot-instructions.md`, `CLAUDE.md`
 - Action taken: Added a migration runbook, local ticket, global instruction reference, Claude guidance, and this memory entry.
+
+- Date: 2026-05-09
+- Area: WebDriver lifecycle / coverage tests
+- Trigger: Grid E2E failures in `ElementActionsCoverageUnitTest.shouldCoverBasicFluentAndActionWrappers`.
+- Lesson: Coverage-only unit tests must not call GUI facade default constructors such as `ElementActions::new`; those constructors create real browser sessions through the driver factory and can produce Selenium Grid failures even when the test otherwise uses mocks. Prefer explicit mock-driver constructors for unit coverage and keep all driver-factory/session paths in focused integration tests.
+- Evidence: `src/test/java/testPackage/unitTests/ElementActionsCoverageUnitTest.java`
+- Action taken: Removed the default-constructor coverage invocation so the test remains fully mock-backed and session-isolated.
