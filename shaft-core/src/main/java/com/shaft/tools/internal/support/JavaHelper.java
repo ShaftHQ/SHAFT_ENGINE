@@ -271,14 +271,13 @@ public class JavaHelper {
             //file path is valid
             return relativePath;
         } else {
+            // Unix-style absolute paths (start with "/") — return unchanged.
+            // Prepending the testData folder to /tmp/... would produce an invalid path on any OS.
             if (relativePath.startsWith("/")) {
-                //remove extra slash at the beginning if applicable
-                relativePath = relativePath.substring(1);
+                return relativePath;
             }
-            // Do not prepend testData path to absolute OS paths.
-            // Also treat slash-prefixed paths as absolute (Unix convention) — prepending the
-            // testData folder to /tmp/... would produce an invalid path on any OS.
-            if (new java.io.File(relativePath).isAbsolute() || relativePath.startsWith("/")) {
+            // Do not prepend testData path to absolute OS paths (e.g. C:\data\file on Windows).
+            if (new java.io.File(relativePath).isAbsolute()) {
                 return relativePath;
             }
             var testDataFolderPath = Properties.paths.testData();
