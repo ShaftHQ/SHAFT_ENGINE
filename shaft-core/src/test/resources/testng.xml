@@ -1,0 +1,15 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="shaft-core Unit Tests" verbose="1">
+    <test name="shaft-core">
+        <classes>
+            <class name="com.shaft.tools.internal.support.JavaHelperTest"/>
+            <class name="com.shaft.tools.internal.support.HttpPingUtilityTest"/>
+            <class name="com.shaft.tools.internal.support.IsClassAvailableTest"/>
+            <class name="com.shaft.validation.internal.CustomSoftAssertTest"/>
+            <class name="com.shaft.validation.internal.ValidationsExecutorIsolationTest"/>
+            <class name="com.shaft.properties.internal.PropertyFileManagerTest"/>
+            <class name="com.shaft.tools.io.internal.ProjectStructureManagerTest"/>
+            <class name="com.shaft.validation.ExampleTemplateConsistencyTest"/>
+        </classes>
+    </test>
+</suite>

@@ -1,8 +1,7 @@
 package com.shaft.validation.internal;
 
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 class CustomSoftAssertTest {
 
@@ -13,9 +12,9 @@ class CustomSoftAssertTest {
         softAssert.assertEquals("expected", "actual", "deliberate failure");
         try {
             softAssert.assertAll();
-            fail("assertAll should have thrown");
+            Assert.fail("assertAll should have thrown");
         } catch (AssertionError e) {
-            assertNotNull(e.getMessage());
+            Assert.assertNotNull(e.getMessage());
         }
     }
 
@@ -23,8 +22,7 @@ class CustomSoftAssertTest {
     void clearFailuresShouldEmptyLocalListWithoutThrowing() {
         CustomSoftAssert softAssert = new CustomSoftAssert();
         softAssert.assertEquals("a", "b", "failure");
-        assertDoesNotThrow(softAssert::clearFailures,
-            "clearFailures() must not throw");
+        softAssert.clearFailures();
     }
 
     @Test
@@ -41,12 +39,12 @@ class CustomSoftAssertTest {
 
     @Test
     void formatFailureWithStackTraceShouldReturnNullForNullError() {
-        assertNull(CustomSoftAssert.formatFailureWithStackTrace(null, "any.package"));
+        Assert.assertNull(CustomSoftAssert.formatFailureWithStackTrace(null, "any.package"));
     }
 
     @Test
     void formatFailureWithStackTraceShouldReturnNullForNullPackage() {
-        assertNull(CustomSoftAssert.formatFailureWithStackTrace(new AssertionError("err"), null));
+        Assert.assertNull(CustomSoftAssert.formatFailureWithStackTrace(new AssertionError("err"), null));
     }
 
     @Test
@@ -60,9 +58,9 @@ class CustomSoftAssertTest {
             }
         };
         String result = CustomSoftAssert.formatFailureWithStackTrace(error, "com.shaft.validation.internal");
-        assertNotNull(result, "Must return formatted string when package matches");
-        assertTrue(result.contains("at "), "Must contain at-lines: " + result);
-        assertTrue(result.contains("Foo.java:42"), "Must contain file:line reference");
+        Assert.assertNotNull(result, "Must return formatted string when package matches");
+        Assert.assertTrue(result.contains("at "), "Must contain at-lines: " + result);
+        Assert.assertTrue(result.contains("Foo.java:42"), "Must contain file:line reference");
     }
 
     @Test
@@ -76,12 +74,12 @@ class CustomSoftAssertTest {
             }
         };
         String result = CustomSoftAssert.formatFailureWithStackTrace(error, "com.shaft.validation.internal");
-        assertNotNull(result);
-        assertTrue(result.contains("Unknown"), "null fileName should render as 'Unknown'");
+        Assert.assertNotNull(result);
+        Assert.assertTrue(result.contains("Unknown"), "null fileName should render as 'Unknown'");
     }
 
     @Test
     void assertAllPassesWithNoFailures() {
-        assertDoesNotThrow(() -> new CustomSoftAssert().assertAll());
+        new CustomSoftAssert().assertAll();
     }
 }

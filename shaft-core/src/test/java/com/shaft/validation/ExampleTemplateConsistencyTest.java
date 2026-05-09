@@ -1,6 +1,7 @@
 package com.shaft.validation;
 
-import org.junit.jupiter.api.Test;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 
@@ -9,8 +10,6 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 class ExampleTemplateConsistencyTest {
 
@@ -37,7 +36,7 @@ class ExampleTemplateConsistencyTest {
 
     private Document parse(String templatePath) throws Exception {
         File pom = Path.of(EXAMPLES_ROOT, templatePath, "pom.xml").toFile();
-        assertTrue(pom.exists(), "Template pom.xml not found: " + pom.getAbsolutePath());
+        Assert.assertTrue(pom.exists(), "Template pom.xml not found: " + pom.getAbsolutePath());
         return DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(pom);
     }
 
@@ -65,9 +64,9 @@ class ExampleTemplateConsistencyTest {
         for (String template : ALL_TEMPLATES) {
             Document doc = parse(template);
             String artifactId = shaftArtifactId(doc);
-            assertNotNull(artifactId,
+            Assert.assertNotNull(artifactId,
                 template + ": no io.github.shafthq dependency with a valid SHAFT artifactId found");
-            assertTrue(VALID_SHAFT_ARTIFACT_IDS.contains(artifactId),
+            Assert.assertTrue(VALID_SHAFT_ARTIFACT_IDS.contains(artifactId),
                 template + ": artifactId '" + artifactId + "' not in valid set " + VALID_SHAFT_ARTIFACT_IDS);
         }
     }
@@ -77,10 +76,10 @@ class ExampleTemplateConsistencyTest {
         for (String template : ALL_TEMPLATES) {
             Document doc = parse(template);
             NodeList props = doc.getElementsByTagName("shaft_engine.version");
-            assertTrue(props.getLength() > 0,
+            Assert.assertTrue(props.getLength() > 0,
                 template + ": <shaft_engine.version> property not found");
             String version = props.item(0).getTextContent().trim();
-            assertFalse(version.isBlank(),
+            Assert.assertFalse(version.isBlank(),
                 template + ": <shaft_engine.version> is blank");
         }
     }
@@ -90,7 +89,7 @@ class ExampleTemplateConsistencyTest {
         for (String template : API_TEMPLATES) {
             Document doc = parse(template);
             String artifactId = shaftArtifactId(doc);
-            assertEquals("shaft-api", artifactId,
+            Assert.assertEquals(artifactId, "shaft-api",
                 template + ": API template should declare shaft-api, got: " + artifactId);
         }
     }
@@ -105,7 +104,7 @@ class ExampleTemplateConsistencyTest {
                 for (int j = 0; j < children.getLength(); j++) {
                     if ("artifactId".equals(children.item(j).getNodeName())) {
                         String artifactId = children.item(j).getTextContent().trim();
-                        assertFalse(artifactId.startsWith("selenium-"),
+                        Assert.assertFalse(artifactId.startsWith("selenium-"),
                             template + ": must not directly declare selenium, found: " + artifactId);
                     }
                 }

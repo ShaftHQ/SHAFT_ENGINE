@@ -1,20 +1,38 @@
 package com.shaft.properties.internal;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.Properties;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PropertyFileManagerTest {
 
-    @TempDir
-    Path tempDir;
+    private Path tempDir;
+
+    @BeforeMethod
+    void createTempDir() throws IOException {
+        tempDir = Files.createTempDirectory("shaft-core-test-");
+    }
+
+    @AfterMethod
+    void deleteTempDir() throws IOException {
+        if (tempDir != null) {
+            try (var stream = Files.walk(tempDir)) {
+                stream.sorted(Comparator.reverseOrder())
+                      .map(Path::toFile)
+                      .forEach(File::delete);
+            }
+        }
+    }
 
     @Test
     void fileShouldBeDeleteableAfterPropertiesLoad() throws Exception {
@@ -22,17 +40,14 @@ class PropertyFileManagerTest {
         try (FileOutputStream fos = new FileOutputStream(propFile)) {
             fos.write("key=value\n".getBytes());
         }
-        assertTrue(propFile.exists(), "Temp file must exist before load");
+        Assert.assertTrue(propFile.exists(), "Temp file must exist before load");
 
-        // Invoke private loadPropertiesFileIntoSystemProperties to simulate real usage
         Method m = PropertyFileManager.class.getDeclaredMethod(
             "loadPropertiesFileIntoSystemProperties", Properties.class, File.class);
         m.setAccessible(true);
         m.invoke(null, new Properties(), propFile);
 
-        // The try-with-resources in loadPropertiesFileIntoSystemProperties must have
-        // closed the FileInputStream — file must now be deleteable on Windows.
-        assertTrue(propFile.delete(),
+        Assert.assertTrue(propFile.delete(),
             "File must be deleteable after loading — try-with-resources must have released the lock");
     }
 }

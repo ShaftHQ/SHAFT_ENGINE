@@ -1,23 +1,20 @@
 package com.shaft.tools.internal.support;
 
 import com.sun.net.httpserver.HttpServer;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
-import static org.junit.jupiter.api.Assertions.*;
-
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HttpPingUtilityTest {
 
     private HttpServer server;
     private int port;
 
-    @BeforeAll
+    @BeforeClass
     void startServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/status/", exchange -> {
@@ -34,7 +31,7 @@ class HttpPingUtilityTest {
         port = server.getAddress().getPort();
     }
 
-    @AfterAll
+    @AfterClass
     void stopServer() {
         if (server != null) server.stop(0);
     }
@@ -42,18 +39,18 @@ class HttpPingUtilityTest {
     @Test
     void shouldReturn200ForResponsiveServer() throws IOException {
         int status = HttpPingUtility.getStatusCode("http://localhost:" + port + "/status/", 3000);
-        assertEquals(200, status);
+        Assert.assertEquals(status, 200);
     }
 
     @Test
     void shouldReturn503ForServerThatReturns503() throws IOException {
         int status = HttpPingUtility.getStatusCode("http://localhost:" + port + "/error/", 3000);
-        assertEquals(503, status);
+        Assert.assertEquals(status, 503);
     }
 
     @Test
     void shouldThrowIOExceptionOnConnectionRefused() {
-        assertThrows(IOException.class,
+        Assert.expectThrows(IOException.class,
             () -> HttpPingUtility.getStatusCode("http://localhost:1/status/", 1000));
     }
 }
