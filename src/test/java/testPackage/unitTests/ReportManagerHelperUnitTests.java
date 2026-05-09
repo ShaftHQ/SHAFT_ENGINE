@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+@Test(singleThreaded = true)
 public class ReportManagerHelperUnitTests {
 
     @BeforeMethod(alwaysRun = true)

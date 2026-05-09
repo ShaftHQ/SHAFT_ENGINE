@@ -13,6 +13,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
+import java.net.ServerSocket;
 import java.net.URLEncoder;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -105,6 +106,23 @@ public class RealtimeReporterServerUnitTest {
         Assert.assertTrue(RealtimeReporter.isRunning());
         RealtimeReporter.onExecutionFinished();
         Assert.assertTrue(RealtimeReporter.isRunning());
+    }
+
+    @Test
+    public void startServerShouldFallbackToEphemeralPortWhenDefaultPortIsBusy() throws Exception {
+        RealtimeReporter.stopServer();
+        try (ServerSocket defaultPortBlocker = new ServerSocket(1111)) {
+            Method startServer = RealtimeReporter.class.getDeclaredMethod("startServer");
+            startServer.setAccessible(true);
+            startServer.invoke(null);
+
+            Assert.assertTrue(RealtimeReporter.isRunning());
+            var dashboardUrlField = RealtimeReporter.class.getDeclaredField("DASHBOARD_URL");
+            dashboardUrlField.setAccessible(true);
+            baseUrl = (String) dashboardUrlField.get(null);
+            Assert.assertFalse(baseUrl.endsWith(":1111"));
+            Assert.assertEquals(request("GET", "/api/state").code, 200);
+        }
     }
 
     private HttpResponse request(String method, String path) throws Exception {
