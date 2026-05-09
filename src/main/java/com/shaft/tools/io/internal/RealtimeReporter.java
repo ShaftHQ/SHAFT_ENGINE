@@ -32,6 +32,8 @@ import java.util.stream.Collectors;
  *   <li>The {@code reporting.realtimeReport.enabled} property is {@code true}.</li>
  *   <li>Execution is not inside a CI/CD environment.</li>
  * </ul>
+ * The dashboard server can run while local browser tests execute in headless mode so
+ * external tools can capture the live report without displaying the tested browser.
  *
  * <p>Only one instance of the server runs at a time. Starting a new test run tears down
  * the previous server and starts a fresh one.
@@ -46,8 +48,6 @@ public class RealtimeReporter {
     private static final DateTimeFormatter FULL_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault());
     private static final int MAX_ATTACHMENT_SIZE_BYTES = 25 * 1024 * 1024; // 25MB per attachment
     private static final long MAX_TOTAL_ATTACHMENT_BYTES = 250L * 1024 * 1024; // 250MB total
-    private static final String EXECUTION_ADDRESS_LOCAL = "local";
-
     // Server state
     private static HttpServer httpServer;
     private static ExecutorService httpExecutor;
@@ -312,18 +312,15 @@ public class RealtimeReporter {
 
     /**
      * Determines whether the real-time report should be launched.
-     * The report launches when the flag is enabled, not running in CI,
-     * and not executing locally in headless mode.
+     * The report launches when the flag is enabled and execution is not running in CI.
+     * Local headless browser execution is allowed so the dashboard can be observed or
+     * recorded separately while the tested browser remains headless.
      *
      * @return {@code true} when launch conditions are satisfied
      */
     public static boolean shouldLaunch() {
         try {
             if (!SHAFT.Properties.reporting.realtimeReport()) return false;
-            if (EXECUTION_ADDRESS_LOCAL.equalsIgnoreCase(SHAFT.Properties.platform.executionAddress())
-                    && SHAFT.Properties.web.headlessExecution()) {
-                return false;
-            }
         } catch (Exception e) {
             return false;
         }

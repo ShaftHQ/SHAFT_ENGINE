@@ -1,0 +1,11 @@
+{
+  "baseUrl": "https://www.saucedemo.com",
+  "username": "standard_user",
+  "password": "secret_sauce",
+  "expectedTitle": "Swag Labs",
+  "expectedCartCount": "2",
+  "firstName": "Realtime",
+  "lastName": "Reporter",
+  "postalCode": "90210",
+  "completionMessage": "Thank you for your order!"
+}

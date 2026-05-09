@@ -1,5 +1,7 @@
 package testPackage.unitTests;
 
+import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.internal.RealtimeReporter;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -29,6 +31,7 @@ public class RealtimeReporterUnitTest {
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
         RealtimeReporter.stopServer();
+        Properties.clearForCurrentThread();
     }
 
     // ─── CI detection ─────────────────────────────────────────────────────
@@ -57,6 +60,17 @@ public class RealtimeReporterUnitTest {
         // regardless of the environment.
         assertFalse(RealtimeReporter.shouldLaunch(),
                 "Real-time report should be disabled by default");
+    }
+
+
+    @Test
+    public void shouldLaunchAllowsExplicitRealtimeDashboardForLocalHeadlessRuns() {
+        SHAFT.Properties.reporting.set().realtimeReport(true);
+        SHAFT.Properties.platform.set().executionAddress("local");
+        SHAFT.Properties.web.set().headlessExecution(true);
+
+        assertEquals(RealtimeReporter.shouldLaunch(), !RealtimeReporter.isRunningInCI(),
+                "Real-time report should be launchable during local headless execution outside CI");
     }
 
     @Test

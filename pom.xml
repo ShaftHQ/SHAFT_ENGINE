@@ -35,7 +35,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <surefireArgLine>--enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8</surefireArgLine>
-        <surefire.excludedGroups>allure3-visual-demo</surefire.excludedGroups>
+        <surefire.excludedGroups>allure3-visual-demo,realtime-reporter-demo</surefire.excludedGroups>
         <jdk.version>25</jdk.version>
         <lombok.version>1.18.46</lombok.version>
         <maven.min.version>3.9.0</maven.min.version>
@@ -1467,8 +1467,8 @@
                             <classpathDependencyExcludes>
                                 <classpathDependencyExclude>com.browserstack:browserstack-java-sdk</classpathDependencyExclude>
                             </classpathDependencyExcludes>
-                            <!-- Exclude intentionally-failing visual-demo tests from default CI runs.
-                                 Run them explicitly with -Dgroups=allure3-visual-demo when needed,
+                            <!-- Exclude intentionally-failing visual-demo and opt-in realtime dashboard demo tests from default CI runs.
+                                 Run them explicitly with -Dgroups=allure3-visual-demo or -Dgroups=realtime-reporter-demo when needed,
                                  or override -Dsurefire.excludedGroups to customize exclusions. -->
                             <excludedGroups>${surefire.excludedGroups}</excludedGroups>
                             <systemPropertyVariables>
