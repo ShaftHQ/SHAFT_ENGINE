@@ -279,7 +279,7 @@ public class ValidationsExecutor {
         } catch (ReflectiveOperationException e) {
             Throwable cause = e.getCause();
             if (cause instanceof AssertionError ae) throw ae;
-            throw new RuntimeException("Failed to invoke ValidationsHelper." + methodName, e);
+            throw new IllegalStateException("Failed to invoke ValidationsHelper." + methodName, e);
         }
     }
 
@@ -294,7 +294,7 @@ public class ValidationsExecutor {
         } catch (ReflectiveOperationException e) {
             Throwable cause = e.getCause();
             if (cause instanceof AssertionError ae) throw ae;
-            throw new RuntimeException("Failed to invoke ValidationsHelper2." + methodName, e);
+            throw new IllegalStateException("Failed to invoke ValidationsHelper2." + methodName, e);
         }
     }
 

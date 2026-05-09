@@ -2,7 +2,6 @@ package com.shaft.listeners.internal;
 
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.properties.internal.Properties;
-import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.remote.Browser;
 import org.testng.xml.XmlSuite;

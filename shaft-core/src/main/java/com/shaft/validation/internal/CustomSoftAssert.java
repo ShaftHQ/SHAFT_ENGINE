@@ -57,7 +57,11 @@ public class CustomSoftAssert extends SoftAssert {
         List<StackTraceElement> filtered = new ArrayList<>();
         for (StackTraceElement element : trace) {
             String className = element.getClassName();
-            if (!className.startsWith("org.testng") && !className.startsWith("sun.reflect")
+            if (rootPackage != null && !rootPackage.isBlank()) {
+                if (className.startsWith(rootPackage)) {
+                    filtered.add(element);
+                }
+            } else if (!className.startsWith("org.testng") && !className.startsWith("sun.reflect")
                     && !className.startsWith("java.lang.reflect") && !className.startsWith("com.shaft.validation.internal")) {
                 filtered.add(element);
             }

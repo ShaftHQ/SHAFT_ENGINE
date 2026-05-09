@@ -479,24 +479,24 @@ public class OptionsManager {
         if (SHAFT.Properties.platform.enableBiDi())
             options.enableBiDi();
         //merge customWebdriverCapabilities.properties
-        options = (ChromiumOptions<?>) options.merge(getCustomWebDriverDesiredCapabilities());
+        ChromiumOptions<?> mergedOptions = (ChromiumOptions<?>) options.merge(getCustomWebDriverDesiredCapabilities());
         //merge hardcoded custom options
         if (customDriverOptions != null) {
-            options = (ChromiumOptions<?>) options.merge(customDriverOptions);
+            mergedOptions = (ChromiumOptions<?>) mergedOptions.merge(customDriverOptions);
         }
         //detach Chrome instance if autoCloseDriverInstance is false
         if (!SHAFT.Properties.flags.autoCloseDriverInstance()) {
-            @SuppressWarnings("unchecked") Map<Object, Object> chromeOptions = new HashMap<>((Map<Object, Object>) options.getCapability(ChromeOptions.CAPABILITY));
+            @SuppressWarnings("unchecked") Map<Object, Object> chromeOptions = new HashMap<>((Map<Object, Object>) mergedOptions.getCapability(ChromeOptions.CAPABILITY));
             chromeOptions.put("detach", true);
-            options.setCapability(ChromeOptions.CAPABILITY, chromeOptions);
-            options.setExperimentalOption("detach", true);
+            mergedOptions.setCapability(ChromeOptions.CAPABILITY, chromeOptions);
+            mergedOptions.setExperimentalOption("detach", true);
         }
         //disable SSL certificate check
         if(SHAFT.Properties.flags.disableSslCertificateCheck())
         {
-            options.addArguments("ignore-certificate-errors");
+            mergedOptions.addArguments("ignore-certificate-errors");
         }
-        return options;
+        return mergedOptions;
     }
 
     private LoggingPreferences configureLoggingPreferences() {
