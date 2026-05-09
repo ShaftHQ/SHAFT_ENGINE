@@ -97,7 +97,20 @@ runs:
           SKIPPED=$(extract_field skipped "$ALLURE_SUMMARY"); SKIPPED=${SKIPPED:-0}
           DURATION=$(extract_field duration "$ALLURE_SUMMARY"); DURATION=${DURATION:-0}
         else
-          TOTAL=0; PASSED=0; FAILED=0; BROKEN=0; SKIPPED=0; DURATION=0
+          # Allure not available — extract counts from surefire XML reports.
+          # Each TEST-*.xml file has a <testsuite tests="N" failures="N" errors="N" skipped="N"> element.
+          if ls target/surefire-reports/TEST-*.xml 1>/dev/null 2>&1; then
+            sum_attr() { grep -oh "$1=\"[0-9]*\"" target/surefire-reports/TEST-*.xml 2>/dev/null | grep -o '[0-9]*' | awk '{s+=$1} END {print s+0}'; }
+            TOTAL=$(sum_attr tests);   TOTAL=${TOTAL:-0}
+            FAILED=$(sum_attr failures); FAILED=${FAILED:-0}
+            BROKEN=$(sum_attr errors);   BROKEN=${BROKEN:-0}
+            SKIPPED=$(sum_attr skipped); SKIPPED=${SKIPPED:-0}
+            PASSED=$(( TOTAL - FAILED - BROKEN - SKIPPED ))
+            PASSED=$(( PASSED < 0 ? 0 : PASSED ))
+          else
+            TOTAL=0; PASSED=0; FAILED=0; BROKEN=0; SKIPPED=0
+          fi
+          DURATION=0
         fi
 
         # Compute job wallclock duration using the GitHub Actions job timing recorded by setup-test-env.
