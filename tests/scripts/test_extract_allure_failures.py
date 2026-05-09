@@ -67,6 +67,20 @@ class ExtractAllureFailuresTests(unittest.TestCase):
         self.assertIn("value \\| was invalid", markdown)
         self.assertIn("`allure-results/test-result.json`", markdown)
 
+    def test_ignores_non_result_json_payloads(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "array-attachment.json").write_text(json.dumps([{"id": 1}]), encoding="utf-8")
+            (root / "object-attachment.json").write_text(json.dumps({"id": 1}), encoding="utf-8")
+            archive_path = root / "allure.zip"
+            with zipfile.ZipFile(archive_path, "w") as archive:
+                archive.writestr("allure-results/array-attachment.json", json.dumps([{"id": 1}]))
+                archive.writestr("allure-results/failed-result.json", json.dumps({"status": "failed", "name": "real failure"}))
+
+            failures = extract_failures([root, archive_path])
+
+        self.assertEqual([failure.method for failure in failures], ["real failure"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,11 +6,13 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.validation.Validations;
 import io.appium.java_client.AppiumBy;
 import org.openqa.selenium.Platform;
+import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class IOSBasicInteractionsTest {
+    private static final String ENABLE_NATIVE_IOS_E2E_PROPERTY = "shaft.enableNativeIosE2E";
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @Test
@@ -27,6 +29,10 @@ public class IOSBasicInteractionsTest {
     @SuppressWarnings("CommentedOutCode")
     @BeforeMethod
     public void setup() {
+        if (!Boolean.getBoolean(ENABLE_NATIVE_IOS_E2E_PROPERTY)) {
+            throw new SkipException("Native iOS BrowserStack E2E is disabled for the web Safari matrix. Set -D"
+                    + ENABLE_NATIVE_IOS_E2E_PROPERTY + "=true in a native iOS job after validating the app upload.");
+        }
         // common attributes
         SHAFT.Properties.platform.set().targetPlatform(Platform.IOS.toString());
         SHAFT.Properties.mobile.set().automationName("XCUITest");

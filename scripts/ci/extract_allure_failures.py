@@ -12,7 +12,7 @@ import textwrap
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Iterator
+from typing import Any, Iterable, Iterator
 
 FAILING_STATUSES = {"failed", "broken"}
 
@@ -26,7 +26,7 @@ class AllureFailure:
     trace_top: str
 
 
-def _iter_json_payloads(path: Path) -> Iterator[tuple[str, dict]]:
+def _iter_json_payloads(path: Path) -> Iterator[tuple[str, dict[str, Any]]]:
     if path.is_dir():
         for json_path in sorted(path.rglob("*.json")):
             yield from _iter_json_payloads(json_path)
@@ -37,14 +37,18 @@ def _iter_json_payloads(path: Path) -> Iterator[tuple[str, dict]]:
             for member in sorted(archive.namelist()):
                 if member.endswith(".json"):
                     try:
-                        yield member, json.loads(archive.read(member).decode("utf-8"))
+                        payload = json.loads(archive.read(member).decode("utf-8"))
                     except (UnicodeDecodeError, json.JSONDecodeError):
                         continue
+                    if isinstance(payload, dict):
+                        yield member, payload
         return
 
     if path.suffix == ".json":
         try:
-            yield str(path), json.loads(path.read_text(encoding="utf-8"))
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                yield str(path), payload
         except json.JSONDecodeError:
             return
 
