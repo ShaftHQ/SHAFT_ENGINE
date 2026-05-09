@@ -8,6 +8,7 @@ import io.github.ashwith.flutter.FlutterFinder;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.RemoteWebDriver;
+import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -20,6 +21,7 @@ import org.testng.annotations.Test;
  * with Flutter widgets.
  */
 public class FlutterTest {
+    private static final String ENABLE_FLUTTER_E2E_PROPERTY = "shaft.enableFlutterE2E";
     public static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     private FlutterFinder finder;
 
@@ -29,6 +31,10 @@ public class FlutterTest {
      */
     @BeforeMethod(onlyForGroups = {"flutter"})
     public void setupFlutterDriver() {
+        if (!Boolean.getBoolean(ENABLE_FLUTTER_E2E_PROPERTY)) {
+            throw new SkipException("Flutter BrowserStack E2E is disabled. Set -D"
+                    + ENABLE_FLUTTER_E2E_PROPERTY + "=true after validating the Flutter driver/app on the target cloud.");
+        }
         // Common mobile attributes
         SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
         // Set automation name to FlutterIntegration - this automatically enables Flutter driver
