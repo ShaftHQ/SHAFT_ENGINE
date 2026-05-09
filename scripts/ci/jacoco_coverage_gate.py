@@ -7,7 +7,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-METRICS = ("INSTRUCTION", "BRANCH", "LINE", "METHOD")
+COUNTER_METRICS = ("INSTRUCTION", "BRANCH", "LINE", "METHOD")
+METRICS = (*COUNTER_METRICS, "CLASS")
 
 
 @dataclass(frozen=True)
@@ -35,12 +36,15 @@ def load_metrics(csv_path: Path) -> list[CoverageMetric]:
         rows = list(csv.DictReader(report))
 
     metrics: list[CoverageMetric] = []
-    for metric in METRICS:
+    for metric in COUNTER_METRICS:
         missed_column = f"{metric}_MISSED"
         covered_column = f"{metric}_COVERED"
         missed = sum(int(row[missed_column]) for row in rows)
         covered = sum(int(row[covered_column]) for row in rows)
         metrics.append(CoverageMetric(metric.lower(), missed, covered))
+
+    covered_classes = sum(1 for row in rows if int(row["METHOD_COVERED"]) > 0)
+    metrics.append(CoverageMetric("class", len(rows) - covered_classes, covered_classes))
     return metrics
 
 

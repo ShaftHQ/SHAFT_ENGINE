@@ -22,6 +22,8 @@ class JacocoCoverageGateTests(unittest.TestCase):
         self.assertEqual(metrics["instruction"].total, 20)
         self.assertEqual(metrics["line"].missed, 5)
         self.assertAlmostEqual(metrics["line"].percent, 75.0)
+        self.assertEqual(metrics["class"].covered, 2)
+        self.assertEqual(metrics["class"].total, 2)
 
     def test_renders_markdown_with_gate_marker(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -35,6 +37,24 @@ class JacocoCoverageGateTests(unittest.TestCase):
             markdown = to_markdown(load_metrics(report), "line", 80.0)
 
         self.assertIn("| line | 10 | 10 | 100.00% | minimum 80.00% |", markdown)
+
+
+class JacocoCoverageClassMetricTests(unittest.TestCase):
+    def test_marks_classes_without_covered_methods_as_missed(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            report = Path(temp_dir) / "jacoco.csv"
+            report.write_text(
+                "GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED\n"
+                "bundle,pkg,Covered,1,9,0,0,1,9,0,0,1,1\n"
+                "bundle,pkg,Missed,10,0,0,0,5,0,0,0,2,0\n",
+                encoding="utf-8",
+            )
+
+            metrics = {metric.name: metric for metric in load_metrics(report)}
+
+        self.assertEqual(metrics["class"].missed, 1)
+        self.assertEqual(metrics["class"].covered, 1)
+        self.assertAlmostEqual(metrics["class"].percent, 50.0)
 
 
 if __name__ == "__main__":
