@@ -49,7 +49,7 @@ runs:
         # Derive Allure 3 version from Internal.java — the single source of truth for the engine.
         ALLURE3_VERSION=$(grep -A2 'Key("allure3Version")' \
           src/main/java/com/shaft/properties/internal/Internal.java \
-          | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/')
+          | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/' || true)
         ALLURE3_VERSION=${ALLURE3_VERSION:-3.3.1}
         if [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
           # Generate single-file report if SHAFT didn't already create one
