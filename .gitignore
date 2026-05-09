@@ -28,7 +28,7 @@ OpenLHReport.js
 
 # Logs and recordings — matches in every module
 log/
-video/
+**/target/video/
 
 # Root-level IDE and tooling files only
 /.idea/
