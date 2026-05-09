@@ -12,6 +12,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
+import java.util.List;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
@@ -107,6 +108,7 @@ public class TestNGListenerCoverageUnitTest {
             Mockito.verify(reportPortalService).sendReportPortalMsg(testResult);
             Mockito.verify(reportPortalService).finishTestMethod(ItemStatus.FAILED, testResult);
         } finally {
+            removeTrackedMethod("failedTests", testResult.getMethod());
             setReportPortalEnabled(false);
         }
     }
@@ -123,8 +125,16 @@ public class TestNGListenerCoverageUnitTest {
             listener.onTestSkipped(testResult);
             Mockito.verify(reportPortalService).finishTestMethod(ItemStatus.SKIPPED, testResult);
         } finally {
+            removeTrackedMethod("skippedTests", testResult.getMethod());
             setReportPortalEnabled(false);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void removeTrackedMethod(String fieldName, ITestNGMethod testMethod) throws Exception {
+        Field trackedMethodsField = TestNGListener.class.getDeclaredField(fieldName);
+        trackedMethodsField.setAccessible(true);
+        ((List<ITestNGMethod>) trackedMethodsField.get(null)).remove(testMethod);
     }
 
     private static ITestResult createTestResult(String methodName, Throwable throwable) {
