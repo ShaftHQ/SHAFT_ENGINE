@@ -23,8 +23,7 @@ public class ValidationsExecutor {
     private final String validationMethod;
     private final ThreadLocal<Object> driver = new ThreadLocal<>();
     private final ThreadLocal<Object> response = new ThreadLocal<>();
-    @SuppressWarnings({"FieldCanBeLocal", "unused"})
-    private String validationCategoryString;
+    private final String validationCategoryString;
     protected Object locator;
     private String customReportMessage = "";
     protected Object visualValidationEngine;
@@ -61,6 +60,7 @@ public class ValidationsExecutor {
         this.folderRelativePath = nativeValidationsBuilder.folderRelativePath;
         this.fileName = nativeValidationsBuilder.fileName;
         this.reportMessageBuilder = nativeValidationsBuilder.reportMessageBuilder;
+        this.validationCategoryString = nativeValidationsBuilder.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
     }
 
     public ValidationsExecutor(ValidationsBuilder validationsBuilder) {
@@ -70,6 +70,7 @@ public class ValidationsExecutor {
         this.condition = validationsBuilder.condition;
         this.actualValue = validationsBuilder.actualValue;
         this.reportMessageBuilder = validationsBuilder.reportMessageBuilder;
+        this.validationCategoryString = validationsBuilder.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
     }
 
     public ValidationsExecutor(NumberValidationsBuilder numberValidationsBuilder) {
@@ -82,6 +83,7 @@ public class ValidationsExecutor {
         this.response.set(numberValidationsBuilder.response);
         this.jsonPath = numberValidationsBuilder.jsonPath;
         this.reportMessageBuilder = numberValidationsBuilder.reportMessageBuilder;
+        this.validationCategoryString = numberValidationsBuilder.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
     }
 
     public ValidationsExecutor(FileValidationsBuilder fileValidationsBuilder) {
@@ -91,6 +93,7 @@ public class ValidationsExecutor {
         this.folderRelativePath = fileValidationsBuilder.folderRelativePath;
         this.fileName = fileValidationsBuilder.fileName;
         this.reportMessageBuilder = fileValidationsBuilder.reportMessageBuilder;
+        this.validationCategoryString = fileValidationsBuilder.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
     }
 
     /**
@@ -105,6 +108,7 @@ public class ValidationsExecutor {
         this.validationType = validationType;
         this.validationMethod = validationMethod;
         this.reportMessageBuilder = reportMessageBuilder;
+        this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
     }
 
     /** Sets the WebDriver instance stored in the ThreadLocal (for subclasses). */
@@ -155,7 +159,6 @@ public class ValidationsExecutor {
             customReportMessage = reportMessageBuilder.toString();
             generatedCustomReportMessage = true;
         }
-        this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
         ReportManager.logDiscrete(this.validationCategoryString + " that " + this.customReportMessage);
         String progressTaskName = this.validationCategoryString.equals("Assert") ? "Asserting..." : "Verifying...";
         try {
