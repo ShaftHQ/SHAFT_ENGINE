@@ -102,8 +102,46 @@
                         <trimStackTrace>false</trimStackTrace>
                     </configuration>
                 </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>0.8.14</version>
+                    <configuration>
+                        <sourceEncoding>UTF-8</sourceEncoding>
+                        <outputEncoding>UTF-8</outputEncoding>
+                        <haltOnFailure>false</haltOnFailure>
+                        <excludes>
+                            <exclude>**/*Aspect</exclude>
+                            <exclude>testDataFiles/**</exclude>
+                        </excludes>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-prepare-agent</id>
+                        <goals><goal>prepare-agent</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>default-report</id>
+                        <goals><goal>report</goal></goals>
+                        <phase>test</phase>
+                        <configuration>
+                            <dataFile>target/jacoco.exec</dataFile>
+                            <outputDirectory>${maven.multiModuleProjectDirectory}/target/jacoco</outputDirectory>
+                            <excludes>
+                                <exclude>testDataFiles/**</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
 </project>

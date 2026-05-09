@@ -47,14 +47,7 @@ jobs:
           node-version: '20'
       - name: Run tests
         continue-on-error: true
-        run: mvn test -pl shaft-core -am
-      - name: Consolidate surefire reports
-        if: always()
-        run: |
-          mkdir -p target/surefire-reports
-          find . -path '*/target/surefire-reports/*.xml' \
-                 -not -path './target/surefire-reports/*' \
-                 -exec cp {} target/surefire-reports/ \;
+        run: mvn test -pl shaft-core -am "-Dsurefire.reportsDirectory=$(pwd)/target/surefire-reports"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -82,14 +75,7 @@ jobs:
           node-version: '20'
       - name: Run tests
         continue-on-error: true
-        run: mvn test -pl shaft-api -am
-      - name: Consolidate surefire reports
-        if: always()
-        run: |
-          mkdir -p target/surefire-reports
-          find . -path '*/target/surefire-reports/*.xml' \
-                 -not -path './target/surefire-reports/*' \
-                 -exec cp {} target/surefire-reports/ \;
+        run: mvn test -pl shaft-api -am "-Dsurefire.reportsDirectory=$(pwd)/target/surefire-reports"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -117,14 +103,7 @@ jobs:
           node-version: '20'
       - name: Run tests
         continue-on-error: true
-        run: mvn test -pl shaft-db -am
-      - name: Consolidate surefire reports
-        if: always()
-        run: |
-          mkdir -p target/surefire-reports
-          find . -path '*/target/surefire-reports/*.xml' \
-                 -not -path './target/surefire-reports/*' \
-                 -exec cp {} target/surefire-reports/ \;
+        run: mvn test -pl shaft-db -am "-Dsurefire.reportsDirectory=$(pwd)/target/surefire-reports"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -152,14 +131,7 @@ jobs:
           node-version: '20'
       - name: Run tests
         continue-on-error: true
-        run: mvn test -pl shaft-web -am "-Dtest=%regex[.*unitTests.*]"
-      - name: Consolidate surefire reports
-        if: always()
-        run: |
-          mkdir -p target/surefire-reports
-          find . -path '*/target/surefire-reports/*.xml' \
-                 -not -path './target/surefire-reports/*' \
-                 -exec cp {} target/surefire-reports/ \;
+        run: mvn test -pl shaft-web -am "-Dtest=%regex[.*unitTests.*]" "-Dsurefire.reportsDirectory=$(pwd)/target/surefire-reports"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -190,20 +162,13 @@ jobs:
         run: mvn install -DskipTests "-Dgpg.skip=true"
       - name: Run shaft-api-consumer tests
         continue-on-error: true
-        run: mvn test -f shaft-web/src/main/resources/examples/consumer/shaft-api-consumer/pom.xml
+        run: mvn test -f shaft-web/src/main/resources/examples/consumer/shaft-api-consumer/pom.xml "-Dsurefire.reportsDirectory=$(pwd)/target/surefire-reports"
       - name: Run shaft-web-consumer tests
         continue-on-error: true
-        run: mvn test -f shaft-web/src/main/resources/examples/consumer/shaft-web-consumer/pom.xml
+        run: mvn test -f shaft-web/src/main/resources/examples/consumer/shaft-web-consumer/pom.xml "-Dsurefire.reportsDirectory=$(pwd)/target/surefire-reports"
       - name: Run shaft-engine-consumer tests
         continue-on-error: true
-        run: mvn test -f shaft-web/src/main/resources/examples/consumer/shaft-engine-consumer/pom.xml
-      - name: Consolidate surefire reports
-        if: always()
-        run: |
-          mkdir -p target/surefire-reports
-          find . -path '*/target/surefire-reports/*.xml' \
-                 -not -path './target/surefire-reports/*' \
-                 -exec cp {} target/surefire-reports/ \;
+        run: mvn test -f shaft-web/src/main/resources/examples/consumer/shaft-engine-consumer/pom.xml "-Dsurefire.reportsDirectory=$(pwd)/target/surefire-reports"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
