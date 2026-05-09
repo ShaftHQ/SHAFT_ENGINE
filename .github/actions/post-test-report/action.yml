@@ -35,6 +35,7 @@ runs:
   steps:
     - name: Upload coverage to Codecov
       if: always()
+      continue-on-error: true
       uses: codecov/codecov-action@v6
       with:
         token: ${{ inputs.codecov-token }}
