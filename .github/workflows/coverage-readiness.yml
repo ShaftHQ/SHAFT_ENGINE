@@ -16,6 +16,7 @@ on:
           - branch
           - instruction
           - method
+          - class
         default: line
       coverage-minimum:
         description: 'Minimum coverage percentage for the selected metric'
