@@ -134,6 +134,7 @@ public class DriverFactoryHelperAdditionalUnitTest {
 
     @Test
     public void closeDriverShouldHandleNullAndDriverExceptions() {
+        SHAFT.Properties.platform.set().executionAddress("local");
         DriverFactoryHelper helper = new DriverFactoryHelper();
         helper.closeDriver(null);
 
