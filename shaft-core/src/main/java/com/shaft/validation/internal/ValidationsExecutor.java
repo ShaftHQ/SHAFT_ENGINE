@@ -273,7 +273,6 @@ public class ValidationsExecutor {
             Class<?> cls = Class.forName("com.shaft.validation.internal.ValidationsHelper");
             Object helper = cls.getDeclaredConstructor().newInstance();
             Method m = findMethodByName(cls, methodName, args.length);
-            m.setAccessible(true);
             m.invoke(helper, args);
         } catch (ClassNotFoundException e) {
             throw new UnsupportedOperationException("ValidationsHelper not available — shaft-engine required for " + methodName, e);

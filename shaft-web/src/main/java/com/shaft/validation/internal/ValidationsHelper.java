@@ -198,12 +198,12 @@ public class ValidationsHelper {
         }
     }
 
-    protected void validateFail(ValidationCategory validationCategory, String customReportMessage) {
+    public void validateFail(ValidationCategory validationCategory, String customReportMessage) {
         processCustomLogMessage(customReportMessage);
         fail(null, validationCategory, null, null, null, null, new AssertionError(customReportMessage));
     }
 
-    protected void validateTrue(ValidationCategory validationCategory, Boolean conditionalStatement, ValidationType validationType, String customReportMessage) {
+    public void validateTrue(ValidationCategory validationCategory, Boolean conditionalStatement, ValidationType validationType, String customReportMessage) {
         processCustomLogMessage(customReportMessage);
         Boolean expectedValue = false;
         if (ValidationType.POSITIVE.equals(validationType)) {
@@ -216,7 +216,7 @@ public class ValidationsHelper {
         }
     }
 
-    protected void validateFileExists(ValidationCategory validationCategory, String fileFolderName, String fileName, @SuppressWarnings("SameParameterValue") int numberOfRetries,
+    public void validateFileExists(ValidationCategory validationCategory, String fileFolderName, String fileName, @SuppressWarnings("SameParameterValue") int numberOfRetries,
                                       ValidationType validationType, String customReportMessage) {
         processCustomLogMessage(customReportMessage);
         boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
@@ -239,7 +239,7 @@ public class ValidationsHelper {
         }
     }
 
-    protected void validateJSONFileContent(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
+    public void validateJSONFileContent(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
                                            RestActions.ComparisonType comparisonType, @SuppressWarnings("SameParameterValue") String jsonPathToTargetArray, ValidationType validationType, String customReportMessage) {
         processCustomLogMessage(customReportMessage);
         boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
@@ -271,7 +271,7 @@ public class ValidationsHelper {
         }
     }
 
-    protected void validateResponseFileSchema(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
+    public void validateResponseFileSchema(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
                                               RestActions.ComparisonType comparisonType, @SuppressWarnings("SameParameterValue") String jsonPathToTargetArray, ValidationType validationType, String customReportMessage) {
         processCustomLogMessage(customReportMessage);
         boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
