@@ -36,14 +36,14 @@ public class APITests {
         driver.get().assertThatResponse().extractedJsonValue("$[1].completed").isEqualTo("false").perform();
     }
 
-    @Test
+    @Test(groups = "externalApi")
     public void test_jsonValue_htmlResponse() {
         driver.set(new SHAFT.API("https://automationexercise.com/api"));
         driver.get().get("/productsList").perform();
         driver.get().assertThatResponse().extractedJsonValue("responseCode").isEqualTo("200").perform();
     }
 
-    @Test
+    @Test(groups = "externalApi")
     public void test_jsonValueAdvancedEvaluation_htmlResponse() {
         driver.set(new SHAFT.API("https://automationexercise.com/api"));
         driver.get().get("/productsList").perform();
