@@ -214,7 +214,7 @@ public class PropertiesHelper {
         if (forceDownload){
             downloadDefaultProperties();
         } else {
-            URL propertiesFolder = PropertyFileManager.class.getResource(DEFAULT_PROPERTIES_FOLDER_PATH.replace("src/main", "") + "/");
+            URL propertiesFolder = PropertyFileManager.class.getResource("/properties/default/");
             var propertiesFolderPath = "";
             if (propertiesFolder != null) {
                 propertiesFolderPath = propertiesFolder.getFile();
