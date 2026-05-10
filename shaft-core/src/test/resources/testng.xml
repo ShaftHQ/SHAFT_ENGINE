@@ -10,6 +10,7 @@
             <class name="com.shaft.properties.internal.PropertyFileManagerTest"/>
             <class name="com.shaft.tools.io.internal.ProjectStructureManagerTest"/>
             <class name="com.shaft.validation.ExampleTemplateConsistencyTest"/>
+            <class name="com.shaft.tools.io.internal.RealtimeReporterResourceTest"/>
         </classes>
     </test>
 </suite>
