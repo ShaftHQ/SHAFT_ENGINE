@@ -179,7 +179,7 @@ public class ValidationsExecutor {
         switch (validationMethod) {
             case "forceFail" -> invokeHelper("validateFail", validationCategory, customReportMessage);
             case "objectsAreEqual" ->
-                    invokeHelper2("validateEquals", expectedValue, actualValue, validationComparisonType, validationType);
+                    new PrimitiveValidationsHelper(validationCategory).validateEquals( expectedValue, actualValue, validationComparisonType, validationType);
             case "conditionIsTrue" ->
                     invokeHelper("validateTrue", validationCategory, condition, validationType, customReportMessage);
             case "elementExists" ->
@@ -197,32 +197,32 @@ public class ValidationsExecutor {
             case "browserAttributeEquals" ->
                     invokeHelper2("validateBrowserAttribute", driver.get(), browserAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "comparativeRelationBetweenNumbers" ->
-                    invokeHelper2("validateNumber", (Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType);
+                    new PrimitiveValidationsHelper(validationCategory).validateNumber( (Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType);
             case "fileExists" ->
                     invokeHelper("validateFileExists", validationCategory, folderRelativePath, fileName, 5, validationType, customReportMessage);
             case "responseEqualsFileContent" ->
                     invokeHelper("validateJSONFileContent", validationCategory, response.get(), fileAbsolutePath, restComparisonType, "", validationType, customReportMessage);
             case "jsonPathValueEquals" ->
-                    invokeHelper2("validateEquals", expectedValue, extractJsonValue(response.get(), jsonPath), validationComparisonType, validationType);
+                    new PrimitiveValidationsHelper(validationCategory).validateEquals( expectedValue, extractJsonValue(response.get(), jsonPath), validationComparisonType, validationType);
             case "jsonPathValueAsListEquals" -> {
                 for (Object value : Objects.requireNonNull(extractJsonValueAsList(response.get(), jsonPath))) {
-                    invokeHelper2("validateEquals", expectedValue, value.toString(), validationComparisonType, validationType);
+                    new PrimitiveValidationsHelper(validationCategory).validateEquals( expectedValue, value.toString(), validationComparisonType, validationType);
                 }
             }
             case "responseBody" ->
-                    invokeHelper2("validateEquals", expectedValue, extractResponseBody(response.get()), validationComparisonType, validationType);
+                    new PrimitiveValidationsHelper(validationCategory).validateEquals( expectedValue, extractResponseBody(response.get()), validationComparisonType, validationType);
             case "responseTime" ->
-                    invokeHelper2("validateNumber", (Number) expectedValue, extractResponseTime(response.get()), numbersComparativeRelation, validationType);
+                    new PrimitiveValidationsHelper(validationCategory).validateNumber( (Number) expectedValue, extractResponseTime(response.get()), numbersComparativeRelation, validationType);
             case "checkResponseSchema" ->
                     invokeHelper("validateResponseFileSchema", validationCategory, response.get(), fileAbsolutePath, restComparisonType, "", validationType, customReportMessage);
             case "fileContent" -> {
                 String fileContent = FileActions.getInstance(true).readFile(folderRelativePath, fileName);
-                invokeHelper2("validateEquals", expectedValue, fileContent, validationComparisonType, validationType);
+                new PrimitiveValidationsHelper(validationCategory).validateEquals( expectedValue, fileContent, validationComparisonType, validationType);
             }
             case "fileChecksum" -> {
                 var fileChecksum = FileActions.getInstance(true).getFileChecksum(
                         newTerminalActions(), folderRelativePath, fileName);
-                invokeHelper2("validateEquals", expectedValue, fileChecksum, validationComparisonType, validationType);
+                new PrimitiveValidationsHelper(validationCategory).validateEquals( expectedValue, fileChecksum, validationComparisonType, validationType);
             }
             default -> {
             }
