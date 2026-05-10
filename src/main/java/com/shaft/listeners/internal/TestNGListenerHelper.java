@@ -6,7 +6,6 @@ import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.internal.image.AnimatedGifManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.video.RecordManager;
-import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
@@ -265,12 +264,12 @@ public class TestNGListenerHelper {
         String PROXY_SERVER_SETTINGS = SHAFT.Properties.platform.proxy();
         if (SHAFT.Properties.platform.jvmProxySettings() && !PROXY_SERVER_SETTINGS.isEmpty()) {
             String[] proxyHostPort = PROXY_SERVER_SETTINGS.split(":");
-            ThreadLocalPropertiesManager.setGlobalProperty("http.proxyHost", proxyHostPort[0]);
-            ThreadLocalPropertiesManager.setGlobalProperty("http.proxyPort", proxyHostPort[1]);
-            ThreadLocalPropertiesManager.setGlobalProperty("https.proxyHost", proxyHostPort[0]);
-            ThreadLocalPropertiesManager.setGlobalProperty("https.proxyPort", proxyHostPort[1]);
-            ThreadLocalPropertiesManager.setGlobalProperty("ftp.proxyHost", proxyHostPort[0]);
-            ThreadLocalPropertiesManager.setGlobalProperty("ftp.proxyPort", proxyHostPort[1]);
+            System.setProperty("http.proxyHost",  proxyHostPort[0]);
+            System.setProperty("http.proxyPort",  proxyHostPort[1]);
+            System.setProperty("https.proxyHost", proxyHostPort[0]);
+            System.setProperty("https.proxyPort", proxyHostPort[1]);
+            System.setProperty("ftp.proxyHost",   proxyHostPort[0]);
+            System.setProperty("ftp.proxyPort",   proxyHostPort[1]);
         }
     }
 

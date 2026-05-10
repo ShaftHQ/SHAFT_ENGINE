@@ -2,6 +2,7 @@ package testPackage.unitTests;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
@@ -76,6 +77,7 @@ public class TestNGListenerHelperCoverageUnitTest {
         TestNGListenerHelper.setPendingConfigFailure(null);
         TestNGListenerHelper.cleanup();
         setKillSwitch(false);
+        PropertiesHelper.JVM_SYSTEM_PROPERTIES_PROXY.forEach(System::clearProperty);
     }
 
     @Test
@@ -244,17 +246,17 @@ public class TestNGListenerHelperCoverageUnitTest {
     }
 
     @Test
-    public void configureJVMProxyShouldSetGlobalProxyPropertiesWhenEnabled() {
+    public void configureJVMProxyShouldSetSystemProxyPropertiesWhenEnabled() {
         SHAFT.Properties.platform.set().jvmProxySettings(true);
         SHAFT.Properties.platform.set().proxySettings("127.0.0.1:8888");
         TestNGListenerHelper.configureJVMProxy();
 
-        Assert.assertEquals(com.shaft.properties.internal.ThreadLocalPropertiesManager.getProperty("http.proxyHost"), "127.0.0.1");
-        Assert.assertEquals(com.shaft.properties.internal.ThreadLocalPropertiesManager.getProperty("http.proxyPort"), "8888");
-        Assert.assertEquals(com.shaft.properties.internal.ThreadLocalPropertiesManager.getProperty("https.proxyHost"), "127.0.0.1");
-        Assert.assertEquals(com.shaft.properties.internal.ThreadLocalPropertiesManager.getProperty("https.proxyPort"), "8888");
-        Assert.assertEquals(com.shaft.properties.internal.ThreadLocalPropertiesManager.getProperty("ftp.proxyHost"), "127.0.0.1");
-        Assert.assertEquals(com.shaft.properties.internal.ThreadLocalPropertiesManager.getProperty("ftp.proxyPort"), "8888");
+        Assert.assertEquals(System.getProperty("http.proxyHost"), "127.0.0.1");
+        Assert.assertEquals(System.getProperty("http.proxyPort"), "8888");
+        Assert.assertEquals(System.getProperty("https.proxyHost"), "127.0.0.1");
+        Assert.assertEquals(System.getProperty("https.proxyPort"), "8888");
+        Assert.assertEquals(System.getProperty("ftp.proxyHost"), "127.0.0.1");
+        Assert.assertEquals(System.getProperty("ftp.proxyPort"), "8888");
     }
 
     @Test
