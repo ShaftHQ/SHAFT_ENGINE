@@ -39,10 +39,9 @@ class DatabaseActionsInstantiationTest {
             "127.0.0.1", "19999", "nonexistent", "user", "pass");
         try {
             db.executeSelectQuery("SELECT 1");
-        } catch (ClassNotFoundException e) {
-            fail("Must not throw ClassNotFoundException: " + e);
         } catch (Exception e) {
-            // Any other exception (SQL, IO, runtime) is acceptable.
+            assertNotEquals(ClassNotFoundException.class, e.getClass(),
+                "Must not throw ClassNotFoundException: " + e);
         }
     }
 }
