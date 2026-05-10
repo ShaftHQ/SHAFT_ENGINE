@@ -24,7 +24,10 @@ import org.testng.xml.XmlTest;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.AbstractList;
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
+import java.util.Iterator;
 import java.util.List;
 
 @Test(singleThreaded = true)
@@ -84,6 +87,36 @@ public class TestNGListenerHelperCoverageUnitTest {
     }
 
     @Test
+    public void createTestLogShouldHandleReporterOutputMutatedDuringSnapshot() {
+        List<String> mutatingOutput = new AbstractList<>() {
+            private final List<String> lines = List.of("line one", "line two");
+            private boolean throwOnFirstIterator = true;
+
+            @Override
+            public String get(int index) {
+                return lines.get(index);
+            }
+
+            @Override
+            public int size() {
+                return lines.size();
+            }
+
+            @Override
+            public Iterator<String> iterator() {
+                if (throwOnFirstIterator) {
+                    throwOnFirstIterator = false;
+                    throw new ConcurrentModificationException("simulated reporter mutation");
+                }
+                return lines.iterator();
+            }
+        };
+        String fullLog = "line one" + System.lineSeparator() + "line two" + System.lineSeparator();
+
+        Assert.assertEquals(TestNGListenerHelper.createTestLog(mutatingOutput), fullLog.substring(0, fullLog.length() - 2));
+    }
+
+    @Test
     public void setAndGetTestNameShouldReadNameFromITestContext() {
         ITestContext context = Mockito.mock(ITestContext.class);
         org.testng.xml.XmlTest xmlTest = Mockito.mock(org.testng.xml.XmlTest.class);
@@ -134,16 +167,18 @@ public class TestNGListenerHelperCoverageUnitTest {
     }
 
     @Test
-    public void failFastShouldSkipWhenKillSwitchIsEnabled() throws Exception {
+    public void failFastShouldSkipWhenKillSwitchIsEnabled() {
         ITestResult result = Mockito.mock(ITestResult.class);
         Mockito.when(result.getName()).thenReturn("KillSwitchTest");
 
-        setKillSwitch(false);
-        TestNGListenerHelper.failFast(result);
+        try (MockedStatic<DriverFactoryHelper> driverFactoryHelper = Mockito.mockStatic(DriverFactoryHelper.class)) {
+            driverFactoryHelper.when(DriverFactoryHelper::isKillSwitch).thenReturn(false);
+            TestNGListenerHelper.failFast(result);
 
-        setKillSwitch(true);
-        SkipException exception = Assert.expectThrows(SkipException.class, () -> TestNGListenerHelper.failFast(result));
-        Assert.assertTrue(exception.getMessage().contains("KillSwitchTest"));
+            driverFactoryHelper.when(DriverFactoryHelper::isKillSwitch).thenReturn(true);
+            SkipException exception = Assert.expectThrows(SkipException.class, () -> TestNGListenerHelper.failFast(result));
+            Assert.assertTrue(exception.getMessage().contains("KillSwitchTest"));
+        }
     }
 
     @Test
@@ -223,19 +258,18 @@ public class TestNGListenerHelperCoverageUnitTest {
     }
 
     @Test
-    public void setTotalNumberOfTestsShouldSkipCucumberRunScenarioSuites() {
+    public void setTotalNumberOfTestsShouldSkipCucumberRunScenarioSuites() throws Exception {
+        Method setTotalNumberOfTests = TestNGListenerHelper.class.getDeclaredMethod("setTotalNumberOfTests", List.class);
+        setTotalNumberOfTests.setAccessible(true);
+
         ITestNGMethod normalMethod = Mockito.mock(ITestNGMethod.class);
         Mockito.when(normalMethod.getMethodName()).thenReturn("regularTest");
-        org.testng.ISuite normalSuite = Mockito.mock(org.testng.ISuite.class);
-        Mockito.when(normalSuite.getAllMethods()).thenReturn(List.of(normalMethod));
 
         ITestNGMethod cucumberMethod = Mockito.mock(ITestNGMethod.class);
         Mockito.when(cucumberMethod.getMethodName()).thenReturn("runScenario");
-        org.testng.ISuite cucumberSuite = Mockito.mock(org.testng.ISuite.class);
-        Mockito.when(cucumberSuite.getAllMethods()).thenReturn(List.of(cucumberMethod));
 
-        TestNGListenerHelper.setTotalNumberOfTests(normalSuite);
-        TestNGListenerHelper.setTotalNumberOfTests(cucumberSuite);
+        setTotalNumberOfTests.invoke(null, List.of(normalMethod));
+        setTotalNumberOfTests.invoke(null, List.of(cucumberMethod));
     }
 
     @Test

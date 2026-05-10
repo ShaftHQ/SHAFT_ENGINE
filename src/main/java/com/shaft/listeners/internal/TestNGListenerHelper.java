@@ -24,6 +24,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
 
@@ -49,11 +50,15 @@ public class TestNGListenerHelper {
      * @param testSuite current TestNG suite
      */
     public static void setTotalNumberOfTests(ISuite testSuite) {
+        setTotalNumberOfTests(testSuite.getAllMethods());
+    }
+
+    private static void setTotalNumberOfTests(List<ITestNGMethod> testSuiteMethods) {
         // This condition checks to confirm that this is not a cucumber test runner instance
         // If this condition is removed the total number of tests will be zero because the cucumber
         // test runner doesn't have any test methods
-        if (!(testSuite.getAllMethods().size() == 1 && testSuite.getAllMethods().getFirst().getMethodName().equals("runScenario"))) {
-            ReportManagerHelper.setTotalNumberOfTests(testSuite.getAllMethods().size());
+        if (!(testSuiteMethods.size() == 1 && testSuiteMethods.getFirst().getMethodName().equals("runScenario"))) {
+            ReportManagerHelper.setTotalNumberOfTests(testSuiteMethods.size());
         }
     }
 
@@ -296,8 +301,9 @@ public class TestNGListenerHelper {
      * @return aggregated log text
      */
     public static String createTestLog(List<String> output) {
+        List<String> reporterOutput = snapshotReporterOutput(output);
         StringBuilder builder = new StringBuilder();
-        for (String each : output) {
+        for (String each : reporterOutput) {
             builder.append(each).append(System.lineSeparator());
         }
         String testLog = builder.toString();
@@ -307,6 +313,32 @@ public class TestNGListenerHelper {
         } else {
             return testLog;
         }
+    }
+
+    private static List<String> snapshotReporterOutput(List<String> output) {
+        if (output == null || output.isEmpty()) {
+            return Collections.emptyList();
+        }
+        for (int attempt = 0; attempt < 3; attempt++) {
+            try {
+                synchronized (output) {
+                    return new ArrayList<>(output);
+                }
+            } catch (ConcurrentModificationException e) {
+                Thread.yield();
+            }
+        }
+
+        List<String> snapshot = new ArrayList<>();
+        int outputSize = output.size();
+        for (int index = 0; index < outputSize; index++) {
+            try {
+                snapshot.add(output.get(index));
+            } catch (IndexOutOfBoundsException | ConcurrentModificationException e) {
+                break;
+            }
+        }
+        return snapshot;
     }
 
     /**

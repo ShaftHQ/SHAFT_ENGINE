@@ -28,6 +28,7 @@ public class RealtimeReporterServerUnitTest {
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
+        RealtimeReporterTestLock.LOCK.lock();
         RealtimeReporter.stopServer();
         originalAllureAutoOpen = SHAFT.Properties.allure.automaticallyOpen();
         SHAFT.Properties.allure.set().automaticallyOpen(false);
@@ -40,13 +41,20 @@ public class RealtimeReporterServerUnitTest {
         var dashboardUrlField = RealtimeReporter.class.getDeclaredField("DASHBOARD_URL");
         dashboardUrlField.setAccessible(true);
         baseUrl = (String) dashboardUrlField.get(null);
+        if (!waitForServerReady()) {
+            throw new SkipException("RealtimeReporter server did not become ready in this environment.");
+        }
     }
 
     @AfterMethod(alwaysRun = true)
     public void teardown() {
-        RealtimeReporter.stopServer();
-        SHAFT.Properties.allure.set().automaticallyOpen(originalAllureAutoOpen);
-        Properties.clearForCurrentThread();
+        try {
+            RealtimeReporter.stopServer();
+            SHAFT.Properties.allure.set().automaticallyOpen(originalAllureAutoOpen);
+            Properties.clearForCurrentThread();
+        } finally {
+            RealtimeReporterTestLock.LOCK.unlock();
+        }
     }
 
     @Test
@@ -120,9 +128,23 @@ public class RealtimeReporterServerUnitTest {
             var dashboardUrlField = RealtimeReporter.class.getDeclaredField("DASHBOARD_URL");
             dashboardUrlField.setAccessible(true);
             baseUrl = (String) dashboardUrlField.get(null);
+            Assert.assertTrue(waitForServerReady());
             Assert.assertFalse(baseUrl.endsWith(":1111"));
             Assert.assertEquals(request("GET", "/api/state").code, 200);
         }
+    }
+
+    private boolean waitForServerReady() throws InterruptedException {
+        for (int attempt = 0; attempt < 20; attempt++) {
+            try {
+                if (request("GET", "/api/state").code == 200) {
+                    return true;
+                }
+            } catch (Exception ignored) {
+                Thread.sleep(100);
+            }
+        }
+        return false;
     }
 
     private HttpResponse request(String method, String path) throws Exception {

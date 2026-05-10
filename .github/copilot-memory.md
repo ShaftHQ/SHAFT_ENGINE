@@ -31,3 +31,31 @@ Purpose: keep high-signal, reusable learnings from implementation sessions in on
 - Lesson: Coverage-only unit tests must not call GUI facade default constructors such as `ElementActions::new`; those constructors create real browser sessions through the driver factory and can produce Selenium Grid failures even when the test otherwise uses mocks. Prefer explicit mock-driver constructors for unit coverage and keep all driver-factory/session paths in focused integration tests.
 - Evidence: `src/test/java/testPackage/unitTests/ElementActionsCoverageUnitTest.java`
 - Action taken: Removed the default-constructor coverage invocation so the test remains fully mock-backed and session-isolated.
+
+- Date: 2026-05-10
+- Area: Test validation / Allure reporting
+- Trigger: GitHub Actions run `25620020633` grid failure investigation and a local run whose browser-visible Allure report was empty.
+- Lesson: For SHAFT Engine, Allure result JSON/report output is the single source of truth for test verdicts. Before analyzing failures, first verify the run is populated by counting executed tests/result JSON files; an empty or unexpectedly small Allure report invalidates any status analysis.
+- Evidence: `AGENTS.md`, `.github/instructions/java-tests.instructions.md`, `.github/copilot-instructions.md`, run `25620020633`
+- Action taken: Updated durable test-validation instructions and this memory entry.
+
+- Date: 2026-05-10
+- Area: Allure / Windows parallel reporting
+- Trigger: Local Windows Allure report showed BROKEN results from `AllureResultsWriteException: Could not create Allure results directory` while parallel TestNG methods were writing results.
+- Lesson: Preserve the live `allure-results` directory root and clean its contents instead of deleting/recreating the root. On Windows, replacing the root can race with Allure's `FileSystemResultsWriter.ensureInitialized()` and surface as `FileAlreadyExistsException`.
+- Evidence: `src/main/java/com/shaft/tools/io/internal/AllureManager.java`, `src/test/java/testPackage/unitTests/AllureManagerUnitTest.java`
+- Action taken: Updated Allure cleanup behavior, added regression coverage, and recorded the guidance in `AGENTS.md`.
+
+- Date: 2026-05-10
+- Area: TestNG / Java 25 unit-test isolation
+- Trigger: `TestNGListenerHelperCoverageUnitTest.setTotalNumberOfTestsShouldSkipCucumberRunScenarioSuites` broke when Mockito/proxy attempts touched `org.testng.ISuite` optional Guice types.
+- Lesson: Avoid mocking or proxying `org.testng.ISuite` on Java 25 in this repo. Extract list/value-level helper behavior and test that directly when only `ITestNGMethod` data is needed.
+- Evidence: `src/main/java/com/shaft/listeners/internal/TestNGListenerHelper.java`, `src/test/java/testPackage/unitTests/TestNGListenerHelperCoverageUnitTest.java`
+- Action taken: Added a list-based helper behind `setTotalNumberOfTests(ISuite)` and updated durable guidance in `AGENTS.md`.
+
+- Date: 2026-05-10
+- Area: Realtime reporter / static server tests
+- Trigger: Grid run `25620020633` had realtime reporter server failures only under method-parallel Selenium Grid jobs.
+- Lesson: `@Test(singleThreaded = true)` does not protect static server lifecycle shared across different TestNG classes. Unit tests that start/stop `RealtimeReporter` need an explicit cross-class lock plus readiness polling and property restoration.
+- Evidence: `src/test/java/testPackage/unitTests/RealtimeReporterServerUnitTest.java`, `src/test/java/testPackage/unitTests/RealtimeReporterUnitTest.java`, `src/test/java/testPackage/unitTests/RealtimeReporterTestLock.java`
+- Action taken: Serialized realtime reporter unit tests with a package-local lock and added server readiness polling.
