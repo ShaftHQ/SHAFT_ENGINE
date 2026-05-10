@@ -565,5 +565,20 @@ Add entries to the **Session Learnings Log** section below. Keep each entry comp
 
 - Date: 2026-05-10
 - Area: Pattern / JVM system property catalogue
-- Lesson: `PropertiesHelper` now owns two public `Set<String>` catalogue constants — `JVM_SYSTEM_PROPERTIES_ALWAYS` (6 keys always set at engine startup) and `JVM_SYSTEM_PROPERTIES_PROXY` (6 proxy keys set when jvmProxySettings is enabled). Any property consumed by a third-party library via `System.getProperty()` must be added to the appropriate catalogue set; a CI-enforced unit test will fail if any key is missing after engine setup. This replaces the previous "deferred" entry.
-- Evidence: `PropertiesHelper.java`, `PropertiesHelperCoverageUnitTest`, PR #2688 commits f3774bfd70 / 563ee322b6 / 5053324423
+- Lesson: `PropertiesHelper` now owns two public `Set<String>` catalogue constants — `JVM_SYSTEM_PROPERTIES_ALWAYS` (5 keys always set at engine startup) and `JVM_SYSTEM_PROPERTIES_PROXY` (6 proxy keys set when jvmProxySettings is enabled). Any property consumed by a third-party library via `System.getProperty()` must be added to the appropriate catalogue set; a CI-enforced unit test will fail if any key is missing after engine setup.
+- Evidence: `PropertiesHelper.java`, `PropertiesHelperCoverageUnitTest`, PR #2688
+
+- Date: 2026-05-10
+- Area: Anti-pattern / Properties
+- Lesson: `SE_DRIVER_MIRROR_URL` must stay in the Edge switch arm (not global startup) and be cleared after `new EdgeDriver()`. Selenium Manager's `runCommand()` passes ALL `SE_*` JVM system properties to the selenium-manager binary process — setting it globally would redirect Chrome/Firefox driver downloads to the Edge CDN. Selenium Manager runs synchronously during driver instantiation so clearing immediately after the constructor is safe.
+- Evidence: `DriverFactoryHelper.java` Edge arm, `SeleniumManager.runCommand()` source, `DriverFactoryHelperUnitTest.edgeDriverInitClearsMirrorUrlAfterConstruction`, PR #2688
+
+- Date: 2026-05-10
+- Area: Pattern / Testing
+- Lesson: `Mockito.mockConstruction(X.class)` (Mockito 5.x core, no extra dep) intercepts all `new X()` calls inside the try-with-resources block without running the real constructor. Default return for object-typed mock methods is `null` — usually sufficient for dependencies you don't need to exercise. Prefer this over test-induced method extractions (extracting a `static void helper(Runnable)` only for testability is a code smell).
+- Evidence: `DriverFactoryHelperUnitTest.edgeDriverInitClearsMirrorUrlAfterConstruction`, PR #2688
+
+- Date: 2026-05-10
+- Area: CI / Coverage
+- Lesson: `codecov/patch` and `codecov/project` failures are expected on bug-fix branches whose CI only runs unit tests — the base `main` coverage (~78%) is measured by 11 full E2E jobs (browsers, BrowserStack, Grid). New production lines requiring real infrastructure (browsers, proxies) cannot be covered at unit-test level; document in PR description with **Known failing checks** section rather than forcing artificial coverage.
+- Evidence: PR #2688, PR #2646 (same pattern), codecov comparison against commit `3d4e395`
