@@ -40,11 +40,15 @@ public class TestNGListenerHelper {
      * @param testSuite current TestNG suite
      */
     public static void setTotalNumberOfTests(ISuite testSuite) {
+        setTotalNumberOfTests(testSuite.getAllMethods());
+    }
+
+    public static void setTotalNumberOfTests(List<ITestNGMethod> methods) {
         // This condition checks to confirm that this is not a cucumber test runner instance
         // If this condition is removed the total number of tests will be zero because the cucumber
         // test runner doesn't have any test methods
-        if (!(testSuite.getAllMethods().size() == 1 && testSuite.getAllMethods().getFirst().getMethodName().equals("runScenario"))) {
-            ReportManagerHelper.setTotalNumberOfTests(testSuite.getAllMethods().size());
+        if (!(methods.size() == 1 && methods.getFirst().getMethodName().equals("runScenario"))) {
+            ReportManagerHelper.setTotalNumberOfTests(methods.size());
         }
     }
 
