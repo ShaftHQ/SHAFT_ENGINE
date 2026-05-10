@@ -372,7 +372,7 @@ public class DriverFactoryHelper {
                 RecordManager.attachVideoRecording();
             }
             try {
-                attachWebDriverLogs();
+                attachWebDriverLogs(driver);
                 //if dockerized wdm.quit the relevant one
                 if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("dockerized")) {
                     var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver);
@@ -747,9 +747,16 @@ public class DriverFactoryHelper {
     }
 
     private void attachWebDriverLogs() {
+        attachWebDriverLogs(driver);
+    }
+
+    private void attachWebDriverLogs(WebDriver driverToCollectLogsFrom) {
         if (SHAFT.Properties.reporting.captureWebDriverLogs()) {
+            if (driverToCollectLogsFrom == null) {
+                return;
+            }
             try {
-                var driverLogs = driver.manage().logs();
+                var driverLogs = driverToCollectLogsFrom.manage().logs();
                 driverLogs.getAvailableLogTypes().forEach(logType -> {
                     var logBuilder = new StringBuilder();
                     driverLogs.get(logType).getAll().forEach(logEntry -> logBuilder.append(logEntry).append(System.lineSeparator()));

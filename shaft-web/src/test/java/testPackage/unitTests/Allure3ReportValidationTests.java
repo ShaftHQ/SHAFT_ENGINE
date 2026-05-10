@@ -24,12 +24,13 @@ import java.io.ByteArrayOutputStream;
  * be excluded from CI using {@code -Dgroups=!allure3-visual-demo}.  To run <em>all four</em> tests
  * (for local visual validation of the Allure 3 report), execute:
  * <pre>
- *   mvn test -Dtest=Allure3ReportValidationTests -DgenerateAllureReportArchive=true
+ *   mvn test -Dtest=Allure3ReportValidationTests -Dshaft.enableAllure3VisualDemo=true -DgenerateAllureReportArchive=true
  * </pre>
  */
 @Epic("Allure 3 Migration")
 @Feature("Report Validation")
 public class Allure3ReportValidationTests {
+    private static final String ENABLE_VISUAL_DEMO_PROPERTY = "shaft.enableAllure3VisualDemo";
 
     /**
      * PASSED — verifies that basic Java arithmetic works and attaches a
@@ -60,6 +61,7 @@ public class Allure3ReportValidationTests {
     @Story("FAILED result")
     @Severity(SeverityLevel.NORMAL)
     public void testFails() {
+        skipUnlessVisualDemoIsEnabled();
         Allure.step("Assert that 1 equals 2 (this step will fail)", () ->
                 SHAFT.Validations.assertThat().number(1).isEqualTo(2).perform());
     }
@@ -86,10 +88,21 @@ public class Allure3ReportValidationTests {
     @Story("BROKEN result")
     @Severity(SeverityLevel.MINOR)
     public void testIsBroken() {
+        skipUnlessVisualDemoIsEnabled();
         throw new RuntimeException("Intentional broken state for Allure 3 visual validation");
     }
 
     // ─── helpers ─────────────────────────────────────────────────────────────
+
+    /**
+     * Keeps the intentional failed/broken Allure visual-demo scenarios out of CI unless explicitly requested.
+     */
+    private static void skipUnlessVisualDemoIsEnabled() {
+        if (!Boolean.getBoolean(ENABLE_VISUAL_DEMO_PROPERTY)) {
+            throw new SkipException("Intentional Allure visual-demo failure is disabled. Set -D"
+                    + ENABLE_VISUAL_DEMO_PROPERTY + "=true to generate FAILED/BROKEN demo results.");
+        }
+    }
 
     /**
      * Generates a simple 400×100 PNG image as a byte array for use as an Allure attachment.

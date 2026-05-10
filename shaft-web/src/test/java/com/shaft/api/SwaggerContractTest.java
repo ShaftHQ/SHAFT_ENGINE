@@ -1,24 +1,44 @@
 package com.shaft.api;
 
 import com.shaft.driver.SHAFT;
-import io.restassured.response.Response;
-import org.testng.annotations.Test;
+import com.shaft.properties.internal.Properties;
+import org.testng.annotations.*;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 public class SwaggerContractTest {
-    private final SHAFT.API api = new SHAFT.API("https://petstore.swagger.io/v2");
+    private LocalApiTestServer apiTestServer;
+    private SHAFT.API api;
     private static final String GET_USER_BY_USERNAME = "/user/{username}";
+
+    @BeforeClass
+    public void setupLocalApiFixture() throws IOException {
+        apiTestServer = LocalApiTestServer.start();
+        api = new SHAFT.API(apiTestServer.baseUrl());
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void clearThreadLocalProperties() {
+        Properties.clearForCurrentThread();
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void teardownLocalApiFixture() {
+        if (apiTestServer != null) {
+            apiTestServer.stop();
+        }
+    }
 
     @Test(description = "Validate GET_USER_BY_USERNAME API against Swagger Schema")
     public void validateGetUserByUsername() {
         Map<String, Object> parameters = new HashMap<>();
         parameters.put("username", "string");
 
-        Response response = api.get(GET_USER_BY_USERNAME)
+        api.get(GET_USER_BY_USERNAME)
                 .setPathParameters(parameters)
-                .perform().getResponse();
+                .perform();
 
         api.assertThatResponse()
                 .extractedJsonValue("username")
@@ -34,17 +54,17 @@ public class SwaggerContractTest {
                 " \"username\": \"string\",\n" +
                 " \"firstName\": \"string\",\n" +
                 " \"lastName\": \"string\",\n" +
-                " \"email\": test@SHAFT.com,\n" +
+                " \"email\": \"test@SHAFT.com\",\n" +
                 " \"password\": \"string\",\n" +
                 " \"phone\": \"string\",\n" +
                 " \"userStatus\": 0\n" +
                 " }\n" +
                 "]";
 
-        Response response = api.post("/user/createWithList")
+        api.post("/user/createWithList")
                 .setContentType("application/json")
                 .setRequestBody(requestBody)
-                .perform().getResponse();
+                .perform();
 
         api.assertThatResponse()
                 .extractedJsonValue("username")
@@ -69,11 +89,11 @@ public class SwaggerContractTest {
                 " }\n" +
                 "]";
 
-        Response response = api.post("/user/createWithList")
+        api.post("/user/createWithList")
                 .setContentType("application/json")
                 .setRequestBody(invalidRequestBody)
                 .setTargetStatusCode(400)
-                .perform().getResponse();
+                .perform();
     }
 
 }

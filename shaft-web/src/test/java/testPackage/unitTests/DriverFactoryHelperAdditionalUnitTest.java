@@ -54,7 +54,8 @@ public class DriverFactoryHelperAdditionalUnitTest {
     private final boolean savedCaptureWebDriverLogs = SHAFT.Properties.reporting.captureWebDriverLogs();
 
     @AfterMethod(alwaysRun = true)
-    public void cleanup() {
+    public void cleanup() throws Exception {
+        setKillSwitch(false);
         SHAFT.Properties.reporting.set().captureWebDriverLogs(savedCaptureWebDriverLogs);
         SHAFT.Properties.mobile.set()
                 .browserName(savedMobileBrowserName)
@@ -67,6 +68,12 @@ public class DriverFactoryHelperAdditionalUnitTest {
                 .disableCache(savedDisableCache)
                 .autoMaximizeBrowserWindow(savedAutoMaximizeBrowserWindow);
         Properties.clearForCurrentThread();
+    }
+
+    private static void setKillSwitch(boolean value) throws Exception {
+        Field killSwitchField = DriverFactoryHelper.class.getDeclaredField("killSwitch");
+        killSwitchField.setAccessible(true);
+        killSwitchField.setBoolean(null, value);
     }
 
     @Test
@@ -134,6 +141,7 @@ public class DriverFactoryHelperAdditionalUnitTest {
 
     @Test
     public void closeDriverShouldHandleNullAndDriverExceptions() {
+        SHAFT.Properties.platform.set().executionAddress("local");
         DriverFactoryHelper helper = new DriverFactoryHelper();
         helper.closeDriver(null);
 

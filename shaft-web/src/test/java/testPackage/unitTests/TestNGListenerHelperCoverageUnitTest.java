@@ -24,7 +24,10 @@ import org.testng.xml.XmlTest;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.AbstractList;
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
+import java.util.Iterator;
 import java.util.List;
 
 @Test(singleThreaded = true)
@@ -84,6 +87,36 @@ public class TestNGListenerHelperCoverageUnitTest {
     }
 
     @Test
+    public void createTestLogShouldHandleReporterOutputMutatedDuringSnapshot() {
+        List<String> mutatingOutput = new AbstractList<>() {
+            private final List<String> lines = List.of("line one", "line two");
+            private boolean throwOnFirstIterator = true;
+
+            @Override
+            public String get(int index) {
+                return lines.get(index);
+            }
+
+            @Override
+            public int size() {
+                return lines.size();
+            }
+
+            @Override
+            public Iterator<String> iterator() {
+                if (throwOnFirstIterator) {
+                    throwOnFirstIterator = false;
+                    throw new ConcurrentModificationException("simulated reporter mutation");
+                }
+                return lines.iterator();
+            }
+        };
+        String fullLog = "line one" + System.lineSeparator() + "line two" + System.lineSeparator();
+
+        Assert.assertEquals(TestNGListenerHelper.createTestLog(mutatingOutput), fullLog.substring(0, fullLog.length() - 2));
+    }
+
+    @Test
     public void setAndGetTestNameShouldReadNameFromITestContext() {
         ITestContext context = Mockito.mock(ITestContext.class);
         org.testng.xml.XmlTest xmlTest = Mockito.mock(org.testng.xml.XmlTest.class);
@@ -134,19 +167,17 @@ public class TestNGListenerHelperCoverageUnitTest {
     }
 
     @Test
-    public void failFastShouldSkipWhenKillSwitchIsEnabled() throws Exception {
+    public void failFastShouldSkipWhenKillSwitchIsEnabled() {
         ITestResult result = Mockito.mock(ITestResult.class);
         Mockito.when(result.getName()).thenReturn("KillSwitchTest");
 
-        setKillSwitch(false);
-        TestNGListenerHelper.failFast(result);
+        try (MockedStatic<DriverFactoryHelper> driverFactoryHelper = Mockito.mockStatic(DriverFactoryHelper.class)) {
+            driverFactoryHelper.when(DriverFactoryHelper::isKillSwitch).thenReturn(false);
+            TestNGListenerHelper.failFast(result);
 
-        setKillSwitch(true);
-        try {
+            driverFactoryHelper.when(DriverFactoryHelper::isKillSwitch).thenReturn(true);
             SkipException exception = Assert.expectThrows(SkipException.class, () -> TestNGListenerHelper.failFast(result));
             Assert.assertTrue(exception.getMessage().contains("KillSwitchTest"));
-        } finally {
-            setKillSwitch(false);
         }
     }
 
@@ -172,11 +203,20 @@ public class TestNGListenerHelperCoverageUnitTest {
         Assert.assertEquals(suite.getThreadCount(), 4);
 
         TestNGListenerHelper.configureTestNGProperties(List.of(suite));
+        int expectedThreadCount = expectedConfiguredThreadCount();
         for (XmlTest expandedTest : suite.getTests()) {
-            Assert.assertEquals(expandedTest.getThreadCount(), 1);
+            Assert.assertEquals(expandedTest.getThreadCount(), expectedThreadCount);
             Assert.assertNotNull(expandedTest.getName());
         }
         Assert.assertTrue(suite.getDataProviderThreadCount() > 0);
+    }
+
+    private int expectedConfiguredThreadCount() {
+        double threadCount = SHAFT.Properties.testNG.threadCount();
+        if ("DYNAMIC".equals(SHAFT.Properties.testNG.parallelMode())) {
+            threadCount = threadCount * Runtime.getRuntime().availableProcessors();
+        }
+        return (int) Math.floor(threadCount);
     }
 
     @Test

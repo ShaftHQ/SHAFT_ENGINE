@@ -926,6 +926,8 @@ These guard rails apply specifically when modifying SHAFT internals across PDCA 
 ## Testing Guidelines
 - **You MUST create tests for every new feature, bug fix, or code modification**
 - **You MUST run all affected tests and confirm they pass before committing**
+- **Allure result JSON/report output is the source of truth for SHAFT test verdicts**; Surefire is diagnostic only when results disagree
+- **Always verify the Allure run is populated before analyzing statuses** by counting executed tests/result JSON files first
 - **You MUST capture screenshots of test results** as evidence that tests were executed and passed
 - Write tests that validate your changes
 - Follow existing test patterns in `src/test/java/`
@@ -1119,6 +1121,13 @@ These guidelines apply to GitHub Copilot coding agent sessions working on this r
 2. **Anti-patterns encountered** — if you ran into a trap or common mistake, add it to the appropriate "Anti-patterns to avoid" list.
 3. **Edge cases** — if a test revealed an unexpected edge case, document it near the relevant SHAFT API section.
 4. **Workflow improvements** — if a CI/CD workflow behaved unexpectedly, note the root cause and the correct fix.
+
+### Repository Knowledge Migration Protocol
+- When asked to scan, migrate, consolidate, or preserve agent knowledge, follow `docs/AGENT_KNOWLEDGE_MIGRATION.md`.
+- Create or link a task ticket before implementation; if authenticated GitHub Issues access is unavailable, create a local ticket under `docs/tickets/` and note that maintainers should mirror it.
+- Create a dedicated task branch before editing files, then keep migration/documentation changes isolated from unrelated code.
+- Discover `AGENTS.md`, instruction, memory, skill, and tool files first; reconcile conflicts by favoring direct session instructions, scoped instructions, and executable configuration over stale prose.
+- Open a PR when the initial implementation is complete so humans can collaborate before the migration is finalized; if GitHub publication access is unavailable, explicitly report the limitation and provide a PR handoff.
 
 ### Persistent Memory Ledger (Mandatory for Non-Trivial Sessions)
 - Store high-value learnings in `.github/copilot-memory.md` using a compact append-only format.

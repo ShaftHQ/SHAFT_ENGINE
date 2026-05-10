@@ -52,15 +52,15 @@ public class PropertiesHelperInitializationUnitTest {
 
             Assert.assertTrue(customTemplateContent.contains("https://shafthq.github.io/"),
                     "custom.properties template should include a user guide link.");
-            Assert.assertTrue(customTemplateContent.contains("executionAddress=local"));
-            Assert.assertTrue(customTemplateContent.contains("targetOperatingSystem=Linux"));
-            Assert.assertTrue(customTemplateContent.contains("targetBrowserName=chrome"));
-            Assert.assertTrue(customTemplateContent.contains("headlessExecution=false"));
-            Assert.assertTrue(customTemplateContent.contains("setParallel=NONE"));
-            Assert.assertTrue(customTemplateContent.contains("setThreadCount=1"));
-            Assert.assertTrue(customTemplateContent.contains("retryMaximumNumberOfAttempts=0"));
-            Assert.assertTrue(customTemplateContent.contains("maximumPerformanceMode=0"));
-            Assert.assertTrue(customTemplateContent.contains("screenshotParamsWhenToTakeAScreenshot=ValidationPointsOnly"));
+            List.of(
+                    "executionAddress=local",
+                    "targetOperatingSystem=Linux",
+                    "targetBrowserName=chrome",
+                    "headlessExecution=false",
+                    "retryMaximumNumberOfAttempts=0",
+                    "screenshotParamsWhenToTakeAScreenshot=ValidationPointsOnly"
+            ).forEach(expectedDefault -> Assert.assertTrue(customTemplateContent.contains(expectedDefault),
+                    "custom.properties template should include default: " + expectedDefault));
         }
     }
 

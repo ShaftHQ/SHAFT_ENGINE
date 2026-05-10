@@ -12,9 +12,11 @@ import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -76,10 +78,10 @@ public class ExcelFileManager {
         List<List<Object>> attachments = new ArrayList<>();
         List<Object> testDataFileAttachment = null;
         try {
-            testDataFileAttachment = Arrays.asList("Test Data", "Excel",
-                    new FileInputStream(excelFilePath));
-        } catch (FileNotFoundException e) {
-            //unreachable code because if the file was not found then the reader would have failed at a previous step
+            byte[] raw = Files.readAllBytes(Paths.get(excelFilePath));
+            testDataFileAttachment = Arrays.asList("Test Data", "Excel", new ByteArrayInputStream(raw));
+        } catch (IOException e) {
+            ReportManagerHelper.logDiscrete(e);
         }
         attachments.add(testDataFileAttachment);
         ReportManagerHelper.log("Loaded Test Data: \"" + excelFilePath + "\".", attachments);
