@@ -59,7 +59,7 @@ jobs:
         if: always()
         shell: bash
         run: |
-          SHAFT_REPORT=$(find . -name "AllureReport.html" ! -path "./allure-report/*" ! -path "*/target/*" ! -path "*/node_modules/*" 2>/dev/null | head -1)
+          SHAFT_REPORT=$(find . -name "*AllureReport.html" ! -path "./allure-report/*" ! -path "*/target/*" ! -path "*/node_modules/*" 2>/dev/null | head -1)
           if [ -n "$SHAFT_REPORT" ]; then
             mkdir -p allure-report
             cp -r "$(dirname "$SHAFT_REPORT")"/. allure-report/
@@ -103,7 +103,7 @@ jobs:
         if: always()
         shell: bash
         run: |
-          SHAFT_REPORT=$(find . -name "AllureReport.html" ! -path "./allure-report/*" ! -path "*/target/*" ! -path "*/node_modules/*" 2>/dev/null | head -1)
+          SHAFT_REPORT=$(find . -name "*AllureReport.html" ! -path "./allure-report/*" ! -path "*/target/*" ! -path "*/node_modules/*" 2>/dev/null | head -1)
           if [ -n "$SHAFT_REPORT" ]; then
             mkdir -p allure-report
             cp -r "$(dirname "$SHAFT_REPORT")"/. allure-report/
@@ -147,7 +147,7 @@ jobs:
         if: always()
         shell: bash
         run: |
-          SHAFT_REPORT=$(find . -name "AllureReport.html" ! -path "./allure-report/*" ! -path "*/target/*" ! -path "*/node_modules/*" 2>/dev/null | head -1)
+          SHAFT_REPORT=$(find . -name "*AllureReport.html" ! -path "./allure-report/*" ! -path "*/target/*" ! -path "*/node_modules/*" 2>/dev/null | head -1)
           if [ -n "$SHAFT_REPORT" ]; then
             mkdir -p allure-report
             cp -r "$(dirname "$SHAFT_REPORT")"/. allure-report/
@@ -191,7 +191,7 @@ jobs:
         if: always()
         shell: bash
         run: |
-          SHAFT_REPORT=$(find . -name "AllureReport.html" ! -path "./allure-report/*" ! -path "*/target/*" ! -path "*/node_modules/*" 2>/dev/null | head -1)
+          SHAFT_REPORT=$(find . -name "*AllureReport.html" ! -path "./allure-report/*" ! -path "*/target/*" ! -path "*/node_modules/*" 2>/dev/null | head -1)
           if [ -n "$SHAFT_REPORT" ]; then
             mkdir -p allure-report
             cp -r "$(dirname "$SHAFT_REPORT")"/. allure-report/
@@ -245,7 +245,7 @@ jobs:
         if: always()
         shell: bash
         run: |
-          SHAFT_REPORT=$(find . -name "AllureReport.html" ! -path "./allure-report/*" ! -path "*/target/*" ! -path "*/node_modules/*" 2>/dev/null | head -1)
+          SHAFT_REPORT=$(find . -name "*AllureReport.html" ! -path "./allure-report/*" ! -path "*/target/*" ! -path "*/node_modules/*" 2>/dev/null | head -1)
           if [ -n "$SHAFT_REPORT" ]; then
             mkdir -p allure-report
             cp -r "$(dirname "$SHAFT_REPORT")"/. allure-report/
