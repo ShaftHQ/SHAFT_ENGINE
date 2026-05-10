@@ -547,3 +547,28 @@ Add entries to the **Session Learnings Log** section below. Keep each entry comp
 - Area: Pattern / grep / multiline
 - Lesson: Single-line `grep` patterns miss Java fluent chains split across lines (e.g., `Validations.assertThat()\n.response(res)`). When doing impact analysis for method-level refactors, also grep with multiline mode or read files directly after the first compile pass.
 - Evidence: Session 2026-05-08, 3 rounds of compile-error discovery during ValidationsBuilder fix
+
+- Date: 2026-05-11
+- Area: Architecture / Monorepo / Validations
+- Lesson: Primitive validation methods (`validateEquals`, `validateNumber`) and their shared utilities (`setCommonParameters`, `updateAllureParameters`, `performValidation`, `formatAssertionErrorWithAutoDetectedPackage`, `reportPrimitiveValidationState`) belong in shaft-core via a new `PrimitiveValidationsHelper` class. `ValidationsHelper2` in shaft-web `extends PrimitiveValidationsHelper` and adds the 7 web-specific methods + a driver-aware `reportWebValidationState`. `ValidationsExecutor`'s switch arms use **direct calls** (`new PrimitiveValidationsHelper(...).validateXxx(...)`) for primitives and **reflective `invokeHelper2(...)`** only for the 7 web methods that legitimately cannot resolve at compile time in lean scope. Mirrors the monolith's design (direct calls everywhere) while respecting the monorepo dep direction.
+- Evidence: PR #2646 commits `7b629f7b82`, `3079bb13e4`, `9093226437`; spec `Projects/SHAFT_ENGINE/specs/2026-05-11-validations-primitives-split.md`; issue #2690
+
+- Date: 2026-05-11
+- Area: CI / Surefire / SPI
+- Lesson: `surefire-testng` provider does NOT honour SPI auto-discovery via `META-INF/services/org.testng.ITestNGListener`. The SHAFT TestNG listener must be registered explicitly in every module's surefire config under `<configuration><properties><property><name>listener</name><value>com.shaft.listeners.TestNGListener</value></property></properties>`. The SPI file shipped in `shaft-core/src/main/resources/META-INF/services/` is necessary-but-not-sufficient on its own. Consumer pom templates already had the explicit listener block; lean module poms (`shaft-core`, `shaft-api`, `shaft-db`) did not until this PR.
+- Evidence: PR #2646 commit `ed1515db70`; issue #2690 with A/B run evidence (tests pass with no SHAFT bootstrap vs. listener fires only when explicitly registered)
+
+- Date: 2026-05-11
+- Area: Anti-pattern / Test framework
+- Lesson: Adding `surefire-testng` as a surefire plugin dependency forces the TestNG provider, which **silently drops JUnit 5 `@Test` methods from discovery**. Modules that mix frameworks need both `surefire-testng` AND `surefire-junit-platform` as plugin dependencies. Per the validation spec convention, `shaft-core`/`shaft-api`/`shaft-db` are TestNG modules; any JUnit 5 test in those modules (e.g., `ApiValidationsEntryPointTest` was originally JUnit 5) needs migration to TestNG to remain discoverable.
+- Evidence: PR #2646 commit `ed1515db70` (3 tests migrated); `superpowers:systematic-debugging` investigation in session 2026-05-11
+
+- Date: 2026-05-11
+- Area: Debugging / TestNG / Diagnostic anti-pattern
+- Lesson: When TestNG reports `Tests run: 0, Failures: 0, Skipped: 0` with no error logs, the test methods were **never discovered** — it is NOT a "kill switch" or `SkipException`. Suspect framework mismatch (JUnit vs TestNG), classpath issues, or annotation discovery failures. Instrument `IMethodInterceptor.intercept(List<IMethodInstance>, ITestContext)` and `ITestListener.onStart(ITestContext)` with `ReportManager.logDiscrete` to see exactly what TestNG considers runnable. `context.getAllTestMethods()` returning an empty array confirms the discovery layer rejected the methods.
+- Evidence: Session 2026-05-11, retraction of the "kill switch" claim on issue #2690
+
+- Date: 2026-05-11
+- Area: Allure / Test design
+- Lesson: `Allure.getLifecycle().updateStep(stepResult -> FailureReporter.fail(message))` is a **no-op when no Allure step is currently active**. Unit tests that bypass `@Step`-annotated wrappers (e.g., call a validation helper method directly) will silently skip the failure path — `FailureReporter.fail` never executes, no `AssertionError` is thrown, the test passes when it should fail. Either wrap the call in `Allure.step("...", () -> ...)` to create a step context, OR test through `ValidationsExecutor.performValidation` / `internalPerform` which carry `@Step` annotations. Do not write unit tests that assume the failure path fires from inside `updateStep`.
+- Evidence: Session 2026-05-11, `PrimitiveValidationsHelperTest` initial draft expected `AssertionError` but had to be loosened
