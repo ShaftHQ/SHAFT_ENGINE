@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -28,6 +29,36 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * startup before parallel execution begins.</p>
  */
 public class PropertiesHelper {
+
+    /**
+     * Keys that must be present in {@link System#getProperty(String)} after
+     * {@link #setKeySystemProperties()} runs. These are consumed by third-party
+     * libraries (Selenium, Log4j, Allure, ReportPortal) via {@code System.getProperty()}
+     * directly — {@code ThreadLocalPropertiesManager.setGlobalProperty()} is invisible
+     * to them. Add any new external-library property here and cover it with
+     * {@code PropertiesHelperCoverageUnitTest#allAlwaysSetExternalLibPropertiesMustBeInSystemPropertiesAfterSetup}.
+     */
+    public static final Set<String> JVM_SYSTEM_PROPERTIES_ALWAYS = Set.of(
+            "webdriver.http.factory",
+            "rp.properties.path",
+            "log4j.configurationFile",
+            "allure.testng.hide.configuration.failures",
+            "allure.testng.hide.disabled.tests",
+            "SE_DRIVER_MIRROR_URL"
+    );
+
+    /**
+     * Keys that must be present in {@link System#getProperty(String)} after
+     * {@link com.shaft.listeners.internal.TestNGListenerHelper#configureJVMProxy()} runs
+     * when JVM proxy settings are enabled. Java's networking stack ({@code java.net.*})
+     * reads these via {@code System.getProperty()} directly.
+     */
+    public static final Set<String> JVM_SYSTEM_PROPERTIES_PROXY = Set.of(
+            "http.proxyHost",  "http.proxyPort",
+            "https.proxyHost", "https.proxyPort",
+            "ftp.proxyHost",   "ftp.proxyPort"
+    );
+
     private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "src/main/resources/properties/default";
     private static final String TARGET_PROPERTIES_FOLDER_PATH = DEFAULT_PROPERTIES_FOLDER_PATH.replace("/default", "");
     private static final AtomicBoolean postProcessingDone = new AtomicBoolean(false);
@@ -101,6 +132,8 @@ public class PropertiesHelper {
         System.setProperty("log4j.configurationFile", PropertyFileManager.getLog4jConfigPath());
         System.setProperty("allure.testng.hide.configuration.failures", "true");
         System.setProperty("allure.testng.hide.disabled.tests", "true");
+        // Fix for Microsoft Edge CDN migration — Selenium Manager reads this via System.getProperty().
+        System.setProperty("SE_DRIVER_MIRROR_URL", "https://msedgedriver.microsoft.com");
     }
 
     /**

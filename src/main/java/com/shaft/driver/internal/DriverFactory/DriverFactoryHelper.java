@@ -7,7 +7,6 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.PropertiesHelper;
-import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -438,9 +437,6 @@ public class DriverFactoryHelper {
                     disableCacheEdgeAndChrome();
                 }
                 case EDGE -> {
-                    // Fix for Microsoft Edge CDN migration from msedgedriver.azureedge.net to msedgedriver.microsoft.com
-                    // This ensures Selenium Manager uses the correct download URL for EdgeDriver.
-                    ThreadLocalPropertiesManager.setGlobalProperty("SE_DRIVER_MIRROR_URL", "https://msedgedriver.microsoft.com");
                     setDriver(new EdgeDriver(optionsManager.getEdOptions()));
                     disableCacheEdgeAndChrome();
                 }

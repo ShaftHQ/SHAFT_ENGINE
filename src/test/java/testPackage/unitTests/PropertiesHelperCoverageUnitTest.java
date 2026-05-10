@@ -9,9 +9,13 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import com.shaft.listeners.internal.TestNGListenerHelper;
+
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Test(singleThreaded = true)
@@ -71,6 +75,27 @@ public class PropertiesHelperCoverageUnitTest {
         Assert.assertNotNull(System.getProperty("log4j.configurationFile"));
         Assert.assertEquals(System.getProperty("allure.testng.hide.configuration.failures"), "true");
         Assert.assertEquals(System.getProperty("allure.testng.hide.disabled.tests"), "true");
+    }
+
+    @Test
+    public void allAlwaysSetExternalLibPropertiesMustBeInSystemPropertiesAfterSetup() {
+        Map<String, String> saved = new HashMap<>();
+        PropertiesHelper.JVM_SYSTEM_PROPERTIES_ALWAYS.forEach(key -> {
+            saved.put(key, System.getProperty(key));
+            System.clearProperty(key);
+        });
+        try {
+            PropertiesHelper.setKeySystemProperties();
+            for (String key : PropertiesHelper.JVM_SYSTEM_PROPERTIES_ALWAYS) {
+                Assert.assertNotNull(System.getProperty(key),
+                        "Key '" + key + "' must be set in System properties by setKeySystemProperties()");
+            }
+        } finally {
+            saved.forEach((key, value) -> {
+                if (value == null) System.clearProperty(key);
+                else System.setProperty(key, value);
+            });
+        }
     }
 
     @Test
