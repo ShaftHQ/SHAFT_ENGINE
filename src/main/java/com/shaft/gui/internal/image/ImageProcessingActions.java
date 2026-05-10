@@ -36,10 +36,13 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -534,20 +537,24 @@ public class ImageProcessingActions {
             // fetch the related reference screenshot file name using the current file
             // name/number as index
             String relatedReferenceFileName = referenceFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
-
-            List<Object> referenceScreenshotAttachment = Arrays.asList("Reference Screenshot", relatedReferenceFileName,
-                    new FileInputStream(referenceProcessingFolder + FileSystems.getDefault().getSeparator()
-                            + screenshot.getName()));
-
             String relatedTestFileName = testFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
 
-            List<Object> testScreenshotAttachment = Arrays.asList("Test Screenshot", relatedTestFileName,
-                    new FileInputStream(screenshot));
-
-            ReportManagerHelper.log(
-                    "Test Screenshot [" + relatedTestFileName + "] and related Reference Image ["
-                            + relatedReferenceFileName + "] match by [" + percentage + "] percent.",
-                    Arrays.asList(referenceScreenshotAttachment, testScreenshotAttachment));
+            Path referenceImagePath = Paths.get(
+                    referenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName());
+            try (InputStream refIn = Files.newInputStream(referenceImagePath);
+                 InputStream testIn = Files.newInputStream(screenshot.toPath())) {
+                List<Object> referenceScreenshotAttachment = Arrays.asList(
+                        "Reference Screenshot", relatedReferenceFileName, refIn);
+                List<Object> testScreenshotAttachment = Arrays.asList(
+                        "Test Screenshot", relatedTestFileName, testIn);
+                ReportManagerHelper.log(
+                        "Test Screenshot [" + relatedTestFileName + "] and related Reference Image ["
+                                + relatedReferenceFileName + "] match by [" + percentage + "] percent.",
+                        Arrays.asList(referenceScreenshotAttachment, testScreenshotAttachment));
+            } catch (IOException ioEx) {
+                ReportManagerHelper.logDiscrete(ioEx);
+                continue;
+            }
 
             boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             try {
