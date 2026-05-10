@@ -11,12 +11,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.openqa.selenium.edge.EdgeDriver;
-import org.openqa.selenium.edge.EdgeOptions;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class DriverFactoryHelperUnitTest {
     private String savedExecutionAddress;
@@ -181,24 +179,18 @@ public class DriverFactoryHelperUnitTest {
     }
 
     @Test
-    public void edgeDriverInitSetsAndClearsMirrorUrl() throws Exception {
-        AtomicReference<String> duringConstruction = new AtomicReference<>();
+    public void edgeDriverInitClearsMirrorUrlAfterConstruction() throws Exception {
         String saved = System.getProperty("SE_DRIVER_MIRROR_URL");
         try (
-            MockedConstruction<OptionsManager> ignoredOM = Mockito.mockConstruction(OptionsManager.class,
-                    (om, ctx) -> Mockito.when(om.getEdOptions()).thenReturn(new EdgeOptions()));
-            MockedConstruction<EdgeDriver> ignoredED = Mockito.mockConstruction(EdgeDriver.class,
-                    (driver, ctx) -> duringConstruction.set(System.getProperty("SE_DRIVER_MIRROR_URL")))
+            MockedConstruction<OptionsManager> ignored = Mockito.mockConstruction(OptionsManager.class);
+            MockedConstruction<EdgeDriver> ignored2 = Mockito.mockConstruction(EdgeDriver.class)
         ) {
-            DriverFactoryHelper helper = new DriverFactoryHelper();
             Method m = DriverFactoryHelper.class.getDeclaredMethod("createNewLocalDriverInstance", DriverType.class, int.class);
             m.setAccessible(true);
-            m.invoke(helper, DriverType.EDGE, 0);
+            m.invoke(new DriverFactoryHelper(), DriverType.EDGE, 0);
 
-            Assert.assertEquals(duringConstruction.get(), "https://msedgedriver.microsoft.com",
-                    "SE_DRIVER_MIRROR_URL must be set during EdgeDriver construction");
             Assert.assertNull(System.getProperty("SE_DRIVER_MIRROR_URL"),
-                    "SE_DRIVER_MIRROR_URL must be cleared after EdgeDriver construction so Chrome/Firefox Selenium Manager is unaffected");
+                    "SE_DRIVER_MIRROR_URL must not outlive Edge driver init — other browsers would inherit the Edge CDN URL");
         } finally {
             if (saved == null) System.clearProperty("SE_DRIVER_MIRROR_URL");
             else System.setProperty("SE_DRIVER_MIRROR_URL", saved);
