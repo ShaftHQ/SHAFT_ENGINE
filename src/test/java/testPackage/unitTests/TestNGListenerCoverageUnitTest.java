@@ -48,7 +48,7 @@ public class TestNGListenerCoverageUnitTest {
 
         ITestNGService reportPortalService = Mockito.mock(ITestNGService.class);
         setReportPortalService(listener, reportPortalService);
-        setReportPortalEnabled(true);
+        setReportPortalEnabled(listener, true);
         try {
             listener.onConfigurationFailure(testResult);
             Mockito.verify(reportPortalService).sendReportPortalMsg(testResult);
@@ -65,7 +65,7 @@ public class TestNGListenerCoverageUnitTest {
 
         ITestNGService reportPortalService = Mockito.mock(ITestNGService.class);
         setReportPortalService(listener, reportPortalService);
-        setReportPortalEnabled(true);
+        setReportPortalEnabled(listener, true);
         try {
             listener.onConfigurationSuccess(testResult);
             listener.onConfigurationSkip(testResult);
@@ -85,7 +85,7 @@ public class TestNGListenerCoverageUnitTest {
 
         ITestNGService reportPortalService = Mockito.mock(ITestNGService.class);
         setReportPortalService(listener, reportPortalService);
-        setReportPortalEnabled(true);
+        setReportPortalEnabled(listener, true);
         try {
             listener.onTestFailedButWithinSuccessPercentage(testResult);
             Mockito.verify(reportPortalService).finishTestMethod(ItemStatus.FAILED, testResult);
@@ -102,7 +102,7 @@ public class TestNGListenerCoverageUnitTest {
 
         ITestNGService reportPortalService = Mockito.mock(ITestNGService.class);
         setReportPortalService(listener, reportPortalService);
-        setReportPortalEnabled(true);
+        setReportPortalEnabled(listener, true);
         try {
             listener.onTestFailure(testResult);
             Mockito.verify(reportPortalService).sendReportPortalMsg(testResult);
@@ -120,7 +120,7 @@ public class TestNGListenerCoverageUnitTest {
 
         ITestNGService reportPortalService = Mockito.mock(ITestNGService.class);
         setReportPortalService(listener, reportPortalService);
-        setReportPortalEnabled(true);
+        setReportPortalEnabled(listener, true);
         try {
             listener.onTestSkipped(testResult);
             Mockito.verify(reportPortalService).finishTestMethod(ItemStatus.SKIPPED, testResult);
@@ -157,6 +157,12 @@ public class TestNGListenerCoverageUnitTest {
         Field reportPortalEnabledField = TestNGListener.class.getDeclaredField("isReportPortalEnabled");
         reportPortalEnabledField.setAccessible(true);
         reportPortalEnabledField.set(null, value);
+    }
+
+    private static void setReportPortalEnabled(TestNGListener listener, boolean value) throws Exception {
+        Field reportPortalEnabledField = TestNGListener.class.getDeclaredField("isReportPortalEnabledForListener");
+        reportPortalEnabledField.setAccessible(true);
+        reportPortalEnabledField.set(listener, value);
     }
 
     private static void setReportPortalService(TestNGListener listener, ITestNGService reportPortalService) throws Exception {
