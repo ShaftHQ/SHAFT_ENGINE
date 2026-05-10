@@ -3,19 +3,26 @@ package testPackage.unitTests;
 import com.epam.reportportal.listeners.ItemStatus;
 import com.epam.reportportal.testng.ITestNGService;
 import com.shaft.listeners.TestNGListener;
+import com.shaft.listeners.internal.ConfigurationHelper;
 import com.shaft.listeners.internal.TestNGListenerHelper;
+import com.shaft.properties.internal.Properties;
 import org.mockito.Mockito;
 import org.testng.ITestClass;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
+import org.testng.xml.XmlClass;
+import org.testng.xml.XmlSuite;
+import org.testng.xml.XmlTest;
 
 import java.lang.reflect.Field;
 import java.util.List;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
 public class TestNGListenerCoverageUnitTest {
 
@@ -169,5 +176,69 @@ public class TestNGListenerCoverageUnitTest {
         Field reportPortalServiceField = TestNGListener.class.getDeclaredField("reportPortalTestNGService");
         reportPortalServiceField.setAccessible(true);
         reportPortalServiceField.set(listener, reportPortalService);
+    }
+
+    // Minimal concrete Cucumber runner used only for class-name detection in alter() tests.
+    // It does not need Cucumber annotations — alter() checks isAssignableFrom(), not annotations.
+    @SuppressWarnings("unused")
+    private static class MockCucumberRunner extends io.cucumber.testng.AbstractTestNGCucumberTests {
+    }
+
+    @Test
+    public void alterShouldRouteCucumberSuiteToCucumberHelperWithoutThrowing() {
+        // Suite whose only test class is a Cucumber runner (extends AbstractTestNGCucumberTests)
+        XmlSuite suite = new XmlSuite();
+        suite.setName("cucumber-suite");
+        XmlTest test = new XmlTest(suite);
+        test.setName("cucumber-test");
+        test.getClasses().add(new XmlClass(MockCucumberRunner.class.getName()));
+
+        // alter() must not throw even though Properties.testNG may not be loaded yet
+        new TestNGListener().alter(List.of(suite));
+
+        // ConfigurationHelper is always appended by attachConfigurationHelperClass()
+        boolean hasConfigHelper = test.getClasses().stream()
+                .anyMatch(c -> c.getName().equals(ConfigurationHelper.class.getName()));
+        assertTrue(hasConfigHelper,
+                "alter() must attach ConfigurationHelper even for Cucumber suites");
+    }
+
+    @Test
+    public void alterShouldRouteTestNGSuiteToConfigureTestNGPropertiesWithoutThrowing() {
+        // Suite whose test class is a plain TestNG test (not a Cucumber runner)
+        XmlSuite suite = new XmlSuite();
+        suite.setName("testng-suite");
+        XmlTest test = new XmlTest(suite);
+        test.setName("testng-test");
+        test.getClasses().add(new XmlClass(TestNGListenerCoverageUnitTest.class.getName()));
+
+        // Force Properties.testNG to null to exercise the lazy-init path
+        com.shaft.properties.internal.TestNG original = Properties.testNG;
+        Properties.testNG = null;
+        try {
+            new TestNGListener().alter(List.of(suite));
+            // Lazy init must have populated Properties.testNG
+            assertNotNull(Properties.testNG,
+                    "configureTestNGProperties() must lazily initialize Properties.testNG");
+        } finally {
+            Properties.testNG = original;
+        }
+    }
+
+    @Test
+    public void configureTestNGPropertiesShouldLazilyInitPropertiesTestNGWhenNull() {
+        com.shaft.properties.internal.TestNG original = Properties.testNG;
+        Properties.testNG = null;
+        XmlSuite suite = new XmlSuite();
+        suite.setName("lazy-init-suite");
+        XmlTest test = new XmlTest(suite);
+        test.setName("lazy-init-test");
+        try {
+            TestNGListenerHelper.configureTestNGProperties(List.of(suite));
+            assertNotNull(Properties.testNG,
+                    "configureTestNGProperties() must lazily initialize Properties.testNG when called before loadProperties()");
+        } finally {
+            Properties.testNG = original;
+        }
     }
 }

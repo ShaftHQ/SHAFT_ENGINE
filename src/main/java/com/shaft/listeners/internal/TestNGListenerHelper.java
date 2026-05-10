@@ -222,6 +222,13 @@ public class TestNGListenerHelper {
     }
 
     public static void configureTestNGProperties(List<XmlSuite> suites) {
+        // Properties.testNG may be null when this is called from alter(), because alter() fires
+        // before onExecutionStart() runs loadProperties(). Initialize it lazily from the OWNER
+        // @Sources (property files + system properties) so suite modifications work correctly.
+        if (com.shaft.properties.internal.Properties.testNG == null) {
+            com.shaft.properties.internal.Properties.testNG =
+                    org.aeonbits.owner.ConfigFactory.create(com.shaft.properties.internal.TestNG.class);
+        }
         suites.forEach(suite -> {
             suite.setDataProviderThreadCount(SHAFT.Properties.testNG.dataProviderThreadCount());
             suite.getTests().forEach(xmlTest -> {

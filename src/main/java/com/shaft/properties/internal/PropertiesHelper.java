@@ -93,12 +93,14 @@ public class PropertiesHelper {
     public static void setKeySystemProperties() {
         //load paths as the default properties path is needed for the next step
         Properties.basePaths = ConfigFactory.create(Paths.class);
-        //set key system properties that are needed for the framework to function
-        ThreadLocalPropertiesManager.setGlobalProperty("rp.properties.path", SHAFT.Properties.paths.properties());
-        ThreadLocalPropertiesManager.setGlobalProperty("webdriver.http.factory", "jdk-http-client");
-        ThreadLocalPropertiesManager.setGlobalProperty("log4j.configurationFile", PropertyFileManager.getLog4jConfigPath());
-        ThreadLocalPropertiesManager.setGlobalProperty("allure.testng.hide.configuration.failures", "true");
-        ThreadLocalPropertiesManager.setGlobalProperty("allure.testng.hide.disabled.tests", "true");
+        // These properties are read by third-party libraries (ReportPortal, Selenium, Log4j, Allure)
+        // via System.getProperty() — they must be set in System properties, not in SHAFT's internal
+        // globalOverrides map which external libraries cannot see.
+        System.setProperty("rp.properties.path", SHAFT.Properties.paths.properties());
+        System.setProperty("webdriver.http.factory", "jdk-http-client");
+        System.setProperty("log4j.configurationFile", PropertyFileManager.getLog4jConfigPath());
+        System.setProperty("allure.testng.hide.configuration.failures", "true");
+        System.setProperty("allure.testng.hide.disabled.tests", "true");
     }
 
     /**

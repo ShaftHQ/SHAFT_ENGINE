@@ -170,14 +170,39 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void alter(List<XmlSuite> suites) {
-        switch (TestNGListener.identifyRunType()) {
-            case TESTNG -> TestNGListenerHelper.configureTestNGProperties(suites);
-            case CUCUMBER -> CucumberHelper.configureCucumberProperties(suites);
+        // identifyRunType() checks the call stack for io.cucumber.core.runner.Runner, but that class
+        // is not present in the stack when alter() fires (the Cucumber runner hasn't started yet).
+        // Detect Cucumber by inspecting suite class names instead of the call stack.
+        if (isCucumberRun(suites)) {
+            CucumberHelper.configureCucumberProperties(suites);
+        } else {
+            TestNGListenerHelper.configureTestNGProperties(suites);
         }
         TestNGListenerHelper.attachConfigurationHelperClass(suites);
         //All alterations should be finalized before duplicating the
         //test suites for cross browser execution
         TestNGListenerHelper.configureCrossBrowserExecution(suites);
+    }
+
+    /**
+     * Detects whether the suite is a Cucumber run by checking if any test class extends
+     * {@link io.cucumber.testng.AbstractTestNGCucumberTests}. This is more reliable than
+     * inspecting the call stack because the Cucumber runner is not present in the stack
+     * when {@link #alter(List)} is invoked.
+     */
+    private static boolean isCucumberRun(List<XmlSuite> suites) {
+        return suites.stream()
+                .flatMap(suite -> suite.getTests().stream())
+                .flatMap(test -> test.getClasses().stream())
+                .anyMatch(xmlClass -> {
+                    try {
+                        Class<?> cls = Class.forName(xmlClass.getName(), false,
+                                Thread.currentThread().getContextClassLoader());
+                        return io.cucumber.testng.AbstractTestNGCucumberTests.class.isAssignableFrom(cls);
+                    } catch (ClassNotFoundException | NoClassDefFoundError | SecurityException e) {
+                        return false;
+                    }
+                });
     }
 
     /**
