@@ -241,6 +241,12 @@
                     <suiteXmlFiles>
                         <suiteXmlFile>src/test/resources/testng.xml</suiteXmlFile>
                     </suiteXmlFiles>
+                    <properties>
+                        <property>
+                            <name>listener</name>
+                            <value>com.shaft.listeners.TestNGListener</value>
+                        </property>
+                    </properties>
                 </configuration>
             </plugin>
             <plugin>

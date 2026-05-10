@@ -1,13 +1,14 @@
 package com.shaft.db;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 
-class DatabaseActionsInstantiationTest {
+public class DatabaseActionsInstantiationTest {
 
     @Test
-    void shouldInstantiateWithoutRealDatabase() {
+    public void shouldInstantiateWithoutRealDatabase() {
         // Constructor just sets fields — no connection attempt at construction time.
         DatabaseActions db = new DatabaseActions(
             DatabaseActions.DatabaseType.MY_SQL,
@@ -16,22 +17,22 @@ class DatabaseActionsInstantiationTest {
     }
 
     @Test
-    void mySqlJdbcDriverShouldBeResolvableOnClasspath() throws ClassNotFoundException {
+    public void mySqlJdbcDriverShouldBeResolvableOnClasspath() throws ClassNotFoundException {
         assertNotNull(Class.forName("com.mysql.cj.jdbc.Driver"), "MySQL JDBC driver must be on classpath");
     }
 
     @Test
-    void postgresJdbcDriverShouldBeResolvableOnClasspath() throws ClassNotFoundException {
+    public void postgresJdbcDriverShouldBeResolvableOnClasspath() throws ClassNotFoundException {
         assertNotNull(Class.forName("org.postgresql.Driver"), "PostgreSQL JDBC driver must be on classpath");
     }
 
     @Test
-    void sqlServerJdbcDriverShouldBeResolvableOnClasspath() throws ClassNotFoundException {
+    public void sqlServerJdbcDriverShouldBeResolvableOnClasspath() throws ClassNotFoundException {
         assertNotNull(Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver"), "SQL Server JDBC driver must be on classpath");
     }
 
     @Test
-    void shouldNotLeakClassNotFoundOnBadConnectionAttempt() {
+    public void shouldNotLeakClassNotFoundOnBadConnectionAttempt() {
         // Constructing with valid-looking params succeeds (no connection at construction time).
         // If executeSelectQuery fails, it must be a SQL/IO error — never ClassNotFoundException.
         DatabaseActions db = new DatabaseActions(
@@ -40,7 +41,7 @@ class DatabaseActionsInstantiationTest {
         try {
             db.executeSelectQuery("SELECT 1");
         } catch (Exception e) {
-            assertNotEquals(ClassNotFoundException.class, e.getClass(),
+            assertNotEquals(e.getClass(), ClassNotFoundException.class,
                 "Must not throw ClassNotFoundException: " + e);
         }
     }
