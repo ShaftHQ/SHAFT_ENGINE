@@ -43,8 +43,7 @@ public class PropertiesHelper {
             "rp.properties.path",
             "log4j.configurationFile",
             "allure.testng.hide.configuration.failures",
-            "allure.testng.hide.disabled.tests",
-            "SE_DRIVER_MIRROR_URL"
+            "allure.testng.hide.disabled.tests"
     );
 
     /**
@@ -132,8 +131,6 @@ public class PropertiesHelper {
         System.setProperty("log4j.configurationFile", PropertyFileManager.getLog4jConfigPath());
         System.setProperty("allure.testng.hide.configuration.failures", "true");
         System.setProperty("allure.testng.hide.disabled.tests", "true");
-        // Fix for Microsoft Edge CDN migration — Selenium Manager reads this via System.getProperty().
-        System.setProperty("SE_DRIVER_MIRROR_URL", "https://msedgedriver.microsoft.com");
     }
 
     /**

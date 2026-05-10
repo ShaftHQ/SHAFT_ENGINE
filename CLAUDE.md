@@ -547,3 +547,23 @@ Add entries to the **Session Learnings Log** section below. Keep each entry comp
 - Area: Pattern / grep / multiline
 - Lesson: Single-line `grep` patterns miss Java fluent chains split across lines (e.g., `Validations.assertThat()\n.response(res)`). When doing impact analysis for method-level refactors, also grep with multiline mode or read files directly after the first compile pass.
 - Evidence: Session 2026-05-08, 3 rounds of compile-error discovery during ValidationsBuilder fix
+
+- Date: 2026-05-10
+- Area: Anti-pattern / Properties
+- Lesson: `ThreadLocalPropertiesManager.setGlobalProperty()` writes only to SHAFT's internal `globalOverrides` map — external libraries (Selenium, Log4j, Allure, ReportPortal) that call `System.getProperty()` cannot see these values. Always use `System.setProperty()` for properties consumed by third-party libraries. PR #2488 introduced this regression for `webdriver.http.factory`, causing Selenium to fall back to Netty HTTP client and trigger a `subList(0,1)` race in TestNG 7.12.0 under parallel Cucumber execution.
+- Evidence: `PropertiesHelper.setKeySystemProperties()`, `PropertiesHelperCoverageUnitTest` line 70, PR #2688 (fix), PR #2488 (regression source)
+
+- Date: 2026-05-10
+- Area: Pattern / TestNG lifecycle
+- Lesson: `IAlterSuiteListener.alter()` fires BEFORE `IExecutionListener.onExecutionStart()`, so `Properties.testNG` (a plain static field, not a proxy) is null when `alter()` runs. Any code path in `alter()` that accesses `Properties.testNG` must lazily initialize it via `ConfigFactory.create(TestNG.class)`. The proxy pattern with null fallback exists for `platform`, `web`, `flags`, etc., but NOT for `testNG`, `internal`, `log4j`, `cucumber`.
+- Evidence: `TestNGListenerHelper.configureTestNGProperties()`, `Properties.java` line for `public static TestNG testNG`, PR #2688
+
+- Date: 2026-05-10
+- Area: Pattern / Cucumber detection
+- Lesson: `identifyRunType()` detects Cucumber by checking the call stack for `io.cucumber.core.runner.Runner` — this class is never present when `alter()` fires (Cucumber hasn't started). Detect Cucumber runs in `alter()` by inspecting suite class names: load each class with `Class.forName(name, false, classLoader)` and check `isAssignableFrom(AbstractTestNGCucumberTests.class)`.
+- Evidence: `TestNGListener.isCucumberRun()`, `TestNGListenerCoverageUnitTest.alterShouldRouteCucumberSuiteToCucumberHelperWithoutThrowing`, PR #2688
+
+- Date: 2026-05-10
+- Area: Pattern / JVM system property catalogue
+- Lesson: `PropertiesHelper` now owns two public `Set<String>` catalogue constants — `JVM_SYSTEM_PROPERTIES_ALWAYS` (6 keys always set at engine startup) and `JVM_SYSTEM_PROPERTIES_PROXY` (6 proxy keys set when jvmProxySettings is enabled). Any property consumed by a third-party library via `System.getProperty()` must be added to the appropriate catalogue set; a CI-enforced unit test will fail if any key is missing after engine setup. This replaces the previous "deferred" entry.
+- Evidence: `PropertiesHelper.java`, `PropertiesHelperCoverageUnitTest`, PR #2688 commits f3774bfd70 / 563ee322b6 / 5053324423

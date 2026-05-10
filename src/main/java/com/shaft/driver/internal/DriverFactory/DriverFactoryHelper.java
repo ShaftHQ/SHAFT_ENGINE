@@ -437,6 +437,8 @@ public class DriverFactoryHelper {
                     disableCacheEdgeAndChrome();
                 }
                 case EDGE -> {
+                    // Selenium Manager reads this via System.getProperty() — must not use setGlobalProperty().
+                    System.setProperty("SE_DRIVER_MIRROR_URL", "https://msedgedriver.microsoft.com");
                     setDriver(new EdgeDriver(optionsManager.getEdOptions()));
                     disableCacheEdgeAndChrome();
                 }
