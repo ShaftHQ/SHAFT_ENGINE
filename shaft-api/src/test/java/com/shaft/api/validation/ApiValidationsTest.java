@@ -10,14 +10,14 @@ import static org.testng.Assert.assertNotNull;
 public class ApiValidationsTest {
 
     @Test
-    public void verifyThat_returnsNonNullBuilder() {
+    public void verifyThatReturnsNonNullBuilder() {
         Response mock = Mockito.mock(Response.class);
         RestValidationsBuilder builder = ApiValidations.verifyThat(mock);
         assertNotNull(builder);
     }
 
     @Test
-    public void assertThat_returnsNonNullBuilder() {
+    public void assertThatReturnsNonNullBuilder() {
         Response mock = Mockito.mock(Response.class);
         RestValidationsBuilder builder = ApiValidations.assertThat(mock);
         assertNotNull(builder);

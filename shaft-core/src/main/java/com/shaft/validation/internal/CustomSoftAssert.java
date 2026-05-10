@@ -16,13 +16,6 @@ public class CustomSoftAssert extends SoftAssert {
     private final List<AssertionError> localFailures = new ArrayList<>();
 
     /**
-     * Creates a new custom soft assertion collector.
-     */
-    public CustomSoftAssert() {
-        super();
-    }
-
-    /**
      * Sets the root package used to filter stack trace elements when formatting failures.
      */
     public void setRootPackage(String rootPackage) {

@@ -23,7 +23,7 @@ public class ValidationsExecutor {
     private final String validationMethod;
     private final ThreadLocal<Object> driver = new ThreadLocal<>();
     private final ThreadLocal<Object> response = new ThreadLocal<>();
-    private final String validationCategoryString;
+    final String validationCategoryString;
     protected Object locator;
     private String customReportMessage = "";
     protected Object visualValidationEngine;
@@ -271,7 +271,7 @@ public class ValidationsExecutor {
 
     // ── Reflection helpers for ValidationsHelper / ValidationsHelper2 ──────────
 
-    private void invokeHelper(String methodName, Object... args) {
+    void invokeHelper(String methodName, Object... args) {
         try {
             Class<?> cls = Class.forName("com.shaft.validation.internal.ValidationsHelper");
             Object helper = cls.getDeclaredConstructor().newInstance();

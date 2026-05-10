@@ -37,7 +37,8 @@ public class WebValidationsEntryPointTest {
     public void webValidationsBuilderShouldExposeElementAndBrowserMethods() {
         WebValidationsBuilder builder = WebValidations.assertThat();
         assertNotNull(builder);
-        boolean hasElement = false, hasBrowser = false;
+        boolean hasElement = false;
+        boolean hasBrowser = false;
         for (java.lang.reflect.Method m : builder.getClass().getMethods()) {
             if ("element".equals(m.getName())) hasElement = true;
             if ("browser".equals(m.getName())) hasBrowser = true;

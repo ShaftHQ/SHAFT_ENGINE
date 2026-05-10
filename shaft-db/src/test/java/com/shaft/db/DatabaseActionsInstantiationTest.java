@@ -17,17 +17,17 @@ class DatabaseActionsInstantiationTest {
 
     @Test
     void mySqlJdbcDriverShouldBeResolvableOnClasspath() throws ClassNotFoundException {
-        Class.forName("com.mysql.cj.jdbc.Driver");
+        assertNotNull(Class.forName("com.mysql.cj.jdbc.Driver"), "MySQL JDBC driver must be on classpath");
     }
 
     @Test
     void postgresJdbcDriverShouldBeResolvableOnClasspath() throws ClassNotFoundException {
-        Class.forName("org.postgresql.Driver");
+        assertNotNull(Class.forName("org.postgresql.Driver"), "PostgreSQL JDBC driver must be on classpath");
     }
 
     @Test
     void sqlServerJdbcDriverShouldBeResolvableOnClasspath() throws ClassNotFoundException {
-        Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+        assertNotNull(Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver"), "SQL Server JDBC driver must be on classpath");
     }
 
     @Test
@@ -39,9 +39,9 @@ class DatabaseActionsInstantiationTest {
             "127.0.0.1", "19999", "nonexistent", "user", "pass");
         try {
             db.executeSelectQuery("SELECT 1");
+        } catch (ClassNotFoundException e) {
+            fail("Must not throw ClassNotFoundException: " + e);
         } catch (Exception e) {
-            assertFalse(e instanceof ClassNotFoundException,
-                "Must not throw ClassNotFoundException: " + e);
             // Any other exception (SQL, IO, runtime) is acceptable.
         }
     }

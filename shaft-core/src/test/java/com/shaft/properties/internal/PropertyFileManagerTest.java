@@ -8,7 +8,6 @@ import org.testng.annotations.Test;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -42,10 +41,7 @@ class PropertyFileManagerTest {
         }
         Assert.assertTrue(propFile.exists(), "Temp file must exist before load");
 
-        Method m = PropertyFileManager.class.getDeclaredMethod(
-            "loadPropertiesFileIntoSystemProperties", Properties.class, File.class);
-        m.setAccessible(true);
-        m.invoke(null, new Properties(), propFile);
+        PropertyFileManager.loadPropertiesFileIntoSystemProperties(new Properties(), propFile);
 
         Assert.assertTrue(propFile.delete(),
             "File must be deleteable after loading — try-with-resources must have released the lock");
