@@ -22,13 +22,18 @@ public class RealtimeReporterUnitTest {
 
     @BeforeMethod(alwaysRun = true)
     public void ensureServerStopped() {
+        RealtimeReporterTestLock.LOCK.lock();
         RealtimeReporter.stopServer();
         dashboardHtml = readDashboardHtml();
     }
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
-        RealtimeReporter.stopServer();
+        try {
+            RealtimeReporter.stopServer();
+        } finally {
+            RealtimeReporterTestLock.LOCK.unlock();
+        }
     }
 
     // ─── CI detection ─────────────────────────────────────────────────────

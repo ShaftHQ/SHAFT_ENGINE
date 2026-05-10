@@ -34,7 +34,7 @@ Important directories:
 | Task | Command | Notes |
 | --- | --- | --- |
 | Install dependencies / compile package | `mvn clean install -DskipTests -Dgpg.skip` | Mandatory pre-commit compile for code changes in existing agent guidance. Skips tests and GPG signing. |
-| Run all tests | `mvn test` | Can be slow/environment-dependent; Surefire is configured with `testFailureIgnore=true`, so inspect Surefire/Allure results, not just Maven exit status. |
+| Run all tests | `mvn test` | Can be slow/environment-dependent; Surefire is configured with `testFailureIgnore=true`. Treat Allure results as the pass/fail source of truth. |
 | Run targeted tests | `mvn test -Dtest=TestClassName` | Preferred first validation for focused changes. Comma-separated and `%regex[...]` patterns are used in CI. |
 | Run targeted tests with properties | `mvn -e test "-Dtest=TestClassName" "-DtargetBrowserName=chrome"` | Use quoted `-D...` args when values include regex, commas, or shell-sensitive characters. |
 | Generate JavaDocs | `mvn javadoc:javadoc` | Use when public API JavaDocs are changed. |
@@ -51,11 +51,14 @@ Important directories:
 - Test frameworks: TestNG is primary; JUnit and Cucumber are also supported via Maven/Surefire profiles and listeners.
 - Prefer narrow validation first: `mvn test -Dtest=AffectedTestClass`.
 - CI uses many property-driven E2E runs, including local browsers, Docker Selenium Grid, BrowserStack, LambdaTest, mobile/Appium, API, DB, Cucumber, and Flutter-related tests. Do not assume those all run on a bare machine.
-- Surefire is configured to continue after failures so JaCoCo/report generation can complete. Always inspect `target/surefire-reports`, Allure output, or CI post-test summaries for actual pass/fail status.
+- Allure result JSON/report output is the authoritative pass/fail source for SHAFT test runs. Surefire output is useful diagnostics, but do not use it as the final oracle when it disagrees with Allure.
+- Before analyzing Allure statuses, first count the executed tests/result JSON files. If the count is zero or unexpectedly low, treat the report as empty/invalid and fix rerun/report generation before drawing conclusions.
+- Surefire is configured to continue after failures so JaCoCo/report generation can complete. Use `target/surefire-reports` as supporting evidence only after validating the Allure run is populated.
 - Test data belongs under `src/test/resources/testDataFiles/`; avoid hardcoding data in tests when existing guidance requires JSON test data.
 - For TestNG browser tests, existing instructions require fresh driver setup per test and `@AfterMethod(alwaysRun = true)` cleanup with `driver.quit()`.
 - For parallel tests, isolate state with `ThreadLocal` and avoid sharing driver instances across methods.
 - `@Test(singleThreaded = true)` serializes methods inside one TestNG class only; it does not isolate static SHAFT property setters from other classes in a parallel suite. Tests that assert behavior depending on global properties such as `executionAddress` must set those prerequisites inside the test (and rely on `@AfterMethod(alwaysRun = true)` cleanup) to avoid E2E flakes from cross-class property mutation.
+- Tests or setup code that clean Allure results during parallel TestNG execution should preserve the live `allure-results` root directory and delete only its contents. Replacing the root can race with Allure's own file writer on Windows and surface as `FileAlreadyExistsException`/BROKEN results.
 
 ## Code Style and Conventions
 - Public framework classes and public methods must have JavaDoc, including relevant `@param`, `@return`, and `@throws` tags.
@@ -118,6 +121,7 @@ Important directories:
 - Executable configuration wins over stale prose when versions or commands disagree.
 - Path-scoped instructions must stay scoped; do not flatten source-only or test-only rules into global policy unless they are truly repository-wide.
 - Documentation-only changes can use lightweight validation, but code changes are expected to compile and run affected tests before commit.
+- Java 25 plus Mockito inline mocking can fail on some TestNG interfaces with optional dependency types. Prefer extracting list/value-based helper logic for unit coverage over mocking or proxying `org.testng.ISuite`.
 - If GitHub publication access is unavailable, say so clearly and provide a PR handoff rather than implying a visible GitHub PR exists.
 
 ## Open Questions / Verify Before Relying

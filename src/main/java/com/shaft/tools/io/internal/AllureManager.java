@@ -16,10 +16,12 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -296,13 +298,52 @@ public class AllureManager {
 
     private static void cleanAllureResultsDirectory() {
         if (SHAFT.Properties.allure.cleanResultsDirectory()) {
-            // clean allure-results directory before execution
             var allureResultsPath = getResultsPath();
             try {
-                internalFileSession.deleteFolder(allureResultsPath);
+                ensureAllureResultsDirectoryExists(allureResultsPath);
+                cleanAllureResultsDirectoryContents(allureResultsPath);
             } catch (Exception t) {
                 ReportManager.log("Failed to delete '" + allureResultsPath + "' as it is currently open. Kindly restart your device to unlock the directory.");
             }
+            ensureAllureResultsDirectoryExists(allureResultsPath);
+        }
+    }
+
+    private static void cleanAllureResultsDirectoryContents(String allureResultsPath) throws IOException {
+        if (allureResultsPath == null || allureResultsPath.isBlank()) {
+            return;
+        }
+        var resultsDirectory = new File(allureResultsPath).toPath();
+        if (!Files.isDirectory(resultsDirectory)) {
+            return;
+        }
+        try (var resultsDirectoryContents = Files.walk(resultsDirectory)) {
+            resultsDirectoryContents
+                    .sorted(Comparator.reverseOrder())
+                    .filter(path -> !path.equals(resultsDirectory))
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException e) {
+                            ReportManager.log("Failed to delete '" + path + "' from Allure results: " + e.getMessage());
+                        }
+                    });
+        }
+    }
+
+    private static void ensureAllureResultsDirectoryExists(String allureResultsPath) {
+        if (allureResultsPath == null || allureResultsPath.isBlank()) {
+            return;
+        }
+        var resultsDirectory = new File(allureResultsPath).toPath();
+        try {
+            Files.createDirectories(resultsDirectory);
+        } catch (FileAlreadyExistsException e) {
+            if (!Files.isDirectory(resultsDirectory)) {
+                ReportManager.log("Failed to create '" + allureResultsPath + "' for Allure results: " + e.getMessage());
+            }
+        } catch (IOException e) {
+            ReportManager.log("Failed to create '" + allureResultsPath + "' for Allure results: " + e.getMessage());
         }
     }
 

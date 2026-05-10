@@ -56,8 +56,9 @@ When writing tests for a bug fix, you **must** follow the **Bug Fixing Process**
 Before committing **any** test code change, you **must**:
 
 1. **Compile**: Run `mvn clean install -DskipTests -Dgpg.skip` and confirm it succeeds
-2. **Run Tests**: Execute `mvn test -Dtest=TestClassName` for all new or modified test classes and confirm they pass
-3. **Capture Evidence**: Take screenshots of test execution results to provide proof that tests were executed and passed
-4. **Review Code**: Review test code for correctness, completeness, and adherence to SHAFT test patterns
+2. **Run Tests**: Execute `mvn test -Dtest=TestClassName` for all new or modified test classes and confirm they pass according to Allure result JSON/report output
+3. **Validate Result Population**: Before analyzing failures, count executed tests/result JSON files. If the count is zero or unexpectedly low, treat the Allure report as empty/invalid and rerun or fix report generation
+4. **Capture Evidence**: Take screenshots of test execution results to provide proof that tests were executed and passed
+5. **Review Code**: Review test code for correctness, completeness, and adherence to SHAFT test patterns
 
 Every new feature, bug fix, or code modification **must** have corresponding tests. No code may be committed without verified, passing tests.

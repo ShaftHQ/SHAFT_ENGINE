@@ -926,6 +926,8 @@ These guard rails apply specifically when modifying SHAFT internals across PDCA 
 ## Testing Guidelines
 - **You MUST create tests for every new feature, bug fix, or code modification**
 - **You MUST run all affected tests and confirm they pass before committing**
+- **Allure result JSON/report output is the source of truth for SHAFT test verdicts**; Surefire is diagnostic only when results disagree
+- **Always verify the Allure run is populated before analyzing statuses** by counting executed tests/result JSON files first
 - **You MUST capture screenshots of test results** as evidence that tests were executed and passed
 - Write tests that validate your changes
 - Follow existing test patterns in `src/test/java/`

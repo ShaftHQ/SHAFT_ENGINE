@@ -35,11 +35,14 @@ public class ElementActionsCoverageUnitTest {
     private WebDriver.TargetLocator targetLocator;
     private WebElement element;
     private ElementActions elementActions;
+    private static final byte[] VALID_PNG_BYTES = java.util.Base64.getDecoder().decode(
+            "iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAnSURBVDhPY9Bp+f+fmpgBXYBSPGog5XjUQMrxqIGU41EDKceD30AA+QcwHa2jOdoAAAAASUVORK5CYII=");
 
     @BeforeMethod(alwaysRun = true)
     public void setUp() {
         SHAFT.Properties.timeouts.set().waitForLazyLoading(false);
         SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Never");
+        SHAFT.Properties.visuals.set().screenshotParamsWatermark(false);
 
         driver = mock(WebDriver.class, Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
         targetLocator = mock(WebDriver.TargetLocator.class);
@@ -59,7 +62,8 @@ public class ElementActionsCoverageUnitTest {
         when(element.getDomProperty(any())).thenReturn("opt1");
         when(element.getRect()).thenReturn(new Rectangle(0, 0, 10, 10));
 
-        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn("img".getBytes());
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(VALID_PNG_BYTES);
+        when(element.getScreenshotAs(OutputType.BYTES)).thenReturn(VALID_PNG_BYTES);
         when(((JavascriptExecutor) driver).executeScript(any(String.class), any())).thenAnswer(invocation -> {
             String script = invocation.getArgument(0);
             if ("return self.name".equals(script)) {
