@@ -419,12 +419,6 @@ public class DriverFactoryHelper {
         }
     }
 
-    static void initEdgeDriver(Runnable driverConstruction) {
-        System.setProperty("SE_DRIVER_MIRROR_URL", "https://msedgedriver.microsoft.com");
-        driverConstruction.run();
-        System.clearProperty("SE_DRIVER_MIRROR_URL");
-    }
-
     private void createNewLocalDriverInstance(DriverType driverType, int retryAttempts) {
         String targetPlatform = Properties.platform.targetPlatform().toLowerCase();
         String initialLog = "Attempting to run locally on: \"" + targetPlatform + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
@@ -443,7 +437,9 @@ public class DriverFactoryHelper {
                     disableCacheEdgeAndChrome();
                 }
                 case EDGE -> {
-                    initEdgeDriver(() -> setDriver(new EdgeDriver(optionsManager.getEdOptions())));
+                    System.setProperty("SE_DRIVER_MIRROR_URL", "https://msedgedriver.microsoft.com");
+                    setDriver(new EdgeDriver(optionsManager.getEdOptions()));
+                    System.clearProperty("SE_DRIVER_MIRROR_URL");
                     disableCacheEdgeAndChrome();
                 }
                 case SAFARI -> setDriver(new SafariDriver(optionsManager.getSfOptions()));

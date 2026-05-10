@@ -1,11 +1,17 @@
 package testPackage.unitTests;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.OptionsManager;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+import org.openqa.selenium.edge.EdgeDriver;
+import org.openqa.selenium.edge.EdgeOptions;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -175,28 +181,27 @@ public class DriverFactoryHelperUnitTest {
     }
 
     @Test
-    public void initEdgeDriverShouldNotLeakMirrorUrlToSubsequentBrowserInit() throws Exception {
-        String savedMirrorUrl = System.getProperty("SE_DRIVER_MIRROR_URL");
-        try {
-            AtomicReference<String> duringEdge = new AtomicReference<>();
+    public void edgeDriverInitSetsAndClearsMirrorUrl() throws Exception {
+        AtomicReference<String> duringConstruction = new AtomicReference<>();
+        String saved = System.getProperty("SE_DRIVER_MIRROR_URL");
+        try (
+            MockedConstruction<OptionsManager> ignoredOM = Mockito.mockConstruction(OptionsManager.class,
+                    (om, ctx) -> Mockito.when(om.getEdOptions()).thenReturn(new EdgeOptions()));
+            MockedConstruction<EdgeDriver> ignoredED = Mockito.mockConstruction(EdgeDriver.class,
+                    (driver, ctx) -> duringConstruction.set(System.getProperty("SE_DRIVER_MIRROR_URL")))
+        ) {
+            DriverFactoryHelper helper = new DriverFactoryHelper();
+            Method m = DriverFactoryHelper.class.getDeclaredMethod("createNewLocalDriverInstance", DriverType.class, int.class);
+            m.setAccessible(true);
+            m.invoke(helper, DriverType.EDGE, 0);
 
-            Method initEdgeDriver = DriverFactoryHelper.class.getDeclaredMethod("initEdgeDriver", Runnable.class);
-            initEdgeDriver.setAccessible(true);
-
-            // Simulate Edge arm: initEdgeDriver sets SE_DRIVER_MIRROR_URL then runs the Runnable
-            initEdgeDriver.invoke(null, (Runnable) () -> duringEdge.set(System.getProperty("SE_DRIVER_MIRROR_URL")));
-
-            // Simulate Chrome arm: no setProperty call — Chrome just calls new ChromeDriver()
-            // If SE_DRIVER_MIRROR_URL is still set here, Selenium Manager would pass it to the binary
-            String afterEdge = System.getProperty("SE_DRIVER_MIRROR_URL");
-
-            Assert.assertEquals(duringEdge.get(), "https://msedgedriver.microsoft.com",
-                    "SE_DRIVER_MIRROR_URL must be set during Edge driver construction so Selenium Manager uses the correct CDN");
-            Assert.assertNull(afterEdge,
-                    "SE_DRIVER_MIRROR_URL must not be visible after Edge init — Chrome/Firefox Selenium Manager would otherwise use the Edge CDN URL");
+            Assert.assertEquals(duringConstruction.get(), "https://msedgedriver.microsoft.com",
+                    "SE_DRIVER_MIRROR_URL must be set during EdgeDriver construction");
+            Assert.assertNull(System.getProperty("SE_DRIVER_MIRROR_URL"),
+                    "SE_DRIVER_MIRROR_URL must be cleared after EdgeDriver construction so Chrome/Firefox Selenium Manager is unaffected");
         } finally {
-            if (savedMirrorUrl == null) System.clearProperty("SE_DRIVER_MIRROR_URL");
-            else System.setProperty("SE_DRIVER_MIRROR_URL", savedMirrorUrl);
+            if (saved == null) System.clearProperty("SE_DRIVER_MIRROR_URL");
+            else System.setProperty("SE_DRIVER_MIRROR_URL", saved);
         }
     }
 
