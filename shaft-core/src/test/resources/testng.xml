@@ -6,6 +6,7 @@
             <class name="com.shaft.tools.internal.support.HttpPingUtilityTest"/>
             <class name="com.shaft.tools.internal.support.IsClassAvailableTest"/>
             <class name="com.shaft.validation.internal.CustomSoftAssertTest"/>
+            <class name="com.shaft.validation.internal.PrimitiveValidationsHelperTest"/>
             <class name="com.shaft.validation.internal.ValidationsExecutorIsolationTest"/>
             <class name="com.shaft.properties.internal.PropertyFileManagerTest"/>
             <class name="com.shaft.tools.io.internal.ProjectStructureManagerTest"/>
