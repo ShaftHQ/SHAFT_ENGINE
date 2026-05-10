@@ -254,15 +254,13 @@ public class PropertiesHelper {
                 .forEach(file -> {
                     if (!fileActions.doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + file)) {
                         if (isExternalRun) {
-                            var tempPath = propertiesFolderPath.replace("/default", "");
+                            // copyFolderFromJar already extracted default properties to DEFAULT_PROPERTIES_FOLDER_PATH;
+                            // copy directly from there instead of re-extracting from the JAR (which preserves
+                            // the "default/" sub-path and writes to the wrong location).
                             try {
-                                if (tempPath.contains("file:")) {
-                                    fileActions.copyFileFromJar(tempPath, TARGET_PROPERTIES_FOLDER_PATH, file.replace("/", ""));
-                                } else {
-                                    throw new IOException("Properties folder path does not contain 'file:' protocol, indicating it is not running from a jar file.");
-                                }
+                                fileActions.copyFile(DEFAULT_PROPERTIES_FOLDER_PATH + file, TARGET_PROPERTIES_FOLDER_PATH + file);
                             } catch (Throwable ignored) {
-                                fileActions.copyFile(tempPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);
+                                ReportManager.logDiscrete("Failed to copy default properties from extracted directory.");
                             }
                         } else {
                             fileActions.copyFile(propertiesFolderPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);

@@ -55,7 +55,9 @@ public class ReportHelper {
         disableLogging();
         if (FileActions.getInstance(true).doesFileExist(Properties.paths.properties())) {
             List<List<Object>> attachments = new ArrayList<>();
-            var propertyFiles = Arrays.asList(FileActions.getInstance(true).listFilesInDirectory(Properties.paths.properties(), null).replaceAll("default" + System.lineSeparator(), "").trim().split(System.lineSeparator()));
+            var propertyFiles = Arrays.stream(FileActions.getInstance(true).listFilesInDirectory(Properties.paths.properties(), null).replaceAll("default" + System.lineSeparator(), "").trim().split(System.lineSeparator()))
+                    .filter(f -> !f.isBlank())
+                    .toList();
             propertyFiles.forEach(file -> attachments.add(Arrays.asList("Properties", file.replace(".properties", ""), FileActions.getInstance(true).readFile(Properties.paths.properties() + File.separator + file))));
             ReportManagerHelper.logNestedSteps("Property Files", attachments);
         }
