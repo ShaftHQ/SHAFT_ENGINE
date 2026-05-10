@@ -59,14 +59,15 @@ jobs:
         if: always()
         shell: bash
         run: |
-          if [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
+          ALLURE_RESULTS=$(find . -maxdepth 4 -type d -name "allure-results" ! -path "*/node_modules/*" 2>/dev/null | head -1)
+          if [ -n "$ALLURE_RESULTS" ] && [ -n "$(ls -A "$ALLURE_RESULTS" 2>/dev/null)" ]; then
             ALLURE3_VERSION=$(find . -path '*/com/shaft/properties/internal/Internal.java' ! -path '*/test/*' \
               -exec grep -A2 'Key("allure3Version")' {} \; 2>/dev/null \
               | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/' || true)
             ALLURE3_VERSION=${ALLURE3_VERSION:-3.3.1}
             printf 'plugins:\n  awesome:\n    options:\n      singleFile: true\n      reportLanguage: "en"\n      open: false\n' > allurerc.yaml
             mkdir -p allure-report
-            npx --yes allure@${ALLURE3_VERSION} generate allure-results --config allurerc.yaml -o allure-report || true
+            npx --yes allure@${ALLURE3_VERSION} generate "$ALLURE_RESULTS" --config allurerc.yaml -o allure-report || true
             if [ -f "allure-report/index.html" ]; then
               mv allure-report/index.html allure-report/AllureReport.html
             fi
@@ -110,14 +111,15 @@ jobs:
         if: always()
         shell: bash
         run: |
-          if [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
+          ALLURE_RESULTS=$(find . -maxdepth 4 -type d -name "allure-results" ! -path "*/node_modules/*" 2>/dev/null | head -1)
+          if [ -n "$ALLURE_RESULTS" ] && [ -n "$(ls -A "$ALLURE_RESULTS" 2>/dev/null)" ]; then
             ALLURE3_VERSION=$(find . -path '*/com/shaft/properties/internal/Internal.java' ! -path '*/test/*' \
               -exec grep -A2 'Key("allure3Version")' {} \; 2>/dev/null \
               | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/' || true)
             ALLURE3_VERSION=${ALLURE3_VERSION:-3.3.1}
             printf 'plugins:\n  awesome:\n    options:\n      singleFile: true\n      reportLanguage: "en"\n      open: false\n' > allurerc.yaml
             mkdir -p allure-report
-            npx --yes allure@${ALLURE3_VERSION} generate allure-results --config allurerc.yaml -o allure-report || true
+            npx --yes allure@${ALLURE3_VERSION} generate "$ALLURE_RESULTS" --config allurerc.yaml -o allure-report || true
             if [ -f "allure-report/index.html" ]; then
               mv allure-report/index.html allure-report/AllureReport.html
             fi
@@ -161,14 +163,15 @@ jobs:
         if: always()
         shell: bash
         run: |
-          if [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
+          ALLURE_RESULTS=$(find . -maxdepth 4 -type d -name "allure-results" ! -path "*/node_modules/*" 2>/dev/null | head -1)
+          if [ -n "$ALLURE_RESULTS" ] && [ -n "$(ls -A "$ALLURE_RESULTS" 2>/dev/null)" ]; then
             ALLURE3_VERSION=$(find . -path '*/com/shaft/properties/internal/Internal.java' ! -path '*/test/*' \
               -exec grep -A2 'Key("allure3Version")' {} \; 2>/dev/null \
               | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/' || true)
             ALLURE3_VERSION=${ALLURE3_VERSION:-3.3.1}
             printf 'plugins:\n  awesome:\n    options:\n      singleFile: true\n      reportLanguage: "en"\n      open: false\n' > allurerc.yaml
             mkdir -p allure-report
-            npx --yes allure@${ALLURE3_VERSION} generate allure-results --config allurerc.yaml -o allure-report || true
+            npx --yes allure@${ALLURE3_VERSION} generate "$ALLURE_RESULTS" --config allurerc.yaml -o allure-report || true
             if [ -f "allure-report/index.html" ]; then
               mv allure-report/index.html allure-report/AllureReport.html
             fi
@@ -212,14 +215,15 @@ jobs:
         if: always()
         shell: bash
         run: |
-          if [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
+          ALLURE_RESULTS=$(find . -maxdepth 4 -type d -name "allure-results" ! -path "*/node_modules/*" 2>/dev/null | head -1)
+          if [ -n "$ALLURE_RESULTS" ] && [ -n "$(ls -A "$ALLURE_RESULTS" 2>/dev/null)" ]; then
             ALLURE3_VERSION=$(find . -path '*/com/shaft/properties/internal/Internal.java' ! -path '*/test/*' \
               -exec grep -A2 'Key("allure3Version")' {} \; 2>/dev/null \
               | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/' || true)
             ALLURE3_VERSION=${ALLURE3_VERSION:-3.3.1}
             printf 'plugins:\n  awesome:\n    options:\n      singleFile: true\n      reportLanguage: "en"\n      open: false\n' > allurerc.yaml
             mkdir -p allure-report
-            npx --yes allure@${ALLURE3_VERSION} generate allure-results --config allurerc.yaml -o allure-report || true
+            npx --yes allure@${ALLURE3_VERSION} generate "$ALLURE_RESULTS" --config allurerc.yaml -o allure-report || true
             if [ -f "allure-report/index.html" ]; then
               mv allure-report/index.html allure-report/AllureReport.html
             fi
@@ -273,14 +277,15 @@ jobs:
         if: always()
         shell: bash
         run: |
-          if [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
+          ALLURE_RESULTS=$(find . -maxdepth 4 -type d -name "allure-results" ! -path "*/node_modules/*" 2>/dev/null | head -1)
+          if [ -n "$ALLURE_RESULTS" ] && [ -n "$(ls -A "$ALLURE_RESULTS" 2>/dev/null)" ]; then
             ALLURE3_VERSION=$(find . -path '*/com/shaft/properties/internal/Internal.java' ! -path '*/test/*' \
               -exec grep -A2 'Key("allure3Version")' {} \; 2>/dev/null \
               | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/' || true)
             ALLURE3_VERSION=${ALLURE3_VERSION:-3.3.1}
             printf 'plugins:\n  awesome:\n    options:\n      singleFile: true\n      reportLanguage: "en"\n      open: false\n' > allurerc.yaml
             mkdir -p allure-report
-            npx --yes allure@${ALLURE3_VERSION} generate allure-results --config allurerc.yaml -o allure-report || true
+            npx --yes allure@${ALLURE3_VERSION} generate "$ALLURE_RESULTS" --config allurerc.yaml -o allure-report || true
             if [ -f "allure-report/index.html" ]; then
               mv allure-report/index.html allure-report/AllureReport.html
             fi
