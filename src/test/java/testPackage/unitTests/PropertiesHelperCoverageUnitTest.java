@@ -99,6 +99,28 @@ public class PropertiesHelperCoverageUnitTest {
     }
 
     @Test
+    public void proxyExternalLibPropertiesMustBeInSystemPropertiesWhenProxyIsEnabled() {
+        Map<String, String> saved = new HashMap<>();
+        PropertiesHelper.JVM_SYSTEM_PROPERTIES_PROXY.forEach(key -> saved.put(key, System.getProperty(key)));
+        try {
+            SHAFT.Properties.platform.set().jvmProxySettings(true);
+            SHAFT.Properties.platform.set().proxySettings("proxy.example.com:8080");
+            TestNGListenerHelper.configureJVMProxy();
+            for (String key : PropertiesHelper.JVM_SYSTEM_PROPERTIES_PROXY) {
+                Assert.assertNotNull(System.getProperty(key),
+                        "Key '" + key + "' must be set in System properties after configureJVMProxy() with proxy enabled");
+            }
+        } finally {
+            saved.forEach((key, value) -> {
+                if (value == null) System.clearProperty(key);
+                else System.setProperty(key, value);
+            });
+            SHAFT.Properties.platform.set().jvmProxySettings(false);
+            SHAFT.Properties.platform.set().proxySettings("");
+        }
+    }
+
+    @Test
     public void initializeAiAgentShouldRunForceDownloadInitializationPath() {
         PropertiesHelper.initializeAiAgent();
 
