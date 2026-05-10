@@ -142,8 +142,12 @@ public class TestNGListenerHelperCoverageUnitTest {
         TestNGListenerHelper.failFast(result);
 
         setKillSwitch(true);
-        SkipException exception = Assert.expectThrows(SkipException.class, () -> TestNGListenerHelper.failFast(result));
-        Assert.assertTrue(exception.getMessage().contains("KillSwitchTest"));
+        try {
+            SkipException exception = Assert.expectThrows(SkipException.class, () -> TestNGListenerHelper.failFast(result));
+            Assert.assertTrue(exception.getMessage().contains("KillSwitchTest"));
+        } finally {
+            setKillSwitch(false);
+        }
     }
 
     @Test
