@@ -19,7 +19,7 @@ import java.util.*;
 /**
  * Utility class for loading property files and resolving Appium desired capabilities.
  * Handles discovery of custom and default property files, and maps mobile-prefixed
- * properties into {@link org.openqa.selenium.MutableCapabilities} for Appium sessions.
+ * properties into Selenium's {@code MutableCapabilities} for Appium sessions.
  */
 public final class PropertyFileManager {
 

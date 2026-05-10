@@ -36,7 +36,7 @@ import java.util.List;
  * String value = data.getCellData("Sheet1", "Name", "2");
  * }</pre>
  *
- * @see com.shaft.driver.SHAFT.TestData.EXCEL
+ * <p>Exposed to user code through the {@code SHAFT.TestData.EXCEL} facade.
  */
 @SuppressWarnings("unused")
 public class ExcelFileManager {

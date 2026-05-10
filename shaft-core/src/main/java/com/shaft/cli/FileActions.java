@@ -37,7 +37,7 @@ import java.util.zip.ZipOutputStream;
  * FileActions.getInstance().copyFile("source.txt", "dest.txt");
  * }</pre>
  *
- * @see com.shaft.driver.SHAFT.CLI
+ * <p>Exposed to user code through the {@code SHAFT.CLI} facade.
  */
 public class FileActions {
     private static final String ERROR_CANNOT_CREATE_DIRECTORY = "Could not create directory: ";

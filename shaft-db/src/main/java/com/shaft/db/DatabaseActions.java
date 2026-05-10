@@ -31,7 +31,7 @@ import java.util.concurrent.Executors;
  * ResultSet rs = db.executeSelectQuery("SELECT * FROM users");
  * }</pre>
  *
- * @see com.shaft.driver.SHAFT.DB
+ * <p>Exposed to user code through the {@code SHAFT.DB} facade.
  */
 @SuppressWarnings("unused")
 public class DatabaseActions {

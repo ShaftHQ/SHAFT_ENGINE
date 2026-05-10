@@ -32,7 +32,7 @@ import java.util.Map;
  * String name = testData.getTestData("$.users[0].name");
  * }</pre>
  *
- * @see com.shaft.driver.SHAFT.TestData.JSON
+ * <p>Exposed to user code through the {@code SHAFT.TestData.JSON} facade.
  */
 @SuppressWarnings("unused")
 public class JSONFileManager {

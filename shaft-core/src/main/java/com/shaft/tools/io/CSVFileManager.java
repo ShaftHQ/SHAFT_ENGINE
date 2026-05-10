@@ -23,7 +23,7 @@ import java.util.*;
  * String value = data.getCellData("username", 1);
  * }</pre>
  *
- * @see com.shaft.driver.SHAFT.TestData.CSV
+ * <p>Exposed to user code through the {@code SHAFT.TestData.CSV} facade.
  */
 @SuppressWarnings("unused")
 public class CSVFileManager {

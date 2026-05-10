@@ -65,7 +65,7 @@ import static io.restassured.RestAssured.given;
  * parsing, and validation for RESTful web services. It supports GET, POST,
  * PUT, PATCH, and DELETE methods, along with GraphQL queries.
  *
- * <p>For new code, prefer using {@link com.shaft.driver.SHAFT.API} which
+ * <p>For new code, prefer using the {@code SHAFT.API} facade which
  * provides a cleaner, session-scoped fluent interface. This class remains
  * available for legacy compatibility and for its static utility methods
  * such as {@link #getResponseJSONValue(Response, String)}.
@@ -77,7 +77,6 @@ import static io.restassured.RestAssured.given;
  * String title = api.getResponseJSONValue("$.title");
  * }</pre>
  *
- * @see com.shaft.driver.SHAFT.API
  * @see RequestBuilder
  * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
  */
@@ -155,7 +154,7 @@ public class RestActions {
 
     /**
      * Builds a new API request using a static factory approach.
-     * Prefer using {@link com.shaft.driver.SHAFT.API} and its instance-level
+     * Prefer using the {@code SHAFT.API} facade and its instance-level
      * {@link #buildNewRequest(String, RequestType)} for new tests.
      *
      * @param serviceURI    the base URI of the service (e.g. {@code "https://api.example.com/"})

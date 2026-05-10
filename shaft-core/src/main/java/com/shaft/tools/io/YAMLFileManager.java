@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
  * String value = data.getTestData("database.host");
  * }</pre>
  *
- * @see com.shaft.driver.SHAFT.TestData.YAML
+ * <p>Exposed to user code through the {@code SHAFT.TestData.YAML} facade.
  */
 @SuppressWarnings("unused")
 public class YAMLFileManager {

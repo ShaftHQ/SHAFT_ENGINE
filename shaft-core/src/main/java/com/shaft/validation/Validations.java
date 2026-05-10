@@ -15,7 +15,8 @@ import com.shaft.validation.internal.ValidationsBuilder;
  * Validations.verifyThat().number(count).isGreaterThan(0).perform();
  * }</pre>
  *
- * @see com.shaft.driver.SHAFT.Validations
+ * <p>Exposed to user code through the {@code SHAFT.Validations} facade.
+ *
  * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Validations</a>
  */
 public class Validations {

@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
  * SHAFT.CLI.terminal().performTerminalCommand("ls -la");
  * }</pre>
  *
- * @see com.shaft.driver.SHAFT.CLI
+ * <p>Exposed to user code through the {@code SHAFT.CLI} facade.
  */
 @SuppressWarnings("unused")
 public class TerminalActions {

@@ -15,7 +15,8 @@ import static com.shaft.tools.io.internal.ReportManagerHelper.*;
  *
  * <p>This is a utility class and cannot be instantiated.
  *
- * @see com.shaft.driver.SHAFT.Report
+ * <p>Exposed to user code through the {@code SHAFT.Report} facade.
+ *
  * @see <a href="https://shafthq.github.io/">SHAFT User Guide</a>
  */
 public class ReportManager {
