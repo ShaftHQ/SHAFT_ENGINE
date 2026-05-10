@@ -12,7 +12,7 @@ import java.util.Objects;
 
 public class RestActionsTests {
 
-    @Test
+    @Test(groups = "externalApi")
     public void getPostsAndAssertBodyForSpecificTitle() {
         String serviceURI = "https://jsonplaceholder.typicode.com/";
 
@@ -27,7 +27,7 @@ public class RestActionsTests {
         });
     }
 
-    @Test
+    @Test(groups = "externalApi")
     public void validateUserEmail() {
         RestActions apiObject = new RestActions("https://jsonplaceholder.typicode.com");
         Response users = apiObject.buildNewRequest("/users", RequestType.GET).setTargetStatusCode(200).performRequest().getResponse();
@@ -41,7 +41,7 @@ public class RestActionsTests {
         });
     }
 
-    @Test
+    @Test(groups = "externalApi")
     public void validateUserId() {
         RestActions apiObject = new RestActions("https://jsonplaceholder.typicode.com");
         Response users = apiObject.buildNewRequest("/users", RequestType.GET).setTargetStatusCode(200).performRequest().getResponse();
@@ -50,7 +50,7 @@ public class RestActionsTests {
         Validations.assertThat().object(uerId).isEqualTo("5").perform();
     }
 
-    @Test
+    @Test(groups = "externalApi")
     public void validateProductId() {
         RestActions apiObject = new RestActions("https://automationexercise.com/api");
         Response users = apiObject.buildNewRequest("/productsList", RequestType.GET).setTargetStatusCode(200).performRequest().getResponse();

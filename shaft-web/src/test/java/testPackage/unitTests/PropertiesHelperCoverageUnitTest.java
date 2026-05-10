@@ -1,9 +1,12 @@
 package testPackage.unitTests;
 
+import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.PropertiesHelper;
 import org.apache.commons.lang3.SystemUtils;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -75,11 +78,16 @@ public class PropertiesHelperCoverageUnitTest {
 
     @Test
     public void initializeAiAgentShouldRunForceDownloadInitializationPath() {
-        PropertiesHelper.initializeAiAgent();
+        try (MockedStatic<FileActions> fileActionsMocked = Mockito.mockStatic(FileActions.class)) {
+            FileActions mockFileActions = Mockito.mock(FileActions.class);
+            fileActionsMocked.when(() -> FileActions.getInstance(true)).thenReturn(mockFileActions);
 
-        Assert.assertTrue(Properties.isInitialized(), "AI-agent initialization should load properties.");
-        Assert.assertTrue(Properties.paths.properties().contains("temp" + File.separator + "properties"),
-                "AI-agent initialization should configure the temporary properties path.");
+            PropertiesHelper.initializeAiAgent();
+
+            Assert.assertTrue(Properties.isInitialized(), "AI-agent initialization should load properties.");
+            Assert.assertEquals(Properties.paths.properties(), "src/main/resources/properties",
+                    "AI-agent initialization should configure the standard properties path.");
+        }
     }
 
     @Test

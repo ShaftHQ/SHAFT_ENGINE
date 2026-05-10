@@ -221,16 +221,27 @@ public class TestNGListenerHelperCoverageUnitTest {
     public void setTotalNumberOfTestsShouldSkipCucumberRunScenarioSuites() {
         ITestNGMethod normalMethod = Mockito.mock(ITestNGMethod.class);
         Mockito.when(normalMethod.getMethodName()).thenReturn("regularTest");
-        org.testng.ISuite normalSuite = Mockito.mock(org.testng.ISuite.class);
-        Mockito.when(normalSuite.getAllMethods()).thenReturn(List.of(normalMethod));
+        org.testng.ISuite normalSuite = stubbedSuite(List.of(normalMethod));
 
         ITestNGMethod cucumberMethod = Mockito.mock(ITestNGMethod.class);
         Mockito.when(cucumberMethod.getMethodName()).thenReturn("runScenario");
-        org.testng.ISuite cucumberSuite = Mockito.mock(org.testng.ISuite.class);
-        Mockito.when(cucumberSuite.getAllMethods()).thenReturn(List.of(cucumberMethod));
+        org.testng.ISuite cucumberSuite = stubbedSuite(List.of(cucumberMethod));
 
         TestNGListenerHelper.setTotalNumberOfTests(normalSuite);
         TestNGListenerHelper.setTotalNumberOfTests(cucumberSuite);
+    }
+
+    private static org.testng.ISuite stubbedSuite(List<ITestNGMethod> methods) {
+        return (org.testng.ISuite) java.lang.reflect.Proxy.newProxyInstance(
+                org.testng.ISuite.class.getClassLoader(),
+                new Class<?>[]{org.testng.ISuite.class},
+                (proxy, method, args) -> {
+                    if ("getAllMethods".equals(method.getName())) return methods;
+                    if (method.getReturnType() == boolean.class) return false;
+                    if (method.getReturnType() == int.class) return 0;
+                    return null;
+                }
+        );
     }
 
     @Test
