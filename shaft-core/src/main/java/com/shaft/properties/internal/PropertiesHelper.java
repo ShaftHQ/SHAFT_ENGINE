@@ -273,7 +273,7 @@ public class PropertiesHelper {
     }
 
     private static void downloadPropertiesFile(String fileName) {
-        var baseURI = "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/main/src/main/resources/properties/default/";
+        var baseURI = "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/main/shaft-core/src/main/resources/properties/default/";
         FileActions.getInstance(true).downloadFile(baseURI + fileName,
                 Properties.paths.properties() + File.separator + fileName);
     }

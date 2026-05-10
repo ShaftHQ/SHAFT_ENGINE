@@ -22,7 +22,7 @@ public interface Internal extends EngineProperties<Internal> {
     String shaftEngineVersion();
 
     @Key("watermarkImagePath")
-    @DefaultValue("https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/src/main/resources/images/shaft_white_bg.png")
+    @DefaultValue("https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/shaft-core/src/main/resources/images/shaft_white_bg.png")
     String watermarkImagePath();
 
     /**

@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class ExecutionSummaryReport {
     private static final ConcurrentHashMap<Integer, ArrayList<?>> casesDetails = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Integer, ArrayList<?>> validations = new ConcurrentHashMap<>();
-    private static final String SHAFT_LOGO_URL = "https://github.com/ShaftHQ/SHAFT_ENGINE/raw/main/src/main/resources/images/shaft.png";
+    private static final String SHAFT_LOGO_URL = "https://github.com/ShaftHQ/SHAFT_ENGINE/raw/main/shaft-core/src/main/resources/images/shaft.png";
     private static final AtomicInteger passedValidations = new AtomicInteger(0);
     private static final AtomicInteger failedValidations = new AtomicInteger(0);
     private static final DateTimeFormatter FILENAME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSSS-a").withZone(ZoneId.systemDefault());
