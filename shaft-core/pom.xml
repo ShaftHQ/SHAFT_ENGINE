@@ -21,7 +21,6 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <jdk.version>25</jdk.version>
         <lombok.version>1.18.46</lombok.version>
-        <log4j2.version>2.26.0</log4j2.version>
     </properties>
 
     <dependencyManagement>
@@ -126,29 +125,24 @@
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-api</artifactId>
-            <version>${log4j2.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-core</artifactId>
-            <version>${log4j2.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j2-impl</artifactId>
-            <version>${log4j2.version}</version>
         </dependency>
         <!-- Log4j 1.x bridge (org.apache.log4j.BasicConfigurator in ReportManagerHelper) -->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-1.2-api</artifactId>
-            <version>${log4j2.version}</version>
         </dependency>
         <!-- org.json (FirestoreRestClient) -->
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
-            <version>20251224</version>
         </dependency>
         <!-- JSch for SSH -->
         <dependency>
