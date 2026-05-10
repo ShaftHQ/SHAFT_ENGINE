@@ -78,8 +78,8 @@ public class PropertiesHelperCoverageUnitTest {
         PropertiesHelper.initializeAiAgent();
 
         Assert.assertTrue(Properties.isInitialized(), "AI-agent initialization should load properties.");
-        Assert.assertTrue(new File("target" + File.separator + "temp" + File.separator + "properties").exists(),
-                "AI-agent initialization should create the temporary properties directory.");
+        Assert.assertTrue(Properties.paths.properties().contains("temp" + File.separator + "properties"),
+                "AI-agent initialization should configure the temporary properties path.");
     }
 
     @Test

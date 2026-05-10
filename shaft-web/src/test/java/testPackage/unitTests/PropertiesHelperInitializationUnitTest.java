@@ -8,8 +8,6 @@ import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Files;
 import java.util.List;
 
 @Test(singleThreaded = true)
@@ -47,19 +45,23 @@ public class PropertiesHelperInitializationUnitTest {
 
     @Test
     public void defaultCustomPropertiesTemplateShouldContainCommonDefaultsAndDocumentationLink() throws IOException {
-        String customTemplateContent = Files.readString(Path.of(PROPERTIES_FOLDER_PATH, "default", "custom.properties"));
+        // custom.properties lives in shaft-core/src/main/resources/properties/default/ — read via classpath.
+        try (var stream = PropertiesHelperInitializationUnitTest.class.getResourceAsStream("/properties/default/custom.properties")) {
+            Assert.assertNotNull(stream, "custom.properties template must be on the classpath (from shaft-core).");
+            String customTemplateContent = new String(stream.readAllBytes());
 
-        Assert.assertTrue(customTemplateContent.contains("https://shafthq.github.io/"),
-                "custom.properties template should include a user guide link.");
-        Assert.assertTrue(customTemplateContent.contains("executionAddress=local"));
-        Assert.assertTrue(customTemplateContent.contains("targetOperatingSystem=Linux"));
-        Assert.assertTrue(customTemplateContent.contains("targetBrowserName=chrome"));
-        Assert.assertTrue(customTemplateContent.contains("headlessExecution=false"));
-        Assert.assertTrue(customTemplateContent.contains("setParallel=NONE"));
-        Assert.assertTrue(customTemplateContent.contains("setThreadCount=1"));
-        Assert.assertTrue(customTemplateContent.contains("retryMaximumNumberOfAttempts=0"));
-        Assert.assertTrue(customTemplateContent.contains("maximumPerformanceMode=0"));
-        Assert.assertTrue(customTemplateContent.contains("screenshotParamsWhenToTakeAScreenshot=ValidationPointsOnly"));
+            Assert.assertTrue(customTemplateContent.contains("https://shafthq.github.io/"),
+                    "custom.properties template should include a user guide link.");
+            Assert.assertTrue(customTemplateContent.contains("executionAddress=local"));
+            Assert.assertTrue(customTemplateContent.contains("targetOperatingSystem=Linux"));
+            Assert.assertTrue(customTemplateContent.contains("targetBrowserName=chrome"));
+            Assert.assertTrue(customTemplateContent.contains("headlessExecution=false"));
+            Assert.assertTrue(customTemplateContent.contains("setParallel=NONE"));
+            Assert.assertTrue(customTemplateContent.contains("setThreadCount=1"));
+            Assert.assertTrue(customTemplateContent.contains("retryMaximumNumberOfAttempts=0"));
+            Assert.assertTrue(customTemplateContent.contains("maximumPerformanceMode=0"));
+            Assert.assertTrue(customTemplateContent.contains("screenshotParamsWhenToTakeAScreenshot=ValidationPointsOnly"));
+        }
     }
 
     private void deleteGeneratedPropertyFile(String fileName) {
