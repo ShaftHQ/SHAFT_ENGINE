@@ -227,21 +227,13 @@ jobs:
         run: mvn install -DskipTests "-Dgpg.skip=true"
       - name: Run shaft-api-consumer tests
         continue-on-error: true
-        run: mvn test -f shaft-web/src/main/resources/examples/consumer/shaft-api-consumer/pom.xml "-Dallure.results.directory=allure-results-api"
+        run: mvn test -f shaft-web/src/main/resources/examples/consumer/shaft-api-consumer/pom.xml "-Dallure.cleanResultsDirectory=false" "-Dallure.accumulateReports=false"
       - name: Run shaft-web-consumer tests
         continue-on-error: true
-        run: mvn test -f shaft-web/src/main/resources/examples/consumer/shaft-web-consumer/pom.xml "-Dallure.results.directory=allure-results-web"
+        run: mvn test -f shaft-web/src/main/resources/examples/consumer/shaft-web-consumer/pom.xml "-Dallure.cleanResultsDirectory=false" "-Dallure.accumulateReports=false"
       - name: Run shaft-engine-consumer tests
         continue-on-error: true
-        run: mvn test -f shaft-web/src/main/resources/examples/consumer/shaft-engine-consumer/pom.xml "-Dallure.results.directory=allure-results-engine"
-      - name: Merge consumer allure results
-        if: always()
-        shell: bash
-        run: |
-          mkdir -p allure-results
-          for dir in allure-results-api allure-results-web allure-results-engine; do
-            [ -d "$dir" ] && find "$dir" -maxdepth 1 -name "*.json" -exec cp {} allure-results/ \; 2>/dev/null || true
-          done
+        run: mvn test -f shaft-web/src/main/resources/examples/consumer/shaft-engine-consumer/pom.xml "-Dallure.cleanResultsDirectory=false" "-Dallure.accumulateReports=false"
       - name: Consolidate surefire reports
         if: always()
         shell: bash
