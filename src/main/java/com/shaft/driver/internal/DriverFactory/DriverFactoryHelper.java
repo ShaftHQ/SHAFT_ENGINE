@@ -419,6 +419,12 @@ public class DriverFactoryHelper {
         }
     }
 
+    static void initEdgeDriver(Runnable driverConstruction) {
+        System.setProperty("SE_DRIVER_MIRROR_URL", "https://msedgedriver.microsoft.com");
+        driverConstruction.run();
+        System.clearProperty("SE_DRIVER_MIRROR_URL");
+    }
+
     private void createNewLocalDriverInstance(DriverType driverType, int retryAttempts) {
         String targetPlatform = Properties.platform.targetPlatform().toLowerCase();
         String initialLog = "Attempting to run locally on: \"" + targetPlatform + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
@@ -437,11 +443,7 @@ public class DriverFactoryHelper {
                     disableCacheEdgeAndChrome();
                 }
                 case EDGE -> {
-                    // Selenium Manager scans SE_* system properties synchronously during driver instantiation.
-                    // Clear after construction so other browsers in the same JVM are not affected.
-                    System.setProperty("SE_DRIVER_MIRROR_URL", "https://msedgedriver.microsoft.com");
-                    setDriver(new EdgeDriver(optionsManager.getEdOptions()));
-                    System.clearProperty("SE_DRIVER_MIRROR_URL");
+                    initEdgeDriver(() -> setDriver(new EdgeDriver(optionsManager.getEdOptions())));
                     disableCacheEdgeAndChrome();
                 }
                 case SAFARI -> setDriver(new SafariDriver(optionsManager.getSfOptions()));

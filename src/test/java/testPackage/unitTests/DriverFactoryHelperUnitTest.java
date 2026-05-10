@@ -2,6 +2,7 @@ package testPackage.unitTests;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -9,6 +10,7 @@ import org.testng.annotations.Test;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class DriverFactoryHelperUnitTest {
     private String savedExecutionAddress;
@@ -170,6 +172,32 @@ public class DriverFactoryHelperUnitTest {
         String result = (String) redactMethod.invoke(null, malformedUrl);
 
         SHAFT.Validations.assertThat().object(result).isEqualTo(malformedUrl).perform();
+    }
+
+    @Test
+    public void initEdgeDriverShouldNotLeakMirrorUrlToSubsequentBrowserInit() throws Exception {
+        String savedMirrorUrl = System.getProperty("SE_DRIVER_MIRROR_URL");
+        try {
+            AtomicReference<String> duringEdge = new AtomicReference<>();
+
+            Method initEdgeDriver = DriverFactoryHelper.class.getDeclaredMethod("initEdgeDriver", Runnable.class);
+            initEdgeDriver.setAccessible(true);
+
+            // Simulate Edge arm: initEdgeDriver sets SE_DRIVER_MIRROR_URL then runs the Runnable
+            initEdgeDriver.invoke(null, (Runnable) () -> duringEdge.set(System.getProperty("SE_DRIVER_MIRROR_URL")));
+
+            // Simulate Chrome arm: no setProperty call — Chrome just calls new ChromeDriver()
+            // If SE_DRIVER_MIRROR_URL is still set here, Selenium Manager would pass it to the binary
+            String afterEdge = System.getProperty("SE_DRIVER_MIRROR_URL");
+
+            Assert.assertEquals(duringEdge.get(), "https://msedgedriver.microsoft.com",
+                    "SE_DRIVER_MIRROR_URL must be set during Edge driver construction so Selenium Manager uses the correct CDN");
+            Assert.assertNull(afterEdge,
+                    "SE_DRIVER_MIRROR_URL must not be visible after Edge init — Chrome/Firefox Selenium Manager would otherwise use the Edge CDN URL");
+        } finally {
+            if (savedMirrorUrl == null) System.clearProperty("SE_DRIVER_MIRROR_URL");
+            else System.setProperty("SE_DRIVER_MIRROR_URL", savedMirrorUrl);
+        }
     }
 
     private static String getTargetHubUrl() throws NoSuchFieldException, IllegalAccessException {
