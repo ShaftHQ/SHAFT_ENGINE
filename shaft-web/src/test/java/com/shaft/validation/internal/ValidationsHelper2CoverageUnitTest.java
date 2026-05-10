@@ -151,12 +151,14 @@ public class ValidationsHelper2CoverageUnitTest {
         Method normalizeDirection = ValidationsHelper2.class.getDeclaredMethod("normalizeDirection", String.class);
         normalizeDirection.setAccessible(true);
 
-        Method setCommonParameters = ValidationsHelper2.class.getDeclaredMethod("setCommonParameters", Object.class, Object.class, String.class);
+        // setCommonParameters, formatAssertionErrorWithAutoDetectedPackage, and performValidation
+        // now live on the PrimitiveValidationsHelper parent class in shaft-core; reflect there.
+        Method setCommonParameters = PrimitiveValidationsHelper.class.getDeclaredMethod("setCommonParameters", Object.class, Object.class, String.class);
         setCommonParameters.setAccessible(true);
 
-        Method formatAssertionError = ValidationsHelper2.class.getDeclaredMethod("formatAssertionErrorWithAutoDetectedPackage", AssertionError.class);
+        Method formatAssertionError = PrimitiveValidationsHelper.class.getDeclaredMethod("formatAssertionErrorWithAutoDetectedPackage", AssertionError.class);
         formatAssertionError.setAccessible(true);
-        Method performValidation = ValidationsHelper2.class.getDeclaredMethod("performValidation", Object.class, Object.class, Object.class, ValidationEnums.ValidationType.class);
+        Method performValidation = PrimitiveValidationsHelper.class.getDeclaredMethod("performValidation", Object.class, Object.class, Object.class, ValidationEnums.ValidationType.class);
         performValidation.setAccessible(true);
 
         ValidationsHelper2 helper = new ValidationsHelper2(ValidationEnums.ValidationCategory.HARD_ASSERT);

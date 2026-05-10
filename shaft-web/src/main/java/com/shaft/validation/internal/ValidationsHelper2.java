@@ -32,110 +32,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class ValidationsHelper2 {
-    private final ValidationEnums.ValidationCategory validationCategory;
-    private final String validationCategoryString;
+public class ValidationsHelper2 extends PrimitiveValidationsHelper {
 
-    ValidationsHelper2(ValidationEnums.ValidationCategory validationCategory) {
-        this.validationCategory = validationCategory;
-        this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
-    }
-
-    /**
-     * Automatically formats an AssertionError by detecting the package from the stack trace.
-     * This method extracts the package from the first stack trace element that is not from
-     * framework packages (org.testng, java, com.shaft.validation.internal, etc.)
-     *
-     * @param error the AssertionError to format
-     * @return formatted error message, or null if formatting fails
-     */
-    private static String formatAssertionErrorWithAutoDetectedPackage(AssertionError error) {
-        if (error == null) {
-            return null;
-        }
-        
-        StackTraceElement[] stackTrace = error.getStackTrace();
-        // Framework packages to skip when looking for test code
-        String[] frameworkPackages = {"org.testng", "java.", "jdk.", "com.shaft.validation.internal",
-                                      "com.shaft.validation", "com.shaft.tools", "com.shaft.driver", "com.shaft.gui"};
-        
-        // Generic top-level domains to avoid as fallback patterns
-        String[] genericTlds = {"com", "org", "net", "java", "jdk"};
-        
-        // Find the first stack trace element that is from test code (not framework code)
-        for (StackTraceElement element : stackTrace) {
-            String className = element.getClassName();
-            
-            // Skip framework packages
-            boolean isFrameworkPackage = false;
-            for (String frameworkPkg : frameworkPackages) {
-                if (className.startsWith(frameworkPkg)) {
-                    isFrameworkPackage = true;
-                    break;
-                }
-            }
-            
-            if (!isFrameworkPackage && element.getLineNumber() > 0) {
-                // Extract package from class name (everything before the last dot)
-                int lastDotIndex = className.lastIndexOf('.');
-                if (lastDotIndex > 0) {
-                    String packageName = className.substring(0, lastDotIndex);
-                    // Try formatting with the detected package
-                    String formatted = CustomSoftAssert.formatFailureWithStackTrace(error, packageName);
-                    if (formatted != null) {
-                        return formatted;
-                    }
-                    // If exact package doesn't work, try with common patterns (but avoid generic TLDs)
-                    String firstPackageSegment = packageName.split("\\.")[0];
-                    String[] commonPatterns = {"tests", "test"};
-                    // Only add first segment if it's not a generic TLD
-                    boolean isGenericTld = false;
-                    for (String tld : genericTlds) {
-                        if (firstPackageSegment.equals(tld)) {
-                            isGenericTld = true;
-                            break;
-                        }
-                    }
-                    if (!isGenericTld) {
-                        commonPatterns = new String[]{firstPackageSegment, "tests", "test"};
-                    }
-                    for (String pattern : commonPatterns) {
-                        formatted = CustomSoftAssert.formatFailureWithStackTrace(error, pattern);
-                        if (formatted != null) {
-                            return formatted;
-                        }
-                    }
-                }
-            }
-        }
-        
-        return null;
-    }
-
-    protected void validateEquals(Object expected, Object actual,
-                                  ValidationEnums.ValidationComparisonType comparisonType, ValidationEnums.ValidationType validationType) {
-        // read actual value based on desired attribute
-        // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
-
-        //reporting block
-        String comparisonTypeStr = ValidationEnums.ValidationType.NEGATIVE.name().equals(validationType.name()) ? "not " + comparisonType.name() : comparisonType.name();
-        var parameters = new LinkedHashMap<>(setCommonParameters(expected, actual, comparisonTypeStr));
-        updateAllureParameters(parameters);
-        //end of reporting block
-        boolean validationState = performValidation(expected, actual, comparisonType, validationType);
-        reportValidationState(validationState, expected, actual, null, null, null);
-    }
-
-    protected void validateNumber(Number expected, Number actual,
-                                  ValidationEnums.NumbersComparativeRelation comparisonType, ValidationEnums.ValidationType validationType) {
-        // read actual value based on desired attribute
-        // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
-        boolean validationState = performValidation(expected, actual, comparisonType, validationType);
-        //reporting block
-        String comparisonTypeStr = ValidationEnums.ValidationType.NEGATIVE.name().equals(validationType.name()) ? "not " + comparisonType.name() : comparisonType.name();
-        var parameters = new LinkedHashMap<>(setCommonParameters(expected, actual, comparisonTypeStr));
-        updateAllureParameters(parameters);
-        reportValidationState(validationState, expected, actual, null, null, null);
+    public ValidationsHelper2(ValidationEnums.ValidationCategory validationCategory) {
+        super(validationCategory);
     }
 
     protected void validateBrowserAttribute(WebDriver driver, String attribute,
@@ -176,7 +76,7 @@ public class ValidationsHelper2 {
         parameters.put("Attribute", attribute);
         parameters.putAll(setCommonParameters(expected, actual, comparisonTypeStr));
         updateAllureParameters(parameters);
-        reportValidationState(validationState.get(), expected, actual, driver, null, null);
+        reportWebValidationState(validationState.get(), expected, actual, driver, null, null);
     }
 
     protected void validateElementDomProperty(WebDriver driver, By locator, String domProperty,
@@ -203,7 +103,7 @@ public class ValidationsHelper2 {
         parameters.put("DOM Property", domProperty);
         parameters.putAll(setCommonParameters(expected, actual, comparisonTypeStr));
         updateAllureParameters(parameters);
-        reportValidationState(validationState.get(), expected, actual, driver, locator, null);
+        reportWebValidationState(validationState.get(), expected, actual, driver, locator, null);
     }
 
     protected void validateElementAttribute(WebDriver driver, By locator, String attribute,
@@ -232,7 +132,7 @@ public class ValidationsHelper2 {
         parameters.put("Attribute", attribute);
         parameters.putAll(setCommonParameters(expected, actual, comparisonTypeStr));
         updateAllureParameters(parameters);
-        reportValidationState(validationState.get(), expected, actual, driver, locator, null);
+        reportWebValidationState(validationState.get(), expected, actual, driver, locator, null);
     }
 
 
@@ -267,7 +167,7 @@ public class ValidationsHelper2 {
         parameters.put("DOM Attribute", attribute);
         parameters.putAll(setCommonParameters(expected, actual, comparisonTypeStr));
         updateAllureParameters(parameters);
-        reportValidationState(validationState.get(), expected, actual, driver, locator, null);
+        reportWebValidationState(validationState.get(), expected, actual, driver, locator, null);
     }
 
     protected void validateElementCSSProperty(WebDriver driver, By locator, String property,
@@ -293,7 +193,7 @@ public class ValidationsHelper2 {
         parameters.put("CSS Property", property);
         parameters.putAll(setCommonParameters(expected, actual, comparisonTypeStr));
         updateAllureParameters(parameters);
-        reportValidationState(validationState.get(), expected, actual, driver, locator, null);
+        reportWebValidationState(validationState.get(), expected, actual, driver, locator, null);
     }
 
     protected void validateElementExists(WebDriver driver, By locator,
@@ -325,7 +225,7 @@ public class ValidationsHelper2 {
         updateAllureParameters(parameters);
 
         // force take page screenshot, (rather than element highlighted screenshot)
-        reportValidationState(validationState.get(), expected, actual, driver, elementCount.get() == 0 ? null : locator, null);
+        reportWebValidationState(validationState.get(), expected, actual, driver, elementCount.get() == 0 ? null : locator, null);
     }
 
 
@@ -432,7 +332,7 @@ public class ValidationsHelper2 {
         parameters.put("Actual value", String.valueOf(actual.get()));
         updateAllureParameters(parameters);
         // force take page screenshot, (rather than element highlighted screenshot)
-        reportValidationState(validationState.get(), expected, actual, driver, elementCount.get() == 0 ? null : locator, attachments);
+        reportWebValidationState(validationState.get(), expected, actual, driver, elementCount.get() == 0 ? null : locator, attachments);
     }
 
     private String getPageText(WebDriver driver) {
@@ -515,103 +415,50 @@ public class ValidationsHelper2 {
         return "rtl".equalsIgnoreCase(direction) ? "rtl" : "ltr";
     }
 
-    private LinkedHashMap<String, String> setCommonParameters(Object expected, Object actual, String comparisonType) {
-        var commonParams = new LinkedHashMap<String, String>();
-        commonParams.put("Expected value", String.valueOf(expected));
-        commonParams.put("Comparison type", JavaHelper.convertToSentenceCase(comparisonType));
-        commonParams.put("Actual value", String.valueOf(actual));
-        return commonParams;
-    }
-
-    // this method will accept a hashmap of String parameter names and values to be added to the current step in allure
-    private void updateAllureParameters(LinkedHashMap<String, String> parameters) {
-        //reporting block
-        List<Parameter> params = new ArrayList<>();
-        parameters.forEach((key, value) -> params.add(new Parameter().setName(key).setValue(String.valueOf(value)).setMode(Parameter.Mode.DEFAULT)));
-        Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(params));
-    }
-
-    private boolean performValidation(Object expected, Object actual,
-                                      Object comparisonType, ValidationEnums.ValidationType validationType) {
-        // compare actual and expected results
-        int comparisonResult = 0;
-        if (comparisonType instanceof ValidationEnums.ValidationComparisonType validationComparisonType) {
-            // comparison integer is used for all string-based, null, boolean, and Object comparisons
-            comparisonResult = JavaHelper.compareTwoObjects(expected, actual,
-                    validationComparisonType.getValue(), validationType.getValue());
-        } else if (comparisonType instanceof ValidationEnums.NumbersComparativeRelation numbersComparativeRelation) {
-            // this means that it is a number-based comparison
-            comparisonResult = JavaHelper.compareTwoObjects(expected, actual,
-                    numbersComparativeRelation, validationType.getValue());
+    /**
+     * Driver-aware reporting for web validation methods. The primitive (no-driver) path is
+     * handled by {@code super.reportPrimitiveValidationState(...)} in shaft-core.
+     */
+    private void reportWebValidationState(boolean validationState, Object expected, Object actual,
+                                           WebDriver driver, By locator, List<List<Object>> attachments) {
+        if (driver == null) {
+            // No driver provided — delegate to the primitive (no-driver) path in the base class.
+            super.reportPrimitiveValidationState(validationState, expected, actual, attachments);
+            return;
         }
-        // set validation state based on comparison results
-        boolean validationState;
-        if (comparisonResult == 1) {
-            validationState = ValidationEnums.ValidationState.PASSED.getValue();
-        } else {
-            validationState = ValidationEnums.ValidationState.FAILED.getValue();
-        }
-        return validationState;
-    }
-
-    private void reportValidationState(boolean validationState, Object expected, Object actual, WebDriver driver, By locator, List<List<Object>> attachments) {
-        //initialize attachments object if no attachments were already prepared
         attachments = attachments == null ? new ArrayList<>() : attachments;
-
-        // prepare WebDriver attachments
-        if (driver != null) {
-            // prepare screenshot with element highlighting
-            if (attachments.isEmpty())
-                attachments.add(new ScreenshotManager().takeScreenshot(driver, locator, this.validationCategoryString, validationState));
-            // prepare page snapshot mhtml/html
-            var whenToTakePageSourceSnapshot = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().toLowerCase();
-            if (!validationState
-                    || Arrays.asList("always", "validationpointsonly").contains(whenToTakePageSourceSnapshot)) {
-                var logMessage = "";
-                var pageSnapshot = new BrowserActionsHelper(true).capturePageSnapshot(driver);
-                if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
-                    logMessage = "page snapshot";
-                } else if (pageSnapshot.startsWith("<html")) {
-                    logMessage = "page HTML";
-                }
-                List<Object> pageSourceAttachment = Arrays.asList(this.validationCategoryString, logMessage, pageSnapshot);
-                attachments.add(pageSourceAttachment);
-            }
-        } else {
-            // prepare testData attachments
-            boolean isExpectedOrActualValueLong = ValidationsHelper.isExpectedOrActualValueLong(String.valueOf(expected), String.valueOf(actual));
-            if (isExpectedOrActualValueLong) {
-                List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
-                        expected);
-                List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value", actual);
-                attachments.add(expectedValueAttachment);
-                attachments.add(actualValueAttachment);
-                ReportManager.logDiscrete("Expected and Actual values are attached.");
-            }
+        if (attachments.isEmpty()) {
+            attachments.add(new ScreenshotManager().takeScreenshot(driver, locator, this.validationCategoryString, validationState));
         }
-        // add attachments
+        var whenToTakePageSourceSnapshot = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().toLowerCase();
+        if (!validationState
+                || Arrays.asList("always", "validationpointsonly").contains(whenToTakePageSourceSnapshot)) {
+            var logMessage = "";
+            var pageSnapshot = new BrowserActionsHelper(true).capturePageSnapshot(driver);
+            if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
+                logMessage = "page snapshot";
+            } else if (pageSnapshot.startsWith("<html")) {
+                logMessage = "page HTML";
+            }
+            attachments.add(Arrays.asList(this.validationCategoryString, logMessage, pageSnapshot));
+        }
         ReportManagerHelper.attach(attachments);
-        // determine checkpoint type
         CheckpointType checkpointType = this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)
                 ? CheckpointType.ASSERTION : CheckpointType.VERIFICATION;
         String checkpointMessage = this.validationCategoryString + ": expected \"" + expected + "\", actual \"" + actual + "\"";
-        // handle reporting & failure based on validation category
         ReportManager.logDiscrete("Expected \"" + expected + "\", and actual \"" + actual + "\"", Level.DEBUG);
         if (!validationState) {
             String failureMessage = this.validationCategoryString.replace("erify", "erificat") + "ion failed; expected " + expected + ", but found " + actual;
-            // Format failure message using CustomSoftAssert for enhanced stack trace reporting
             AssertionError assertionError = new AssertionError(failureMessage);
-            // Automatically extract package pattern from stack trace
             String enhancedFailureMessage = formatAssertionErrorWithAutoDetectedPackage(assertionError);
-            // Use enhanced message if available, otherwise fall back to original
             String finalFailureMessage = (enhancedFailureMessage != null) ? enhancedFailureMessage : failureMessage;
-            
+
             CheckpointCounter.increment(checkpointType, checkpointMessage, CheckpointStatus.FAIL);
             if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
                 Allure.getLifecycle().updateStep(stepResult -> FailureReporter.fail(finalFailureMessage));
             } else {
-                // soft assert
+                // soft assert — append to the V1 failure accumulator (shared with primitive helper)
                 ValidationsHelper.verificationFailuresList.get().add(failureMessage);
                 ValidationsHelper.verificationError.set(new AssertionError(String.join("\nAND ", ValidationsHelper.verificationFailuresList.get())));
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
