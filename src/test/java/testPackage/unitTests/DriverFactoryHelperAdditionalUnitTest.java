@@ -41,6 +41,12 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
 @Test(singleThreaded = true)
@@ -435,6 +441,52 @@ public class DriverFactoryHelperAdditionalUnitTest {
             createNewLocalDriverInstance.invoke(helper, com.shaft.driver.DriverFactory.DriverType.IE, 0);
             createNewLocalDriverInstance.invoke(helper, com.shaft.driver.DriverFactory.DriverType.SAFARI, 0);
             SHAFT.Validations.assertThat().object(helper.getDriver()).isNotNull().perform();
+        }
+    }
+
+    @Test
+    public void localDriverInitializationLockShouldSerializeParallelBrowserResolution() throws Exception {
+        Method runWithLocalDriverInitializationLock = DriverFactoryHelper.class.getDeclaredMethod("runWithLocalDriverInitializationLock", Runnable.class);
+        runWithLocalDriverInitializationLock.setAccessible(true);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        AtomicInteger activeInitializers = new AtomicInteger(0);
+        AtomicInteger maximumConcurrentInitializers = new AtomicInteger(0);
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+
+        Future<?> firstInitializer = executorService.submit(() -> invokeLocalDriverInitializationLock(runWithLocalDriverInitializationLock, ready, start, activeInitializers, maximumConcurrentInitializers));
+        Future<?> secondInitializer = executorService.submit(() -> invokeLocalDriverInitializationLock(runWithLocalDriverInitializationLock, ready, start, activeInitializers, maximumConcurrentInitializers));
+        ready.await(5, TimeUnit.SECONDS);
+        start.countDown();
+        firstInitializer.get(5, TimeUnit.SECONDS);
+        secondInitializer.get(5, TimeUnit.SECONDS);
+        executorService.shutdownNow();
+
+        SHAFT.Validations.assertThat().object(maximumConcurrentInitializers.get()).isEqualTo(1).perform();
+    }
+
+    private static void invokeLocalDriverInitializationLock(Method runWithLocalDriverInitializationLock, CountDownLatch ready, CountDownLatch start,
+                                                            AtomicInteger activeInitializers, AtomicInteger maximumConcurrentInitializers) {
+        ready.countDown();
+        try {
+            start.await(5, TimeUnit.SECONDS);
+            runWithLocalDriverInitializationLock.invoke(null, (Runnable) () -> {
+                int active = activeInitializers.incrementAndGet();
+                maximumConcurrentInitializers.updateAndGet(maximum -> Math.max(maximum, active));
+                try {
+                    Thread.sleep(150);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError("Serialized local driver initialization should not be interrupted.", e);
+                } finally {
+                    activeInitializers.decrementAndGet();
+                }
+            });
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("Local driver initialization lock test should not be interrupted.", e);
+        } catch (Exception e) {
+            throw new AssertionError("Local driver initialization lock should not fail.", e);
         }
     }
 
