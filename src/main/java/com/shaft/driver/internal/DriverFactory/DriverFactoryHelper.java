@@ -58,6 +58,7 @@ public class DriverFactoryHelper {
     private static final String WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE = "Identifying target OS/Browser and setting up the dockerized environment automatically. Please note that if a new docker container will be downloaded it may take some time depending on your connection...";
     private static final String SELENIUM_WEBSOCKET_LISTENER_LOGGER = "org.openqa.selenium.remote.http.WebSocket$Listener";
     private static final ThreadLocal<WebDriverManager> webDriverManager = new ThreadLocal<>();
+    private static final Object LOCAL_DRIVER_INITIALIZATION_LOCK = new Object();
     @Getter(AccessLevel.PUBLIC)
     private static final Dimension TARGET_WINDOW_SIZE = new Dimension(1920, 1080);
     private static final long appiumServerInitializationTimeout = TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.timeoutForRemoteServerToBeUp()); // seconds
@@ -420,6 +421,12 @@ public class DriverFactoryHelper {
         }
     }
 
+    private static void runWithLocalDriverInitializationLock(Runnable localDriverInitializer) {
+        synchronized (LOCAL_DRIVER_INITIALIZATION_LOCK) {
+            localDriverInitializer.run();
+        }
+    }
+
     private void createNewLocalDriverInstance(DriverType driverType, int retryAttempts) {
         String targetPlatform = Properties.platform.targetPlatform().toLowerCase();
         String initialLog = "Attempting to run locally on: \"" + targetPlatform + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
@@ -430,24 +437,26 @@ public class DriverFactoryHelper {
         ReportManager.logDiscrete(initialLog + ".");
         try {
             ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
-            switch (driverType) {
-                case FIREFOX -> setDriver(new FirefoxDriver(optionsManager.getFfOptions()));
-                case IE -> setDriver(new InternetExplorerDriver(optionsManager.getIeOptions()));
-                case CHROME -> {
-                    setDriver(new ChromeDriver(optionsManager.getChOptions()));
-                    disableCacheEdgeAndChrome();
+            runWithLocalDriverInitializationLock(() -> {
+                switch (driverType) {
+                    case FIREFOX -> setDriver(new FirefoxDriver(optionsManager.getFfOptions()));
+                    case IE -> setDriver(new InternetExplorerDriver(optionsManager.getIeOptions()));
+                    case CHROME -> {
+                        setDriver(new ChromeDriver(optionsManager.getChOptions()));
+                        disableCacheEdgeAndChrome();
+                    }
+                    case EDGE -> {
+                        // Fix for Microsoft Edge CDN migration from msedgedriver.azureedge.net to msedgedriver.microsoft.com
+                        // This ensures Selenium Manager uses the correct download URL for EdgeDriver.
+                        ThreadLocalPropertiesManager.setGlobalProperty("SE_DRIVER_MIRROR_URL", "https://msedgedriver.microsoft.com");
+                        setDriver(new EdgeDriver(optionsManager.getEdOptions()));
+                        disableCacheEdgeAndChrome();
+                    }
+                    case SAFARI -> setDriver(new SafariDriver(optionsManager.getSfOptions()));
+                    default ->
+                            failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
                 }
-                case EDGE -> {
-                    // Fix for Microsoft Edge CDN migration from msedgedriver.azureedge.net to msedgedriver.microsoft.com
-                    // This ensures Selenium Manager uses the correct download URL for EdgeDriver.
-                    ThreadLocalPropertiesManager.setGlobalProperty("SE_DRIVER_MIRROR_URL", "https://msedgedriver.microsoft.com");
-                    setDriver(new EdgeDriver(optionsManager.getEdOptions()));
-                    disableCacheEdgeAndChrome();
-                }
-                case SAFARI -> setDriver(new SafariDriver(optionsManager.getSfOptions()));
-                default ->
-                        failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
-            }
+            });
             String successMessage = initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".";
             List<Object> launchScreenshot = captureLaunchScreenshot();
             if (launchScreenshot != null) {
