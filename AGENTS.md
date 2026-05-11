@@ -95,6 +95,7 @@ Important directories:
   ```
 - After `gh` is installed, run `GH_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}" gh auth status -h github.com` to verify authentication without exposing the token. GitHub CLI automation requires a `GH_TOKEN` or `GITHUB_TOKEN` secret with the scopes needed for the requested operation, such as `repo` and `workflow` for repository and workflow actions.
 - Prefer authenticated `gh` commands for GitHub Actions artifacts, logs, issues, and PRs; anonymous REST calls can list some public metadata but cannot reliably download artifacts, read logs, or create issues.
+- When the user asks to create, draft, edit, or optimize a ticket/issue, create or update a GitHub Issue directly with `gh issue create`/`gh issue edit` or the authenticated GitHub API. Do not add a repository Markdown ticket file for that request unless the user explicitly asks for a checked-in document. If GitHub authentication, repository remotes, or publication access are unavailable, say so clearly and provide the intended issue title/body as a handoff instead of committing it as `docs/tickets/*.md`.
 
 ## Agent Workflow
 - Start by reading this file plus any scoped instructions relevant to the files you will touch, especially `.github/instructions/framework-source.instructions.md` for `src/main/java/**/*.java` and `.github/instructions/java-tests.instructions.md` for `src/test/java/**/*.java`.
