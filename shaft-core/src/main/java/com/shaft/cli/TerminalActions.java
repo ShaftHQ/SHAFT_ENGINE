@@ -366,7 +366,12 @@ public class TerminalActions {
                             logs.append(line);
                         }
                     }
-                    // Wait for the process to complete
+                    // Wait for the process to complete; check interrupt flag first because the
+                    // process may have already exited (stdout drained = pipe closed = process done),
+                    // in which case waitFor returns immediately without ever checking the flag.
+                    if (Thread.interrupted()) {
+                        throw new InterruptedException("Thread was interrupted before process wait");
+                    }
                     localProcess.waitFor(Properties.timeouts.shellSessionTimeout(), TimeUnit.MINUTES);
                     // Retrieve the exit status of the executed command and destroy open sessions
                     exitStatuses.append(localProcess.exitValue());
