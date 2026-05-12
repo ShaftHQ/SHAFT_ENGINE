@@ -6,7 +6,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Files;
@@ -37,11 +36,11 @@ public class PropertiesHelperInitializationUnitTest {
 
         PropertiesHelper.initialize();
 
-        Assert.assertTrue(new File(PROPERTIES_FOLDER_PATH, "custom.properties").isFile(),
+        Assert.assertTrue(Files.isRegularFile(Path.of(PROPERTIES_FOLDER_PATH, "custom.properties")),
                 "custom.properties should be generated in the target properties folder.");
         GENERATED_ROOT_PROPERTIES.stream()
                 .filter(fileName -> !"custom.properties".equals(fileName))
-                .forEach(fileName -> Assert.assertFalse(new File(PROPERTIES_FOLDER_PATH, fileName).isFile(),
+                .forEach(fileName -> Assert.assertFalse(Files.isRegularFile(Path.of(PROPERTIES_FOLDER_PATH, fileName)),
                         fileName + " should not be generated in the target properties folder."));
     }
 
@@ -63,10 +62,20 @@ public class PropertiesHelperInitializationUnitTest {
     }
 
     private void deleteGeneratedPropertyFile(String fileName) {
-        var propertyFile = new File(PROPERTIES_FOLDER_PATH, fileName);
-        if (propertyFile.isFile()) {
-            Assert.assertTrue(propertyFile.delete(), "Failed to delete generated property file: " + propertyFile.getPath());
+        var propertyFile = Path.of(PROPERTIES_FOLDER_PATH, fileName);
+        for (int attempt = 0; attempt < 5 && Files.isRegularFile(propertyFile); attempt++) {
+            try {
+                Files.deleteIfExists(propertyFile);
+            } catch (IOException e) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException interruptedException) {
+                    Thread.currentThread().interrupt();
+                    Assert.fail("Interrupted while deleting generated property file: " + propertyFile, interruptedException);
+                }
+            }
         }
+        Assert.assertFalse(Files.isRegularFile(propertyFile), "Failed to delete generated property file: " + propertyFile);
     }
 
 }
