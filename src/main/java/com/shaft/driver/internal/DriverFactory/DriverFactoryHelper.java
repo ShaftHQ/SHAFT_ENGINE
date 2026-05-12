@@ -771,8 +771,8 @@ public class DriverFactoryHelper {
                     driverLogs.get(logType).getAll().forEach(logEntry -> logBuilder.append(logEntry).append(System.lineSeparator()));
                     ReportManagerHelper.attach("Selenium WebDriver Logs", logType, logBuilder.toString());
                 });
-            } catch (WebDriverException e) {
-                // exception when the defined logging is not supported
+            } catch (Exception e) {
+                // exception when the defined logging is not supported or the driver mock/session cannot expose logs
                 ReportManagerHelper.logDiscrete(e, Level.DEBUG);
             }
         }
