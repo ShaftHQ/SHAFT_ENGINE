@@ -457,7 +457,17 @@ public class OptionsManager {
         if (SHAFT.Properties.web.isMobileEmulation() && DriverFactoryHelper.isNotMobileExecution()) {
             Map<String, Object> mobileEmulation = new HashMap<>();
             if (!SHAFT.Properties.web.mobileEmulationIsCustomDevice() && (!SHAFT.Properties.web.mobileEmulationDeviceName().isBlank())) {
-                mobileEmulation.put("deviceName", SHAFT.Properties.web.mobileEmulationDeviceName());
+                if (options.getBrowserName().equals(DriverFactory.DriverType.EDGE.getValue())
+                        && SHAFT.Properties.web.mobileEmulationDeviceName().equalsIgnoreCase("Pixel 5")) {
+                    Map<String, Object> deviceMetrics = new HashMap<>();
+                    deviceMetrics.put("width", 393);
+                    deviceMetrics.put("height", 851);
+                    deviceMetrics.put("pixelRatio", 2.75);
+                    mobileEmulation.put("deviceMetrics", deviceMetrics);
+                    mobileEmulation.put("userAgent", "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Mobile Safari/537.36");
+                } else {
+                    mobileEmulation.put("deviceName", SHAFT.Properties.web.mobileEmulationDeviceName());
+                }
             } else if (SHAFT.Properties.web.mobileEmulationIsCustomDevice()) {
                 if ((SHAFT.Properties.web.mobileEmulationWidth() != 0) && (SHAFT.Properties.web.mobileEmulationHeight() != 0)) {
                     Map<String, Object> deviceMetrics = new HashMap<>();
