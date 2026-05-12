@@ -48,6 +48,9 @@ public class Test_LTMobAPKRelativePath {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() {
-        driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+        }
+        driver.remove();
     }
 }

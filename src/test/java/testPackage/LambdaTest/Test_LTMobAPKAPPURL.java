@@ -45,8 +45,9 @@ public class Test_LTMobAPKAPPURL {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() {
-        if (driver != null) {
+        if (driver.get() != null) {
             driver.get().quit();
         }
+        driver.remove();
     }
 }

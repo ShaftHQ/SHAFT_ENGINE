@@ -11,12 +11,12 @@ import org.testng.annotations.Test;
 public class FrameTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     By iframe_1 = By.xpath("//iframe[@title='SHAFT User Guide']");
-    By nestedElement = By.className("hero__title");
+    By nestedElement = By.id("frame-title");
     String testPage = """
              data:text/html,
              <html>
                  <div id="parentFrameDiv">Parent Frame
-                 <iframe src="https://shafthq.github.io/" height="500" width="500" title="SHAFT User Guide" name="iframe Name"></iframe>
+                 <iframe srcdoc="<html><body><h1 id='frame-title'>SHAFT: Unified Test Automation Engine</h1></body></html>" height="500" width="500" title="SHAFT User Guide" name="iframe Name"></iframe>
                  </div>
              </html>
             """;

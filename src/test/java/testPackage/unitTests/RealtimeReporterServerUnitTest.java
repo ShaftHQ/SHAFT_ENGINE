@@ -13,6 +13,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URLEncoder;
 import java.net.URL;
@@ -119,7 +120,9 @@ public class RealtimeReporterServerUnitTest {
     @Test
     public void startServerShouldFallbackToEphemeralPortWhenDefaultPortIsBusy() throws Exception {
         RealtimeReporter.stopServer();
-        try (ServerSocket defaultPortBlocker = new ServerSocket(1111)) {
+        try (ServerSocket defaultPortBlocker = new ServerSocket()) {
+            defaultPortBlocker.setReuseAddress(false);
+            defaultPortBlocker.bind(new InetSocketAddress("localhost", 1111));
             Method startServer = RealtimeReporter.class.getDeclaredMethod("startServer");
             startServer.setAccessible(true);
             startServer.invoke(null);

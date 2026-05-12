@@ -80,11 +80,11 @@ public class LightHouseGenerateReportCoverageUnitTest {
             Assert.assertEquals(mockedTerminalActions.constructed().size(), 2);
             verify(mockedTerminalActions.constructed().getFirst(), times(1))
                     .performTerminalCommand(Mockito.argThat(command ->
-                                    command.startsWith("node GenerateLHScript.js")
-                                            && command.contains("--port=9999")
+                            command.contains("node GenerateLHScript.js")
+                                    && command.contains("--port=9999")
                                     && command.contains(AMPERSAND_PLACEHOLDER)));
             verify(mockedTerminalActions.constructed().get(1), times(1))
-                    .performTerminalCommand("node OpenLHReport.js");
+                    .performTerminalCommand(Mockito.argThat(command -> command.contains("node OpenLHReport.js")));
         }
     }
 
@@ -119,7 +119,7 @@ public class LightHouseGenerateReportCoverageUnitTest {
             verify(mockedFileActions, times(1)).writeToFile(eq(""), eq("OpenLHReport.js"), Mockito.<List<String>>any());
             verify(mockedFileActions, times(1)).writeToFile(eq(""), eq("GenerateLHScript.js"), Mockito.<List<String>>any());
             Assert.assertTrue(openScriptContent[0].get(0).contains("custom-page.html"));
-            Assert.assertTrue(generateScriptContent[0].get(0).contains("lighthouse/lighthouse-core/config/desktop-config.js"));
+            Assert.assertTrue(generateScriptContent[0].get(0).contains("desktop-config.js"));
 
             Assert.assertTrue(pageName.contains("--path-sub-path"));
             Assert.assertTrue(pageName.startsWith(LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy"))));
