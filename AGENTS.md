@@ -53,6 +53,7 @@ Important directories:
 - CI uses many property-driven E2E runs, including local browsers, Docker Selenium Grid, BrowserStack, LambdaTest, mobile/Appium, API, DB, Cucumber, and Flutter-related tests. Do not assume those all run on a bare machine.
 - Allure result JSON/report output is the authoritative pass/fail source for SHAFT test runs. Surefire output is useful diagnostics, but do not use it as the final oracle when it disagrees with Allure.
 - Before analyzing Allure statuses, first count the executed tests/result JSON files. If the count is zero or unexpectedly low, treat the report as empty/invalid and fix rerun/report generation before drawing conclusions.
+- For GitHub Actions E2E investigations, use `docs/CI_FAILURE_INVESTIGATION.md` to pull run/job metadata, download job logs, and parse self-contained `*_Allure.html` artifacts directly from embedded `data/test-results/*.json` payloads instead of opening large reports manually.
 - Surefire is configured to continue after failures so JaCoCo/report generation can complete. Use `target/surefire-reports` as supporting evidence only after validating the Allure run is populated.
 - Test data belongs under `src/test/resources/testDataFiles/`; avoid hardcoding data in tests when existing guidance requires JSON test data.
 - For TestNG browser tests, existing instructions require fresh driver setup per test and `@AfterMethod(alwaysRun = true)` cleanup with `driver.quit()`.
@@ -124,6 +125,7 @@ Important directories:
 - Documentation-only changes can use lightweight validation, but code changes are expected to compile and run affected tests before commit.
 - Java 25 plus Mockito inline mocking can fail on some TestNG interfaces with optional dependency types. Prefer extracting list/value-based helper logic for unit coverage over mocking or proxying `org.testng.ISuite`.
 - If GitHub publication access is unavailable, say so clearly and provide a PR handoff rather than implying a visible GitHub PR exists.
+- Agent-created branches/PRs must identify the agent author. Prefer branch names starting with `codex/` and PR titles starting with `codex:` for Codex-authored work. If a human maintainer token creates the PR, state in the PR body that Codex made the changes and that the token owner did not author them manually.
 
 ## Open Questions / Verify Before Relying
 - No explicit local formatter command was found.

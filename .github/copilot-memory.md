@@ -59,3 +59,9 @@ Purpose: keep high-signal, reusable learnings from implementation sessions in on
 - Lesson: `@Test(singleThreaded = true)` does not protect static server lifecycle shared across different TestNG classes. Unit tests that start/stop `RealtimeReporter` need an explicit cross-class lock plus readiness polling and property restoration.
 - Evidence: `src/test/java/testPackage/unitTests/RealtimeReporterServerUnitTest.java`, `src/test/java/testPackage/unitTests/RealtimeReporterUnitTest.java`, `src/test/java/testPackage/unitTests/RealtimeReporterTestLock.java`
 - Action taken: Serialized realtime reporter unit tests with a package-local lock and added server readiness polling.
+- Date: 2026-05-12
+- Area: CI E2E failure triage / Allure artifact traversal / PR authorship
+- Trigger: Issue #2696 required investigating failing E2E workflow runs from GitHub Actions artifacts, and a follow-up request asked agents to preserve the investigation workflow and make Codex-authored PRs explicit.
+- Lesson: Start E2E triage with authenticated `gh run view`, failed job logs, and artifact metadata; self-contained `*_Allure.html` artifacts can be parsed directly by decoding embedded `data/test-results/*.json` payloads, which is much faster than browser traversal. Always count populated Allure results before trusting statuses, distinguish provider/credential failures from code defects, and label Codex-authored branches/PRs so human token owners are not implied as manual authors.
+- Evidence: `docs/CI_FAILURE_INVESTIGATION.md`, `AGENTS.md`, issue #2696, PR #2699
+- Action taken: Added a CI/Allure investigation runbook, linked it from repository agent guidance, and recorded PR title/body authorship guidance for future Codex-created work.
