@@ -135,6 +135,51 @@ public interface Allure extends EngineProperties<Allure> {
     boolean realtimeMonitoring();
 
     /**
+     * Controls the Allure 3 awesome plugin {@code singleFile} option written to {@code allurerc.yaml}.
+     *
+     * <p>Property key: {@code allure.singleFile} — default: {@code true}
+     *
+     * @return {@code true} to generate a self-contained HTML report; {@code false} for multi-file output
+     */
+    @Key("allure.singleFile")
+    @DefaultValue("true")
+    boolean singleFile();
+
+    /**
+     * Controls the Allure 3 awesome plugin {@code reportLanguage} option written to {@code allurerc.yaml}.
+     *
+     * <p>Property key: {@code allure.reportLanguage} — default: {@code en}
+     *
+     * @return the language code used by the generated Allure 3 report
+     */
+    @Key("allure.reportLanguage")
+    @DefaultValue("en")
+    String reportLanguage();
+
+    /**
+     * Controls the Allure 3 awesome plugin {@code open} option written to {@code allurerc.yaml}.
+     *
+     * <p>Property key: {@code allure.open} — default: {@code false}
+     *
+     * @return {@code true} when the Allure CLI should open the report itself; {@code false} otherwise
+     */
+    @Key("allure.open")
+    @DefaultValue("false")
+    boolean open();
+
+    /**
+     * Controls the Allure 3 awesome plugin {@code groupBy} values written to {@code allurerc.yaml}.
+     * Supply values as a comma-separated list.
+     *
+     * <p>Property key: {@code allure.groupBy} — default: {@code parentSuite,suite,subSuite}
+     *
+     * @return comma-separated grouping fields used by the generated Allure 3 report
+     */
+    @Key("allure.groupBy")
+    @DefaultValue("parentSuite,suite,subSuite")
+    String groupBy();
+
+    /**
      * Returns a fluent {@link SetProperty} builder for programmatically overriding Allure properties.
      *
      * <p>Example:
@@ -264,6 +309,50 @@ public interface Allure extends EngineProperties<Allure> {
          */
         public SetProperty realtimeMonitoring(boolean value) {
             setProperty("allure.realtimeMonitoring", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code allure.singleFile} property at runtime.
+         *
+         * @param value {@code true} for self-contained HTML reports; {@code false} for multi-file output
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty singleFile(boolean value) {
+            setProperty("allure.singleFile", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code allure.reportLanguage} property at runtime.
+         *
+         * @param value the language code used by the generated Allure 3 report
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty reportLanguage(String value) {
+            setProperty("allure.reportLanguage", value);
+            return this;
+        }
+
+        /**
+         * Overrides the {@code allure.open} property at runtime.
+         *
+         * @param value {@code true} when the Allure CLI should open the report itself; {@code false} otherwise
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty open(boolean value) {
+            setProperty("allure.open", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code allure.groupBy} property at runtime.
+         *
+         * @param value comma-separated grouping fields used by the generated Allure 3 report
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty groupBy(String value) {
+            setProperty("allure.groupBy", value);
             return this;
         }
 
