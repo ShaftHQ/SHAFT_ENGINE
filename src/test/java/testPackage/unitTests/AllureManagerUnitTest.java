@@ -197,20 +197,29 @@ public class AllureManagerUnitTest {
 
     @Test(description = "writeAllureConfig should inject allure.customLogo in awesome plugin options")
     public void writeAllureConfigShouldInjectCustomLogo() throws Exception {
-        Method writeAllureConfigMethod = AllureManager.class.getDeclaredMethod("writeAllureConfig", String.class, String.class, boolean.class);
+        Method writeAllureConfigMethod = AllureManager.class.getDeclaredMethod("writeAllureConfig", String.class, String.class);
         writeAllureConfigMethod.setAccessible(true);
 
         String originalCustomLogo = SHAFT.Properties.allure.customLogo();
         String testCustomLogo = "https://example.com/custom-logo.png";
         Path configPath = Path.of("allurerc.yaml");
         try {
-            SHAFT.Properties.allure.set().customLogo(testCustomLogo);
+            SHAFT.Properties.allure.set()
+                    .customLogo(testCustomLogo)
+                    .singleFile(false)
+                    .reportLanguage("fr")
+                    .open(true)
+                    .groupBy("package,parentSuite");
             String testOutputDirectory = (System.getProperty("user.dir") + File.separator + "target" + File.separator + "allure-report-test").replace("\\", "/");
-            writeAllureConfigMethod.invoke(null, "Unit Test Report", testOutputDirectory, true);
+            writeAllureConfigMethod.invoke(null, "Unit Test Report", testOutputDirectory);
 
             String yaml = Files.readString(configPath, StandardCharsets.UTF_8);
             SHAFT.Validations.assertThat().object(yaml.contains("logo: \"" + testCustomLogo + "\"")).isEqualTo(true).perform();
-            SHAFT.Validations.assertThat().object(yaml.contains("singleFile: true")).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(yaml.contains("singleFile: false")).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(yaml.contains("reportLanguage: \"fr\"")).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(yaml.contains("open: true")).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(yaml.contains("        - package")).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(yaml.contains("        - parentSuite")).isEqualTo(true).perform();
         } finally {
             SHAFT.Properties.allure.set().customLogo(originalCustomLogo);
             Files.deleteIfExists(configPath);
@@ -323,6 +332,27 @@ public class AllureManagerUnitTest {
         String downloadUrl = sourceDirectory.toUri().toString() + archiveName;
         Object verificationResult = verifyNodeJsChecksum.invoke(null, archivePath.toString(), downloadUrl, archiveName);
         SHAFT.Validations.assertThat().object(verificationResult).isEqualTo(false).perform();
+    }
+
+    @Test(description = "executeAllureGenerateCommand should wait for command completion and expose stderr")
+    public void executeAllureGenerateCommandShouldWaitForCompletionAndExposeStderr() throws Exception {
+        Method executeAllureGenerateCommand = AllureManager.class.getDeclaredMethod("executeAllureGenerateCommand", String.class);
+        executeAllureGenerateCommand.setAccessible(true);
+
+        Path markerFile = Path.of(System.getProperty("user.dir"), "target", "allure-generate-sync-marker.txt");
+        Files.deleteIfExists(markerFile);
+        String markerPath = markerFile.toString().replace("\\", "\\\\");
+        String command = SystemUtils.IS_OS_WINDOWS
+                ? "powershell -NoProfile -Command \"Start-Sleep -Seconds 1; Write-Output stdout-message; Write-Error stderr-message; Set-Content -Path '" + markerPath + "' -Value done; exit 7\""
+                : "sleep 1; printf 'stdout-message\\n'; printf 'stderr-message\\n' >&2; touch '" + markerPath + "'; exit 7";
+
+        try {
+            executeAllureGenerateCommand.invoke(null, command);
+
+            SHAFT.Validations.assertThat().object(Files.exists(markerFile)).isTrue().perform();
+        } finally {
+            Files.deleteIfExists(markerFile);
+        }
     }
 
     @Test(description = "Realtime monitoring helpers should start and stop long-running process safely")

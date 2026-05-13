@@ -14,6 +14,7 @@ import org.apache.commons.lang3.SystemUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
@@ -23,6 +24,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -371,13 +376,14 @@ public class AllureManager {
             patchMissingStatusDetailsInResults(getResultsPath());
 
             // Write allurerc.yaml with current settings (including custom title and optional history path)
-            writeAllureConfig(customReportName, allureOutPutDirectory, true);
+            writeAllureConfig(customReportName, allureOutPutDirectory);
         }
 
-        // Resolve the Allure CLI and generate the report
+        // Resolve the Allure CLI and generate the report synchronously so stdout, stderr,
+        // and the exit code are visible in terminal/log output when generation fails.
         String cmd = getCommandToCreateAllureReport();
         if (cmd != null && !cmd.isBlank()) {
-            internalTerminalSession.performTerminalCommand(cmd);
+            executeAllureGenerateCommand(cmd);
         } else {
             ReportManager.logDiscrete("Allure report generation skipped: could not resolve the Allure CLI."
                     + (cachedIsAllure2
@@ -392,8 +398,9 @@ public class AllureManager {
      * directory, optional history path, and awesome-plugin options (single-file mode, grouping).
      *
      * @param reportName the display name for the generated report
+     * @param outputDirectory the target directory where the Allure CLI writes generated report files
      */
-    private static void writeAllureConfig(String reportName, String outputDirectory, boolean singleFile) {
+    private static void writeAllureConfig(String reportName, String outputDirectory) {
         String safeReportName = escapeYamlString(reportName);
         String safeOutputDir = escapeYamlString(outputDirectory.replace("\\", "/"));
         String safeCustomLogo = escapeYamlString(SHAFT.Properties.allure.customLogo());
@@ -412,20 +419,99 @@ public class AllureManager {
         configBuilder.append("  awesome:\n");
         configBuilder.append("    options:\n");
         configBuilder.append("      reportName: \"").append(safeReportName).append("\"\n");
-        configBuilder.append("      singleFile: ").append(singleFile).append("\n");
+        configBuilder.append("      singleFile: ").append(SHAFT.Properties.allure.singleFile()).append("\n");
         if (!safeCustomLogo.isBlank()) {
             configBuilder.append("      logo: \"").append(safeCustomLogo).append("\"\n");
         }
-        configBuilder.append("      reportLanguage: \"en\"\n");
-        configBuilder.append("      open: false\n");
+        configBuilder.append("      reportLanguage: \"")
+                .append(escapeYamlString(SHAFT.Properties.allure.reportLanguage()))
+                .append("\"\n");
+        configBuilder.append("      open: ").append(SHAFT.Properties.allure.open()).append("\n");
         configBuilder.append("      groupBy:\n");
-        configBuilder.append("        - parentSuite\n");
-        configBuilder.append("        - suite\n");
-        configBuilder.append("        - subSuite\n");
+        for (String groupByOption : getAllureGroupByOptions()) {
+            configBuilder.append("        - ").append(escapeYamlString(groupByOption)).append("\n");
+        }
 
         internalFileSession.writeToFile(
                 System.getProperty("user.dir") + File.separator + allureConfigFileName,
                 configBuilder.toString());
+    }
+
+    private static List<String> getAllureGroupByOptions() {
+        List<String> configuredOptions = Arrays.stream(SHAFT.Properties.allure.groupBy().split(","))
+                .map(String::trim)
+                .filter(option -> !option.isBlank())
+                .toList();
+        if (configuredOptions.isEmpty()) {
+            return List.of("parentSuite", "suite", "subSuite");
+        }
+        return configuredOptions;
+    }
+
+    private static void executeAllureGenerateCommand(String command) {
+        ReportManager.logDiscrete("Executing Allure report generation command: \"" + command + "\".");
+        ProcessBuilder processBuilder = SystemUtils.IS_OS_WINDOWS
+                ? new ProcessBuilder("cmd.exe", "/c", command)
+                : new ProcessBuilder("sh", "-c", command);
+        processBuilder.directory(new File(System.getProperty("user.dir")));
+
+        ExecutorService streamReaders = Executors.newFixedThreadPool(2);
+        try {
+            Process process = processBuilder.start();
+            Future<String> stdout = streamReaders.submit(() -> readProcessStream(process.getInputStream()));
+            Future<String> stderr = streamReaders.submit(() -> readProcessStream(process.getErrorStream()));
+
+            boolean completed = process.waitFor(SHAFT.Properties.timeouts.shellSessionTimeout(), TimeUnit.MINUTES);
+            if (!completed) {
+                process.destroyForcibly();
+                ReportManager.logDiscrete("Allure report generation timed out after "
+                        + SHAFT.Properties.timeouts.shellSessionTimeout() + " minute(s). Command: " + command);
+                logAllureCommandOutput(stdout, stderr);
+                return;
+            }
+
+            int exitCode = process.exitValue();
+            logAllureCommandOutput(stdout, stderr);
+            ReportManager.logDiscrete("Allure report generation command exited with code " + exitCode + ".");
+            if (exitCode != 0) {
+                ReportManager.logDiscrete("Allure report generation failed. Command: " + command);
+            }
+        } catch (IOException e) {
+            ReportManager.logDiscrete("Failed to execute Allure report generation command: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            ReportManager.logDiscrete("Allure report generation command was interrupted: " + e.getMessage());
+        } finally {
+            streamReaders.shutdownNow();
+        }
+    }
+
+    private static void logAllureCommandOutput(Future<String> stdout, Future<String> stderr) {
+        String output = getCompletedProcessOutput(stdout, "stdout");
+        if (!output.isBlank()) {
+            ReportManager.logDiscrete("Allure generate stdout:\n" + output.trim());
+        }
+
+        String error = getCompletedProcessOutput(stderr, "stderr");
+        if (!error.isBlank()) {
+            ReportManager.logDiscrete("Allure generate stderr:\n" + error.trim());
+        }
+    }
+
+    private static String getCompletedProcessOutput(Future<String> output, String streamName) {
+        try {
+            return output.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            ReportManager.logDiscrete("Interrupted while reading Allure generate " + streamName + ": " + e.getMessage());
+        } catch (ExecutionException e) {
+            ReportManager.logDiscrete("Failed to read Allure generate " + streamName + ": " + e.getMessage());
+        }
+        return "";
+    }
+
+    private static String readProcessStream(InputStream inputStream) throws IOException {
+        return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
     }
 
     private static void startRealtimeMonitoringIfEligible() {
