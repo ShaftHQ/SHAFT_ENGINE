@@ -4,8 +4,10 @@
 The script accepts one or more Allure result directories, generated report
 folders, JSON files, or ZIP archives. It prints a Markdown table by default so
 CI jobs and issue triage notes can include exact failing methods and reasons.
-When Surefire XML paths are provided, it also flags Surefire failures
-that do not have a matching failed or broken Allure result.
+Allure failed and broken results are the single source of truth for the
+process exit status and Markdown failure table. Surefire XML can be parsed by
+helper functions for diagnostics, but CLI Markdown output intentionally stays
+limited to Allure failures so CI logs match the Allure summary.
 """
 
 import argparse
@@ -254,7 +256,7 @@ def parse_args() -> argparse.Namespace:
             """
             Examples:
               scripts/ci/extract_allure_failures.py allure-results
-              scripts/ci/extract_allure_failures.py allure-results --surefire-reports target/surefire-reports
+              scripts/ci/extract_allure_failures.py allure-results --surefire-reports target/surefire-reports --format json
               scripts/ci/extract_allure_failures.py artifacts/*.zip --format json
             """
         ),
@@ -265,7 +267,10 @@ def parse_args() -> argparse.Namespace:
         nargs="*",
         type=Path,
         default=[],
-        help="Optional Surefire XML report path(s) to cross-check against Allure failures",
+        help=(
+            "Optional Surefire XML report path(s) for JSON diagnostics only; "
+            "Allure remains the CLI Markdown and exit-code source of truth"
+        ),
     )
     parser.add_argument("--format", choices=("markdown", "json"), default="markdown", help="Output format")
     return parser.parse_args()
@@ -285,16 +290,8 @@ def main() -> int:
         )
     else:
         output = to_markdown(allure_failures)
-        if args.surefire_reports:
-            output = "\n\n".join(
-                [
-                    output,
-                    "## Surefire failures missing from Allure results",
-                    to_surefire_markdown(missing_failures),
-                ]
-            )
     print(output)
-    return 1 if allure_failures or missing_failures else 0
+    return 1 if allure_failures else 0
 
 
 if __name__ == "__main__":
