@@ -303,7 +303,7 @@ When enabled, SHAFT checks `allure --version` and only uses system `allure` when
 
 | Resource | Description |
 |----------|-------------|
-| 📖 **[User Guide](https://shaftengine.netlify.app/)** | Comprehensive documentation, tutorials, and configuration reference |
+| 📖 **[User Guide](https://ShaftHQ.github.io/)** | Comprehensive documentation, tutorials, and configuration reference |
 | 🏗️ **[Architecture](docs/ARCHITECTURE.md)** | Framework design, module overview, and Mermaid diagrams |
 | 🛠️ **[Tech Stack](docs/TECH_STACK.md)** | Technologies and libraries powering SHAFT |
 | ✨ **[Features](docs/FEATURES.md)** | Full feature list with platform compatibility matrix |

@@ -1,12 +1,14 @@
 package testPackage.appium;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.Properties;
+import com.shaft.validation.Validations;
 import io.appium.java_client.remote.AutomationName;
 import io.github.ashwith.flutter.FlutterFinder;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.RemoteWebDriver;
-import org.testng.Assert;
+import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -19,6 +21,7 @@ import org.testng.annotations.Test;
  * with Flutter widgets.
  */
 public class FlutterTest {
+    private static final String ENABLE_FLUTTER_E2E_PROPERTY = "shaft.enableFlutterE2E";
     public static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     private FlutterFinder finder;
 
@@ -28,14 +31,23 @@ public class FlutterTest {
      */
     @BeforeMethod(onlyForGroups = {"flutter"})
     public void setupFlutterDriver() {
+        if (!Boolean.getBoolean(ENABLE_FLUTTER_E2E_PROPERTY)) {
+            throw new SkipException("Flutter BrowserStack E2E is disabled. Set -D"
+                    + ENABLE_FLUTTER_E2E_PROPERTY + "=true after validating the Flutter driver/app on the target cloud.");
+        }
         // Common mobile attributes
         SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
         // Set automation name to FlutterIntegration - this automatically enables Flutter driver
         SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER_INTEGRATION);
+        SHAFT.Properties.mobile.set().browserName("");
         
-        // Configure for local Appium server execution
-        SHAFT.Properties.platform.set().executionAddress("localhost:4723");
-        SHAFT.Properties.mobile.set().app("src/test/resources/testDataFiles/apps/flutter-demo.apk");
+        // Configure for BrowserStack execution so the test is covered by the Android mobile E2E workflow.
+        SHAFT.Properties.platform.set().executionAddress("browserstack");
+        SHAFT.Properties.browserStack.set().platformVersion("13.0");
+        SHAFT.Properties.browserStack.set().deviceName("Google Pixel 7");
+        SHAFT.Properties.browserStack.set().appName("flutter-demo.apk");
+        SHAFT.Properties.browserStack.set().appRelativeFilePath("src/test/resources/testDataFiles/apps/flutter-demo.apk");
+        SHAFT.Properties.browserStack.set().appUrl("");
         
         // Additional Flutter-specific capabilities can be set here if needed
         // For example, if testing on a specific device:
@@ -61,10 +73,10 @@ public class FlutterTest {
         
         // Find element by text (common in Flutter counter demo)
         WebElement titleElement = finder.byText("Flutter Demo Home Page");
-        Assert.assertNotNull(titleElement, "App title should be found");
+        Validations.assertThat().object(titleElement).isNotNull().perform();
         
         // Verify driver is initialized and working
-        Assert.assertNotNull(driver.get().getDriver(), "Driver should be initialized");
+        Validations.assertThat().object(driver.get().getDriver()).isNotNull().perform();
     }
 
     /**
@@ -79,7 +91,7 @@ public class FlutterTest {
         // Find the increment button by ValueKey
         // Flutter counter demo typically uses 'increment' as the key
         WebElement incrementButton = finder.byValueKey("increment");
-        Assert.assertNotNull(incrementButton, "Increment button should be found");
+        Validations.assertThat().object(incrementButton).isNotNull().perform();
         
         // Click the increment button
         incrementButton.click();
@@ -90,7 +102,7 @@ public class FlutterTest {
         // WebElement counterText = finder.byValueKey("counterText");
         // Assert.assertTrue(counterText.getText().contains("1"), "Counter should be incremented");
         
-        Assert.assertNotNull(driver.get().getDriver(), "Driver should be initialized and working");
+        Validations.assertThat().object(driver.get().getDriver()).isNotNull().perform();
     }
     
     /**
@@ -102,7 +114,7 @@ public class FlutterTest {
         // Find an element by its Flutter widget type
         // For example, finding a FloatingActionButton
         WebElement fabButton = finder.byType("FloatingActionButton");
-        Assert.assertNotNull(fabButton, "FloatingActionButton should be found");
+        Validations.assertThat().object(fabButton).isNotNull().perform();
     }
     
     /**
@@ -114,7 +126,7 @@ public class FlutterTest {
         // Find an element by its tooltip text
         // The increment button in Flutter demo usually has "Increment" tooltip
         WebElement incrementButton = finder.byToolTip("Increment");
-        Assert.assertNotNull(incrementButton, "Element with tooltip 'Increment' should be found");
+        Validations.assertThat().object(incrementButton).isNotNull().perform();
     }
 
     /**
@@ -124,6 +136,8 @@ public class FlutterTest {
     public void teardown() {
         if (driver.get() != null) {
             driver.get().quit();
+            driver.remove();
         }
+        Properties.clearForCurrentThread();
     }
 }

@@ -85,21 +85,23 @@ public class AnimatedGifManager {
     public static String attachAnimatedGif() {
         // stop and attach
         if (SHAFT.Properties.visuals.createAnimatedGif() && !gifRelativePathWithFileName.get().isEmpty()) {
-            try (InputStream in = Files.newInputStream(Paths.get(gifRelativePathWithFileName.get()))) {
-                ReportManagerHelper.attach("Animated Gif", String.valueOf(System.currentTimeMillis()), in);
-                if (gifWriter.get() != null) {
+            try {
+                if (gifWriter.get() != null && gifManager.get() != null) {
                     gifManager.get().close();
                 }
                 if (gifOutputStream.get() != null) {
                     gifOutputStream.get().close();
                 }
 
+                String gifRelativePath = gifRelativePathWithFileName.get();
+                try (InputStream in = Files.newInputStream(Paths.get(gifRelativePath))) {
+                    ReportManagerHelper.attach("Animated Gif", String.valueOf(System.currentTimeMillis()), in);
+                }
                 gifOutputStream.remove();
                 gifManager.remove();
                 gifWriter.remove();
                 imageWriteParam.remove();
                 imageMetaData.remove();
-                String gifRelativePath = gifRelativePathWithFileName.get();
                 gifRelativePathWithFileName.remove();
                 return gifRelativePath;
             } catch (IOException | NullPointerException | IllegalStateException e) {

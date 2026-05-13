@@ -4,7 +4,6 @@ import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
-import org.apache.logging.log4j.Level;
 import org.openqa.selenium.By;
 import org.openqa.selenium.support.locators.RelativeLocator;
 import org.testng.Assert;
@@ -103,7 +102,6 @@ public class JavaHelper {
      */
     public static int compareTwoObjects(Object expectedValue, Object actualValue, Object comparisonType,
                                         Boolean validationType) {
-        ReportManagerHelper.logDiscrete("Expected \"" + expectedValue + "\", and actual \"" + actualValue + "\"", Level.DEBUG);
         if ("null".equals(expectedValue)) {
             expectedValue = null;
         }
@@ -250,13 +248,17 @@ public class JavaHelper {
             //file path is valid
             return relativePath;
         } else {
-            if (relativePath.startsWith("/")) {
-                //remove extra slash at the beginning if applicable
-                relativePath = relativePath.substring(1);
+            if (relativePath.startsWith("//")) {
+                // Preserve POSIX-style absolute paths that were normalized with an extra leading slash.
+                return relativePath.substring(1);
             }
             // Do not prepend testData path to absolute OS paths
             if (new java.io.File(relativePath).isAbsolute()) {
                 return relativePath;
+            }
+            if (relativePath.startsWith("/")) {
+                //remove extra slash at the beginning if applicable
+                relativePath = relativePath.substring(1);
             }
             var testDataFolderPath = SHAFT.Properties.paths.testData();
             if (relativePath.contains(testDataFolderPath)) {

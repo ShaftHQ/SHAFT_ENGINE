@@ -1060,13 +1060,6 @@ public class RestActions {
         return sessionConfig;
     }
 
-    private RequestSpecBuilder setConfigs(RequestSpecBuilder builder, List<RestAssuredConfig> configs) {
-        for (RestAssuredConfig config : configs) {
-            builder.setConfig(config);
-        }
-        return builder;
-    }
-
     private RequestSpecBuilder initializeBuilder(Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, RestAssuredConfig sessionConfig, boolean appendDefaultContentCharsetToContentTypeIfUndefined) {
         RequestSpecBuilder builder = new RequestSpecBuilder();
 
@@ -1249,18 +1242,6 @@ public class RestActions {
         }
     }
 
-
-    private void prepareRequestBody(RequestSpecBuilder builder, Map<String, Object> parameters, ParametersType parametersType) {
-        // Normalize to List
-        List<List<Object>> paramsList = new ArrayList<>();
-        for (Map.Entry<String, Object> e : parameters.entrySet()) {
-            paramsList.add(Arrays.asList(e.getKey(), e.getValue()));
-        }
-        prepareRequestBody(builder, paramsList, parametersType);
-    }
-
-
-
     private void prepareRequestBody(RequestSpecBuilder builder, Object body, ContentType contentType) {
         if (body instanceof String bodyString && bodyString.contains("\n")) {
             builder.setBody(bodyString);
@@ -1285,36 +1266,16 @@ public class RestActions {
 
     private void prepareRequestBody(RequestSpecBuilder builder, List<List<Object>> parameters,
                                     ParametersType parametersType) {
+        // File parameters are routed through prepareMultipartBody() in prepareRequestSpecs()
+        // before this helper is invoked.
+        if (parameters.stream().anyMatch(param -> param.get(1) instanceof File)) {
+            throw new IllegalArgumentException("File parameters must be handled via prepareMultipartBody().");
+        }
         parameters.forEach(param -> {
-            if (param.get(1).getClass().equals(File.class)) {
-                MultiPartSpecBuilder multiPartSpecBuilder = new MultiPartSpecBuilder(param.get(1));
-                multiPartSpecBuilder.controlName(param.get(0).toString());
-                String fileName = ((File) param.get(1)).getName();
-                multiPartSpecBuilder.fileName(fileName);
-                String mimeType;
-                mimeType = URLConnection.guessContentTypeFromName(((File) param.get(1)).getName());
-                if (mimeType == null) {
-                    // Files.probeContentType() is platform-dependent; fall back to
-                    // "application/octet-stream" when no mapping is available.
-                    try {
-                        mimeType = Files.probeContentType(((File) param.get(1)).toPath());
-                    } catch (IOException ignored) {
-                        // fall through to default
-                    }
-                }
-                if (mimeType == null) {
-                    mimeType = "application/octet-stream";
-                }
-                multiPartSpecBuilder.mimeType(mimeType);
-                builder.addMultiPart(multiPartSpecBuilder.build());
-                // override the default content type as part of the specs
-                builder.setContentType("multipart/form-data");
+            if (parametersType.equals(ParametersType.FORM)) {
+                builder.addFormParam(param.get(0).toString(), param.get(1));
             } else {
-                if (parametersType.equals(ParametersType.FORM)) {
-                    builder.addFormParam(param.get(0).toString(), param.get(1));
-                } else {
-                    builder.addQueryParam(param.get(0).toString(), param.get(1));
-                }
+                builder.addQueryParam(param.get(0).toString(), param.get(1));
             }
         });
     }

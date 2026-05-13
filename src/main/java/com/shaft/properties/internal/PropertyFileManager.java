@@ -217,6 +217,7 @@ public final class PropertyFileManager {
             properties.load(new FileInputStream(propertyFile));
             // merge: effective properties (system + thread-local) override file-based properties
             properties.putAll(ThreadLocalPropertiesManager.getEffectiveProperties());
+            ThreadLocalPropertiesManager.applyCompatibilityAliases(properties);
             // write merged result back to system properties so that ConfigFactory picks them up
             System.getProperties().putAll(properties);
         } catch (IOException e) {

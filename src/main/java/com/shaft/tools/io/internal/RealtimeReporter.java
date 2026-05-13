@@ -40,7 +40,7 @@ public class RealtimeReporter {
 
     /** Default port for the real-time dashboard server. */
     private static final int DEFAULT_PORT = 1111;
-    private static final String DASHBOARD_URL = "http://localhost:" + DEFAULT_PORT;
+    private static volatile String DASHBOARD_URL = "http://localhost:" + DEFAULT_PORT;
     private static final Logger logger = LogManager.getLogger(RealtimeReporter.class);
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault());
     private static final DateTimeFormatter FULL_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault());
@@ -411,34 +411,57 @@ public class RealtimeReporter {
 
     private static void startServer() {
         try {
-            httpServer = HttpServer.create(new InetSocketAddress("localhost", DEFAULT_PORT), 0);
-            httpServer.createContext("/", RealtimeReporter::handleRoot);
-            httpServer.createContext("/api/state", RealtimeReporter::handleState);
-            httpServer.createContext("/api/events", RealtimeReporter::handleSse);
-            httpServer.createContext("/api/test/", RealtimeReporter::handleTestDetails);
-            httpServer.createContext("/api/attachment/", RealtimeReporter::handleAttachment);
-            httpExecutor = Executors.newCachedThreadPool();
-            httpServer.setExecutor(httpExecutor);
-            httpServer.start();
-            serverRunning.set(true);
-            logger.info("[RealtimeReporter] Dashboard started at {}", DASHBOARD_URL);
+            httpServer = createHttpServer(DEFAULT_PORT);
+            configureAndStartServer();
         } catch (BindException e) {
-            serverRunning.set(false);
-            httpServer = null;
-            if (httpExecutor != null) {
-                httpExecutor.shutdownNow();
-                httpExecutor = null;
+            logger.warn("[RealtimeReporter] Dashboard port {} is already in use. Falling back to an ephemeral port.", DEFAULT_PORT);
+            closeFailedServerResources();
+            try {
+                httpServer = createHttpServer(0);
+                configureAndStartServer();
+            } catch (IOException fallbackException) {
+                closeFailedServerResources();
+                logger.warn("[RealtimeReporter] Could not start dashboard server on fallback port. Reporter disabled for this run. Cause: {}", fallbackException.getMessage());
             }
-            logger.warn("[RealtimeReporter] Could not start dashboard on {} (port may already be in use). Reporter disabled for this run.", DEFAULT_PORT);
         } catch (IOException e) {
-            serverRunning.set(false);
-            httpServer = null;
-            if (httpExecutor != null) {
-                httpExecutor.shutdownNow();
-                httpExecutor = null;
-            }
+            closeFailedServerResources();
             logger.warn("[RealtimeReporter] Could not start dashboard server. Reporter disabled for this run. Cause: {}", e.getMessage());
         }
+    }
+
+    private static HttpServer createHttpServer(int port) throws IOException {
+        return HttpServer.create(new InetSocketAddress("localhost", port), 0);
+    }
+
+    private static void configureAndStartServer() {
+        httpServer.createContext("/", RealtimeReporter::handleRoot);
+        httpServer.createContext("/api/state", RealtimeReporter::handleState);
+        httpServer.createContext("/api/events", RealtimeReporter::handleSse);
+        httpServer.createContext("/api/test/", RealtimeReporter::handleTestDetails);
+        httpServer.createContext("/api/attachment/", RealtimeReporter::handleAttachment);
+        httpExecutor = Executors.newCachedThreadPool();
+        httpServer.setExecutor(httpExecutor);
+        httpServer.start();
+        DASHBOARD_URL = "http://localhost:" + httpServer.getAddress().getPort();
+        serverRunning.set(true);
+        logger.info("[RealtimeReporter] Dashboard started at {}", DASHBOARD_URL);
+    }
+
+    private static void closeFailedServerResources() {
+        serverRunning.set(false);
+        if (httpServer != null) {
+            try {
+                httpServer.stop(0);
+            } catch (Exception e) {
+                logger.debug("[RealtimeReporter] Error stopping failed server: {}", e.getMessage());
+            }
+            httpServer = null;
+        }
+        if (httpExecutor != null) {
+            httpExecutor.shutdownNow();
+            httpExecutor = null;
+        }
+        DASHBOARD_URL = "http://localhost:" + DEFAULT_PORT;
     }
 
     private static void openBrowser() {

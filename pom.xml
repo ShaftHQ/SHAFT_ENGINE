@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>10.2.20260506</version> <!-- UPDATE com.shaft.properties.internal > Internal > shaftEngineVersion, allure3Version, nodeLtsVersion,  -->
+    <version>10.2.20260513</version> <!-- UPDATE com.shaft.properties.internal > Internal > shaftEngineVersion, allure3Version, nodeLtsVersion,  -->
     <name>${project.groupId}:${project.artifactId}</name>
     <description>SHAFT is a unified test automation engine. Powered by best-in-class frameworks, SHAFT provides a
         wizard-like syntax to drive your automation efficiently, maximize your ROI, and minimize your learning curve.
@@ -34,13 +34,13 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <surefireArgLine>--enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8</surefireArgLine>
+        <surefireArgLine>--enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8</surefireArgLine>
         <surefire.excludedGroups>allure3-visual-demo</surefire.excludedGroups>
         <jdk.version>25</jdk.version>
         <lombok.version>1.18.46</lombok.version>
         <maven.min.version>3.9.0</maven.min.version>
         <!-- Dependency Versions -->
-        <log4j2.version>2.25.4</log4j2.version>
+        <log4j2.version>2.26.0</log4j2.version>
         <netty.version>4.2.13.Final</netty.version>
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install "-DskipTests" "-Dgpg.skip"</installToLocalRepository>
@@ -141,12 +141,12 @@
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>2.0.17</version>
+                <version>2.0.18</version>
             </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>jcl-over-slf4j</artifactId>
-                <version>2.0.17</version>
+                <version>2.0.18</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.httpcomponents</groupId>
@@ -296,7 +296,7 @@
             <dependency>
                 <groupId>org.seleniumhq.selenium</groupId>
                 <artifactId>selenium-java</artifactId>
-                <version>4.43.0</version>
+                <version>4.44.0</version>
             </dependency>
             <dependency>
                 <groupId>io.appium</groupId>
@@ -417,7 +417,7 @@
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
-            <version>4.43.0</version>
+            <version>4.44.0</version>
         </dependency>
 
         <!-- APPIUM -->
@@ -980,7 +980,7 @@
         <dependency>
             <groupId>com.browserstack</groupId>
             <artifactId>browserstack-java-sdk</artifactId>
-            <version>1.58.0</version>
+            <version>1.58.3</version>
             <scope>runtime</scope>
             <exclusions>
                 <!-- Rely on SHAFT-controlled direct dependencies to avoid old transitive duplicates -->
@@ -1477,6 +1477,10 @@
                                 <alwaysLogDiscreetly>true</alwaysLogDiscreetly>
                                 <log4j2.disableAnsi>true</log4j2.disableAnsi>
                             </systemPropertyVariables>
+                            <!-- testFailureIgnore=true lets Maven complete the test phase even when tests fail,
+                                 which allows JaCoCo to generate its coverage report afterward.
+                                 Actual pass/fail is enforced by the post-test-report composite action
+                                 (reads Allure summary.json or Surefire XML and exits 1 on failures). -->
                             <testFailureIgnore>true</testFailureIgnore>
                             <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                             <failIfNoTests>false</failIfNoTests>
@@ -1538,6 +1542,10 @@
                                 <alwaysLogDiscreetly>true</alwaysLogDiscreetly>
                                 <log4j2.disableAnsi>true</log4j2.disableAnsi>
                             </systemPropertyVariables>
+                            <!-- testFailureIgnore=true lets Maven complete the test phase even when tests fail,
+                                 which allows JaCoCo to generate its coverage report afterward.
+                                 Actual pass/fail is enforced by the post-test-report composite action
+                                 (reads Allure summary.json or Surefire XML and exits 1 on failures). -->
                             <testFailureIgnore>true</testFailureIgnore>
                             <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                             <failIfNoTests>false</failIfNoTests>

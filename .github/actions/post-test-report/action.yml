@@ -139,6 +139,21 @@ runs:
             echo "::warning::No tests were executed. Check test configuration."
           fi
           if [ "$FAILED" -gt 0 ] || [ "$BROKEN" -gt 0 ]; then
+            if command -v python3 >/dev/null 2>&1; then
+              ALLURE_FAILURE_SOURCE=""
+              if [ -d "allure-report" ]; then
+                ALLURE_FAILURE_SOURCE="allure-report"
+              elif [ -d "allure-results" ]; then
+                ALLURE_FAILURE_SOURCE="allure-results"
+              fi
+              if [ -n "$ALLURE_FAILURE_SOURCE" ]; then
+                {
+                  echo ""
+                  echo "### ❌ Failed and broken test methods"
+                  python3 scripts/ci/extract_allure_failures.py "$ALLURE_FAILURE_SOURCE" || true
+                } >> "$GITHUB_STEP_SUMMARY"
+              fi
+            fi
             echo "::error::Allure report shows $FAILED failed and $BROKEN broken test(s) out of $TOTAL total. Check the Allure report artifact for details."
             exit 1
           fi

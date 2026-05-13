@@ -6,6 +6,8 @@ import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
+import java.lang.reflect.Method;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -21,31 +23,35 @@ public class BrowserStackPropertiesUnitTest {
         Properties.clearForCurrentThread();
     }
 
-    @Test(description = "Validate BrowserStack default property values")
+    @Test(description = "Validate BrowserStack declared default property values")
     public void testBrowserStackDefaults() {
-        assertFalse(SHAFT.Properties.browserStack.userName() == null);
-        assertFalse(SHAFT.Properties.browserStack.accessKey() == null);
-        assertEquals(SHAFT.Properties.browserStack.platformVersion(), "");
-        assertEquals(SHAFT.Properties.browserStack.deviceName(), "");
-        assertEquals(SHAFT.Properties.browserStack.appUrl(), "");
-        assertEquals(SHAFT.Properties.browserStack.customID(), "");
-        assertEquals(SHAFT.Properties.browserStack.appName(), "");
-        assertEquals(SHAFT.Properties.browserStack.appRelativeFilePath(), "");
-        assertEquals(SHAFT.Properties.browserStack.osVersion(), "");
-        assertEquals(SHAFT.Properties.browserStack.browserVersion(), "");
-        assertFalse(SHAFT.Properties.browserStack.local());
-        assertFalse(SHAFT.Properties.browserStack.seleniumVersion().isBlank());
-        assertTrue(SHAFT.Properties.browserStack.acceptInsecureCerts());
-        assertFalse(SHAFT.Properties.browserStack.debug());
-        assertFalse(SHAFT.Properties.browserStack.networkLogs());
-        assertEquals(SHAFT.Properties.browserStack.geoLocation(), "");
-        assertFalse(SHAFT.Properties.browserStack.appiumVersion().isBlank());
-        assertEquals(SHAFT.Properties.browserStack.buildName(), "");
-        assertEquals(SHAFT.Properties.browserStack.projectName(), "");
-        assertEquals(SHAFT.Properties.browserStack.parallelsPerPlatform(), 1);
-        assertTrue(SHAFT.Properties.browserStack.browserstackAutomation());
-        assertEquals(SHAFT.Properties.browserStack.platformsList(), "");
-        assertEquals(SHAFT.Properties.browserStack.customBrowserStackYmlPath(), "");
+        Map<String, String> expectedDefaults = Map.ofEntries(
+                Map.entry("platformVersion", ""),
+                Map.entry("deviceName", ""),
+                Map.entry("appUrl", ""),
+                Map.entry("customID", ""),
+                Map.entry("appName", ""),
+                Map.entry("appRelativeFilePath", ""),
+                Map.entry("osVersion", ""),
+                Map.entry("browserVersion", ""),
+                Map.entry("local", "false"),
+                Map.entry("seleniumVersion", "4.40.0"),
+                Map.entry("acceptInsecureCerts", "true"),
+                Map.entry("debug", "false"),
+                Map.entry("networkLogs", "false"),
+                Map.entry("geoLocation", ""),
+                Map.entry("appiumVersion", "3.1.0"),
+                Map.entry("buildName", ""),
+                Map.entry("projectName", ""),
+                Map.entry("parallelsPerPlatform", "1"),
+                Map.entry("browserstackAutomation", "true"),
+                Map.entry("platformsList", ""),
+                Map.entry("customBrowserStackYmlPath", "")
+        );
+
+        expectedDefaults.forEach((methodName, expectedDefault) -> assertEquals(getBrowserStackDefaultValue(methodName), expectedDefault));
+        assertFalse(getBrowserStackDefaultValue("userName").isBlank());
+        assertFalse(getBrowserStackDefaultValue("accessKey").isBlank());
     }
 
     @Test(description = "Validate BrowserStack fluent setters update values and support chaining")
@@ -170,6 +176,15 @@ public class BrowserStackPropertiesUnitTest {
 
         assertEquals(SHAFT.Properties.browserStack.userName(), defaultUserName);
         assertEquals(SHAFT.Properties.browserStack.local(), defaultLocal);
+    }
+
+    private String getBrowserStackDefaultValue(String methodName) {
+        try {
+            Method method = com.shaft.properties.internal.BrowserStack.class.getMethod(methodName);
+            return method.getAnnotation(org.aeonbits.owner.Config.DefaultValue.class).value();
+        } catch (NoSuchMethodException e) {
+            throw new IllegalArgumentException("Unknown BrowserStack property method: " + methodName, e);
+        }
     }
 
     private void assertEquals(Object actual, Object expected) {

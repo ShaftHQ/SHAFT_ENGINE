@@ -52,6 +52,18 @@ PDCA is the mandatory development methodology.  Each cycle consists of four phas
 - Re-run tests to confirm refactoring did not break anything.
 - Update JavaDocs and inline comments to reflect the final design.
 
+### Start/Init Trigger Protocol
+
+When a maintainer tags `@codex` and asks the agent to begin work, or when the trigger includes the keywords `start` or `init`, treat that as an explicit instruction to initialize the full task workflow before implementation. Complete these steps in order unless a higher-priority instruction or platform limitation prevents them; when blocked, state the limitation and complete the nearest safe equivalent.
+
+1. **Take assignment intentionally.** Assign the GitHub Issue or task to `codex` when that identity is available. If GitHub cannot assign `codex`, assign the task to the requesting maintainer and explain the fallback. Never assign the task to `MohabMohie` or another maintainer unless explicitly requested.
+2. **Create a linked branch.** Create a dedicated branch for the task and link it to the GitHub task for traceability. Prefer branch names and PR metadata that include the issue number or closing keyword relationship, so merging the PR closes the task automatically. If the trigger is not an issue, the issue number is unavailable, or GitHub access is unavailable, document why auto-closing linkage could not be established.
+3. **Open a draft PR before deep implementation.** Push the branch and open a draft PR as early as practical. The draft PR body must state that Codex is the implementation agent and must include a plan detailed enough for a lower-intelligence AI agent to follow, including exact inspection steps, expected files, sample commands, validation expectations, acceptance criteria, assumptions, risks, and fallback guidance.
+4. **Execute with at least three PDCA iterations.** For non-trivial work, iteration 1 should make the smallest working change, iteration 2 should reduce change impact and align with repository/industry best practices, and iteration 3 should optimize clarity, maintainability, documentation, and validation. Each iteration must explicitly cover Plan, Do, Check, and Act.
+5. **Commit at meaningful checkpoints.** After each validated checkpoint, commit the focused changes to the branch. Do not accumulate a large uncommitted implementation when a safe checkpoint exists.
+6. **Validate the task outcome.** Run targeted checks first, then broader checks as appropriate. Confirm that the checks directly prove the requested behavior or fix, and document any environment limitations.
+7. **Finalize and notify.** Push the final branch, update the PR description or add a progress comment with completed iterations and validation evidence, mark the PR ready for review when complete, and notify the requester to review.
+
 ### Minimum 3-Iteration Rule
 
 > **You MUST complete at least three full PDCA cycles for any non-trivial implementation.**
@@ -760,7 +772,7 @@ Follow these steps in order when preparing a new SHAFT release:
   - change the `@DefaultValue` of `shaftEngineVersion()` to match the new release version.
   - also check and update `allure3Version()` to the latest stable Allure 3 npm package version.
   - also check and update `nodeLtsVersion()` to the latest Node.js LTS patch version.
-- **All example `pom.xml` files** under `src/main/resources/examples/` (7 files — TestNG, JUnit, Cucumber variants): change `<shaft_engine.version>OLD</shaft_engine.version>` to `<shaft_engine.version>NEW</shaft_engine.version>`.  You can do this in bulk with:
+- **All example/demo `pom.xml` files** under `src/main/resources/examples/` (7 files — TestNG, JUnit, Cucumber variants): change `<shaft_engine.version>OLD</shaft_engine.version>` to `<shaft_engine.version>NEW</shaft_engine.version>` in the release PR itself. Do not wait for the post-release sync workflow to correct sample/demo projects after the release. You can do this in bulk with:
   ```bash
   find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<shaft_engine.version>OLD</shaft_engine.version>|<shaft_engine.version>NEW</shaft_engine.version>|g'
   ```
@@ -823,7 +835,10 @@ mvn clean install -DskipTests -Dgpg.skip    # must succeed
 > skip baseline/full test-suite reruns to keep release preparation lightweight; rely on pre-release validation already completed and CI on merge.
 > If any file under `src/main/java/` or `src/test/java/` is modified, the mandatory pre-commit rules apply in full. In all cases, `mvn clean install -DskipTests -Dgpg.skip` must pass before commit.
 
-### 5. Commit and Merge to `main`
+### 5. Open the Release PR
+Use a PR title that includes the release name/version and clearly says this PR generates/prepares a new release, for example: `chore(release): generate SHAFT_ENGINE 10.2.20260513 release`. Open the PR directly after validation; do not wait for a separate prompt once the release metadata is ready.
+
+### 6. Commit and Merge to `main`
 Merging to `main` automatically triggers the **Maven Central Continuous Delivery** workflow (`mavenCentral_cd.yml`), which:
 1. Substitutes `$RELEASE_VERSION` in `.github/RELEASE_BODY_TEMPLATE.md` and uses it as the release body.
 2. Creates a GitHub Release via `ncipollo/release-action` with `generateReleaseNotes: true` **and** `bodyFile`.
@@ -881,7 +896,7 @@ See: https://github.com/ShaftHQ/shafthq.github.io/issues/468
 - [ ] `Internal.java` `shaftEngineVersion` `@DefaultValue` updated
 - [ ] `Internal.java` `allure3Version` checked/updated to latest stable
 - [ ] `Internal.java` `nodeLtsVersion` checked/updated to latest LTS patch
-- [ ] All 7 example `pom.xml` files under `src/main/resources/examples/` updated — bump `<shaft_engine.version>` manually (use bulk `sed` command above) **or** wait for the **Sync Sample Projects SHAFT Version** workflow to open a PR automatically after the release is published
+- [ ] All 7 example/demo `pom.xml` files under `src/main/resources/examples/` updated in this release PR — bump `<shaft_engine.version>` manually (use the bulk `sed` command above); do **not** wait for the **Sync Sample Projects SHAFT Version** workflow to fix release PR drift
 - [ ] All 7 example `pom.xml` files synced with main `pom.xml` for plugin/dependency versions — the **Sync Sample Projects SHAFT Version** workflow handles `jdk.version`, `aspectjweaver.version`, `maven-compiler-plugin.version`, `maven-resources-plugin.version`, `maven-surefire-plugin.version`, and `surefire-testng.version` automatically; manually verify only if the workflow fails
 - [ ] Dependency currency gate executed: `versions:display-dependency-updates`, `versions:display-plugin-updates`, and `versions:display-property-updates`
 - [ ] No stable dependency/plugin/property updates skipped
@@ -926,6 +941,8 @@ These guard rails apply specifically when modifying SHAFT internals across PDCA 
 ## Testing Guidelines
 - **You MUST create tests for every new feature, bug fix, or code modification**
 - **You MUST run all affected tests and confirm they pass before committing**
+- **Allure result JSON/report output is the source of truth for SHAFT test verdicts**; Surefire is diagnostic only when results disagree
+- **Always verify the Allure run is populated before analyzing statuses** by counting executed tests/result JSON files first
 - **You MUST capture screenshots of test results** as evidence that tests were executed and passed
 - Write tests that validate your changes
 - Follow existing test patterns in `src/test/java/`
@@ -1119,6 +1136,13 @@ These guidelines apply to GitHub Copilot coding agent sessions working on this r
 2. **Anti-patterns encountered** — if you ran into a trap or common mistake, add it to the appropriate "Anti-patterns to avoid" list.
 3. **Edge cases** — if a test revealed an unexpected edge case, document it near the relevant SHAFT API section.
 4. **Workflow improvements** — if a CI/CD workflow behaved unexpectedly, note the root cause and the correct fix.
+
+### Repository Knowledge Migration Protocol
+- When asked to scan, migrate, consolidate, preserve agent knowledge, or update start/init task workflow instructions, follow `docs/AGENT_KNOWLEDGE_MIGRATION.md`.
+- Create or link a task ticket before implementation; if authenticated GitHub Issues access is unavailable, create a local ticket under `docs/tickets/` and note that maintainers should mirror it.
+- Create a dedicated task branch before editing files, then keep migration/documentation changes isolated from unrelated code.
+- Discover `AGENTS.md`, instruction, memory, skill, and tool files first; reconcile conflicts by favoring direct session instructions, scoped instructions, and executable configuration over stale prose.
+- Open a PR when the initial implementation is complete so humans can collaborate before the migration is finalized; if GitHub publication access is unavailable, explicitly report the limitation and provide a PR handoff.
 
 ### Persistent Memory Ledger (Mandatory for Non-Trivial Sessions)
 - Store high-value learnings in `.github/copilot-memory.md` using a compact append-only format.

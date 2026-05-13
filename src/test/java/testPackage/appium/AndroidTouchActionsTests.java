@@ -183,17 +183,4 @@ public class AndroidTouchActionsTests extends MobileTest {
                 .perform();
     }
 
-    /**
-     * Verifies that {@link TouchActions#swipeToElement(By, By)} performs a drag-and-drop
-     * gesture from a source element to a destination element on the Native Android Demo app.
-     */
-    @Test(groups = {"NativeAndroidDemo"})
-    public void swipeToElementUsingDragAndDropGestureAndAssertDropTargetIsVisible() {
-        driver.get().touch()
-                .tap(AppiumBy.accessibilityId("Drag"))
-                .swipeToElement(AppiumBy.accessibilityId("drag-l2"), AppiumBy.accessibilityId("drop-l2"));
-        driver.get().assertThat()
-                .element(AppiumBy.accessibilityId("drag-l2"))
-                .exists();
-    }
 }

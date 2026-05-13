@@ -5,14 +5,17 @@ import com.shaft.cli.TerminalActions;
 import com.shaft.validation.Validations;
 import org.testng.annotations.Test;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.HexFormat;
+
 public class ChecksumTests {
-    @Test(enabled = false)
-    public void readLocalFileChecksum() {
+    @Test
+    public void readLocalFileChecksum() throws Exception {
         String targetFileFolderPath = "";
         String targetFileName = "pom.xml";
-        // Expected SHA-256 checksum for the current contents of pom.xml in targetFileFolderPath.
-        // Regenerate/verify when pom.xml changes (for example: `sha256sum pom.xml`).
-        String expectedHash = "f31105c8059fb10caba965b489fa97a88212ed529916bf3d8841e5ca7d076eb8";
+        String expectedHash = calculateSha256(Path.of(targetFileFolderPath, targetFileName));
 
         TerminalActions terminalSession = new TerminalActions();
         String actualHash = FileActions.getInstance().getFileChecksum(terminalSession, targetFileFolderPath, targetFileName);
@@ -64,5 +67,10 @@ public class ChecksumTests {
                 pathToTempDirectoryOnRemoteMachine);
 
         Validations.assertThat().object(actualHash).isEqualTo(expectedHash);
+    }
+
+    private String calculateSha256(Path targetFilePath) throws Exception {
+        byte[] digest = MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(targetFilePath));
+        return HexFormat.of().formatHex(digest);
     }
 }
