@@ -100,6 +100,7 @@ Important directories:
 
 ## Agent Workflow
 - Start by reading this file plus any scoped instructions relevant to the files you will touch, especially `.github/instructions/framework-source.instructions.md` for `src/main/java/**/*.java` and `.github/instructions/java-tests.instructions.md` for `src/test/java/**/*.java`.
+- When the user asks you to start work on a task, mentions `@codex` with `start` or `init`, or otherwise uses those keywords to begin implementation, follow the full start/init protocol below before coding.
 - When the user asks you to work on an issue, create a dedicated branch from that issue and ensure the branch is linked to the issue correctly. Open a draft pull request early with a generic implementation-plan description, continue working locally on that branch, and push changes to the remote branch once you reach a good implementation milestone. When the work is complete, push the latest code, mark the pull request ready for review, and notify the user that the pull request is ready for review.
 - Follow existing PDCA-style guidance: plan, make the smallest focused change, validate, then refactor only as needed.
 - For bug fixes, reproduce the issue and add/verify a failing test before changing framework code whenever practical.
@@ -109,6 +110,17 @@ Important directories:
 - Report commands run and results. Call out unvalidated assumptions and environment limitations.
 - For agent-instruction or memory migrations, see `docs/AGENT_KNOWLEDGE_MIGRATION.md` and keep durable guidance in long-lived instruction files rather than task reports.
 - A weekly/manual GitHub Actions workflow (`Refresh Agent Instructions`) uses `openai/codex-action@v1` to propose agent-guidance refreshes by pull request only; it requires the `OPENAI_API_KEY` Actions secret.
+
+### Start/Init Task Protocol
+Use this protocol whenever a maintainer tags `@codex` to start work, says `start`, says `init`, or otherwise asks the agent to begin a task. If a direct higher-priority instruction or environment limitation prevents a step, state the limitation explicitly and perform the nearest safe equivalent.
+
+1. **Assign ownership.** Assign the task to `codex` where GitHub supports that identity. If `codex` cannot be assigned, assign the task to the requesting maintainer instead and explain why in the PR or status update. Do not assign the task to unrelated maintainers such as `MohabMohie` unless explicitly requested.
+2. **Link traceability before work.** Create a dedicated branch that is linked to the GitHub Issue or task. Prefer branch names that include the issue number or closing keyword relationship where the platform supports it, so merging the branch or PR can automatically close the task. If there is no issue number, no authenticated GitHub access, or the trigger is only a PR comment, document that no auto-closing link could be created.
+3. **Open a draft PR early.** Create a draft PR from the new branch before substantial implementation. The PR body must identify Codex as the implementation agent and include an implementation plan written for a lower-intelligence AI agent: detailed steps, explicit files to inspect or edit, command examples, acceptance criteria, validation commands, rollback/failure handling, and assumptions.
+4. **Use iterative PDCA execution.** Follow at least three development iterations for non-trivial work: iteration 1 makes the smallest working change, iteration 2 refactors toward minimal impact and industry best practices, and iteration 3 optimizes readability, maintainability, validation coverage, and documentation. Each iteration must include Plan, Do, Check, and Act activities.
+5. **Commit at checkpoints.** Commit code to the task branch at every useful checkpoint after validation passes for that checkpoint. Keep commits focused and avoid mixing unrelated changes.
+6. **Validate before claiming done.** Run the narrowest relevant checks first, then broader checks when warranted. For SHAFT test runs, confirm Allure results are populated before using them as the pass/fail oracle.
+7. **Publish final status.** After implementation is done, push the final branch state, update the PR description or add a progress comment summarizing completed iterations, checks run, files changed, and open risks, then notify the requester that the PR is ready for review.
 
 ## Safety and Constraints
 - Do not expose secrets or copy values from `.env`, credential files, BrowserStack/LambdaTest variables, Maven Central credentials, GPG keys, or CI secrets.

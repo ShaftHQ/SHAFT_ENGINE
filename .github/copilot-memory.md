@@ -65,3 +65,10 @@ Purpose: keep high-signal, reusable learnings from implementation sessions in on
 - Lesson: Start E2E triage with authenticated `gh run view`, failed job logs, and artifact metadata; self-contained `*_Allure.html` artifacts can be parsed directly by decoding embedded `data/test-results/*.json` payloads, which is much faster than browser traversal. Always count populated Allure results before trusting statuses, distinguish provider/credential failures from code defects, and label Codex-authored branches/PRs so human token owners are not implied as manual authors.
 - Evidence: `docs/CI_FAILURE_INVESTIGATION.md`, `AGENTS.md`, issue #2696, PR #2699
 - Action taken: Added a CI/Allure investigation runbook, linked it from repository agent guidance, and recorded PR title/body authorship guidance for future Codex-created work.
+
+- Date: 2026-05-13
+- Area: Agent start/init workflow / PR traceability
+- Trigger: PR follow-up comment asked `@codex init` to make future start/init mentions follow the explicit assignment, linked-branch, draft-PR, checkpoint-commit, and review-notification process.
+- Lesson: Treat maintainer mentions with `start` or `init` as a request to initialize the full task workflow: assign to `codex` when possible (otherwise the requester), create a GitHub-linked branch for auto-close traceability when an issue exists, open an early draft PR with a lower-intelligence-agent-ready plan, execute at least three PDCA iterations for non-trivial work, commit at validated checkpoints, then push final status and notify the requester for review.
+- Evidence: `AGENTS.md`, `.github/copilot-instructions.md`, PR follow-up trigger `@codex init` on 2026-05-13.
+- Action taken: Added explicit start/init protocol guidance to repository agent instructions and recorded this reusable lesson in the memory ledger.
