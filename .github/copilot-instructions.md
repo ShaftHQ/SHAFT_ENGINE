@@ -52,6 +52,18 @@ PDCA is the mandatory development methodology.  Each cycle consists of four phas
 - Re-run tests to confirm refactoring did not break anything.
 - Update JavaDocs and inline comments to reflect the final design.
 
+### Start/Init Trigger Protocol
+
+When a maintainer tags `@codex` and asks the agent to begin work, or when the trigger includes the keywords `start` or `init`, treat that as an explicit instruction to initialize the full task workflow before implementation. Complete these steps in order unless a higher-priority instruction or platform limitation prevents them; when blocked, state the limitation and complete the nearest safe equivalent.
+
+1. **Take assignment intentionally.** Assign the GitHub Issue or task to `codex` when that identity is available. If GitHub cannot assign `codex`, assign the task to the requesting maintainer and explain the fallback. Never assign the task to `MohabMohie` or another maintainer unless explicitly requested.
+2. **Create a linked branch.** Create a dedicated branch for the task and link it to the GitHub task for traceability. Prefer branch names and PR metadata that include the issue number or closing keyword relationship, so merging the PR closes the task automatically. If the trigger is not an issue, the issue number is unavailable, or GitHub access is unavailable, document why auto-closing linkage could not be established.
+3. **Open a draft PR before deep implementation.** Push the branch and open a draft PR as early as practical. The draft PR body must state that Codex is the implementation agent and must include a plan detailed enough for a lower-intelligence AI agent to follow, including exact inspection steps, expected files, sample commands, validation expectations, acceptance criteria, assumptions, risks, and fallback guidance.
+4. **Execute with at least three PDCA iterations.** For non-trivial work, iteration 1 should make the smallest working change, iteration 2 should reduce change impact and align with repository/industry best practices, and iteration 3 should optimize clarity, maintainability, documentation, and validation. Each iteration must explicitly cover Plan, Do, Check, and Act.
+5. **Commit at meaningful checkpoints.** After each validated checkpoint, commit the focused changes to the branch. Do not accumulate a large uncommitted implementation when a safe checkpoint exists.
+6. **Validate the task outcome.** Run targeted checks first, then broader checks as appropriate. Confirm that the checks directly prove the requested behavior or fix, and document any environment limitations.
+7. **Finalize and notify.** Push the final branch, update the PR description or add a progress comment with completed iterations and validation evidence, mark the PR ready for review when complete, and notify the requester to review.
+
 ### Minimum 3-Iteration Rule
 
 > **You MUST complete at least three full PDCA cycles for any non-trivial implementation.**
@@ -1123,7 +1135,7 @@ These guidelines apply to GitHub Copilot coding agent sessions working on this r
 4. **Workflow improvements** — if a CI/CD workflow behaved unexpectedly, note the root cause and the correct fix.
 
 ### Repository Knowledge Migration Protocol
-- When asked to scan, migrate, consolidate, or preserve agent knowledge, follow `docs/AGENT_KNOWLEDGE_MIGRATION.md`.
+- When asked to scan, migrate, consolidate, preserve agent knowledge, or update start/init task workflow instructions, follow `docs/AGENT_KNOWLEDGE_MIGRATION.md`.
 - Create or link a task ticket before implementation; if authenticated GitHub Issues access is unavailable, create a local ticket under `docs/tickets/` and note that maintainers should mirror it.
 - Create a dedicated task branch before editing files, then keep migration/documentation changes isolated from unrelated code.
 - Discover `AGENTS.md`, instruction, memory, skill, and tool files first; reconcile conflicts by favoring direct session instructions, scoped instructions, and executable configuration over stale prose.
