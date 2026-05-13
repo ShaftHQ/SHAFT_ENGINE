@@ -138,6 +138,7 @@ Use this protocol whenever a maintainer tags `@codex` to start work, says `start
 - Java 25 plus Mockito inline mocking can fail on some TestNG interfaces with optional dependency types. Prefer extracting list/value-based helper logic for unit coverage over mocking or proxying `org.testng.ISuite`.
 - If GitHub publication access is unavailable, say so clearly and provide a PR handoff rather than implying a visible GitHub PR exists.
 - Agent-created branches/PRs must identify the agent author. Prefer branch names starting with `codex/` and PR titles starting with `codex:` for Codex-authored work. If a human maintainer token creates the PR, state in the PR body that Codex made the changes and that the token owner did not author them manually.
+- The local `make_pr` tool only records PR metadata for the agent harness; it does **not** publish a visible GitHub pull request or upload the branch. For GitHub-backed tasks, after committing changes, push the `codex/` branch to `origin`, create or update the real GitHub PR with `gh pr create`/`gh pr edit`, include `Closes #<issue>` or an equivalent issue link when an issue exists, and verify with `git ls-remote --heads origin <branch>` plus `gh pr view --json number,url,headRefName,baseRefName,closingIssuesReferences` before telling the user the PR is open.
 
 ## Open Questions / Verify Before Relying
 - No explicit local formatter command was found.
