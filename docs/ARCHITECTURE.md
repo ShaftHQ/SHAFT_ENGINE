@@ -97,7 +97,7 @@ graph TB
 ### Core Testing Modules
 - **🌐 GUI Module**: Selenium and Appium-based web and mobile automation with fluent API
 - **🔌 API Module**: REST API testing powered by REST Assured
-- **💻 CLI Module**: Command-line execution and file system operations
+- **💻 CLI Module**: Local and remote command execution (including JSch SSH with `TerminalActions` and reusable `RemoteSshClient` via `SHAFT.CLI.remoteSsh`), plus file system operations
 - **🗄️ DB Module**: Database connectivity and SQL operations
 
 ### Supporting Modules

@@ -3,6 +3,8 @@ package com.shaft.driver;
 import com.shaft.api.RequestBuilder;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
+import com.shaft.cli.RemoteSshClient;
+import com.shaft.cli.SshSessionPolicy;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
@@ -493,6 +495,10 @@ public class SHAFT {
      * <pre>{@code
      * SHAFT.CLI.terminal().performTerminalCommand("echo hello");
      * SHAFT.CLI.file().readFile("path/to/file.txt");
+     * try (var ssh = SHAFT.CLI.remoteSsh("host", 22, "user", "keys/", "id_rsa")) {
+     *     ssh.connect();
+     *     var result = ssh.performCommand("uname -a");
+     * }
      * }</pre>
      */
     public static class CLI {
@@ -507,6 +513,48 @@ public class SHAFT {
          */
         public static TerminalActions terminal() {
             return new TerminalActions();
+        }
+
+        /**
+         * Creates a reusable SSH client for the given host (one session by default, multiple remote execs).
+         * Call {@link RemoteSshClient#connect()} before {@link RemoteSshClient#performCommand(String)}.
+         *
+         * @see RemoteSshClient
+         * @see SshSessionPolicy
+         */
+        public static RemoteSshClient remoteSsh(String sshHostName, int sshPortNumber, String sshUsername,
+                                                String sshKeyFileFolderName, String sshKeyFileName) {
+            return new RemoteSshClient(sshHostName, sshPortNumber, sshUsername, sshKeyFileFolderName, sshKeyFileName);
+        }
+
+        /**
+         * Same as {@link #remoteSsh(String, int, String, String, String)} with an explicit {@link SshSessionPolicy}.
+         */
+        public static RemoteSshClient remoteSsh(String sshHostName, int sshPortNumber, String sshUsername,
+                                                String sshKeyFileFolderName, String sshKeyFileName,
+                                                SshSessionPolicy sessionPolicy) {
+            return new RemoteSshClient(sshHostName, sshPortNumber, sshUsername, sshKeyFileFolderName, sshKeyFileName, sessionPolicy);
+        }
+
+        /**
+         * Reusable SSH client targeting a command inside a Docker container on the remote host
+         * (same wrapping behavior as {@link TerminalActions}'s SSH+Docker constructor).
+         */
+        public static RemoteSshClient remoteSsh(String sshHostName, int sshPortNumber, String sshUsername,
+                                                String sshKeyFileFolderName, String sshKeyFileName,
+                                                String dockerName, String dockerUsername) {
+            return new RemoteSshClient(sshHostName, sshPortNumber, sshUsername, sshKeyFileFolderName, sshKeyFileName,
+                    dockerName, dockerUsername);
+        }
+
+        /**
+         * SSH + Docker with an explicit {@link SshSessionPolicy}.
+         */
+        public static RemoteSshClient remoteSsh(String sshHostName, int sshPortNumber, String sshUsername,
+                                                String sshKeyFileFolderName, String sshKeyFileName,
+                                                String dockerName, String dockerUsername, SshSessionPolicy sessionPolicy) {
+            return new RemoteSshClient(sshHostName, sshPortNumber, sshUsername, sshKeyFileFolderName, sshKeyFileName,
+                    dockerName, dockerUsername, sessionPolicy);
         }
 
         /**

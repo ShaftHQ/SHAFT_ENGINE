@@ -87,6 +87,7 @@ public class PropertiesHelper {
         Properties.basePerformance = ConfigFactory.create(Performance.class);
         Properties.baseLambdaTest = ConfigFactory.create(LambdaTest.class);
         Properties.baseApi = ConfigFactory.create(API.class);
+        Properties.baseSsh = ConfigFactory.create(Ssh.class);
         Properties.initialized = true;
     }
 

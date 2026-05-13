@@ -1,9 +1,12 @@
 package com.shaft.cli;
 
 import com.jcraft.jsch.ChannelExec;
-import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
+import com.shaft.cli.internal.JschSessionFactory;
+import com.shaft.cli.internal.RemoteCommandBundler;
+import com.shaft.cli.internal.ShellCommandNormalizer;
+import com.shaft.cli.internal.SshConnectionOptions;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -216,13 +219,7 @@ public class TerminalActions {
         // Build long command and refactor for dockerized execution if needed
         String longCommand = buildLongCommand(internalCommands);
 
-        if (internalCommands.size() == 1) {
-            if (internalCommands.getFirst().contains(" && ")) {
-                internalCommands = List.of(internalCommands.getFirst().split(" && "));
-            } else if (internalCommands.getFirst().contains(" ; ")) {
-                internalCommands = List.of(internalCommands.getFirst().split(" ; "));
-            }
-        }
+        internalCommands = ShellCommandNormalizer.expandSingleCommandChaining(internalCommands);
 
         // Perform command
         List<String> exitLogs = isRemoteTerminal() ? executeRemoteCommand(internalCommands, longCommand) : executeLocalCommand(internalCommands, longCommand);
@@ -281,15 +278,19 @@ public class TerminalActions {
         String testData = sshHostName + ", " + sshPortNumber + ", " + sshUsername + ", " + sshKeyFileFolderName + ", "
                 + sshKeyFileName;
         try {
-            Properties config = new Properties();
-            config.put("StrictHostKeyChecking", "no");
-            JSch jsch = new JSch();
+            String identity = null;
             if (sshKeyFileName != null && !sshKeyFileName.isEmpty()) {
-                jsch.addIdentity(FileActions.getInstance(true).getAbsolutePath(sshKeyFileFolderName, sshKeyFileName));
+                identity = FileActions.getInstance(true).getAbsolutePath(sshKeyFileFolderName, sshKeyFileName);
             }
-            session = jsch.getSession(sshUsername, sshHostName, sshPortNumber);
-            session.setConfig(config);
-            session.connect();
+            SshConnectionOptions options = new SshConnectionOptions(
+                    sshUsername,
+                    sshHostName,
+                    sshPortNumber,
+                    identity,
+                    SHAFT.Properties.ssh.strictHostKeyChecking(),
+                    SHAFT.Properties.ssh.connectTimeout(),
+                    SHAFT.Properties.ssh.serverAliveInterval());
+            session = JschSessionFactory.connect(options);
             ReportManager.logDiscrete("Successfully created SSH Session.");
         } catch (JSchException rootCauseException) {
             failAction(testData, rootCauseException);
@@ -298,23 +299,8 @@ public class TerminalActions {
     }
 
     private String buildLongCommand(List<String> commands) {
-        StringBuilder command = new StringBuilder();
-        // build long command
-        for (Iterator<String> i = commands.iterator(); i.hasNext(); ) {
-            if (command.isEmpty()) {
-                command.append(i.next());
-            } else {
-                command.append(" && ").append(i.next());
-            }
-        }
-
-        // refactor long command for dockerized execution
-        if (isDockerizedTerminal()) {
-            command.insert(0, "docker exec -u " + dockerUsername + " -i " + dockerName + " timeout "
-                    + SHAFT.Properties.timeouts.dockerCommandTimeout() + " sh -c '");
-            command.append("'");
-        }
-        return command.toString();
+        return RemoteCommandBundler.buildLongCommand(commands, isDockerizedTerminal(), dockerName, dockerUsername,
+                SHAFT.Properties.timeouts.dockerCommandTimeout());
     }
 
     private List<String> executeLocalCommand(List<String> commands, String longCommand) {
