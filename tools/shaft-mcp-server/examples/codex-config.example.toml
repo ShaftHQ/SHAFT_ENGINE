@@ -1,0 +1,11 @@
+[features]
+rmcp_client = true
+
+[mcp_servers.shaft]
+command = "node"
+args = ["C:\\path\\to\\SHAFT_ENGINE\\tools\\shaft-mcp-server\\src\\index.js"]
+startup_timeout_sec = 120
+tool_timeout_sec = 600
+
+[mcp_servers.shaft.env]
+SHAFT_WORKSPACE = "C:\\path\\to\\SHAFT_ENGINE"

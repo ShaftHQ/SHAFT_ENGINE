@@ -15,6 +15,7 @@ Each subdirectory contains skill files tailored to a specific AI agent or model.
 | [Qwen](./qwen/) | `qwen/` | Skills for Alibaba's Qwen model integration |
 | [Claude Code](./claude-code/) | `claude-code/` | Skills for Anthropic's Claude Code integration |
 | [Google Gemma](./google-gemma/) | `google-gemma/` | Skills for Google's Gemma model integration |
+| [SHAFT MCP](./shaft-mcp/) | `shaft-mcp/` | Skill for agents connected to the community SHAFT MCP server starter |
 
 ## Skill File Format
 

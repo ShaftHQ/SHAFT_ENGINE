@@ -1,0 +1,27 @@
+{
+  "name": "@shafthq/shaft-mcp-server",
+  "version": "0.1.0",
+  "description": "Community starter MCP server for SHAFT Engine automation and reporting workflows.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "shaft-mcp": "./src/index.js"
+  },
+  "files": [
+    "examples",
+    "scripts",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "check": "node --check src/index.js && node --check scripts/smoke-test.mjs",
+    "smoke": "node scripts/smoke-test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.1.13"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

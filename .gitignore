@@ -1,4 +1,5 @@
 /target/
+/tools/shaft-mcp-server/node_modules/
 /allure-results/
 /allure-report/
 /allure-report-check/

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "shaft": {
+      "command": "node",
+      "args": [
+        "C:/path/to/SHAFT_ENGINE/tools/shaft-mcp-server/src/index.js"
+      ],
+      "env": {
+        "SHAFT_WORKSPACE": "C:/path/to/SHAFT_ENGINE"
+      }
+    }
+  }
+}
