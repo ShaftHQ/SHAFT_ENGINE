@@ -143,13 +143,27 @@ runs:
               {
                 echo ""
                 echo "### ❌ Failed and broken test methods"
-                python3 scripts/ci/extract_allure_failures.py allure-results || true
+                python3 scripts/ci/extract_allure_failures.py allure-results --surefire-reports target/surefire-reports || true
               } >> "$GITHUB_STEP_SUMMARY"
             fi
             echo "::error::Allure report shows $FAILED failed and $BROKEN broken test(s) out of $TOTAL total. Check the Allure report artifact for details."
             exit 1
           fi
-          echo "All tests passed according to Allure report."
+          if [ -d "allure-results" ] && [ -d "target/surefire-reports" ] && command -v python3 >/dev/null 2>&1; then
+            SUREFIRE_ALLURE_CHECK=$(mktemp)
+            if ! python3 scripts/ci/extract_allure_failures.py allure-results --surefire-reports target/surefire-reports > "$SUREFIRE_ALLURE_CHECK"; then
+              {
+                echo ""
+                echo "### ❌ Surefire / Allure consistency check"
+                cat "$SUREFIRE_ALLURE_CHECK"
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::Surefire reports include failures that are missing from Allure failed/broken results. Check the job summary for details."
+              rm -f "$SUREFIRE_ALLURE_CHECK"
+              exit 1
+            fi
+            rm -f "$SUREFIRE_ALLURE_CHECK"
+          fi
+          echo "All tests passed according to Allure report and Surefire cross-check."
         else
           echo "::warning::Allure report summary not found. Falling back to surefire reports."
           # Fallback: Check surefire reports if allure data is unavailable.
