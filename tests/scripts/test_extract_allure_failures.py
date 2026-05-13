@@ -1,3 +1,4 @@
+import base64
 import contextlib
 import io
 import json
@@ -203,6 +204,65 @@ class ExtractAllureFailuresTests(unittest.TestCase):
         self.assertIn("No failed or broken Allure test cases were found.", output.getvalue())
         self.assertNotIn("Surefire failures missing from Allure results", output.getvalue())
         self.assertNotIn("surefireOnlyFailure", output.getvalue())
+
+    def test_extracts_visible_failures_from_single_file_allure_report(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            report = Path(temp_dir) / "AllureReport.html"
+            visible_failed = {
+                "status": "failed",
+                "hidden": False,
+                "fullName": "pkg.VisibleTest.fails",
+                "error": {"message": "visible assertion", "trace": "AssertionError: visible assertion\n at pkg.VisibleTest.fails"},
+            }
+            visible_broken = {
+                "status": "broken",
+                "hidden": False,
+                "fullName": "pkg.VisibleTest.breaks",
+                "error": {"message": "visible exception", "trace": "RuntimeException: visible exception"},
+            }
+            hidden_broken = {
+                "status": "broken",
+                "hidden": True,
+                "fullName": "pkg.VisibleTest.hiddenFixture",
+                "error": {"message": "hidden fixture should not be counted"},
+            }
+            embedded_files = {
+                "data/test-results/visible-failed.json": visible_failed,
+                "data/test-results/visible-broken.json": visible_broken,
+                "data/test-results/hidden-broken.json": hidden_broken,
+            }
+            report.write_text(
+                "\n".join(
+                    f'd("{name}","{base64.b64encode(json.dumps(payload).encode("utf-8")).decode("ascii")}")'
+                    for name, payload in embedded_files.items()
+                ),
+                encoding="utf-8",
+            )
+
+            failures = extract_failures([report])
+            markdown = to_markdown(failures)
+
+        self.assertEqual([failure.method for failure in failures], ["pkg.VisibleTest.fails", "pkg.VisibleTest.breaks"])
+        self.assertIn("visible assertion", markdown)
+        self.assertIn("visible exception", markdown)
+        self.assertNotIn("hidden fixture should not be counted", markdown)
+
+    def test_ignores_hidden_allure_failures_from_generated_report_json(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            report_data = Path(temp_dir) / "data" / "test-results"
+            report_data.mkdir(parents=True)
+            (report_data / "visible-result.json").write_text(
+                json.dumps({"status": "broken", "hidden": False, "fullName": "pkg.ReportTest.visible"}),
+                encoding="utf-8",
+            )
+            (report_data / "hidden-result.json").write_text(
+                json.dumps({"status": "broken", "hidden": True, "fullName": "pkg.ReportTest.hidden"}),
+                encoding="utf-8",
+            )
+
+            failures = extract_failures([Path(temp_dir)])
+
+        self.assertEqual([failure.method for failure in failures], ["pkg.ReportTest.visible"])
 
 
 if __name__ == "__main__":

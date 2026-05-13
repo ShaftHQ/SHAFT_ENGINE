@@ -11,7 +11,9 @@ limited to Allure failures so CI logs match the Allure summary.
 """
 
 import argparse
+import base64
 import json
+import re
 import textwrap
 import xml.etree.ElementTree as ET
 import zipfile
@@ -40,10 +42,30 @@ class SurefireFailure:
     trace_top: str
 
 
+def _iter_embedded_html_payloads(path: Path) -> Iterator[tuple[str, dict[str, Any]]]:
+    try:
+        html = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return
+
+    for match in re.finditer(r'd\("([^"\\]+\.json)","([A-Za-z0-9+/=]+)"\)', html):
+        source, encoded_payload = match.groups()
+        if not source.startswith("data/test-results/"):
+            continue
+        try:
+            payload = json.loads(base64.b64decode(encoded_payload).decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
+            continue
+        if isinstance(payload, dict):
+            yield f"{path}!{source}", payload
+
+
 def _iter_json_payloads(path: Path) -> Iterator[tuple[str, dict[str, Any]]]:
     if path.is_dir():
         for json_path in sorted(path.rglob("*.json")):
             yield from _iter_json_payloads(json_path)
+        for html_path in sorted(path.rglob("*.html")):
+            yield from _iter_json_payloads(html_path)
         return
 
     if zipfile.is_zipfile(path):
@@ -65,6 +87,10 @@ def _iter_json_payloads(path: Path) -> Iterator[tuple[str, dict[str, Any]]]:
                 yield str(path), payload
         except json.JSONDecodeError:
             return
+        return
+
+    if path.suffix == ".html":
+        yield from _iter_embedded_html_payloads(path)
 
 
 def _clean_cell(value: str) -> str:
@@ -81,9 +107,9 @@ def _first_trace_line(trace: str) -> str:
 
 
 def _status_details(payload: dict) -> tuple[str, str]:
-    details = payload.get("statusDetails") or {}
-    message = details.get("message") or details.get("known") or ""
-    trace = details.get("trace") or ""
+    details = payload.get("statusDetails") or payload.get("error") or {}
+    message = details.get("message") or details.get("known") or payload.get("statusMessage") or ""
+    trace = details.get("trace") or payload.get("statusTrace") or ""
     reason = str(message).strip() or _first_trace_line(trace) or "No failure message recorded"
     return reason, _first_trace_line(trace)
 
@@ -168,13 +194,22 @@ def missing_surefire_failures(
     ]
 
 
+def _is_generated_report_non_test_result(source: str) -> bool:
+    normalized = source.replace("\\", "/")
+    is_report_data = normalized.startswith("data/") or "/data/" in normalized or "!data/" in normalized
+    is_test_result = "/data/test-results/" in normalized or "!data/test-results/" in normalized
+    return is_report_data and not is_test_result
+
+
 def extract_failures(paths: Iterable[Path]) -> list[AllureFailure]:
     failures: list[AllureFailure] = []
     seen: set[tuple[str, str, str, str]] = set()
     for path in paths:
         for source, payload in _iter_json_payloads(path):
+            if _is_generated_report_non_test_result(source):
+                continue
             status = str(payload.get("status") or "").lower()
-            if status not in FAILING_STATUSES:
+            if status not in FAILING_STATUSES or payload.get("hidden") is True:
                 continue
             method = _method_name(payload)
             reason, trace_top = _status_details(payload)
