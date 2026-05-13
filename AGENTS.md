@@ -122,11 +122,19 @@ Use this protocol whenever a maintainer tags `@codex` to start work, says `start
 6. **Validate before claiming done.** Run the narrowest relevant checks first, then broader checks when warranted. For SHAFT test runs, confirm Allure results are populated before using them as the pass/fail oracle.
 7. **Publish final status.** After implementation is done, push the final branch state, update the PR description or add a progress comment summarizing completed iterations, checks run, files changed, and open risks, then notify the requester that the PR is ready for review.
 
+
+## Release Preparation Notes
+- Release versions use `{major}.{quarter}.{YYYYMMDD}`; for example, a Q2 release generated on May 13, 2026 is `10.2.20260513`.
+- A release PR title should include the release name/version and clearly say that the PR generates or prepares a new release.
+- Before opening a release PR, inspect recent merged release PRs for changed files and PR-body conventions, then update these locations together: root `pom.xml`, `src/main/java/com/shaft/properties/internal/Internal.java`, and all seven sample/demo project `pom.xml` files under `src/main/resources/examples/`.
+- In `Internal.java`, verify `allure3Version` against the latest stable `allure` npm package and `nodeLtsVersion` against the latest Node.js LTS patch; record when a value is already current.
+- Validate release-only changes with dependency-update checks and `mvn clean install -DskipTests -Dgpg.skip`; merging the PR to `main` starts the Maven Central release pipeline, so do not run deploy/release commands locally.
+
 ## Safety and Constraints
 - Do not expose secrets or copy values from `.env`, credential files, BrowserStack/LambdaTest variables, Maven Central credentials, GPG keys, or CI secrets.
 - Do not run deployment/release commands, `scm-publish`, history rewrites, destructive cleanup, or credentialed cloud workflows unless explicitly requested.
 - Treat `target/`, generated reports, downloaded binaries, and build artifacts as generated outputs; do not commit them unless maintainers explicitly request it.
-- Be careful with `pom.xml` version changes: the project version comment says to keep `Internal.java` values such as `shaftEngineVersion`, `allure3Version`, and `nodeLtsVersion` aligned for releases.
+- Be careful with release `pom.xml` version changes: release PRs must update the root `pom.xml` project version, `Internal.java` `shaftEngineVersion`, `allure3Version`, and `nodeLtsVersion`, and every sample/demo `<shaft_engine.version>` under `src/main/resources/examples/**/pom.xml` in the same branch before opening the PR. Do not rely on the post-release sample-sync workflow to fix release PR drift.
 - Binary mobile test assets (`*.apk`, `*.ipa`) have special JaCoCo exclusions; do not move or reclassify them casually.
 - Docker Compose E2E services should be stopped/cleaned up after local use.
 

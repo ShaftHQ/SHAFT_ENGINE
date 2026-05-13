@@ -114,6 +114,8 @@ When preparing a SHAFT release and editing `src/main/java/com/shaft/properties/i
 - `allure3Version` (latest stable Allure 3 npm package)
 - `nodeLtsVersion` (latest Node.js LTS patch)
 
+Release PRs must also update every sample/demo `<shaft_engine.version>` under `src/main/resources/examples/**/pom.xml` in the same branch before the PR is opened; do not depend on the post-release sample-sync workflow to repair stale demo project versions.
+
 ### ⛔ Mandatory Pre-Commit Rules (No Exceptions)
 > **You MUST NEVER commit untested framework code. There are no exceptions to these rules.**
 

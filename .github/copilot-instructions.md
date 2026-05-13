@@ -772,7 +772,7 @@ Follow these steps in order when preparing a new SHAFT release:
   - change the `@DefaultValue` of `shaftEngineVersion()` to match the new release version.
   - also check and update `allure3Version()` to the latest stable Allure 3 npm package version.
   - also check and update `nodeLtsVersion()` to the latest Node.js LTS patch version.
-- **All example `pom.xml` files** under `src/main/resources/examples/` (7 files — TestNG, JUnit, Cucumber variants): change `<shaft_engine.version>OLD</shaft_engine.version>` to `<shaft_engine.version>NEW</shaft_engine.version>`.  You can do this in bulk with:
+- **All example/demo `pom.xml` files** under `src/main/resources/examples/` (7 files — TestNG, JUnit, Cucumber variants): change `<shaft_engine.version>OLD</shaft_engine.version>` to `<shaft_engine.version>NEW</shaft_engine.version>` in the release PR itself. Do not wait for the post-release sync workflow to correct sample/demo projects after the release. You can do this in bulk with:
   ```bash
   find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<shaft_engine.version>OLD</shaft_engine.version>|<shaft_engine.version>NEW</shaft_engine.version>|g'
   ```
@@ -835,7 +835,10 @@ mvn clean install -DskipTests -Dgpg.skip    # must succeed
 > skip baseline/full test-suite reruns to keep release preparation lightweight; rely on pre-release validation already completed and CI on merge.
 > If any file under `src/main/java/` or `src/test/java/` is modified, the mandatory pre-commit rules apply in full. In all cases, `mvn clean install -DskipTests -Dgpg.skip` must pass before commit.
 
-### 5. Commit and Merge to `main`
+### 5. Open the Release PR
+Use a PR title that includes the release name/version and clearly says this PR generates/prepares a new release, for example: `chore(release): generate SHAFT_ENGINE 10.2.20260513 release`. Open the PR directly after validation; do not wait for a separate prompt once the release metadata is ready.
+
+### 6. Commit and Merge to `main`
 Merging to `main` automatically triggers the **Maven Central Continuous Delivery** workflow (`mavenCentral_cd.yml`), which:
 1. Substitutes `$RELEASE_VERSION` in `.github/RELEASE_BODY_TEMPLATE.md` and uses it as the release body.
 2. Creates a GitHub Release via `ncipollo/release-action` with `generateReleaseNotes: true` **and** `bodyFile`.
@@ -893,7 +896,7 @@ See: https://github.com/ShaftHQ/shafthq.github.io/issues/468
 - [ ] `Internal.java` `shaftEngineVersion` `@DefaultValue` updated
 - [ ] `Internal.java` `allure3Version` checked/updated to latest stable
 - [ ] `Internal.java` `nodeLtsVersion` checked/updated to latest LTS patch
-- [ ] All 7 example `pom.xml` files under `src/main/resources/examples/` updated — bump `<shaft_engine.version>` manually (use bulk `sed` command above) **or** wait for the **Sync Sample Projects SHAFT Version** workflow to open a PR automatically after the release is published
+- [ ] All 7 example/demo `pom.xml` files under `src/main/resources/examples/` updated in this release PR — bump `<shaft_engine.version>` manually (use the bulk `sed` command above); do **not** wait for the **Sync Sample Projects SHAFT Version** workflow to fix release PR drift
 - [ ] All 7 example `pom.xml` files synced with main `pom.xml` for plugin/dependency versions — the **Sync Sample Projects SHAFT Version** workflow handles `jdk.version`, `aspectjweaver.version`, `maven-compiler-plugin.version`, `maven-resources-plugin.version`, `maven-surefire-plugin.version`, and `surefire-testng.version` automatically; manually verify only if the workflow fails
 - [ ] Dependency currency gate executed: `versions:display-dependency-updates`, `versions:display-plugin-updates`, and `versions:display-property-updates`
 - [ ] No stable dependency/plugin/property updates skipped
