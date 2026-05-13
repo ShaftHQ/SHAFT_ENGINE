@@ -159,6 +159,30 @@ public class BrowserStackHelperUnitTest {
     }
 
     @Test
+    public void getBrowserStackDriverShouldRouteRemoteMobileAppAsNativeExecution() {
+        SHAFT.Properties.browserStack.set().userName("user").accessKey("key").platformVersion("11.0")
+                .deviceName("Samsung Galaxy S21").appUrl("").appRelativeFilePath("").appiumVersion("2.0.0");
+        SHAFT.Properties.platform.set().targetPlatform("ANDROID");
+        SHAFT.Properties.mobile.set().app("bs://existing-mobile-app").browserName("");
+
+        try (MockedConstruction<DriverFactoryHelper> helperConstruction = Mockito.mockConstruction(DriverFactoryHelper.class);
+             MockedStatic<BrowserStackSdkHelper> sdkHelperMock = Mockito.mockStatic(BrowserStackSdkHelper.class)) {
+            sdkHelperMock.when(BrowserStackSdkHelper::generateBrowserStackYml).thenReturn("browserstack.yml");
+
+            MutableCapabilities input = new MutableCapabilities();
+            input.setCapability("custom", "native-mobile-app");
+            DriverFactoryHelper helper = BrowserStackHelper.getBrowserStackDriver(input);
+
+            DriverFactoryHelper constructed = helperConstruction.constructed().getFirst();
+            Assert.assertSame(helper, constructed);
+            ArgumentCaptor<MutableCapabilities> nativeCaptor = ArgumentCaptor.forClass(MutableCapabilities.class);
+            Mockito.verify(constructed).initializeDriver(Mockito.eq(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE), nativeCaptor.capture());
+            Assert.assertEquals(nativeCaptor.getValue().getCapability("custom"), "native-mobile-app");
+            Assert.assertEquals(SHAFT.Properties.mobile.app(), "bs://existing-mobile-app");
+        }
+    }
+
+    @Test
     public void getBrowserStackDriverShouldCoverNewNativeAppUploadBranch() {
         SHAFT.Properties.browserStack.set().userName("user").accessKey("key").platformVersion("13.0")
                 .deviceName("Google Pixel 7").appName("ApiDemos").appRelativeFilePath("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk")

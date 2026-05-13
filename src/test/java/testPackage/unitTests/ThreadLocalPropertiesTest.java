@@ -76,6 +76,35 @@ public class ThreadLocalPropertiesTest {
         }
     }
 
+    @Test(description = "compatibility aliases populate canonical properties only when canonical keys are missing")
+    public void testCompatibilityAliasesPopulateCanonicalKeysWithCanonicalPrecedence() {
+        ThreadLocalPropertiesManager.setProperty("targetPlatform", "ANDROID");
+        ThreadLocalPropertiesManager.setProperty("browserStack.user", "legacyUser");
+        ThreadLocalPropertiesManager.setProperty("browserStack.key", "legacyKey");
+
+        java.util.Properties aliasOnlyProperties = ThreadLocalPropertiesManager.getEffectiveProperties();
+
+        Assert.assertEquals(aliasOnlyProperties.getProperty("targetOperatingSystem"), "ANDROID",
+                "targetPlatform should populate targetOperatingSystem when canonical key is absent");
+        Assert.assertEquals(aliasOnlyProperties.getProperty("browserStack.userName"), "legacyUser",
+                "browserStack.user should populate browserStack.userName when canonical key is absent");
+        Assert.assertEquals(aliasOnlyProperties.getProperty("browserStack.accessKey"), "legacyKey",
+                "browserStack.key should populate browserStack.accessKey when canonical key is absent");
+
+        ThreadLocalPropertiesManager.setProperty("targetOperatingSystem", "IOS");
+        ThreadLocalPropertiesManager.setProperty("browserStack.userName", "canonicalUser");
+        ThreadLocalPropertiesManager.setProperty("browserStack.accessKey", "canonicalKey");
+
+        java.util.Properties canonicalProperties = ThreadLocalPropertiesManager.getEffectiveProperties();
+
+        Assert.assertEquals(canonicalProperties.getProperty("targetOperatingSystem"), "IOS",
+                "Canonical targetOperatingSystem should take precedence over targetPlatform");
+        Assert.assertEquals(canonicalProperties.getProperty("browserStack.userName"), "canonicalUser",
+                "Canonical browserStack.userName should take precedence over browserStack.user");
+        Assert.assertEquals(canonicalProperties.getProperty("browserStack.accessKey"), "canonicalKey",
+                "Canonical browserStack.accessKey should take precedence over browserStack.key");
+    }
+
     @Test(description = "getAppiumDesiredCapabilities picks up thread-local mobile_ properties")
     public void testGetAppiumDesiredCapabilitiesReadsThreadLocal() {
         String testAppUrl = "https://example.com/test-thread-local.apk";

@@ -131,7 +131,7 @@ You can configure Flutter testing using properties file or programmatically:
 #### Properties File (custom.properties)
 ```properties
 # Platform configuration
-targetPlatform=Android
+targetOperatingSystem=Android
 
 # Automation name - setting this to FlutterIntegration automatically enables Flutter driver
 mobile_automationName=FlutterIntegration

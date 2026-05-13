@@ -42,7 +42,7 @@ public class BrowserStackHelper {
      * @return a new Selenium WebDriver instance using BrowserStack
      */
     public static DriverFactoryHelper getBrowserStackDriver(MutableCapabilities browserStackOptions) {
-        String appUrl = SHAFT.Properties.browserStack.appUrl();
+        String appUrl = resolveBrowserStackAppUrl();
         var helper = new DriverFactoryHelper();
         if ("".equals(appUrl)) {
             // new native app OR web execution
@@ -74,6 +74,22 @@ public class BrowserStackHelper {
             helper.initializeDriver(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
         }
         return helper;
+    }
+
+    private static String resolveBrowserStackAppUrl() {
+        String browserStackAppUrl = SHAFT.Properties.browserStack.appUrl();
+        if (browserStackAppUrl != null && !browserStackAppUrl.isBlank()) {
+            return browserStackAppUrl;
+        }
+        String mobileApp = SHAFT.Properties.mobile.app();
+        if (mobileApp != null && !mobileApp.isBlank() && isRemoteAppUrl(mobileApp)) {
+            return mobileApp;
+        }
+        return "";
+    }
+
+    private static boolean isRemoteAppUrl(String appUrl) {
+        return appUrl.startsWith("bs://") || appUrl.startsWith("http://") || appUrl.startsWith("https://");
     }
 
     /**

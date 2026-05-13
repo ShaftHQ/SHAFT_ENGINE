@@ -107,11 +107,42 @@ public final class ThreadLocalPropertiesManager {
     public static java.util.Properties getEffectiveProperties() {
         java.util.Properties merged = new java.util.Properties();
         merged.putAll(System.getProperties());
+        applyCompatibilityAliases(merged);
         synchronized (globalOverrides) {
             merged.putAll(globalOverrides);
+            applyCompatibilityAliasesFromSource(merged, globalOverrides);
         }
-        merged.putAll(threadLocalOverrides.get());
+        java.util.Properties threadOverrides = threadLocalOverrides.get();
+        merged.putAll(threadOverrides);
+        applyCompatibilityAliasesFromSource(merged, threadOverrides);
         return merged;
+    }
+
+    /**
+     * Copies deprecated compatibility aliases into their canonical property keys when
+     * the canonical key is not already configured. Canonical keys retain precedence so
+     * users can safely migrate incrementally.
+     *
+     * @param properties effective properties to normalize in place
+     */
+    static void applyCompatibilityAliases(java.util.Properties properties) {
+        copyAliasIfCanonicalIsMissing(properties, properties, "targetOperatingSystem", "targetPlatform");
+        copyAliasIfCanonicalIsMissing(properties, properties, "browserStack.userName", "browserStack.user");
+        copyAliasIfCanonicalIsMissing(properties, properties, "browserStack.accessKey", "browserStack.key");
+    }
+
+    private static void applyCompatibilityAliasesFromSource(java.util.Properties target, java.util.Properties source) {
+        copyAliasIfCanonicalIsMissing(target, source, "targetOperatingSystem", "targetPlatform");
+        copyAliasIfCanonicalIsMissing(target, source, "browserStack.userName", "browserStack.user");
+        copyAliasIfCanonicalIsMissing(target, source, "browserStack.accessKey", "browserStack.key");
+    }
+
+    private static void copyAliasIfCanonicalIsMissing(java.util.Properties target, java.util.Properties source, String canonicalKey, String aliasKey) {
+        String canonicalValue = source.getProperty(canonicalKey);
+        String aliasValue = source.getProperty(aliasKey);
+        if ((canonicalValue == null || canonicalValue.isBlank()) && aliasValue != null && !aliasValue.isBlank()) {
+            target.setProperty(canonicalKey, aliasValue);
+        }
     }
 
     /**
