@@ -78,7 +78,7 @@ jobs:
         continue-on-error: true
         run: |
           if [ -d allure-results ]; then
-            scripts/ci/extract_allure_failures.py allure-results | tee allure-failures.md
+            scripts/ci/extract_allure_failures.py allure-results --surefire-reports target/surefire-reports | tee allure-failures.md
           else
             echo 'No allure-results directory was generated.' | tee allure-failures.md
           fi
