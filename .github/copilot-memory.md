@@ -72,3 +72,10 @@ Purpose: keep high-signal, reusable learnings from implementation sessions in on
 - Lesson: Treat maintainer mentions with `start` or `init` as a request to initialize the full task workflow: assign to `codex` when possible (otherwise the requester), create a GitHub-linked branch for auto-close traceability when an issue exists, open an early draft PR with a lower-intelligence-agent-ready plan, execute at least three PDCA iterations for non-trivial work, commit at validated checkpoints, then push final status and notify the requester for review.
 - Evidence: `AGENTS.md`, `.github/copilot-instructions.md`, PR follow-up trigger `@codex init` on 2026-05-13.
 - Action taken: Added explicit start/init protocol guidance to repository agent instructions and recorded this reusable lesson in the memory ledger.
+
+- Date: 2026-05-13
+- Area: Release preparation / version metadata
+- Trigger: First Codex-generated release PR request for `10.2.20260513`.
+- Lesson: Release PRs are metadata-sensitive and must be opened directly once validated. Always inspect recent merged release PRs, compute the version with `{major}.{quarter}.{YYYYMMDD}`, update root `pom.xml`, `Internal.java` `shaftEngineVersion`, verify/update `allure3Version` and `nodeLtsVersion`, and update all seven sample/demo project `<shaft_engine.version>` values before opening the PR. Do not rely on the post-release sample-sync workflow to fix stale sample POMs.
+- Evidence: PRs #2502, #2494, #2439, #2428, #2418; `pom.xml`; `src/main/java/com/shaft/properties/internal/Internal.java`; `src/main/resources/examples/**/pom.xml`; `.github/copilot-instructions.md`; `AGENTS.md`.
+- Action taken: Added release-preparation notes to agent instructions, framework-source instructions, and this memory entry while preparing the release branch.
