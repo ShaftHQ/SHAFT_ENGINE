@@ -1,12 +1,16 @@
+import contextlib
+import io
 import json
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.ci.extract_allure_failures import (
     extract_failures,
     extract_surefire_failures,
+    main,
     missing_surefire_failures,
     to_comparison_json,
     to_markdown,
@@ -162,6 +166,43 @@ class ExtractAllureFailuresTests(unittest.TestCase):
             comparison_json["missingSurefireFailures"][0]["method"],
             "pkg.LightHouseGenerateReportCoverageUnitTest.missingFailure",
         )
+
+    def test_cli_markdown_uses_allure_as_single_source_of_truth(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            allure = root / "allure-results"
+            surefire = root / "surefire-reports"
+            allure.mkdir()
+            surefire.mkdir()
+            (allure / "passed-result.json").write_text(
+                json.dumps({"status": "passed", "name": "passes"}), encoding="utf-8"
+            )
+            (surefire / "TEST-TestSuite.xml").write_text(
+                """<?xml version="1.0" encoding="UTF-8"?>
+<testsuite tests="1" failures="1" errors="0" skipped="0">
+  <testcase classname="pkg.ExampleTest" name="surefireOnlyFailure">
+    <failure message="this should not be printed below the Allure summary" />
+  </testcase>
+</testsuite>
+""",
+                encoding="utf-8",
+            )
+            output = io.StringIO()
+            with patch(
+                "sys.argv",
+                [
+                    "extract_allure_failures.py",
+                    str(allure),
+                    "--surefire-reports",
+                    str(surefire),
+                ],
+            ), contextlib.redirect_stdout(output):
+                exit_code = main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("No failed or broken Allure test cases were found.", output.getvalue())
+        self.assertNotIn("Surefire failures missing from Allure results", output.getvalue())
+        self.assertNotIn("surefireOnlyFailure", output.getvalue())
 
 
 if __name__ == "__main__":
