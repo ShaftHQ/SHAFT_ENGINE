@@ -1,11 +1,12 @@
 # .github/release.yml
 # Controls how GitHub automatically categorizes pull requests in release notes.
+# Keep release announcements intentionally minimal: only breaking changes, major
+# new features, and GitHub's automatically appended new-contributor section.
 # Reference: https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
 
 changelog:
   exclude:
-    # Keep bot-authored dependency bumps out of the main contributor list
-    # (they still appear under the "📦 Dependency Updates" category below).
+    # Keep bot-authored maintenance out of public release highlights.
     authors:
       - dependabot[bot]
       - dependabot
@@ -13,86 +14,44 @@ changelog:
       - github-actions
       - copilot-swe-agent[bot]
 
+    # Hide routine/non-user-facing changes from the release announcement.
+    labels:
+      - bug
+      - bugfix
+      - build
+      - ci
+      - cd
+      - dependencies
+      - dependency
+      - deps
+      - documentation
+      - docs
+      - doc
+      - duplicate
+      - github-actions
+      - good first issue
+      - help wanted
+      - infrastructure
+      - invalid
+      - maintenance
+      - question
+      - regression
+      - test
+      - tests
+      - testing
+      - wontfix
+
   categories:
-    # ── 1. BREAKING CHANGES ──────────────────────────────────────────────────
-    # Prominently first so users notice migration requirements immediately.
+    # Compatibility-impacting changes must be the first thing users see.
     - title: "💥 Breaking Changes"
       labels:
         - breaking-change
         - breaking
         - semver-major
 
-    # ── 2. NEW FEATURES & ENHANCEMENTS ───────────────────────────────────────
-    # The section users care most about; drives upgrade motivation and stars.
-    - title: "🚀 New Features & Enhancements"
+    # Only intentional major feature labels belong in public highlights.
+    - title: "🚀 Major New Features"
       labels:
-        - enhancement
         - feature
         - new-feature
         - semver-minor
-
-    # ── 3. PERFORMANCE IMPROVEMENTS ──────────────────────────────────────────
-    # Speed / memory wins deserve their own spotlight.
-    - title: "⚡ Performance Improvements"
-      labels:
-        - performance
-        - optimization
-        - perf
-
-    # ── 4. BUG FIXES ─────────────────────────────────────────────────────────
-    # Stability confidence for teams deciding whether to upgrade.
-    - title: "🐛 Bug Fixes"
-      labels:
-        - bug
-        - fix
-        - bugfix
-        - regression
-
-    # ── 5. SECURITY FIXES ────────────────────────────────────────────────────
-    # Dedicated section builds trust; security-conscious users scan for this.
-    - title: "🔒 Security Fixes"
-      labels:
-        - security
-        - vulnerability
-        - cve
-
-    # ── 6. DOCUMENTATION ─────────────────────────────────────────────────────
-    # Docs improvements lower the barrier to entry for new users.
-    - title: "📖 Documentation"
-      labels:
-        - documentation
-        - docs
-        - doc
-
-    # ── 7. TEST COVERAGE ─────────────────────────────────────────────────────
-    # Demonstrates commitment to quality; reassures enterprise adopters.
-    - title: "✅ Test Coverage"
-      labels:
-        - test
-        - tests
-        - testing
-
-    # ── 8. CI/CD & INFRASTRUCTURE ────────────────────────────────────────────
-    # Keeps workflow improvements visible but separate from user-facing changes.
-    - title: "🔧 CI/CD & Infrastructure"
-      labels:
-        - ci
-        - cd
-        - github-actions
-        - infrastructure
-        - build
-
-    # ── 9. DEPENDENCY UPDATES ────────────────────────────────────────────────
-    # Grouped at the bottom so they don't drown out meaningful changes;
-    # still visible for security audits.
-    - title: "📦 Dependency Updates"
-      labels:
-        - dependencies
-        - dependency
-        - deps
-
-    # ── 10. OTHER CHANGES ────────────────────────────────────────────────────
-    # Catch-all ensures no merged PR is ever silently dropped.
-    - title: "🔨 Other Changes"
-      labels:
-        - "*"

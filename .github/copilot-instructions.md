@@ -852,10 +852,12 @@ Merging to `main` automatically triggers the **Maven Central Continuous Delivery
 > body file as-is and **appends** the auto-generated, label-categorized changelog (from `.github/release.yml`)
 > **after the entire template**. The changelog is NOT injected into any placeholder inside the template.
 >
-> Rules for editing `.github/RELEASE_BODY_TEMPLATE.md`:
+> Rules for editing `.github/RELEASE_BODY_TEMPLATE.md` and `.github/release.yml`:
 > - ❌ Do NOT add a `## What's Changed` placeholder inside the template — the real one is appended at the end automatically, creating a duplicate.
-> - ❌ Do NOT add static sections that reference optional changelog categories (e.g. `## 💥 Breaking Changes`, `## 🔒 Security`) — those categories only appear in the appended changelog when PRs carry the matching labels. Referencing them unconditionally produces misleading content in releases where no such PRs exist.
-> - ✅ Only include content that is unconditionally useful for every release: upgrade instructions, resources table, and community links.
+> - ❌ Do NOT add HTML comments or long static resource/upgrade/community sections to the release body; Slack unfurls and announcement previews may expose or truncate that boilerplate before the actual changes.
+> - ❌ Do NOT add a catch-all `labels: ["*"]` release category or broad routine categories (bug fixes, docs, tests, dependencies, CI) unless maintainers explicitly request exhaustive release notes.
+> - ✅ Keep the template to the release title plus one concise human-readable paragraph.
+> - ✅ Keep generated changelog categories limited to breaking changes and major new features; rely on GitHub's automatically appended new-contributors section for first-time contributors.
 
 After the release is published, additional workflows fire automatically:
 - **JavaDocs Publisher** (`publishJavaDocs.yml`) — regenerates and publishes the JavaDoc site.

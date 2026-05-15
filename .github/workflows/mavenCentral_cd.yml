@@ -42,7 +42,7 @@ jobs:
       - name: Set Release Version Number
         run: |
           echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
-      # Inject the release version into the body template so upgrade snippets are ready-to-copy
+      # Inject the release version into the minimal release body summary
       - name: Prepare Release Body
         run: sed "s/\$RELEASE_VERSION/${{ env.RELEASE_VERSION }}/g" .github/RELEASE_BODY_TEMPLATE.md > /tmp/release_body.md
       # Attempt to create a GitHub release using the version in the pom.xml, if this release already exists, this job will fail fast
@@ -64,6 +64,60 @@ jobs:
           repository: ShaftHQ/shafthq.github.io
           event-type: shaft-engine-release
           client-payload: '{"tag_name": "${{ env.RELEASE_VERSION }}", "version": "${{ env.RELEASE_VERSION }}", "release_url": "${{ steps.create_release.outputs.html_url }}"}'
+      - name: Announce Release on Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RELEASE_VERSION: ${{ env.RELEASE_VERSION }}
+          RELEASE_URL: ${{ steps.create_release.outputs.html_url }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL is not configured; skipping Slack release announcement."
+            exit 0
+          fi
+
+          python3 - <<'PY' > /tmp/slack_release_payload.json
+          import json
+          import os
+
+          version = os.environ["RELEASE_VERSION"]
+          release_url = os.environ["RELEASE_URL"]
+          summary = (
+              f"SHAFT_ENGINE {version} is now available. The release notes are intentionally "
+              "minimal and highlight only major new features, breaking changes, and new contributors."
+          )
+          payload = {
+              "text": f"SHAFT_ENGINE {version} released: {release_url}",
+              "blocks": [
+                  {
+                      "type": "section",
+                      "text": {
+                          "type": "mrkdwn",
+                          "text": f":tada: *SHAFT_ENGINE {version}* is now available!",
+                      },
+                  },
+                  {
+                      "type": "section",
+                      "text": {"type": "mrkdwn", "text": summary},
+                  },
+                  {
+                      "type": "actions",
+                      "elements": [
+                          {
+                              "type": "button",
+                              "text": {"type": "plain_text", "text": "View release notes"},
+                              "url": release_url,
+                          }
+                      ],
+                  },
+              ],
+          }
+          print(json.dumps(payload))
+          PY
+          curl --fail --silent --show-error \
+            --request POST \
+            --header 'Content-type: application/json' \
+            --data @/tmp/slack_release_payload.json \
+            "$SLACK_WEBHOOK_URL"
       - name: Setup Prerequisites
         run: |
           git config --global user.signingKey "${{ secrets.GPG_KEYNAME }}"
