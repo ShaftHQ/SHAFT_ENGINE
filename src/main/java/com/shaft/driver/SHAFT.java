@@ -2,7 +2,11 @@ package com.shaft.driver;
 
 import com.shaft.api.RequestBuilder;
 import com.shaft.api.RestActions;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
 import com.shaft.cli.FileActions;
+import com.shaft.cli.RemoteSshClient;
+import com.shaft.cli.SshSessionPolicy;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
@@ -493,6 +497,9 @@ public class SHAFT {
      * <pre>{@code
      * SHAFT.CLI.terminal().performTerminalCommand("echo hello");
      * SHAFT.CLI.file().readFile("path/to/file.txt");
+     * var cli = new SHAFT.CLI.Terminal("host", 22, "user", "keys/", "id_rsa", true);
+     * String out = cli.performTerminalCommand("uname -a");
+     * cli.quit();
      * }</pre>
      */
     public static class CLI {
@@ -507,6 +514,100 @@ public class SHAFT {
          */
         public static TerminalActions terminal() {
             return new TerminalActions();
+        }
+
+        /**
+         * Terminal with an explicit {@link #quit()} (same lifecycle idea as {@link GUI.WebDriver}). Remote SSH needs
+         * {@code reusableRemoteSshSession == true} in the constructor to reuse one session.
+         */
+        public static class Terminal {
+
+            private final TerminalActions actions;
+
+            /** Local shell (same as {@link #terminal()}). */
+            public Terminal() {
+                this.actions = new TerminalActions();
+            }
+
+            public Terminal(boolean asynchronous) {
+                this.actions = new TerminalActions(asynchronous);
+            }
+
+            public Terminal(String dockerName, String dockerUsername) {
+                this.actions = new TerminalActions(dockerName, dockerUsername);
+            }
+
+            public Terminal(String sshHostName, int sshPortNumber, String sshUsername,
+                            String sshKeyFileFolderName, String sshKeyFileName, boolean reusableRemoteSshSession) {
+                this.actions = new TerminalActions(sshHostName, sshPortNumber, sshUsername, sshKeyFileFolderName,
+                        sshKeyFileName, reusableRemoteSshSession);
+            }
+
+            public Terminal(String sshHostName, int sshPortNumber, String sshUsername,
+                            String sshKeyFileFolderName, String sshKeyFileName, String dockerName, String dockerUsername,
+                            boolean reusableRemoteSshSession) {
+                this.actions = new TerminalActions(sshHostName, sshPortNumber, sshUsername, sshKeyFileFolderName,
+                        sshKeyFileName, dockerName, dockerUsername, reusableRemoteSshSession);
+            }
+
+            public String performTerminalCommand(String command) {
+                return actions.performTerminalCommand(command);
+            }
+
+            public String performTerminalCommands(List<String> commands) {
+                return actions.performTerminalCommands(commands);
+            }
+
+            /** Underlying {@link TerminalActions} for verbose/async/internal flags. */
+            public TerminalActions unwrap() {
+                return actions;
+            }
+
+            public Session getJschSession() throws JSchException {
+                return actions.getJschSession();
+            }
+
+            public RemoteSshClient getRemoteSshClient() throws JSchException {
+                return actions.getRemoteSshClient();
+            }
+
+            public void quit() {
+                actions.quit();
+            }
+        }
+
+        /**
+         * Direct {@link RemoteSshClient} entry point: builder options (password, known hosts, etc.), SFTP, forwards.
+         * String-first command flow stays on {@link Terminal}.
+         */
+        public static RemoteSshClient remoteSsh(String sshHostName, int sshPortNumber, String sshUsername,
+                                                String sshKeyFileFolderName, String sshKeyFileName) {
+            return new RemoteSshClient(sshHostName, sshPortNumber, sshUsername, sshKeyFileFolderName, sshKeyFileName);
+        }
+
+        public static RemoteSshClient remoteSsh(String sshHostName, int sshPortNumber, String sshUsername,
+                                                String sshKeyFileFolderName, String sshKeyFileName,
+                                                SshSessionPolicy sessionPolicy) {
+            return new RemoteSshClient(sshHostName, sshPortNumber, sshUsername, sshKeyFileFolderName, sshKeyFileName,
+                    sessionPolicy);
+        }
+
+        public static RemoteSshClient remoteSsh(String sshHostName, int sshPortNumber, String sshUsername,
+                                                String sshKeyFileFolderName, String sshKeyFileName,
+                                                String dockerName, String dockerUsername) {
+            return new RemoteSshClient(sshHostName, sshPortNumber, sshUsername, sshKeyFileFolderName, sshKeyFileName,
+                    dockerName, dockerUsername);
+        }
+
+        public static RemoteSshClient remoteSsh(String sshHostName, int sshPortNumber, String sshUsername,
+                                                String sshKeyFileFolderName, String sshKeyFileName,
+                                                String dockerName, String dockerUsername, SshSessionPolicy sessionPolicy) {
+            return new RemoteSshClient(sshHostName, sshPortNumber, sshUsername, sshKeyFileFolderName, sshKeyFileName,
+                    dockerName, dockerUsername, sessionPolicy);
+        }
+
+        public static RemoteSshClient.Builder remoteSshBuilder(String sshHostName, int sshPortNumber, String sshUsername) {
+            return RemoteSshClient.builder(sshHostName, sshPortNumber, sshUsername);
         }
 
         /**

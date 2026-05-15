@@ -98,6 +98,27 @@ public class DriverFactory {
     }
 
     /**
+     * Remote terminal driver: same session when {@code reusableRemoteSsh} is {@code true} until {@link TerminalActions#quit()}.
+     */
+    public static TerminalActions getTerminalDriver(String sshHostName, int sshPortNumber, String sshUsername,
+                                                    String sshKeyFileFolderName, String sshKeyFileName,
+                                                    boolean reusableRemoteSsh) {
+        return new TerminalActions(sshHostName, sshPortNumber, sshUsername, sshKeyFileFolderName, sshKeyFileName,
+                reusableRemoteSsh);
+    }
+
+    /**
+     * Remote terminal with Docker exec wrapper and optional reusable SSH session.
+     */
+    public static TerminalActions getTerminalDriver(String sshHostName, int sshPortNumber, String sshUsername,
+                                                    String sshKeyFileFolderName, String sshKeyFileName,
+                                                    String dockerName, String dockerUsername,
+                                                    boolean reusableRemoteSsh) {
+        return new TerminalActions(sshHostName, sshPortNumber, sshUsername, sshKeyFileFolderName, sshKeyFileName,
+                dockerName, dockerUsername, reusableRemoteSsh);
+    }
+
+    /**
      * Creates a new local Terminal instance to facilitate using the Terminal Actions Library
      *
      * @return local terminal driver instance

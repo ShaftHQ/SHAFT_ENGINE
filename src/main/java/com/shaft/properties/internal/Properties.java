@@ -47,6 +47,7 @@ public class Properties {
     static Performance basePerformance;
     static LambdaTest baseLambdaTest;
     static API baseApi;
+    static Ssh baseSsh;
 
     // -------------------------------------------------------------------------
     // Thread-local override configs – updated by set() calls on each thread.
@@ -67,6 +68,7 @@ public class Properties {
     static final ThreadLocal<Performance> performanceOverride = new ThreadLocal<>();
     static final ThreadLocal<LambdaTest> lambdaTestOverride = new ThreadLocal<>();
     static final ThreadLocal<API> apiOverride = new ThreadLocal<>();
+    static final ThreadLocal<Ssh> sshOverride = new ThreadLocal<>();
 
     // -------------------------------------------------------------------------
     // Public proxy fields – fully API-compatible with the previous static fields.
@@ -88,6 +90,7 @@ public class Properties {
     public static final Performance performance = createProxy(Performance.class, performanceOverride, () -> basePerformance);
     public static final LambdaTest lambdaTest = createProxy(LambdaTest.class, lambdaTestOverride, () -> baseLambdaTest);
     public static final API api = createProxy(API.class, apiOverride, () -> baseApi);
+    public static final Ssh ssh = createProxy(Ssh.class, sshOverride, () -> baseSsh);
 
     // Read-only properties – not mutable after initialisation, no proxy needed.
     public static Internal internal;
@@ -214,5 +217,6 @@ public class Properties {
         performanceOverride.remove();
         lambdaTestOverride.remove();
         apiOverride.remove();
+        sshOverride.remove();
     }
 }
