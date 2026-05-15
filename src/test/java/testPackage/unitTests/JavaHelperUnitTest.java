@@ -392,14 +392,12 @@ public class JavaHelperUnitTest {
                 "Relative locators should use dedicated formatting");
     }
 
-    @Test(description = "appendTestDataToRelativePath: slash-prefixed non-existing path should be normalized and prefixed")
-    public void appendTestDataToRelativePathLeadingSlashShouldNormalizeAndPrefix() {
-        String input = "/javaHelperMissing_" + UUID.randomUUID() + ".json";
-        String result = JavaHelper.appendTestDataToRelativePath(input);
-        Assert.assertTrue(result.startsWith(SHAFT.Properties.paths.testData()),
-                "Path should be prefixed with configured test data directory");
-        Assert.assertFalse(result.contains("//"),
-                "Result should not contain duplicate slashes after normalization");
+    @Test(description = "appendTestDataToRelativePath: single-slash absolute path should be returned as-is")
+    public void appendTestDataToRelativePathSingleSlashAbsolutePathShouldBeReturnedAsIs() {
+        String absolutePath = "/javaHelperMissing_" + UUID.randomUUID() + ".json";
+        String result = JavaHelper.appendTestDataToRelativePath(absolutePath);
+        Assert.assertEquals(result, absolutePath,
+                "Absolute OS paths should not be prefixed with the configured test data directory");
     }
 
     @Test(description = "appendTestDataToRelativePath: absolute path should be returned as-is")
