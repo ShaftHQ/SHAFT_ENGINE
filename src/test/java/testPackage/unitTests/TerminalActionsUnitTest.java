@@ -1,13 +1,15 @@
 package testPackage.unitTests;
 
 import com.shaft.cli.TerminalActions;
+import com.shaft.cli.internal.RemoteCommandBundler;
+import com.shaft.cli.internal.JschSessionFactory;
+import com.shaft.cli.internal.SshConnectionOptions;
 import com.shaft.driver.SHAFT;
+import com.jcraft.jsch.JSchException;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
-import java.io.BufferedReader;
-import java.io.StringReader;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
@@ -236,15 +238,10 @@ public class TerminalActionsUnitTest {
         Assert.assertEquals(log, "", "Asynchronous execution should not capture command output.");
     }
 
-    @Test(description = "buildLongCommand should prepend docker exec wrapper for dockerized terminals")
-    public void buildLongCommandShouldWrapDockerCommand() throws Exception {
-        TerminalActions terminal = new TerminalActions("myContainer", "root");
-        Method buildLongCommand = TerminalActions.class.getDeclaredMethod("buildLongCommand", List.class);
-        buildLongCommand.setAccessible(true);
-
-        String command = (String) buildLongCommand.invoke(terminal, List.of("echo alpha", "echo beta"));
-
-        Assert.assertTrue(command.startsWith("docker exec -u root -i myContainer timeout "),
+    @Test(description = "RemoteCommandBundler should prepend docker exec wrapper for dockerized terminals")
+    public void remoteCommandBundlerShouldWrapDockerCommand() {
+        String command = RemoteCommandBundler.buildLongCommand(List.of("echo alpha", "echo beta"), true, "myContainer", "root", 30);
+        Assert.assertTrue(command.startsWith("docker exec -u root -i myContainer timeout 30"),
                 "Dockerized terminal command should be prefixed with docker exec.");
         Assert.assertTrue(command.contains("echo alpha && echo beta"),
                 "Dockerized command should keep original command chain.");
@@ -270,19 +267,20 @@ public class TerminalActionsUnitTest {
         Assert.assertEquals(linuxBuilder.command(), List.of("sh", "-c", "echo hello"));
     }
 
-    @Test(description = "readConsoleLogs should aggregate lines and handle null readers safely")
-    public void readConsoleLogsShouldHandleContentAndNull() throws Exception {
-        Method readConsoleLogs = TerminalActions.class.getDeclaredMethod("readConsoleLogs", BufferedReader.class);
-        readConsoleLogs.setAccessible(true);
-        TerminalActions terminal = new TerminalActions();
+    @Test(description = "JschSessionFactory should throw when host is unreachable")
+    public void jschSessionFactoryShouldFailOnBadHost() {
+        SshConnectionOptions o = new SshConnectionOptions(
+                "user", "non-existing-host.invalid", 22, null, "no", 5000, 0, null, null, null);
+        Assert.expectThrows(JSchException.class, () -> JschSessionFactory.connect(o));
+    }
 
-        String multiLineLogs = (String) readConsoleLogs.invoke(terminal,
-                new BufferedReader(new StringReader("line1" + System.lineSeparator() + "line2")));
-        Assert.assertTrue(multiLineLogs.contains("line1"));
-        Assert.assertTrue(multiLineLogs.contains("line2"));
-
-        String nullReaderLogs = (String) readConsoleLogs.invoke(terminal, new Object[]{null});
-        Assert.assertEquals(nullReaderLogs, "");
+    @Test(description = "JschSessionFactory should throw when identity file is missing")
+    public void jschSessionFactoryShouldFailOnMissingIdentity() throws Exception {
+        Files.createDirectories(TEMP_DIR);
+        String missingKey = TEMP_DIR.resolve("missing_key").toAbsolutePath().toString();
+        SshConnectionOptions o = new SshConnectionOptions(
+                "user", "127.0.0.1", 22, missingKey, "no", 3000, 0, null, null, null);
+        Assert.expectThrows(JSchException.class, () -> JschSessionFactory.connect(o));
     }
 
     @Test(description = "reportActionResult should format pass and fail messages for different attachment shapes")
@@ -332,28 +330,5 @@ public class TerminalActionsUnitTest {
                 () -> failActionWithoutActionName.invoke(terminal, "input",
                         (Object) new Exception[]{new RuntimeException("forced failure")}));
         Assert.assertTrue(secondFailure.getCause() instanceof RuntimeException);
-    }
-
-    @Test(description = "createSSHsession should surface connection failures for invalid settings")
-    public void createSSHsessionShouldHandleConnectionFailurePath() throws Exception {
-        TerminalActions terminal = new TerminalActions("non-existing-host", 22, "user", "", "");
-        Method createSshSession = TerminalActions.class.getDeclaredMethod("createSSHsession");
-        createSshSession.setAccessible(true);
-
-        InvocationTargetException failure = Assert.expectThrows(InvocationTargetException.class,
-                () -> createSshSession.invoke(terminal));
-        Assert.assertTrue(failure.getCause() instanceof RuntimeException);
-    }
-
-    @Test(description = "createSSHsession should handle invalid key path when identity loading fails")
-    public void createSSHsessionShouldHandleInvalidIdentityPath() throws Exception {
-        TerminalActions terminal = new TerminalActions("127.0.0.1", 22, "user",
-                TEMP_DIR.toAbsolutePath().toString() + "/", "missing_key");
-        Method createSshSession = TerminalActions.class.getDeclaredMethod("createSSHsession");
-        createSshSession.setAccessible(true);
-
-        InvocationTargetException failure = Assert.expectThrows(InvocationTargetException.class,
-                () -> createSshSession.invoke(terminal));
-        Assert.assertTrue(failure.getCause() instanceof RuntimeException);
     }
 }
