@@ -93,6 +93,39 @@ class ExtractAllureFailuresTests(unittest.TestCase):
 
         self.assertEqual([failure.method for failure in failures], ["real failure"])
 
+    def test_ignores_generated_report_summary_status_as_test_failure(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            report = Path(temp_dir) / "allure-report"
+            report.mkdir()
+            (report / "summary.json").write_text(
+                json.dumps(
+                    {
+                        "name": "SHAFT-powered test report",
+                        "status": "failed",
+                        "stats": {"total": 2, "passed": 1, "failed": 1},
+                        "newTests": [{"name": "real test", "status": "failed"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            test_results = report / "data" / "test-results"
+            test_results.mkdir(parents=True)
+            (test_results / "failed.json").write_text(
+                json.dumps(
+                    {
+                        "status": "failed",
+                        "fullName": "pkg.RealTest.fails",
+                        "error": {"message": "real failure"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            failures = extract_failures([report])
+
+        self.assertEqual([failure.method for failure in failures], ["pkg.RealTest.fails"])
+        self.assertNotIn("SHAFT-powered test report", to_markdown(failures))
+
     def test_extracts_surefire_failures_from_xml(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             reports = Path(temp_dir)

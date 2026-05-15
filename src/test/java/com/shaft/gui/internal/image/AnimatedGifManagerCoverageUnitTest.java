@@ -15,6 +15,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -150,7 +151,13 @@ public class AnimatedGifManagerCoverageUnitTest {
             ThreadLocal<ImageOutputStream> outputStreamThreadLocal = (ThreadLocal<ImageOutputStream>) outputStreamField.get(null);
             ImageOutputStream outputStream = outputStreamThreadLocal.get();
             if (outputStream != null) {
-                outputStream.close();
+                try {
+                    outputStream.close();
+                } catch (IOException e) {
+                    if (!"closed".equalsIgnoreCase(e.getMessage())) {
+                        throw e;
+                    }
+                }
             }
             outputStreamThreadLocal.remove();
         } catch (Exception e) {

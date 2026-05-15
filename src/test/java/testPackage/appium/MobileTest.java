@@ -1,6 +1,7 @@
 package testPackage.appium;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.Properties;
 import io.appium.java_client.remote.AutomationName;
 import org.openqa.selenium.Platform;
 import org.testng.annotations.AfterMethod;
@@ -11,12 +12,13 @@ public abstract class MobileTest {
 
     @BeforeMethod(onlyForGroups = {"NativeAndroidDemo"})
     public void setupNativeAndroidDemoApk() {
+        Properties.clearForCurrentThread();
         System.setProperty("mobile_autoGrantPermissions", "true");
 
         SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(false);
         // common attributes
         SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
-        SHAFT.Properties.mobile.set().automationName(AutomationName.ANDROID_UIAUTOMATOR2);
+        SHAFT.Properties.mobile.set().automationName(AutomationName.ANDROID_UIAUTOMATOR2).app("");
 
         // self-managed execution
 //        SHAFT.Properties.mobile.set().selfManaged(true);
@@ -50,12 +52,13 @@ public abstract class MobileTest {
 
     @BeforeMethod(onlyForGroups = {"ApiDemosDebug"})
     public void setupApiDemosDebug() {
+        Properties.clearForCurrentThread();
         System.setProperty("mobile_autoGrantPermissions", "true");
 
         SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(false);
         // common attributes
         SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
-        SHAFT.Properties.mobile.set().automationName(AutomationName.ANDROID_UIAUTOMATOR2);
+        SHAFT.Properties.mobile.set().automationName(AutomationName.ANDROID_UIAUTOMATOR2).app("");
 
         // self-managed execution
 //        SHAFT.Properties.mobile.set().selfManaged(true);
@@ -89,6 +92,15 @@ public abstract class MobileTest {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() {
-        driver.get().quit();
+        try {
+            SHAFT.GUI.WebDriver shaftDriver = driver.get();
+            if (shaftDriver != null) {
+                shaftDriver.quit();
+            }
+        } finally {
+            driver.remove();
+            System.clearProperty("mobile_autoGrantPermissions");
+            Properties.clearForCurrentThread();
+        }
     }
 }

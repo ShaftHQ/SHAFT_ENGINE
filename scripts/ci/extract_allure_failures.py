@@ -197,8 +197,41 @@ def missing_surefire_failures(
 def _is_generated_report_non_test_result(source: str) -> bool:
     normalized = source.replace("\\", "/")
     is_report_data = normalized.startswith("data/") or "/data/" in normalized or "!data/" in normalized
-    is_test_result = "/data/test-results/" in normalized or "!data/test-results/" in normalized
+    is_test_result = _is_generated_report_test_result_source(normalized)
     return is_report_data and not is_test_result
+
+
+def _is_generated_report_test_result_source(source: str) -> bool:
+    normalized = source.replace("\\", "/")
+    return (
+        normalized.startswith("data/test-results/")
+        or "/data/test-results/" in normalized
+        or "!data/test-results/" in normalized
+    )
+
+
+def _is_raw_allure_result_source(source: str) -> bool:
+    normalized = source.replace("\\", "/")
+    return (
+        normalized.endswith("-result.json")
+        or "/allure-results/" in normalized
+        or normalized.startswith("allure-results/")
+        or "!allure-results/" in normalized
+    )
+
+
+def _is_allure_test_result_payload(source: str, payload: dict[str, Any]) -> bool:
+    if _is_generated_report_test_result_source(source) or _is_raw_allure_result_source(source):
+        return True
+
+    labels = payload.get("labels")
+    return bool(
+        payload.get("fullName")
+        or payload.get("historyId")
+        or payload.get("testCaseId")
+        or payload.get("uuid")
+        or (isinstance(labels, list) and labels)
+    )
 
 
 def extract_failures(paths: Iterable[Path]) -> list[AllureFailure]:
@@ -207,6 +240,8 @@ def extract_failures(paths: Iterable[Path]) -> list[AllureFailure]:
     for path in paths:
         for source, payload in _iter_json_payloads(path):
             if _is_generated_report_non_test_result(source):
+                continue
+            if not _is_allure_test_result_payload(source, payload):
                 continue
             status = str(payload.get("status") or "").lower()
             if status not in FAILING_STATUSES or payload.get("hidden") is True:

@@ -141,10 +141,10 @@ runs:
           if [ "$FAILED" -gt 0 ] || [ "$BROKEN" -gt 0 ]; then
             if command -v python3 >/dev/null 2>&1; then
               ALLURE_FAILURE_SOURCE=""
-              if [ -d "allure-report" ]; then
-                ALLURE_FAILURE_SOURCE="allure-report"
-              elif [ -d "allure-results" ]; then
+              if [ -d "allure-results" ]; then
                 ALLURE_FAILURE_SOURCE="allure-results"
+              elif [ -d "allure-report" ]; then
+                ALLURE_FAILURE_SOURCE="allure-report"
               fi
               if [ -n "$ALLURE_FAILURE_SOURCE" ]; then
                 {
