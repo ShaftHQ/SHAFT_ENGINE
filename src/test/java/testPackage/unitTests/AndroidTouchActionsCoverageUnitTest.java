@@ -12,6 +12,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.ScreenOrientation;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.testng.annotations.AfterMethod;
@@ -31,14 +32,18 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class AndroidTouchActionsCoverageUnitTest {
     private static final Path TEMP_DIR = Path.of("target", "temp", "touchActionsCoverage");
+    private static final Path ROOT_PULL_PATH = Path.of("touchActions-root-pulled.txt");
     private boolean originalWaitForLazyLoading;
 
     @BeforeMethod(alwaysRun = true)
@@ -49,7 +54,8 @@ public class AndroidTouchActionsCoverageUnitTest {
     }
 
     @AfterMethod(alwaysRun = true)
-    public void afterMethod() {
+    public void afterMethod() throws Exception {
+        Files.deleteIfExists(ROOT_PULL_PATH);
         SHAFT.Properties.timeouts.set().waitForLazyLoading(originalWaitForLazyLoading);
         Properties.clearForCurrentThread();
     }
@@ -59,6 +65,8 @@ public class AndroidTouchActionsCoverageUnitTest {
         AndroidDriver driver = createMockAndroidDriver();
         byte[] pulledContent = "pulled content".getBytes();
         when(driver.pullFile("/sdcard/Download/result.txt")).thenReturn(pulledContent);
+        when(driver.pullFile("/sdcard/Download/root-result.txt")).thenReturn(pulledContent);
+        when(driver.pullFile("/sdcard/Download/existing-result.txt")).thenReturn(pulledContent);
 
         Path localSourceFile = TEMP_DIR.resolve("source.txt");
         Files.writeString(localSourceFile, "source content");
@@ -72,7 +80,9 @@ public class AndroidTouchActionsCoverageUnitTest {
                 .hideNativeKeyboard()
                 .pushFile("/sdcard/Download/source.txt", localSourceFile.toString())
                 .pushFile("/sdcard/Download/source2.txt", localSourceFile.toFile())
-                .pullFile("/sdcard/Download/result.txt", pulledFilePath.toString());
+                .pullFile("/sdcard/Download/result.txt", pulledFilePath.toString())
+                .pullFile("/sdcard/Download/root-result.txt", ROOT_PULL_PATH.toString())
+                .pullFile("/sdcard/Download/existing-result.txt", TEMP_DIR.resolve("existing-result.txt").toString());
 
         verify(driver).runAppInBackground(Duration.ofSeconds(2));
         verify(driver).runAppInBackground(Duration.ofSeconds(-1));
@@ -82,6 +92,8 @@ public class AndroidTouchActionsCoverageUnitTest {
         verify(driver, times(2)).pushFile(anyString(), any(byte[].class));
 
         SHAFT.Validations.assertThat().object(Files.exists(pulledFilePath)).isTrue().perform();
+        SHAFT.Validations.assertThat().object(Files.exists(ROOT_PULL_PATH)).isTrue().perform();
+        SHAFT.Validations.assertThat().object(Files.exists(TEMP_DIR.resolve("existing-result.txt"))).isTrue().perform();
         SHAFT.Validations.assertThat().object(Files.readAllBytes(pulledFilePath)).isEqualTo(pulledContent).perform();
     }
 
@@ -103,6 +115,149 @@ public class AndroidTouchActionsCoverageUnitTest {
         verify(driver).executeScript(eq("mobile: isKeyboardShown"));
         verify(driver).executeScript(eq("mobile: performEditorAction"), any());
         verify(driver, times(2)).perform(any());
+    }
+
+
+    @Test
+    public void fileTransferFailureBranchesShouldReportFailuresWithoutThrowing() throws Exception {
+        Path localSourceFile = TEMP_DIR.resolve("failure-source.txt");
+        Files.writeString(localSourceFile, "failure source");
+        Path missingLocalFile = TEMP_DIR.resolve("missing-source.txt");
+        Path unsupportedPulledPath = TEMP_DIR.resolve("unsupported").resolve("result.txt");
+
+        AndroidDriver androidDriver = createMockAndroidDriver();
+        doThrow(new WebDriverException("android push failure")).when(androidDriver).pushFile(eq("/sdcard/fail.txt"), any(byte[].class));
+        when(androidDriver.pullFile("/sdcard/fail.txt")).thenThrow(new WebDriverException("android pull failure"));
+        ElementActionsHelper androidElementActionsHelper = mock(ElementActionsHelper.class);
+        TouchActions androidTouchActions = new TouchActions(androidDriver);
+        injectElementActionsHelper(androidTouchActions, androidElementActionsHelper);
+
+        androidTouchActions.pushFile("/sdcard/fail.txt", localSourceFile.toString())
+                .pullFile("/sdcard/fail.txt", TEMP_DIR.resolve("android-failure.txt").toString())
+                .pushFile("/sdcard/missing.txt", missingLocalFile.toString())
+                .pushFile("/sdcard/missing2.txt", missingLocalFile.toFile());
+
+        verify(androidElementActionsHelper, times(4)).failAction(eq(androidDriver), isNull(By.class), any(Throwable.class));
+
+        IOSDriver iosDriver = createMockIOSDriver();
+        doThrow(new WebDriverException("ios push failure")).when(iosDriver).pushFile(eq("/tmp/fail.txt"), any(byte[].class));
+        when(iosDriver.pullFile("/tmp/fail.txt")).thenThrow(new WebDriverException("ios pull failure"));
+        ElementActionsHelper iosElementActionsHelper = mock(ElementActionsHelper.class);
+        TouchActions iosTouchActions = new TouchActions(iosDriver);
+        injectElementActionsHelper(iosTouchActions, iosElementActionsHelper);
+
+        iosTouchActions.pushFile("/tmp/fail.txt", localSourceFile.toFile())
+                .pullFile("/tmp/fail.txt", TEMP_DIR.resolve("ios-failure.txt").toString());
+
+        verify(iosElementActionsHelper, times(2)).failAction(eq(iosDriver), isNull(By.class), any(Throwable.class));
+
+        RemoteWebDriver remoteWebDriver = createMockRemoteWebDriver();
+        ElementActionsHelper remoteElementActionsHelper = mock(ElementActionsHelper.class);
+        TouchActions remoteTouchActions = new TouchActions(remoteWebDriver);
+        injectElementActionsHelper(remoteTouchActions, remoteElementActionsHelper);
+
+        remoteTouchActions.pushFile("/remote/path.txt", localSourceFile.toString())
+                .pushFile("/remote/path2.txt", localSourceFile.toFile())
+                .pullFile("/remote/result.txt", unsupportedPulledPath.toString())
+                .sendAppToBackground(1)
+                .activateAppFromBackground("unsupported.app")
+                .hideNativeKeyboard()
+                .rotate(ScreenOrientation.PORTRAIT);
+
+        verify(remoteElementActionsHelper, times(7)).failAction(eq(remoteWebDriver), isNull(By.class));
+        verify(remoteWebDriver, never()).executeScript(eq("mobile: scrollGesture"), anyMap());
+        SHAFT.Validations.assertThat().object(Files.exists(unsupportedPulledPath)).isFalse().perform();
+    }
+
+    @Test
+    public void iosW3cScrollAndAllPrepareParameterDirectionsShouldUseExpectedScripts() throws Exception {
+        IOSDriver iosDriver = createMockIOSDriver();
+        doReturn(null).doReturn(false).when(iosDriver).executeScript(eq("mobile: scroll"), anyMap());
+        TouchActions touchActions = new TouchActions(iosDriver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        WebElement scrollableElement = mock(WebElement.class);
+        when(scrollableElement.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 20, 300, 500));
+        when(elementActionsHelper.identifyUniqueElement(any(), eq(By.id("ios-container"))))
+                .thenReturn(List.of("ios-container", scrollableElement));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        Method prepareParameters = TouchActions.class.getDeclaredMethod("prepareParameters", TouchActions.SwipeDirection.class, By.class, By.class);
+        prepareParameters.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> downParameters = (Map<Object, Object>) prepareParameters.invoke(touchActions, TouchActions.SwipeDirection.DOWN, null, By.id("target"));
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> rightParameters = (Map<Object, Object>) prepareParameters.invoke(touchActions, TouchActions.SwipeDirection.RIGHT, null, By.id("target"));
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> elementUpParameters = (Map<Object, Object>) prepareParameters.invoke(touchActions, TouchActions.SwipeDirection.UP, By.id("ios-container"), By.id("target"));
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> elementLeftParameters = (Map<Object, Object>) prepareParameters.invoke(touchActions, TouchActions.SwipeDirection.LEFT, By.id("ios-container"), By.id("target"));
+
+        SHAFT.Validations.assertThat().object(downParameters.get("direction")).isEqualTo("DOWN").perform();
+        SHAFT.Validations.assertThat().object(rightParameters.get("left")).isEqualTo(100).perform();
+        SHAFT.Validations.assertThat().object(elementUpParameters.get("height")).isEqualTo(270).perform();
+        SHAFT.Validations.assertThat().object(elementLeftParameters.get("left")).isEqualTo(260).perform();
+
+        Method performW3cCompliantScroll = TouchActions.class.getDeclaredMethod("performW3cCompliantScroll", java.util.HashMap.class);
+        performW3cCompliantScroll.setAccessible(true);
+        SHAFT.Validations.assertThat().object(performW3cCompliantScroll.invoke(touchActions, downParameters)).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(performW3cCompliantScroll.invoke(touchActions, downParameters)).isEqualTo(false).perform();
+        verify(iosDriver, times(2)).executeScript(eq("mobile: scroll"), anyMap());
+    }
+
+    @Test
+    public void visualSwipeShouldCoverNativeMissingImageAndWebCoordinateBranches() throws Exception {
+        byte[] validPng = getValidPngBytes();
+
+        AndroidDriver androidDriver = createMockAndroidDriver();
+        when(androidDriver.findElements(isNull())).thenReturn(List.of(mock(WebElement.class)));
+        TouchActions nativeTouchActions = new TouchActions(androidDriver);
+        ElementActionsHelper nativeElementActionsHelper = mock(ElementActionsHelper.class);
+        when(nativeElementActionsHelper.waitForElementPresence(androidDriver, "native-missing.png"))
+                .thenReturn(List.of(validPng, validPng, List.of()));
+        when(nativeElementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        injectElementActionsHelper(nativeTouchActions, nativeElementActionsHelper);
+
+        nativeTouchActions.swipeElementIntoView(null, "native-missing.png", TouchActions.SwipeDirection.DOWN);
+        verify(nativeElementActionsHelper).failAction(eq(androidDriver), anyString(), isNull(By.class), any(List.class));
+
+        RemoteWebDriver webDriver = createMockRemoteWebDriver();
+        TouchActions webTouchActions = new TouchActions(webDriver);
+        ElementActionsHelper webElementActionsHelper = mock(ElementActionsHelper.class);
+        when(webElementActionsHelper.waitForElementPresence(webDriver, "web-present.png"))
+                .thenReturn(List.of(validPng, validPng, List.of(20, 40)));
+        when(webElementActionsHelper.waitForElementPresence(webDriver, "web-missing.png"))
+                .thenReturn(List.of(validPng, validPng, List.of()));
+        injectElementActionsHelper(webTouchActions, webElementActionsHelper);
+
+        webTouchActions.swipeElementIntoView(null, "web-present.png", TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView(null, "web-missing.png", TouchActions.SwipeDirection.DOWN);
+
+        verify(webElementActionsHelper).failAction(eq(webDriver), anyString(), isNull(By.class), any(List.class));
+    }
+
+    @Test
+    public void actionFailureBranchesShouldRemainNonThrowing() throws Exception {
+        AndroidDriver keyboardFailureDriver = createMockAndroidDriver();
+        doThrow(new WebDriverException("keyboard failure")).when(keyboardFailureDriver).hideKeyboard();
+        ElementActionsHelper keyboardElementActionsHelper = mock(ElementActionsHelper.class);
+        TouchActions keyboardTouchActions = new TouchActions(keyboardFailureDriver);
+        injectElementActionsHelper(keyboardTouchActions, keyboardElementActionsHelper);
+
+        keyboardTouchActions.hideNativeKeyboard();
+        verify(keyboardElementActionsHelper).failAction(eq(keyboardFailureDriver), isNull(By.class), any(Throwable.class));
+
+        RemoteWebDriver performFailureDriver = createMockRemoteWebDriver();
+        doThrow(new org.openqa.selenium.UnsupportedCommandException("perform failure")).when(performFailureDriver).perform(any());
+        TouchActions touchActions = new TouchActions(performFailureDriver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.waitForElementPresence(performFailureDriver, "tap-present.png"))
+                .thenReturn(List.of(getValidPngBytes(), getValidPngBytes(), List.of(10, 20)));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        touchActions.tap("tap-present.png")
+                .pinchToZoom(TouchActions.ZoomDirection.IN);
+
+        verify(elementActionsHelper, times(2)).failAction(eq(performFailureDriver), isNull(By.class), any(Throwable.class));
     }
 
     @Test
@@ -287,6 +442,29 @@ public class AndroidTouchActionsCoverageUnitTest {
 
     private AndroidDriver createMockAndroidDriver() {
         AndroidDriver driver = mock(AndroidDriver.class);
+        WebDriver.Options options = mock(WebDriver.Options.class);
+        WebDriver.Window window = mock(WebDriver.Window.class);
+        when(driver.manage()).thenReturn(options);
+        when(options.window()).thenReturn(window);
+        when(window.getSize()).thenReturn(new Dimension(1080, 1920));
+        when(driver.findElements(any(By.class))).thenReturn(List.of());
+        return driver;
+    }
+
+
+    private IOSDriver createMockIOSDriver() {
+        IOSDriver driver = mock(IOSDriver.class);
+        WebDriver.Options options = mock(WebDriver.Options.class);
+        WebDriver.Window window = mock(WebDriver.Window.class);
+        when(driver.manage()).thenReturn(options);
+        when(options.window()).thenReturn(window);
+        when(window.getSize()).thenReturn(new Dimension(1080, 1920));
+        when(driver.findElements(any(By.class))).thenReturn(List.of());
+        return driver;
+    }
+
+    private RemoteWebDriver createMockRemoteWebDriver() {
+        RemoteWebDriver driver = mock(RemoteWebDriver.class);
         WebDriver.Options options = mock(WebDriver.Options.class);
         WebDriver.Window window = mock(WebDriver.Window.class);
         when(driver.manage()).thenReturn(options);
