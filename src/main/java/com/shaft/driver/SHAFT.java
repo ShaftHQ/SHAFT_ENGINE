@@ -510,6 +510,23 @@ public class SHAFT {
         }
 
         /**
+         * Creates a new remote terminal actions instance that reuses one SSH session
+         * across multiple command executions until {@link TerminalActions#quit()} is called.
+         *
+         * @param sshHostName          the IP address or host name for the remote machine
+         * @param sshPortNumber        the SSH service port on the target machine
+         * @param sshUsername          the username used to access the target machine
+         * @param sshKeyFileFolderName the directory that holds the SSH key file
+         * @param sshKeyFileName       the SSH key file name
+         * @return a reusable remote {@link TerminalActions} instance
+         */
+        public static TerminalActions remoteTerminal(String sshHostName, int sshPortNumber, String sshUsername,
+                                                     String sshKeyFileFolderName, String sshKeyFileName) {
+            return TerminalActions.getRemoteInstance(sshHostName, sshPortNumber, sshUsername,
+                    sshKeyFileFolderName, sshKeyFileName);
+        }
+
+        /**
          * Creates a new file actions instance for file-system operations.
          *
          * @return a {@link FileActions} instance

@@ -55,6 +55,8 @@ public class TerminalActions {
     private boolean asynchronous = false;
     private boolean verbose = false;
     private boolean isInternal = false;
+    private boolean reuseRemoteSession = false;
+    private Session reusableRemoteSession;
 
 
     /**
@@ -165,6 +167,25 @@ public class TerminalActions {
         return new TerminalActions(asynchronous, verbose, isInternal);
     }
 
+    /**
+     * Creates a remote terminal actions instance that reuses the same SSH session
+     * for multiple command executions until {@link #quit()} is called.
+     *
+     * @param sshHostName          the IP address or host name for the remote machine
+     * @param sshPortNumber        the SSH service port on the target machine
+     * @param sshUsername          the username used to access the target machine
+     * @param sshKeyFileFolderName the directory that holds the SSH key file
+     * @param sshKeyFileName       the SSH key file name
+     * @return a reusable remote {@link TerminalActions} instance
+     */
+    public static TerminalActions getRemoteInstance(String sshHostName, int sshPortNumber, String sshUsername,
+                                                    String sshKeyFileFolderName, String sshKeyFileName) {
+        TerminalActions terminalActions = new TerminalActions(sshHostName, sshPortNumber, sshUsername,
+                sshKeyFileFolderName, sshKeyFileName);
+        terminalActions.reuseRemoteSession = true;
+        return terminalActions;
+    }
+
     private static String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus, Exception... rootCauseException) {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
@@ -257,6 +278,30 @@ public class TerminalActions {
         return performTerminalCommands(Collections.singletonList(command));
     }
 
+    /**
+     * Executes a terminal command and returns this terminal actions instance for fluent chaining.
+     *
+     * @param command the command to execute
+     * @return this {@link TerminalActions} instance
+     */
+    public TerminalActions executeTerminalCommand(String command) {
+        performTerminalCommand(command);
+        return this;
+    }
+
+    /**
+     * Disconnects any reusable SSH session owned by this terminal actions instance.
+     *
+     * <p>This method is safe to call before the first remote command is executed and is a no-op
+     * for local terminals or ephemeral remote terminals.</p>
+     */
+    public void quit() {
+        if (reusableRemoteSession != null && reusableRemoteSession.isConnected()) {
+            reusableRemoteSession.disconnect();
+        }
+        reusableRemoteSession = null;
+    }
+
     private void passAction(String actionName, String testData, String log) {
         reportActionResult(actionName, testData, log, true);
     }
@@ -295,6 +340,22 @@ public class TerminalActions {
             failAction(testData, rootCauseException);
         }
         return session;
+    }
+
+    private Session getRemoteSession() {
+        if (!reuseRemoteSession) {
+            return createSSHsession();
+        }
+        if (reusableRemoteSession == null || !reusableRemoteSession.isConnected()) {
+            reusableRemoteSession = createSSHsession();
+        }
+        return reusableRemoteSession;
+    }
+
+    private void disconnectRemoteSessionIfEphemeral(Session session) {
+        if (!reuseRemoteSession && session != null && session.isConnected()) {
+            session.disconnect();
+        }
     }
 
     private String buildLongCommand(List<String> commands) {
@@ -419,11 +480,12 @@ public class TerminalActions {
         // remote execution
         ReportManager.logDiscrete(
                 "Attempting to perform the following command remotely. Command: \"" + longCommand + "\"");
-        Session remoteSession = createSSHsession();
+        Session remoteSession = getRemoteSession();
+        ChannelExec remoteChannelExecutor = null;
         if (remoteSession != null) {
             try {
                 remoteSession.setTimeout(sessionTimeout);
-                ChannelExec remoteChannelExecutor = (ChannelExec) remoteSession.openChannel("exec");
+                remoteChannelExecutor = (ChannelExec) remoteSession.openChannel("exec");
                 remoteChannelExecutor.setCommand(longCommand);
                 remoteChannelExecutor.connect();
 
@@ -436,9 +498,13 @@ public class TerminalActions {
 
                 // Retrieve the exit status of the executed command and destroy open sessions
                 exitStatuses.append(remoteChannelExecutor.getExitStatus());
-                remoteSession.disconnect();
             } catch (JSchException | IOException exception) {
                 failAction(longCommand, exception);
+            } finally {
+                if (remoteChannelExecutor != null && remoteChannelExecutor.isConnected()) {
+                    remoteChannelExecutor.disconnect();
+                }
+                disconnectRemoteSessionIfEphemeral(remoteSession);
             }
         }
         return Arrays.asList(logs.toString(), exitStatuses.toString());
