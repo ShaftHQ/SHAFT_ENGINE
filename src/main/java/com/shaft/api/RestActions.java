@@ -765,6 +765,13 @@ public class RestActions {
                     actualJsonArray = (ArrayNode) root;
                 }
             }
+        } else if (body instanceof InputStream bodyStream) {
+            var root = jacksonMapper.readTree(bodyStream);
+            if (root instanceof ObjectNode) {
+                actualJsonObject = (ObjectNode) root;
+            } else {
+                actualJsonArray = (ArrayNode) root;
+            }
         } else if (body instanceof ObjectNode) {
             actualJsonObject = (ObjectNode) body;
         } else if (body instanceof ArrayNode) {
