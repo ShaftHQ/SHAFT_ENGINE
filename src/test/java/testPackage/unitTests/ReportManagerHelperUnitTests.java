@@ -16,6 +16,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -43,7 +45,9 @@ public class ReportManagerHelperUnitTests {
         getPrivateStaticField("testCasesCounter", AtomicInteger.class).set(0);
         setPrivateStaticField("featureName", "");
         setPrivateStaticField("debugMode", false);
+        invokePrivateStaticMethod("resetRetryDiagnosticLogging");
         setPrivateStaticField("debugFileLoggingEnabled", false);
+        setPrivateStaticField("previousRootLogLevel", null);
         ReportManagerHelper.setOpenIssuesForFailedTestsCounter(0);
         ReportManagerHelper.setOpenIssuesForPassedTestsCounter(0);
         ReportManagerHelper.setFailedTestsWithoutOpenIssuesCounter(0);
@@ -160,6 +164,149 @@ public class ReportManagerHelperUnitTests {
     }
 
     @Test
+    public void prepareIssuesLogShouldAggregateOpenIssuesWithNullDescriptions() {
+        ReportManagerHelper.setOpenIssuesForPassedTestsCounter(1);
+        ReportManagerHelper.setOpenIssuesForFailedTestsCounter(1);
+
+        List<List<String>> openPassedIssues = Collections.synchronizedList(new ArrayList<>());
+        openPassedIssues.add(Arrays.asList("ClassB", "testTwo", "#2", null));
+        ReportManagerHelper.setListOfOpenIssuesForPassedTests(openPassedIssues);
+
+        List<List<String>> openFailedIssues = Collections.synchronizedList(new ArrayList<>());
+        openFailedIssues.add(Arrays.asList("ClassC", "testThree", "#3", null));
+        ReportManagerHelper.setListOfOpenIssuesForFailedTests(openFailedIssues);
+
+        String issuesSummary = ReportManagerHelper.prepareIssuesLog();
+        String issueDetails = getPrivateStaticFieldUnchecked("issuesLog", AtomicReference.class).get().toString();
+
+        SHAFT.Validations.assertThat().object(issuesSummary).contains("Total Issues = 2").perform();
+        SHAFT.Validations.assertThat().object(issueDetails).contains("ClassB.testTwo").perform();
+        SHAFT.Validations.assertThat().object(issueDetails).contains("ClassC.testThree").perform();
+        SHAFT.Validations.assertThat().object(issueDetails).doesNotContain("'null'").perform();
+    }
+
+    @Test
+    public void discreteLoggingToggleShouldPreserveAndRestoreImportantLogState() throws Exception {
+        ReportManagerHelper.setDiscreteLogging(true);
+        SHAFT.Validations.assertThat().object(ReportManagerHelper.getDiscreteLogging()).isTrue().perform();
+
+        ReportManagerHelper.logImportantEntry("important log should force non-discrete logging temporarily", Level.WARN);
+        SHAFT.Validations.assertThat().object(ReportManagerHelper.getDiscreteLogging()).isTrue().perform();
+
+        setPrivateStaticField("logger", null);
+        ReportManagerHelper.writeStepToReport("logger initialization branch");
+        setPrivateStaticField("logger", null);
+        ReportManagerHelper.logImportantEntry("important logger initialization branch", Level.INFO);
+
+        ReportManagerHelper.setDebugMode(true);
+        ReportManagerHelper.setDiscreteLogging(false);
+        SHAFT.Validations.assertThat().object(ReportManagerHelper.getDiscreteLogging()).isFalse().perform();
+
+        ReportManagerHelper.setDiscreteLogging(true);
+        SHAFT.Validations.assertThat().object(ReportManagerHelper.getDiscreteLogging()).isTrue().perform();
+    }
+
+    @Test
+    public void internalDiscreteLogShouldAttachStringBuilderAndStreamAttachments() {
+        ReportManagerHelper.setDiscreteLogging(true);
+        List<List<Object>> attachments = new ArrayList<>();
+        attachments.add(Arrays.asList("Attachment", "StringBuilder", new StringBuilder("builder-value")));
+        attachments.add(Arrays.asList("Attachment", "Stream", new ByteArrayInputStream("stream-value".getBytes(StandardCharsets.UTF_8))));
+
+        InternalshaftCaller.logPassedStepWithAttachments(attachments);
+
+        SHAFT.Validations.assertThat().object(ReportManagerHelper.getDiscreteLogging()).isTrue().perform();
+    }
+
+    @Test
+    public void attachmentMethodsShouldIgnoreNullEmptyAndEngineLogEntries() throws Exception {
+        Method logAttachmentActionMethod = ReportManagerHelper.class.getDeclaredMethod(
+                "logAttachmentAction", String.class, String.class, java.io.ByteArrayOutputStream.class);
+        logAttachmentActionMethod.setAccessible(true);
+
+        ReportManagerHelper.attach("Attachment", "Blank String", "   ");
+        ReportManagerHelper.attach("Attachment", "Null Stream", (java.io.InputStream) null);
+        ReportManagerHelper.attach((List<List<Object>>) null);
+        ReportManagerHelper.attach(Collections.emptyList());
+        ReportManagerHelper.attach(Collections.singletonList(null));
+        ReportManagerHelper.attach(Collections.singletonList(Collections.emptyList()));
+        logAttachmentActionMethod.invoke(null, "SHAFT Engine Logs", "engine", new java.io.ByteArrayOutputStream());
+
+        SHAFT.Validations.assertThat().object(ReportManagerHelper.getIssueCounter()).isEqualTo(0).perform();
+    }
+
+    @Test
+    public void debugFileLoggingShouldSkipDirectoryPathAndMissingLogAttachment() throws Exception {
+        ReportManagerHelper.createLogEntry("prime logger before directory path check", Level.INFO);
+        Path directoryPath = Files.createTempDirectory("rpmgr-debug-directory-");
+        ThreadLocalPropertiesManager.setProperty("appender.file.fileName", directoryPath.toString());
+
+        ReportManagerHelper.enableDebugFileLogging();
+
+        boolean debugFileLoggingEnabled = getPrivateStaticField("debugFileLoggingEnabled", Boolean.class);
+        SHAFT.Validations.assertThat().object(debugFileLoggingEnabled).isFalse().perform();
+        SHAFT.Validations.assertThat().object(Files.isDirectory(directoryPath)).isTrue().perform();
+
+        Path missingLog = directoryPath.resolve("missing.log");
+        ThreadLocalPropertiesManager.setProperty("appender.file.fileName", missingLog.toString());
+        setPrivateStaticField("debugFileLoggingEnabled", true);
+        ReportManagerHelper.attachEngineLog("missing-log");
+
+        debugFileLoggingEnabled = getPrivateStaticField("debugFileLoggingEnabled", Boolean.class);
+        SHAFT.Validations.assertThat().object(debugFileLoggingEnabled).isFalse().perform();
+        SHAFT.Validations.assertThat().object(Files.exists(missingLog)).isFalse().perform();
+        Files.deleteIfExists(directoryPath);
+    }
+
+    @Test
+    public void debugFileLoggingShouldCreateNestedTemporaryLogFile() throws Exception {
+        Path debugDirectory = Files.createTempDirectory("rpmgr-debug-nested-");
+        Path nestedLogFile = debugDirectory.resolve("nested").resolve("debug.log");
+        ThreadLocalPropertiesManager.setProperty("appender.file.fileName", nestedLogFile.toString());
+        setPrivateStaticField("logger", null);
+
+        ReportManagerHelper.enableDebugFileLogging();
+        invokePrivateStaticMethod("writeToDebugLogFileIfEnabled", "nested debug entry", Level.ERROR);
+
+        SHAFT.Validations.assertThat().object(Files.isRegularFile(nestedLogFile)).isTrue().perform();
+        SHAFT.Validations.assertThat().object(Files.readString(nestedLogFile)).contains("nested debug entry").perform();
+
+        ReportManagerHelper.attachEngineLog("nested-log");
+        Files.deleteIfExists(nestedLogFile.getParent());
+        Files.deleteIfExists(debugDirectory);
+    }
+
+    @Test
+    public void nullAndEmptyHelpersShouldReturnSafeDefaults() throws Exception {
+        Method addSpacingMethod = ReportManagerHelper.class.getDeclaredMethod("addSpacing", String.class);
+        addSpacingMethod.setAccessible(true);
+        Method getStepStatusMethod = ReportManagerHelper.class.getDeclaredMethod("getStepStatus", String.class);
+        getStepStatusMethod.setAccessible(true);
+        Method writeNestedStepsMethod = ReportManagerHelper.class.getDeclaredMethod("writeNestedStepsToReport", String.class);
+        writeNestedStepsMethod.setAccessible(true);
+
+        String formattedNullTrace = ReportManagerHelper.formatStackTraceToLogEntry(null);
+        Object passedStatusForNullLog = getStepStatusMethod.invoke(null, new Object[]{null});
+        String spacedEmpty = (String) addSpacingMethod.invoke(null, "");
+        ReportManagerHelper.createLogEntry(null, Level.INFO);
+        ReportManagerHelper.writeStepToReport(null);
+        writeNestedStepsMethod.invoke(null, "nested empty-safe log");
+        ReportManagerHelper.logNestedSteps("verification failed", Collections.singletonList("   "), Collections.emptyList());
+        ReportManagerHelper.logNestedSteps("assertion failed", null, Collections.singletonList(Arrays.asList("Attachment", "Fallback", "fallback")));
+        ReportManagerHelper.log("passed log without attachments", Collections.emptyList());
+
+        SHAFT.Validations.assertThat().object(formattedNullTrace).isEqualTo("").perform();
+        SHAFT.Validations.assertThat().object(passedStatusForNullLog.toString()).isEqualTo("PASSED").perform();
+        SHAFT.Validations.assertThat().object(spacedEmpty).isNotNull().perform();
+    }
+
+    private static class InternalshaftCaller {
+        private static void logPassedStepWithAttachments(List<List<Object>> attachments) {
+            ReportManagerHelper.log("passed internal step", attachments);
+        }
+    }
+
+    @Test
     public void getExecutionDurationShouldFormatDifferentTimeRanges() {
         SHAFT.Validations.assertThat().object(ReportManagerHelper.getExecutionDuration(0, 500)).isEqualTo("500 millis").perform();
         SHAFT.Validations.assertThat().object(ReportManagerHelper.getExecutionDuration(0, 1500)).isEqualTo("01 sec, 500 millis").perform();
@@ -211,6 +358,7 @@ public class ReportManagerHelperUnitTests {
         ReportManagerHelper.logFinishedTestInformation("ClassX", "methodX", "description", "FAILED");
         ReportManagerHelper.logFinishedTestInformation("ClassX", "methodX", "", "SKIPPED");
         ReportManagerHelper.logFinishedTestInformation("ClassX", "methodX", "", "PASSED");
+        ReportManagerHelper.logFinishedTestInformation("ClassX", "methodX", "", "BROKEN");
         ReportManagerHelper.logEngineVersion();
         ReportManagerHelper.logEngineClosure();
 
@@ -239,8 +387,11 @@ public class ReportManagerHelperUnitTests {
         ReportManagerHelper.log("failed log", attachments);
         ReportManagerHelper.logNestedSteps("verification passed", customLogMessages, attachments);
         ReportManagerHelper.logNestedSteps("verification failed", customLogMessages, attachments);
+        ReportManagerHelper.logNestedSteps("assertion passed", customLogMessages, null);
+        ReportManagerHelper.logNestedSteps("assertion failed", customLogMessages, null);
         ReportManagerHelper.logNestedSteps("assertion passed", attachments);
         ReportManagerHelper.log(new RuntimeException("runtime exception"));
+        ReportManagerHelper.log(new RuntimeException());
         ReportManagerHelper.logDiscrete(new RuntimeException("discrete exception"));
         ReportManagerHelper.logDiscrete(new RuntimeException("discrete exception warning"), Level.WARN);
         ReportManagerHelper.logDiscrete("discrete text", Level.INFO);
@@ -323,6 +474,20 @@ public class ReportManagerHelperUnitTests {
         SHAFT.Validations.assertThat().object(invocationTargetException).isNotNull().perform();
         SHAFT.Validations.assertThat().object(invocationTargetException.getCause().getClass().getName()).isEqualTo("java.lang.IllegalStateException").perform();
         SHAFT.Validations.assertThat().object(invocationTargetException.getCause().getMessage()).isEqualTo("Utility class").perform();
+    }
+
+    private static Object invokePrivateStaticMethod(String methodName, Object... args) throws Exception {
+        Class<?>[] parameterTypes = Arrays.stream(args)
+                .map(arg -> arg == null ? Object.class : arg.getClass())
+                .toArray(Class<?>[]::new);
+        Method method;
+        if ("writeToDebugLogFileIfEnabled".equals(methodName)) {
+            method = ReportManagerHelper.class.getDeclaredMethod(methodName, String.class, Level.class);
+        } else {
+            method = ReportManagerHelper.class.getDeclaredMethod(methodName, parameterTypes);
+        }
+        method.setAccessible(true);
+        return method.invoke(null, args);
     }
 
     private static <T> T getPrivateStaticField(String fieldName, Class<T> type) throws Exception {
