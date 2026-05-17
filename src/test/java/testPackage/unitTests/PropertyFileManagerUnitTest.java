@@ -12,6 +12,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 public class PropertyFileManagerUnitTest {
@@ -172,10 +173,10 @@ public class PropertyFileManagerUnitTest {
         }
     }
 
-    @Test(description = "loadPropertiesFileIntoSystemProperties should gracefully handle non-readable file input")
-    public void loadPropertiesFileIntoSystemProperties_handlesIOException() throws Exception {
+    @Test(description = "loadPropertiesFromFile should gracefully handle non-readable file input")
+    public void loadPropertiesFromFile_handlesIOException() throws Exception {
         Method loadMethod = PropertyFileManager.class.getDeclaredMethod(
-                "loadPropertiesFileIntoSystemProperties",
+                "loadPropertiesFromFile",
                 java.util.Properties.class,
                 File.class
         );
@@ -188,13 +189,51 @@ public class PropertyFileManagerUnitTest {
         properties.setProperty(key, "from-file-load");
 
         try {
-            loadMethod.invoke(null, properties, directory);
+            boolean loaded = (boolean) loadMethod.invoke(null, properties, directory);
+            SHAFT.Validations.assertThat().object(loaded).isEqualTo(false).perform();
+            SHAFT.Validations.assertThat().object(properties.getProperty(key)).isEqualTo("from-file-load").perform();
         } catch (InvocationTargetException e) {
-            Assert.fail("loadPropertiesFileIntoSystemProperties should handle IO errors internally", e.getCause());
+            Assert.fail("loadPropertiesFromFile should handle IO errors internally", e.getCause());
         } finally {
             Files.deleteIfExists(directory.toPath());
         }
         SHAFT.Validations.assertThat().object(System.getProperty(key)).isEqualTo(previousValue).perform();
         System.clearProperty(key);
+    }
+
+    @Test(description = "readPropertyFiles should load .properties files in deterministic sorted order")
+    public void readPropertyFiles_loadsPropertiesInDeterministicOrder() throws Exception {
+        Method readPropertyFiles = PropertyFileManager.class.getDeclaredMethod("readPropertyFiles", String.class);
+        readPropertyFiles.setAccessible(true);
+        Path propertiesDirectory = Files.createTempDirectory("shaft-property-order");
+        String orderKey = "shaft.property.manager.load.order";
+        String previousValue = System.getProperty(orderKey);
+
+        try {
+            Files.writeString(propertiesDirectory.resolve("z-order.properties"), orderKey + "=from-z\n");
+            Files.writeString(propertiesDirectory.resolve("a-order.properties"), orderKey + "=from-a\n");
+            Files.writeString(propertiesDirectory.resolve("b-order.properties"), orderKey + "=from-b\n");
+
+            readPropertyFiles.invoke(null, propertiesDirectory.toString());
+
+            SHAFT.Validations.assertThat().object(System.getProperty(orderKey)).isEqualTo("from-z").perform();
+        } catch (InvocationTargetException e) {
+            Assert.fail("readPropertyFiles should load sorted property files", e.getCause());
+        } finally {
+            if (previousValue != null) {
+                System.setProperty(orderKey, previousValue);
+            } else {
+                System.clearProperty(orderKey);
+            }
+            Files.walk(propertiesDirectory)
+                    .sorted(java.util.Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (Exception ignored) {
+                            // best-effort temp cleanup
+                        }
+                    });
+        }
     }
 }
