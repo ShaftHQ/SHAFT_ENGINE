@@ -16,6 +16,7 @@ import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.ios.IOSStartScreenRecordingOptions;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.BasicConfigurator;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import ws.schild.jave.Encoder;
@@ -59,9 +60,16 @@ public class RecordManager {
             } catch (WebDriverException exception) {
                 ReportManager.logDiscrete("Failed to start recording device screen");
             }
-        } else {
+        } else if (driver == null || shouldFallbackToDesktopRecorder(driver)) {
             startVideoRecording();
         }
+    }
+
+    private static boolean shouldFallbackToDesktopRecorder(WebDriver driver) {
+        return driver != null
+                && SHAFT.Properties.platform.executionAddress().equals("local")
+                && !SHAFT.Properties.web.headlessExecution()
+                && !(driver instanceof RemoteWebDriver);
     }
 
     public static void startVideoRecording() {
