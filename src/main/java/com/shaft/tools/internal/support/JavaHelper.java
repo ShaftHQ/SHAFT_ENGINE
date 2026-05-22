@@ -252,13 +252,13 @@ public class JavaHelper {
                 // Preserve POSIX-style absolute paths that were normalized with an extra leading slash.
                 return relativePath.substring(1);
             }
+            if (relativePath.startsWith("/")) {
+                // remove extra slash at the beginning if applicable
+                relativePath = relativePath.substring(1);
+            }
             // Do not prepend testData path to absolute OS paths
             if (new java.io.File(relativePath).isAbsolute()) {
                 return relativePath;
-            }
-            if (relativePath.startsWith("/")) {
-                //remove extra slash at the beginning if applicable
-                relativePath = relativePath.substring(1);
             }
             var testDataFolderPath = SHAFT.Properties.paths.testData();
             if (relativePath.contains(testDataFolderPath)) {
