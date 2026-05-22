@@ -110,6 +110,7 @@ public class OptionsManager {
                     ffOptions = ffOptions.merge(customDriverOptions);
                 }
                 setSeleniumManagerOptions(ffOptions);
+                applyRemoteVideoCapabilities(ffOptions);
                 ReportManager.logDiscrete(ffOptions.toString());
             }
             case IE -> {
@@ -144,10 +145,12 @@ public class OptionsManager {
             case CHROME, EDGE, CHROMIUM -> {
                 if (driverType.equals(DriverFactory.DriverType.EDGE)) {
                     edOptions = (EdgeOptions) setupChromiumOptions(new EdgeOptions(), customDriverOptions);
+                    applyRemoteVideoCapabilities(edOptions);
                     ReportManager.logDiscrete(edOptions.toString());
                 } else {
                     chOptions = (ChromeOptions) setupChromiumOptions(new ChromeOptions(), customDriverOptions);
                     setSeleniumManagerOptions(chOptions);
+                    applyRemoteVideoCapabilities(chOptions);
                     ReportManager.logDiscrete(chOptions.toString());
                 }
             }
@@ -180,6 +183,7 @@ public class OptionsManager {
                 if (customDriverOptions != null) {
                     sfOptions = sfOptions.merge(customDriverOptions);
                 }
+                applyRemoteVideoCapabilities(sfOptions);
                 ReportManager.logDiscrete(sfOptions.toString());
             }
             case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_CHROME, APPIUM_CHROMIUM, APPIUM_FLUTTER ->
@@ -516,5 +520,29 @@ public class OptionsManager {
         logPrefs.enable(LogType.BROWSER, java.util.logging.Level.ALL);
         logPrefs.enable(LogType.DRIVER, java.util.logging.Level.ALL);
         return logPrefs;
+    }
+
+    private void applyRemoteVideoCapabilities(MutableCapabilities options) {
+        String executionAddress = SHAFT.Properties.platform.executionAddress().toLowerCase();
+        if (!SHAFT.Properties.visuals.videoParamsRecordVideo() || executionAddress.equals("local") || executionAddress.equals("dockerized")) {
+            return;
+        }
+
+        if (options.getCapability("enableVideo") == null) {
+            options.setCapability("enableVideo", true);
+        }
+        if (options.getCapability("selenoid:options") == null) {
+            Map<String, Object> selenoidOptions = new HashMap<>();
+            selenoidOptions.put("enableVideo", true);
+            options.setCapability("selenoid:options", selenoidOptions);
+        }
+        if (options.getCapability("moon:options") == null) {
+            Map<String, Object> moonOptions = new HashMap<>();
+            moonOptions.put("enableVideo", true);
+            options.setCapability("moon:options", moonOptions);
+        }
+        if (options.getCapability("se:recordVideo") == null) {
+            options.setCapability("se:recordVideo", true);
+        }
     }
 }

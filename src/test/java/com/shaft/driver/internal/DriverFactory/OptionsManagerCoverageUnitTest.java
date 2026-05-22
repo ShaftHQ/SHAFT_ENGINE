@@ -37,6 +37,7 @@ public class OptionsManagerCoverageUnitTest {
         SHAFT.Properties.web.set().targetBrowserName("chrome").headlessExecution(false).incognitoMode(false).forceBrowserDownload(false).isMobileEmulation(false).mobileEmulationIsCustomDevice(false).mobileEmulationDeviceName("").mobileEmulationUserAgent("");
         SHAFT.Properties.flags.set().disableCache(false).disableSslCertificateCheck(false).automaticallyAddRecommendedChromeOptions(true).autoCloseDriverInstance(true).autoMaximizeBrowserWindow(true);
         SHAFT.Properties.reporting.set().captureWebDriverLogs(false);
+        SHAFT.Properties.visuals.set().videoParamsRecordVideo(false);
         SHAFT.Properties.performance.set().isEnabled(false).port(9222);
         SHAFT.Properties.timeouts.set().pageLoadTimeout(30).scriptExecutionTimeout(30);
         SHAFT.Properties.mobile.set().browserName("").app("").appPackage("").appActivity("");
@@ -90,6 +91,7 @@ public class OptionsManagerCoverageUnitTest {
         SHAFT.Properties.flags.set().automaticallyAddRecommendedChromeOptions(true).autoCloseDriverInstance(false).autoMaximizeBrowserWindow(false).disableSslCertificateCheck(true);
         SHAFT.Properties.performance.set().isEnabled(true).port(9223);
         SHAFT.Properties.reporting.set().captureWebDriverLogs(true);
+        SHAFT.Properties.visuals.set().videoParamsRecordVideo(true);
 
         OptionsManager manager = new OptionsManager();
         MutableCapabilities customChromeOptions = new MutableCapabilities();
@@ -110,6 +112,10 @@ public class OptionsManagerCoverageUnitTest {
         Assert.assertTrue(chromeOptionsAsString.contains("mobileEmulation"));
         Assert.assertTrue(chromeOptionsAsString.contains("detach"));
         Assert.assertNotNull(chromeOptions.getCapability(CapabilityType.PROXY));
+        Assert.assertEquals(chromeOptions.getCapability("enableVideo"), true);
+        Assert.assertEquals(chromeOptions.getCapability("se:recordVideo"), true);
+        Assert.assertNotNull(chromeOptions.getCapability("selenoid:options"));
+        Assert.assertNotNull(chromeOptions.getCapability("moon:options"));
 
         SHAFT.Properties.web.set().incognitoMode(true);
         SHAFT.Properties.platform.set().enableBiDi(true);
