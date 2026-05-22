@@ -190,17 +190,16 @@ public final class PropertyFileManager {
                     FileActions.getInstance(true).unpackArchive(url, "target/");
                     propertiesFolderPath = "target/resources/properties/default/";
                 }
-                // reading regular files
-                Collection<File> propertiesFilesList;
                 if (FileActions.getInstance(true).doesFileExist(propertiesFolderPath)) {
-                    propertiesFilesList = FileUtils.listFiles(new File(propertiesFolderPath), new String[]{"properties"},
-                            false);
-                    File propertyFile;
-                    for (int i = 0; i < propertiesFilesList.size(); i++) {
-                        propertyFile = (File) (propertiesFilesList.toArray())[i];
+                    Collection<File> propertyFiles = FileUtils.listFiles(new File(propertiesFolderPath),
+                            new String[]{"properties"}, false);
+                    List<File> sortedPropertyFiles = new ArrayList<>(propertyFiles);
+                    sortedPropertyFiles.sort(Comparator.comparing(file -> file.getAbsolutePath()));
+                    for (File propertyFile : sortedPropertyFiles) {
                         ReportManager.logDiscrete("Loading properties file: " + propertyFile, Level.DEBUG);
-                        loadPropertiesFileIntoSystemProperties(properties, propertyFile);
+                        loadPropertiesFromFile(properties, propertyFile);
                     }
+                    applyLoadedPropertiesToSystem(properties);
                 } else {
                     ReportManager.logDiscrete(
                             "The desired propertiesFolderPath directory doesn't exist. ["
@@ -212,17 +211,28 @@ public final class PropertyFileManager {
         }
     }
 
-    private static void loadPropertiesFileIntoSystemProperties(java.util.Properties properties, File propertyFile) {
-        try {
-            properties.load(new FileInputStream(propertyFile));
-            // merge: effective properties (system + thread-local) override file-based properties
-            properties.putAll(ThreadLocalPropertiesManager.getEffectiveProperties());
-            ThreadLocalPropertiesManager.applyCompatibilityAliases(properties);
-            // write merged result back to system properties so that ConfigFactory picks them up
-            System.getProperties().putAll(properties);
+    /**
+     * Loads entries from a single file into {@code target}. Does not touch {@link System#getProperties()}.
+     *
+     * @return {@code true} when the file was read successfully
+     */
+    private static boolean loadPropertiesFromFile(java.util.Properties target, File propertyFile) {
+        try (FileInputStream inputStream = new FileInputStream(propertyFile)) {
+            target.load(inputStream);
+            return true;
         } catch (IOException e) {
             ReportManagerHelper.logDiscrete(e);
+            return false;
         }
+    }
+
+    /**
+     * Merges file-based properties with effective overrides and publishes once to {@link System#getProperties()}.
+     */
+    private static void applyLoadedPropertiesToSystem(java.util.Properties loadedFromFiles) {
+        loadedFromFiles.putAll(ThreadLocalPropertiesManager.getEffectiveProperties());
+        ThreadLocalPropertiesManager.applyCompatibilityAliases(loadedFromFiles);
+        System.getProperties().putAll(loadedFromFiles);
     }
 
     public static void readCustomPropertyFiles() {
