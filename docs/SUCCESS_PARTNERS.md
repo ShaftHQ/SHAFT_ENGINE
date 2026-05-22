@@ -31,7 +31,7 @@ SHAFT Engine is proudly sponsored by industry leaders in testing and development
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://jahezgroup.com/"><img height="50" alt="Jahez Group" src="https://github.com/user-attachments/assets/3c9f6bb3-d310-48d7-a852-47ff5537e629"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.momah.gov.sa/en"><img height="50" alt="MOMRA (Saudi Arabia's Ministry of Municipal and Rural Affairs)" src="https://momah.gov.sa/themes/custom/momrah-theme/logo-en.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.incorta.com/"><img height="50" alt="Incorta" src="https://cdn.prod.website-files.com/67b7abfbb037e687d0a415ec/67d4cf48fdf9dba83bb5595a_Incorta-Logo.svg"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.paymob.com/"><img height="50" alt="Paymob Solutions" src="https://paymob.com/images/paymobLogo.png"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://paymob.com/en/about-us"><img height="50" alt="Paymob Solutions" src="https://commons.wikimedia.org/wiki/Special:FilePath/PayMob_Payments.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://bayan-tech.com/"><img height="50" alt="BayanTech" src="https://bayan-tech.com/wp-content/uploads/2020/01/Bayan-Logo-2.png"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://gizasystems.com/"><img height="50" alt="GIZA Systems" src="https://github.com/user-attachments/assets/45e7bc17-b3f3-44c7-a053-2f250ea497b6"></a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.ihorizons.com/"><img height="50" alt="iHorizons" src="https://qstp.qa/wp-content/uploads/2024/10/iHorizons-logo-new-1024x199.png"></a>
