@@ -14,6 +14,7 @@ services:
       - SE_NODE_GRID_URL=http://localhost:4444
       - SE_NODE_CONNECTION_LIMIT_PER_SESSION=1000
       - SE_NODE_SESSION_TIMEOUT=7200
+      - SE_RECORD_VIDEO=true
 
   edge:
     image: selenium/node-edge:4.43.0-20260404
@@ -25,6 +26,7 @@ services:
       - SE_NODE_GRID_URL=http://localhost:4444
       - SE_NODE_CONNECTION_LIMIT_PER_SESSION=1000
       - SE_NODE_SESSION_TIMEOUT=7200
+      - SE_RECORD_VIDEO=true
 
   firefox:
     image: selenium/node-firefox:4.43.0-20260404
@@ -36,6 +38,7 @@ services:
       - SE_NODE_GRID_URL=http://localhost:4444
       - SE_NODE_CONNECTION_LIMIT_PER_SESSION=1000
       - SE_NODE_SESSION_TIMEOUT=7200
+      - SE_RECORD_VIDEO=true
 
   selenium-hub:
     image: selenium/hub:4.43.0-20260404
