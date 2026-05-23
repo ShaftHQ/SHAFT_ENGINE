@@ -4,6 +4,7 @@ import com.epam.healenium.SelfHealingDriver;
 import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.browser.internal.BiDiNetworkFoundationManager;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.PropertiesHelper;
@@ -393,6 +394,7 @@ public class DriverFactoryHelper {
             } catch (Exception e) {
                 ReportManagerHelper.logDiscrete(e);
             } finally {
+                BiDiNetworkFoundationManager.cleanupForDriver(driver);
                 seleniumWebSocketLogger.setLevel(previousWebSocketLoggerLevel);
                 webDriverManager.remove();
                 ReportManager.log("Successfully Closed Driver.");

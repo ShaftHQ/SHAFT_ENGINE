@@ -6,6 +6,7 @@ import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.enums.internal.NavigationAction;
 import com.shaft.enums.internal.Screenshots;
+import com.shaft.gui.browser.internal.BiDiNetworkFoundationManager;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.internal.image.ScreenshotManager;
@@ -682,14 +683,16 @@ public class BrowserActions extends FluentWebDriverAction {
         ReportManager.logDiscrete("Attempting to configure network interceptor for \"" + requestPredicate + "\", will provide mocked response.");
         ReportManagerHelper.attach("HTTP Response", "Mocked HTTP Response", String.valueOf(mockedResponse));
         try {
-            if (driverFactoryHelper.getDriver() instanceof HasDevTools hasDevTools) {
+            WebDriver activeDriver = driverFactoryHelper.getDriver();
+            if (activeDriver instanceof HasDevTools) {
                 NetworkInterceptor networkInterceptor = new NetworkInterceptor(
-                        driverFactoryHelper.getDriver(),
+                        activeDriver,
                         Route.matching(requestPredicate)
                                 .to(() -> req -> mockedResponse));
-                browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Successfully configured network interceptor.");
+                BiDiNetworkFoundationManager.registerInterceptor(activeDriver, networkInterceptor);
+                browserActionsHelper.passAction(activeDriver, "Successfully configured network interceptor.");
             } else {
-                browserActionsHelper.failAction(driverFactoryHelper.getDriver(), "Network Interceptor is not supported by the current driver type.");
+                browserActionsHelper.failAction(activeDriver, "Network Interceptor is not supported by the current driver type.");
             }
         } catch (Exception rootCauseException) {
             browserActionsHelper.failAction(rootCauseException);
