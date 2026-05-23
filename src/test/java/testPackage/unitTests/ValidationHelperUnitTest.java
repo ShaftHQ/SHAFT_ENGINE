@@ -13,6 +13,7 @@ import java.util.List;
  * Unit tests for validation and assertion helpers
  * Tests common validation patterns without requiring browser
  */
+@Test(singleThreaded = true)
 public class ValidationHelperUnitTest {
 
     @Test(description = "Test string equality validation")

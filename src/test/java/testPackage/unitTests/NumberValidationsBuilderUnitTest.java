@@ -20,6 +20,7 @@ import static org.mockito.Mockito.when;
  * external service.  Failure paths are verified by catching the expected
  * {@link AssertionError}.
  */
+@Test(singleThreaded = true)
 public class NumberValidationsBuilderUnitTest {
 
     @AfterMethod(alwaysRun = true)

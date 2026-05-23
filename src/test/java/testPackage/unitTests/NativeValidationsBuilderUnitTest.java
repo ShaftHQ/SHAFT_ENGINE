@@ -18,6 +18,7 @@ import org.testng.annotations.Test;
  * Unit tests for {@link com.shaft.validation.internal.NativeValidationsBuilder}.
  * Validates the fluent assertion API for object comparisons.
  */
+@Test(singleThreaded = true)
 public class NativeValidationsBuilderUnitTest {
 
     @AfterMethod(alwaysRun = true)
