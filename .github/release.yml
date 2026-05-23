@@ -1,11 +1,9 @@
 # .github/release.yml
-# Controls how GitHub automatically categorizes pull requests in release notes.
-# Goal: produce readable, user-focused release notes with explicit sections and
-# no "everything in one Uncategorized block" output.
+# Keep release notes close to GitHub's default auto-generated format.
+# We only exclude noisy bot authors and explicitly skipped PRs.
 # Reference: https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
 
 changelog:
-  # Keep noisy maintenance activity out of release highlights.
   exclude:
     authors:
       - dependabot[bot]
@@ -13,69 +11,5 @@ changelog:
       - github-actions[bot]
       - github-actions
       - copilot-swe-agent[bot]
-
     labels:
-      - duplicate
-      - invalid
-      - question
-      - wontfix
       - skip-release-notes
-
-  categories:
-    - title: "💥 Breaking Changes"
-      labels:
-        - breaking-change
-        - breaking
-        - semver-major
-
-    - title: "🚀 New Features"
-      labels:
-        - feature
-        - new-feature
-        - enhancement
-        - semver-minor
-
-    - title: "🐛 Fixes"
-      labels:
-        - fix
-        - bug
-        - bugfix
-        - regression
-
-    - title: "⚡ Performance"
-      labels:
-        - performance
-        - perf
-        - optimization
-
-    - title: "🛡️ Security"
-      labels:
-        - security
-
-    - title: "🧪 Testing & Reliability"
-      labels:
-        - test
-        - tests
-        - testing
-        - flaky-test
-
-    - title: "📚 Documentation"
-      labels:
-        - docs
-        - doc
-        - documentation
-
-    - title: "🔧 CI / Build / Dependencies"
-      labels:
-        - ci
-        - cd
-        - build
-        - dependencies
-        - dependency
-        - deps
-        - github-actions
-
-  uncategorized-title: "📦 Other Changes"
-
-  # Render each PR in a compact, consistent line.
-  change-template: "- $TITLE by @$AUTHOR in #$NUMBER"
