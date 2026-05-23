@@ -19,6 +19,7 @@ import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -298,14 +299,14 @@ public class TerminalActions {
      * <p>This method is safe to call before the first remote command is executed and is a no-op
      * for local terminals or ephemeral remote terminals.</p>
      */
-    public void quit() {
+    public synchronized void quit() {
         cancelReusableSessionTimeoutTask();
         if (reusableRemoteSession != null && reusableRemoteSession.isConnected()) {
             reusableRemoteSession.disconnect();
         }
         reusableRemoteSession = null;
         if (reusableSessionTimeoutScheduler != null) {
-            reusableSessionTimeoutScheduler.shutdownNow();
+            reusableSessionTimeoutScheduler.shutdown();
             reusableSessionTimeoutScheduler = null;
         }
     }
@@ -350,7 +351,7 @@ public class TerminalActions {
         return session;
     }
 
-    private Session getRemoteSession() {
+    private synchronized Session getRemoteSession() {
         if (!reuseRemoteSession) {
             return createSSHsession();
         }
@@ -361,20 +362,28 @@ public class TerminalActions {
         return reusableRemoteSession;
     }
 
-    private void scheduleReusableSessionTimeout() {
+    private synchronized void scheduleReusableSessionTimeout() {
         long sessionTimeoutMinutes = SHAFT.Properties.timeouts.shellSessionTimeout();
         if (sessionTimeoutMinutes <= 0) {
             return;
         }
 
         if (reusableSessionTimeoutScheduler == null || reusableSessionTimeoutScheduler.isShutdown()) {
-            reusableSessionTimeoutScheduler = Executors.newSingleThreadScheduledExecutor();
+            reusableSessionTimeoutScheduler = Executors.newSingleThreadScheduledExecutor(getReusableSessionTimeoutThreadFactory());
         }
         cancelReusableSessionTimeoutTask();
         reusableSessionTimeoutTask = reusableSessionTimeoutScheduler.schedule(this::quit, sessionTimeoutMinutes, TimeUnit.MINUTES);
     }
 
-    private void cancelReusableSessionTimeoutTask() {
+    private ThreadFactory getReusableSessionTimeoutThreadFactory() {
+        return runnable -> {
+            Thread thread = new Thread(runnable, "SHAFT-CLI-Reusable-Session-Timeout");
+            thread.setDaemon(true);
+            return thread;
+        };
+    }
+
+    private synchronized void cancelReusableSessionTimeoutTask() {
         if (reusableSessionTimeoutTask != null) {
             reusableSessionTimeoutTask.cancel(false);
             reusableSessionTimeoutTask = null;
