@@ -14,6 +14,9 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Unit tests for {@link TerminalActions}.
@@ -156,6 +159,28 @@ public class TerminalActionsUnitTest {
 
         Assert.assertTrue(terminal.isRemoteTerminal(),
                 "Calling quit before connection should not clear remote terminal configuration");
+    }
+
+    @Test(description = "quit should cancel any scheduled reusable session timeout task")
+    public void quitShouldCancelReusableSessionTimeoutTask() throws Exception {
+        TerminalActions terminal = SHAFT.CLI.remoteTerminal(
+                "host.example.com", 2222, "user", "/keys/", "id_rsa");
+
+        Field schedulerField = TerminalActions.class.getDeclaredField("reusableSessionTimeoutScheduler");
+        schedulerField.setAccessible(true);
+        var scheduler = Executors.newSingleThreadScheduledExecutor();
+        schedulerField.set(terminal, scheduler);
+
+        ScheduledFuture<?> timeoutTask = scheduler.schedule(() -> {
+        }, 10, TimeUnit.MINUTES);
+        Field timeoutTaskField = TerminalActions.class.getDeclaredField("reusableSessionTimeoutTask");
+        timeoutTaskField.setAccessible(true);
+        timeoutTaskField.set(terminal, timeoutTask);
+
+        terminal.quit();
+
+        Assert.assertTrue(timeoutTask.isCancelled(), "Expected reusable session timeout task to be canceled on quit.");
+        Assert.assertTrue(scheduler.isShutdown(), "Expected reusable session timeout scheduler to be shutdown on quit.");
     }
 
     @Test(description = "executeTerminalCommand should return same terminal instance for fluent chaining")

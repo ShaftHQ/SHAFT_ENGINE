@@ -18,6 +18,7 @@ import java.io.InputStreamReader;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -57,6 +58,8 @@ public class TerminalActions {
     private boolean isInternal = false;
     private boolean reuseRemoteSession = false;
     private Session reusableRemoteSession;
+    private ScheduledExecutorService reusableSessionTimeoutScheduler;
+    private ScheduledFuture<?> reusableSessionTimeoutTask;
 
 
     /**
@@ -296,10 +299,15 @@ public class TerminalActions {
      * for local terminals or ephemeral remote terminals.</p>
      */
     public void quit() {
+        cancelReusableSessionTimeoutTask();
         if (reusableRemoteSession != null && reusableRemoteSession.isConnected()) {
             reusableRemoteSession.disconnect();
         }
         reusableRemoteSession = null;
+        if (reusableSessionTimeoutScheduler != null) {
+            reusableSessionTimeoutScheduler.shutdownNow();
+            reusableSessionTimeoutScheduler = null;
+        }
     }
 
     private void passAction(String actionName, String testData, String log) {
@@ -349,7 +357,28 @@ public class TerminalActions {
         if (reusableRemoteSession == null || !reusableRemoteSession.isConnected()) {
             reusableRemoteSession = createSSHsession();
         }
+        scheduleReusableSessionTimeout();
         return reusableRemoteSession;
+    }
+
+    private void scheduleReusableSessionTimeout() {
+        long sessionTimeoutMinutes = SHAFT.Properties.timeouts.shellSessionTimeout();
+        if (sessionTimeoutMinutes <= 0) {
+            return;
+        }
+
+        if (reusableSessionTimeoutScheduler == null || reusableSessionTimeoutScheduler.isShutdown()) {
+            reusableSessionTimeoutScheduler = Executors.newSingleThreadScheduledExecutor();
+        }
+        cancelReusableSessionTimeoutTask();
+        reusableSessionTimeoutTask = reusableSessionTimeoutScheduler.schedule(this::quit, sessionTimeoutMinutes, TimeUnit.MINUTES);
+    }
+
+    private void cancelReusableSessionTimeoutTask() {
+        if (reusableSessionTimeoutTask != null) {
+            reusableSessionTimeoutTask.cancel(false);
+            reusableSessionTimeoutTask = null;
+        }
     }
 
     private void disconnectRemoteSessionIfEphemeral(Session session) {
