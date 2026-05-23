@@ -1,12 +1,12 @@
 # .github/release.yml
 # Controls how GitHub automatically categorizes pull requests in release notes.
-# Keep release announcements intentionally minimal: only breaking changes, major
-# new features, and GitHub's automatically appended new-contributor section.
+# Goal: produce readable, user-focused release notes with explicit sections and
+# no "everything in one Uncategorized block" output.
 # Reference: https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
 
 changelog:
+  # Keep noisy maintenance activity out of release highlights.
   exclude:
-    # Keep bot-authored maintenance out of public release highlights.
     authors:
       - dependabot[bot]
       - dependabot
@@ -14,44 +14,68 @@ changelog:
       - github-actions
       - copilot-swe-agent[bot]
 
-    # Hide routine/non-user-facing changes from the release announcement.
     labels:
-      - bug
-      - bugfix
-      - build
-      - ci
-      - cd
-      - dependencies
-      - dependency
-      - deps
-      - documentation
-      - docs
-      - doc
       - duplicate
-      - github-actions
-      - good first issue
-      - help wanted
-      - infrastructure
       - invalid
-      - maintenance
       - question
-      - regression
-      - test
-      - tests
-      - testing
       - wontfix
+      - skip-release-notes
 
   categories:
-    # Compatibility-impacting changes must be the first thing users see.
     - title: "💥 Breaking Changes"
       labels:
         - breaking-change
         - breaking
         - semver-major
 
-    # Only intentional major feature labels belong in public highlights.
-    - title: "🚀 Major New Features"
+    - title: "🚀 New Features"
       labels:
         - feature
         - new-feature
+        - enhancement
         - semver-minor
+
+    - title: "🐛 Fixes"
+      labels:
+        - fix
+        - bug
+        - bugfix
+        - regression
+
+    - title: "⚡ Performance"
+      labels:
+        - performance
+        - perf
+        - optimization
+
+    - title: "🛡️ Security"
+      labels:
+        - security
+
+    - title: "🧪 Testing & Reliability"
+      labels:
+        - test
+        - tests
+        - testing
+        - flaky-test
+
+    - title: "📚 Documentation"
+      labels:
+        - docs
+        - doc
+        - documentation
+
+    - title: "🔧 CI / Build / Dependencies"
+      labels:
+        - ci
+        - cd
+        - build
+        - dependencies
+        - dependency
+        - deps
+        - github-actions
+
+  uncategorized-title: "📦 Other Changes"
+
+  # Render each PR in a compact, consistent line.
+  change-template: "- $TITLE by @$AUTHOR in #$NUMBER"
