@@ -26,28 +26,22 @@ public class ValidationHelperUnitTest {
     public void testStringContains() {
         String text = "Welcome to SHAFT Engine";
         // Using SHAFT Engine validation - this should fail and produce a formatted error message
-        try {
-            Validations.assertThat().object(text).doesNotContain("SHAFT").perform();
-            Assert.fail("Expected an AssertionError from SHAFT validation, but none was thrown.");
-        } catch (AssertionError e) {
-            String errorMessage = e.getMessage();
-            // Assert that the formatted error message contains useful context
-            Assert.assertTrue(
-                    errorMessage.contains("SHAFT") || errorMessage.contains("Welcome to SHAFT Engine"),
-                    "Assertion message should contain the validated text or keyword 'SHAFT'. Actual message: " + errorMessage
-            );
-            // Verify the formatted message contains clickable stack trace format
-            // Format: at package.Class.method(File.java:lineNumber)
-            // Use stricter pattern matching to ensure the stack trace is properly formatted
-            String[] messageLines = errorMessage.split("\\R");
-            boolean hasClickableStackTrace = java.util.Arrays.stream(messageLines)
-                    .anyMatch(line ->
-                            line.trim().startsWith("at ")
-                                    && line.matches("^\\s*at .+\\(.*\\.java:\\d+\\)\\s*$"));
-            Assert.assertTrue(
-                    hasClickableStackTrace,
-                    "Error message should contain clickable stack trace format (at package.Class.method(File.java:lineNumber)). Actual: " + errorMessage);
-        }
+        AssertionError thrownError = Assert.expectThrows(AssertionError.class,
+                () -> Validations.assertThat().object(text).doesNotContain("SHAFT").perform());
+        String errorMessage = thrownError.getMessage();
+        Assert.assertNotNull(errorMessage, "Assertion message should not be null");
+        Assert.assertTrue(
+                errorMessage.contains("SHAFT") || errorMessage.contains("Welcome to SHAFT Engine"),
+                "Assertion message should contain the validated text or keyword 'SHAFT'. Actual message: " + errorMessage
+        );
+        String[] messageLines = errorMessage.split("\\R");
+        boolean hasClickableStackTrace = java.util.Arrays.stream(messageLines)
+                .anyMatch(line ->
+                        line.trim().startsWith("at ")
+                                && line.matches("^\\s*at .+\\(.*\\.java:\\d+\\)\\s*$"));
+        Assert.assertTrue(
+                hasClickableStackTrace,
+                "Error message should contain clickable stack trace format (at package.Class.method(File.java:lineNumber)). Actual: " + errorMessage);
     }
 
     @Test(description = "Test string not empty validation")
@@ -134,19 +128,15 @@ public class ValidationHelperUnitTest {
     @Test(description = "Test formatted assertion error with hard assert - different values")
     public void testFormattedAssertionErrorHardAssert() {
         // Test hard assert with different values to trigger formatting
-        try {
-            Validations.assertThat().object("actual").isEqualTo("expected").perform();
-            Assert.fail("Expected assertion to fail");
-        } catch (AssertionError e) {
-            String errorMessage = e.getMessage();
-            Assert.assertNotNull(errorMessage, "Error message should not be null");
-            // Verify it contains formatted elements or standard format
-            boolean hasFormatted = errorMessage.contains("at ") || 
-                                  errorMessage.contains("Navigate:") ||
-                                  errorMessage.contains("Assertion Failed");
-            Assert.assertTrue(hasFormatted || errorMessage.contains("expected") || errorMessage.contains("actual"),
+        AssertionError thrownError = Assert.expectThrows(AssertionError.class,
+                () -> Validations.assertThat().object("actual").isEqualTo("expected").perform());
+        String errorMessage = thrownError.getMessage();
+        Assert.assertNotNull(errorMessage, "Error message should not be null");
+        boolean hasFormatted = errorMessage.contains("at ")
+                || errorMessage.contains("Navigate:")
+                || errorMessage.contains("Assertion Failed");
+        Assert.assertTrue(hasFormatted || errorMessage.contains("expected") || errorMessage.contains("actual"),
                 "Error message should contain formatted elements or assertion details. Actual: " + errorMessage);
-        }
     }
 
     @Test(description = "Test formatted assertion error with contains validation")
