@@ -8,11 +8,15 @@ import org.testng.annotations.Test;
 
 import java.io.BufferedReader;
 import java.io.StringReader;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Unit tests for {@link TerminalActions}.
@@ -117,6 +121,76 @@ public class TerminalActionsUnitTest {
     public void getInstanceWithAllFlagsShouldReturnTerminal() {
         TerminalActions terminal = TerminalActions.getInstance(false, false, true);
         Assert.assertNotNull(terminal, "getInstance(false, false, true) should return a non-null instance");
+    }
+
+
+    @Test(description = "remoteTerminal facade should create reusable remote terminal")
+    public void remoteTerminalFacadeShouldCreateReusableRemoteTerminal() throws Exception {
+        TerminalActions terminal = SHAFT.CLI.remoteTerminal(
+                "host.example.com", 2222, "user", "/keys/", "id_rsa");
+
+        Assert.assertNotNull(terminal, "remoteTerminal() should return a non-null instance");
+        Assert.assertTrue(terminal.isRemoteTerminal(),
+                "Facade-created terminal should be remote");
+        Assert.assertEquals(terminal.getSshHostName(), "host.example.com",
+                "SSH host name should match");
+        Assert.assertEquals(terminal.getSshPortNumber(), 2222,
+                "SSH port number should match");
+        Assert.assertEquals(terminal.getSshUsername(), "user",
+                "SSH username should match");
+        Assert.assertEquals(terminal.getSshKeyFileFolderName(), "/keys/",
+                "SSH key folder should match");
+        Assert.assertEquals(terminal.getSshKeyFileName(), "id_rsa",
+                "SSH key file name should match");
+
+        Field reuseRemoteSessionField = TerminalActions.class.getDeclaredField("reuseRemoteSession");
+        reuseRemoteSessionField.setAccessible(true);
+        Assert.assertTrue((Boolean) reuseRemoteSessionField.get(terminal),
+                "Facade-created remote terminal should enable reusable SSH session lifecycle");
+    }
+
+    @Test(description = "quit should be safe before any reusable SSH connection is opened")
+    public void quitShouldBeSafeBeforeReusableRemoteConnection() {
+        TerminalActions terminal = SHAFT.CLI.remoteTerminal(
+                "host.example.com", 2222, "user", "/keys/", "id_rsa");
+
+        terminal.quit();
+        terminal.quit();
+
+        Assert.assertTrue(terminal.isRemoteTerminal(),
+                "Calling quit before connection should not clear remote terminal configuration");
+    }
+
+    @Test(description = "quit should cancel any scheduled reusable session timeout task")
+    public void quitShouldCancelReusableSessionTimeoutTask() throws Exception {
+        TerminalActions terminal = SHAFT.CLI.remoteTerminal(
+                "host.example.com", 2222, "user", "/keys/", "id_rsa");
+
+        Field schedulerField = TerminalActions.class.getDeclaredField("reusableSessionTimeoutScheduler");
+        schedulerField.setAccessible(true);
+        var scheduler = Executors.newSingleThreadScheduledExecutor();
+        schedulerField.set(terminal, scheduler);
+
+        ScheduledFuture<?> timeoutTask = scheduler.schedule(() -> {
+        }, 10, TimeUnit.MINUTES);
+        Field timeoutTaskField = TerminalActions.class.getDeclaredField("reusableSessionTimeoutTask");
+        timeoutTaskField.setAccessible(true);
+        timeoutTaskField.set(terminal, timeoutTask);
+
+        terminal.quit();
+
+        Assert.assertTrue(timeoutTask.isCancelled(), "Expected reusable session timeout task to be canceled on quit.");
+        Assert.assertTrue(scheduler.isShutdown(), "Expected reusable session timeout scheduler to be shutdown on quit.");
+    }
+
+    @Test(description = "executeTerminalCommand should return same terminal instance for fluent chaining")
+    public void executeTerminalCommandShouldReturnSameInstance() {
+        TerminalActions terminal = TerminalActions.getInstance(false, false, true);
+
+        TerminalActions chainedTerminal = terminal.executeTerminalCommand("echo fluent");
+
+        Assert.assertSame(chainedTerminal, terminal,
+                "Fluent terminal execution should return the same TerminalActions instance");
     }
 
     // --- Default SSH Values ---
