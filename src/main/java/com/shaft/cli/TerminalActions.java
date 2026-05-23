@@ -514,7 +514,7 @@ public class TerminalActions {
     private List<String> executeRemoteCommand(List<String> commands, String longCommand) {
         StringBuilder logs = new StringBuilder();
         StringBuilder exitStatuses = new StringBuilder();
-        int sessionTimeout = Integer.parseInt(String.valueOf(SHAFT.Properties.timeouts.shellSessionTimeout() * 1000));
+        int sessionTimeout = Math.toIntExact(TimeUnit.MINUTES.toMillis(SHAFT.Properties.timeouts.shellSessionTimeout()));
         // remote execution
         ReportManager.logDiscrete(
                 "Attempting to perform the following command remotely. Command: \"" + longCommand + "\"");
