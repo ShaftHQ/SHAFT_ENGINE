@@ -112,7 +112,7 @@ public class OptionsManagerCoverageUnitTest {
         Assert.assertTrue(chromeOptionsAsString.contains("mobileEmulation"));
         Assert.assertTrue(chromeOptionsAsString.contains("detach"));
         Assert.assertNotNull(chromeOptions.getCapability(CapabilityType.PROXY));
-        Assert.assertEquals(chromeOptions.getCapability("enableVideo"), true);
+        Assert.assertNull(chromeOptions.getCapability("enableVideo"));
         Assert.assertEquals(chromeOptions.getCapability("se:recordVideo"), true);
         Assert.assertNotNull(chromeOptions.getCapability("selenoid:options"));
         Assert.assertNotNull(chromeOptions.getCapability("moon:options"));
