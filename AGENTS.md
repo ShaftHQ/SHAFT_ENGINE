@@ -73,6 +73,7 @@ Important directories:
 - Use `ThreadLocalPropertiesManager` for per-test/per-thread property overrides and clear thread-local properties at lifecycle boundaries with `Properties.clearForCurrentThread()`.
 - Test assertions should use SHAFT fluent assertion wrappers where applicable, not raw TestNG/JUnit assertions.
 - Prefer the `Locator` builder for expressive locators; simple stable `By.id`, `By.cssSelector`, or `By.xpath` are acceptable where appropriate.
+- Keep WebDriver capabilities W3C-compliant: do not add legacy non-namespaced top-level capabilities such as `enableVideo`; use namespaced vendor/Grid capabilities (for example `selenoid:options`, `moon:options`, `se:recordVideo`) and merge existing maps instead of overwriting them.
 
 ## Architecture Notes
 - `com.shaft.driver.SHAFT` is the main user-facing entry point that namespaces GUI, API, CLI, DB, TestData, Validations, Properties, and Report functionality.

@@ -528,21 +528,57 @@ public class OptionsManager {
             return;
         }
 
-        if (options.getCapability("enableVideo") == null) {
-            options.setCapability("enableVideo", true);
+        if (shouldSetSelenoidVideoCapability(executionAddress)) {
+            setNamespacedVideoCapability(options, "selenoid:options");
         }
-        if (options.getCapability("selenoid:options") == null) {
-            Map<String, Object> selenoidOptions = new HashMap<>();
-            selenoidOptions.put("enableVideo", true);
-            options.setCapability("selenoid:options", selenoidOptions);
+        if (shouldSetMoonVideoCapability(executionAddress)) {
+            setNamespacedVideoCapability(options, "moon:options");
         }
-        if (options.getCapability("moon:options") == null) {
-            Map<String, Object> moonOptions = new HashMap<>();
-            moonOptions.put("enableVideo", true);
-            options.setCapability("moon:options", moonOptions);
-        }
-        if (options.getCapability("se:recordVideo") == null) {
+        if (shouldSetSeleniumVideoCapability(executionAddress) && options.getCapability("se:recordVideo") == null) {
             options.setCapability("se:recordVideo", true);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void setNamespacedVideoCapability(MutableCapabilities options, String capabilityName) {
+        Object namespaceCapability = options.getCapability(capabilityName);
+        if (namespaceCapability instanceof Map<?, ?> capabilityMap) {
+            Map<String, Object> mergedCapability = new HashMap<>((Map<String, Object>) capabilityMap);
+            mergedCapability.putIfAbsent("enableVideo", true);
+            options.setCapability(capabilityName, mergedCapability);
+        } else if (namespaceCapability == null) {
+            Map<String, Object> videoOptions = new HashMap<>();
+            videoOptions.put("enableVideo", true);
+            options.setCapability(capabilityName, videoOptions);
+        }
+    }
+
+    private boolean shouldSetSelenoidVideoCapability(String executionAddress) {
+        return executionAddress.contains("selenoid")
+                || executionAddress.contains("selenium")
+                || executionAddress.contains("grid")
+                || executionAddress.contains("wd/hub")
+                || isUnknownRemoteProvider(executionAddress);
+    }
+
+    private boolean shouldSetMoonVideoCapability(String executionAddress) {
+        return executionAddress.contains("moon")
+                || executionAddress.contains("selenium")
+                || executionAddress.contains("grid")
+                || executionAddress.contains("wd/hub")
+                || isUnknownRemoteProvider(executionAddress);
+    }
+
+    private boolean shouldSetSeleniumVideoCapability(String executionAddress) {
+        return executionAddress.contains("selenium") || executionAddress.contains("grid") || executionAddress.contains("wd/hub")
+                || isUnknownRemoteProvider(executionAddress);
+    }
+
+    private boolean isUnknownRemoteProvider(String executionAddress) {
+        return !executionAddress.contains("selenoid")
+                && !executionAddress.contains("moon")
+                && !executionAddress.contains("selenium")
+                && !executionAddress.contains("grid")
+                && !executionAddress.contains("wd/hub");
     }
 }

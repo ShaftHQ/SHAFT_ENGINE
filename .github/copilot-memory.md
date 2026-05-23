@@ -79,3 +79,10 @@ Purpose: keep high-signal, reusable learnings from implementation sessions in on
 - Lesson: Release PRs are metadata-sensitive and must be opened directly once validated. Always inspect recent merged release PRs, compute the version with `{major}.{quarter}.{YYYYMMDD}`, update root `pom.xml`, `Internal.java` `shaftEngineVersion`, verify/update `allure3Version` and `nodeLtsVersion`, and update all seven sample/demo project `<shaft_engine.version>` values before opening the PR. Do not rely on the post-release sample-sync workflow to fix stale sample POMs.
 - Evidence: PRs #2502, #2494, #2439, #2428, #2418; `pom.xml`; `src/main/java/com/shaft/properties/internal/Internal.java`; `src/main/resources/examples/**/pom.xml`; `.github/copilot-instructions.md`; `AGENTS.md`.
 - Action taken: Added release-preparation notes to agent instructions, framework-source instructions, and this memory entry while preparing the release branch.
+
+- Date: 2026-05-23
+- Area: Remote WebDriver capabilities / Selenium Grid 4 compatibility
+- Trigger: Follow-up PR iterations for Grid warnings about legacy non-W3C `enableVideo` capability handling.
+- Lesson: Never emit top-level `enableVideo`; keep video configuration in namespaced capability payloads only (`selenoid:options`, `moon:options`, `se:recordVideo`). When namespaced maps already exist, merge and preserve existing keys instead of overwriting provider options.
+- Evidence: `src/main/java/com/shaft/driver/internal/DriverFactory/OptionsManager.java`, `src/test/java/com/shaft/driver/internal/DriverFactory/OptionsManagerCoverageUnitTest.java`, `AGENTS.md`.
+- Action taken: Added helper-based namespaced capability merging in `OptionsManager`, kept tests aligned with no top-level `enableVideo`, and added durable guidance to `AGENTS.md`.
