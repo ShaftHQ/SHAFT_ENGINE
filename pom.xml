@@ -635,7 +635,7 @@
         <dependency>
             <groupId>com.atlassian.oai</groupId>
             <artifactId>swagger-request-validator-restassured</artifactId>
-            <version>2.46.1</version>
+            <version>3.0.0</version>
             <exclusions>
                 <!-- Exclude the older rest-assured transitive dependency; we declare 6.0.0 directly -->
                 <exclusion>
