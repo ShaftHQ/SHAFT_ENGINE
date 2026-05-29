@@ -3,14 +3,46 @@ package com.shaft.tools.io.internal;
 import com.shaft.cli.FileActions;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.testng.TestNG;
 
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
  * Initializes runtime project folders and service provider metadata files.
  */
 public class ProjectStructureManager {
+    private static final Logger logger = LogManager.getLogger(ProjectStructureManager.class);
+
+    /**
+     * Detects the active test runner from the current stack trace.
+     *
+     * @return the inferred execution mode
+     */
+    public static RunType identifyRunType() {
+        Supplier<Stream<String>> stacktraceSupplier = () -> Arrays.stream(new Throwable().getStackTrace())
+                .map(StackTraceElement::getClassName);
+        var isUsingJunitDiscovery = stacktraceSupplier.get()
+                .anyMatch(org.junit.platform.launcher.core.EngineDiscoveryOrchestrator.class.getCanonicalName()::equals);
+        var isUsingTestNG = stacktraceSupplier.get().anyMatch(TestNG.class.getCanonicalName()::equals);
+        var isUsingCucumber = stacktraceSupplier.get()
+                .anyMatch(io.cucumber.core.runner.Runner.class.getCanonicalName()::equals);
+        if (isUsingJunitDiscovery || isUsingTestNG) {
+            logger.info("TestNG run detected...");
+            return RunType.TESTNG;
+        } else if (isUsingCucumber) {
+            logger.info("Cucumber run detected...");
+            return RunType.CUCUMBER;
+        } else {
+            logger.info("JUnit5 run detected...");
+            return RunType.JUNIT;
+        }
+    }
+
     /**
      * Prepares project structure and listener registration files based on run type.
      *

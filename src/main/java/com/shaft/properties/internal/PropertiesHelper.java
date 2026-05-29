@@ -4,12 +4,20 @@ import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.enums.internal.Screenshots;
+import com.shaft.gui.internal.image.ImageProcessingActions;
+import com.shaft.listeners.internal.TestNGListenerHelper;
+import com.shaft.listeners.internal.UpdateChecker;
+import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.AllureManager;
+import com.shaft.tools.io.internal.ProjectStructureManager;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.aeonbits.owner.ConfigFactory;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.remote.Browser;
+import org.testng.Reporter;
 
 import java.awt.*;
 import java.io.File;
@@ -93,12 +101,60 @@ public class PropertiesHelper {
     public static void setKeySystemProperties() {
         //load paths as the default properties path is needed for the next step
         Properties.basePaths = ConfigFactory.create(Paths.class);
-        //set key system properties that are needed for the framework to function
-        ThreadLocalPropertiesManager.setGlobalProperty("rp.properties.path", SHAFT.Properties.paths.properties());
+        // Selenium, Log4j, and ReportPortal read these from System; keep global copy for SHAFT too
+        String propertiesPath = SHAFT.Properties.paths.properties();
+        ThreadLocalPropertiesManager.setGlobalProperty("rp.properties.path", propertiesPath);
+        System.setProperty("rp.properties.path", propertiesPath);
         ThreadLocalPropertiesManager.setGlobalProperty("webdriver.http.factory", "jdk-http-client");
-        ThreadLocalPropertiesManager.setGlobalProperty("log4j.configurationFile", PropertyFileManager.getLog4jConfigPath());
+        System.setProperty("webdriver.http.factory", "jdk-http-client");
+        String log4jConfigPath = PropertyFileManager.getLog4jConfigPath();
+        ThreadLocalPropertiesManager.setGlobalProperty("log4j.configurationFile", log4jConfigPath);
+        System.setProperty("log4j.configurationFile", log4jConfigPath);
         ThreadLocalPropertiesManager.setGlobalProperty("allure.testng.hide.configuration.failures", "true");
+        System.setProperty("allure.testng.hide.configuration.failures", "true");
         ThreadLocalPropertiesManager.setGlobalProperty("allure.testng.hide.disabled.tests", "true");
+        System.setProperty("allure.testng.hide.disabled.tests", "true");
+    }
+
+    /**
+     * Initializes SHAFT engine services without loading TestNG listener types.
+     *
+     * @param runType current execution framework mode
+     */
+    public static void bootstrapEngine(ProjectStructureManager.RunType runType) {
+        setKeySystemProperties();
+        io.qameta.allure.Allure.getLifecycle();
+        Reporter.setEscapeHtml(false);
+        ReportManagerHelper.setDiscreteLogging(true);
+        if (runType == ProjectStructureManager.RunType.AI_AGENT) {
+            initializeAiAgent();
+        } else {
+            initialize();
+        }
+        ReportManager.logDiscrete("Initializing Engine Setup...");
+        SHAFT.Properties.reporting.set().disableLogging(true);
+        switch (runType) {
+            case TESTNG ->
+                    Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.TESTNG));
+            case CUCUMBER ->
+                    Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.CUCUMBER));
+            case JUNIT ->
+                    Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.JUNIT));
+            case AI_AGENT -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.AI_AGENT);
+        }
+        TestNGListenerHelper.configureJVMProxy();
+        Thread.ofVirtual().start(() -> {
+            GoogleTink.initialize();
+            GoogleTink.decrypt();
+        });
+        SHAFT.Properties.reporting.set().disableLogging(false);
+        ReportManagerHelper.logEngineVersion();
+        Thread.ofVirtual().start(UpdateChecker::check);
+        Thread.ofVirtual().start(ImageProcessingActions::loadOpenCV);
+        AllureManager.initializeAllureReportingEnvironment();
+        Thread.ofVirtual().start(ReportManagerHelper::cleanExecutionSummaryReportDirectory);
+        ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
+        ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
     }
 
     /**
