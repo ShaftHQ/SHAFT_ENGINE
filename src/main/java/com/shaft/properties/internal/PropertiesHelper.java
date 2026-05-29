@@ -141,6 +141,7 @@ public class PropertiesHelper {
             case JUNIT ->
                     Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.JUNIT));
             case AI_AGENT -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.AI_AGENT);
+            default -> throw new IllegalStateException("Unsupported run type: " + runType);
         }
         TestNGListenerHelper.configureJVMProxy();
         Thread.ofVirtual().start(() -> {
