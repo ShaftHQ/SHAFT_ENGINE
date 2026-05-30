@@ -350,7 +350,7 @@ public class TestNGListenerHelper {
                 synchronized (output) {
                     return new ArrayList<>(output);
                 }
-            } catch (ConcurrentModificationException e) {
+            } catch (ConcurrentModificationException | IndexOutOfBoundsException e) {
                 Thread.yield();
             }
         }
