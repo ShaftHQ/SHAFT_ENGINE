@@ -81,64 +81,16 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     private static ITestResult iTestResult;
     private static long executionStartTime;
     @Getter
-    private static XmlTest xmlTest;
-    @Getter
     private static boolean isReportPortalEnabled;
     private ITestNGService reportPortalTestNGService;
     private boolean isReportPortalEnabledForListener;
 
     public static ProjectStructureManager.RunType identifyRunType() {
-        Supplier<Stream<?>> stacktraceSupplier = () -> Arrays.stream((new Throwable()).getStackTrace()).map(StackTraceElement::getClassName);
-        var isUsingJunitDiscovery = stacktraceSupplier.get().anyMatch(org.junit.platform.launcher.core.EngineDiscoveryOrchestrator.class.getCanonicalName()::equals);
-        var isUsingTestNG = stacktraceSupplier.get().anyMatch(TestNG.class.getCanonicalName()::equals);
-        var isUsingCucumber = stacktraceSupplier.get().anyMatch(io.cucumber.core.runner.Runner.class.getCanonicalName()::equals);
-        if (isUsingJunitDiscovery || isUsingTestNG) {
-            logger.info("TestNG run detected...");
-            return ProjectStructureManager.RunType.TESTNG;
-        } else if (isUsingCucumber) {
-            logger.info("Cucumber run detected...");
-            return ProjectStructureManager.RunType.CUCUMBER;
-        } else {
-            logger.info("JUnit5 run detected...");
-            return ProjectStructureManager.RunType.JUNIT;
-        }
+        return ProjectStructureManager.identifyRunType();
     }
 
     public static void engineSetup(ProjectStructureManager.RunType runType) {
-        PropertiesHelper.setKeySystemProperties();
-        Allure.getLifecycle();
-        Reporter.setEscapeHtml(false);
-        ReportManagerHelper.setDiscreteLogging(true);
-        if (runType == ProjectStructureManager.RunType.AI_AGENT) {
-            PropertiesHelper.initializeAiAgent();
-        } else {
-            PropertiesHelper.initialize();
-        }
-        ReportManager.logDiscrete("Initializing Engine Setup...");
-        SHAFT.Properties.reporting.set().disableLogging(true);
-        switch (runType) {
-            case TESTNG ->
-                    Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.TESTNG));
-            case CUCUMBER ->
-                    Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.CUCUMBER));
-            case JUNIT ->
-                    Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.JUNIT));
-            case AI_AGENT ->
-                    ProjectStructureManager.initialize(ProjectStructureManager.RunType.AI_AGENT);
-        }
-        TestNGListenerHelper.configureJVMProxy();
-        Thread.ofVirtual().start(() -> {
-            GoogleTink.initialize();
-            GoogleTink.decrypt();
-        });
-        SHAFT.Properties.reporting.set().disableLogging(false);
-        ReportManagerHelper.logEngineVersion();
-        Thread.ofVirtual().start(UpdateChecker::check);
-        Thread.ofVirtual().start(ImageProcessingActions::loadOpenCV);
-        AllureManager.initializeAllureReportingEnvironment();
-        Thread.ofVirtual().start(ReportManagerHelper::cleanExecutionSummaryReportDirectory);
-        ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
-        ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
+        PropertiesHelper.bootstrapEngine(runType);
     }
 
     /**
@@ -323,7 +275,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
                 activeTestClass.set(incomingClass);
             }
         }
-        xmlTest = method.getTestMethod().getXmlTest();
+        TestNGListenerHelper.setXmlTest(method.getTestMethod().getXmlTest());
         JiraHelper.prepareTestResultAttributes(method, iTestResult);
         TestNGListenerHelper.setTestName(iTestContext);
         TestNGListenerHelper.logTestInformation(iTestResult);

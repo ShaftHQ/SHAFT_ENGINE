@@ -7,8 +7,8 @@ import com.shaft.db.DatabaseActions.DatabaseType;
 import com.shaft.driver.internal.DriverFactory.BrowserStackHelper;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.LambdaTestHelper;
-import com.shaft.listeners.TestNGListener;
 import com.shaft.listeners.internal.TestNGListenerHelper;
+import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import lombok.Getter;
@@ -56,8 +56,8 @@ public class DriverFactory {
     private static void readLastMinuteUpdatedProperties() {
         reloadProperties();
         // it's null in case of Cucumber native feature file execution
-        if (TestNGListener.getXmlTest() != null) {
-            var allParameters = TestNGListener.getXmlTest().getAllParameters();
+        if (TestNGListenerHelper.getXmlTest() != null) {
+            var allParameters = TestNGListenerHelper.getXmlTest().getAllParameters();
             allParameters.forEach(ThreadLocalPropertiesManager::setProperty);
             var testName = TestNGListenerHelper.getTestName().toLowerCase();
             if (testName.contains("firefox")
@@ -76,13 +76,13 @@ public class DriverFactory {
     public static boolean reloadProperties() {
         if (!com.shaft.properties.internal.Properties.isInitialized()) {
             logger.warn("Execution Listeners are not loaded properly... Self-Healing... Initializing minimalistic test run...");
-            var runType = TestNGListener.identifyRunType();
+            var runType = ProjectStructureManager.identifyRunType();
             if (runType.equals(ProjectStructureManager.RunType.CUCUMBER)) {
                 // stuck on minimalistic test run in case of native cucumber execution without manual plugin configuration
                 logger.warn("To unlock the full capabilities of SHAFT kindly follow these steps to configure SHAFT's Cucumber plugin:");
                 logger.warn("https://github.com/ShaftHQ/SHAFT_ENGINE?tab=readme-ov-file#23-cucumber");
             }
-            TestNGListener.engineSetup(runType);
+            PropertiesHelper.bootstrapEngine(runType);
         }
         return true;
     }

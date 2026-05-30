@@ -6,9 +6,9 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.BrowserStackHelper;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.LambdaTestHelper;
-import com.shaft.listeners.TestNGListener;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.properties.internal.Properties;
+import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
@@ -53,13 +53,14 @@ public class DriverFactoryCoverageUnitTest {
         initializedField.setAccessible(true);
         boolean initialValue = initializedField.getBoolean(null);
 
-        try (MockedStatic<TestNGListener> testNGListener = org.mockito.Mockito.mockStatic(TestNGListener.class)) {
+        try (MockedStatic<ProjectStructureManager> projectStructureManager = org.mockito.Mockito.mockStatic(ProjectStructureManager.class);
+             MockedStatic<PropertiesHelper> propertiesHelper = org.mockito.Mockito.mockStatic(PropertiesHelper.class)) {
             initializedField.setBoolean(null, false);
-            testNGListener.when(TestNGListener::identifyRunType).thenReturn(ProjectStructureManager.RunType.TESTNG);
+            projectStructureManager.when(ProjectStructureManager::identifyRunType).thenReturn(ProjectStructureManager.RunType.TESTNG);
 
             SHAFT.Validations.assertThat().object(DriverFactory.reloadProperties()).isEqualTo(true).perform();
-            testNGListener.verify(TestNGListener::identifyRunType);
-            testNGListener.verify(() -> TestNGListener.engineSetup(ProjectStructureManager.RunType.TESTNG));
+            projectStructureManager.verify(ProjectStructureManager::identifyRunType);
+            propertiesHelper.verify(() -> PropertiesHelper.bootstrapEngine(ProjectStructureManager.RunType.TESTNG));
         } finally {
             initializedField.setBoolean(null, initialValue);
         }
@@ -71,11 +72,12 @@ public class DriverFactoryCoverageUnitTest {
         initializedField.setAccessible(true);
         boolean initialValue = initializedField.getBoolean(null);
 
-        try (MockedStatic<TestNGListener> testNGListener = org.mockito.Mockito.mockStatic(TestNGListener.class)) {
+        try (MockedStatic<ProjectStructureManager> projectStructureManager = org.mockito.Mockito.mockStatic(ProjectStructureManager.class);
+             MockedStatic<PropertiesHelper> propertiesHelper = org.mockito.Mockito.mockStatic(PropertiesHelper.class)) {
             initializedField.setBoolean(null, true);
             SHAFT.Validations.assertThat().object(DriverFactory.reloadProperties()).isEqualTo(true).perform();
-            testNGListener.verify(TestNGListener::identifyRunType, org.mockito.Mockito.never());
-            testNGListener.verify(() -> TestNGListener.engineSetup(org.mockito.ArgumentMatchers.any()), org.mockito.Mockito.never());
+            projectStructureManager.verify(ProjectStructureManager::identifyRunType, org.mockito.Mockito.never());
+            propertiesHelper.verify(() -> PropertiesHelper.bootstrapEngine(org.mockito.ArgumentMatchers.any()), org.mockito.Mockito.never());
         } finally {
             initializedField.setBoolean(null, initialValue);
         }
@@ -165,10 +167,9 @@ public class DriverFactoryCoverageUnitTest {
         XmlTest xmlTest = org.mockito.Mockito.mock(XmlTest.class);
         MutableCapabilities customDriverOptions = new MutableCapabilities();
 
-        try (MockedStatic<TestNGListener> testNGListener = org.mockito.Mockito.mockStatic(TestNGListener.class);
-             MockedStatic<TestNGListenerHelper> listenerHelper = org.mockito.Mockito.mockStatic(TestNGListenerHelper.class);
+        try (MockedStatic<TestNGListenerHelper> listenerHelper = org.mockito.Mockito.mockStatic(TestNGListenerHelper.class);
              MockedConstruction<DriverFactoryHelper> helperConstruction = org.mockito.Mockito.mockConstruction(DriverFactoryHelper.class)) {
-            testNGListener.when(TestNGListener::getXmlTest).thenReturn(xmlTest);
+            listenerHelper.when(TestNGListenerHelper::getXmlTest).thenReturn(xmlTest);
             org.mockito.Mockito.when(xmlTest.getAllParameters()).thenReturn(Map.of("targetBrowserName", "firefox"));
             listenerHelper.when(TestNGListenerHelper::getTestName).thenReturn("Smoke_Chrome");
 
