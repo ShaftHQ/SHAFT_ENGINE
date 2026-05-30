@@ -53,10 +53,11 @@ public class FileActionsCoverageUnitTest {
     }
 
     @Test
-    public void instanceCreationAndPathHelpersShouldReturnUsableInstances() {
+    public void instanceCreationAndPathHelpersShouldReturnUsableInstances() throws IOException {
         FileActions publicActions = FileActions.getInstance();
         FileActions internalActions = FileActions.getInstance(true);
         Path target = tempDirectory.resolve("path-helper.txt");
+        Files.writeString(target, "path-helper", StandardCharsets.UTF_8);
 
         String absoluteFromSinglePath = publicActions.getAbsolutePath(target.toString());
         String absoluteFromFolderAndName = internalActions.getAbsolutePath(tempDirectory.toString() + '/', "path-helper.txt");

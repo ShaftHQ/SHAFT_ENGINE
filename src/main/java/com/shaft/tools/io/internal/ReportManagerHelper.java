@@ -471,7 +471,7 @@ public class ReportManagerHelper {
                     return;
                 }
                 engineLog = FileActions.getInstance(true).readFileAsByteArray(logFilePath);
-                FileActions.getInstance(true).deleteFile(logFilePath);
+                Files.deleteIfExists(logFile.toPath());
             } catch (Exception throwable) {
                 logDiscrete(throwable);
                 logDebugFileSetupFailure("Could not read engine log attachment: " + logFilePath, throwable);
