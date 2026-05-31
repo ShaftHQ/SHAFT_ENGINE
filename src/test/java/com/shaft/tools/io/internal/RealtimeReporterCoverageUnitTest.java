@@ -67,6 +67,7 @@ public class RealtimeReporterCoverageUnitTest {
         RealtimeReporter.onTestsPlanned(List.of(new RealtimeReporter.TestCard("old#test", "old", "test", "old.java")));
         Assert.assertTrue(invokeBuildFullStateJson().contains("old#test"));
 
+        RealtimeReporter.stopServer();
         SHAFT.Properties.reporting.set().realtimeReport(true);
         SHAFT.Properties.platform.set().executionAddress("remote-grid");
         SHAFT.Properties.web.set().headlessExecution(false);

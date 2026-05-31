@@ -18,6 +18,7 @@ import org.testng.annotations.Test;
  * Unit tests for {@link com.shaft.validation.internal.NativeValidationsBuilder}.
  * Validates the fluent assertion API for object comparisons.
  */
+@Test(singleThreaded = true)
 public class NativeValidationsBuilderUnitTest {
 
     @AfterMethod(alwaysRun = true)
@@ -304,7 +305,9 @@ public class NativeValidationsBuilderUnitTest {
 
     @Test(description = "equals override should throw AssertionError for mismatched values")
     public void equalsOverrideShouldThrowForMismatchedValues() {
-        Assert.expectThrows(AssertionError.class, () -> Validations.assertThat().object("value").equals("different"));
+        AssertionError thrownError = Assert.expectThrows(AssertionError.class,
+                () -> Validations.assertThat().object("value").equals("different"));
+        Assert.assertNotNull(thrownError.getMessage(), "AssertionError should carry a message");
     }
 
     @Test(description = "isArabic should chain language and direction assertions for text context")

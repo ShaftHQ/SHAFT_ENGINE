@@ -18,7 +18,7 @@ import org.aeonbits.owner.Config.Sources;
 })
 public interface Internal extends EngineProperties<Internal> {
     @Key("shaftEngineVersion")
-    @DefaultValue("10.2.20260522")
+    @DefaultValue("10.2.20260530")
     String shaftEngineVersion();
 
     @Key("watermarkImagePath")
@@ -32,7 +32,7 @@ public interface Internal extends EngineProperties<Internal> {
      * without changing {@code AllureManager} or any CI script. Use this url for the latest version <a href="https://github.com/allure-framework/allure3/releases">Allure3Releases</a>
      */
     @Key("allure3Version")
-    @DefaultValue("3.8.2")
+    @DefaultValue("3.9.0")
     String allure3Version();
 
     /**
@@ -43,7 +43,7 @@ public interface Internal extends EngineProperties<Internal> {
      *
      */
     @Key("nodeLtsVersion")
-    @DefaultValue("24.15.0")
+    @DefaultValue("24.16.0")
     String nodeLtsVersion();
 
     /**

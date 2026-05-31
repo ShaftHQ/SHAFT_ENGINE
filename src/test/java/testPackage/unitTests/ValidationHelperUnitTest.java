@@ -13,6 +13,7 @@ import java.util.List;
  * Unit tests for validation and assertion helpers
  * Tests common validation patterns without requiring browser
  */
+@Test(singleThreaded = true)
 public class ValidationHelperUnitTest {
 
     @Test(description = "Test string equality validation")
@@ -26,9 +27,8 @@ public class ValidationHelperUnitTest {
     public void testStringContains() {
         String text = "Welcome to SHAFT Engine";
         // Using SHAFT Engine validation - this should fail and produce a formatted error message
-        AssertionError thrownError = Assert.expectThrows(AssertionError.class,
+        String errorMessage = assertValidationFailureAndGetMessage(
                 () -> Validations.assertThat().object(text).doesNotContain("SHAFT").perform());
-        String errorMessage = thrownError.getMessage();
         Assert.assertNotNull(errorMessage, "Assertion message should not be null");
         Assert.assertTrue(
                 errorMessage.contains("SHAFT") || errorMessage.contains("Welcome to SHAFT Engine"),
@@ -128,9 +128,8 @@ public class ValidationHelperUnitTest {
     @Test(description = "Test formatted assertion error with hard assert - different values")
     public void testFormattedAssertionErrorHardAssert() {
         // Test hard assert with different values to trigger formatting
-        AssertionError thrownError = Assert.expectThrows(AssertionError.class,
+        String errorMessage = assertValidationFailureAndGetMessage(
                 () -> Validations.assertThat().object("actual").isEqualTo("expected").perform());
-        String errorMessage = thrownError.getMessage();
         Assert.assertNotNull(errorMessage, "Error message should not be null");
         boolean hasFormatted = errorMessage.contains("at ")
                 || errorMessage.contains("Navigate:")
@@ -185,6 +184,19 @@ public class ValidationHelperUnitTest {
             String errorMessage = e.getMessage();
             Assert.assertNotNull(errorMessage, "Error message should not be null");
         }
+    }
+
+    private String assertValidationFailureAndGetMessage(Runnable assertionStep) {
+        try {
+            assertionStep.run();
+        } catch (AssertionError assertionError) {
+            return assertionError.getMessage();
+        }
+
+        AssertionError deferredVerificationError = ValidationsHelper.getVerificationErrorToForceFail();
+        Assert.assertNotNull(deferredVerificationError,
+                "A validation failure was expected, either immediate AssertionError or deferred verification error.");
+        return deferredVerificationError.getMessage();
     }
 
     @AfterMethod

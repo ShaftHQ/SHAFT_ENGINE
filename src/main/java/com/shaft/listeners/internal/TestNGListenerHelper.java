@@ -33,6 +33,26 @@ import java.util.Map;
  */
 public class TestNGListenerHelper {
 
+    private static XmlTest xmlTest;
+
+    /**
+     * Returns the active TestNG XML test definition when available.
+     *
+     * @return current {@link XmlTest}, or {@code null} outside TestNG method execution
+     */
+    public static XmlTest getXmlTest() {
+        return xmlTest;
+    }
+
+    /**
+     * Stores the active TestNG XML test definition for suite parameter lookups.
+     *
+     * @param activeXmlTest current {@link XmlTest}
+     */
+    public static void setXmlTest(XmlTest activeXmlTest) {
+        xmlTest = activeXmlTest;
+    }
+
     private static final List<ITestResult> beforeMethods = Collections.synchronizedList(new ArrayList<>());
     private static final List<ITestResult> afterMethods = Collections.synchronizedList(new ArrayList<>());
     private static final ThreadLocal<String> testName = new ThreadLocal<>();
@@ -259,11 +279,17 @@ public class TestNGListenerHelper {
         if (SHAFT.Properties.platform.jvmProxySettings() && !PROXY_SERVER_SETTINGS.isEmpty()) {
             String[] proxyHostPort = PROXY_SERVER_SETTINGS.split(":");
             ThreadLocalPropertiesManager.setGlobalProperty("http.proxyHost", proxyHostPort[0]);
+            System.setProperty("http.proxyHost", proxyHostPort[0]);
             ThreadLocalPropertiesManager.setGlobalProperty("http.proxyPort", proxyHostPort[1]);
+            System.setProperty("http.proxyPort", proxyHostPort[1]);
             ThreadLocalPropertiesManager.setGlobalProperty("https.proxyHost", proxyHostPort[0]);
+            System.setProperty("https.proxyHost", proxyHostPort[0]);
             ThreadLocalPropertiesManager.setGlobalProperty("https.proxyPort", proxyHostPort[1]);
+            System.setProperty("https.proxyPort", proxyHostPort[1]);
             ThreadLocalPropertiesManager.setGlobalProperty("ftp.proxyHost", proxyHostPort[0]);
+            System.setProperty("ftp.proxyHost", proxyHostPort[0]);
             ThreadLocalPropertiesManager.setGlobalProperty("ftp.proxyPort", proxyHostPort[1]);
+            System.setProperty("ftp.proxyPort", proxyHostPort[1]);
         }
     }
 
@@ -324,7 +350,7 @@ public class TestNGListenerHelper {
                 synchronized (output) {
                     return new ArrayList<>(output);
                 }
-            } catch (ConcurrentModificationException e) {
+            } catch (ConcurrentModificationException | IndexOutOfBoundsException e) {
                 Thread.yield();
             }
         }
