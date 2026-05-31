@@ -71,7 +71,7 @@
         <httpclient.version>4.5.14</httpclient.version>
         <httpclient5.version>5.6.1</httpclient5.version>
         <rest.assured.version>6.0.0</rest.assured.version>
-        <swagger.request.validator.version>3.0.0</swagger.request.validator.version>
+        <openapi.request.validator.version>3.0.0</openapi.request.validator.version>
         <json.path.version>3.0.0</json.path.version>
         <javassist.version>3.31.0-GA</javassist.version>
         <google.api.client.version>2.9.0</google.api.client.version>
@@ -648,10 +648,10 @@
         </dependency>
         <dependency>
             <groupId>com.atlassian.oai</groupId>
-            <artifactId>swagger-request-validator-restassured</artifactId>
-            <version>${swagger.request.validator.version}</version>
+            <artifactId>openapi-request-validator-restassured</artifactId>
+            <version>${openapi.request.validator.version}</version>
             <exclusions>
-                <!-- Exclude the older rest-assured transitive dependency; we declare 6.0.0 directly -->
+                <!-- Exclude the older rest-assured transitive dependency; we declare ${rest.assured.version} directly -->
                 <exclusion>
                     <groupId>io.rest-assured</groupId>
                     <artifactId>rest-assured</artifactId>
@@ -898,7 +898,7 @@
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
-            <version>${json.version}</version>
+                <version>${json.version}</version>
         </dependency>
 
         <!-- SECURITY: Override transitive org.mozilla:rhino pulled in by json-schema-core to fix related security issue -->
