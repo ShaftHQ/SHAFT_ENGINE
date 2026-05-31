@@ -41,9 +41,10 @@
         <maven.min.version>3.9.0</maven.min.version>
         <!-- Dependency BOM Versions -->
         <junit.bom.version>6.1.0</junit.bom.version>
-        <allure.bom.version>2.34.0</allure.bom.version>
+        <allure.bom.version>2.35.2</allure.bom.version>
         <cucumber.bom.version>7.34.3</cucumber.bom.version>
-        <jackson.version>2.21.3</jackson.version>
+        <jackson.version>2.21.4</jackson.version>
+        <jackson.annotations.version>2.22</jackson.annotations.version>
         <selenium.version>4.44.0</selenium.version>
         <slf4j.version>2.0.18</slf4j.version>
         <grpc.version>1.81.0</grpc.version>
@@ -136,6 +137,11 @@
                 <version>${jackson.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>${jackson.annotations.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.seleniumhq.selenium</groupId>
@@ -993,7 +999,7 @@
         <dependency>
             <groupId>com.browserstack</groupId>
             <artifactId>browserstack-java-sdk</artifactId>
-            <version>1.59.4</version>
+            <version>1.59.5</version>
             <scope>runtime</scope>
             <exclusions>
                 <!-- Rely on SHAFT-controlled direct dependencies to avoid old transitive duplicates -->
