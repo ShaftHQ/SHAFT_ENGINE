@@ -301,7 +301,11 @@ public class ThreadLocalPropertiesTest {
 
         try {
             SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(1);
+            Assert.assertFalse(isRetryDebugFileLoggingEnabled(),
+                    "Retry diagnostics should start disabled before the retry analyzer runs");
             Assert.assertTrue(new RetryAnalyzer().retry(testResult), "Retry should be scheduled for the first failure");
+            Assert.assertTrue(isRetryDebugFileLoggingEnabled(),
+                    "Retry diagnostics should enable debug file logging while retry evidence is active");
             Assert.assertTrue(logFile.isFile(), "Retry diagnostics should ensure the log file exists");
             Assert.assertTrue(logFile.length() > 0, "Retry diagnostics should write to the log file");
             Assert.assertEquals(getRootLogLevel(), Level.DEBUG,
@@ -310,9 +314,11 @@ public class ThreadLocalPropertiesTest {
             Assert.assertTrue(retryLog.contains("[DEBUG"),
                     "Retry diagnostics should include at least one debug-level entry");
             ReportManagerHelper.attachEngineLog("retry-diagnostics-test");
+            Assert.assertFalse(isRetryDebugFileLoggingEnabled(),
+                    "Retry diagnostics should be disabled after engine log attachment completes");
             Assert.assertFalse(logFile.exists(), "Generated retry diagnostics log should be attached and removed");
             Assert.assertEquals(getRootLogLevel(), originalRootLogLevel,
-                    "Retry diagnostics should restore the root log level after attaching logs");
+                    "Retry diagnostics should restore the exact pre-test root log level after attaching logs");
         } finally {
             SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetryCount);
             Files.deleteIfExists(logFile.toPath());
@@ -376,6 +382,16 @@ public class ThreadLocalPropertiesTest {
 
     private Level getRootLogLevel() {
         return ((LoggerContext) LogManager.getContext(false)).getConfiguration().getRootLogger().getLevel();
+    }
+
+    private boolean isRetryDebugFileLoggingEnabled() {
+        try {
+            var field = ReportManagerHelper.class.getDeclaredField("debugFileLoggingEnabled");
+            field.setAccessible(true);
+            return field.getBoolean(null);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Could not inspect retry diagnostics debug logging state", e);
+        }
     }
 
     @Test(description = "Engine log attachment should collapse consecutive duplicate lines")
