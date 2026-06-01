@@ -32,6 +32,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -75,6 +76,8 @@ public class ReportManagerHelper {
     private static final AtomicInteger openIssuesForPassedTestsCounter = new AtomicInteger(0);
     private static final AtomicInteger failedTestsWithoutOpenIssuesCounter = new AtomicInteger(0);
     private static final StackWalker STACK_WALKER = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
+    private static final Object RETRY_DIAGNOSTIC_LOGGING_LOCK = new Object();
+    private static final Set<Long> retryDiagnosticSessionThreads = ConcurrentHashMap.newKeySet();
     private static volatile boolean debugFileLoggingEnabled = false;
     private static volatile Level previousRootLogLevel;
     // TODO: refactor to regular class that can be instantiated within the test
@@ -214,17 +217,20 @@ public class ReportManagerHelper {
      * Enables debug-level file logging for diagnostic retry evidence.
      */
     public static void enableDebugFileLogging() {
-        if (logger == null) {
-            initializeLogger();
+        synchronized (RETRY_DIAGNOSTIC_LOGGING_LOCK) {
+            if (logger == null) {
+                initializeLogger();
+            }
+            if (!ensureLogFileExists()) {
+                return;
+            }
+            if (!debugFileLoggingEnabled) {
+                previousRootLogLevel = getCurrentRootLogLevel();
+            }
+            retryDiagnosticSessionThreads.add(Thread.currentThread().threadId());
+            debugFileLoggingEnabled = true;
+            Configurator.setRootLevel(Level.DEBUG);
         }
-        if (!ensureLogFileExists()) {
-            return;
-        }
-        if (!debugFileLoggingEnabled) {
-            previousRootLogLevel = getCurrentRootLogLevel();
-        }
-        debugFileLoggingEnabled = true;
-        Configurator.setRootLevel(Level.DEBUG);
         logger.debug("Enabled debug-level file logging for retry diagnostics.");
         writeToDebugLogFile("Enabled debug-level file logging for retry diagnostics.", Level.DEBUG);
     }
@@ -242,10 +248,31 @@ public class ReportManagerHelper {
     }
 
     private static void resetRetryDiagnosticLogging() {
-        debugFileLoggingEnabled = false;
-        if (previousRootLogLevel != null) {
-            Configurator.setRootLevel(previousRootLogLevel);
-            previousRootLogLevel = null;
+        synchronized (RETRY_DIAGNOSTIC_LOGGING_LOCK) {
+            retryDiagnosticSessionThreads.clear();
+            debugFileLoggingEnabled = false;
+            if (previousRootLogLevel != null) {
+                Configurator.setRootLevel(previousRootLogLevel);
+                previousRootLogLevel = null;
+            }
+        }
+    }
+
+    private static boolean completeRetryDiagnosticLoggingSession() {
+        synchronized (RETRY_DIAGNOSTIC_LOGGING_LOCK) {
+            if (!debugFileLoggingEnabled) {
+                return false;
+            }
+            retryDiagnosticSessionThreads.remove(Thread.currentThread().threadId());
+            if (!retryDiagnosticSessionThreads.isEmpty()) {
+                return true;
+            }
+            debugFileLoggingEnabled = false;
+            if (previousRootLogLevel != null) {
+                Configurator.setRootLevel(previousRootLogLevel);
+                previousRootLogLevel = null;
+            }
+            return true;
         }
     }
 
@@ -478,7 +505,7 @@ public class ReportManagerHelper {
                 return;
             } finally {
                 if (shouldAttachRetryDiagnostics) {
-                    resetRetryDiagnosticLogging();
+                    completeRetryDiagnosticLoggingSession();
                 }
                 ReportManagerHelper.setDiscreteLogging(initialLoggingState);
             }
