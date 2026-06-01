@@ -463,7 +463,10 @@ public class Actions extends ElementActions {
                                 ((JavascriptExecutor) d).executeScript("arguments[0].click();", targetElement);
                                 ReportManager.logDiscrete("Performed Click using JavaScript; If the report is showing that the click passed but you observe that no action was taken, we recommend trying a different element locator.");
                             } else {
-                                throw exception;
+                                // InvalidElementStateException is normally retryable for visibility-aware waits;
+                                // when JavaScript fallback is disabled, report the native click failure immediately
+                                // so the original Selenium exception is not replaced by a FluentWait timeout.
+                                reportBroken(action.name(), accessibleName.get(), screenshot.get(0), exception);
                             }
                         }
                     }

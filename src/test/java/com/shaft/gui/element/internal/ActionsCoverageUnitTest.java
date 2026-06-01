@@ -227,6 +227,7 @@ public class ActionsCoverageUnitTest {
 
     @Test
     public void performActionShouldFallbackToJavascriptClickWhenWebDriverClickFails() {
+        SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(true);
         WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
         WebElement element = standardElement();
         doThrow(new InvalidElementStateException("native click blocked")).when(element).click();
@@ -252,7 +253,8 @@ public class ActionsCoverageUnitTest {
 
         try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
             RuntimeException exception = Assert.expectThrows(RuntimeException.class, () -> new Actions(helper).click(LOCATOR));
-            Assert.assertNotNull(exception);
+            Assert.assertTrue(hasCause(exception, InvalidElementStateException.class));
+            verify((JavascriptExecutor) driver, org.mockito.Mockito.never()).executeScript(eq("arguments[0].click();"), eq(element));
         }
     }
 
@@ -555,6 +557,17 @@ public class ActionsCoverageUnitTest {
         DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
         when(helper.getDriver()).thenReturn(driver);
         return helper;
+    }
+
+    private boolean hasCause(Throwable throwable, Class<? extends Throwable> expectedCause) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (expectedCause.isInstance(current)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private WebElement standardElement() {
