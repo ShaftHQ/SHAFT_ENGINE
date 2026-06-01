@@ -2,7 +2,6 @@ package com.shaft.listeners;
 
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.listeners.internal.TestNGListenerHelper;
-import io.qameta.allure.Allure;
 import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.FileSystemResultsWriter;
 import io.qameta.allure.model.FixtureResult;
@@ -39,13 +38,14 @@ import static org.testng.Assert.assertTrue;
 @Test(singleThreaded = true)
 public class AllureListenerCoverageUnitTest {
     private AllureListener listener;
+    private AllureLifecycle lifecycle;
     private Path allureResultsDirectory;
 
     @BeforeMethod(alwaysRun = true)
     public void beforeMethod() throws Exception {
-        listener = new AllureListener();
         allureResultsDirectory = Files.createTempDirectory("shaft-allure-listener-results");
-        Allure.setLifecycle(new AllureLifecycle(new FileSystemResultsWriter(allureResultsDirectory)));
+        lifecycle = new AllureLifecycle(new FileSystemResultsWriter(allureResultsDirectory));
+        listener = new AllureListener(lifecycle);
         setITestResult(null);
         setKillSwitch(false);
         TestNGListenerHelper.setPendingConfigFailure(null);
@@ -59,7 +59,7 @@ public class AllureListenerCoverageUnitTest {
         TestNGListenerHelper.setPendingConfigFailure(null);
         TestNGListenerHelper.cleanup();
         Reporter.clear();
-        Allure.setLifecycle(new AllureLifecycle());
+        lifecycle = null;
         deleteDirectory(allureResultsDirectory);
     }
 
@@ -204,15 +204,15 @@ public class AllureListenerCoverageUnitTest {
         TestResult result = skippedResult("config skip")
                 .setUuid(UUID.randomUUID().toString())
                 .setName("config failure host");
-        Allure.getLifecycle().scheduleTestCase(result);
-        Allure.getLifecycle().startTestCase(result.getUuid());
+        lifecycle.scheduleTestCase(result);
+        lifecycle.startTestCase(result.getUuid());
 
         try (MockedStatic<DriverFactoryHelper> driverFactoryHelper = Mockito.mockStatic(DriverFactoryHelper.class)) {
             driverFactoryHelper.when(DriverFactoryHelper::isKillSwitch).thenReturn(false);
             listener.beforeTestStop(result);
         } finally {
-            Allure.getLifecycle().stopTestCase(result.getUuid());
-            Allure.getLifecycle().writeTestCase(result.getUuid());
+            lifecycle.stopTestCase(result.getUuid());
+            lifecycle.writeTestCase(result.getUuid());
         }
 
         assertEquals(result.getStatus(), Status.BROKEN);

@@ -4,6 +4,7 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Allure;
+import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.listener.ContainerLifecycleListener;
 import io.qameta.allure.listener.FixtureLifecycleListener;
 import io.qameta.allure.listener.StepLifecycleListener;
@@ -18,6 +19,7 @@ import org.testng.SkipException;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 /**
  * Allure lifecycle listener that integrates SHAFT's TestNG support with the Allure reporting engine.
@@ -44,12 +46,22 @@ import java.nio.charset.StandardCharsets;
  */
 public class AllureListener implements StepLifecycleListener, FixtureLifecycleListener, TestLifecycleListener,
         ContainerLifecycleListener {
+    private final AllureLifecycle lifecycle;
 
     /**
-     * Creates a new Allure lifecycle listener instance.
+     * Creates a new Allure lifecycle listener instance using the default Allure lifecycle singleton.
      */
     public AllureListener() {
-        super();
+        this(Allure.getLifecycle());
+    }
+
+    /**
+     * Creates a new Allure lifecycle listener instance using the provided Allure lifecycle.
+     *
+     * @param lifecycle the Allure lifecycle instance that receives listener attachments
+     */
+    public AllureListener(AllureLifecycle lifecycle) {
+        this.lifecycle = Objects.requireNonNull(lifecycle, "lifecycle");
     }
 
     //Before each step starts inside the methods
@@ -263,11 +275,11 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
                 details.setTrace(trace);
                 result.setStatusDetails(details);
                 // Attach the stacktrace as a readable text file so it appears in the Allure report
-                Allure.addAttachment(
+                lifecycle.addAttachment(
                         "Exception Stacktrace",
                         "text/plain",
-                        new ByteArrayInputStream(trace.getBytes(StandardCharsets.UTF_8)),
-                        ".txt");
+                        ".txt",
+                        new ByteArrayInputStream(trace.getBytes(StandardCharsets.UTF_8)));
             }
         }
         TestLifecycleListener.super.beforeTestStop(result);
