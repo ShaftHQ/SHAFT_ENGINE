@@ -56,8 +56,9 @@ public class FileActionsTests {
     }
 
     @Test
-    public void downloadFile(){
-        SHAFT.CLI.file().downloadFile("https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/src/main/resources/images/shaft.png","target/temp/shaft.png");
+    public void downloadFile() throws java.net.MalformedURLException {
+        String sourceFileUrl = java.nio.file.Path.of("src/main/resources/images/shaft.png").toUri().toURL().toString();
+        SHAFT.CLI.file().downloadFile(sourceFileUrl,"target/temp/shaft.png");
         SHAFT.Validations.assertThat().file("target/temp/","shaft.png").exists();
     }
 

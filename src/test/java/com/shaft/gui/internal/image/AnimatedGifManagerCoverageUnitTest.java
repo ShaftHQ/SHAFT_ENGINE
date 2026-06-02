@@ -17,13 +17,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 
 public class AnimatedGifManagerCoverageUnitTest {
     private static final FileActions FILE_ACTIONS = FileActions.getInstance(true);
-    private static final Path TEMP_ROOT = Path.of("target", "temp", "animatedGifManagerCoverageUnitTest");
-    private static final Path ALLURE_RESULTS = TEMP_ROOT.resolve("allure-results");
+    private static final Path TEMP_BASE = Path.of("target", "temp", "animatedGifManagerCoverageUnitTest");
     private static final String GIF_WRITER_FIELD = "gifWriter";
     private static final String IMAGE_WRITE_PARAM_FIELD = "imageWriteParam";
     private static final String IMAGE_METADATA_FIELD = "imageMetaData";
@@ -34,17 +34,21 @@ public class AnimatedGifManagerCoverageUnitTest {
     private boolean originalCreateAnimatedGif;
     private String originalAllureResults;
     private boolean originalWatermark;
+    private Path tempRoot;
+    private Path allureResults;
 
     @BeforeMethod(alwaysRun = true)
-    public void setup() {
+    public void setup(Method method) {
         originalCreateAnimatedGif = SHAFT.Properties.visuals.createAnimatedGif();
         originalAllureResults = SHAFT.Properties.paths.allureResults();
         originalWatermark = SHAFT.Properties.visuals.screenshotParamsWatermark();
 
-        FILE_ACTIONS.deleteFolder(TEMP_ROOT.toString());
-        FILE_ACTIONS.createFolder(TEMP_ROOT.toString());
+        tempRoot = TEMP_BASE.resolve(method.getName() + "-" + Thread.currentThread().threadId());
+        allureResults = tempRoot.resolve("allure-results");
+        FILE_ACTIONS.deleteFolder(tempRoot.toString());
+        FILE_ACTIONS.createFolder(tempRoot.toString());
         SHAFT.Properties.visuals.set().createAnimatedGif(true).screenshotParamsWatermark(false).animatedGifFrameDelay(100);
-        SHAFT.Properties.paths.set().allureResults(ALLURE_RESULTS.toAbsolutePath().toString());
+        SHAFT.Properties.paths.set().allureResults(allureResults.toAbsolutePath().toString());
         clearAnimatedGifState();
     }
 
@@ -55,7 +59,9 @@ public class AnimatedGifManagerCoverageUnitTest {
                 .screenshotParamsWatermark(originalWatermark);
         SHAFT.Properties.paths.set().allureResults(originalAllureResults);
         clearAnimatedGifState();
-        FILE_ACTIONS.deleteFolder(TEMP_ROOT.toString());
+        if (tempRoot != null) {
+            FILE_ACTIONS.deleteFolder(tempRoot.toString());
+        }
         Properties.clearForCurrentThread();
     }
 

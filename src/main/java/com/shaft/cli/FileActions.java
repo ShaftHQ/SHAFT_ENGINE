@@ -272,7 +272,7 @@ public class FileActions {
             FileActions.getInstance(true).deleteFolder(pathToLocalParentFolder);
             FileActions.getInstance(true).createFolder(pathToLocalParentFolder);
 
-            String destination = pathToLocalParentFolder + "/" + targetFileName;
+            String destination = Path.of(pathToLocalParentFolder, targetFileName).toString();
             targetFilePath = destination;
 
             String command = "scp -v -o StrictHostKeyChecking=no " + sshParameters + " -r " + source + " "
@@ -485,7 +485,7 @@ public class FileActions {
 
     public void copyFolderFromJar(String sourceFolderPath, String destinationFolderPath) {
         try {
-            URL url = URI.create(sourceFolderPath.replace("file:", "jar:file:")).toURL();
+            URL url = createJarResourceUrl(sourceFolderPath);
             JarURLConnection jarConnection = (JarURLConnection) url.openConnection();
             JarFile jarFile = jarConnection.getJarFile();
 
@@ -529,7 +529,7 @@ public class FileActions {
 
     public void copyFileFromJar(String sourceFolderPath, String destinationFolderPath, String fileName) {
         try {
-            URL url = URI.create(sourceFolderPath.replace("file:", "jar:file:")).toURL();
+            URL url = createJarResourceUrl(sourceFolderPath);
             JarURLConnection jarConnection = (JarURLConnection) url.openConnection();
             JarFile jarFile = jarConnection.getJarFile();
 
@@ -569,6 +569,28 @@ public class FileActions {
         } catch (Exception rootCauseException) {
             failAction(rootCauseException);
         }
+    }
+
+    private URL createJarResourceUrl(String sourceFolderPath) throws Exception {
+        String sourcePath = sourceFolderPath.startsWith("jar:") ? sourceFolderPath.substring("jar:".length()) : sourceFolderPath;
+        int jarEntrySeparatorIndex = sourcePath.indexOf("!/");
+        if (jarEntrySeparatorIndex < 0) {
+            throw new IllegalArgumentException("Jar resource path must contain '!/': " + sourceFolderPath);
+        }
+
+        String jarFilePath = sourcePath.substring(0, jarEntrySeparatorIndex);
+        String jarEntryPath = sourcePath.substring(jarEntrySeparatorIndex);
+        URL jarFileUrl;
+        if (jarFilePath.startsWith("file:")) {
+            try {
+                jarFileUrl = URI.create(jarFilePath).toURL();
+            } catch (IllegalArgumentException e) {
+                jarFileUrl = new File(jarFilePath.substring("file:".length())).toURI().toURL();
+            }
+        } else {
+            jarFileUrl = new File(jarFilePath).toURI().toURL();
+        }
+        return URI.create("jar:" + jarFileUrl.toURI() + jarEntryPath).toURL();
     }
 
     public void deleteFolder(String folderPath) {

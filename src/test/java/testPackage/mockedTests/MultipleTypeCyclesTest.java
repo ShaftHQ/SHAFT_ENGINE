@@ -1,6 +1,7 @@
 package testPackage.mockedTests;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.Properties;
 import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -82,9 +83,12 @@ public class MultipleTypeCyclesTest {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+        }
         driver.remove();
         //Resetting flags to default values after each method
         SHAFT.Properties.flags.set().clearBeforeTypingMode("native");
+        Properties.clearForCurrentThread();
     }
 }

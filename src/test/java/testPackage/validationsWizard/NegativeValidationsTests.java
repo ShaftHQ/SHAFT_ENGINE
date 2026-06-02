@@ -1,6 +1,7 @@
 package testPackage.validationsWizard;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.Properties;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
@@ -138,6 +139,10 @@ public class NegativeValidationsTests {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+        }
+        driver.remove();
+        Properties.clearForCurrentThread();
     }
 }
