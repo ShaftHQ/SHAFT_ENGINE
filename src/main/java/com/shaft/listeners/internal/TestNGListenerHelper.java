@@ -314,7 +314,7 @@ public class TestNGListenerHelper {
             if (!attachment.isEmpty())
                 attachments.add(attachment);
 
-            String logText = TestNGListenerHelper.createTestLog(Reporter.getOutput(iTestResult));
+            String logText = TestNGListenerHelper.createTestLog(getReporterOutput(iTestResult));
             ReportManagerHelper.attachTestLog(iTestNGMethod.getMethodName(), logText);
             JiraHelper.reportBugsToJIRA(attachments, logText, iTestResult, iTestNGMethod);
         }
@@ -365,6 +365,23 @@ public class TestNGListenerHelper {
             }
         }
         return snapshot;
+    }
+
+    private static List<String> getReporterOutput(ITestResult testResult) {
+        for (int attempt = 0; attempt < 3; attempt++) {
+            try {
+                return Reporter.getOutput(testResult);
+            } catch (ConcurrentModificationException | IndexOutOfBoundsException e) {
+                Thread.yield();
+            }
+        }
+
+        try {
+            return Reporter.getOutput(testResult);
+        } catch (ConcurrentModificationException | IndexOutOfBoundsException e) {
+            ReportManagerHelper.logDiscrete(e);
+            return Collections.emptyList();
+        }
     }
 
     /**

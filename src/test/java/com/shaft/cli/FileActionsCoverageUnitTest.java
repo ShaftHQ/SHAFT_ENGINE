@@ -116,6 +116,7 @@ public class FileActionsCoverageUnitTest {
         TerminalActions terminal = Mockito.mock(TerminalActions.class);
         Mockito.when(terminal.performTerminalCommand(Mockito.anyString())).thenReturn("copied");
         Mockito.when(terminal.performTerminalCommands(Mockito.anyList())).thenReturn("listed");
+        SHAFT.Properties.platform.set().executionAddress("remote-grid").targetPlatform("LINUX");
         Path checksumFile = tempDirectory.resolve("checksum.txt");
         Files.writeString(checksumFile, "checksum", StandardCharsets.UTF_8);
 
@@ -172,7 +173,7 @@ public class FileActionsCoverageUnitTest {
 
             String localPath = realActions.copyFileToLocalMachine(remoteDockerTerminal, "/var/log/", "app.log", "/remote-temp/");
 
-            Assert.assertEquals(localPath, localTemp.resolve("app.log").toString());
+            Assert.assertEquals(Path.of(localPath), localTemp.resolve("app.log"));
             Assert.assertTrue(Files.isDirectory(localTemp));
         }
     }
@@ -217,7 +218,7 @@ public class FileActionsCoverageUnitTest {
         Path jarFileDestination = tempDirectory.resolve("jar-file");
         Files.createDirectories(jarFolderDestination);
         Files.createDirectories(jarFileDestination);
-        String jarResourceUrl = "file:" + jar.toAbsolutePath() + "!/assets/";
+        String jarResourceUrl = jar.toUri().toURL() + "!/assets/";
         actions.copyFolderFromJar(jarResourceUrl, jarFolderDestination.toString());
         actions.copyFileFromJar(jarResourceUrl, jarFileDestination.toString(), "one.txt");
         Assert.assertEquals(Files.readString(jarFolderDestination.resolve("one.txt")), "one");
@@ -230,7 +231,7 @@ public class FileActionsCoverageUnitTest {
         Assert.assertTrue(Files.exists(jarDirectoryOnlyDestination.resolve("nested")));
 
         Path traversalJar = createJarWithTraversalEntry();
-        String traversalJarResourceUrl = "file:" + traversalJar.toAbsolutePath() + "!/assets/";
+        String traversalJarResourceUrl = traversalJar.toUri().toURL() + "!/assets/";
         Assert.expectThrows(RuntimeException.class, () -> actions.copyFolderFromJar(traversalJarResourceUrl, tempDirectory.resolve("bad-jar-folder").toString()));
         Assert.expectThrows(RuntimeException.class, () -> actions.copyFileFromJar(traversalJarResourceUrl, tempDirectory.resolve("bad-jar-file").toString(), "evil.txt"));
     }
@@ -344,8 +345,9 @@ public class FileActionsCoverageUnitTest {
         Assert.expectThrows(RuntimeException.class, () -> actions.unpackArchive(missing.toUri().toURL(), tempDirectory.resolve("unpack-missing").toString()));
         Assert.expectThrows(RuntimeException.class, () -> actions.downloadFile(missing.toUri().toURL().toString(), tempDirectory.resolve("download.txt").toString()));
         Assert.expectThrows(RuntimeException.class, () -> actions.downloadFile(null, tempDirectory.resolve("download.txt").toString()));
-        Assert.expectThrows(RuntimeException.class, () -> actions.copyFolderFromJar("file:" + missing.toAbsolutePath() + "!/assets/", tempDirectory.resolve("jar").toString()));
-        Assert.expectThrows(RuntimeException.class, () -> actions.copyFileFromJar("file:" + missing.toAbsolutePath() + "!/assets/", tempDirectory.resolve("jar").toString(), "one.txt"));
+        String missingJarResourceUrl = missing.toUri().toURL() + "!/assets/";
+        Assert.expectThrows(RuntimeException.class, () -> actions.copyFolderFromJar(missingJarResourceUrl, tempDirectory.resolve("jar").toString()));
+        Assert.expectThrows(RuntimeException.class, () -> actions.copyFileFromJar(missingJarResourceUrl, tempDirectory.resolve("jar").toString(), "one.txt"));
     }
 
     private Path createJarWithResources() throws IOException {

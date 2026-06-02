@@ -161,7 +161,7 @@ public class AllureManagerCoverageUnitTest {
 
         String config = Files.readString(Path.of("allurerc.yaml"), StandardCharsets.UTF_8);
         Assert.assertTrue(config.contains("name: \"Report \\\"Name\\\"\""), config);
-        Assert.assertTrue(config.contains("output: \"" + outputDirectory.toString().replace("\\", "\\\\").replace("\"", "\\\"") + "\""), config);
+        Assert.assertTrue(config.contains("output: \"" + outputDirectory.toString().replace("\\", "/").replace("\"", "\\\"") + "\""), config);
         Assert.assertTrue(config.contains("logo: \"logo\\\\path\\\"name\""), config);
         Assert.assertTrue(config.contains("reportLanguage: \"en\\\"GB\""), config);
         Assert.assertTrue(config.contains("singleFile: false"), config);

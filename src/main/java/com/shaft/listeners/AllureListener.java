@@ -46,13 +46,14 @@ import java.util.Objects;
  */
 public class AllureListener implements StepLifecycleListener, FixtureLifecycleListener, TestLifecycleListener,
         ContainerLifecycleListener {
-    private final AllureLifecycle lifecycle;
+    private volatile AllureLifecycle lifecycle;
 
     /**
      * Creates a new Allure lifecycle listener instance using the default Allure lifecycle singleton.
      */
     public AllureListener() {
-        this(Allure.getLifecycle());
+        // Allure instantiates this class through ServiceLoader while it is still constructing
+        // its lifecycle. Resolve the default lifecycle lazily to avoid recursive SPI loading.
     }
 
     /**
@@ -62,6 +63,15 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
      */
     public AllureListener(AllureLifecycle lifecycle) {
         this.lifecycle = Objects.requireNonNull(lifecycle, "lifecycle");
+    }
+
+    private AllureLifecycle getLifecycle() {
+        AllureLifecycle currentLifecycle = lifecycle;
+        if (currentLifecycle == null) {
+            currentLifecycle = Allure.getLifecycle();
+            lifecycle = currentLifecycle;
+        }
+        return currentLifecycle;
     }
 
     //Before each step starts inside the methods
@@ -275,7 +285,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
                 details.setTrace(trace);
                 result.setStatusDetails(details);
                 // Attach the stacktrace as a readable text file so it appears in the Allure report
-                lifecycle.addAttachment(
+                getLifecycle().addAttachment(
                         "Exception Stacktrace",
                         "text/plain",
                         ".txt",

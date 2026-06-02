@@ -1,6 +1,7 @@
 package testPackage.mockedTests;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.Properties;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
@@ -49,9 +50,13 @@ public class E2ECoverageTests {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        if (driver.get() != null) {
-            driver.get().quit();
+        try {
+            if (driver.get() != null) {
+                driver.get().quit();
+            }
+        } finally {
             driver.remove();
+            Properties.clearForCurrentThread();
         }
     }
 

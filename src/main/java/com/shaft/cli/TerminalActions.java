@@ -438,6 +438,9 @@ public class TerminalActions {
             command = command.contains(".bat") && !command.contains(".\\") && !command.matches("(^.:\\\\.*$)") ? ".\\" + command : command;
             ReportManager.logDiscrete("Executing: \"" + command + "\" locally.");
             try {
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new InterruptedException("Current thread was interrupted before local command execution.");
+                }
                 ProcessBuilder pb = getProcessBuilder(command, finalDirectory, isWindows);
                 pb.environment().put("JAVA_HOME", System.getProperty("java.home"));
                 if (!asynchronous) {
@@ -484,7 +487,10 @@ public class TerminalActions {
                         asynchronousProcessExecution.shutdownNow();
                     }
                 }
-            } catch (IOException | InterruptedException exception) {
+            } catch (IOException exception) {
+                failAction(longCommand, exception);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
                 failAction(longCommand, exception);
             }
         });

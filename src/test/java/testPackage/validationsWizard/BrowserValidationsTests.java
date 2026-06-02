@@ -2,6 +2,7 @@ package testPackage.validationsWizard;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.properties.internal.Properties;
 import com.shaft.validation.Validations;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -29,6 +30,10 @@ public class BrowserValidationsTests {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+        }
+        driver.remove();
+        Properties.clearForCurrentThread();
     }
 }

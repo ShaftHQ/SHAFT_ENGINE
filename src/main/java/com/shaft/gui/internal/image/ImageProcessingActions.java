@@ -59,7 +59,7 @@ public class ImageProcessingActions {
 //            CV_ADAPTIVE_THRESH_MEAN_C = 0,
 //            CV_THRESH_BINARY_INV = 1;
 
-    private static String aiFolderPath = "";
+    private static final ThreadLocal<String> aiFolderPath = ThreadLocal.withInitial(() -> "");
 
     private ImageProcessingActions() {
         throw new IllegalStateException("Utility class");
@@ -382,10 +382,7 @@ public class ImageProcessingActions {
 
     public static byte[] getReferenceImage(By elementLocator) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
-        if (aiFolderPath.isEmpty()) {
-            aiFolderPath = ScreenshotHelper.getAiAidedElementIdentificationFolderPath();
-        }
-        String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
+        String referenceImagePath = getAiFolderPath() + hashedLocatorName + ".png";
         if (FileActions.getInstance(true).doesFileExist(referenceImagePath)) {
             return FileActions.getInstance(true).readFileAsByteArray(referenceImagePath);
         } else {
@@ -395,7 +392,7 @@ public class ImageProcessingActions {
 
     public static byte[] getShutterbugDifferencesImage(By elementLocator) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
-        String referenceImagePath = aiFolderPath + hashedLocatorName + "_shutterbug.png";
+        String referenceImagePath = getAiFolderPath() + hashedLocatorName + "_shutterbug.png";
         if (FileActions.getInstance(true).doesFileExist(referenceImagePath)) {
             return FileActions.getInstance(true).readFileAsByteArray(referenceImagePath);
         } else {
@@ -405,10 +402,11 @@ public class ImageProcessingActions {
 
     public static Boolean compareAgainstBaseline(WebDriver driver, By elementLocator, byte[] elementScreenshot, VisualValidationEngine visualValidationEngine) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
+        String aiAidedElementIdentificationFolderPath = getAiFolderPath();
 
         if (visualValidationEngine == VisualValidationEngine.EXACT_SHUTTERBUG) {
-            String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
-            String resultingImagePath = aiFolderPath + hashedLocatorName + "_shutterbug";
+            String referenceImagePath = aiAidedElementIdentificationFolderPath + hashedLocatorName + ".png";
+            String resultingImagePath = aiAidedElementIdentificationFolderPath + hashedLocatorName + "_shutterbug";
 
             if (getReferenceImage(elementLocator) !=null && elementScreenshot != null && elementScreenshot.length > 0) {
                 boolean actualResult = false;
@@ -425,13 +423,13 @@ public class ImageProcessingActions {
                 return actualResult;
             } else {
                 ReportManager.logDiscrete("Passing the test and saving a reference image");
-                FileActions.getInstance(true).writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
+                FileActions.getInstance(true).writeToFile(aiAidedElementIdentificationFolderPath, hashedLocatorName + ".png", elementScreenshot);
                 return true;
             }
         }
 
         if (visualValidationEngine == VisualValidationEngine.EXACT_OPENCV) {
-            String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
+            String referenceImagePath = aiAidedElementIdentificationFolderPath + hashedLocatorName + ".png";
 
             boolean doesReferenceFileExist = FileActions.getInstance(true).doesFileExist(referenceImagePath);
             if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot).equals(Collections.emptyList())) {
@@ -604,6 +602,15 @@ public class ImageProcessingActions {
             }
             SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("JavaScript");
         }
+    }
+
+    private static String getAiFolderPath() {
+        String currentAiFolderPath = aiFolderPath.get();
+        if (currentAiFolderPath == null || currentAiFolderPath.isEmpty()) {
+            currentAiFolderPath = ScreenshotHelper.getAiAidedElementIdentificationFolderPath();
+            aiFolderPath.set(currentAiFolderPath);
+        }
+        return currentAiFolderPath;
     }
 
     @SuppressWarnings("unused")
