@@ -80,7 +80,7 @@
         <proto.google.common.protos.version>2.71.0</proto.google.common.protos.version>
         <proto.google.cloud.kms.v1.version>0.186.0</proto.google.cloud.kms.v1.version>
         <error.prone.annotations.version>2.49.0</error.prone.annotations.version>
-        <checker.qual.version>4.1.0</checker.qual.version>
+        <checker.qual.version>4.2.0</checker.qual.version>
         <animal.sniffer.annotations.version>1.27</animal.sniffer.annotations.version>
         <httpcore.version>4.4.16</httpcore.version>
         <owner.version>1.0.12</owner.version>
