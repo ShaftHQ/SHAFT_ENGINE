@@ -126,6 +126,51 @@ class ExtractAllureFailuresTests(unittest.TestCase):
         self.assertEqual([failure.method for failure in failures], ["pkg.RealTest.fails"])
         self.assertNotIn("SHAFT-powered test report", to_markdown(failures))
 
+    def test_groups_retried_config_failures_by_history_id_and_keeps_setup_root_cause(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            history_id = "shared-history-id"
+            (root / "01-after-result.json").write_text(
+                json.dumps(
+                    {
+                        "status": "broken",
+                        "historyId": history_id,
+                        "fullName": "pkg.ExampleTest.afterMethod",
+                        "start": 20,
+                        "statusDetails": {
+                            "message": "java.lang.NullPointerException",
+                            "trace": "java.lang.NullPointerException\n at pkg.ExampleTest.afterMethod",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (root / "02-before-result.json").write_text(
+                json.dumps(
+                    {
+                        "status": "broken",
+                        "historyId": history_id,
+                        "fullName": "pkg.ExampleTest.beforeMethod",
+                        "start": 10,
+                        "statusDetails": {
+                            "message": "Cannot initialize driver",
+                            "trace": "java.lang.IllegalStateException: Cannot initialize driver\n at pkg.ExampleTest.beforeMethod",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            failures = extract_failures([root])
+            markdown = to_markdown(failures)
+
+        self.assertEqual(len(failures), 1)
+        self.assertEqual(failures[0].method, "pkg.ExampleTest.beforeMethod")
+        self.assertEqual(failures[0].reason, "Cannot initialize driver")
+        self.assertEqual(failures[0].occurrences, 2)
+        self.assertIn("| broken | `pkg.ExampleTest.beforeMethod` | Cannot initialize driver", markdown)
+        self.assertIn("| 2 |", markdown)
+
     def test_extracts_surefire_failures_from_xml(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             reports = Path(temp_dir)

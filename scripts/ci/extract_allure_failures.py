@@ -31,6 +31,7 @@ class AllureFailure:
     method: str
     reason: str
     trace_top: str
+    occurrences: int = 1
 
 
 @dataclass(frozen=True)
@@ -112,6 +113,39 @@ def _status_details(payload: dict) -> tuple[str, str]:
     trace = details.get("trace") or payload.get("statusTrace") or ""
     reason = str(message).strip() or _first_trace_line(trace) or "No failure message recorded"
     return reason, _first_trace_line(trace)
+
+
+def _failure_group_key(source: str, payload: dict, status: str, method: str, reason: str) -> tuple[str, str, str, str]:
+    history_id = payload.get("historyId") or payload.get("testCaseId")
+    if history_id:
+        return ("history", str(history_id), "", "")
+    return ("source", source, status, method + reason)
+
+
+def _is_teardown_method(method: str) -> bool:
+    method_name = method.rsplit(".", 1)[-1].lower()
+    return method_name.startswith(("after", "tear", "cleanup"))
+
+
+def _is_setup_method(method: str) -> bool:
+    method_name = method.rsplit(".", 1)[-1].lower()
+    return method_name.startswith(("before", "setup", "init"))
+
+
+def _root_cause_rank(method: str, reason: str, start: Any) -> tuple[int, int, int]:
+    if _is_setup_method(method):
+        method_rank = 0
+    elif _is_teardown_method(method):
+        method_rank = 2
+    else:
+        method_rank = 1
+
+    generic_reason_rank = 1 if reason in {"java.lang.NullPointerException", "java.lang.RuntimeException"} else 0
+    try:
+        start_rank = int(start)
+    except (TypeError, ValueError):
+        start_rank = 0
+    return method_rank, generic_reason_rank, start_rank
 
 
 def _method_name(payload: dict) -> str:
@@ -235,8 +269,8 @@ def _is_allure_test_result_payload(source: str, payload: dict[str, Any]) -> bool
 
 
 def extract_failures(paths: Iterable[Path]) -> list[AllureFailure]:
-    failures: list[AllureFailure] = []
-    seen: set[tuple[str, str, str, str]] = set()
+    failures_by_group: dict[tuple[str, str, str, str], AllureFailure] = {}
+    ranks_by_group: dict[tuple[str, str, str, str], tuple[int, int, int]] = {}
     for path in paths:
         for source, payload in _iter_json_payloads(path):
             if _is_generated_report_non_test_result(source):
@@ -248,12 +282,28 @@ def extract_failures(paths: Iterable[Path]) -> list[AllureFailure]:
                 continue
             method = _method_name(payload)
             reason, trace_top = _status_details(payload)
-            key = (source, status, method, reason)
-            if key in seen:
+            key = _failure_group_key(source, payload, status, method, reason)
+            rank = _root_cause_rank(method, reason, payload.get("start"))
+            existing_failure = failures_by_group.get(key)
+            if existing_failure is None:
+                failures_by_group[key] = AllureFailure(source, status, method, reason, trace_top)
+                ranks_by_group[key] = rank
                 continue
-            seen.add(key)
-            failures.append(AllureFailure(source, status, method, reason, trace_top))
-    return failures
+
+            occurrences = existing_failure.occurrences + 1
+            if rank < ranks_by_group[key]:
+                failures_by_group[key] = AllureFailure(source, status, method, reason, trace_top, occurrences)
+                ranks_by_group[key] = rank
+            else:
+                failures_by_group[key] = AllureFailure(
+                    existing_failure.source,
+                    existing_failure.status,
+                    existing_failure.method,
+                    existing_failure.reason,
+                    existing_failure.trace_top,
+                    occurrences,
+                )
+    return list(failures_by_group.values())
 
 
 def to_markdown(failures: list[AllureFailure]) -> str:
@@ -261,16 +311,17 @@ def to_markdown(failures: list[AllureFailure]) -> str:
         return "No failed or broken Allure test cases were found."
 
     rows = [
-        "| Status | Test method | Failure reason | Top trace frame | Source |",
-        "|---|---|---|---|---|",
+        "| Status | Test method | Failure reason | Top trace frame | Occurrences | Source |",
+        "|---|---|---|---|---:|---|",
     ]
     for failure in failures:
         rows.append(
-            "| {status} | `{method}` | {reason} | `{trace}` | `{source}` |".format(
+            "| {status} | `{method}` | {reason} | `{trace}` | {occurrences} | `{source}` |".format(
                 status=_clean_cell(failure.status),
                 method=_clean_cell(failure.method),
                 reason=_clean_cell(failure.reason),
                 trace=_clean_cell(failure.trace_top or "n/a"),
+                occurrences=failure.occurrences,
                 source=_clean_cell(failure.source),
             )
         )
