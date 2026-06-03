@@ -85,6 +85,12 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     private ITestNGService reportPortalTestNGService;
     private boolean isReportPortalEnabledForListener;
 
+    private record TestExecutionCounts(int passed, int failed, int skipped, int flaky) {
+        int finalPassed() {
+            return passed + flaky;
+        }
+    }
+
     public static ProjectStructureManager.RunType identifyRunType() {
         return ProjectStructureManager.identifyRunType();
     }
@@ -318,32 +324,11 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     public void onExecutionFinish() {
         ReportManagerHelper.setDiscreteLogging(true);
         long executionEndTime = System.currentTimeMillis();
-        Thread.ofVirtual().start(() -> ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime));
+        TestExecutionCounts counts = getDeduplicatedTestExecutionCounts();
+        Thread.ofVirtual().start(() -> ExecutionSummaryReport.generateExecutionSummaryReport(counts.finalPassed(), counts.failed(), counts.skipped(), executionStartTime, executionEndTime));
         Thread.ofVirtual().start(JiraHelper::reportExecutionStatusToJira);
         Thread.ofVirtual().start(GoogleTink::encrypt);
-        Thread.ofVirtual().start(() -> {
-            // Deduplicate test method counts to remove retry-inflated numbers.
-            // A method that failed on early attempts but eventually passed is counted as FLAKY.
-            // Categories are mutually exclusive: passed | failed | skipped | flaky.
-            Set<ITestNGMethod> passedSet = new HashSet<>(passedTests);
-            // Flaky = methods that appear in both the failed list and the passed list.
-            Set<ITestNGMethod> flakySet = failedTests.stream()
-                    .filter(passedSet::contains)
-                    .collect(Collectors.toCollection(HashSet::new));
-            // Failed = methods that failed and never passed (exclude flaky).
-            Set<ITestNGMethod> failedSet = failedTests.stream()
-                    .filter(m -> !passedSet.contains(m))
-                    .collect(Collectors.toCollection(HashSet::new));
-            // Passed = methods that ultimately passed, excluding those that also failed (flaky).
-            int uniquePassed = passedSet.size() - flakySet.size();
-            int uniqueFailed = failedSet.size();
-            int uniqueFlaky = flakySet.size();
-            Set<ITestNGMethod> resolvedSet = new HashSet<>();
-            resolvedSet.addAll(passedSet);
-            resolvedSet.addAll(failedSet);
-            int uniqueSkipped = (int) skippedTests.stream().filter(m -> !resolvedSet.contains(m)).distinct().count();
-            FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime, uniquePassed, uniqueFailed, uniqueSkipped, uniqueFlaky);
-        });
+        Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime, counts.passed(), counts.failed(), counts.skipped(), counts.flaky()));
         ReportManagerHelper.logEngineClosure();
         Thread.ofVirtual().start(() -> {
             // Fetch performance data from RequestBuilder
@@ -356,6 +341,27 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         AllureManager.openAllureReportAfterExecution();
         AllureManager.generateAllureReportArchive();
         if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishLaunch();
+    }
+
+    private static TestExecutionCounts getDeduplicatedTestExecutionCounts() {
+        // Deduplicate test method counts to remove retry-inflated numbers.
+        // A method that failed on early attempts but eventually passed is counted as FLAKY.
+        // Categories are mutually exclusive: passed | failed | skipped | flaky.
+        Set<ITestNGMethod> passedSet = new HashSet<>(passedTests);
+        Set<ITestNGMethod> flakySet = failedTests.stream()
+                .filter(passedSet::contains)
+                .collect(Collectors.toCollection(HashSet::new));
+        Set<ITestNGMethod> failedSet = failedTests.stream()
+                .filter(m -> !passedSet.contains(m))
+                .collect(Collectors.toCollection(HashSet::new));
+        int uniquePassed = passedSet.size() - flakySet.size();
+        int uniqueFailed = failedSet.size();
+        int uniqueFlaky = flakySet.size();
+        Set<ITestNGMethod> resolvedSet = new HashSet<>();
+        resolvedSet.addAll(passedSet);
+        resolvedSet.addAll(failedSet);
+        int uniqueSkipped = (int) skippedTests.stream().filter(m -> !resolvedSet.contains(m)).distinct().count();
+        return new TestExecutionCounts(uniquePassed, uniqueFailed, uniqueSkipped, uniqueFlaky);
     }
 
     @Override

@@ -66,7 +66,7 @@ public class DriverFactoryHelper {
     private static final long remoteServerInstanceCreationTimeout = TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.remoteServerInstanceCreationTimeout()); // seconds
     private static final int appiumServerPreparationPollingInterval = 1; // seconds
     // TODO: implement pass and fail actions to enable initial factory method screenshot and append it to animated GIF
-    private static volatile String TARGET_HUB_URL;
+    private static final ThreadLocal<String> TARGET_HUB_URL = new ThreadLocal<>();
     @Getter(AccessLevel.PUBLIC)
     private static volatile String targetBrowserName = "";
     @Getter(AccessLevel.PUBLIC)
@@ -153,7 +153,7 @@ public class DriverFactoryHelper {
     @SneakyThrows({InterruptedException.class, MalformedURLException.class})
     private static int attemptRemoteServerPing() {
         boolean serverReady = false;
-        var session = new SHAFT.API(normalizeRemoteServerPingBaseUrl(TARGET_HUB_URL));
+        var session = new SHAFT.API(normalizeRemoteServerPingBaseUrl(getTargetHubUrl()));
         var statusCode = 500;
         var startTime = System.currentTimeMillis();
         do {
@@ -192,6 +192,9 @@ public class DriverFactoryHelper {
      * @return normalized base URL with explicit scheme and a trailing slash in path form
      */
     private static String normalizeRemoteServerPingBaseUrl(String remoteServerUrl) throws MalformedURLException {
+        if (remoteServerUrl == null || remoteServerUrl.isBlank()) {
+            throw new MalformedURLException("Remote server URL must not be null or blank.");
+        }
         var normalizedUrl = remoteServerUrl.trim();
         if (!normalizedUrl.toLowerCase(Locale.ROOT).startsWith("http")) {
             normalizedUrl = "http://" + normalizedUrl;
@@ -224,6 +227,9 @@ public class DriverFactoryHelper {
      * @return the URI with user-info replaced by {@code ***:***}, or the original string on parse failure
      */
     private static String redactUriCredentials(String url) {
+        if (url == null) {
+            return "";
+        }
         try {
             URI uri = URI.create(url);
             String userInfo = uri.getUserInfo();
@@ -276,7 +282,10 @@ public class DriverFactoryHelper {
     }
 
     private static WebDriver connectToRemoteServer(Capabilities capabilities) throws URISyntaxException, MalformedURLException {
-        var targetHubUrl = TARGET_HUB_URL;
+        var targetHubUrl = getTargetHubUrl();
+        if (targetHubUrl == null || targetHubUrl.isBlank()) {
+            throw new MalformedURLException("Remote server URL must not be null or blank.");
+        }
         var targetLambdaTestHubURL = targetHubUrl.startsWith("https://")
                 ? targetHubUrl
                 : targetHubUrl.replaceFirst("^http://", "https://");
@@ -334,10 +343,27 @@ public class DriverFactoryHelper {
      */
     public static void initializeSystemProperties() {
         PropertiesHelper.postProcessing();
-        var executionAddress = SHAFT.Properties.platform.executionAddress().trim();
-        TARGET_HUB_URL = executionAddress.toLowerCase(Locale.ROOT).startsWith("http")
+        var executionAddress = SHAFT.Properties.platform.executionAddress();
+        if (executionAddress == null || executionAddress.isBlank()) {
+            setTargetHubUrl(null);
+            return;
+        }
+        executionAddress = executionAddress.trim();
+        setTargetHubUrl(executionAddress.toLowerCase(Locale.ROOT).startsWith("http")
                 ? executionAddress
-                : "http://" + executionAddress;
+                : "http://" + executionAddress);
+    }
+
+    private static String getTargetHubUrl() {
+        return TARGET_HUB_URL.get();
+    }
+
+    private static void setTargetHubUrl(String targetHubUrl) {
+        if (targetHubUrl == null) {
+            TARGET_HUB_URL.remove();
+        } else {
+            TARGET_HUB_URL.set(targetHubUrl);
+        }
     }
 
     /**
@@ -599,7 +625,7 @@ public class DriverFactoryHelper {
             initialLog.append(" | ").append(JavaHelper.convertToSentenceCase(driverType.getValue()));
         }
 
-        initialLog.append(" | ").append(redactUriCredentials(TARGET_HUB_URL)).append("\"");
+        initialLog.append(" | ").append(redactUriCredentials(getTargetHubUrl())).append("\"");
 
         if (SHAFT.Properties.web.headlessExecution() && !Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             initialLog.append(", Headless Execution");
@@ -617,10 +643,10 @@ public class DriverFactoryHelper {
             failAction("Unreachable Browser, terminated test suite execution.", e);
         } catch (WebDriverException e) {
             if (e.getMessage() !=null && e.getMessage().contains("Error forwarding the new session cannot find")) {
-                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + redactUriCredentials(TARGET_HUB_URL) + "\".");
+                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + redactUriCredentials(getTargetHubUrl()) + "\".");
                 failAction("Error forwarding the new session: Couldn't find a node that matches the desired capabilities.", e);
             } else {
-                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + redactUriCredentials(TARGET_HUB_URL) + "\".");
+                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + redactUriCredentials(getTargetHubUrl()) + "\".");
                 failAction("Unhandled Error.", e);
             }
         } catch (NoClassDefFoundError e) {
@@ -634,7 +660,10 @@ public class DriverFactoryHelper {
         if (SHAFT.Properties.timeouts.waitForRemoteServerToBeUp()) {
             ReportManager.logDiscrete("Attempting to connect to remote server for up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + "min.");
             try {
-                TARGET_HUB_URL = TARGET_HUB_URL.contains("0.0.0.0") ? TARGET_HUB_URL.replace("0.0.0.0", "localhost") : TARGET_HUB_URL;
+                var targetHubUrl = getTargetHubUrl();
+                setTargetHubUrl(targetHubUrl != null && targetHubUrl.contains("0.0.0.0")
+                        ? targetHubUrl.replace("0.0.0.0", "localhost")
+                        : targetHubUrl);
                 if (Properties.flags.forceCheckStatusOfRemoteServer()) {
                     var statusCode = attemptRemoteServerPing();
                     ReportManager.logDiscrete("Remote server is online, established successful connection with status code: " + statusCode + ".");
@@ -675,7 +704,7 @@ public class DriverFactoryHelper {
             //this happens when the URL has an unsupported format
             Throwable throwable1 = throwable;
             if (FailureReporter.getRootCause(throwable1).contains("NumberFormatException")) {
-                var newException = new MalformedURLException("Invalid remote server URL `"+TARGET_HUB_URL+"`. Kindly ensure using one of the supported patterns: `local`, `dockerized`, `browserstack`, `host:port`, `http(s)://host:port[/path]`.");
+                var newException = new MalformedURLException("Invalid remote server URL `" + getTargetHubUrl() + "`. Kindly ensure using one of the supported patterns: `local`, `dockerized`, `browserstack`, `host:port`, `http(s)://host:port[/path]`.");
                 newException.addSuppressed(throwable1);
                 throwable1 = newException;
             }

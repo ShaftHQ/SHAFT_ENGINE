@@ -4,16 +4,33 @@ import com.shaft.api.RestActions;
 import com.shaft.api.RestActions.RequestType;
 import com.shaft.validation.Validations;
 import io.restassured.response.Response;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.List;
 import java.util.Objects;
 
 public class RestActionsTests {
+    private LocalApiServer localApiServer;
+    private String localApiBaseUrl;
+
+    @BeforeClass
+    public void startLocalApiServer() {
+        localApiServer = LocalApiServer.start();
+        localApiBaseUrl = localApiServer.baseUrl();
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void stopLocalApiServer() {
+        if (localApiServer != null) {
+            localApiServer.close();
+        }
+    }
 
     @Test
     public void getPostsAndAssertBodyForSpecificTitle() {
-        String serviceURI = "https://jsonplaceholder.typicode.com/";
+        String serviceURI = localApiBaseUrl + "/";
 
 //        Response posts = (new RestActions(serviceURI)).performRequest(RequestType.GET, 200, "posts");
         Response posts = RestActions.buildNewRequest(serviceURI, "posts", RequestType.GET).performRequest().getResponse();
@@ -28,7 +45,7 @@ public class RestActionsTests {
 
     @Test
     public void validateUserEmail() {
-        RestActions apiObject = new RestActions("https://jsonplaceholder.typicode.com");
+        RestActions apiObject = new RestActions(localApiBaseUrl);
         Response users = apiObject.buildNewRequest("/users", RequestType.GET).setTargetStatusCode(200).performRequest().getResponse();
         Validations.assertThat().object(RestActions.getResponseBody(users)).contains("Leanne Graham").perform();
 
@@ -42,7 +59,7 @@ public class RestActionsTests {
 
     @Test
     public void validateUserId() {
-        RestActions apiObject = new RestActions("https://jsonplaceholder.typicode.com");
+        RestActions apiObject = new RestActions(localApiBaseUrl);
         Response users = apiObject.buildNewRequest("/users", RequestType.GET).setTargetStatusCode(200).performRequest().getResponse();
 
         String uerId = RestActions.getResponseJSONValueFromList(users, "$", "id", "name", "Chelsey Dietrich");
@@ -50,12 +67,12 @@ public class RestActionsTests {
     }
 
     @Test
-    public void validateProductId() {
-        RestActions apiObject = new RestActions("https://automationexercise.com/api");
-        Response users = apiObject.buildNewRequest("/productsList", RequestType.GET).setTargetStatusCode(200).performRequest().getResponse();
+    public void validateTodoId() {
+        RestActions apiObject = new RestActions(localApiBaseUrl);
+        Response users = apiObject.buildNewRequest("/todos", RequestType.GET).setTargetStatusCode(200).performRequest().getResponse();
 
-        String productId = RestActions.getResponseJSONValueFromList(users, "$.products", "id", "name", "Men Tshirt");
-        Validations.assertThat().object(productId).isEqualTo("2").perform();
+        String todoId = RestActions.getResponseJSONValueFromList(users, "$", "id", "title", "delectus aut autem");
+        Validations.assertThat().object(todoId).isEqualTo("1").perform();
     }
 
 }

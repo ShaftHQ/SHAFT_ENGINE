@@ -9,9 +9,11 @@ import org.testng.ITestClass;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.List;
 
 import static org.testng.Assert.assertEquals;
@@ -19,10 +21,20 @@ import static org.testng.Assert.assertNull;
 
 public class TestNGListenerCoverageUnitTest {
 
+    @BeforeMethod(alwaysRun = true)
+    public void beforeMethod() throws Exception {
+        clearTrackedMethods("passedTests");
+        clearTrackedMethods("failedTests");
+        clearTrackedMethods("skippedTests");
+    }
+
     @AfterMethod(alwaysRun = true)
     public void afterMethod() throws Exception {
         setReportPortalEnabled(false);
         TestNGListenerHelper.setPendingConfigFailure(null);
+        clearTrackedMethods("passedTests");
+        clearTrackedMethods("failedTests");
+        clearTrackedMethods("skippedTests");
         com.shaft.properties.internal.Properties.clearForCurrentThread();
     }
 
@@ -130,27 +142,69 @@ public class TestNGListenerCoverageUnitTest {
         }
     }
 
+    @Test
+    public void deduplicatedExecutionCountsShouldKeepFinalFailuresAlignedWithIssueSummary() throws Exception {
+        ITestNGMethod passedOnly = createTestMethod("passedOnly");
+        ITestNGMethod flakyThenPassed = createTestMethod("flakyThenPassed");
+        ITestNGMethod failedOnly = createTestMethod("failedOnly");
+        ITestNGMethod skippedOnly = createTestMethod("skippedOnly");
+
+        getTrackedMethods("passedTests").addAll(List.of(passedOnly, flakyThenPassed));
+        getTrackedMethods("failedTests").addAll(List.of(flakyThenPassed, failedOnly, failedOnly));
+        getTrackedMethods("skippedTests").addAll(List.of(skippedOnly, failedOnly));
+
+        Method getDeduplicatedTestExecutionCounts = TestNGListener.class.getDeclaredMethod("getDeduplicatedTestExecutionCounts");
+        getDeduplicatedTestExecutionCounts.setAccessible(true);
+        Object counts = getDeduplicatedTestExecutionCounts.invoke(null);
+
+        assertEquals(invokeCount(counts, "passed"), 1);
+        assertEquals(invokeCount(counts, "failed"), 1);
+        assertEquals(invokeCount(counts, "skipped"), 1);
+        assertEquals(invokeCount(counts, "flaky"), 1);
+        assertEquals(invokeCount(counts, "finalPassed"), 2);
+    }
+
     @SuppressWarnings("unchecked")
     private static void removeTrackedMethod(String fieldName, ITestNGMethod testMethod) throws Exception {
+        getTrackedMethods(fieldName).remove(testMethod);
+    }
+
+    private static void clearTrackedMethods(String fieldName) throws Exception {
+        getTrackedMethods(fieldName).clear();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<ITestNGMethod> getTrackedMethods(String fieldName) throws Exception {
         Field trackedMethodsField = TestNGListener.class.getDeclaredField(fieldName);
         trackedMethodsField.setAccessible(true);
-        ((List<ITestNGMethod>) trackedMethodsField.get(null)).remove(testMethod);
+        return (List<ITestNGMethod>) trackedMethodsField.get(null);
     }
 
     private static ITestResult createTestResult(String methodName, Throwable throwable) {
         ITestResult testResult = Mockito.mock(ITestResult.class);
-        ITestNGMethod testMethod = Mockito.mock(ITestNGMethod.class);
+        ITestNGMethod testMethod = createTestMethod(methodName);
         ITestClass testClass = Mockito.mock(ITestClass.class);
 
-        Mockito.when(testMethod.getMethodName()).thenReturn(methodName);
-        Mockito.when(testMethod.getQualifiedName()).thenReturn("testPackage.unitTests.TestNGListenerCoverageUnitTest." + methodName);
-        Mockito.when(testMethod.getDescription()).thenReturn("description");
         Mockito.when(testResult.getMethod()).thenReturn(testMethod);
         Mockito.when(testResult.getTestClass()).thenReturn(testClass);
         Mockito.when(testClass.getName()).thenReturn("testPackage.unitTests.TestNGListenerCoverageUnitTest");
         Mockito.when(testResult.getThrowable()).thenReturn(throwable);
 
         return testResult;
+    }
+
+    private static ITestNGMethod createTestMethod(String methodName) {
+        ITestNGMethod testMethod = Mockito.mock(ITestNGMethod.class);
+        Mockito.when(testMethod.getMethodName()).thenReturn(methodName);
+        Mockito.when(testMethod.getQualifiedName()).thenReturn("testPackage.unitTests.TestNGListenerCoverageUnitTest." + methodName);
+        Mockito.when(testMethod.getDescription()).thenReturn("description");
+        return testMethod;
+    }
+
+    private static int invokeCount(Object counts, String methodName) throws Exception {
+        Method method = counts.getClass().getDeclaredMethod(methodName);
+        method.setAccessible(true);
+        return (int) method.invoke(counts);
     }
 
     private static void setReportPortalEnabled(boolean value) throws Exception {

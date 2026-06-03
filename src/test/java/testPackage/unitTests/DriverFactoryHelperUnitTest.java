@@ -6,7 +6,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 
@@ -148,6 +147,16 @@ public class DriverFactoryHelperUnitTest {
         SHAFT.Validations.assertThat().object(result).isEqualTo("http://localhost:4723/wd/hub").perform();
     }
 
+    @Test(description = "redactUriCredentials should tolerate null URL values")
+    public void redactUriCredentials_nullUrl() throws Exception {
+        Method redactMethod = DriverFactoryHelper.class.getDeclaredMethod("redactUriCredentials", String.class);
+        redactMethod.setAccessible(true);
+
+        String result = (String) redactMethod.invoke(null, new Object[]{null});
+
+        SHAFT.Validations.assertThat().object(result).isEqualTo("").perform();
+    }
+
     @Test(description = "normalizeRemoteServerPingBaseUrl should throw MalformedURLException for an empty authority URL")
     public void normalizeRemoteServerPingBaseUrl_throwsForMalformedUrl() throws Exception {
         Method normalizeRemoteServerPingBaseUrlMethod = DriverFactoryHelper.class.getDeclaredMethod("normalizeRemoteServerPingBaseUrl", String.class);
@@ -172,9 +181,9 @@ public class DriverFactoryHelperUnitTest {
         SHAFT.Validations.assertThat().object(result).isEqualTo(malformedUrl).perform();
     }
 
-    private static String getTargetHubUrl() throws NoSuchFieldException, IllegalAccessException {
-        Field targetHubUrlField = DriverFactoryHelper.class.getDeclaredField("TARGET_HUB_URL");
-        targetHubUrlField.setAccessible(true);
-        return (String) targetHubUrlField.get(null);
+    private static String getTargetHubUrl() throws Exception {
+        Method getTargetHubUrl = DriverFactoryHelper.class.getDeclaredMethod("getTargetHubUrl");
+        getTargetHubUrl.setAccessible(true);
+        return (String) getTargetHubUrl.invoke(null);
     }
 }
