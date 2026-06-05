@@ -14,6 +14,7 @@ import com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesExcep
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.properties.internal.Properties;
 import nu.pattern.OpenCV;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
@@ -38,6 +39,7 @@ import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -52,45 +54,25 @@ import static org.mockito.Mockito.when;
 
 public class ImageProcessingActionsCoverageUnitTest {
     private static final FileActions FILE_ACTIONS = FileActions.getInstance(true);
-    private static final Path TEMP_DIR = Path.of("target", "temp", "imageProcessingActionsCoverageUnitTest");
+    private static final Path TEMP_ROOT = Path.of("target", "temp", "imageProcessingActionsCoverageUnitTest");
 
-    private String originalTargetPlatform;
-    private String originalMobileBrowserName;
-    private String originalMobileAppPackage;
-    private double originalScalingFactor;
-    private double originalVisualMatchingThreshold;
-    private boolean originalDebugMode;
-    private String originalHighlightMethod;
+    private Path tempDir;
 
     @BeforeMethod(alwaysRun = true)
-    public void beforeMethod() throws Exception {
-        FILE_ACTIONS.deleteFolder(TEMP_DIR.toString());
-        FILE_ACTIONS.createFolder(TEMP_DIR.toString());
-        clearLocatorHashCache();
-        setAiFolderPath(TEMP_DIR.toAbsolutePath() + File.separator);
-
-        originalTargetPlatform = SHAFT.Properties.platform.targetPlatform();
-        originalMobileBrowserName = SHAFT.Properties.mobile.browserName();
-        originalMobileAppPackage = SHAFT.Properties.mobile.appPackage();
-        originalScalingFactor = SHAFT.Properties.visuals.screenshotParamsScalingFactor();
-        originalVisualMatchingThreshold = SHAFT.Properties.visuals.visualMatchingThreshold();
-        originalDebugMode = SHAFT.Properties.reporting.debugMode();
-        originalHighlightMethod = SHAFT.Properties.visuals.screenshotParamsHighlightMethod();
+    public void beforeMethod(Method method) throws Exception {
+        tempDir = TEMP_ROOT.resolve(method.getName() + "-" + Thread.currentThread().threadId());
+        FILE_ACTIONS.deleteFolder(tempDir.toString());
+        FILE_ACTIONS.createFolder(tempDir.toString());
+        setAiFolderPath(tempDir.toAbsolutePath() + File.separator);
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() throws Exception {
-        SHAFT.Properties.platform.set().targetPlatform(originalTargetPlatform);
-        SHAFT.Properties.mobile.set().browserName(originalMobileBrowserName);
-        SHAFT.Properties.mobile.set().appPackage(originalMobileAppPackage);
-        SHAFT.Properties.visuals.set().screenshotParamsScalingFactor(originalScalingFactor);
-        SHAFT.Properties.visuals.set().visualMatchingThreshold(originalVisualMatchingThreshold);
-        SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod(originalHighlightMethod);
-        SHAFT.Properties.reporting.set().debugMode(originalDebugMode);
-
-        setAiFolderPath("");
-        clearLocatorHashCache();
-        FILE_ACTIONS.deleteFolder(TEMP_DIR.toString());
+        setAiFolderPath(null);
+        if (tempDir != null) {
+            FILE_ACTIONS.deleteFolder(tempDir.toString());
+        }
+        Properties.clearForCurrentThread();
     }
 
     @Test
@@ -118,7 +100,7 @@ public class ImageProcessingActionsCoverageUnitTest {
 
         Assert.assertEquals(secondHash, firstHash);
         Assert.assertEquals(firstHash.length(), 64);
-        Assert.assertEquals(getLocatorHashCache().size(), 1);
+        Assert.assertTrue(getLocatorHashCache().containsValue(firstHash));
     }
 
     @Test(dataProvider = "highlightPlatforms")
@@ -165,7 +147,7 @@ public class ImageProcessingActionsCoverageUnitTest {
     public void findImageWithinCurrentPageShouldReturnCoordinatesWhenReferenceIsCroppedFromScreenshot() {
         byte[] screenshot = createPatternPng(64, 64, 16, 18, 18, 14, Color.ORANGE);
         byte[] croppedReference = createPng(18, 14, Color.ORANGE);
-        Path referenceImage = TEMP_DIR.resolve("cropped-reference.png");
+        Path referenceImage = tempDir.resolve("cropped-reference.png");
         FILE_ACTIONS.writeToFile(referenceImage.toString(), croppedReference);
 
         List<Integer> coordinates = ImageProcessingActions.findImageWithinCurrentPage(referenceImage.toString(), screenshot);
@@ -176,7 +158,7 @@ public class ImageProcessingActionsCoverageUnitTest {
 
     @Test
     public void findImageWithinCurrentPageShouldReturnEmptyForInvalidOrEmptyInputs() {
-        Path invalidReference = TEMP_DIR.resolve("invalid-reference.png");
+        Path invalidReference = tempDir.resolve("invalid-reference.png");
         FILE_ACTIONS.writeToFile(invalidReference.toString(), "invalid-image");
 
         Assert.assertTrue(ImageProcessingActions.findImageWithinCurrentPage(invalidReference.toString(), createPng(10, 10, Color.BLACK)).isEmpty());
@@ -188,7 +170,7 @@ public class ImageProcessingActionsCoverageUnitTest {
     public void findImageWithinCurrentPageShouldRespectThresholdForNegativeComparison() {
         double impossibleThreshold = 1.1;
         SHAFT.Properties.visuals.set().visualMatchingThreshold(impossibleThreshold);
-        Path referenceImage = TEMP_DIR.resolve("threshold-reference.png");
+        Path referenceImage = tempDir.resolve("threshold-reference.png");
         byte[] screenshot = createPatternPng(30, 30, 4, 4, 8, 8, Color.CYAN);
         FILE_ACTIONS.writeToFile(referenceImage.toString(), createPng(8, 8, Color.CYAN));
 
@@ -205,8 +187,8 @@ public class ImageProcessingActionsCoverageUnitTest {
         Assert.assertNull(ImageProcessingActions.getReferenceImage(locator));
         Assert.assertEquals(ImageProcessingActions.getShutterbugDifferencesImage(locator), new byte[0]);
 
-        FILE_ACTIONS.writeToFile(TEMP_DIR.resolve(hashed + ".png").toString(), referenceBytes);
-        FILE_ACTIONS.writeToFile(TEMP_DIR.resolve(hashed + "_shutterbug.png").toString(), diffBytes);
+        FILE_ACTIONS.writeToFile(tempDir.resolve(hashed + ".png").toString(), referenceBytes);
+        FILE_ACTIONS.writeToFile(tempDir.resolve(hashed + "_shutterbug.png").toString(), diffBytes);
 
         Assert.assertEquals(ImageProcessingActions.getReferenceImage(locator), referenceBytes);
         Assert.assertEquals(ImageProcessingActions.getShutterbugDifferencesImage(locator), diffBytes);
@@ -218,11 +200,11 @@ public class ImageProcessingActionsCoverageUnitTest {
         By locator = By.id("resolved-folder");
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
         byte[] referenceBytes = createPng(6, 6, Color.GREEN);
-        FILE_ACTIONS.writeToFile(TEMP_DIR.resolve(hashed + ".png").toString(), referenceBytes);
+        FILE_ACTIONS.writeToFile(tempDir.resolve(hashed + ".png").toString(), referenceBytes);
 
         try (MockedStatic<ScreenshotHelper> screenshotHelperMocked = Mockito.mockStatic(ScreenshotHelper.class)) {
             screenshotHelperMocked.when(ScreenshotHelper::getAiAidedElementIdentificationFolderPath)
-                    .thenReturn(TEMP_DIR.toAbsolutePath() + File.separator);
+                    .thenReturn(tempDir.toAbsolutePath() + File.separator);
 
             Assert.assertEquals(ImageProcessingActions.getReferenceImage(locator), referenceBytes);
         }
@@ -238,7 +220,7 @@ public class ImageProcessingActionsCoverageUnitTest {
 
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
         Assert.assertTrue(result);
-        Assert.assertTrue(FILE_ACTIONS.doesFileExist(TEMP_DIR.resolve(hashed + ".png").toString()));
+        Assert.assertTrue(FILE_ACTIONS.doesFileExist(tempDir.resolve(hashed + ".png").toString()));
     }
 
     @Test
@@ -246,14 +228,14 @@ public class ImageProcessingActionsCoverageUnitTest {
         By matchingLocator = By.id("existing-open-cv-match");
         String matchingHash = ImageProcessingActions.formatElementLocatorToImagePath(matchingLocator);
         byte[] reference = createPng(20, 20, Color.GRAY);
-        FILE_ACTIONS.writeToFile(TEMP_DIR.resolve(matchingHash + ".png").toString(), reference);
+        FILE_ACTIONS.writeToFile(tempDir.resolve(matchingHash + ".png").toString(), reference);
 
         Assert.assertTrue(ImageProcessingActions.compareAgainstBaseline(mock(WebDriver.class), matchingLocator, reference,
                 ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV));
 
         By failingLocator = By.id("existing-open-cv-mismatch");
         String failingHash = ImageProcessingActions.formatElementLocatorToImagePath(failingLocator);
-        FILE_ACTIONS.writeToFile(TEMP_DIR.resolve(failingHash + ".png").toString(), reference);
+        FILE_ACTIONS.writeToFile(tempDir.resolve(failingHash + ".png").toString(), reference);
 
         Assert.assertFalse(ImageProcessingActions.compareAgainstBaseline(mock(WebDriver.class), failingLocator, new byte[0],
                 ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV));
@@ -269,7 +251,7 @@ public class ImageProcessingActionsCoverageUnitTest {
 
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
         Assert.assertTrue(result);
-        Assert.assertTrue(FILE_ACTIONS.doesFileExist(TEMP_DIR.resolve(hashed + ".png").toString()));
+        Assert.assertTrue(FILE_ACTIONS.doesFileExist(tempDir.resolve(hashed + ".png").toString()));
     }
 
     @Test
@@ -277,13 +259,13 @@ public class ImageProcessingActionsCoverageUnitTest {
         By positiveLocator = By.id("existing-shutterbug-positive");
         String positiveHash = ImageProcessingActions.formatElementLocatorToImagePath(positiveLocator);
         byte[] screenshot = createPng(12, 12, Color.MAGENTA);
-        FILE_ACTIONS.writeToFile(TEMP_DIR.resolve(positiveHash + ".png").toString(), screenshot);
+        FILE_ACTIONS.writeToFile(tempDir.resolve(positiveHash + ".png").toString(), screenshot);
         ElementSnapshot positiveSnapshot = mock(ElementSnapshot.class);
         when(positiveSnapshot.equalsWithDiff(anyString(), anyString(), anyDouble())).thenReturn(true);
 
         By negativeLocator = By.id("existing-shutterbug-io-negative");
         String negativeHash = ImageProcessingActions.formatElementLocatorToImagePath(negativeLocator);
-        FILE_ACTIONS.writeToFile(TEMP_DIR.resolve(negativeHash + ".png").toString(), screenshot);
+        FILE_ACTIONS.writeToFile(tempDir.resolve(negativeHash + ".png").toString(), screenshot);
         ElementSnapshot negativeSnapshot = mock(ElementSnapshot.class);
         when(negativeSnapshot.equalsWithDiff(anyString(), anyString(), anyDouble())).thenThrow(new java.io.IOException("forced"));
 
@@ -305,7 +287,7 @@ public class ImageProcessingActionsCoverageUnitTest {
         By locator = By.id("fallback-shutterbug");
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
         byte[] screenshot = createPng(12, 12, Color.CYAN);
-        FILE_ACTIONS.writeToFile(TEMP_DIR.resolve(hashed + ".png").toString(), screenshot);
+        FILE_ACTIONS.writeToFile(tempDir.resolve(hashed + ".png").toString(), screenshot);
 
         ElementSnapshot snapshot = mock(ElementSnapshot.class);
         when(snapshot.equalsWithDiff(anyString(), anyString(), anyDouble()))
@@ -325,7 +307,7 @@ public class ImageProcessingActionsCoverageUnitTest {
         By locator = By.id("fallback-unsupported-command");
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
         byte[] screenshot = createPng(12, 12, Color.BLUE);
-        FILE_ACTIONS.writeToFile(TEMP_DIR.resolve(hashed + ".png").toString(), screenshot);
+        FILE_ACTIONS.writeToFile(tempDir.resolve(hashed + ".png").toString(), screenshot);
 
         ElementSnapshot snapshot = mock(ElementSnapshot.class);
         when(snapshot.equalsWithDiff(anyString(), anyString(), anyDouble()))
@@ -393,8 +375,8 @@ public class ImageProcessingActionsCoverageUnitTest {
 
     @Test
     public void compareImageFoldersShouldHandleMatchingMismatchingAndInvalidFolders() {
-        Path matchingReference = TEMP_DIR.resolve("matching-reference");
-        Path matchingTest = TEMP_DIR.resolve("matching-test");
+        Path matchingReference = tempDir.resolve("matching-reference");
+        Path matchingTest = tempDir.resolve("matching-test");
         FILE_ACTIONS.createFolder(matchingReference.toString());
         FILE_ACTIONS.createFolder(matchingTest.toString());
         byte[] image = createPng(16, 16, Color.BLUE);
@@ -404,8 +386,8 @@ public class ImageProcessingActionsCoverageUnitTest {
         ImageProcessingActions.compareImageFolders(matchingReference.toString(), matchingTest.toString(), 100);
         Assert.assertFalse(FILE_ACTIONS.doesFileExist(matchingTest.resolve("failedImagesDirectory").toString()));
 
-        Path resizedReference = TEMP_DIR.resolve("resized-reference");
-        Path resizedTest = TEMP_DIR.resolve("resized-test");
+        Path resizedReference = tempDir.resolve("resized-reference");
+        Path resizedTest = tempDir.resolve("resized-test");
         FILE_ACTIONS.createFolder(resizedReference.toString());
         FILE_ACTIONS.createFolder(resizedTest.toString());
         FILE_ACTIONS.writeToFile(resizedReference.resolve("one.png").toString(), createPng(16, 16, Color.BLUE));
@@ -444,14 +426,16 @@ public class ImageProcessingActionsCoverageUnitTest {
         return (Map<String, String>) mapField.get(null);
     }
 
-    private static void clearLocatorHashCache() throws Exception {
-        getLocatorHashCache().clear();
-    }
-
     private static void setAiFolderPath(String value) throws Exception {
-        Field aiFolderPath = ImageProcessingActions.class.getDeclaredField("aiFolderPath");
-        aiFolderPath.setAccessible(true);
-        aiFolderPath.set(null, value);
+        Field aiFolderPathField = ImageProcessingActions.class.getDeclaredField("aiFolderPath");
+        aiFolderPathField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        ThreadLocal<String> aiFolderPath = (ThreadLocal<String>) aiFolderPathField.get(null);
+        if (value == null) {
+            aiFolderPath.remove();
+        } else {
+            aiFolderPath.set(value);
+        }
     }
 
     private static byte[] createPng(int width, int height, Color color) {

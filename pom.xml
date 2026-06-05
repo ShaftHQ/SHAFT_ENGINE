@@ -43,7 +43,7 @@
         <junit.bom.version>6.1.0</junit.bom.version>
         <allure.bom.version>2.35.2</allure.bom.version>
         <cucumber.bom.version>7.34.3</cucumber.bom.version>
-        <jackson.version>2.21.4</jackson.version>
+        <jackson.version>2.22.0</jackson.version>
         <jackson.annotations.version>2.22</jackson.annotations.version>
         <selenium.version>4.44.0</selenium.version>
         <slf4j.version>2.0.18</slf4j.version>
@@ -51,7 +51,7 @@
         <protobuf.version>4.35.0</protobuf.version>
         <google.auth.library.version>1.47.0</google.auth.library.version>
         <kotlin.version>2.4.0</kotlin.version>
-        <netty.version>4.2.14.Final</netty.version>
+        <netty.version>4.2.15.Final</netty.version>
         <!-- Dependency Versions -->
         <log4j2.version>2.26.0</log4j2.version>
         <testng.version>7.12.0</testng.version>
@@ -80,7 +80,7 @@
         <proto.google.common.protos.version>2.71.0</proto.google.common.protos.version>
         <proto.google.cloud.kms.v1.version>0.186.0</proto.google.cloud.kms.v1.version>
         <error.prone.annotations.version>2.49.0</error.prone.annotations.version>
-        <checker.qual.version>4.1.0</checker.qual.version>
+        <checker.qual.version>4.2.0</checker.qual.version>
         <animal.sniffer.annotations.version>1.27</animal.sniffer.annotations.version>
         <httpcore.version>4.4.16</httpcore.version>
         <owner.version>1.0.12</owner.version>
@@ -999,7 +999,7 @@
         <dependency>
             <groupId>com.browserstack</groupId>
             <artifactId>browserstack-java-sdk</artifactId>
-            <version>1.59.5</version>
+            <version>1.59.6</version>
             <scope>runtime</scope>
             <exclusions>
                 <!-- Rely on SHAFT-controlled direct dependencies to avoid old transitive duplicates -->
