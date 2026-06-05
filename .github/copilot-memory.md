@@ -86,3 +86,10 @@ Purpose: keep high-signal, reusable learnings from implementation sessions in on
 - Lesson: Never emit top-level `enableVideo`; keep video configuration in namespaced capability payloads only (`selenoid:options`, `moon:options`, `se:recordVideo`). When namespaced maps already exist, merge and preserve existing keys instead of overwriting provider options.
 - Evidence: `src/main/java/com/shaft/driver/internal/DriverFactory/OptionsManager.java`, `src/test/java/com/shaft/driver/internal/DriverFactory/OptionsManagerCoverageUnitTest.java`, `AGENTS.md`.
 - Action taken: Added helper-based namespaced capability merging in `OptionsManager`, kept tests aligned with no top-level `enableVideo`, and added durable guidance to `AGENTS.md`.
+
+- Date: 2026-06-05
+- Area: TestNG parallelism / Selenium Grid E2E triage / image test isolation
+- Trigger: E2E run `27004138692` had one `Ubuntu_MicrosoftEdge_Grid` BROKEN result in `ImageProcessingActionsUnitTest.compareImageFoldersShouldPassWhenImagesAreIdentical`.
+- Lesson: In TestNG `setParallel=METHODS`, ordinary instance fields are shared by concurrently running methods in the same class. If `@BeforeMethod` writes a per-method temp path to a shared field and `@AfterMethod` deletes from that field, another method can delete files still being read, surfacing as misleading image IO errors such as `javax.imageio.IIOException: Can't create an ImageInputStream!`. Use `ThreadLocal` for per-method temp paths or serialize classes that intentionally mutate shared/static state. Also inspect retried/skipped Allure result JSON and adjacent job logs, because the final summary can pass after retries while exposing the race.
+- Evidence: `src/test/java/testPackage/unitTests/ImageProcessingActionsUnitTest.java`, `.github/workflows/e2eTests.yml`, run `27004138692`.
+- Action taken: Converted the test temp directory state to `ThreadLocal`, added CI/test instruction guidance, and validated with the Edge Grid workflow properties.
