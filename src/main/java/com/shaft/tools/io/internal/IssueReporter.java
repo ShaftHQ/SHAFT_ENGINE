@@ -33,7 +33,7 @@ public class IssueReporter {
     }
 
     public static void updateIssuesLog(ITestResult testResult) {
-        if (testResult != null) {
+        if (testResult != null && !testResult.wasRetried()) {
             ITestNGMethod testMethod = testResult.getMethod();
             if (testResult.getStatus() == ITestResult.SUCCESS) {
                 // if test passed

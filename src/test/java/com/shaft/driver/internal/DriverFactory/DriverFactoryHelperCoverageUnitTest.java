@@ -75,7 +75,7 @@ public class DriverFactoryHelperCoverageUnitTest {
                 .disableCache(savedDisableCache)
                 .autoMaximizeBrowserWindow(savedAutoMaximizeBrowserWindow);
         resetStaticField("targetBrowserName", "");
-        resetStaticField("TARGET_HUB_URL", null);
+        setTargetHubUrl(null);
         removeWebDriverManagerThreadLocal();
         Properties.clearForCurrentThread();
     }
@@ -104,6 +104,18 @@ public class DriverFactoryHelperCoverageUnitTest {
         Field killSwitchField = DriverFactoryHelper.class.getDeclaredField("killSwitch");
         killSwitchField.setAccessible(true);
         killSwitchField.setBoolean(null, value);
+    }
+
+    private static String getTargetHubUrl() throws Exception {
+        Method getTargetHubUrlMethod = DriverFactoryHelper.class.getDeclaredMethod("getTargetHubUrl");
+        getTargetHubUrlMethod.setAccessible(true);
+        return (String) getTargetHubUrlMethod.invoke(null);
+    }
+
+    private static void setTargetHubUrl(String value) throws Exception {
+        Method setTargetHubUrlMethod = DriverFactoryHelper.class.getDeclaredMethod("setTargetHubUrl", String.class);
+        setTargetHubUrlMethod.setAccessible(true);
+        setTargetHubUrlMethod.invoke(null, new Object[]{value});
     }
 
     @Test
@@ -614,9 +626,7 @@ public class DriverFactoryHelperCoverageUnitTest {
         SHAFT.Properties.platform.set().targetPlatform(ThreadLocalPropertiesManager.getProperty("targetOperatingSystem"));
         SHAFT.Properties.mobile.set().browserName(ThreadLocalPropertiesManager.getProperty("browserName"));
         DriverFactoryHelper.initializeSystemProperties();
-        Field targetHubUrl = DriverFactoryHelper.class.getDeclaredField("TARGET_HUB_URL");
-        targetHubUrl.setAccessible(true);
-        SHAFT.Validations.assertThat().object(targetHubUrl.get(null)).isEqualTo("http://grid.example.test:4444").perform();
+        SHAFT.Validations.assertThat().object(getTargetHubUrl()).isEqualTo("http://grid.example.test:4444").perform();
         SHAFT.Validations.assertThat().object(DriverFactoryHelper.isMobileWebExecution()).isEqualTo(true).perform();
     }
 
@@ -761,7 +771,7 @@ public class DriverFactoryHelperCoverageUnitTest {
         });
         server.start();
         try {
-            resetStaticField("TARGET_HUB_URL", "http://127.0.0.1:" + server.getAddress().getPort() + "/wd/hub");
+            setTargetHubUrl("http://127.0.0.1:" + server.getAddress().getPort() + "/wd/hub");
             Method attemptRemoteServerPing = DriverFactoryHelper.class.getDeclaredMethod("attemptRemoteServerPing");
             attemptRemoteServerPing.setAccessible(true);
             SHAFT.Validations.assertThat().object(attemptRemoteServerPing.invoke(null)).isEqualTo(200).perform();

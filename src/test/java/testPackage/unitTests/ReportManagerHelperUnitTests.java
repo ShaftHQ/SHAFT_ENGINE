@@ -3,8 +3,11 @@ package testPackage.unitTests;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
+import com.shaft.tools.io.internal.IssueReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.logging.log4j.Level;
+import org.mockito.Mockito;
+import org.testng.ITestResult;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -63,6 +66,18 @@ public class ReportManagerHelperUnitTests {
         String issuesSummary = ReportManagerHelper.prepareIssuesLog();
 
         SHAFT.Validations.assertThat().object(issuesSummary).isEqualTo("").perform();
+        SHAFT.Validations.assertThat().object(ReportManagerHelper.getIssueCounter()).isEqualTo(0).perform();
+    }
+
+    @Test
+    public void issueReporterShouldNotLogRetriedFailureAttempts() {
+        ITestResult retriedFailure = Mockito.mock(ITestResult.class);
+        Mockito.when(retriedFailure.wasRetried()).thenReturn(true);
+        Mockito.when(retriedFailure.getStatus()).thenReturn(ITestResult.FAILURE);
+
+        IssueReporter.updateIssuesLog(retriedFailure);
+
+        SHAFT.Validations.assertThat().object(ReportManagerHelper.prepareIssuesLog()).isEqualTo("").perform();
         SHAFT.Validations.assertThat().object(ReportManagerHelper.getIssueCounter()).isEqualTo(0).perform();
     }
 
