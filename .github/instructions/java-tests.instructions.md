@@ -16,6 +16,8 @@ These examples use **TestNG** (the primary framework). For JUnit5, adapt annotat
 ### Thread Safety for Parallel Execution
 - Wrap driver instances in `ThreadLocal<SHAFT.GUI.WebDriver>` when the class is designed for parallel runs
 - Never share a single driver instance across test methods
+- Do not store per-method temporary paths, files, drivers, mocks, or mutable setup data in ordinary instance fields when `setParallel=METHODS` can run the class in parallel. Use `ThreadLocal`, local variables passed through helper methods, or `@Test(singleThreaded = true)` when the class intentionally mutates static/shared state.
+- For tests that create files in `@BeforeMethod` and delete them in `@AfterMethod(alwaysRun = true)`, make cleanup read the current thread's setup state and clear that state after deletion. A shared field can let one method delete another method's files and surface later as misleading image/file IO failures.
 
 ### Assertions
 - Always use SHAFT's fluent assertion API: `driver.assertThat()...perform()`

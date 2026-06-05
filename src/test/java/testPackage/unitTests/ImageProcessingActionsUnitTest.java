@@ -39,20 +39,23 @@ import java.util.Map;
 public class ImageProcessingActionsUnitTest {
     private static final FileActions testFileActions = FileActions.getInstance(true);
     private static final Path TEMP_ROOT = Path.of("target", "temp", "imageProcessingUnitTests");
-    private Path tempDir;
+    private final ThreadLocal<Path> tempDir = new ThreadLocal<>();
 
     @BeforeMethod(alwaysRun = true)
     public void setup(Method method) throws Exception {
-        tempDir = TEMP_ROOT.resolve(method.getName() + "-" + Thread.currentThread().threadId());
-        testFileActions.deleteFolder(tempDir.toString());
-        testFileActions.createFolder(tempDir.toString());
-        setAiFolderPath(tempDir.toAbsolutePath().toString() + File.separator);
+        Path methodTempDir = TEMP_ROOT.resolve(method.getName() + "-" + Thread.currentThread().threadId());
+        tempDir.set(methodTempDir);
+        testFileActions.deleteFolder(methodTempDir.toString());
+        testFileActions.createFolder(methodTempDir.toString());
+        setAiFolderPath(methodTempDir.toAbsolutePath().toString() + File.separator);
     }
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
-        if (tempDir != null) {
-            testFileActions.deleteFolder(tempDir.toString());
+        Path methodTempDir = tempDir.get();
+        if (methodTempDir != null) {
+            testFileActions.deleteFolder(methodTempDir.toString());
+            tempDir.remove();
         }
         setAiFolderPath(null);
         Properties.clearForCurrentThread();
@@ -74,7 +77,7 @@ public class ImageProcessingActionsUnitTest {
         By locator = By.id("avatar");
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
         byte[] imageBytes = "img".getBytes(StandardCharsets.UTF_8);
-        testFileActions.writeToFile(tempDir.resolve(hashed + ".png").toString(), imageBytes);
+        testFileActions.writeToFile(tempDir().resolve(hashed + ".png").toString(), imageBytes);
 
         Assert.assertEquals(ImageProcessingActions.getReferenceImage(locator), imageBytes);
         Assert.assertEquals(ImageProcessingActions.getShutterbugDifferencesImage(locator), new byte[0]);
@@ -88,11 +91,11 @@ public class ImageProcessingActionsUnitTest {
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
         byte[] imageBytes = "img".getBytes(StandardCharsets.UTF_8);
         byte[] shutterbugBytes = "diff".getBytes(StandardCharsets.UTF_8);
-        testFileActions.writeToFile(tempDir.resolve(hashed + ".png").toString(), imageBytes);
-        testFileActions.writeToFile(tempDir.resolve(hashed + "_shutterbug.png").toString(), shutterbugBytes);
+        testFileActions.writeToFile(tempDir().resolve(hashed + ".png").toString(), imageBytes);
+        testFileActions.writeToFile(tempDir().resolve(hashed + "_shutterbug.png").toString(), shutterbugBytes);
 
         try (MockedStatic<ScreenshotHelper> screenshotHelperMock = org.mockito.Mockito.mockStatic(ScreenshotHelper.class)) {
-            screenshotHelperMock.when(ScreenshotHelper::getAiAidedElementIdentificationFolderPath).thenReturn(tempDir.toAbsolutePath().toString() + File.separator);
+            screenshotHelperMock.when(ScreenshotHelper::getAiAidedElementIdentificationFolderPath).thenReturn(tempDir().toAbsolutePath().toString() + File.separator);
             Assert.assertEquals(ImageProcessingActions.getReferenceImage(locator), imageBytes);
             Assert.assertEquals(ImageProcessingActions.getShutterbugDifferencesImage(locator), shutterbugBytes);
         }
@@ -111,7 +114,7 @@ public class ImageProcessingActionsUnitTest {
 
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
         Assert.assertTrue(result);
-        Assert.assertTrue(testFileActions.doesFileExist(tempDir.resolve(hashed + ".png").toString()));
+        Assert.assertTrue(testFileActions.doesFileExist(tempDir().resolve(hashed + ".png").toString()));
     }
 
     @Test
@@ -121,8 +124,8 @@ public class ImageProcessingActionsUnitTest {
 
     @Test
     public void compareImageFoldersShouldFailWhenFolderCountsMismatch() {
-        Path reference = tempDir.resolve("reference");
-        Path test = tempDir.resolve("test");
+        Path reference = tempDir().resolve("reference");
+        Path test = tempDir().resolve("test");
         testFileActions.createFolder(reference.toString());
         testFileActions.createFolder(test.toString());
         testFileActions.writeToFile(reference.resolve("one.txt").toString(), "1");
@@ -131,8 +134,8 @@ public class ImageProcessingActionsUnitTest {
 
     @Test
     public void compareImageFoldersShouldPassWhenImagesAreIdentical() {
-        Path reference = tempDir.resolve("reference-pass");
-        Path test = tempDir.resolve("test-pass");
+        Path reference = tempDir().resolve("reference-pass");
+        Path test = tempDir().resolve("test-pass");
         testFileActions.createFolder(reference.toString());
         testFileActions.createFolder(test.toString());
 
@@ -146,7 +149,7 @@ public class ImageProcessingActionsUnitTest {
 
     @Test
     public void findImageWithinCurrentPageShouldReturnCoordinatesWhenImageMatches() {
-        Path referenceImage = tempDir.resolve("reference-image.png");
+        Path referenceImage = tempDir().resolve("reference-image.png");
         byte[] screenshot = createPng(30, 30, Color.GREEN);
         testFileActions.writeToFile(referenceImage.toString(), screenshot);
 
@@ -157,7 +160,7 @@ public class ImageProcessingActionsUnitTest {
     public void compareAgainstBaselineExactOpenCvShouldFailForDifferentImagesWhenReferenceExists() {
         By locator = By.id("differentElement");
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
-        testFileActions.writeToFile(tempDir.resolve(hashed + ".png").toString(), createPng(30, 30, Color.YELLOW));
+        testFileActions.writeToFile(tempDir().resolve(hashed + ".png").toString(), createPng(30, 30, Color.YELLOW));
 
         boolean result = ImageProcessingActions.compareAgainstBaseline(
                 org.mockito.Mockito.mock(WebDriver.class),
@@ -184,7 +187,7 @@ public class ImageProcessingActionsUnitTest {
 
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
         Assert.assertTrue(result);
-        Assert.assertTrue(testFileActions.doesFileExist(tempDir.resolve(hashed + ".png").toString()));
+        Assert.assertTrue(testFileActions.doesFileExist(tempDir().resolve(hashed + ".png").toString()));
     }
 
     @Test
@@ -223,7 +226,7 @@ public class ImageProcessingActionsUnitTest {
         double originalThreshold = SHAFT.Properties.visuals.visualMatchingThreshold();
         try {
             SHAFT.Properties.visuals.set().visualMatchingThreshold(1.1);
-            Path referenceImage = tempDir.resolve("retry-reference-image.png");
+            Path referenceImage = tempDir().resolve("retry-reference-image.png");
             byte[] screenshot = createPng(25, 25, Color.MAGENTA);
             testFileActions.writeToFile(referenceImage.toString(), screenshot);
 
@@ -238,7 +241,7 @@ public class ImageProcessingActionsUnitTest {
         By locator = By.id("existingShutterbugElement");
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
         byte[] screenshot = createPng(20, 20, Color.CYAN);
-        testFileActions.writeToFile(tempDir.resolve(hashed + ".png").toString(), screenshot);
+        testFileActions.writeToFile(tempDir().resolve(hashed + ".png").toString(), screenshot);
 
         ElementSnapshot snapshot = org.mockito.Mockito.mock(ElementSnapshot.class);
         org.mockito.Mockito.when(snapshot.equalsWithDiff(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyString(), org.mockito.Mockito.anyDouble())).thenReturn(true);
@@ -261,7 +264,7 @@ public class ImageProcessingActionsUnitTest {
         By locator = By.id("fallbackShutterbugElement");
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
         byte[] screenshot = createPng(20, 20, Color.PINK);
-        testFileActions.writeToFile(tempDir.resolve(hashed + ".png").toString(), screenshot);
+        testFileActions.writeToFile(tempDir().resolve(hashed + ".png").toString(), screenshot);
 
         ElementSnapshot snapshot = org.mockito.Mockito.mock(ElementSnapshot.class);
         org.mockito.Mockito.when(snapshot.equalsWithDiff(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyString(), org.mockito.Mockito.anyDouble()))
@@ -349,6 +352,14 @@ public class ImageProcessingActionsUnitTest {
 
     private static void clearLocatorHashCache() throws Exception {
         getLocatorHashCache().clear();
+    }
+
+    private Path tempDir() {
+        Path methodTempDir = tempDir.get();
+        if (methodTempDir == null) {
+            throw new IllegalStateException("Test temp directory was not initialized for the current thread.");
+        }
+        return methodTempDir;
     }
 
     private static void setAiFolderPath(String value) throws Exception {

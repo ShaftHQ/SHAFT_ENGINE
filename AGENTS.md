@@ -58,8 +58,10 @@ Important directories:
 - Test data belongs under `src/test/resources/testDataFiles/`; avoid hardcoding data in tests when existing guidance requires JSON test data.
 - For TestNG browser tests, existing instructions require fresh driver setup per test and `@AfterMethod(alwaysRun = true)` cleanup with `driver.quit()`.
 - For parallel tests, isolate state with `ThreadLocal` and avoid sharing driver instances across methods.
+- Under TestNG `setParallel=METHODS`, ordinary instance fields are shared by concurrently running methods in the same test class. Store per-method temp directories, files, mocks, and setup state in `ThreadLocal` or keep the class `@Test(singleThreaded = true)` when it must mutate static/shared state; otherwise one method's `@AfterMethod` can delete or reset another method's resources.
 - `@Test(singleThreaded = true)` serializes methods inside one TestNG class only; it does not isolate static SHAFT property setters from other classes in a parallel suite. Tests that assert behavior depending on global properties such as `executionAddress` must set those prerequisites inside the test (and rely on `@AfterMethod(alwaysRun = true)` cleanup) to avoid E2E flakes from cross-class property mutation.
 - Tests or setup code that clean Allure results during parallel TestNG execution should preserve the live `allure-results` root directory and delete only its contents. Replacing the root can race with Allure's own file writer on Windows and surface as `FileAlreadyExistsException`/BROKEN results.
+- When a final Allure summary is green but job logs show retry attempts, inspect the non-passed `*-result.json` attempts too. Retried `skipped` results with file/image IO messages often indicate a real parallel-isolation flake that may later become a final BROKEN/FAILED test in CI.
 
 ## Code Style and Conventions
 - Public framework classes and public methods must have JavaDoc, including relevant `@param`, `@return`, and `@throws` tags.
@@ -149,6 +151,7 @@ Use this protocol whenever a maintainer tags `@codex` to start work, says `start
 - If GitHub publication access is unavailable, say so clearly and provide a PR handoff rather than implying a visible GitHub PR exists.
 - Agent-created branches/PRs must identify the agent author. Prefer branch names starting with `codex/` and PR titles starting with `codex:` for Codex-authored work. If a human maintainer token creates the PR, state in the PR body that Codex made the changes and that the token owner did not author them manually.
 - The local `make_pr` tool only records PR metadata for the agent harness; it does **not** publish a visible GitHub pull request or upload the branch. For GitHub-backed tasks, after committing changes, push the `codex/` branch to `origin`, create or update the real GitHub PR with `gh pr create`/`gh pr edit`, include `Closes #<issue>` or an equivalent issue link when an issue exists, and verify with `git ls-remote --heads origin <branch>` plus `gh pr view --json number,url,headRefName,baseRefName,closingIssuesReferences` before telling the user the PR is open.
+- Edge Grid run `27004138692` exposed a TestNG METHOD-parallel race where `ImageProcessingActionsUnitTest` stored its per-method temp directory in an instance field. The final signature was `javax.imageio.IIOException: Can't create an ImageInputStream!`, but job logs showed another method's cleanup deleting `target/temp/imageProcessingUnitTests/.../*.png`. For similar image/file failures, inspect adjacent setup/cleanup lines and convert per-method state to `ThreadLocal` before changing image comparison logic.
 
 ## Open Questions / Verify Before Relying
 - No explicit local formatter command was found.

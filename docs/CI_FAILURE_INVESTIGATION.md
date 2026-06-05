@@ -101,6 +101,8 @@ PY
 
 If the count is zero or unexpectedly low, treat the report as empty/invalid and investigate report generation before diagnosing tests.
 
+When a run passes locally or after retries but the logs show transient failures, parse all result JSON files, not only the final summary. Retried attempts can appear as `skipped` in Allure with useful failure messages. In parallel TestNG grid jobs, messages such as `FileNotFoundException`, `Can't create an ImageInputStream`, or missing files under `target/temp/...` often point to test setup/cleanup state shared through instance fields rather than a browser-specific defect.
+
 ## 3. Separate test defects from environment/provider defects
 
 Document each failed/broken test with:
@@ -109,6 +111,7 @@ Document each failed/broken test with:
 - Allure `fullName`, status, and concise failure signature;
 - whether the failure is deterministic in local targeted tests;
 - whether the signature points to code, test isolation, CI host behavior, credentials, or an external provider outage.
+- whether nearby log lines show concurrent methods from the same TestNG class sharing or deleting a resource. Under `setParallel=METHODS`, shared instance fields can race even when every method has `@BeforeMethod` and `@AfterMethod` hooks.
 
 Do not hide provider or credential failures by changing assertions. For example, a cloud-provider `401` during setup should be reported as credential/provider evidence; only fix framework/test teardown if it adds a secondary `NullPointerException` or masks the real setup failure.
 
