@@ -21,6 +21,7 @@ DEFAULT_WORKFLOWS = (
     Path(".github/workflows/e2eTests.yml"),
     Path(".github/workflows/e2eLocalTests.yml"),
     Path(".github/workflows/e2eLambdaTestTests.yml"),
+    Path(".github/workflows/e2eMoonTests.yml"),
 )
 TEST_CLASS_SUFFIXES = ("Test", "Tests", "UnitTest", "CoverageUnitTest")
 DTEST_PATTERN = re.compile(r"-Dtest=([^\"\s]+|[^\"]*?)(?=\")")
