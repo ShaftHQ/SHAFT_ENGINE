@@ -18,7 +18,7 @@ Use for incorrect, flaky, crashing, leaking, insecure, or regressed framework/da
 4. Read `docs/ai/architecture.md` only if root cause crosses modules/lifecycle/data flow.
 5. Source/test-specific rules are consolidated in the two policies above; do not look for `.github/instructions/`.
 
-Read only the required docs for this task. Inspect only impacted modules and nearby related files. Do not scan the full repository unless explicitly required for the task or safety. Keep changes minimal. Report if more context is needed.
+Read only the required docs for this task. Inspect only impacted modules and nearby related files. Do not scan the full repository unless explicitly required for the task or safety. Stop gathering context once the acceptance criteria and validation path are clear. Keep changes minimal. Report if more context is needed.
 
 ## Workflow
 1. Restate expected versus actual behavior and collect a minimal reproduction.

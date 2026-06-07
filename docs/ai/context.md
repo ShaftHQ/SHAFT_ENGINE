@@ -45,13 +45,21 @@ The relevant isolation boundary is test execution state. Driver instances, mutab
 - Version alignment among `pom.xml` and release-related internal properties.
 - Embedded dashboard changes affecting realtime-report serialization or browser compatibility.
 
+## Context and Memory Hygiene
+- Treat current code, tests, executable configuration, and task-linked issue/PR feedback as primary evidence. Prose that conflicts with executable behavior is stale until corrected.
+- Search narrowly, then open only the exact sections needed. Prefer summaries and file/line references over copying large documents into working context.
+- Do not load `.github/copilot-memory.md` by default. It is historical, non-normative context used only to investigate a recurring issue or prior decision.
+- Add a memory entry only for a verified, durable lesson likely to recur. Do not store task status, speculative conclusions, transcripts, secrets, or facts already captured in authoritative policy.
+- If new evidence invalidates an instruction, update the authoritative `docs/ai/` policy in the same task or report the conflict; do not work around a stale rule silently.
+- Do not repeatedly reopen unchanged files. Keep a compact working summary of decisions, evidence, touched files, validation, and unresolved risks.
+
 ## AI Working Policy
-- Read only task-relevant context and inspect only the impacted package, callers, tests, and configuration.
+- Convert the request into acceptance criteria, then read only context that can change the implementation or validation decision.
 - Do not infer an application backend, frontend, tenant model, or permission model that is not present.
 - Label inferences as `Inferred from codebase: ...`; link unresolved governance decisions to a GitHub issue and mark them clearly for team confirmation.
 - Reproduce bugs and add a failing regression test first when practical.
 - Keep diffs minimal; do not mix dependency, release, production-code, and documentation churn.
-- Report validation evidence and environmental limitations explicitly.
+- Distinguish observed facts, inferences, and unknowns; report validation evidence and environmental limitations explicitly.
 
 ## Token-Efficient Reading Policy
 

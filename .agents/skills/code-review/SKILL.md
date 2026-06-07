@@ -18,7 +18,7 @@ Use when asked to review code or assess a diff/PR. Do not silently modify code u
 4. Read `docs/ai/security-policy.md` only when the diff touches sensitive boundaries.
 5. Read architecture/coding standards and the task-specific skill only when needed to evaluate the changed module.
 
-Read only the required docs for this task. Inspect only impacted modules and nearby related files. Do not scan the full repository unless explicitly required for the task or safety. Keep changes minimal. Report if more context is needed.
+Read only the required docs for this task. Inspect only impacted modules and nearby related files. Do not scan the full repository unless explicitly required for the task or safety. Stop gathering context once the acceptance criteria and validation path are clear. Keep changes minimal. Report if more context is needed.
 
 ## Workflow
 1. Identify the diff base/head, stated intent, and files changed.

@@ -2,7 +2,15 @@
 
 > Historical/non-normative context only. Current rules live exclusively in `/AGENTS.md` and `/docs/ai/`; when an entry conflicts, the current authoritative instructions and executable configuration win.
 
-Purpose: keep high-signal, reusable learnings from implementation sessions in one canonical place.
+Purpose: retain only verified, high-signal lessons that are likely to recur and are not already encoded in authoritative policy or executable checks.
+
+## Admission Rules
+Add an entry only when all are true:
+- The lesson is supported by a file, test, workflow run, issue, or PR.
+- It changes how future work should be investigated or validated.
+- It is durable across tasks and cannot be expressed better as an authoritative policy or automated check.
+
+Do not add task summaries, progress notes, speculative conclusions, copied logs, secrets, or duplicate policy. Prefer updating `docs/ai/` or a validator when a lesson is prescriptive. Review old entries only when investigating a matching recurring area.
 
 ## Entry Template
 - Date:

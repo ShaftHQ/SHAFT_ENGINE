@@ -1,8 +1,9 @@
 # Code Review Guide
 
-Review the requested diff and its directly affected callers, tests, properties, resources, and lifecycle hooks. Do not scan the full repository unless scope or safety requires it. Report findings by severity with file/line evidence and focus on defects, regressions, security, and missing validation rather than style preferences.
+Review the requested diff first, then only directly affected callers, tests, properties, resources, and lifecycle hooks. Stop expanding context when each changed behavior has a traced contract and verification path. Do not scan the full repository unless scope or safety requires it. Report findings by severity with file/line evidence and focus on defects, regressions, security, and missing validation rather than style preferences. Distinguish confirmed defects from questions and inferences.
 
 ## Correctness Checklist
+- The change matches the stated acceptance criteria and does not solve unrelated problems.
 - Public facade and fluent return behavior remain compatible.
 - Null/empty/error paths, cleanup, retries, and listener ordering are correct.
 - Driver, process, stream, socket, file, and JDBC resources are released.

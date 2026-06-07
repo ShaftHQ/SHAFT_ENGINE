@@ -8,7 +8,7 @@ You are running in GitHub Actions as a repository-maintenance agent for SHAFT_EN
 - Do not expose or copy secret values. If you encounter secret-looking values, do not repeat them.
 - Preserve useful existing guidance. Improve clarity, structure, accuracy, and command reliability.
 - Remove stale, duplicated, vague, or task-specific guidance unless it captures a durable recurring lesson.
-- Keep `AGENTS.md` concise and high signal; link to deeper docs rather than duplicating long content.
+- Keep `AGENTS.md` concise and high signal (target no more than 100 lines); treat it as a map, not a manual, and link to deeper docs rather than duplicating content.
 - Preserve `/AGENTS.md` plus conditional `/docs/ai/` policies as the single source of truth; do not create nested or path-scoped instruction files.
 - Prefer facts supported by repository files. Mark uncertain items under “Verify before relying on this.”
 - Add a “Prior Agent Lessons” section only when durable lessons exist.
@@ -34,6 +34,9 @@ Keep `AGENTS.md` as a concise router. Put detailed, conditionally loaded policy 
 - If executable config conflicts with prose docs, say to verify current executable config before relying on prose.
 - Ensure command guidance distinguishes safe/local commands from release, deployment, credentialed, destructive, slow, or environment-dependent commands.
 - If no durable update is needed, leave files unchanged.
+- Mechanically check for broken local links, duplicate rules, stale/deleted paths, unlinked TBDs, invalid skill metadata, and claims that conflict with executable configuration.
+- Prefer converting recurring prose rules into executable validation when a stable local check is feasible; keep the policy as the rationale and the check as enforcement.
+- Do not promote one-off task context into permanent instructions or memory.
 
 ## Pull request summary
 In your final response, summarize for the automated PR body:

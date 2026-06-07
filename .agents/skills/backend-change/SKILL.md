@@ -18,7 +18,7 @@ Use for feature or behavior changes in Java framework source. For a defect, use 
 4. Read `docs/ai/security-policy.md` only for credentials, API/DB/CLI input, reporting, encryption, external integrations, or execution isolation.
 5. The former source/test path-scoped rules are consolidated in the two policies above; do not look for `.github/instructions/`.
 
-Read only the required docs for this task. Inspect only impacted modules and nearby related files. Do not scan the full repository unless explicitly required for the task or safety. Keep changes minimal. Report if more context is needed.
+Read only the required docs for this task. Inspect only impacted modules and nearby related files. Do not scan the full repository unless explicitly required for the task or safety. Stop gathering context once the acceptance criteria and validation path are clear. Keep changes minimal. Report if more context is needed.
 
 ## Workflow
 1. Define the requested contract, compatibility constraints, and affected facade namespace.

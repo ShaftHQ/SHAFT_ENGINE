@@ -71,6 +71,22 @@ docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chr
 ```
 Stop and clean it after use. Cloud/mobile/browser E2E tests require browsers, Docker, Appium assets, devices, endpoints, or credentials and may only be runnable in CI.
 
+## Validation Strategy
+Use the cheapest check that can falsify the change first, then broaden only as risk requires:
+1. **Static scope check:** inspect `git diff`, changed paths, configuration impact, and generated/untracked files.
+2. **Focused check:** run the smallest affected unit test, documentation validator, or script test.
+3. **Compile/type check:** run the mandatory Maven compile for Java changes.
+4. **Integration/E2E check:** run only the affected browser/API/DB/mobile/Cucumber path when behavior crosses that boundary.
+5. **Release check:** use the blocking build and user-guide smoke test defined in `docs/ai/release-policy.md` only for release readiness.
+
+Validation rules:
+- Run checks after the final edit, not only before it.
+- A command that exits successfully but executes zero relevant tests is not a pass.
+- Never treat skipped, ignored, empty, stale, or unexpectedly small results as evidence of correctness.
+- Separate failures caused by the patch from environment limitations; do not relabel an agent error as an environment warning.
+- Record exact commands and outcomes. Do not claim checks that were not executed.
+- If a required check cannot run, perform the nearest meaningful lower-level check and name the exact remaining command/scenario and owner.
+
 ## When to Add Tests
 - Every behavior change, bug fix, public overload, property, lifecycle change, parser, integration behavior, and concurrency fix needs focused coverage.
 - Bug fixes should first reproduce the failure in a regression test when practical.

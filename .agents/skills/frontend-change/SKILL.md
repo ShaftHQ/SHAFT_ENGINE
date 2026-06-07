@@ -17,7 +17,7 @@ Use for `src/main/resources/realtime/dashboard.html` or HTML/CSS/JavaScript fixt
 3. Read `docs/ai/security-policy.md` for rendered test names, logs, attachments, network data, or HTML injection risk.
 4. Read `docs/ai/architecture.md` only if changing dashboard data flow, serving, packaging, or runtime protocol.
 
-Read only the required docs for this task. Inspect only impacted modules and nearby related files. Do not scan the full repository unless explicitly required for the task or safety. Keep changes minimal. Report if more context is needed.
+Read only the required docs for this task. Inspect only impacted modules and nearby related files. Do not scan the full repository unless explicitly required for the task or safety. Stop gathering context once the acceptance criteria and validation path are clear. Keep changes minimal. Report if more context is needed.
 
 ## Workflow
 1. Identify whether the file is the packaged realtime dashboard or a test fixture.

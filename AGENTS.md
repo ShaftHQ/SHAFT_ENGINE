@@ -24,8 +24,15 @@ Do not load skills by default. Use only the one relevant skill when the task mat
 - Code review: `.agents/skills/code-review/SKILL.md`
 - Release check: `.agents/skills/release-check/SKILL.md`
 
+## Execution loop
+1. Translate the request into explicit acceptance criteria and identify the smallest affected area.
+2. Check relevance before loading context: inspect the target files, direct callers, nearby tests, and configuration only.
+3. For multi-step or high-risk work, keep a short plan and update it as facts change; do not create a permanent plan artifact unless requested.
+4. Establish a baseline when fixing behavior, make the smallest coherent patch, and validate from narrow to broad.
+5. Review the final diff for scope, generated files, secrets, compatibility, cleanup, and unsupported claims before finishing.
+
 ## Work rules
-- Do not perform a full codebase scan unless explicitly required for the task or safety.
+- Do not perform a full codebase scan unless explicitly required for the task or safety; stop gathering context when the acceptance criteria can be implemented and verified safely.
 - Inspect only impacted modules and nearby related files.
 - Make the smallest safe change and follow existing patterns.
 - Do not perform broad refactors or remove existing behavior unless explicitly requested.

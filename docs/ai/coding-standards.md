@@ -79,6 +79,19 @@ Not found in current codebase scan: framework-owned users, roles, admin endpoint
 
 Execution isolation is required: do not share mutable headers/cookies, drivers, properties, report buffers, files, or database connections across tests unless the existing API explicitly manages that sharing safely.
 
+## Code Quality and Relevance Gate
+Before editing:
+- State the behavior/contract that must change and the behavior that must remain unchanged.
+- Trace the shortest path from public entry point to implementation and tests; stop exploring once the change boundary and verification path are clear.
+- Reuse the closest established pattern. Introduce a new abstraction only when it removes real duplication or enforces an invariant needed by this task.
+
+A change is complete only when:
+- The implementation is the smallest coherent patch, with no unrelated cleanup.
+- Names and control flow make the behavior legible without relying on comments; comments explain only non-obvious intent or constraints.
+- Error, cleanup, concurrency, and sensitive-data paths are considered.
+- Public compatibility, configuration, JavaDoc, tests, and user-facing docs are updated where the contract requires them.
+- The final diff contains no accidental generated files, debug output, disabled checks, or claims unsupported by executed validation.
+
 ## Rules for Safe Changes
 1. Inspect the target class, its direct callers, matching tests, property interface, and report/lifecycle hooks.
 2. Make the smallest compatible change in the responsible module.
