@@ -5,23 +5,25 @@ Use this runbook when an AI-agent session is asked to scan the repository, migra
 ## Goals
 
 - Preserve repository-specific knowledge without relying on transient chat context.
-- Keep global instructions, scoped instructions, skills, and memory ledgers aligned.
+- Keep the root instruction router, conditional policies, skills, and historical memory aligned.
 - Make migration work traceable through a ticket, branch, commit, and PR.
 - Avoid knowledge loss by recording durable lessons in the canonical memory ledger.
 
 ## Canonical Knowledge Sources
 
-Start with these repository sources before making implementation decisions:
+Start with the token-efficient instruction hierarchy:
 
 | Source | Purpose |
 |---|---|
-| `.github/copilot-instructions.md` | Global AI-agent policy, PDCA workflow, validation requirements, and self-improvement rules. |
-| `.github/copilot-memory.md` | Append-only ledger for reusable lessons and decision context. |
-| `.github/instructions/*.instructions.md` | Path-scoped rules for framework source and Java test files. |
-| `.github/skills/` | Agent/model-specific skills and task playbooks. |
-| `CLAUDE.md` | Claude Code operating notes, environment requirements, architecture notes, and command reference. |
-| `README.md` and `docs/` | User-facing framework overview, architecture, features, quick start, and technical context. |
-| Executable config (`pom.xml`, `.mvn/jvm.config`, workflow files) | Source of truth for versions, build constraints, and CI behavior when prose conflicts. |
+| `AGENTS.md` | Single root instruction router and work rules. |
+| `docs/ai/context.md` | Only always-read shared context. |
+| `docs/ai/*.md` | Conditional architecture, coding, testing, security, release, review, and glossary policies. |
+| `.agents/skills/*/SKILL.md` | Task-specific workflows; load only the matching skill. |
+| `CLAUDE.md` / `.github/copilot-instructions.md` | Tool bridges to the authoritative root framework; no competing policy. |
+| `.github/copilot-memory.md` | Historical, non-normative lessons and evidence. |
+| Executable config (`pom.xml`, `.mvn/jvm.config`, workflows) | Source of truth for executable versions and behavior when prose is stale. |
+
+Path-scoped instruction files are intentionally not used. Module-specific rules belong in the relevant conditional `docs/ai/` policy.
 
 ## Migration Workflow
 
@@ -66,21 +68,20 @@ Then read only the files required to understand the task. Prefer progressive dis
 When guidance conflicts, apply this precedence order:
 
 1. Direct user/developer/system instructions for the current session.
-2. `AGENTS.md` files that scope to the changed files, if present.
-3. Path-scoped repository instructions in `.github/instructions/`.
-4. Global repository instructions in `.github/copilot-instructions.md` and `CLAUDE.md`.
-5. Agent/model-specific skills in `.github/skills/`.
-6. General docs and README prose.
+2. Root `AGENTS.md` and the conditionally relevant `docs/ai/` policy.
+3. The single matching `.agents/skills/*/SKILL.md` workflow.
+4. Executable configuration for versions and runnable behavior.
+5. Historical memory and general documentation as non-normative context.
 
 Executable configuration wins over stale prose for build versions and runtime constraints. For example, prefer `pom.xml` and enforcer rules over a prose language-version summary if they disagree.
 
 ### 5. Consolidate without duplication
 
-- Keep stable policy in `.github/copilot-instructions.md` or `CLAUDE.md`.
-- Keep path-specific coding/test rules in `.github/instructions/`.
-- Keep task-specific playbooks in `.github/skills/`.
-- Keep reusable lessons and rationale in `.github/copilot-memory.md`.
-- Move long explanatory workflows to `docs/` and link to them from instruction files.
+- Keep the root router concise in `AGENTS.md`.
+- Keep stable module-specific policy in the relevant conditional `docs/ai/` document.
+- Keep task-specific workflows in `.agents/skills/`.
+- Keep tool entry points as bridges only; do not duplicate policy in `CLAUDE.md` or `.github/copilot-instructions.md`.
+- Keep reusable historical lessons in `.github/copilot-memory.md`, clearly non-normative.
 
 ### 6. Validate and commit
 
@@ -116,7 +117,7 @@ When any of those checks are unavailable or unauthenticated, create the local PR
 
 ## Session Memory Checklist
 
-Before finishing a migration task, update `.github/copilot-memory.md` with:
+When a durable historical lesson is genuinely new, update `.github/copilot-memory.md` with:
 
 - Date.
 - Area.
