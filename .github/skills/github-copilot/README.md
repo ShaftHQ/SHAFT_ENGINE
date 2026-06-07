@@ -16,5 +16,5 @@ GitHub Copilot is an AI pair programmer that helps you write code faster. It dra
 
 ## Notes
 
-- SHAFT already has extensive Copilot integration via `.github/copilot-instructions.md` and `.github/instructions/`
+- SHAFT AI policy is centralized in `/AGENTS.md` and `/docs/ai/`; `.github/copilot-instructions.md` is only a bridge, and path-scoped instruction files must not be recreated.
 - Skills in this directory focus on specific, reusable prompts and workflows beyond the base configuration

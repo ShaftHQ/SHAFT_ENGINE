@@ -1,5 +1,7 @@
 # Copilot Memory Ledger
 
+> Historical/non-normative context only. Current rules live exclusively in `/AGENTS.md` and `/docs/ai/`; when an entry conflicts, the current authoritative instructions and executable configuration win.
+
 Purpose: keep high-signal, reusable learnings from implementation sessions in one canonical place.
 
 ## Entry Template
@@ -36,7 +38,7 @@ Purpose: keep high-signal, reusable learnings from implementation sessions in on
 - Area: Test validation / Allure reporting
 - Trigger: GitHub Actions run `25620020633` grid failure investigation and a local run whose browser-visible Allure report was empty.
 - Lesson: For SHAFT Engine, Allure result JSON/report output is the single source of truth for test verdicts. Before analyzing failures, first verify the run is populated by counting executed tests/result JSON files; an empty or unexpectedly small Allure report invalidates any status analysis.
-- Evidence: `AGENTS.md`, `.github/instructions/java-tests.instructions.md`, `.github/copilot-instructions.md`, run `25620020633`
+- Evidence: `AGENTS.md`, `docs/ai/testing-policy.md`, run `25620020633`
 - Action taken: Updated durable test-validation instructions and this memory entry.
 
 - Date: 2026-05-10
