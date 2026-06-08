@@ -39,12 +39,12 @@ public class RecordManager {
     }
 
     //TODO: the animated GIF should follow the same path as the video
-    @SuppressWarnings("SpellCheckingInspection")
     /**
      * Starts Appium-native recording for mobile execution or falls back to desktop recording for local desktop drivers.
      *
      * @param driver the active WebDriver instance, or {@code null} to request desktop recording directly
      */
+    @SuppressWarnings("SpellCheckingInspection")
     public static void startVideoRecording(WebDriver driver) {
         if (SHAFT.Properties.visuals.videoParamsRecordVideo()
                 && !isRecordingStarted

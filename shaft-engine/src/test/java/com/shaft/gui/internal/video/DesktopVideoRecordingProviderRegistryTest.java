@@ -22,7 +22,6 @@ public class DesktopVideoRecordingProviderRegistryTest {
         Assert.assertSame(DesktopVideoRecordingProviderRegistry.findProvider().orElseThrow(), provider);
     }
 
-
     @Test
     public void serviceDiscoveryShouldFindAutomationRemarksProvider() {
         Assert.assertEquals(DesktopVideoRecordingProviderRegistry.findProvider().orElseThrow().getClass(),
