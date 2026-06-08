@@ -84,3 +84,25 @@ def test_verify_manifest_ignores_observational_timing_and_repository_growth(tmp_
     expected_path.write_text(json.dumps(expected), encoding="utf-8")
 
     assert measure.verify_manifest(actual, expected_path) == []
+
+
+def test_seed_project_artifact_writes_engine_and_parent_poms(tmp_path, monkeypatch):
+    repository = tmp_path / "repository"
+    jar = tmp_path / "SHAFT_ENGINE.jar"
+    engine_pom = tmp_path / "shaft-engine-pom.xml"
+    parent_pom = tmp_path / "parent-pom.xml"
+    jar.write_bytes(b"jar")
+    engine_pom.write_text("<project>engine</project>", encoding="utf-8")
+    parent_pom.write_text("<project>parent</project>", encoding="utf-8")
+    monkeypatch.setattr(measure, "ENGINE_POM", engine_pom)
+    monkeypatch.setattr(measure, "ROOT", tmp_path)
+    (tmp_path / "pom.xml").write_text(parent_pom.read_text(encoding="utf-8"), encoding="utf-8")
+
+    seeded_bytes = measure.seed_project_artifact(repository, jar, "1.2.3")
+
+    engine = repository / "io/github/shafthq/SHAFT_ENGINE/1.2.3"
+    parent = repository / "io/github/shafthq/shaft-parent/1.2.3"
+    assert (engine / "SHAFT_ENGINE-1.2.3.jar").read_bytes() == b"jar"
+    assert (engine / "SHAFT_ENGINE-1.2.3.pom").read_text(encoding="utf-8") == "<project>engine</project>"
+    assert (parent / "shaft-parent-1.2.3.pom").read_text(encoding="utf-8") == "<project>parent</project>"
+    assert seeded_bytes == measure.directory_bytes(repository)

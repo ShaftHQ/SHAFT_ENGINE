@@ -1,0 +1,230 @@
+{
+	"type": "table",
+	"type": "table",
+	"data": {
+		"id": "519cabe7-06c3-9c04-4334-0ae5cff013d2",
+		"type": "table",
+		"isSampled": false,
+		"subqueryComplete": true,
+		"isAggregated": false,
+		"startRow": 0,
+		"endRow": 11,
+		"mergeColumns": false,
+		"labels": [
+			"Sales Date",
+			"Country",
+			"Revenue"
+		],
+		"rowTypes": [],
+		"measureTypes": [
+			"date",
+			"string",
+			"double"
+		],
+		"totalRows": 11,
+		"complete": true,
+		"rowTree": {
+			"r": [
+				[
+					{
+						"v": "5/13/18"
+					},
+					{
+						"v": "Japan"
+					},
+					{
+						"v": "2,464.32"
+					}
+				],
+				[
+					{
+						"v": "6/30/18"
+					},
+					{
+						"v": "Germany"
+					},
+					{
+						"v": "4,949.24"
+					}
+				],
+				[
+					{
+						"v": "11/19/18"
+					},
+					{
+						"v": "Australia"
+					},
+					{
+						"v": "4,949.24"
+					}
+				],
+				[
+					{
+						"v": "2/14/18"
+					},
+					{
+						"v": "United States of America"
+					},
+					{
+						"v": "3,711.93"
+					}
+				],
+				[
+					{
+						"v": "7/15/18"
+					},
+					{
+						"v": "United States of America"
+					},
+					{
+						"v": "1,237.31"
+					}
+				],
+				[
+					{
+						"v": "3/2/18"
+					},
+					{
+						"v": "France"
+					},
+					{
+						"v": "4,949.24"
+					}
+				],
+				[
+					{
+						"v": "12/2/18"
+					},
+					{
+						"v": "United States of America"
+					},
+					{
+						"v": "3,711.93"
+					}
+				],
+				[
+					{
+						"v": "9/5/18"
+					},
+					{
+						"v": "Netherlands"
+					},
+					{
+						"v": "3,711.93"
+					}
+				],
+				[
+					{
+						"v": "10/5/18"
+					},
+					{
+						"v": "Netherlands"
+					},
+					{
+						"v": "3,711.93"
+					}
+				],
+				[
+					{
+						"v": "4/10/18"
+					},
+					{
+						"v": "Netherlands"
+					},
+					{
+						"v": "10,000.00"
+					}
+				],
+				[
+					{
+						"v": "4/11/18"
+					},
+					{
+						"v": "Netherlands"
+					},
+					{
+						"v": "11,000.00"
+					}
+				]
+			]
+		}
+	},
+	"meta": {
+		"measures": [
+			{
+				"column": {
+					"field": "automation_schema_full_load_with_load_filters.SALES.TIME_ID",
+					"name": "Sales Date"
+				},
+				"aggregation": "none",
+				"runningTotal": false,
+				"numberFormat": "0.##",
+				"dateFormat": "SHORT",
+				"chartType": "line",
+				"ranges": [],
+				"trendLines": [],
+				"conditionalFormats": [],
+				"dashboardDrillDowns": [],
+				"baseField": {
+					"enabled": false
+				},
+				"filters": []
+			},
+			{
+				"column": {
+					"field": "automation_schema_full_load_with_load_filters.COUNTRIES.COUNTRY_NAME",
+					"name": "Country"
+				},
+				"aggregation": "none",
+				"runningTotal": false,
+				"numberFormat": "0.##",
+				"chartType": "line",
+				"ranges": [],
+				"trendLines": [],
+				"conditionalFormats": [],
+				"dashboardDrillDowns": [],
+				"baseField": {
+					"enabled": false
+				},
+				"filters": []
+			},
+			{
+				"column": {
+					"field": "automation_schema_full_load_with_load_filters.SALES.AMOUNT_SOLD",
+					"name": "Revenue"
+				},
+				"aggregation": "sum",
+				"runningTotal": false,
+				"numberFormat": "###,##0.00",
+				"chartType": "line",
+				"ranges": [],
+				"trendLines": [],
+				"conditionalFormats": [],
+				"dashboardDrillDowns": [],
+				"baseField": {
+					"enabled": false
+				},
+				"filters": []
+			}
+		],
+		"appliedFilters": [],
+		"groupFilters": [],
+		"distinctFilters": [],
+		"sorting": [],
+		"rows": [],
+		"columns": [],
+		"settings": {
+			"maxRows": 1000,
+			"autoRefresh": true,
+			"aggregated": false,
+			"dynamicGroupBy": false,
+			"onlyShowSelectedGroup": false,
+			"showSubtotal": false,
+			"showTotal": false,
+			"fixedColumns": 0,
+			"showHeader": true,
+			"transpose": false,
+			"showLegend": true
+		}
+	}
+}
