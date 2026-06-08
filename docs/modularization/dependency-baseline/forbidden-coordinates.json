@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "fixture": "future-lean-shaft-engine",
+  "description": "Coordinates that must not be present in the future lean shaft-engine consumer fixture.",
+  "forbiddenCoordinates": [
+    "com.browserstack:browserstack-java-sdk",
+    "com.automation-remarks:video-recorder-junit5",
+    "com.automation-remarks:video-recorder-testng",
+    "org.openpnp:opencv",
+    "ws.schild:jave-core",
+    "ws.schild:jave-nativebin-linux64",
+    "ws.schild:jave-nativebin-linux-arm64",
+    "ws.schild:jave-nativebin-osx64",
+    "ws.schild:jave-nativebin-osxm1",
+    "ws.schild:jave-nativebin-win64"
+  ]
+}
