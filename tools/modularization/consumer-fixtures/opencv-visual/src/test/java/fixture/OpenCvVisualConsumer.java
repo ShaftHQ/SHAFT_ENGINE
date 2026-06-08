@@ -21,6 +21,7 @@ public class OpenCvVisualConsumer {
         Imgproc.resize(source, target, new Size(320, 240));
         return target;
     }
+
     public static void main(String[] args) {
         String provider = new OpenCvVisualConsumer().automaticallyDiscoveredProvider();
         if (!"com.shaft.gui.internal.image.OpenCvVisualProcessingProvider".equals(provider)) {
