@@ -33,6 +33,10 @@ class BrowserStackModuleBoundaryTest(unittest.TestCase):
         module_dependencies = dependencies(module_pom)
 
         self.assertEqual(module.findtext("m:packaging", namespaces=NAMESPACE), "jar")
+        self.assertEqual(
+            module.findtext("m:properties/m:surefire.failIfNoSpecifiedTests", namespaces=NAMESPACE),
+            "false",
+        )
         self.assertIn(("${project.groupId}", "shaft-engine"), module_dependencies)
         self.assertIn(BROWSERSTACK_SDK, module_dependencies)
 
