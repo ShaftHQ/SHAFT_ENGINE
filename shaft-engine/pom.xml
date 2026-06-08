@@ -341,25 +341,6 @@
             <artifactId>jackson-datatype-jdk8</artifactId>
         </dependency>
 
-        <!-- VISUAL VALIDATIONS & ELEMENT IDENTIFICATION -->
-        <dependency>
-            <groupId>com.applitools</groupId>
-            <artifactId>eyes-images-java4</artifactId>
-            <version>4.14.0</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <dependency>
-            <groupId>org.openpnp</groupId>
-            <artifactId>opencv</artifactId>
-            <version>4.9.0-0</version>
-        </dependency>
-
         <!-- Healenium -->
         <!-- https://mvnrepository.com/artifact/com.epam.healenium/healenium-web -->
         <dependency>
@@ -430,22 +411,11 @@
             </exclusions>
         </dependency>
 
-        <!-- Image Comparison -->
-        <!-- https://mvnrepository.com/artifact/com.assertthat/selenium-shutterbug -->
+        <!-- Core animated GIF resizing (previously supplied transitively by Shutterbug). -->
         <dependency>
-            <groupId>com.assertthat</groupId>
-            <artifactId>selenium-shutterbug</artifactId>
-            <version>1.6</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.seleniumhq.selenium</groupId>
-                    <artifactId>selenium-java</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>io.github.bonigarcia</groupId>
-                    <artifactId>webdrivermanager</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>org.imgscalr</groupId>
+            <artifactId>imgscalr-lib</artifactId>
+            <version>4.2</version>
         </dependency>
 
         <!-- REMOTE SSH - using actively-maintained fork of JSch (API-compatible drop-in) -->

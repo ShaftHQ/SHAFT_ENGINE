@@ -26,6 +26,10 @@
             <groupId>io.github.shafthq</groupId>
             <artifactId>shaft-engine</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.github.shafthq</groupId>
+            <artifactId>shaft-visual</artifactId>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

@@ -36,6 +36,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -550,8 +551,12 @@ public class ImageProcessingActionsCoverageUnitTest {
             if (!TARGET_CLASS.equals(name)) {
                 return super.findClass(name);
             }
-            try {
-                byte[] bytes = Files.readAllBytes(Path.of("target", "classes", "com", "shaft", "gui", "internal", "image", "ImageProcessingActions.class"));
+            try (InputStream classBytes = getParent().getResourceAsStream(
+                    "com/shaft/gui/internal/image/ImageProcessingActions.class")) {
+                if (classBytes == null) {
+                    throw new ClassNotFoundException(name);
+                }
+                byte[] bytes = classBytes.readAllBytes();
                 return defineClass(name, bytes, 0, bytes.length);
             } catch (Exception e) {
                 throw new ClassNotFoundException(name, e);
