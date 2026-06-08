@@ -1,4 +1,4 @@
-/target/
+**/target/
 /allure-results/
 /allure-report/
 /allure-report-check/
@@ -27,13 +27,13 @@ debug.log
 /bin/
 /generateJdk.bat
 /generateJdk.sh
-/src/main/resources/properties/
+/shaft-engine/src/main/resources/properties/
 GenerateLHScript.js
 OpenLHReport.js
-/src/main/resources/docker-compose/android-emulator/
-/src/main/resources/docker-compose/data/
-/src/test/resources/testDataFiles/allure-results/
-/src/test/resources/META-INF/services/
+/shaft-engine/src/main/resources/docker-compose/android-emulator/
+/shaft-engine/src/main/resources/docker-compose/data/
+/shaft-engine/src/test/resources/testDataFiles/allure-results/
+/shaft-engine/src/test/resources/META-INF/services/
 /.idea/
 /.run/*
 !/.run/
@@ -42,3 +42,5 @@ browserstack.yml
 /log/nohup.out
 log/
 /video/
+
+__pycache__/
