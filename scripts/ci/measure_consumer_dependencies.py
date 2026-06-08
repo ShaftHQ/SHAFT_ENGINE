@@ -23,9 +23,12 @@ BASELINE_ROOT = ROOT / "docs" / "modularization" / "dependency-baseline"
 ENGINE_ROOT = ROOT / "shaft-engine"
 ENGINE_POM = ENGINE_ROOT / "pom.xml"
 BOM_POM = ROOT / "shaft-bom" / "pom.xml"
+BROWSERSTACK_ROOT = ROOT / "shaft-browserstack"
+BROWSERSTACK_POM = BROWSERSTACK_ROOT / "pom.xml"
 LEGACY_POM = ROOT / "legacy-shaft-engine" / "pom.xml"
 PROJECT_COORDINATES = (
     "io.github.shafthq:shaft-engine",
+    "io.github.shafthq:shaft-browserstack",
     "io.github.shafthq:SHAFT_ENGINE",
 )
 DEPENDENCY_LINE = re.compile(r"^\s*([^\s].*?):(/.*|[A-Za-z]:\\.*)$")
@@ -64,6 +67,13 @@ def seed_project_artifact(repository: Path, jar: Path, version: str) -> int:
     shutil.copy2(jar, engine_destination / f"shaft-engine-{version}.jar")
     shutil.copy2(ENGINE_POM, engine_destination / f"shaft-engine-{version}.pom")
     seed_pom(repository, "shaft-bom", BOM_POM, version)
+    browserstack_destination = repository / "io" / "github" / "shafthq" / "shaft-browserstack" / version
+    browserstack_destination.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(BROWSERSTACK_POM, browserstack_destination / f"shaft-browserstack-{version}.pom")
+    shutil.copy2(
+        BROWSERSTACK_ROOT / "target" / f"shaft-browserstack-{version}.jar",
+        browserstack_destination / f"shaft-browserstack-{version}.jar",
+    )
     seed_pom(repository, "SHAFT_ENGINE", LEGACY_POM, version)
     seed_pom(repository, "shaft-parent", ROOT / "pom.xml", version)
     return directory_bytes(repository)
@@ -130,8 +140,12 @@ def validate_required_artifacts(manifest: dict[str, object]) -> list[str]:
     errors: list[str] = []
     required = {
         "org.openpnp:opencv:jar:4.9.0-0": 109_619_828,
-        "com.browserstack:browserstack-java-sdk:jar:1.59.8": 38_204_017,
     }
+    browserstack_coordinate = "com.browserstack:browserstack-java-sdk:jar:1.59.8"
+    if manifest.get("fixture") == "browserstack-sdk":
+        required[browserstack_coordinate] = 38_204_017
+    elif browserstack_coordinate in artifacts:
+        errors.append(f"forbidden artifact {browserstack_coordinate}")
     for coordinate, expected_bytes in required.items():
         artifact = artifacts.get(coordinate)
         if artifact is None:

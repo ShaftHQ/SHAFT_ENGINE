@@ -639,37 +639,6 @@
             <version>${snakeyaml.version}</version>
         </dependency>
 
-        <!-- BROWSERSTACK SDK -->
-        <dependency>
-            <groupId>com.browserstack</groupId>
-            <artifactId>browserstack-java-sdk</artifactId>
-            <version>1.59.8</version>
-            <scope>runtime</scope>
-            <exclusions>
-                <!-- Rely on SHAFT-controlled direct dependencies to avoid old transitive duplicates -->
-                <exclusion>
-                    <groupId>org.seleniumhq.selenium</groupId>
-                    <artifactId>selenium-java</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>io.appium</groupId>
-                    <artifactId>java-client</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.testng</groupId>
-                    <artifactId>testng</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.aeonbits.owner</groupId>
-                    <artifactId>owner-java8</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.jsoup</groupId>
-                    <artifactId>jsoup</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
         <!-- https://mvnrepository.com/artifact/org.aeonbits.owner/owner -->
         <dependency>
             <groupId>org.aeonbits.owner</groupId>
@@ -859,10 +828,6 @@
                         </dependencies>
                         <configuration>
                             <encoding>UTF-8</encoding>
-                            <!-- Exclude optional BrowserStack SDK from default test runtime to avoid AspectJ instrumentation noise in local/CI runs. -->
-                            <classpathDependencyExcludes>
-                                <classpathDependencyExclude>com.browserstack:browserstack-java-sdk</classpathDependencyExclude>
-                            </classpathDependencyExcludes>
                             <!-- Exclude intentionally-failing visual-demo tests from default CI runs.
                                  Run them explicitly with -Dgroups=allure3-visual-demo when needed,
                                  or override -Dsurefire.excludedGroups to customize exclusions. -->
@@ -928,10 +893,6 @@
                         </dependencies>
                         <configuration>
                             <encoding>UTF-8</encoding>
-                            <!-- Exclude optional BrowserStack SDK from default test runtime to avoid AspectJ instrumentation noise in local/CI runs. -->
-                            <classpathDependencyExcludes>
-                                <classpathDependencyExclude>com.browserstack:browserstack-java-sdk</classpathDependencyExclude>
-                            </classpathDependencyExcludes>
                             <systemPropertyVariables>
                                 <testng.dtd.http>true</testng.dtd.http>
                                 <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>

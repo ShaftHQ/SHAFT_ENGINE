@@ -13,7 +13,7 @@
     <dependencies>
         <dependency>
             <groupId>io.github.shafthq</groupId>
-            <artifactId>shaft-engine</artifactId>
+            <artifactId>shaft-browserstack</artifactId>
             <version>${shaft.version}</version>
         </dependency>
     </dependencies>
