@@ -86,7 +86,7 @@ public interface Allure extends EngineProperties<Allure> {
      * @return a URL string for the custom logo image
      */
     @Key("allure.customLogo")
-    @DefaultValue("https://github.com/ShaftHQ/SHAFT_ENGINE/blob/main/src/main/resources/images/shaft.png?raw=true")
+    @DefaultValue("https://github.com/ShaftHQ/SHAFT_ENGINE/blob/main/shaft-engine/src/main/resources/images/shaft.png?raw=true")
     String customLogo();
 
     /**

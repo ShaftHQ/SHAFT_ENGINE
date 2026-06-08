@@ -69,7 +69,7 @@ The setup complies with all recommendations from:
 
 ## Evidence of Working Instructions
 
-The repository contains a `src/test/java/testPackage/CopilotGeneratedTests/` directory with multiple test files that demonstrate the instructions are being correctly followed:
+The repository contains a `shaft-engine/src/test/java/testPackage/CopilotGeneratedTests/` directory with multiple test files that demonstrate the instructions are being correctly followed:
 
 - `ActionsCoverageTests.java` - Demonstrates SHAFT element actions patterns
 - `AndroidTouchActionsCoverageTests.java` - Mobile testing patterns

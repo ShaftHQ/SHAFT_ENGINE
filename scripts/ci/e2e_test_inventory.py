@@ -3,7 +3,7 @@
 
 This utility supports the coverage-improvement workflow by making it easy to
 find test classes that are not selected by any regular E2E workflow. It parses
-``src/test/java`` test classes and the Maven Surefire ``-Dtest=...`` selectors
+``shaft-engine/src/test/java`` test classes and the Maven Surefire ``-Dtest=...`` selectors
 embedded in workflow run commands, including simple workflow environment
 variable substitutions such as ``${{ env.GLOBAL_TESTING_SCOPE }}`` and
 ``${GLOBAL_TESTING_SCOPE}``.
@@ -230,7 +230,7 @@ def to_markdown(test_classes: list[JavaTestClass], expressions: list[WorkflowExp
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Inventory Java test classes against E2E workflow -Dtest selectors.")
-    parser.add_argument("--test-root", type=Path, default=Path("src/test/java"), help="Java test source root")
+    parser.add_argument("--test-root", type=Path, default=Path("shaft-engine/src/test/java"), help="Java test source root")
     parser.add_argument(
         "--workflow",
         action="append",

@@ -1,10 +1,10 @@
 ---
-applyTo: "src/test/java/**/*.java"
+applyTo: "shaft-engine/src/test/java/**/*.java"
 ---
 
 ## Java Test File Requirements
 
-When writing or editing test files under `src/test/java/`, follow these SHAFT-specific rules.
+When writing or editing test files under `shaft-engine/src/test/java/`, follow these SHAFT-specific rules.
 These examples use **TestNG** (the primary framework). For JUnit5, adapt annotations: use `@BeforeAll`/`@BeforeEach`/`@AfterEach` instead of `@BeforeClass`/`@BeforeMethod`/`@AfterMethod`.
 
 ### Test Class Structure
@@ -30,7 +30,7 @@ These examples use **TestNG** (the primary framework). For JUnit5, adapt annotat
 - Use `By.id`, `By.xpath`, `By.cssSelector` for simple, stable selectors
 
 ### Test Data
-- Store all test data in JSON files under `src/test/resources/testDataFiles/`
+- Store all test data in JSON files under `shaft-engine/src/test/resources/testDataFiles/`
 - Load via `new SHAFT.TestData.JSON("filename.json")` — never hardcode values in tests
 
 ### Imports

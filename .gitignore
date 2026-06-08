@@ -1,5 +1,16 @@
 **/target/
 /allure-results/
+/shaft-engine/allure-results/
+/shaft-engine/allure-report/
+/shaft-engine/allure-report-check/
+/shaft-engine/allurerc.yaml
+/shaft-engine/execution-summary/
+/shaft-engine/performanceReport/
+/shaft-engine/generatedReport_*.zip
+/shaft-engine/generatedReport/
+/shaft-engine/generate_allure_report.sh
+/shaft-engine/generate_allure_report.bat
+/shaft-engine/accessibility-reports/
 /allure-report/
 /allure-report-check/
 /allurerc.yaml
@@ -33,6 +44,17 @@ OpenLHReport.js
 /shaft-engine/src/main/resources/docker-compose/android-emulator/
 /shaft-engine/src/main/resources/docker-compose/data/
 /shaft-engine/src/test/resources/testDataFiles/allure-results/
+/shaft-engine/allure-results/
+/shaft-engine/allure-report/
+/shaft-engine/allure-report-check/
+/shaft-engine/allurerc.yaml
+/shaft-engine/execution-summary/
+/shaft-engine/performanceReport/
+/shaft-engine/generatedReport_*.zip
+/shaft-engine/generatedReport/
+/shaft-engine/generate_allure_report.sh
+/shaft-engine/generate_allure_report.bat
+/shaft-engine/accessibility-reports/
 /shaft-engine/src/test/resources/META-INF/services/
 /.idea/
 /.run/*
@@ -44,3 +66,4 @@ log/
 /video/
 
 __pycache__/
+.pytest_cache/
