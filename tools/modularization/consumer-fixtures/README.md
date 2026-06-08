@@ -13,4 +13,6 @@ python3 scripts/ci/measure_consumer_dependencies.py --verify
 ```
 
 Use `--fixture <name>` for a focused run and `--keep-repositories <directory>` to preserve downloaded
-repositories for diagnosis. The committed baseline is under `docs/modularization/dependency-baseline/`.
+repositories for diagnosis. Verification compares every downstream artifact coordinate, scope, size, and checksum,
+while excluding the rebuilt SHAFT JAR itself; validate that JAR separately by comparing its sorted entry list. The
+committed baseline is under `docs/modularization/dependency-baseline/`.

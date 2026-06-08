@@ -5,7 +5,7 @@ import java.time.format.DateTimeFormatter;
 
 public class PerformanceReportHTMLHelper {
     // Add the SHAFT logo URL as a constant
-    private static final String SHAFT_LOGO_URL = "https://github.com/ShaftHQ/SHAFT_ENGINE/raw/main/src/main/resources/images/shaft.png";
+    private static final String SHAFT_LOGO_URL = "https://github.com/ShaftHQ/SHAFT_ENGINE/raw/main/shaft-engine/src/main/resources/images/shaft.png";
     private static final DateTimeFormatter REPORT_CREATION_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     // Method to generate the final HTML report with responsive layout and pagination

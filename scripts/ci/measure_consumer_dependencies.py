@@ -20,6 +20,8 @@ from typing import Iterable
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES_ROOT = ROOT / "tools" / "modularization" / "consumer-fixtures"
 BASELINE_ROOT = ROOT / "docs" / "modularization" / "dependency-baseline"
+ENGINE_ROOT = ROOT / "shaft-engine"
+ENGINE_POM = ENGINE_ROOT / "pom.xml"
 PROJECT_COORDINATE = "io.github.shafthq:SHAFT_ENGINE"
 DEPENDENCY_LINE = re.compile(r"^\s*([^\s].*?):(/.*|[A-Za-z]:\\.*)$")
 
@@ -49,7 +51,10 @@ def seed_project_artifact(repository: Path, jar: Path, version: str) -> int:
     destination = repository / "io" / "github" / "shafthq" / "SHAFT_ENGINE" / version
     destination.mkdir(parents=True, exist_ok=True)
     shutil.copy2(jar, destination / f"SHAFT_ENGINE-{version}.jar")
-    shutil.copy2(ROOT / "pom.xml", destination / f"SHAFT_ENGINE-{version}.pom")
+    shutil.copy2(ENGINE_POM, destination / f"SHAFT_ENGINE-{version}.pom")
+    parent_destination = repository / "io" / "github" / "shafthq" / "shaft-parent" / version
+    parent_destination.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(ROOT / "pom.xml", parent_destination / f"shaft-parent-{version}.pom")
     return directory_bytes(repository)
 
 
@@ -167,10 +172,19 @@ def run_fixture(fixture: Path, jar: Path, keep_repositories: Path | None = None)
 
 def stable_manifest(manifest: dict[str, object]) -> dict[str, object]:
     ignored = {
-        "elapsedSeconds", "repositoryBytes", "repositoryGrowthBytes", "seededRepositoryBytes",
-        "artifactsRef",
+        "artifactBytes", "elapsedSeconds", "repositoryBytes", "repositoryGrowthBytes",
+        "seededRepositoryBytes", "artifactsRef",
     }
-    return {key: value for key, value in manifest.items() if key not in ignored}
+    stable = {key: value for key, value in manifest.items() if key not in ignored}
+    # The reactor migration rebuilds SHAFT itself; compare the downstream graph byte-for-byte
+    # while validating the engine JAR separately by its entry list.
+    project_jar_prefix = f"{PROJECT_COORDINATE}:jar:"
+    if "artifacts" in stable:
+        stable["artifacts"] = [
+            artifact for artifact in stable["artifacts"]
+            if not str(artifact["coordinate"]).startswith(project_jar_prefix)
+        ]
+    return stable
 
 
 def load_expected_manifest(expected_path: Path) -> dict[str, object]:
@@ -231,14 +245,14 @@ def write_report(manifests: Iterable[dict[str, object]], destination: Path) -> N
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fixture", action="append", help="fixture name; repeat to select multiple")
-    parser.add_argument("--jar", type=Path, help="SHAFT JAR; defaults to target/SHAFT_ENGINE-<version>.jar")
+    parser.add_argument("--jar", type=Path, help="SHAFT JAR; defaults to shaft-engine/target/SHAFT_ENGINE-<version>.jar")
     parser.add_argument("--record", action="store_true", help="replace committed manifests and report")
     parser.add_argument("--verify", action="store_true", help="compare against committed manifests")
     parser.add_argument("--output", type=Path, help="write generated manifests to this directory")
     parser.add_argument("--keep-repositories", type=Path, help="retain isolated repositories for diagnosis")
     args = parser.parse_args()
     version = project_version()
-    jar = (args.jar or ROOT / "target" / f"SHAFT_ENGINE-{version}.jar").resolve()
+    jar = (args.jar or ENGINE_ROOT / "target" / f"SHAFT_ENGINE-{version}.jar").resolve()
     if not jar.is_file():
         parser.error(f"SHAFT JAR does not exist: {jar}; run mvn clean install -DskipTests -Dgpg.skip")
     selected = set(args.fixture or [])
