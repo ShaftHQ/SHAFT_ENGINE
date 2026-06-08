@@ -35,7 +35,7 @@ on:
       - '.github/workflows/e2eLambdaTestTests.yml'
       - 'scripts/ci/**'
       - 'tests/scripts/**'
-      - 'src/test/java/com/shaft/api/**'
+      - 'shaft-engine/src/test/java/com/shaft/api/**'
 
 permissions:
   contents: read
@@ -70,22 +70,22 @@ jobs:
       - name: Run selected Maven tests
         id: maven_tests
         continue-on-error: true
-        run: mvn -e test "-Dtest=${TEST_SELECTOR}" "-DgenerateAllureReportArchive=true" -Dgpg.skip
+        run: mvn -e -pl shaft-engine -am test "-Dtest=${TEST_SELECTOR}" "-DgenerateAllureReportArchive=true" -Dgpg.skip
 
       - name: Extract Allure failures
         id: allure_failures
         if: always()
         continue-on-error: true
         run: |
-          if [ -d allure-results ]; then
-            scripts/ci/extract_allure_failures.py allure-results | tee allure-failures.md
+          if [ -d shaft-engine/allure-results ]; then
+            scripts/ci/extract_allure_failures.py shaft-engine/allure-results | tee allure-failures.md
           else
             echo 'No allure-results directory was generated.' | tee allure-failures.md
           fi
 
       - name: Generate JaCoCo report
         if: always()
-        run: mvn jacoco:report -Dgpg.skip
+        run: mvn -pl shaft-engine jacoco:report -Dgpg.skip
 
       - name: Summarize coverage
         id: coverage
@@ -95,7 +95,7 @@ jobs:
           if [ "${ENFORCE_COVERAGE}" = "true" ]; then
             enforce_args+=(--enforce)
           fi
-          scripts/ci/jacoco_coverage_gate.py target/jacoco/jacoco.csv \
+          scripts/ci/jacoco_coverage_gate.py shaft-engine/target/jacoco/jacoco.csv \
             --metric "${COVERAGE_METRIC}" \
             --minimum "${COVERAGE_MINIMUM}" \
             "${enforce_args[@]}" | tee jacoco-coverage-summary.md
@@ -123,9 +123,9 @@ jobs:
             e2e-test-inventory.md
             allure-failures.md
             jacoco-coverage-summary.md
-            target/jacoco/**
-            target/surefire-reports/**
-            allure-results/**
+            shaft-engine/target/jacoco/**
+            shaft-engine/target/surefire-reports/**
+            shaft-engine/allure-results/**
           if-no-files-found: ignore
 
       - name: Fail on test failures
