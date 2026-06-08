@@ -33,7 +33,14 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
-class LegacyVisualProcessingProvider implements VisualProcessingProvider {
+/**
+ * Compatibility provider for visual operations that still depend on OpenCV, Shutterbug, or Applitools.
+ *
+ * <p>The provider is instantiated reflectively so that core image classes do not acquire descriptors for optional
+ * third-party visual libraries before the implementation moves to {@code io.github.shafthq:shaft-visual}.</p>
+ */
+@SuppressWarnings("unused") // Instantiated reflectively by VisualProcessingProviders.
+final class LegacyVisualProcessingProvider implements VisualProcessingProvider {
     private static final int CV_THRESH_OTSU = 8;
     private static final int CV_THRESH_BINARY = 0;
 
@@ -63,71 +70,116 @@ class LegacyVisualProcessingProvider implements VisualProcessingProvider {
     public Boolean compareAgainstBaseline(WebDriver driver, By elementLocator, byte[] elementScreenshot,
                                           ImageProcessingActions.VisualValidationEngine visualValidationEngine) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
-        String aiAidedElementIdentificationFolderPath = ImageProcessingActions.getAiFolderPath();
+        String baselineFolderPath = ImageProcessingActions.getAiFolderPath();
 
-        if (visualValidationEngine == ImageProcessingActions.VisualValidationEngine.EXACT_SHUTTERBUG) {
-            String referenceImagePath = aiAidedElementIdentificationFolderPath + hashedLocatorName + ".png";
-            String resultingImagePath = aiAidedElementIdentificationFolderPath + hashedLocatorName + "_shutterbug";
+        return switch (visualValidationEngine) {
+            case EXACT_SHUTTERBUG -> compareWithShutterbug(driver, elementLocator, elementScreenshot,
+                    hashedLocatorName, baselineFolderPath);
+            case EXACT_OPENCV -> compareWithOpenCv(elementScreenshot, hashedLocatorName, baselineFolderPath);
+            default -> compareWithApplitools(elementScreenshot, hashedLocatorName, visualValidationEngine);
+        };
+    }
 
-            if (ImageProcessingActions.getReferenceImage(elementLocator) != null && elementScreenshot != null && elementScreenshot.length > 0) {
-                boolean actualResult = false;
-                try {
-                    var snapshot = Shutterbug.shootElement(driver, elementLocator, CaptureElement.VIEWPORT, true);
-                    actualResult = snapshot.equalsWithDiff(referenceImagePath, resultingImagePath, 0.1);
-                } catch (IOException e) {
-                    ReportManagerHelper.logDiscrete(e);
-                } catch (UnableToCompareImagesException | UnsupportedCommandException exception) {
-                    ReportManager.logDiscrete("Failed to locate element using \"" + ImageProcessingActions.VisualValidationEngine.EXACT_SHUTTERBUG + "\", attempting to use \"" + ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV + "\".");
-                    actualResult = compareAgainstBaseline(driver, elementLocator, elementScreenshot,
-                            ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV);
-                }
-                return actualResult;
-            } else {
-                ReportManager.logDiscrete("Passing the test and saving a reference image");
-                FileActions.getInstance(true).writeToFile(aiAidedElementIdentificationFolderPath, hashedLocatorName + ".png", elementScreenshot);
-                return true;
-            }
+    private Boolean compareWithShutterbug(WebDriver driver, By elementLocator, byte[] elementScreenshot,
+                                          String hashedLocatorName, String baselineFolderPath) {
+        String referenceImagePath = baselineFolderPath + hashedLocatorName + ".png";
+        String resultingImagePath = baselineFolderPath + hashedLocatorName + "_shutterbug";
+
+        if (ImageProcessingActions.getReferenceImage(elementLocator) == null
+                || elementScreenshot == null
+                || elementScreenshot.length == 0) {
+            saveReferenceImage(baselineFolderPath, hashedLocatorName, elementScreenshot);
+            return true;
         }
 
-        if (visualValidationEngine == ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV) {
-            String referenceImagePath = aiAidedElementIdentificationFolderPath + hashedLocatorName + ".png";
-
-            boolean doesReferenceFileExist = FileActions.getInstance(true).doesFileExist(referenceImagePath);
-            if (!doesReferenceFileExist || !findImageWithinCurrentPage(referenceImagePath, elementScreenshot).equals(Collections.emptyList())) {
-                if (!doesReferenceFileExist) {
-                    ReportManager.logDiscrete("Passing the test and saving a reference image");
-                    FileActions.getInstance(true).writeToFile(referenceImagePath, elementScreenshot);
-                }
-                return true;
-            } else {
-                return false;
-            }
+        try {
+            var snapshot = Shutterbug.shootElement(driver, elementLocator, CaptureElement.VIEWPORT, true);
+            return snapshot.equalsWithDiff(referenceImagePath, resultingImagePath, 0.1);
+        } catch (IOException exception) {
+            ReportManagerHelper.logDiscrete(exception);
+            return false;
+        } catch (UnableToCompareImagesException | UnsupportedCommandException exception) {
+            ReportManager.logDiscrete("Failed to locate element using \""
+                    + ImageProcessingActions.VisualValidationEngine.EXACT_SHUTTERBUG
+                    + "\", attempting to use \"" + ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV
+                    + "\".");
+            return compareWithOpenCv(elementScreenshot, hashedLocatorName, baselineFolderPath);
         }
+    }
+
+    private Boolean compareWithOpenCv(byte[] elementScreenshot, String hashedLocatorName,
+                                      String baselineFolderPath) {
+        String referenceImagePath = baselineFolderPath + hashedLocatorName + ".png";
+        boolean doesReferenceFileExist = FileActions.getInstance(true).doesFileExist(referenceImagePath);
+        if (!doesReferenceFileExist) {
+            saveReferenceImage(referenceImagePath, elementScreenshot);
+            return true;
+        }
+        return !findImageWithinCurrentPage(referenceImagePath, elementScreenshot).isEmpty();
+    }
+
+    private static void saveReferenceImage(String baselineFolderPath, String hashedLocatorName,
+                                           byte[] elementScreenshot) {
+        ReportManager.logDiscrete("Passing the test and saving a reference image");
+        FileActions.getInstance(true).writeToFile(baselineFolderPath, hashedLocatorName + ".png", elementScreenshot);
+    }
+
+    private static void saveReferenceImage(String referenceImagePath, byte[] elementScreenshot) {
+        ReportManager.logDiscrete("Passing the test and saving a reference image");
+        FileActions.getInstance(true).writeToFile(referenceImagePath, elementScreenshot);
+    }
+
+    private static Boolean compareWithApplitools(byte[] elementScreenshot, String hashedLocatorName,
+                                                 ImageProcessingActions.VisualValidationEngine visualValidationEngine) {
         Eyes eyes = new Eyes();
-        eyes.setLogHandler(new LogHandler() {
+        eyes.setLogHandler(createApplitoolsLogHandler());
+        eyes.setApiKey(SHAFT.Properties.paths.applitoolsApiKey());
+        eyes.setMatchLevel(toMatchLevel(visualValidationEngine));
+        configureApplitoolsEnvironment(eyes);
+        try {
+            eyes.open("SHAFT_Engine", ReportManagerHelper.getCallingMethodFullName());
+            eyes.checkImage(elementScreenshot, hashedLocatorName);
+            TestResults eyesValidationResult = eyes.close();
+            ReportManager.logDiscrete("Successfully validated the element using AI; Applitools Eyes.");
+            return eyesValidationResult.isNew() || eyesValidationResult.isPassed();
+        } catch (DiffsFoundException exception) {
+            ReportManagerHelper.logDiscrete(exception);
+            return false;
+        } finally {
+            eyes.abortIfNotClosed();
+        }
+    }
+
+    private static LogHandler createApplitoolsLogHandler() {
+        return new LogHandler() {
             @Override
             public void open() {
+                // No resources need to be opened for SHAFT report logging.
             }
 
             @Override
-            public void onMessage(boolean b, String s) {
-                ReportManager.logDiscrete(s);
+            public void onMessage(boolean verbose, String message) {
+                ReportManager.logDiscrete(message);
             }
 
             @Override
             public void close() {
+                // No resources need to be closed for SHAFT report logging.
             }
-        });
-        eyes.setApiKey(SHAFT.Properties.paths.applitoolsApiKey());
-        MatchLevel targetMatchLevel = MatchLevel.STRICT;
-        switch (visualValidationEngine) {
-            case EXACT_EYES -> targetMatchLevel = MatchLevel.EXACT;
-            case CONTENT_EYES -> targetMatchLevel = MatchLevel.CONTENT;
-            case LAYOUT_EYES -> targetMatchLevel = MatchLevel.LAYOUT;
-            default -> {
-            }
-        }
-        eyes.setMatchLevel(targetMatchLevel);
+        };
+    }
+
+    private static MatchLevel toMatchLevel(
+            ImageProcessingActions.VisualValidationEngine visualValidationEngine) {
+        return switch (visualValidationEngine) {
+            case EXACT_EYES -> MatchLevel.EXACT;
+            case CONTENT_EYES -> MatchLevel.CONTENT;
+            case LAYOUT_EYES -> MatchLevel.LAYOUT;
+            default -> MatchLevel.STRICT;
+        };
+    }
+
+    private static void configureApplitoolsEnvironment(Eyes eyes) {
         if (DriverFactoryHelper.isMobileNativeExecution()) {
             eyes.setHostOS(SHAFT.Properties.mobile.platformName() + "_" + SHAFT.Properties.mobile.platformVersion());
             eyes.setHostApp("NativeMobileExecution");
@@ -137,18 +189,6 @@ class LegacyVisualProcessingProvider implements VisualProcessingProvider {
         } else {
             eyes.setHostOS(SHAFT.Properties.platform.targetPlatform());
             eyes.setHostApp(SHAFT.Properties.web.targetBrowserName());
-        }
-        try {
-            eyes.open("SHAFT_Engine", ReportManagerHelper.getCallingMethodFullName());
-            eyes.checkImage(elementScreenshot, hashedLocatorName);
-            TestResults eyesValidationResult = eyes.close();
-            ReportManager.logDiscrete("Successfully validated the element using AI; Applitools Eyes.");
-            return eyesValidationResult.isNew() || eyesValidationResult.isPassed();
-        } catch (DiffsFoundException e) {
-            ReportManagerHelper.logDiscrete(e);
-            return false;
-        } finally {
-            eyes.abortIfNotClosed();
         }
     }
 
@@ -179,7 +219,7 @@ class LegacyVisualProcessingProvider implements VisualProcessingProvider {
     }
 
     private static List<Integer> attemptToFindImageUsingOpenCV(String referenceImagePath, byte[] currentPageScreenshot, int attemptNumber) {
-        if (currentPageScreenshot == null || Arrays.equals(currentPageScreenshot, new byte[]{})) {
+        if (currentPageScreenshot == null || currentPageScreenshot.length == 0) {
             //target image is empty, force fail comparison
             ReportManager.log("Failed to identify the element using AI; target screenshot is empty.");
         } else {
@@ -211,19 +251,16 @@ class LegacyVisualProcessingProvider implements VisualProcessingProvider {
                 // Localizing the best match with minMaxLoc
                 Core.MinMaxLocResult mmr = Core.minMaxLoc(result);
 
-                double minMaxVal;
                 double matchAccuracy;
 
-                org.opencv.core.Point matchLoc;
+                Point matchLoc;
                 //noinspection ConstantValue
                 if (matchMethod == Imgproc.TM_SQDIFF || matchMethod == Imgproc.TM_SQDIFF_NORMED) {
                     matchLoc = mmr.minLoc;
-                    minMaxVal = mmr.minVal;
-                    matchAccuracy = 1 - minMaxVal;
+                    matchAccuracy = 1 - mmr.minVal;
                 } else {
                     matchLoc = mmr.maxLoc;
-                    minMaxVal = mmr.maxVal;
-                    matchAccuracy = minMaxVal;
+                    matchAccuracy = mmr.maxVal;
                 }
 
                 var accuracyMessage = "Match accuracy is " + (int) Math.round(matchAccuracy * 100) + "% and threshold is " + (int) Math.round(threshold * 100) + "%. Match Method: " + matchMethod + ".";
@@ -300,11 +337,11 @@ class LegacyVisualProcessingProvider implements VisualProcessingProvider {
     private static void loadOpenCV() {
         var libName = "";
         try {
-            libName = org.opencv.core.Core.NATIVE_LIBRARY_NAME;
+            libName = Core.NATIVE_LIBRARY_NAME;
             OpenCV.loadLocally();
             ReportManager.logDiscrete("Loaded OpenCV \"" + libName + "\".");
-        } catch (Throwable throwable) {
-            ReportManagerHelper.logDiscrete(throwable);
+        } catch (LinkageError | RuntimeException exception) {
+            ReportManagerHelper.logDiscrete(exception);
             if (!libName.isEmpty()) {
                 ReportManager.logDiscrete("Failed to load OpenCV \"" + libName + "\". Add `" + VisualProcessingProviders.SHAFT_VISUAL_COORDINATE + "` when visual matching is extracted, or switch element highlighting to JavaScript.");
             } else {
@@ -313,6 +350,4 @@ class LegacyVisualProcessingProvider implements VisualProcessingProvider {
             SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("JavaScript");
         }
     }
-
-
 }

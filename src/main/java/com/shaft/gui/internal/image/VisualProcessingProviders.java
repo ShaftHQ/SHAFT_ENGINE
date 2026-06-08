@@ -11,6 +11,9 @@ import java.util.Optional;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 
+/**
+ * Discovers and caches the visual-processing provider without linking core image classes to optional libraries.
+ */
 final class VisualProcessingProviders {
     static final String SHAFT_VISUAL_COORDINATE = "io.github.shafthq:shaft-visual";
     private static final String BUILT_IN_PROVIDER = "com.shaft.gui.internal.image.LegacyVisualProcessingProvider";
