@@ -60,12 +60,13 @@ class BrowserStackModuleBoundaryTest(unittest.TestCase):
             ROOT / ".github/workflows/e2eTests.yml",
             ROOT / ".github/workflows/e2eLocalTests.yml",
             ROOT / ".github/workflows/e2eLambdaTestTests.yml",
+            ROOT / ".github/workflows/e2eMoonTests.yml",
         ]
         commands = [
             line.strip()
             for workflow in workflows
             for line in workflow.read_text(encoding="utf-8").splitlines()
-            if "run: mvn " in line
+            if "mvn " in line
         ]
 
         self.assertTrue(commands)
