@@ -6,11 +6,11 @@
     "system": "Linux",
     "machine": "x86_64"
   },
-  "artifactCount": 341,
-  "artifactBytes": 352001986,
-  "seededRepositoryBytes": 774635,
-  "repositoryBytes": 381108081,
-  "repositoryGrowthBytes": 380333446,
-  "elapsedSeconds": 71.007,
+  "artifactCount": 329,
+  "artifactBytes": 284731691,
+  "seededRepositoryBytes": 791366,
+  "repositoryBytes": 313634799,
+  "repositoryGrowthBytes": 312843433,
+  "elapsedSeconds": 69.006,
   "artifactsRef": "artifacts.json"
 }

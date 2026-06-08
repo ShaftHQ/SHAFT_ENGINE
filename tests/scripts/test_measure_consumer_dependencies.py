@@ -62,10 +62,9 @@ The following files have been resolved:
 
     def test_validate_required_artifacts_checks_key_baseline_sizes(self):
         manifest = {
-            "fixture": "browserstack-sdk",
+            "fixture": "desktop-video",
             "artifacts": [
                 {"coordinate": "org.openpnp:opencv:jar:4.9.0-0", "compressedBytes": 109_619_828},
-                {"coordinate": "com.browserstack:browserstack-java-sdk:jar:1.59.8", "compressedBytes": 38_204_017},
                 {"coordinate": "ws.schild:jave-nativebin-linux64:jar:3.5.0", "compressedBytes": 28_201_169},
             ]
         }
@@ -82,7 +81,6 @@ The following files have been resolved:
             "artifacts": [
                 {"coordinate": "org.openpnp:opencv:jar:4.9.0-0", "compressedBytes": 109_619_828},
                 {"coordinate": "com.browserstack:browserstack-java-sdk:jar:1.59.8", "compressedBytes": 38_204_017},
-                {"coordinate": "ws.schild:jave-nativebin-linux64:jar:3.5.0", "compressedBytes": 28_201_169},
             ],
         }
         with mock.patch.object(
@@ -95,19 +93,32 @@ The following files have been resolved:
                 ["forbidden artifact com.browserstack:browserstack-java-sdk:jar:1.59.8"],
             )
 
+    def test_validate_required_artifacts_rejects_desktop_video_from_lean_fixture(self):
+        manifest = {
+            "fixture": "testng-web",
+            "artifacts": [
+                {"coordinate": "org.openpnp:opencv:jar:4.9.0-0", "compressedBytes": 109_619_828},
+                {"coordinate": "ws.schild:jave-nativebin-linux64:jar:3.5.0", "compressedBytes": 28_201_169},
+            ],
+        }
+
+        self.assertEqual(
+            measure.validate_required_artifacts(manifest),
+            ["forbidden desktop video artifacts ['ws.schild:jave-nativebin-linux64:jar:3.5.0']"],
+        )
+
     def test_verify_manifest_ignores_observational_timing_and_repository_growth(self):
         expected = {
             "schemaVersion": 1,
-            "fixture": "browserstack-sdk",
-            "artifactCount": 3,
-            "artifactBytes": 147_823_045,
+            "fixture": "desktop-video",
+            "artifactCount": 2,
+            "artifactBytes": 137_821_028,
             "elapsedSeconds": 1.0,
             "repositoryBytes": 10,
             "repositoryGrowthBytes": 5,
             "seededRepositoryBytes": 5,
             "artifacts": [
                 {"coordinate": "org.openpnp:opencv:jar:4.9.0-0", "compressedBytes": 109_619_828},
-                {"coordinate": "com.browserstack:browserstack-java-sdk:jar:1.59.8", "compressedBytes": 38_204_017},
                 {"coordinate": measure.expected_jave_coordinate(), "compressedBytes": 28_201_200},
             ],
         }
@@ -135,6 +146,9 @@ The following files have been resolved:
             browserstack_root = root / "shaft-browserstack"
             browserstack_pom = browserstack_root / "pom.xml"
             browserstack_jar = browserstack_root / "target" / "shaft-browserstack-1.2.3.jar"
+            video_root = root / "shaft-video"
+            video_pom = video_root / "pom.xml"
+            video_jar = video_root / "target" / "shaft-video-1.2.3.jar"
             legacy_pom = root / "legacy-pom.xml"
             jar.write_bytes(b"jar")
             engine_pom.write_text("<project>engine</project>", encoding="utf-8")
@@ -143,6 +157,10 @@ The following files have been resolved:
             browserstack_pom.write_text("<project>browserstack</project>", encoding="utf-8")
             browserstack_jar.parent.mkdir(parents=True)
             browserstack_jar.write_bytes(b"browserstack-jar")
+            video_pom.parent.mkdir(parents=True)
+            video_pom.write_text("<project>video</project>", encoding="utf-8")
+            video_jar.parent.mkdir(parents=True)
+            video_jar.write_bytes(b"video-jar")
             legacy_pom.write_text("<project>legacy</project>", encoding="utf-8")
             (root / "pom.xml").write_text("<project>parent</project>", encoding="utf-8")
 
@@ -151,6 +169,8 @@ The following files have been resolved:
                 mock.patch.object(measure, "BOM_POM", bom_pom),
                 mock.patch.object(measure, "BROWSERSTACK_ROOT", browserstack_root),
                 mock.patch.object(measure, "BROWSERSTACK_POM", browserstack_pom),
+                mock.patch.object(measure, "VIDEO_ROOT", video_root),
+                mock.patch.object(measure, "VIDEO_POM", video_pom),
                 mock.patch.object(measure, "LEGACY_POM", legacy_pom),
                 mock.patch.object(measure, "ROOT", root),
             ):
@@ -176,6 +196,14 @@ The following files have been resolved:
                 b"browserstack-jar",
             )
             self.assertEqual(
+                (repository / "io/github/shafthq/shaft-video/1.2.3/shaft-video-1.2.3.pom").read_text(encoding="utf-8"),
+                "<project>video</project>",
+            )
+            self.assertEqual(
+                (repository / "io/github/shafthq/shaft-video/1.2.3/shaft-video-1.2.3.jar").read_bytes(),
+                b"video-jar",
+            )
+            self.assertEqual(
                 (repository / "io/github/shafthq/SHAFT_ENGINE/1.2.3/SHAFT_ENGINE-1.2.3.pom").read_text(encoding="utf-8"),
                 "<project>legacy</project>",
             )
@@ -184,6 +212,27 @@ The following files have been resolved:
                 "<project>parent</project>",
             )
             self.assertEqual(seeded_bytes, measure.directory_bytes(repository))
+
+
+    def test_write_recorded_manifests_uses_separate_catalogs_for_distinct_graphs(self):
+        manifests = [
+            {"fixture": "api", "artifacts": [{"coordinate": "common"}]},
+            {"fixture": "testng-web", "artifacts": [{"coordinate": "common"}]},
+            {"fixture": "desktop-video", "artifacts": [{"coordinate": "video"}]},
+        ]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir)
+            measure.write_recorded_manifests(manifests, output)
+
+            api = json.loads((output / "api.json").read_text(encoding="utf-8"))
+            testng = json.loads((output / "testng-web.json").read_text(encoding="utf-8"))
+            video = json.loads((output / "desktop-video.json").read_text(encoding="utf-8"))
+            self.assertEqual(api["artifactsRef"], "artifacts.json")
+            self.assertEqual(testng["artifactsRef"], "artifacts.json")
+            self.assertEqual(video["artifactsRef"], "artifacts-desktop-video.json")
+            self.assertTrue((output / "artifacts.json").is_file())
+            self.assertTrue((output / "artifacts-desktop-video.json").is_file())
 
     def test_verify_manifest_ignores_rebuilt_project_jar_but_not_dependency_changes(self):
         expected = {

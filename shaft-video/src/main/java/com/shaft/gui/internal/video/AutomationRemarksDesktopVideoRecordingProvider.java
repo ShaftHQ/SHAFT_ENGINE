@@ -23,9 +23,9 @@ import java.io.InputStream;
 /**
  * Desktop video provider backed by Automation Remarks and JAVE.
  *
- * <p>This implementation remains in {@code shaft-engine} until the dependency extraction performed by the
- * {@code shaft-video} module work. Keeping all optional-library types in this class allows engine orchestration and
- * listeners to depend only on {@link DesktopVideoRecordingProvider}.</p>
+ * <p>The provider is published by the optional {@code shaft-video} module and discovered automatically through
+ * {@link java.util.ServiceLoader}. Engine orchestration and Appium-native recording remain independent of these
+ * desktop-only libraries.</p>
  */
 public class AutomationRemarksDesktopVideoRecordingProvider implements DesktopVideoRecordingProvider {
     private final ThreadLocal<IVideoRecorder> recorder = new ThreadLocal<>();

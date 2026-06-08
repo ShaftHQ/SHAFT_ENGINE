@@ -44,6 +44,12 @@
       "sha256": "3a6278740807c49f25ebe39172f4912a247187b5d1d57b05cd35dfaad04d4628"
     },
     {
+      "coordinate": "com.browserstack:browserstack-java-sdk:jar:1.59.8",
+      "scope": "compile",
+      "compressedBytes": 38204017,
+      "sha256": "846ac6af4a040b2e72e7ce8a4d20c61b2f6907ec9136c67d30abf314058a99df"
+    },
+    {
       "coordinate": "com.deque.html.axe-core:dequeutilites:jar:4.11.3",
       "scope": "compile",
       "compressedBytes": 23942,
@@ -720,6 +726,12 @@
       "scope": "compile",
       "compressedBytes": 939037,
       "sha256": "7a8a003f3aaa7df074f112178526477fa8466684c7ac2f695c900b708e7641f5"
+    },
+    {
+      "coordinate": "io.github.shafthq:shaft-browserstack:jar:10.2.20260605",
+      "scope": "compile",
+      "compressedBytes": 4991,
+      "sha256": "ab74da4ccb2da847e2962f783f53d3bf6d983c5af0ea834e177938b07ddb4afc"
     },
     {
       "coordinate": "io.github.shafthq:shaft-engine:jar:10.2.20260605",

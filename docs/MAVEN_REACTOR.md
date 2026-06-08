@@ -8,10 +8,11 @@ relocation artifact that points consumers to the canonical JAR.
 
 - The root `pom.xml` is the `io.github.shafthq:shaft-parent` aggregator and build parent. It owns shared version properties, dependency management, and plugin management.
 - `shaft-engine/pom.xml` builds the engine JAR. All framework source, resources, tests, examples, and runtime support assets remain under `shaft-engine/src/`; Java packages remain under `com.shaft`.
-- `shaft-bom/pom.xml` publishes the consumer BOM. Importing it manages the `shaft-engine` version without adding dependencies by itself.
+- `shaft-bom/pom.xml` publishes the consumer BOM. Importing it manages the `shaft-engine`, `shaft-browserstack`, and `shaft-video` versions without adding dependencies by itself.
+- `shaft-video/pom.xml` builds the optional desktop video recording provider. Add it when local desktop screen recording is needed; Appium-native recording remains in `shaft-engine`.
 - `legacy-shaft-engine/pom.xml` publishes the legacy `SHAFT_ENGINE` coordinate as relocation metadata only; it contains no classes.
 
-API, Appium/mobile, database, BrowserStack, desktop video, OpenCV visual processing, and every other retained capability remain dependencies of the engine module.
+API, Appium/mobile, database, OpenCV visual processing, and every other retained core capability remain dependencies of the engine module. Optional BrowserStack SDK support and desktop video/FFmpeg support are provided by `shaft-browserstack` and `shaft-video`.
 
 ## Consumer usage
 
@@ -55,6 +56,7 @@ Run commands from the repository root:
 python3 scripts/ci/validate_reactor_versions.py
 mvn clean install -DskipTests -Dgpg.skip
 mvn -pl shaft-engine -am test -Dtest=TestClassName
+mvn -pl shaft-video -am test -Dtest=DesktopVideoRecordingProviderRegistrationTest
 mvn -pl shaft-engine -am test
 mvn -pl shaft-engine javadoc:javadoc
 ```
@@ -62,7 +64,8 @@ mvn -pl shaft-engine javadoc:javadoc
 Build and test outputs are module-local. Important locations include:
 
 - Engine JAR: `shaft-engine/target/shaft-engine-<version>.jar`
-- Surefire reports: `shaft-engine/target/surefire-reports/`
+- Optional desktop video JAR: `shaft-video/target/shaft-video-<version>.jar`
+- Surefire reports: `shaft-engine/target/surefire-reports/` and `shaft-video/target/surefire-reports/`
 - JaCoCo report: `shaft-engine/target/jacoco/`
 - Allure results: `shaft-engine/allure-results/`
 - Allure report: `shaft-engine/allure-report/`
@@ -78,4 +81,4 @@ mvn clean install -DskipTests -Dgpg.skip
 python3 scripts/ci/measure_consumer_dependencies.py --verify
 ```
 
-The measurement script seeds the canonical engine JAR, the BOM, the legacy relocation POM, and the reactor parent into each isolated Maven repository.
+The measurement script seeds the canonical engine JAR, optional integration JARs, the BOM, the legacy relocation POM, and the reactor parent into each isolated Maven repository.

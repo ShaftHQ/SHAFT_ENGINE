@@ -25,10 +25,13 @@ ENGINE_POM = ENGINE_ROOT / "pom.xml"
 BOM_POM = ROOT / "shaft-bom" / "pom.xml"
 BROWSERSTACK_ROOT = ROOT / "shaft-browserstack"
 BROWSERSTACK_POM = BROWSERSTACK_ROOT / "pom.xml"
+VIDEO_ROOT = ROOT / "shaft-video"
+VIDEO_POM = VIDEO_ROOT / "pom.xml"
 LEGACY_POM = ROOT / "legacy-shaft-engine" / "pom.xml"
 PROJECT_COORDINATES = (
     "io.github.shafthq:shaft-engine",
     "io.github.shafthq:shaft-browserstack",
+    "io.github.shafthq:shaft-video",
     "io.github.shafthq:SHAFT_ENGINE",
 )
 DEPENDENCY_LINE = re.compile(r"^\s*([^\s].*?):(/.*|[A-Za-z]:\\.*)$")
@@ -73,6 +76,13 @@ def seed_project_artifact(repository: Path, jar: Path, version: str) -> int:
     shutil.copy2(
         BROWSERSTACK_ROOT / "target" / f"shaft-browserstack-{version}.jar",
         browserstack_destination / f"shaft-browserstack-{version}.jar",
+    )
+    video_destination = repository / "io" / "github" / "shafthq" / "shaft-video" / version
+    video_destination.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(VIDEO_POM, video_destination / f"shaft-video-{version}.pom")
+    shutil.copy2(
+        VIDEO_ROOT / "target" / f"shaft-video-{version}.jar",
+        video_destination / f"shaft-video-{version}.jar",
     )
     seed_pom(repository, "SHAFT_ENGINE", LEGACY_POM, version)
     seed_pom(repository, "shaft-parent", ROOT / "pom.xml", version)
@@ -154,12 +164,23 @@ def validate_required_artifacts(manifest: dict[str, object]) -> list[str]:
             errors.append(
                 f"{coordinate} is {artifact['compressedBytes']} bytes; expected {expected_bytes}"
             )
-    expected_jave = expected_jave_coordinate()
-    resolved_jave = sorted(
-        coordinate for coordinate in artifacts if coordinate.startswith("ws.schild:jave-nativebin-")
+    desktop_coordinates = (
+        "ws.schild:jave-core:",
+        "ws.schild:jave-nativebin-",
+        "com.automation-remarks:video-recorder-",
     )
-    if resolved_jave != [expected_jave]:
-        errors.append(f"resolved JAVE artifacts {resolved_jave}; expected [{expected_jave}]")
+    resolved_desktop = sorted(
+        coordinate for coordinate in artifacts if coordinate.startswith(desktop_coordinates)
+    )
+    if manifest.get("fixture") == "desktop-video":
+        expected_jave = expected_jave_coordinate()
+        resolved_jave = sorted(
+            coordinate for coordinate in artifacts if coordinate.startswith("ws.schild:jave-nativebin-")
+        )
+        if resolved_jave != [expected_jave]:
+            errors.append(f"resolved JAVE artifacts {resolved_jave}; expected [{expected_jave}]")
+    elif resolved_desktop:
+        errors.append(f"forbidden desktop video artifacts {resolved_desktop}")
     return errors
 
 
@@ -177,12 +198,19 @@ def run_fixture(fixture: Path, jar: Path, keep_repositories: Path | None = None)
         f"-DoutputFile={dependency_output}", "-DappendOutput=false",
     ]
     started = time.monotonic()
-    completed = subprocess.run(command, cwd=ROOT, text=True, capture_output=True)
+    completed = None
+    for attempt in range(1, 4):
+        completed = subprocess.run(command, cwd=ROOT, text=True, capture_output=True)
+        if not completed.returncode:
+            break
+        combined_output = completed.stdout + completed.stderr
+        if attempt == 3 or not any(status in combined_output for status in (" 502", " 503", " 504")):
+            sys.stderr.write(completed.stdout)
+            sys.stderr.write(completed.stderr)
+            raise RuntimeError(f"Fixture {fixture.name} failed with exit code {completed.returncode}")
+        print(f"Retrying {fixture.name} after transient repository failure ({attempt}/3)...", flush=True)
+        time.sleep(attempt)
     elapsed = round(time.monotonic() - started, 3)
-    if completed.returncode:
-        sys.stderr.write(completed.stdout)
-        sys.stderr.write(completed.stderr)
-        raise RuntimeError(f"Fixture {fixture.name} failed with exit code {completed.returncode}")
     artifacts = parse_dependency_list(dependency_output.read_text(encoding="utf-8"), repository)
     repository_bytes = directory_bytes(repository)
     manifest: dict[str, object] = {
@@ -245,16 +273,34 @@ def verify_manifest(actual: dict[str, object], expected_path: Path) -> list[str]
 
 
 def write_recorded_manifests(manifests: list[dict[str, object]], output: Path) -> None:
-    artifact_sets = [manifest["artifacts"] for manifest in manifests]
-    if any(artifacts != artifact_sets[0] for artifacts in artifact_sets[1:]):
-        raise ValueError("Fixture dependency sets differ; separate artifact catalogs are required")
-    (output / "artifacts.json").write_text(
-        json.dumps({"schemaVersion": 1, "artifacts": artifact_sets[0]}, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    grouped: dict[str, list[dict[str, object]]] = {}
+    for manifest in manifests:
+        artifact_key = json.dumps(manifest["artifacts"], sort_keys=True)
+        grouped.setdefault(artifact_key, []).append(manifest)
+
+    shared_key = sorted(
+        grouped,
+        key=lambda key: (-len(grouped[key]), min(str(item["fixture"]) for item in grouped[key])),
+    )[0]
+    for stale_catalog in output.glob("artifacts-*.json"):
+        stale_catalog.unlink()
+
+    catalog_by_key: dict[str, str] = {}
+    for artifact_key, group in sorted(grouped.items(), key=lambda item: min(str(m["fixture"]) for m in item[1])):
+        if artifact_key == shared_key:
+            catalog_name = "artifacts.json"
+        else:
+            catalog_name = f"artifacts-{min(str(item['fixture']) for item in group)}.json"
+        catalog_by_key[artifact_key] = catalog_name
+        (output / catalog_name).write_text(
+            json.dumps({"schemaVersion": 1, "artifacts": group[0]["artifacts"]}, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
     for manifest in manifests:
         summary = {key: value for key, value in manifest.items() if key != "artifacts"}
-        summary["artifactsRef"] = "artifacts.json"
+        artifact_key = json.dumps(manifest["artifacts"], sort_keys=True)
+        summary["artifactsRef"] = catalog_by_key[artifact_key]
         (output / f"{manifest['fixture']}.json").write_text(
             json.dumps(summary, indent=2) + "\n", encoding="utf-8"
         )
@@ -269,10 +315,10 @@ def write_report(manifests: Iterable[dict[str, object]], destination: Path) -> N
             f"{manifest['elapsedSeconds']:.3f} |"
         )
     destination.write_text(
-        "# Pre-modularization cold-cache dependency baseline\n\n"
-        "Each fixture was compiled against the legacy `io.github.shafthq:SHAFT_ENGINE` coordinate "
-        "using its own empty temporary Maven repository. The SHAFT JAR and POM are seeded before "
-        "measurement; repository growth therefore represents downloaded dependencies and build plugins.\n\n"
+        "# Modular cold-cache dependency baseline\n\n"
+        "Each fixture was compiled against its declared SHAFT module using an empty temporary Maven repository. "
+        "The reactor artifacts and POMs are seeded before measurement; repository growth therefore represents "
+        "downloaded dependencies and build plugins.\n\n"
         "| Fixture | Artifacts | Classpath JAR bytes | Repository growth bytes | Elapsed seconds |\n"
         "| --- | ---: | ---: | ---: | ---: |\n" + "\n".join(rows) + "\n\n"
         "Elapsed time and repository growth are observations, not equality gates. Artifact coordinates, "
