@@ -172,10 +172,19 @@ def run_fixture(fixture: Path, jar: Path, keep_repositories: Path | None = None)
 
 def stable_manifest(manifest: dict[str, object]) -> dict[str, object]:
     ignored = {
-        "elapsedSeconds", "repositoryBytes", "repositoryGrowthBytes", "seededRepositoryBytes",
-        "artifactsRef",
+        "artifactBytes", "elapsedSeconds", "repositoryBytes", "repositoryGrowthBytes",
+        "seededRepositoryBytes", "artifactsRef",
     }
-    return {key: value for key, value in manifest.items() if key not in ignored}
+    stable = {key: value for key, value in manifest.items() if key not in ignored}
+    # The reactor migration rebuilds SHAFT itself; compare the downstream graph byte-for-byte
+    # while validating the engine JAR separately by its entry list.
+    project_jar_prefix = f"{PROJECT_COORDINATE}:jar:"
+    if "artifacts" in stable:
+        stable["artifacts"] = [
+            artifact for artifact in stable["artifacts"]
+            if not str(artifact["coordinate"]).startswith(project_jar_prefix)
+        ]
+    return stable
 
 
 def load_expected_manifest(expected_path: Path) -> dict[str, object]:

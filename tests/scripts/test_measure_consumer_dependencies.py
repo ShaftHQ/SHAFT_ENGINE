@@ -106,3 +106,42 @@ def test_seed_project_artifact_writes_engine_and_parent_poms(tmp_path, monkeypat
     assert (engine / "SHAFT_ENGINE-1.2.3.pom").read_text(encoding="utf-8") == "<project>engine</project>"
     assert (parent / "shaft-parent-1.2.3.pom").read_text(encoding="utf-8") == "<project>parent</project>"
     assert seeded_bytes == measure.directory_bytes(repository)
+
+
+def test_verify_manifest_ignores_rebuilt_project_jar_but_not_dependency_changes(tmp_path, monkeypatch):
+    monkeypatch.setattr(measure, "validate_required_artifacts", lambda manifest: [])
+    expected = {
+        "schemaVersion": 1,
+        "fixture": "sample",
+        "rootCoordinate": "io.github.shafthq:SHAFT_ENGINE:1.0.0",
+        "platform": {"system": "Linux", "machine": "x86_64"},
+        "artifactCount": 2,
+        "artifactBytes": 30,
+        "artifacts": [
+            {
+                "coordinate": "io.github.shafthq:SHAFT_ENGINE:jar:1.0.0",
+                "scope": "compile",
+                "compressedBytes": 10,
+                "sha256": "old-project-jar",
+            },
+            {
+                "coordinate": "org.example:dependency:jar:1.0.0",
+                "scope": "compile",
+                "compressedBytes": 20,
+                "sha256": "dependency",
+            },
+        ],
+    }
+    expected_path = tmp_path / "expected.json"
+    expected_path.write_text(json.dumps(expected), encoding="utf-8")
+    actual = json.loads(json.dumps(expected))
+    actual["artifactBytes"] = 35
+    actual["artifacts"][0]["compressedBytes"] = 15
+    actual["artifacts"][0]["sha256"] = "rebuilt-project-jar"
+
+    assert measure.verify_manifest(actual, expected_path) == []
+
+    actual["artifacts"][1]["sha256"] = "changed-dependency"
+    assert measure.verify_manifest(actual, expected_path) == [
+        f"stable dependency manifest differs from {expected_path}"
+    ]
