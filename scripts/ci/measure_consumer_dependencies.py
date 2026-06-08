@@ -22,7 +22,12 @@ FIXTURES_ROOT = ROOT / "tools" / "modularization" / "consumer-fixtures"
 BASELINE_ROOT = ROOT / "docs" / "modularization" / "dependency-baseline"
 ENGINE_ROOT = ROOT / "shaft-engine"
 ENGINE_POM = ENGINE_ROOT / "pom.xml"
-PROJECT_COORDINATE = "io.github.shafthq:SHAFT_ENGINE"
+BOM_POM = ROOT / "shaft-bom" / "pom.xml"
+LEGACY_POM = ROOT / "legacy-shaft-engine" / "pom.xml"
+PROJECT_COORDINATES = (
+    "io.github.shafthq:shaft-engine",
+    "io.github.shafthq:SHAFT_ENGINE",
+)
 DEPENDENCY_LINE = re.compile(r"^\s*([^\s].*?):(/.*|[A-Za-z]:\\.*)$")
 
 
@@ -47,15 +52,35 @@ def project_version(pom: Path = ROOT / "pom.xml") -> str:
     return version.strip()
 
 
-def seed_project_artifact(repository: Path, jar: Path, version: str) -> int:
-    destination = repository / "io" / "github" / "shafthq" / "SHAFT_ENGINE" / version
+def seed_pom(repository: Path, artifact_id: str, pom: Path, version: str) -> None:
+    destination = repository / "io" / "github" / "shafthq" / artifact_id / version
     destination.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(jar, destination / f"SHAFT_ENGINE-{version}.jar")
-    shutil.copy2(ENGINE_POM, destination / f"SHAFT_ENGINE-{version}.pom")
-    parent_destination = repository / "io" / "github" / "shafthq" / "shaft-parent" / version
-    parent_destination.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(ROOT / "pom.xml", parent_destination / f"shaft-parent-{version}.pom")
+    shutil.copy2(pom, destination / f"{artifact_id}-{version}.pom")
+
+
+def seed_project_artifact(repository: Path, jar: Path, version: str) -> int:
+    engine_destination = repository / "io" / "github" / "shafthq" / "shaft-engine" / version
+    engine_destination.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(jar, engine_destination / f"shaft-engine-{version}.jar")
+    shutil.copy2(ENGINE_POM, engine_destination / f"shaft-engine-{version}.pom")
+    seed_pom(repository, "shaft-bom", BOM_POM, version)
+    seed_pom(repository, "SHAFT_ENGINE", LEGACY_POM, version)
+    seed_pom(repository, "shaft-parent", ROOT / "pom.xml", version)
     return directory_bytes(repository)
+
+
+
+def fixture_root_coordinate(pom: Path, version: str) -> str:
+    root = ET.parse(pom).getroot()
+    namespace = {"m": "http://maven.apache.org/POM/4.0.0"}
+    dependencies = root.find("m:dependencies", namespace)
+    if dependencies is None:
+        raise ValueError(f"No direct dependencies found in {pom}")
+    for dependency in dependencies.findall("m:dependency", namespace):
+        if dependency.findtext("m:groupId", namespaces=namespace) == "io.github.shafthq":
+            artifact_id = dependency.findtext("m:artifactId", namespaces=namespace)
+            return f"io.github.shafthq:{artifact_id}:{version}"
+    raise ValueError(f"No SHAFT dependency found in {pom}")
 
 
 def parse_dependency_list(text: str, repository: Path) -> list[dict[str, object]]:
@@ -149,7 +174,7 @@ def run_fixture(fixture: Path, jar: Path, keep_repositories: Path | None = None)
     manifest: dict[str, object] = {
         "schemaVersion": 1,
         "fixture": fixture.name,
-        "rootCoordinate": f"{PROJECT_COORDINATE}:{version}",
+        "rootCoordinate": fixture_root_coordinate(fixture / "pom.xml", version),
         "platform": {"system": platform.system(), "machine": platform.machine()},
         "artifactCount": len(artifacts),
         "artifactBytes": sum(int(artifact["compressedBytes"]) for artifact in artifacts),
@@ -173,16 +198,16 @@ def run_fixture(fixture: Path, jar: Path, keep_repositories: Path | None = None)
 def stable_manifest(manifest: dict[str, object]) -> dict[str, object]:
     ignored = {
         "artifactBytes", "elapsedSeconds", "repositoryBytes", "repositoryGrowthBytes",
-        "seededRepositoryBytes", "artifactsRef",
+        "seededRepositoryBytes", "artifactsRef", "rootCoordinate",
     }
     stable = {key: value for key, value in manifest.items() if key not in ignored}
     # The reactor migration rebuilds SHAFT itself; compare the downstream graph byte-for-byte
     # while validating the engine JAR separately by its entry list.
-    project_jar_prefix = f"{PROJECT_COORDINATE}:jar:"
+    project_jar_prefixes = tuple(f"{coordinate}:jar:" for coordinate in PROJECT_COORDINATES)
     if "artifacts" in stable:
         stable["artifacts"] = [
             artifact for artifact in stable["artifacts"]
-            if not str(artifact["coordinate"]).startswith(project_jar_prefix)
+            if not str(artifact["coordinate"]).startswith(project_jar_prefixes)
         ]
     return stable
 
@@ -245,14 +270,14 @@ def write_report(manifests: Iterable[dict[str, object]], destination: Path) -> N
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fixture", action="append", help="fixture name; repeat to select multiple")
-    parser.add_argument("--jar", type=Path, help="SHAFT JAR; defaults to shaft-engine/target/SHAFT_ENGINE-<version>.jar")
+    parser.add_argument("--jar", type=Path, help="SHAFT JAR; defaults to shaft-engine/target/shaft-engine-<version>.jar")
     parser.add_argument("--record", action="store_true", help="replace committed manifests and report")
     parser.add_argument("--verify", action="store_true", help="compare against committed manifests")
     parser.add_argument("--output", type=Path, help="write generated manifests to this directory")
     parser.add_argument("--keep-repositories", type=Path, help="retain isolated repositories for diagnosis")
     args = parser.parse_args()
     version = project_version()
-    jar = (args.jar or ENGINE_ROOT / "target" / f"SHAFT_ENGINE-{version}.jar").resolve()
+    jar = (args.jar or ENGINE_ROOT / "target" / f"shaft-engine-{version}.jar").resolve()
     if not jar.is_file():
         parser.error(f"SHAFT JAR does not exist: {jar}; run mvn clean install -DskipTests -Dgpg.skip")
     selected = set(args.fixture or [])

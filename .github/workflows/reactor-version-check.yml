@@ -1,0 +1,31 @@
+name: Reactor Version Check
+
+on:
+  pull_request:
+    paths:
+      - 'pom.xml'
+      - '*/pom.xml'
+      - 'scripts/ci/validate_reactor_versions.py'
+      - 'tests/scripts/test_validate_reactor_versions.py'
+  push:
+    branches: [ main ]
+    paths:
+      - 'pom.xml'
+      - '*/pom.xml'
+      - 'scripts/ci/validate_reactor_versions.py'
+      - 'tests/scripts/test_validate_reactor_versions.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-reactor-versions:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Reject divergent SHAFT reactor versions
+        run: python3 scripts/ci/validate_reactor_versions.py
+      - name: Test reactor version validator
+        run: python3 -m unittest tests.scripts.test_validate_reactor_versions

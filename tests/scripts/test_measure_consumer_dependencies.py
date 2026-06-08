@@ -8,6 +8,21 @@ import scripts.ci.measure_consumer_dependencies as measure
 
 
 class MeasureConsumerDependenciesTest(unittest.TestCase):
+    def test_fixture_root_coordinate_reads_direct_shaft_dependency(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            pom = Path(temp_dir) / "pom.xml"
+            pom.write_text(
+                """<project xmlns=\"http://maven.apache.org/POM/4.0.0\">
+                <dependencies><dependency><groupId>io.github.shafthq</groupId>
+                <artifactId>shaft-engine</artifactId></dependency></dependencies></project>""",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                measure.fixture_root_coordinate(pom, "1.2.3"),
+                "io.github.shafthq:shaft-engine:1.2.3",
+            )
+
     def test_parse_dependency_list_records_size_and_sha(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             repo = Path(temp_dir) / "repo"
@@ -94,21 +109,38 @@ The following files have been resolved:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             repository = root / "repository"
-            jar = root / "SHAFT_ENGINE.jar"
+            jar = root / "shaft-engine.jar"
             engine_pom = root / "shaft-engine-pom.xml"
+            bom_pom = root / "shaft-bom-pom.xml"
+            legacy_pom = root / "legacy-pom.xml"
             jar.write_bytes(b"jar")
             engine_pom.write_text("<project>engine</project>", encoding="utf-8")
+            bom_pom.write_text("<project>bom</project>", encoding="utf-8")
+            legacy_pom.write_text("<project>legacy</project>", encoding="utf-8")
             (root / "pom.xml").write_text("<project>parent</project>", encoding="utf-8")
 
-            with mock.patch.object(measure, "ENGINE_POM", engine_pom), mock.patch.object(measure, "ROOT", root):
+            with (
+                mock.patch.object(measure, "ENGINE_POM", engine_pom),
+                mock.patch.object(measure, "BOM_POM", bom_pom),
+                mock.patch.object(measure, "LEGACY_POM", legacy_pom),
+                mock.patch.object(measure, "ROOT", root),
+            ):
                 seeded_bytes = measure.seed_project_artifact(repository, jar, "1.2.3")
 
-            engine = repository / "io/github/shafthq/SHAFT_ENGINE/1.2.3"
+            engine = repository / "io/github/shafthq/shaft-engine/1.2.3"
             parent = repository / "io/github/shafthq/shaft-parent/1.2.3"
-            self.assertEqual((engine / "SHAFT_ENGINE-1.2.3.jar").read_bytes(), b"jar")
+            self.assertEqual((engine / "shaft-engine-1.2.3.jar").read_bytes(), b"jar")
             self.assertEqual(
-                (engine / "SHAFT_ENGINE-1.2.3.pom").read_text(encoding="utf-8"),
+                (engine / "shaft-engine-1.2.3.pom").read_text(encoding="utf-8"),
                 "<project>engine</project>",
+            )
+            self.assertEqual(
+                (repository / "io/github/shafthq/shaft-bom/1.2.3/shaft-bom-1.2.3.pom").read_text(encoding="utf-8"),
+                "<project>bom</project>",
+            )
+            self.assertEqual(
+                (repository / "io/github/shafthq/SHAFT_ENGINE/1.2.3/SHAFT_ENGINE-1.2.3.pom").read_text(encoding="utf-8"),
+                "<project>legacy</project>",
             )
             self.assertEqual(
                 (parent / "shaft-parent-1.2.3.pom").read_text(encoding="utf-8"),

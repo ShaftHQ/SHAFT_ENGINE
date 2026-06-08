@@ -30,6 +30,8 @@
 
     <modules>
         <module>shaft-engine</module>
+        <module>shaft-bom</module>
+        <module>legacy-shaft-engine</module>
     </modules>
 
     <properties>
