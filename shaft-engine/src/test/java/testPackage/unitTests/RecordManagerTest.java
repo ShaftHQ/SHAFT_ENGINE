@@ -1,9 +1,5 @@
 package testPackage.unitTests;
 
-import com.automation.remarks.video.RecordingUtils;
-import com.automation.remarks.video.RecorderFactory;
-import com.automation.remarks.video.enums.RecorderType;
-import com.automation.remarks.video.recorder.IVideoRecorder;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.internal.video.RecordManager;
@@ -27,8 +23,6 @@ import java.nio.file.Path;
 import java.util.Base64;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
@@ -39,14 +33,11 @@ import static org.mockito.Mockito.when;
  */
 @Test(singleThreaded = true)
 public class RecordManagerTest {
-    private static final Field RECORDER_FIELD;
     private static final Field VIDEO_DRIVER_FIELD;
     private static final Field IS_RECORDING_STARTED_FIELD;
 
     static {
         try {
-            RECORDER_FIELD = RecordManager.class.getDeclaredField("recorder");
-            RECORDER_FIELD.setAccessible(true);
             VIDEO_DRIVER_FIELD = RecordManager.class.getDeclaredField("videoDriver");
             VIDEO_DRIVER_FIELD.setAccessible(true);
             IS_RECORDING_STARTED_FIELD = RecordManager.class.getDeclaredField("isRecordingStarted");
@@ -54,11 +45,6 @@ public class RecordManagerTest {
         } catch (NoSuchFieldException e) {
             throw new ExceptionInInitializerError(e);
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private ThreadLocal<IVideoRecorder> getRecorderThreadLocal() throws Exception {
-        return (ThreadLocal<IVideoRecorder>) RECORDER_FIELD.get(null);
     }
 
     @SuppressWarnings("unchecked")
@@ -77,7 +63,6 @@ public class RecordManagerTest {
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
-        getRecorderThreadLocal().remove();
         getVideoDriverThreadLocal().remove();
         IS_RECORDING_STARTED_FIELD.setBoolean(null, false);
         setVideoRecordingEnabled(false);
@@ -141,23 +126,6 @@ public class RecordManagerTest {
         SHAFT.Validations.assertThat().object(IS_RECORDING_STARTED_FIELD.getBoolean(null)).isEqualTo(false).perform();
     }
 
-    @Test(description = "getVideoRecording handles recorder branch and cleans recorder thread local")
-    public void getVideoRecordingCleansRecorderWhenDesktopRecorderExists() throws Exception {
-        setVideoRecordingEnabled(true);
-        IVideoRecorder mockRecorder = mock(IVideoRecorder.class);
-        getRecorderThreadLocal().set(mockRecorder);
-        when(mockRecorder.stopAndSave(anyString())).thenReturn(new File("target/recording-does-not-exist.avi"));
-
-        try (var recordingUtilsMock = mockStatic(RecordingUtils.class)) {
-            recordingUtilsMock.when(() -> RecordingUtils.doVideoProcessing(anyBoolean(), any(File.class)))
-                    .thenReturn("target/recording-does-not-exist.avi");
-            InputStream recording = RecordManager.getVideoRecording();
-            SHAFT.Validations.assertThat().object(recording).isNull().perform();
-            verify(mockRecorder).stopAndSave(anyString());
-            SHAFT.Validations.assertThat().object(getRecorderThreadLocal().get()).isNull().perform();
-        }
-    }
-
     @Test(description = "startVideoRecording starts Android native recording when mobile execution is detected")
     public void startVideoRecordingStartsAndroidNativeRecording() throws Exception {
         setVideoRecordingEnabled(true);
@@ -196,20 +164,6 @@ public class RecordManagerTest {
         SHAFT.Validations.assertThat().object(IS_RECORDING_STARTED_FIELD.getBoolean(null)).isEqualTo(true).perform();
     }
 
-    @Test(description = "startVideoRecording no-args starts desktop recorder under local non-headless execution")
-    public void startVideoRecordingNoArgsStartsDesktopRecorder() throws Exception {
-        setVideoRecordingEnabled(true);
-        SHAFT.Properties.platform.set().executionAddress("local");
-        SHAFT.Properties.web.set().headlessExecution(false);
-        IVideoRecorder mockDesktopRecorder = mock(IVideoRecorder.class);
-        try (var recorderFactoryMock = mockStatic(RecorderFactory.class)) {
-            recorderFactoryMock.when(() -> RecorderFactory.getRecorder(RecorderType.MONTE)).thenReturn(mockDesktopRecorder);
-            RecordManager.startVideoRecording();
-        }
-        verify(mockDesktopRecorder).start();
-        SHAFT.Validations.assertThat().object(getRecorderThreadLocal().get() != null).isEqualTo(true).perform();
-    }
-
     @Test(description = "getVideoRecordingFilePath writes decoded video to temp path")
     public void getVideoRecordingFilePathWritesTempFile() throws Exception {
         setVideoRecordingEnabled(true);
@@ -242,14 +196,6 @@ public class RecordManagerTest {
     @Test(description = "attachVideoRecording no-args overload does not throw when no recording is active")
     public void attachVideoRecordingNoOpWhenNoRecording() {
         RecordManager.attachVideoRecording();
-    }
-
-    @Test(description = "private encodeRecording method returns mp4 target file path")
-    public void encodeRecordingReturnsMp4File() throws Exception {
-        var method = RecordManager.class.getDeclaredMethod("encodeRecording", String.class);
-        method.setAccessible(true);
-        File encoded = (File) method.invoke(null, "target/recording-source.avi");
-        SHAFT.Validations.assertThat().object(encoded.getPath().endsWith(".mp4")).isEqualTo(true).perform();
     }
 
     @Test(description = "startVideoRecording falls back when null driver is provided")

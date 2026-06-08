@@ -710,6 +710,10 @@
                 <targetPath>${project.basedir}/target/classes/resources/properties/default</targetPath>
             </resource>
             <resource>
+                <directory>${project.basedir}/src/main/resources/META-INF</directory>
+                <targetPath>${project.build.outputDirectory}/META-INF</targetPath>
+            </resource>
+            <resource>
                 <directory>${project.basedir}/src/main/javadoc</directory>
                 <targetPath>${project.reporting.outputDirectory}</targetPath>
             </resource>

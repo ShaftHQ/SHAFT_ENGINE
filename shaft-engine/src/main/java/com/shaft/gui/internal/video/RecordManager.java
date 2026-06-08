@@ -1,13 +1,7 @@
 package com.shaft.gui.internal.video;
 
-import com.automation.remarks.video.RecorderFactory;
-import com.automation.remarks.video.RecordingUtils;
-import com.automation.remarks.video.enums.RecorderType;
-import com.automation.remarks.video.enums.VideoSaveMode;
-import com.automation.remarks.video.recorder.IVideoRecorder;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
-import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.appium.java_client.android.AndroidDriver;
@@ -15,25 +9,28 @@ import io.appium.java_client.android.AndroidStartScreenRecordingOptions;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.ios.IOSStartScreenRecordingOptions;
 import org.apache.commons.io.FileUtils;
-import org.apache.log4j.BasicConfigurator;
-import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
-import ws.schild.jave.Encoder;
-import ws.schild.jave.EncoderException;
-import ws.schild.jave.MultimediaObject;
-import ws.schild.jave.encode.AudioAttributes;
-import ws.schild.jave.encode.EncodingAttributes;
-import ws.schild.jave.encode.VideoAttributes;
+import org.openqa.selenium.remote.RemoteWebDriver;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Base64;
 
+/**
+ * Orchestrates SHAFT video recording for desktop browsers and Appium native sessions.
+ *
+ * <p>Desktop recording is delegated through {@link DesktopVideoRecordingProvider}; Android and iOS recording remain
+ * driver-native so mobile users do not need the optional desktop video implementation.</p>
+ */
 public class RecordManager {
-    private static final ThreadLocal<IVideoRecorder> recorder = new ThreadLocal<>();
+    private static final String MISSING_DESKTOP_PROVIDER_MESSAGE = "Desktop video recording is enabled, but no provider "
+            + "is available. Add io.github.shafthq:shaft-video to the test runtime dependencies.";
     private static final ThreadLocal<WebDriver> videoDriver = new ThreadLocal<>();
     private static boolean isRecordingStarted = false;
 
@@ -42,6 +39,11 @@ public class RecordManager {
     }
 
     //TODO: the animated GIF should follow the same path as the video
+    /**
+     * Starts Appium-native recording for mobile execution or falls back to desktop recording for local desktop drivers.
+     *
+     * @param driver the active WebDriver instance, or {@code null} to request desktop recording directly
+     */
     @SuppressWarnings("SpellCheckingInspection")
     public static void startVideoRecording(WebDriver driver) {
         if (SHAFT.Properties.visuals.videoParamsRecordVideo()
@@ -72,20 +74,32 @@ public class RecordManager {
                 && !(driver instanceof RemoteWebDriver);
     }
 
+    /**
+     * Starts desktop screen recording when video recording is enabled for local non-headless execution.
+     *
+     * @throws IllegalStateException when desktop recording is requested but no desktop provider is available
+     */
     public static void startVideoRecording() {
-        if (SHAFT.Properties.visuals.videoParamsRecordVideo()
-                && SHAFT.Properties.platform.executionAddress().equals("local")
-                && !SHAFT.Properties.web.headlessExecution()
-                && recorder.get() == null) {
-            BasicConfigurator.configure();
-            ThreadLocalPropertiesManager.setGlobalProperty("video.save.mode", VideoSaveMode.ALL.name());
-            ThreadLocalPropertiesManager.setGlobalProperty("video.folder", "target/video");
-            recorder.set(RecorderFactory.getRecorder(RecorderType.MONTE));
-//            recorder.set(RecorderFactory.getRecorder(VideoRecorder.conf().recorderType()));
-            recorder.get().start();
+        if (shouldRecordDesktop()) {
+            DesktopVideoRecordingProvider provider = DesktopVideoRecordingProviderRegistry.findProvider()
+                    .orElseThrow(() -> new IllegalStateException(MISSING_DESKTOP_PROVIDER_MESSAGE));
+            if (!provider.isRecording()) {
+                provider.startRecording();
+            }
         }
     }
 
+    private static boolean shouldRecordDesktop() {
+        return SHAFT.Properties.visuals.videoParamsRecordVideo()
+                && SHAFT.Properties.platform.executionAddress().equals("local")
+                && !SHAFT.Properties.web.headlessExecution();
+    }
+
+    /**
+     * Attaches an existing video recording file to the current report.
+     *
+     * @param pathToRecording path to the recording file; {@code null} is ignored
+     */
     public static void attachVideoRecording(Path pathToRecording) {
         if (pathToRecording != null) {
             String testMethodName = ReportManagerHelper.getTestMethodName();
@@ -97,10 +111,18 @@ public class RecordManager {
         }
     }
 
+    /**
+     * Stops the active recording, if any, and attaches it to the current report.
+     */
     public static void attachVideoRecording() {
         ReportManagerHelper.attach("Video Recording", ReportManagerHelper.getTestMethodName(), getVideoRecording());
     }
 
+    /**
+     * Stops the active recording, writes it to SHAFT's temporary video path, and returns that path.
+     *
+     * @return the temporary file path, or an empty string when no recording can be written
+     */
     public static String getVideoRecordingFilePath() {
         try {
             String tempFilePath = "target/tempVideoFile/";
@@ -112,22 +134,19 @@ public class RecordManager {
         }
     }
 
+    /**
+     * Stops the active desktop or Appium-native recording and returns its bytes.
+     *
+     * @return an input stream for the recording, or {@code null} when no recording is active or available
+     */
     public static InputStream getVideoRecording() {
+        InputStream desktopRecording = getDesktopVideoRecording();
+        if (desktopRecording != null) {
+            return desktopRecording;
+        }
+
         InputStream inputStream = null;
-        String pathToRecording;
-        String testMethodName = ReportManagerHelper.getTestMethodName();
-
-        if (SHAFT.Properties.visuals.videoParamsRecordVideo() && recorder.get() != null) {
-            pathToRecording = RecordingUtils.doVideoProcessing(ReportManagerHelper.isCurrentTestPassed(), recorder.get().stopAndSave(System.currentTimeMillis() + "_" + testMethodName));
-            try {
-                File encoded = encodeRecording(pathToRecording);
-                inputStream = new FileInputStream(encoded);
-            } catch (IOException e) {
-                ReportManagerHelper.logDiscrete(e);
-            }
-            recorder.remove();
-
-        } else if (SHAFT.Properties.visuals.videoParamsRecordVideo() && videoDriver.get() != null) {
+        if (SHAFT.Properties.visuals.videoParamsRecordVideo() && videoDriver.get() != null) {
             String base64EncodedRecording = "";
             try {
                 if (videoDriver.get() instanceof AndroidDriver androidDriver) {
@@ -148,24 +167,16 @@ public class RecordManager {
         return inputStream;
     }
 
-    @SuppressWarnings("SpellCheckingInspection")
-    private static File encodeRecording(String pathToRecording) {
-        File source = new File(pathToRecording);
-        File target = new File(pathToRecording.replace("avi", "mp4"));
-        try {
-
-            AudioAttributes audio = new AudioAttributes();
-            audio.setCodec("libvorbis");
-            VideoAttributes video = new VideoAttributes();
-            EncodingAttributes attrs = new EncodingAttributes();
-            attrs.setOutputFormat("mp4");
-            attrs.setAudioAttributes(audio);
-            attrs.setVideoAttributes(video);
-            Encoder encoder = new Encoder();
-            encoder.encode(new MultimediaObject(source), target, attrs);
-        } catch (EncoderException e) {
-            ReportManagerHelper.logDiscrete(e);
+    private static InputStream getDesktopVideoRecording() {
+        if (!SHAFT.Properties.visuals.videoParamsRecordVideo()) {
+            return null;
         }
-        return target;
+
+        return DesktopVideoRecordingProviderRegistry.findProvider()
+                .filter(DesktopVideoRecordingProvider::isRecording)
+                .map(provider -> provider.stopRecording(
+                        ReportManagerHelper.isCurrentTestPassed(),
+                        System.currentTimeMillis() + "_" + ReportManagerHelper.getTestMethodName()))
+                .orElse(null);
     }
 }
