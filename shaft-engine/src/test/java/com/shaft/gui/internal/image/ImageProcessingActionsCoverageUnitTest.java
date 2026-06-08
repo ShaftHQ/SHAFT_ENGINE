@@ -40,8 +40,11 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +72,7 @@ public class ImageProcessingActionsCoverageUnitTest {
     @AfterMethod(alwaysRun = true)
     public void afterMethod() throws Exception {
         setAiFolderPath(null);
+        VisualProcessingProviderRegistry.resetProviderForTesting();
         if (tempDir != null) {
             FILE_ACTIONS.deleteFolder(tempDir.toString());
         }
@@ -397,6 +401,50 @@ public class ImageProcessingActionsCoverageUnitTest {
         Assert.assertFalse(FILE_ACTIONS.doesFileExist(resizedTest.resolve("failedImagesDirectory").toString()));
     }
 
+
+    @Test
+    public void coreImageProcessingDescriptorsShouldNotExposeOpenCvTypes() {
+        boolean exposesOpenCvTypes = Arrays.stream(ImageProcessingActions.class.getDeclaredMethods())
+                .flatMap(method -> java.util.stream.Stream.concat(
+                        java.util.stream.Stream.of(method.getReturnType()),
+                        Arrays.stream(method.getParameterTypes())))
+                .map(Class::getName)
+                .anyMatch(typeName -> typeName.startsWith("org.opencv") || typeName.startsWith("nu.pattern"));
+
+        Assert.assertFalse(exposesOpenCvTypes);
+    }
+
+    @Test
+    public void coreImageProcessingClassShouldLoadWhenOpenCvIsBlocked() throws Exception {
+        ClassLoader blockingLoader = new OpenCvBlockingClassLoader(ImageProcessingActions.class.getClassLoader());
+
+        Class<?> imageProcessingClass = Class.forName(ImageProcessingActions.class.getName(), false, blockingLoader);
+
+        Assert.assertEquals(imageProcessingClass.getName(), ImageProcessingActions.class.getName());
+        Assert.assertTrue(Modifier.isPublic(imageProcessingClass.getModifiers()));
+        Assert.assertEquals(imageProcessingClass.getDeclaredMethod("formatElementLocatorToImagePath", By.class)
+                .getReturnType(), String.class);
+    }
+
+    @Test
+    public void missingVisualProviderShouldReportFutureShaftVisualCoordinate() {
+        VisualProcessingProviderRegistry.setProviderForTesting(null);
+
+        IllegalStateException exception = Assert.expectThrows(IllegalStateException.class,
+                () -> ImageProcessingActions.findImageWithinCurrentPage("reference.png", createPng(4, 4, Color.WHITE)));
+
+        Assert.assertTrue(exception.getMessage().contains("io.github.shafthq:shaft-visual"));
+    }
+
+    @Test
+    public void providerOverrideShouldKeepOptionalVisualDiscoveryDeterministic() {
+        VisualProcessingProvider provider = mock(VisualProcessingProvider.class);
+        when(provider.findImageWithinCurrentPage(anyString(), any())).thenReturn(List.of(1, 2));
+        VisualProcessingProviderRegistry.setProviderForTesting(provider);
+
+        Assert.assertEquals(ImageProcessingActions.findImageWithinCurrentPage("reference.png", new byte[]{1}), List.of(1, 2));
+    }
+
     @Test
     public void loadOpenCvShouldSwitchHighlightingToJavaScriptWhenLoadingFails() {
         try (MockedStatic<OpenCV> openCvMocked = Mockito.mockStatic(OpenCV.class)) {
@@ -471,4 +519,44 @@ public class ImageProcessingActionsCoverageUnitTest {
         }
         return output.toByteArray();
     }
+
+    private static class OpenCvBlockingClassLoader extends ClassLoader {
+        private static final String TARGET_CLASS = "com.shaft.gui.internal.image.ImageProcessingActions";
+
+        OpenCvBlockingClassLoader(ClassLoader parent) {
+            super(parent);
+        }
+
+        @Override
+        protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            if (name.startsWith("org.opencv") || name.startsWith("nu.pattern")) {
+                throw new ClassNotFoundException(name);
+            }
+            if (TARGET_CLASS.equals(name)) {
+                Class<?> loadedClass = findLoadedClass(name);
+                if (loadedClass == null) {
+                    loadedClass = findClass(name);
+                }
+                if (resolve) {
+                    resolveClass(loadedClass);
+                }
+                return loadedClass;
+            }
+            return super.loadClass(name, resolve);
+        }
+
+        @Override
+        protected Class<?> findClass(String name) throws ClassNotFoundException {
+            if (!TARGET_CLASS.equals(name)) {
+                return super.findClass(name);
+            }
+            try {
+                byte[] bytes = Files.readAllBytes(Path.of("target", "classes", "com", "shaft", "gui", "internal", "image", "ImageProcessingActions.class"));
+                return defineClass(name, bytes, 0, bytes.length);
+            } catch (Exception e) {
+                throw new ClassNotFoundException(name, e);
+            }
+        }
+    }
+
 }
