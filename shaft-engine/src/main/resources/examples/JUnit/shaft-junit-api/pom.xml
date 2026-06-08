@@ -20,7 +20,7 @@
     <dependencies>
         <dependency>
             <groupId>io.github.shafthq</groupId>
-            <artifactId>SHAFT_ENGINE</artifactId>
+            <artifactId>shaft-engine</artifactId>
             <version>${shaft_engine.version}</version>
         </dependency>
         <dependency>
