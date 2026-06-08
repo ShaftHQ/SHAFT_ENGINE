@@ -1,7 +1,16 @@
 package com.shaft.gui.internal.image;
 
 import com.shaft.cli.FileActions;
+import com.applitools.eyes.LogHandler;
+import com.applitools.eyes.MatchLevel;
+import com.applitools.eyes.TestResults;
+import com.applitools.eyes.exceptions.DiffsFoundException;
+import com.applitools.eyes.images.Eyes;
+import com.assertthat.selenium_shutterbug.core.CaptureElement;
+import com.assertthat.selenium_shutterbug.core.Shutterbug;
+import com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesException;
 import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import nu.pattern.OpenCV;
@@ -15,6 +24,9 @@ import org.opencv.core.Size;
 import org.opencv.highgui.HighGui;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
+import org.openqa.selenium.By;
+import org.openqa.selenium.UnsupportedCommandException;
+import org.openqa.selenium.WebDriver;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -30,9 +42,8 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * Current OpenCV-backed implementation of SHAFT visual processing.
- *
- * <p>This provider remains in the engine until it moves to the optional {@code io.github.shafthq:shaft-visual} artifact.</p>
+ * OpenCV-backed implementation of SHAFT visual processing supplied by the optional
+ * {@code io.github.shafthq:shaft-visual} artifact.
  */
 public class OpenCvVisualProcessingProvider implements VisualProcessingProvider {
     private static final int CV_THRESH_OTSU = 8;
@@ -181,6 +192,103 @@ public class OpenCvVisualProcessingProvider implements VisualProcessingProvider 
             attempts++;
         } while (Collections.emptyList().equals(foundLocation) && attempts < maxNumberOfAttempts);
         return foundLocation;
+    }
+
+    @Override
+    public Boolean compareAgainstBaseline(WebDriver driver, By elementLocator, byte[] elementScreenshot,
+                                          ImageProcessingActions.VisualValidationEngine visualValidationEngine,
+                                          String referenceImagePath, String differencesImagePath) {
+        if (visualValidationEngine == ImageProcessingActions.VisualValidationEngine.EXACT_SHUTTERBUG) {
+            return compareUsingShutterbug(driver, elementLocator, elementScreenshot, referenceImagePath, differencesImagePath);
+        }
+        if (visualValidationEngine == ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV) {
+            return compareUsingOpenCv(elementScreenshot, referenceImagePath);
+        }
+        return compareUsingEyes(elementScreenshot, visualValidationEngine, referenceImagePath);
+    }
+
+    private boolean compareUsingShutterbug(WebDriver driver, By elementLocator, byte[] elementScreenshot,
+                                           String referenceImagePath, String differencesImagePath) {
+        if (Files.exists(Paths.get(referenceImagePath)) && elementScreenshot != null && elementScreenshot.length > 0) {
+            try {
+                var snapshot = Shutterbug.shootElement(driver, elementLocator, CaptureElement.VIEWPORT, true);
+                return snapshot.equalsWithDiff(referenceImagePath, differencesImagePath, 0.1);
+            } catch (IOException e) {
+                ReportManagerHelper.logDiscrete(e);
+                return false;
+            } catch (UnableToCompareImagesException | UnsupportedCommandException exception) {
+                ReportManager.logDiscrete("Failed to locate element using \""
+                        + ImageProcessingActions.VisualValidationEngine.EXACT_SHUTTERBUG
+                        + "\", attempting to use \""
+                        + ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV + "\".");
+                return compareUsingOpenCv(elementScreenshot, referenceImagePath);
+            }
+        }
+        saveReferenceImage(referenceImagePath, elementScreenshot);
+        return true;
+    }
+
+    private boolean compareUsingOpenCv(byte[] elementScreenshot, String referenceImagePath) {
+        if (!Files.exists(Paths.get(referenceImagePath))) {
+            saveReferenceImage(referenceImagePath, elementScreenshot);
+            return true;
+        }
+        return !findImageWithinCurrentPage(referenceImagePath, elementScreenshot).isEmpty();
+    }
+
+    private boolean compareUsingEyes(byte[] elementScreenshot,
+                                     ImageProcessingActions.VisualValidationEngine visualValidationEngine,
+                                     String referenceImagePath) {
+        Eyes eyes = new Eyes();
+        eyes.setLogHandler(new LogHandler() {
+            @Override
+            public void open() {
+            }
+
+            @Override
+            public void onMessage(boolean verbose, String message) {
+                ReportManager.logDiscrete(message);
+            }
+
+            @Override
+            public void close() {
+            }
+        });
+        eyes.setApiKey(SHAFT.Properties.paths.applitoolsApiKey());
+        MatchLevel targetMatchLevel = switch (visualValidationEngine) {
+            case EXACT_EYES -> MatchLevel.EXACT;
+            case CONTENT_EYES -> MatchLevel.CONTENT;
+            case LAYOUT_EYES -> MatchLevel.LAYOUT;
+            default -> MatchLevel.STRICT;
+        };
+        eyes.setMatchLevel(targetMatchLevel);
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            eyes.setHostOS(SHAFT.Properties.mobile.platformName() + "_" + SHAFT.Properties.mobile.platformVersion());
+            eyes.setHostApp("NativeMobileExecution");
+        } else if (DriverFactoryHelper.isMobileWebExecution()) {
+            eyes.setHostOS(SHAFT.Properties.mobile.platformName() + "_" + SHAFT.Properties.mobile.platformVersion());
+            eyes.setHostApp(SHAFT.Properties.mobile.browserName());
+        } else {
+            eyes.setHostOS(SHAFT.Properties.platform.targetPlatform());
+            eyes.setHostApp(SHAFT.Properties.web.targetBrowserName());
+        }
+        try {
+            eyes.open("SHAFT_Engine", ReportManagerHelper.getCallingMethodFullName());
+            eyes.checkImage(elementScreenshot, Paths.get(referenceImagePath).getFileName().toString().replace(".png", ""));
+            TestResults eyesValidationResult = eyes.close();
+            ReportManager.logDiscrete("Successfully validated the element using AI; Applitools Eyes.");
+            return eyesValidationResult.isNew() || eyesValidationResult.isPassed();
+        } catch (DiffsFoundException e) {
+            ReportManagerHelper.logDiscrete(e);
+            return false;
+        } finally {
+            eyes.abortIfNotClosed();
+        }
+    }
+
+    private void saveReferenceImage(String referenceImagePath, byte[] elementScreenshot) {
+        ReportManager.logDiscrete("Passing the test and saving a reference image");
+        FileActions.getInstance(true).writeToFile(referenceImagePath, elementScreenshot);
     }
 
     @Override

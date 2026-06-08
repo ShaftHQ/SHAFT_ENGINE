@@ -1,17 +1,8 @@
 package com.shaft.gui.internal.image;
 
-import com.applitools.eyes.LogHandler;
-import com.applitools.eyes.MatchLevel;
-import com.applitools.eyes.TestResults;
-import com.applitools.eyes.exceptions.DiffsFoundException;
-import com.applitools.eyes.images.Eyes;
-import com.assertthat.selenium_shutterbug.core.CaptureElement;
-import com.assertthat.selenium_shutterbug.core.Shutterbug;
-import com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesException;
 import com.google.common.hash.Hashing;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
-import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -20,7 +11,6 @@ import com.shaft.validation.Validations;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Platform;
-import org.openqa.selenium.UnsupportedCommandException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.Browser;
 
@@ -238,98 +228,10 @@ public class ImageProcessingActions {
 
     public static Boolean compareAgainstBaseline(WebDriver driver, By elementLocator, byte[] elementScreenshot, VisualValidationEngine visualValidationEngine) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
-        String aiAidedElementIdentificationFolderPath = getAiFolderPath();
-
-        if (visualValidationEngine == VisualValidationEngine.EXACT_SHUTTERBUG) {
-            String referenceImagePath = aiAidedElementIdentificationFolderPath + hashedLocatorName + ".png";
-            String resultingImagePath = aiAidedElementIdentificationFolderPath + hashedLocatorName + "_shutterbug";
-
-            if (getReferenceImage(elementLocator) !=null && elementScreenshot != null && elementScreenshot.length > 0) {
-                boolean actualResult = false;
-                try {
-                    var snapshot = Shutterbug.shootElement(driver, elementLocator, CaptureElement.VIEWPORT, true);
-                    actualResult = snapshot.equalsWithDiff(referenceImagePath, resultingImagePath, 0.1);
-                } catch (IOException e) {
-                    ReportManagerHelper.logDiscrete(e);
-                } catch (UnableToCompareImagesException | UnsupportedCommandException exception) {
-                    ReportManager.logDiscrete("Failed to locate element using \"" + VisualValidationEngine.EXACT_SHUTTERBUG + "\", attempting to use \"" + VisualValidationEngine.EXACT_OPENCV + "\".");
-                    // com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesException: Images dimensions mismatch
-                    actualResult = compareAgainstBaseline(driver, elementLocator, elementScreenshot, VisualValidationEngine.EXACT_OPENCV);
-                }
-                return actualResult;
-            } else {
-                ReportManager.logDiscrete("Passing the test and saving a reference image");
-                FileActions.getInstance(true).writeToFile(aiAidedElementIdentificationFolderPath, hashedLocatorName + ".png", elementScreenshot);
-                return true;
-            }
-        }
-
-        if (visualValidationEngine == VisualValidationEngine.EXACT_OPENCV) {
-            String referenceImagePath = aiAidedElementIdentificationFolderPath + hashedLocatorName + ".png";
-
-            boolean doesReferenceFileExist = FileActions.getInstance(true).doesFileExist(referenceImagePath);
-            if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot).equals(Collections.emptyList())) {
-                //pass: element found and matched || first time element
-                if (!doesReferenceFileExist) {
-                    ReportManager.logDiscrete("Passing the test and saving a reference image");
-                    FileActions.getInstance(true).writeToFile(referenceImagePath, elementScreenshot);
-                }
-                return true;
-            } else {
-                //fail: element doesn't match
-                return false;
-            }
-        }//all the other cases of Eyes
-        Eyes eyes = new Eyes();
-        // Define global settings
-        eyes.setLogHandler(new LogHandler() {
-            @Override
-            public void open() {
-            }
-
-            @Override
-            public void onMessage(boolean b, String s) {
-                ReportManager.logDiscrete(s);
-            }
-
-            @Override
-            public void close() {
-            }
-        });
-        eyes.setApiKey(SHAFT.Properties.paths.applitoolsApiKey());
-        MatchLevel targetMatchLevel = MatchLevel.STRICT;
-        switch (visualValidationEngine) {
-            // https://help.applitools.com/hc/en-us/articles/360007188591-Match-Levels
-            case EXACT_EYES -> targetMatchLevel = MatchLevel.EXACT;
-            case CONTENT_EYES -> targetMatchLevel = MatchLevel.CONTENT;
-            case LAYOUT_EYES -> targetMatchLevel = MatchLevel.LAYOUT;
-            default -> {
-            }
-        }
-        eyes.setMatchLevel(targetMatchLevel);
-        // Define the OS and hosting application to identify the baseline.
-        if (DriverFactoryHelper.isMobileNativeExecution()) {
-            eyes.setHostOS(SHAFT.Properties.mobile.platformName() + "_" + SHAFT.Properties.mobile.platformVersion());
-            eyes.setHostApp("NativeMobileExecution");
-        } else if (DriverFactoryHelper.isMobileWebExecution()) {
-            eyes.setHostOS(SHAFT.Properties.mobile.platformName() + "_" + SHAFT.Properties.mobile.platformVersion());
-            eyes.setHostApp(SHAFT.Properties.mobile.browserName());
-        } else {
-            eyes.setHostOS(SHAFT.Properties.platform.targetPlatform());
-            eyes.setHostApp(SHAFT.Properties.web.targetBrowserName());
-        }
-        try {
-            eyes.open("SHAFT_Engine", ReportManagerHelper.getCallingMethodFullName());
-            eyes.checkImage(elementScreenshot, hashedLocatorName);
-            TestResults eyesValidationResult = eyes.close();
-            ReportManager.logDiscrete("Successfully validated the element using AI; Applitools Eyes.");
-            return eyesValidationResult.isNew() || eyesValidationResult.isPassed();
-        } catch (DiffsFoundException e) {
-            ReportManagerHelper.logDiscrete(e);
-            return false;
-        } finally {
-            eyes.abortIfNotClosed();
-        }
+        String visualBaselinePath = getAiFolderPath() + hashedLocatorName;
+        return VisualProcessingProviderRegistry.requireProvider().compareAgainstBaseline(
+                driver, elementLocator, elementScreenshot, visualValidationEngine,
+                visualBaselinePath + ".png", visualBaselinePath + "_shutterbug");
     }
 
     private static void compareImageFolders(File[] referenceFiles, File[] testFiles, File[] testProcessingFiles,

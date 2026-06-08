@@ -32,6 +32,7 @@
         <module>shaft-engine</module>
         <module>shaft-browserstack</module>
         <module>shaft-video</module>
+        <module>shaft-visual</module>
         <module>shaft-bom</module>
         <module>legacy-shaft-engine</module>
     </modules>

@@ -12,14 +12,14 @@ Issue [#2816](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/2816) introduces th
 | `formatElementLocatorToImagePath` | Core baseline naming | Remains in `shaft-engine`. |
 | `getReferenceImage` | Core baseline file access | Remains in `shaft-engine`. |
 | `getShutterbugDifferencesImage` | Core baseline file access | Remains in `shaft-engine` for backward compatibility. |
-| `compareAgainstBaseline` / `EXACT_OPENCV` | Optional computer vision | Reuses `findImageWithinCurrentPage`, and therefore requires a provider. |
-| `compareAgainstBaseline` / Shutterbug and Applitools engines | Third-party visual integrations | Retained unchanged for this preparatory issue; they can move behind the same SHAFT-owned boundary during artifact extraction. |
+| `compareAgainstBaseline` / `EXACT_OPENCV` | Optional computer vision | Delegates to the discovered provider. |
+| `compareAgainstBaseline` / Shutterbug and Applitools engines | Third-party visual integrations | Delegates to the discovered provider. |
 | `loadOpenCV` | Backward-compatible OpenCV entry point | Delegates provider loading and no longer embeds OpenCV types in the core class. |
 
 `ScreenshotManager`, Selenium screenshot capture, and Healenium integration remain outside this provider boundary.
 
 ## Discovery contract
 
-Providers implement `VisualProcessingProvider` and are discovered with `ServiceLoader`. Discovery sorts implementations by class name and rejects multiple providers with a deterministic error instead of choosing based on classpath order. The current OpenCV implementation is registered as a service so behavior remains available before artifact extraction.
+Providers implement `VisualProcessingProvider` and are discovered with `ServiceLoader`. Discovery sorts implementations by class name and rejects multiple providers with a deterministic error instead of choosing based on classpath order. The OpenCV implementation and its service descriptor are packaged in `io.github.shafthq:shaft-visual`, so adding that artifact enables OpenCV, Applitools Eyes, and Shutterbug behavior without a new initialization API.
 
-When no provider is installed, provider-dependent operations report the future Maven coordinate `io.github.shafthq:shaft-visual`. Core screenshot capture, JDK highlighting, baseline file handling, and non-OpenCV assertions do not perform provider discovery.
+When no provider is installed, provider-dependent operations report the Maven coordinate `io.github.shafthq:shaft-visual`. Core screenshot capture, JDK highlighting, animated GIF generation, baseline file handling, Healenium, and non-OpenCV assertions remain in `shaft-engine` and do not perform provider discovery.

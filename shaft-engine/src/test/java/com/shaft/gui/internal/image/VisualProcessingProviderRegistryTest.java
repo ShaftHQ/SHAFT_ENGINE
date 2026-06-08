@@ -1,5 +1,7 @@
 package com.shaft.gui.internal.image;
 
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -48,6 +50,13 @@ public class VisualProcessingProviderRegistryTest {
         }
 
         @Override
+        public Boolean compareAgainstBaseline(WebDriver driver, By elementLocator, byte[] elementScreenshot,
+                                              ImageProcessingActions.VisualValidationEngine visualValidationEngine,
+                                              String referenceImagePath, String differencesImagePath) {
+            return true;
+        }
+
+        @Override
         public void load() {
             // No-op test provider.
         }
@@ -57,6 +66,13 @@ public class VisualProcessingProviderRegistryTest {
         @Override
         public List<Integer> findImageWithinCurrentPage(String referenceImagePath, byte[] currentPageScreenshot) {
             return Collections.emptyList();
+        }
+
+        @Override
+        public Boolean compareAgainstBaseline(WebDriver driver, By elementLocator, byte[] elementScreenshot,
+                                              ImageProcessingActions.VisualValidationEngine visualValidationEngine,
+                                              String referenceImagePath, String differencesImagePath) {
+            return true;
         }
 
         @Override
