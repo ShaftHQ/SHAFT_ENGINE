@@ -22,6 +22,20 @@ public class DesktopVideoRecordingProviderRegistryTest {
         Assert.assertSame(DesktopVideoRecordingProviderRegistry.findProvider().orElseThrow(), provider);
     }
 
+
+    @Test
+    public void serviceDiscoveryShouldFindAutomationRemarksProvider() {
+        Assert.assertEquals(DesktopVideoRecordingProviderRegistry.findProvider().orElseThrow().getClass(),
+                AutomationRemarksDesktopVideoRecordingProvider.class);
+    }
+
+    @Test
+    public void explicitEmptyTestProviderShouldOverrideServiceDiscovery() {
+        DesktopVideoRecordingProviderRegistry.setProviderForTesting(null);
+
+        Assert.assertTrue(DesktopVideoRecordingProviderRegistry.findProvider().isEmpty());
+    }
+
     private static final class StubDesktopVideoRecordingProvider implements DesktopVideoRecordingProvider {
         @Override
         public void startRecording() {

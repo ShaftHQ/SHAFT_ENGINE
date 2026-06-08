@@ -6,15 +6,15 @@ import java.util.Optional;
 import java.util.ServiceLoader;
 
 final class DesktopVideoRecordingProviderRegistry {
-    private static volatile DesktopVideoRecordingProvider providerOverride;
+    private static final ThreadLocal<Optional<DesktopVideoRecordingProvider>> providerOverride = new ThreadLocal<>();
 
     private DesktopVideoRecordingProviderRegistry() {
         throw new IllegalStateException("Utility class");
     }
 
     static Optional<DesktopVideoRecordingProvider> findProvider() {
-        if (providerOverride != null) {
-            return Optional.of(providerOverride);
+        if (providerOverride.get() != null) {
+            return providerOverride.get();
         }
 
         List<DesktopVideoRecordingProvider> providers = ServiceLoader.load(DesktopVideoRecordingProvider.class)
@@ -34,10 +34,10 @@ final class DesktopVideoRecordingProviderRegistry {
     }
 
     static void setProviderForTesting(DesktopVideoRecordingProvider provider) {
-        providerOverride = provider;
+        providerOverride.set(Optional.ofNullable(provider));
     }
 
     static void resetProviderForTesting() {
-        providerOverride = null;
+        providerOverride.remove();
     }
 }
