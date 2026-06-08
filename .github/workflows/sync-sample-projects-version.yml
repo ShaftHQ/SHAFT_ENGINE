@@ -89,7 +89,7 @@ jobs:
         id: check-current
         run: |
           # Get unique shaft_engine versions from example pom.xml files
-          CURRENT_VERSIONS=$(find src/main/resources/examples -name "pom.xml" -exec grep -h '<shaft_engine.version>' {} \; | sed 's/.*<shaft_engine.version>\(.*\)<\/shaft_engine.version>.*/\1/' | tr -d ' ' | sort -u | tr '\n' ' ')
+          CURRENT_VERSIONS=$(find shaft-engine/src/main/resources/examples -name "pom.xml" -exec grep -h '<shaft_engine.version>' {} \; | sed 's/.*<shaft_engine.version>\(.*\)<\/shaft_engine.version>.*/\1/' | tr -d ' ' | sort -u | tr '\n' ' ')
           echo "CURRENT_VERSIONS=$CURRENT_VERSIONS" >> $GITHUB_OUTPUT
           echo "Current SHAFT versions in examples: $CURRENT_VERSIONS"
 
@@ -134,7 +134,7 @@ jobs:
           CHANGES_MADE=false
           FILES_UPDATED=()
 
-          for POM_FILE in $(find src/main/resources/examples -name "pom.xml"); do
+          for POM_FILE in $(find shaft-engine/src/main/resources/examples -name "pom.xml"); do
             FILE_CHANGED=false
 
             update_property "$POM_FILE" "shaft_engine.version" "$NEW_VERSION" && FILE_CHANGED=true
@@ -204,9 +204,9 @@ jobs:
             ${{ steps.update-files.outputs.files_updated }}
 
             ### 📁 Sample Projects Locations:
-            - `src/main/resources/examples/TestNG/`
-            - `src/main/resources/examples/JUnit/`
-            - `src/main/resources/examples/Cucumber/`
+            - `shaft-engine/src/main/resources/examples/TestNG/`
+            - `shaft-engine/src/main/resources/examples/JUnit/`
+            - `shaft-engine/src/main/resources/examples/Cucumber/`
 
             ### 📋 Trigger:
             - ${{ github.event_name == 'release' && format('Triggered by release: {0}', github.event.release.tag_name) || (github.event.inputs.version != '' && format('Manually triggered with version: {0}', github.event.inputs.version) || 'Manually triggered workflow') }}

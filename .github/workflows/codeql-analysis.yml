@@ -61,7 +61,7 @@ jobs:
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-        run: mvn -B clean package --file pom.xml -DskipTests
+        run: mvn -B -pl shaft-engine,shaft-browserstack,shaft-video,shaft-visual -am clean package --file pom.xml -DskipTests
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
