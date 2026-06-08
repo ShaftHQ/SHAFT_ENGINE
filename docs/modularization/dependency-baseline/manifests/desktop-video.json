@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "fixture": "desktop-video",
+  "rootCoordinate": "io.github.shafthq:SHAFT_ENGINE:10.2.20260605",
+  "platform": {
+    "system": "Linux",
+    "machine": "x86_64"
+  },
+  "artifactCount": 341,
+  "artifactBytes": 352001986,
+  "seededRepositoryBytes": 774635,
+  "repositoryBytes": 381108081,
+  "repositoryGrowthBytes": 380333446,
+  "elapsedSeconds": 67.478,
+  "artifactsRef": "artifacts.json"
+}
