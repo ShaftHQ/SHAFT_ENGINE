@@ -85,7 +85,7 @@ jobs:
 
       - name: Generate JaCoCo report
         if: always()
-        run: mvn -pl shaft-engine jacoco:report -Dgpg.skip
+        run: mvn -pl shaft-engine -am jacoco:report -Dgpg.skip
 
       - name: Summarize coverage
         id: coverage

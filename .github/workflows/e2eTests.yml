@@ -18,7 +18,7 @@ env:
 jobs:
   Workflow_Summary:
     if: always()
-    needs: [Ubuntu_Database, Ubuntu_APIs, Ubuntu_Firefox_Grid, Ubuntu_Chrome_Grid, Ubuntu_MicrosoftEdge_Grid, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack, MacOSX_Safari_BrowserStack, Ubuntu_Chrome_Cucumber_Grid, MacOSX_Safari_Cucumber_BrowserStack]
+    needs: [Ubuntu_Database, Ubuntu_APIs, Ubuntu_Visual_Module, Ubuntu_Desktop_Video_Module, Ubuntu_Firefox_Grid, Ubuntu_Chrome_Grid, Ubuntu_MicrosoftEdge_Grid, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack, MacOSX_Safari_BrowserStack, Ubuntu_Chrome_Cucumber_Grid, MacOSX_Safari_Cucumber_BrowserStack]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -58,7 +58,7 @@ jobs:
         uses: actions/checkout@v6
       - name: Connect to PostgreSQL
         run: |
-            cd src/main/resources/docker-compose/postgres/
+            cd shaft-engine/src/main/resources/docker-compose/postgres/
             npm install pg
             node client.js
         env:
@@ -107,6 +107,64 @@ jobs:
           job-name: Ubuntu_APIs
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
+  Ubuntu_Visual_Module:
+    runs-on: ubuntu-latest
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Run visual module tests
+        continue-on-error: true
+        run: mvn -pl shaft-visual -am -e test "-DretryMaximumNumberOfAttempts=1" "-DgenerateAllureReportArchive=true" "-Dtest=ImageProcessingActionsUnitTest"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Ubuntu_Visual_Module
+          module-directory: shaft-visual
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Ubuntu_Desktop_Video_Module:
+    runs-on: ubuntu-latest
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Run desktop video module tests
+        continue-on-error: true
+        run: mvn -pl shaft-video -am -e test "-DretryMaximumNumberOfAttempts=1" "-DgenerateAllureReportArchive=true" "-Dtest=DesktopVideoRecordingProviderRegistrationTest"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Ubuntu_Desktop_Video_Module
+          module-directory: shaft-video
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
   Ubuntu_Firefox_Grid:
     runs-on: ubuntu-latest
     permissions:
@@ -123,7 +181,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
       - name: Set up Native Selenium Grid
-        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=0 --scale firefox=10 -d
+        run: docker compose -f shaft-engine/src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=0 --scale firefox=10 -d
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -157,7 +215,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
       - name: Set up Native Selenium Grid
-        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=10 --scale edge=0 --scale firefox=0 -d
+        run: docker compose -f shaft-engine/src/main/resources/docker-compose/selenium4.yml up --scale chrome=10 --scale edge=0 --scale firefox=0 -d
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -191,7 +249,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
       - name: Set up Native Selenium Grid
-        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=10 --scale firefox=0 -d
+        run: docker compose -f shaft-engine/src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=10 --scale firefox=0 -d
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -336,7 +394,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
       - name: Set up Native Selenium Grid
-        run: docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=10 --scale edge=0 --scale firefox=0 -d
+        run: docker compose -f shaft-engine/src/main/resources/docker-compose/selenium4.yml up --scale chrome=10 --scale edge=0 --scale firefox=0 -d
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:

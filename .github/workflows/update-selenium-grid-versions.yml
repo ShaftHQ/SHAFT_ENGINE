@@ -64,10 +64,10 @@ jobs:
       - name: Check Current Versions
         id: check-current
         run: |
-          CURRENT_CHROME=$(grep 'image: selenium/node-chrome:' src/main/resources/docker-compose/selenium4.yml | head -1 | sed 's/.*selenium\/node-chrome://; s/[[:space:]]*$//')
-          CURRENT_EDGE=$(grep 'image: selenium/node-edge:' src/main/resources/docker-compose/selenium4.yml | head -1 | sed 's/.*selenium\/node-edge://; s/[[:space:]]*$//')
-          CURRENT_FIREFOX=$(grep 'image: selenium/node-firefox:' src/main/resources/docker-compose/selenium4.yml | head -1 | sed 's/.*selenium\/node-firefox://; s/[[:space:]]*$//')
-          CURRENT_HUB=$(grep 'image: selenium/hub:' src/main/resources/docker-compose/selenium4.yml | head -1 | sed 's/.*selenium\/hub://; s/[[:space:]]*$//')
+          CURRENT_CHROME=$(grep 'image: selenium/node-chrome:' shaft-engine/src/main/resources/docker-compose/selenium4.yml | head -1 | sed 's/.*selenium\/node-chrome://; s/[[:space:]]*$//')
+          CURRENT_EDGE=$(grep 'image: selenium/node-edge:' shaft-engine/src/main/resources/docker-compose/selenium4.yml | head -1 | sed 's/.*selenium\/node-edge://; s/[[:space:]]*$//')
+          CURRENT_FIREFOX=$(grep 'image: selenium/node-firefox:' shaft-engine/src/main/resources/docker-compose/selenium4.yml | head -1 | sed 's/.*selenium\/node-firefox://; s/[[:space:]]*$//')
+          CURRENT_HUB=$(grep 'image: selenium/hub:' shaft-engine/src/main/resources/docker-compose/selenium4.yml | head -1 | sed 's/.*selenium\/hub://; s/[[:space:]]*$//')
           
           echo "CURRENT_CHROME=$CURRENT_CHROME" >> $GITHUB_OUTPUT
           echo "CURRENT_EDGE=$CURRENT_EDGE" >> $GITHUB_OUTPUT
@@ -98,25 +98,25 @@ jobs:
           
           if [ "$NEW_CHROME" != "$CURRENT_CHROME" ]; then
             echo "Updating Chrome from $CURRENT_CHROME to $NEW_CHROME"
-            sed -i "s|selenium/node-chrome:$CURRENT_CHROME|selenium/node-chrome:$NEW_CHROME|g" src/main/resources/docker-compose/selenium4.yml
+            sed -i "s|selenium/node-chrome:$CURRENT_CHROME|selenium/node-chrome:$NEW_CHROME|g" shaft-engine/src/main/resources/docker-compose/selenium4.yml
             CHANGES_MADE=true
           fi
           
           if [ "$NEW_EDGE" != "$CURRENT_EDGE" ]; then
             echo "Updating Edge from $CURRENT_EDGE to $NEW_EDGE"
-            sed -i "s|selenium/node-edge:$CURRENT_EDGE|selenium/node-edge:$NEW_EDGE|g" src/main/resources/docker-compose/selenium4.yml
+            sed -i "s|selenium/node-edge:$CURRENT_EDGE|selenium/node-edge:$NEW_EDGE|g" shaft-engine/src/main/resources/docker-compose/selenium4.yml
             CHANGES_MADE=true
           fi
           
           if [ "$NEW_FIREFOX" != "$CURRENT_FIREFOX" ]; then
             echo "Updating Firefox from $CURRENT_FIREFOX to $NEW_FIREFOX"
-            sed -i "s|selenium/node-firefox:$CURRENT_FIREFOX|selenium/node-firefox:$NEW_FIREFOX|g" src/main/resources/docker-compose/selenium4.yml
+            sed -i "s|selenium/node-firefox:$CURRENT_FIREFOX|selenium/node-firefox:$NEW_FIREFOX|g" shaft-engine/src/main/resources/docker-compose/selenium4.yml
             CHANGES_MADE=true
           fi
           
           if [ "$NEW_HUB" != "$CURRENT_HUB" ]; then
             echo "Updating Hub from $CURRENT_HUB to $NEW_HUB"
-            sed -i "s|selenium/hub:$CURRENT_HUB|selenium/hub:$NEW_HUB|g" src/main/resources/docker-compose/selenium4.yml
+            sed -i "s|selenium/hub:$CURRENT_HUB|selenium/hub:$NEW_HUB|g" shaft-engine/src/main/resources/docker-compose/selenium4.yml
             CHANGES_MADE=true
           fi
           
@@ -131,7 +131,7 @@ jobs:
       - name: Validate Docker Compose File
         if: steps.update-file.outputs.changes == 'true'
         run: |
-          docker compose -f src/main/resources/docker-compose/selenium4.yml config > /dev/null
+          docker compose -f shaft-engine/src/main/resources/docker-compose/selenium4.yml config > /dev/null
           echo "Docker Compose file validation successful"
 
       - name: Create Pull Request
