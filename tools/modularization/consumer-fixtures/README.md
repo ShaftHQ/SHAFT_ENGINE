@@ -2,8 +2,10 @@
 
 These independent Maven projects compile representative downstream usage against SHAFT. Most fixtures use the
 canonical `io.github.shafthq:shaft-engine` coordinate, `bom` imports `io.github.shafthq:shaft-bom` and declares a
-versionless engine dependency, `browserstack-sdk` uses the optional `io.github.shafthq:shaft-browserstack` integration, and `legacy-coordinate` verifies the POM-only `io.github.shafthq:SHAFT_ENGINE`
-relocation path. They intentionally do not share a parent POM so each can be copied and resolved in isolation.
+versionless engine dependency, `browserstack-sdk` uses the optional `io.github.shafthq:shaft-browserstack` integration,
+`desktop-video` uses the optional `io.github.shafthq:shaft-video` integration, and `legacy-coordinate` verifies the
+POM-only `io.github.shafthq:SHAFT_ENGINE` relocation path. They intentionally do not share a parent POM so each can be
+copied and resolved in isolation.
 
 Run the repository build first, then measure all fixtures with one empty temporary Maven repository each:
 

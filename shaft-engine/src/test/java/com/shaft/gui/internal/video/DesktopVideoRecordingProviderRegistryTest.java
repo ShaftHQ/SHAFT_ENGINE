@@ -23,9 +23,8 @@ public class DesktopVideoRecordingProviderRegistryTest {
     }
 
     @Test
-    public void serviceDiscoveryShouldFindAutomationRemarksProvider() {
-        Assert.assertEquals(DesktopVideoRecordingProviderRegistry.findProvider().orElseThrow().getClass(),
-                AutomationRemarksDesktopVideoRecordingProvider.class);
+    public void serviceDiscoveryShouldFindNoProviderWithEngineAlone() {
+        Assert.assertTrue(DesktopVideoRecordingProviderRegistry.findProvider().isEmpty());
     }
 
     @Test
