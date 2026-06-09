@@ -52,4 +52,39 @@
         <surefire.failIfNoSpecifiedTests>false</surefire.failIfNoSpecifiedTests>
     </properties>
 
+    <build>
+        <plugins>
+            <!-- This dependency-only integration intentionally has no Java sources. Attach empty classifier
+                 archives so the published JAR coordinate still satisfies Central's sources/Javadocs contract. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-empty-sources</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <configuration>
+                            <classifier>sources</classifier>
+                            <forceCreation>true</forceCreation>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>attach-empty-javadocs</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <configuration>
+                            <classifier>javadoc</classifier>
+                            <forceCreation>true</forceCreation>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>

@@ -696,7 +696,6 @@
                 <configuration>
                     <publishingServerId>central</publishingServerId>
                     <centralBaseUrl>https://central.sonatype.com</centralBaseUrl>
-                    <tokenAuth>true</tokenAuth>
                     <autoPublish>true</autoPublish>
                     <waitUntil>published</waitUntil>
                     <waitMaxTime>3600</waitMaxTime> <!-- one hour -->
@@ -734,5 +733,24 @@
             </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <!-- Activate publication tooling at the reactor parent so one deploy command stages every public artifact. -->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+            </plugin>
+        </plugins>
     </build>
 </project>

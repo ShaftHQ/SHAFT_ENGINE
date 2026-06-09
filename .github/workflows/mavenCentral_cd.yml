@@ -40,13 +40,28 @@ jobs:
           maven-version: 3.9.5
       - name: Reject divergent SHAFT reactor versions
         run: python3 scripts/ci/validate_reactor_versions.py
-      # Captures the engine version from the pom.xml
+      # Captures the aligned reactor version explicitly from the root parent POM.
       - name: Set Release Version Number
         run: |
-          echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
+          echo "RELEASE_VERSION=$(mvn --non-recursive help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
       # Inject the release version into the minimal release body summary
       - name: Prepare Release Body
         run: sed "s/\$RELEASE_VERSION/${{ env.RELEASE_VERSION }}/g" .github/RELEASE_BODY_TEMPLATE.md > /tmp/release_body.md
+      - name: Setup Signing Prerequisites
+        run: |
+          git config --global user.signingKey "${{ secrets.GPG_KEYNAME }}"
+          git config --global commit.gpgsign true
+          gpg --version
+          gpgconf --kill gpg-agent
+          gpg -K --keyid-format SHORT
+          export GPG_TTY="$(tty 2>/dev/null || true)"
+      # The Central plugin stages the complete reactor as one deployment and waits for publication.
+      # Every user-facing release action below is therefore gated on successful Central publication.
+      - name: Deploy to Maven Central
+        env:
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+        run: mvn --batch-mode deploy "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
       # Attempt to create a GitHub release using the version in the pom.xml, if this release already exists, this job will fail fast
       - name: Create GitHub Release
         id: create_release
@@ -120,16 +135,3 @@ jobs:
             --header 'Content-type: application/json' \
             --data @/tmp/slack_release_payload.json \
             "$SLACK_WEBHOOK_URL"
-      - name: Setup Prerequisites
-        run: |
-          git config --global user.signingKey "${{ secrets.GPG_KEYNAME }}"
-          git config --global commit.gpgsign true
-          gpg --version
-          gpgconf --kill gpg-agent
-          gpg -K --keyid-format SHORT
-          export GPG_TTY=$(tty)
-      - name: Deploy to maven central
-        env:
-          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-        run: mvn --batch-mode deploy "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"

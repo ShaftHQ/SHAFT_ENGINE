@@ -88,6 +88,30 @@ python3 scripts/ci/measure_consumer_dependencies.py --verify
 
 The measurement script seeds the canonical engine JAR, optional integration JARs, the BOM, the legacy relocation POM, and the reactor parent into each isolated Maven repository.
 
+## Maven Central publication safety
+
+The root parent activates source, JavaDoc, GPG, and Sonatype Central publication tooling for the complete reactor. A
+single root `mvn deploy` therefore stages the parent, canonical engine, three optional modules, BOM, and legacy
+relocation POM as one Central deployment. `report-aggregate` remains build-only and sets Maven deploy skip explicitly.
+
+Before a release, validate the deployable topology and the combined consumer:
+
+```bash
+python3 scripts/ci/validate_publication_configuration.py
+mvn clean install -DskipTests -Dgpg.skip
+mvn --batch-mode --file tools/modularization/publication-fixtures/all-modules/pom.xml verify
+```
+
+The combined consumer imports `shaft-bom`, resolves all published JAR modules, enforces dependency convergence,
+rejects duplicate classes, and writes a CycloneDX JSON SBOM under its `target/` directory.
+
+The Central workflow extracts the version from the root parent and waits for the atomic reactor deployment to reach
+the `published` state before it creates a GitHub release, dispatches the user-guide update, or posts to Slack. If
+validation, signing, upload, or Central publication fails, no user-facing release action has run and the workflow can
+be retried after correcting the cause. Do not create a compensating GitHub release for a failed Central deployment.
+If a failure occurs after Central reports `published`, keep the immutable Central artifacts, repair only the failed
+GitHub/dispatch/announcement step, and never attempt to overwrite the published version.
+
 
 ## GitHub Actions reactor policy
 

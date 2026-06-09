@@ -1,0 +1,116 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>io.github.shafthq.modularization</groupId>
+    <artifactId>all-modules-consumer-fixture</artifactId>
+    <version>1.0.0</version>
+
+    <properties>
+        <maven.compiler.release>25</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <shaft.version>10.2.20260605</shaft.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.github.shafthq</groupId>
+                <artifactId>shaft-bom</artifactId>
+                <version>${shaft.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.shafthq</groupId>
+            <artifactId>shaft-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.shafthq</groupId>
+            <artifactId>shaft-browserstack</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.shafthq</groupId>
+            <artifactId>shaft-video</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.shafthq</groupId>
+            <artifactId>shaft-visual</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.6.3</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>extra-enforcer-rules</artifactId>
+                        <version>1.12.0</version>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <execution>
+                        <id>validate-combined-shaft-modules</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <dependencyConvergence/>
+                                <banDuplicateClasses>
+                                    <findAllDuplicates>true</findAllDuplicates>
+                                    <ignoreWhenIdentical>true</ignoreWhenIdentical>
+                                    <ignoreClasses>
+                                        <!-- JSONassert embeds this compatibility interface while SHAFT uses
+                                             the current org.json implementation for the remaining classes. -->
+                                        <ignoreClass>org.json.JSONString</ignoreClass>
+                                    </ignoreClasses>
+                                    <dependencies>
+                                        <!-- BrowserStack ships a deliberately self-contained SDK JAR with
+                                             unrelocated copies of its runtime libraries. Ignore only those
+                                             embedded copies while checking every other combined dependency. -->
+                                        <dependency>
+                                            <groupId>com.browserstack</groupId>
+                                            <artifactId>browserstack-java-sdk</artifactId>
+                                            <ignoreClasses>
+                                                <ignoreClass>*</ignoreClass>
+                                            </ignoreClasses>
+                                        </dependency>
+                                    </dependencies>
+                                </banDuplicateClasses>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.cyclonedx</groupId>
+                <artifactId>cyclonedx-maven-plugin</artifactId>
+                <version>2.9.1</version>
+                <executions>
+                    <execution>
+                        <id>generate-combined-module-sbom</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>makeAggregateBom</goal>
+                        </goals>
+                        <configuration>
+                            <outputFormat>json</outputFormat>
+                            <outputName>shaft-combined-modules-sbom</outputName>
+                            <schemaVersion>1.6</schemaVersion>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

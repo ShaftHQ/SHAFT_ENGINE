@@ -9,6 +9,10 @@ on:
       - 'tests/scripts/test_validate_reactor_versions.py'
       - 'scripts/ci/validate_quality_configuration.py'
       - 'tests/scripts/test_validate_quality_configuration.py'
+      - 'scripts/ci/validate_publication_configuration.py'
+      - 'tests/scripts/test_validate_publication_configuration.py'
+      - 'tools/modularization/publication-fixtures/all-modules/pom.xml'
+      - '.github/workflows/mavenCentral_cd.yml'
       - 'report-aggregate/**'
       - '.github/dependabot.yml'
       - '.github/actions/post-test-report/action.yml'
@@ -23,6 +27,10 @@ on:
       - 'tests/scripts/test_validate_reactor_versions.py'
       - 'scripts/ci/validate_quality_configuration.py'
       - 'tests/scripts/test_validate_quality_configuration.py'
+      - 'scripts/ci/validate_publication_configuration.py'
+      - 'tests/scripts/test_validate_publication_configuration.py'
+      - 'tools/modularization/publication-fixtures/all-modules/pom.xml'
+      - '.github/workflows/mavenCentral_cd.yml'
       - 'report-aggregate/**'
       - '.github/dependabot.yml'
       - '.github/actions/post-test-report/action.yml'
@@ -43,5 +51,7 @@ jobs:
         run: python3 scripts/ci/validate_reactor_versions.py
       - name: Validate aggregate quality configuration
         run: python3 scripts/ci/validate_quality_configuration.py
+      - name: Validate publication and release configuration
+        run: python3 scripts/ci/validate_publication_configuration.py
       - name: Test configuration validators
-        run: python3 -m unittest tests.scripts.test_validate_reactor_versions tests.scripts.test_validate_quality_configuration
+        run: python3 -m unittest tests.scripts.test_validate_reactor_versions tests.scripts.test_validate_quality_configuration tests.scripts.test_validate_publication_configuration
