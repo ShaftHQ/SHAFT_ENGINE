@@ -72,9 +72,15 @@ class BrowserStackModuleBoundaryTest(unittest.TestCase):
         self.assertTrue(commands)
         for command in commands:
             if "-DexecutionAddress=browserstack" in command:
-                self.assertIn("-pl shaft-browserstack -am", command)
+                expected_module = "shaft-browserstack"
+            elif "ImageProcessingActionsUnitTest" in command:
+                expected_module = "shaft-visual"
+            elif "DesktopVideoRecordingProviderRegistrationTest" in command:
+                expected_module = "shaft-video"
             else:
-                self.assertIn("-pl shaft-engine -am", command)
+                expected_module = "shaft-engine"
+            self.assertIn(f"-pl {expected_module} -am", command)
+            if expected_module != "shaft-browserstack":
                 self.assertNotIn("shaft-browserstack", command)
 
     def test_direct_cold_cache_saving_meets_issue_threshold(self):

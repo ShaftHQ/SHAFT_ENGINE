@@ -328,6 +328,17 @@
             <groupId>org.skyscreamer</groupId>
             <artifactId>jsonassert</artifactId>
             <version>1.5.3</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.vaadin.external.google</groupId>
+                    <artifactId>android-json</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>${json.version}</version>
         </dependency>
 
         <dependency>
@@ -646,6 +657,30 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-engine-dependency-boundary</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <searchTransitive>true</searchTransitive>
+                                    <message>Optional BrowserStack, desktop-video, and visual-processing dependencies must remain outside shaft-engine.</message>
+                                    <excludes>
+                                        <exclude>com.browserstack:browserstack-java-sdk</exclude>
+                                        <exclude>ws.schild:jave-*</exclude>
+                                        <exclude>com.automation-remarks:video-recorder-*</exclude>
+                                        <exclude>org.openpnp:opencv</exclude>
+                                        <exclude>com.applitools:eyes-images-java4</exclude>
+                                        <exclude>com.assertthat:selenium-shutterbug</exclude>
+                                    </excludes>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>

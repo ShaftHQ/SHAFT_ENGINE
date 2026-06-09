@@ -19,3 +19,7 @@ Use `--fixture <name>` for a focused run and `--keep-repositories <directory>` t
 repositories for diagnosis. Verification compares every downstream artifact coordinate, scope, size, and checksum,
 while excluding the rebuilt SHAFT JAR itself; validate that JAR separately by comparing its sorted entry list. The
 committed pre-modularization baseline is under `docs/modularization/dependency-baseline/`.
+
+## Combined publication consumer
+
+`combined-modules/pom.xml` imports `shaft-bom` and resolves the engine plus all optional modules together. Its `verify` phase enforces dependency convergence, checks duplicate classes/resources (while excluding BrowserStack's intentionally shaded SDK and documented upstream resource overlaps), and generates a CycloneDX JSON SBOM. See `docs/MAVEN_CENTRAL_PUBLICATION.md` for the release dry-run command.

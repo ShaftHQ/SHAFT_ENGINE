@@ -70,7 +70,8 @@ Build and test outputs are module-local. Important locations include:
 - Optional desktop video JAR: `shaft-video/target/shaft-video-<version>.jar`
 - Optional visual-processing JAR: `shaft-visual/target/shaft-visual-<version>.jar`
 - Surefire reports: `<module>/target/surefire-reports/`
-- JaCoCo report: `shaft-engine/target/jacoco/`
+- Aggregate JaCoCo report: `target/jacoco/`
+- Per-module JaCoCo execution data: `<module>/target/jacoco.exec`
 - Allure results: `shaft-engine/allure-results/`
 - Allure report: `shaft-engine/allure-report/`
 
@@ -96,7 +97,7 @@ Workflow commands run from the repository root and select only the modules requi
 | --- | --- |
 | `e2eTests.yml` | Engine jobs use `-pl shaft-engine -am`; BrowserStack jobs use `-pl shaft-browserstack -am`; focused visual and desktop-video jobs use their respective optional modules. |
 | `e2eLocalTests.yml`, `e2eLambdaTestTests.yml`, `e2eMoonTests.yml` | Use `-pl shaft-engine -am`; Appium and ordinary browser jobs do not resolve `shaft-video`. |
-| `coverage-readiness.yml` | Runs tests and JaCoCo reporting with `-pl shaft-engine -am`. |
+| `coverage-readiness.yml` | Runs focused engine tests, builds `report-aggregate`, gates `target/jacoco/jacoco.csv`, and uploads only `target/jacoco/jacoco.xml` to Codecov. |
 | `code-quality-scan.yml`, `codeql-analysis.yml`, `copilot-setup-steps.yml` | Select the code-bearing engine and optional integration modules explicitly; BOM and relocation-only modules are excluded from compilation/analysis. |
 | `publishJavaDocs.yml` | Generates JavaDocs only for `shaft-engine` and publishes `shaft-engine/target/reports/apidocs`. |
 | `mavenCentral_cd.yml` | Intentionally deploys the complete reactor because every published module, BOM, and relocation POM belongs to a release. |
@@ -104,4 +105,18 @@ Workflow commands run from the repository root and select only the modules requi
 | `dependency_review.yml`, `link-check.yml`, `refresh-agent-instructions.yml` | Do not build Java modules and therefore require no reactor selection. |
 | `sync-sample-projects-version.yml`, `update-selenium-grid-versions.yml` | Operate on module-relative assets under `shaft-engine/src/main/resources`. |
 
-The shared post-test action defaults to `shaft-engine` but accepts `module-directory` for optional-module jobs. It reads and uploads `<module>/allure-results`, `<module>/allure-report`, `<module>/target/surefire-reports`, and `<module>/target/jacoco`. It counts raw `*-result.json` files before interpreting Allure summary status and fails an empty test run.
+The shared post-test action defaults to `shaft-engine` but accepts `module-directory` for optional-module jobs. It reads and uploads `<module>/allure-results`, `<module>/allure-report`, `<module>/target/surefire-reports`, and `<module>/target/jacoco`. Coverage upload is centralized in `coverage-readiness.yml` so parallel E2E jobs do not upload duplicate source reports. It counts raw `*-result.json` files before interpreting Allure summary status and fails an empty test run.
+
+## Aggregate coverage continuity
+
+`report-aggregate` is a build-only module that depends on every Java-bearing module and writes JaCoCo XML, CSV, and HTML to root `target/jacoco`. It is skipped by Maven deploy and is not a published SHAFT artifact.
+
+Use pre-reactor commit `570a83674b70477074621ea24d7cfa05517260c6` as the coverage-continuity reference. Run the same test selector on that commit and on the current branch, then compare the resulting CSV summaries with `scripts/ci/jacoco_coverage_gate.py`. The current reactor command is:
+
+```bash
+mvn -pl shaft-engine -am test -Dtest=PathParamTest,SwaggerContractTest -Dgpg.skip
+mvn -pl report-aggregate -am verify -DskipTests -Dgpg.skip
+scripts/ci/jacoco_coverage_gate.py target/jacoco/jacoco.csv --metric line --minimum 0
+```
+
+Codecov receives only `target/jacoco/jacoco.xml`; automatic coverage-file discovery is disabled so module-local reports cannot duplicate source entries. Dependabot scans every reactor POM and groups the same Maven dependency across directories into one aligned update. `scripts/ci/validate_quality_configuration.py` protects these settings, while the `shaft-engine` Enforcer execution rejects optional BrowserStack, desktop-video, or visual-processing dependencies that leak back into the core engine.
