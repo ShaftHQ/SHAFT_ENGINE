@@ -13,6 +13,11 @@
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Non-deployed aggregate quality reports for all Java-bearing SHAFT modules.</description>
 
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <gpg.skip>true</gpg.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
