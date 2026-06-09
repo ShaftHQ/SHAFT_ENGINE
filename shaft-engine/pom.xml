@@ -68,7 +68,7 @@
         </dependency>
         <dependency>
             <groupId>io.qameta.allure</groupId>
-            <artifactId>allure-junit5</artifactId>
+            <artifactId>allure-jupiter</artifactId>
             <exclusions>
                 <exclusion>
                     <groupId>org.junit.jupiter</groupId>
@@ -576,7 +576,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.23.0</version>
+            <version>${mockito.version}</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -790,6 +790,7 @@
                             <useFile>true</useFile>
                             <argLine>
                                 @{argLine} ${surefireArgLine}
+                                ${mockitoAgentArgLine}
                                 -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
                             </argLine>
                             <properties>
@@ -923,6 +924,7 @@
                             <useFile>true</useFile>
                             <argLine>
                                 @{argLine} ${surefireArgLine}
+                                ${mockitoAgentArgLine}
                                 -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
                             </argLine>
                             <properties>

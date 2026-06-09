@@ -151,7 +151,7 @@ public class PropertiesHelper {
         SHAFT.Properties.reporting.set().disableLogging(false);
         ReportManagerHelper.logEngineVersion();
         Thread.ofVirtual().start(UpdateChecker::check);
-        Thread.ofVirtual().start(ImageProcessingActions::loadOpenCV);
+        Thread.ofVirtual().start(ImageProcessingActions::loadOpenCVIfAvailable);
         AllureManager.initializeAllureReportingEnvironment();
         Thread.ofVirtual().start(ReportManagerHelper::cleanExecutionSummaryReportDirectory);
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());

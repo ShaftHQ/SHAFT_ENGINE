@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class VisualProcessingProviderRegistryTest {
     @AfterMethod(alwaysRun = true)
@@ -41,6 +42,23 @@ public class VisualProcessingProviderRegistryTest {
         Assert.assertTrue(message.contains("Multiple visual processing providers were found"));
         Assert.assertTrue(message.indexOf(alphaProvider.getClass().getName())
                 < message.indexOf(zuluProvider.getClass().getName()));
+    }
+
+    @Test
+    public void optionalPreloadShouldRemainQuietWhenProviderIsMissing() {
+        VisualProcessingProviderRegistry.setProviderForTesting(null);
+
+        ImageProcessingActions.loadOpenCVIfAvailable();
+    }
+
+    @Test
+    public void optionalPreloadShouldLoadDiscoveredProvider() {
+        VisualProcessingProvider provider = mock(VisualProcessingProvider.class);
+        VisualProcessingProviderRegistry.setProviderForTesting(provider);
+
+        ImageProcessingActions.loadOpenCVIfAvailable();
+
+        verify(provider).load();
     }
 
     private static class AlphaProvider implements VisualProcessingProvider {

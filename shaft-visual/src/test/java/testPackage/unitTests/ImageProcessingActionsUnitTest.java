@@ -148,6 +148,20 @@ public class ImageProcessingActionsUnitTest {
     }
 
     @Test
+    public void compareImageFoldersShouldFailWhenImagesDiffer() {
+        Path reference = tempDir().resolve("reference-fail");
+        Path test = tempDir().resolve("test-fail");
+        testFileActions.createFolder(reference.toString());
+        testFileActions.createFolder(test.toString());
+        testFileActions.writeToFile(reference.resolve("one.png").toString(), createPng(20, 20, Color.BLUE));
+        testFileActions.writeToFile(test.resolve("one.png").toString(), createPng(20, 20, Color.RED));
+
+        Assert.assertThrows(Throwable.class,
+                () -> ImageProcessingActions.compareImageFolders(reference.toString(), test.toString(), 100));
+        Assert.assertTrue(testFileActions.doesFileExist(test.resolve("failedImagesDirectory").toString()));
+    }
+
+    @Test
     public void findImageWithinCurrentPageShouldReturnCoordinatesWhenImageMatches() {
         Path referenceImage = tempDir().resolve("reference-image.png");
         byte[] screenshot = createPng(30, 30, Color.GREEN);
@@ -326,12 +340,15 @@ public class ImageProcessingActionsUnitTest {
     @Test
     public void loadOpenCvShouldFallbackToJavaScriptWhenLoadingFails() {
         String originalMethod = SHAFT.Properties.visuals.screenshotParamsHighlightMethod();
+        boolean originalDisableLogging = SHAFT.Properties.reporting.disableLogging();
         try (MockedStatic<OpenCV> openCvMock = org.mockito.Mockito.mockStatic(OpenCV.class)) {
+            SHAFT.Properties.reporting.set().disableLogging(true);
             openCvMock.when(OpenCV::loadLocally).thenThrow(new RuntimeException("forced failure"));
             ImageProcessingActions.loadOpenCV();
             Assert.assertEquals(SHAFT.Properties.visuals.screenshotParamsHighlightMethod(), "JavaScript");
         } finally {
             SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod(originalMethod);
+            SHAFT.Properties.reporting.set().disableLogging(originalDisableLogging);
         }
     }
 

@@ -8,8 +8,10 @@ import io.restassured.RestAssured;
 import lombok.SneakyThrows;
 import org.apache.logging.log4j.Level;
 
+import java.math.BigInteger;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class UpdateChecker {
@@ -29,10 +31,51 @@ public class UpdateChecker {
         if (currentVersion.equalsIgnoreCase(latestVersion)) {
             var logMessage = "You're using the latest engine version \"" + latestVersion + "\". \uD83D\uDC4D";
             ReportManagerHelper.logDiscrete(logMessage, Level.INFO);
-        } else {
+        } else if (isCurrentVersionOutdated(currentVersion, latestVersion)) {
             var logMessage = "⚠\uFE0F You're using an outdated engine version \"" + currentVersion + "\" ⚠\uFE0F\nKindly upgrade to the latest one \"" + latestVersion + "\" to ensure the best experience.\nFor more information click here: https://github.com/ShaftHQ/SHAFT_ENGINE/releases/latest .";
             ReportManagerHelper.logImportantEntry(logMessage, Level.WARN);
+        } else {
+            var logMessage = "You're using engine version \"" + currentVersion
+                    + "\", which is newer than the latest published release \"" + latestVersion + "\".";
+            ReportManagerHelper.logDiscrete(logMessage, Level.INFO);
         }
+    }
+
+    static boolean isCurrentVersionOutdated(String currentVersion, String latestVersion) {
+        Optional<BigInteger[]> currentParts = parseNumericVersion(currentVersion);
+        Optional<BigInteger[]> latestParts = parseNumericVersion(latestVersion);
+        if (currentParts.isEmpty() || latestParts.isEmpty()) {
+            return false;
+        }
+
+        BigInteger[] current = currentParts.orElseThrow();
+        BigInteger[] latest = latestParts.orElseThrow();
+        int length = Math.max(current.length, latest.length);
+        for (int index = 0; index < length; index++) {
+            BigInteger currentPart = index < current.length ? current[index] : BigInteger.ZERO;
+            BigInteger latestPart = index < latest.length ? latest[index] : BigInteger.ZERO;
+            int comparison = currentPart.compareTo(latestPart);
+            if (comparison != 0) {
+                return comparison < 0;
+            }
+        }
+        return false;
+    }
+
+    private static Optional<BigInteger[]> parseNumericVersion(String version) {
+        if (version == null || version.isBlank()) {
+            return Optional.empty();
+        }
+        String normalizedVersion = version.trim().replaceFirst("^[vV]", "");
+        String[] tokens = normalizedVersion.split("\\.");
+        BigInteger[] parts = new BigInteger[tokens.length];
+        for (int index = 0; index < tokens.length; index++) {
+            if (!tokens[index].matches("\\d+")) {
+                return Optional.empty();
+            }
+            parts[index] = new BigInteger(tokens[index]);
+        }
+        return Optional.of(parts);
     }
 
     private static String getLatestVersionFromGitHub() {

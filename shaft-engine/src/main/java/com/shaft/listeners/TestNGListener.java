@@ -105,15 +105,19 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onExecutionStart() {
         engineSetup(ProjectStructureManager.RunType.TESTNG);
-        this.reportPortalTestNGService = REPORT_PORTAL_SERVICE.get();
-        if (REPORT_PORTAL_INSTANCES.incrementAndGet() > 1) {
-            String warning = "WARNING! More than one ReportPortal listener is added";
-            ReportManagerHelper.logDiscrete(warning, Level.WARN);
-        }
+        initializeReportPortalIfEnabled();
+    }
+
+    private void initializeReportPortalIfEnabled() {
         String rpEnableValue = ThreadLocalPropertiesManager.getProperty("rp.enable");
         TestNGListener.isReportPortalEnabled = rpEnableValue != null && Boolean.parseBoolean(rpEnableValue.trim());
         this.isReportPortalEnabledForListener = TestNGListener.isReportPortalEnabled;
         if (this.isReportPortalEnabledForListener) {
+            this.reportPortalTestNGService = REPORT_PORTAL_SERVICE.get();
+            if (REPORT_PORTAL_INSTANCES.incrementAndGet() > 1) {
+                String warning = "WARNING! More than one ReportPortal listener is added";
+                ReportManagerHelper.logDiscrete(warning, Level.WARN);
+            }
             String info = "Initializing ReportPortal Reporting Environment.";
             ReportManagerHelper.logDiscrete(info, Level.INFO);
             this.reportPortalTestNGService.startLaunch();
@@ -344,14 +348,21 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     }
 
     private static TestExecutionCounts getDeduplicatedTestExecutionCounts() {
+        return getDeduplicatedTestExecutionCounts(passedTests, failedTests, skippedTests);
+    }
+
+    private static TestExecutionCounts getDeduplicatedTestExecutionCounts(
+            List<ITestNGMethod> passedMethods,
+            List<ITestNGMethod> failedMethods,
+            List<ITestNGMethod> skippedMethods) {
         // Deduplicate test method counts to remove retry-inflated numbers.
         // A method that failed on early attempts but eventually passed is counted as FLAKY.
         // Categories are mutually exclusive: passed | failed | skipped | flaky.
-        Set<ITestNGMethod> passedSet = new HashSet<>(passedTests);
-        Set<ITestNGMethod> flakySet = failedTests.stream()
+        Set<ITestNGMethod> passedSet = new HashSet<>(passedMethods);
+        Set<ITestNGMethod> flakySet = failedMethods.stream()
                 .filter(passedSet::contains)
                 .collect(Collectors.toCollection(HashSet::new));
-        Set<ITestNGMethod> failedSet = failedTests.stream()
+        Set<ITestNGMethod> failedSet = failedMethods.stream()
                 .filter(m -> !passedSet.contains(m))
                 .collect(Collectors.toCollection(HashSet::new));
         int uniquePassed = passedSet.size() - flakySet.size();
@@ -360,7 +371,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         Set<ITestNGMethod> resolvedSet = new HashSet<>();
         resolvedSet.addAll(passedSet);
         resolvedSet.addAll(failedSet);
-        int uniqueSkipped = (int) skippedTests.stream().filter(m -> !resolvedSet.contains(m)).distinct().count();
+        int uniqueSkipped = (int) skippedMethods.stream().filter(m -> !resolvedSet.contains(m)).distinct().count();
         return new TestExecutionCounts(uniquePassed, uniqueFailed, uniqueSkipped, uniqueFlaky);
     }
 

@@ -249,11 +249,13 @@ public class ReportManagerHelper {
 
     private static void resetRetryDiagnosticLogging() {
         synchronized (RETRY_DIAGNOSTIC_LOGGING_LOCK) {
-            retryDiagnosticSessionThreads.clear();
-            debugFileLoggingEnabled = false;
-            if (previousRootLogLevel != null) {
-                Configurator.setRootLevel(previousRootLogLevel);
-                previousRootLogLevel = null;
+            retryDiagnosticSessionThreads.remove(Thread.currentThread().threadId());
+            if (retryDiagnosticSessionThreads.isEmpty()) {
+                debugFileLoggingEnabled = false;
+                if (previousRootLogLevel != null) {
+                    Configurator.setRootLevel(previousRootLogLevel);
+                    previousRootLogLevel = null;
+                }
             }
         }
     }
@@ -274,6 +276,10 @@ public class ReportManagerHelper {
             }
             return true;
         }
+    }
+
+    private static boolean isRetryDiagnosticLoggingEnabledForCurrentThread() {
+        return retryDiagnosticSessionThreads.contains(Thread.currentThread().threadId());
     }
 
     private static boolean ensureLogFileExists() {
@@ -304,6 +310,9 @@ public class ReportManagerHelper {
     }
 
     private static void logDebugFileSetupFailure(String message, Throwable throwable) {
+        if (SHAFT.Properties.reporting != null && SHAFT.Properties.reporting.disableLogging()) {
+            return;
+        }
         if (logger != null) {
             if (throwable != null) {
                 logger.warn(message, throwable);
@@ -333,7 +342,7 @@ public class ReportManagerHelper {
     }
 
     private static void writeToDebugLogFileIfEnabled(String logText, Level logLevel) {
-        if (debugFileLoggingEnabled) {
+        if (isRetryDiagnosticLoggingEnabledForCurrentThread()) {
             writeToDebugLogFile(logText, logLevel);
         }
     }
@@ -486,7 +495,7 @@ public class ReportManagerHelper {
     public static void attachEngineLog(String executionEndTimestamp) {
         String logFilePath = getLogFilePath();
         File logFile = new File(logFilePath);
-        boolean shouldAttachRetryDiagnostics = debugFileLoggingEnabled;
+        boolean shouldAttachRetryDiagnostics = isRetryDiagnosticLoggingEnabledForCurrentThread();
         boolean shouldAttachFullLog = SHAFT.Properties.reporting != null && SHAFT.Properties.reporting.attachFullLog();
         if (shouldAttachFullLog || shouldAttachRetryDiagnostics) {
             var initialLoggingState = ReportManagerHelper.getDiscreteLogging();
@@ -738,9 +747,9 @@ public class ReportManagerHelper {
     }
 
     private static void createImportantReportEntry(String logText, Level loglevel) {
-        boolean initialLoggingStatus = discreteLogging;
-        setDiscreteLogging(false); // force log even if discrete logging was turned on
-
+        if (SHAFT.Properties.reporting != null && SHAFT.Properties.reporting.disableLogging()) {
+            return;
+        }
         var color = switch (loglevel.name()) {
             case "WARN" -> ANSI_BOLD_YELLOW;
             case "ERROR" -> ANSI_BOLD_RED;
@@ -762,7 +771,6 @@ public class ReportManagerHelper {
         logger.log(loglevel, log);
         createDebugCompanionLogEntry(logText.trim(), loglevel);
         writeToDebugLogFileIfEnabled(logText.trim(), loglevel);
-        setDiscreteLogging(initialLoggingStatus);
     }
 
     /**
