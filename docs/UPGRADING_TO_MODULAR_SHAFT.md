@@ -17,7 +17,7 @@ Before:
 After, with the recommended BOM:
 
 ```xml
-<properties><shaft.version>MODULAR_RELEASE_VERSION</shaft.version></properties>
+<properties><shaft.version>10.2.20260609</shaft.version></properties>
 <dependencyManagement>
   <dependencies>
     <dependency>
@@ -47,7 +47,7 @@ Or use an explicit version without the BOM:
 </dependency>
 ```
 
-Replace `MODULAR_RELEASE_VERSION` with the released version shown on [Maven Central](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine).
+Version `10.2.20260609` is the first modular SHAFT release. Confirm current availability on [Maven Central](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine).
 
 ## Choose optional modules
 

@@ -22,8 +22,8 @@
 SHAFT Engine is an open-source **Java test automation framework** built on top of [Selenium](https://www.selenium.dev/), [Appium](https://appium.io/), and [REST Assured](https://rest-assured.io/). It provides a unified, fluent API for **cross-browser testing**, **mobile app testing**, **API testing**, **CLI testing**, and **database testing** — so you can automate anything, from any platform, with zero boilerplate.
 
 [![GitHub Stars](https://img.shields.io/github/stars/ShaftHQ/SHAFT_ENGINE?style=for-the-badge&logo=github&label=Stars&color=gold)](https://github.com/ShaftHQ/SHAFT_ENGINE/stargazers)
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/SHAFT_ENGINE?style=for-the-badge&logo=apachemaven&label=Maven%20Central&color=indigo)](https://central.sonatype.com/artifact/io.github.shafthq/SHAFT_ENGINE)
-[![License](https://img.shields.io/github/license/ShaftHQ/SHAFT_Engine?color=indigo&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/shaft-engine?style=for-the-badge&logo=apachemaven&label=Maven%20Central&color=indigo)](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)
+[![License](https://img.shields.io/github/license/ShaftHQ/SHAFT_Engine?color=indigo&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/blob/main/LICENSE)
 [![E2E Tests](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/e2eTests.yml?branch=main&color=forestgreen&label=E2E%20Tests&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/e2eTests.yml)
 [![Code QL](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/codeql-analysis.yml?branch=main&label=Security&color=forestgreen&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/codeql-analysis.yml)
 [![Code Quality](https://img.shields.io/codacy/grade/4d6d48aba396411fa3170184330ba089?style=for-the-badge&color=blue&label=Code%20Quality)](https://app.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard)
@@ -390,9 +390,9 @@ SHAFT Engine is released under the [MIT License](LICENSE) — free to use, modif
 
 <a href="https://ShaftHQ.github.io/" target="_blank">
 <picture>
-  <source srcset="src/main/resources/images/shaft.png" media="(prefers-color-scheme: light)" width="300"/>
-  <source srcset="src/main/resources/images/shaft_white.png" media="(prefers-color-scheme: dark)" width="300"/>
-  <img src="src/main/resources/images/shaft.png" alt="SHAFT Engine - Unified Test Automation Framework for Java" width="300"/>
+  <source srcset="shaft-engine/src/main/resources/images/shaft.png" media="(prefers-color-scheme: light)" width="300"/>
+  <source srcset="shaft-engine/src/main/resources/images/shaft_white.png" media="(prefers-color-scheme: dark)" width="300"/>
+  <img src="shaft-engine/src/main/resources/images/shaft.png" alt="SHAFT Engine - Unified Test Automation Framework for Java" width="300"/>
 </picture>
 </a>
 
@@ -410,7 +410,7 @@ Made with ❤️ by the [SHAFT community](https://github.com/ShaftHQ/SHAFT_ENGIN
   Project:      SHAFT Engine
   Full name:    SHAFT — Unified Test Automation Engine
   Maven:        io.github.shafthq:shaft-engine
-  Language:     Java 21
+  Language:     Java 25
   License:      MIT
   Maintained:   Yes (active, production-ready)
 
