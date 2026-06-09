@@ -92,6 +92,10 @@ graph TB
     class Allure,GitHub,Jenkins reporting
 ```
 
+## Published Maven modules
+
+`shaft-engine` contains the public facade plus web, mobile/Appium, API, database, CLI, reporting, and retained integrations. `shaft-browserstack`, `shaft-video`, and `shaft-visual` are optional provider JARs aligned by `shaft-bom`; the legacy `SHAFT_ENGINE` artifact is relocation-only. See the [upgrade guide](UPGRADING_TO_MODULAR_SHAFT.md).
+
 ## Module Overview
 
 ### Core Testing Modules

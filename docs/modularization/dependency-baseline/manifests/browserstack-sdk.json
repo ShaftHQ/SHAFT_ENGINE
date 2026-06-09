@@ -6,11 +6,11 @@
     "system": "Linux",
     "machine": "x86_64"
   },
-  "artifactCount": 331,
-  "artifactBytes": 322940699,
-  "seededRepositoryBytes": 791366,
-  "repositoryBytes": 351879427,
-  "repositoryGrowthBytes": 351088061,
-  "elapsedSeconds": 72.772,
+  "artifactCount": 310,
+  "artifactBytes": 208151248,
+  "seededRepositoryBytes": 812508,
+  "repositoryBytes": 236426335,
+  "repositoryGrowthBytes": 235613827,
+  "elapsedSeconds": 63.801,
   "artifactsRef": "artifacts-browserstack-sdk.json"
 }

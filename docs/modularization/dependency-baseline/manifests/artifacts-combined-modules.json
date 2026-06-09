@@ -44,6 +44,30 @@
       "sha256": "3a6278740807c49f25ebe39172f4912a247187b5d1d57b05cd35dfaad04d4628"
     },
     {
+      "coordinate": "com.automation-remarks:video-recorder-core:jar:2.0",
+      "scope": "compile",
+      "compressedBytes": 343631,
+      "sha256": "8305b0a7aeabe23a55b4ec59cd3f6902a9c1b9c5c027453a27a5c4872059e7ae"
+    },
+    {
+      "coordinate": "com.automation-remarks:video-recorder-junit5:jar:2.0",
+      "scope": "compile",
+      "compressedBytes": 3393,
+      "sha256": "2b9e28b972dafcbc8c989859c7925e4fd05c805f12b2b07bf497eaf54d8e2e49"
+    },
+    {
+      "coordinate": "com.automation-remarks:video-recorder-testng:jar:2.0",
+      "scope": "compile",
+      "compressedBytes": 14434,
+      "sha256": "ebb03150253a9fccfcec26f0232463669de84da4be209f8d4df97decfde80cda"
+    },
+    {
+      "coordinate": "com.browserstack:browserstack-java-sdk:jar:1.59.8",
+      "scope": "compile",
+      "compressedBytes": 38204017,
+      "sha256": "846ac6af4a040b2e72e7ce8a4d20c61b2f6907ec9136c67d30abf314058a99df"
+    },
+    {
       "coordinate": "com.deque.html.axe-core:dequeutilites:jar:4.11.3",
       "scope": "compile",
       "compressedBytes": 23942,
@@ -716,10 +740,22 @@
       "sha256": "7a8a003f3aaa7df074f112178526477fa8466684c7ac2f695c900b708e7641f5"
     },
     {
+      "coordinate": "io.github.shafthq:shaft-browserstack:jar:10.2.20260605",
+      "scope": "compile",
+      "compressedBytes": 5767,
+      "sha256": "d9911b43106e3e28994bf92437ee23f2a38a8cc747ca018686e2e7f58919c0b9"
+    },
+    {
       "coordinate": "io.github.shafthq:shaft-engine:jar:10.2.20260605",
       "scope": "compile",
       "compressedBytes": 693114,
       "sha256": "79bc203a06b277d6913aee0f595e3ecbc0ba24386c60be09b1b259a0ccffae73"
+    },
+    {
+      "coordinate": "io.github.shafthq:shaft-video:jar:10.2.20260605",
+      "scope": "compile",
+      "compressedBytes": 7756,
+      "sha256": "9f27fb24294ab285244ba9b9376a1729b3617936701ebb6a4c96a4f6c4a35bbe"
     },
     {
       "coordinate": "io.github.shafthq:shaft-visual:jar:10.2.20260605",
@@ -1430,6 +1466,12 @@
       "sha256": "4fe86fdc18faea571f29129c70eaad5d121363504a06d7907be88f6c60ba3116"
     },
     {
+      "coordinate": "org.awaitility:awaitility:jar:3.1.6",
+      "scope": "compile",
+      "compressedBytes": 103377,
+      "sha256": "694e2e915312b6fe0123c3d532f6675eed3b6d60e4f2ab677d3688fde3defcfc"
+    },
+    {
       "coordinate": "org.brotli:dec:jar:0.1.2",
       "scope": "compile",
       "compressedBytes": 98115,
@@ -1670,6 +1712,12 @@
       "sha256": "12dbb224cea124a5d32968722e8eb161c967bf15f3c9a795d1b05592b1147975"
     },
     {
+      "coordinate": "org.objenesis:objenesis:jar:2.6",
+      "scope": "compile",
+      "compressedBytes": 55684,
+      "sha256": "5e168368fbc250af3c79aa5fef0c3467a2d64e5a7bd74005f25d8399aeb0708d"
+    },
+    {
       "coordinate": "org.openpnp:opencv:jar:4.9.0-0",
       "scope": "compile",
       "compressedBytes": 109619828,
@@ -1844,6 +1892,12 @@
       "sha256": "c8f7a98e7394adda02f6317249710e4d1b4c7a25aa8c7eace0c2eea52eb8bf85"
     },
     {
+      "coordinate": "org.zeroturnaround:zt-exec:jar:1.10",
+      "scope": "compile",
+      "compressedBytes": 57588,
+      "sha256": "1f8b1bca6d0f9b9ec7f9bc8fca3b45e42039bb4ea3cdd20614104085e809ec71"
+    },
+    {
       "coordinate": "software.amazon.awssdk:annotations:jar:2.27.14",
       "scope": "compile",
       "compressedBytes": 13759,
@@ -2004,6 +2058,18 @@
       "scope": "compile",
       "compressedBytes": 30193,
       "sha256": "0c37d8e696117f02c302191b8110b0d0eb20fa412fce34c3a269ec73c16ce822"
+    },
+    {
+      "coordinate": "ws.schild:jave-core:jar:3.5.0",
+      "scope": "compile",
+      "compressedBytes": 96724,
+      "sha256": "6583162960f5c79f8b1012ecdcc4d1aa3ef0e572bd3a9db2eecdfde64516354f"
+    },
+    {
+      "coordinate": "ws.schild:jave-nativebin-linux64:jar:3.5.0",
+      "scope": "compile",
+      "compressedBytes": 28201169,
+      "sha256": "19755e5437fc6fa2493eb6787ec55ceb676646f86bc27a68a344dc55b2e6ed0f"
     }
   ]
 }

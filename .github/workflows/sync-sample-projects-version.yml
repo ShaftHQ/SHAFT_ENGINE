@@ -88,8 +88,8 @@ jobs:
       - name: Check Current Versions in Examples
         id: check-current
         run: |
-          # Get unique shaft_engine versions from example pom.xml files
-          CURRENT_VERSIONS=$(find shaft-engine/src/main/resources/examples -name "pom.xml" -exec grep -h '<shaft_engine.version>' {} \; | sed 's/.*<shaft_engine.version>\(.*\)<\/shaft_engine.version>.*/\1/' | tr -d ' ' | sort -u | tr '\n' ' ')
+          # Get unique shaft.version values from example pom.xml files
+          CURRENT_VERSIONS=$(find shaft-engine/src/main/resources/examples -name "pom.xml" -exec grep -h '<shaft.version>' {} \; | sed 's/.*<shaft.version>\(.*\)<\/shaft.version>.*/\1/' | tr -d ' ' | sort -u | tr '\n' ' ')
           echo "CURRENT_VERSIONS=$CURRENT_VERSIONS" >> $GITHUB_OUTPUT
           echo "Current SHAFT versions in examples: $CURRENT_VERSIONS"
 
@@ -105,7 +105,7 @@ jobs:
           NEW_SUREFIRE_TESTNG="${{ steps.extract-versions.outputs.SUREFIRE_TESTNG_VERSION }}"
 
           echo "Syncing all versioned properties to sample projects..."
-          echo "  shaft_engine.version          = $NEW_VERSION"
+          echo "  shaft.version          = $NEW_VERSION"
           echo "  jdk.version                   = $NEW_JDK"
           echo "  aspectjweaver.version         = $NEW_ASPECTJ"
           echo "  maven-compiler-plugin.version = $NEW_COMPILER"
@@ -137,7 +137,7 @@ jobs:
           for POM_FILE in $(find shaft-engine/src/main/resources/examples -name "pom.xml"); do
             FILE_CHANGED=false
 
-            update_property "$POM_FILE" "shaft_engine.version" "$NEW_VERSION" && FILE_CHANGED=true
+            update_property "$POM_FILE" "shaft.version" "$NEW_VERSION" && FILE_CHANGED=true
             [ -n "$NEW_JDK" ] && update_property "$POM_FILE" "jdk.version" "$NEW_JDK" && FILE_CHANGED=true
             [ -n "$NEW_ASPECTJ" ] && update_property "$POM_FILE" "aspectjweaver.version" "$NEW_ASPECTJ" && FILE_CHANGED=true
             [ -n "$NEW_COMPILER" ] && update_property "$POM_FILE" "maven-compiler-plugin.version" "$NEW_COMPILER" && FILE_CHANGED=true
@@ -192,7 +192,7 @@ jobs:
 
             | Property | New Value |
             |---|---|
-            | `shaft_engine.version` | `${{ steps.get-version.outputs.NEW_VERSION }}` |
+            | `shaft.version` | `${{ steps.get-version.outputs.NEW_VERSION }}` |
             | `jdk.version` | `${{ steps.extract-versions.outputs.JDK_VERSION }}` |
             | `aspectjweaver.version` | `${{ steps.extract-versions.outputs.ASPECTJWEAVER_VERSION }}` |
             | `maven-compiler-plugin.version` | `${{ steps.extract-versions.outputs.COMPILER_PLUGIN_VERSION }}` |

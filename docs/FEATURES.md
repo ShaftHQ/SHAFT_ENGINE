@@ -1,6 +1,8 @@
 # 🚀 Features
 
-SHAFT Engine provides comprehensive test automation capabilities across multiple platforms and testing needs.
+The base `shaft-engine` artifact provides comprehensive test automation capabilities across multiple platforms and testing needs.
+
+> BrowserStack SDK orchestration, desktop video, and OpenCV visual matching require `shaft-browserstack`, `shaft-video`, and `shaft-visual` respectively. API, mobile/Appium, and database support remain in the base artifact. See the [upgrade guide](UPGRADING_TO_MODULAR_SHAFT.md).
 
 ## Smart Features
 
