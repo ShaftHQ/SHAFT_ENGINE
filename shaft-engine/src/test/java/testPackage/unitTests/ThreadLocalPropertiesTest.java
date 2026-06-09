@@ -37,6 +37,7 @@ public class ThreadLocalPropertiesTest {
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
         // Clear thread-local overrides after each test to avoid cross-test contamination
+        resetRetryDiagnosticLoggingForCurrentThread();
         Properties.clearForCurrentThread();
     }
 
@@ -287,6 +288,7 @@ public class ThreadLocalPropertiesTest {
     public void testRetryDiagnosticsLoggingLifecycle() throws java.io.IOException {
         int originalRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
         File logFile = new File(SHAFT.Properties.log4j.appenderFile_FileName());
+        resetRetryDiagnosticLoggingForCurrentThread();
         if (logFile.exists()) {
             Files.deleteIfExists(logFile.toPath());
         }
@@ -352,10 +354,6 @@ public class ThreadLocalPropertiesTest {
         Method writeToDebugLogFile = ReportManagerHelper.class
                 .getDeclaredMethod("writeToDebugLogFile", String.class, Level.class);
         writeToDebugLogFile.setAccessible(true);
-        Method resetRetryDiagnosticLogging = ReportManagerHelper.class
-                .getDeclaredMethod("resetRetryDiagnosticLogging");
-        resetRetryDiagnosticLogging.setAccessible(true);
-
         try {
             ThreadLocalPropertiesManager.setProperty("appender.file.fileName", logFilePath.toString());
             ReportManager.logDiscrete("Initialize logger for UTF-8 retry diagnostics test");
@@ -366,11 +364,21 @@ public class ThreadLocalPropertiesTest {
             Assert.assertTrue(writtenLog.contains(unicodeLogEntry),
                     "Retry debug log writer should preserve Unicode characters when written/read as UTF-8");
         } finally {
-            resetRetryDiagnosticLogging.invoke(null);
+            resetRetryDiagnosticLoggingForCurrentThread();
             ThreadLocalPropertiesManager.setProperty("appender.file.fileName", originalLogFilePath);
             Files.deleteIfExists(logFilePath);
             Files.deleteIfExists(tempDirectory);
             Properties.clearForCurrentThread();
+        }
+    }
+
+    private void resetRetryDiagnosticLoggingForCurrentThread() {
+        try {
+            Method method = ReportManagerHelper.class.getDeclaredMethod("resetRetryDiagnosticLogging");
+            method.setAccessible(true);
+            method.invoke(null);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Could not reset retry diagnostics debug logging state", e);
         }
     }
 

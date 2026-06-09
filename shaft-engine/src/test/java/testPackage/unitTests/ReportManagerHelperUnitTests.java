@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -432,6 +434,53 @@ public class ReportManagerHelperUnitTests {
         boolean debugFileLoggingEnabled = isRetryDiagnosticLoggingEnabledForCurrentThread();
         SHAFT.Validations.assertThat().object(debugFileLoggingEnabled).isFalse().perform();
         SHAFT.Validations.assertThat().object(new File(logFilePath).exists()).isFalse().perform();
+    }
+
+    @Test
+    public void resettingRetryDiagnosticsShouldNotClearAnotherThreadSession() throws Exception {
+        Path workerLog = Path.of("target", "logs", "report-manager-helper-worker-" + System.nanoTime() + ".log");
+        CountDownLatch workerEnabled = new CountDownLatch(1);
+        CountDownLatch mainResetComplete = new CountDownLatch(1);
+        AtomicReference<Boolean> workerSessionActiveAfterMainReset = new AtomicReference<>(false);
+        AtomicReference<Throwable> workerFailure = new AtomicReference<>();
+
+        Thread worker = new Thread(() -> {
+            try {
+                ThreadLocalPropertiesManager.setProperty("appender.file.fileName", workerLog.toString());
+                ReportManagerHelper.enableDebugFileLogging();
+                workerEnabled.countDown();
+                mainResetComplete.await();
+                workerSessionActiveAfterMainReset.set(isRetryDiagnosticLoggingEnabledForCurrentThread());
+                invokePrivateStaticMethod("resetRetryDiagnosticLogging");
+            } catch (Throwable throwable) {
+                workerFailure.set(throwable);
+            } finally {
+                workerEnabled.countDown();
+                Properties.clearForCurrentThread();
+            }
+        }, "retry-diagnostics-worker");
+
+        worker.setDaemon(true);
+        worker.start();
+        boolean workerReachedEnabledState = workerEnabled.await(5, TimeUnit.SECONDS);
+        try {
+            if (workerReachedEnabledState) {
+                invokePrivateStaticMethod("resetRetryDiagnosticLogging");
+            }
+        } finally {
+            mainResetComplete.countDown();
+        }
+        worker.join(5000);
+
+        try {
+            SHAFT.Validations.assertThat().object(workerReachedEnabledState).isTrue().perform();
+            SHAFT.Validations.assertThat().object(worker.isAlive()).isFalse().perform();
+            SHAFT.Validations.assertThat().object(workerFailure.get()).isNull().perform();
+            SHAFT.Validations.assertThat().object(workerSessionActiveAfterMainReset.get()).isTrue().perform();
+        } finally {
+            worker.interrupt();
+            Files.deleteIfExists(workerLog);
+        }
     }
 
     @Test
