@@ -54,7 +54,6 @@ jobs:
         uses: ./.github/actions/post-test-report
         with:
           job-name: Windows_Edge_Local
-          codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   MacOSX_Safari_Local:
     runs-on: macos-latest
@@ -82,7 +81,6 @@ jobs:
         uses: ./.github/actions/post-test-report
         with:
           job-name: MacOSX_Safari_Local
-          codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Windows_Chrome_Local:
     runs-on: windows-latest
@@ -110,7 +108,6 @@ jobs:
         uses: ./.github/actions/post-test-report
         with:
           job-name: Windows_Chrome_Local
-          codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   MacOSX_Chrome_Local:
     runs-on: macos-latest
@@ -138,7 +135,6 @@ jobs:
         uses: ./.github/actions/post-test-report
         with:
           job-name: MacOSX_Chrome_Local
-          codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Windows_Edge_Cucumber_Local:
     runs-on: windows-latest
@@ -169,4 +165,3 @@ jobs:
         uses: ./.github/actions/post-test-report
         with:
           job-name: Windows_Edge_Cucumber_Local
-          codecov-token: ${{ secrets.CODECOV_TOKEN }}

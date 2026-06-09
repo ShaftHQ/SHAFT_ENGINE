@@ -1,5 +1,5 @@
 name: 'Post-Test Report and Check'
-description: 'Uploads coverage, generates Allure report artifacts, creates test summary, and checks test results using Allure data'
+description: 'Generates Allure report artifacts, creates test summary, and checks test results using Allure data'
 outputs:
   job:
     description: 'Job display name'
@@ -26,10 +26,7 @@ inputs:
   job-name:
     description: 'Name of the job (used for naming the Allure report artifact)'
     required: true
-  codecov-token:
-    description: 'Codecov upload token'
-    required: false
-    default: ''
+
   module-directory:
     description: 'Module that produced the test and report outputs'
     required: false
@@ -37,15 +34,6 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Upload coverage to Codecov
-      if: always()
-      uses: codecov/codecov-action@v6
-      with:
-        token: ${{ inputs.codecov-token }}
-        fail_ci_if_error: false
-        files: ./${{ inputs.module-directory }}/target/jacoco/jacoco.xml
-        verbose: true
-        disable_search: true
     - name: Generate Allure Report Fallback
       if: always()
       shell: bash
