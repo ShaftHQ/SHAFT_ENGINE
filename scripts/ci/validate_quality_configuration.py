@@ -114,7 +114,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
         if f"<exclude>{artifact}</exclude>" not in engine_pom:
             errors.append(f"shaft-engine dependency boundary does not ban {artifact}")
 
-    visual_install_command = "mvn -pl shaft-visual -am -e install -DskipTests -Dgpg.skip"
+    visual_install_command = 'mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"'
     for workflow_name, expected_jobs in (("e2eLocalTests.yml", 4), ("e2eTests.yml", 3)):
         workflow = (root / ".github" / "workflows" / workflow_name).read_text(encoding="utf-8")
         install_count = workflow.count(visual_install_command)

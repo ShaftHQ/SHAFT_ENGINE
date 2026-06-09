@@ -185,7 +185,7 @@ jobs:
       - name: Check running containers
         run: docker ps
       - name: Install optional visual test runtime
-        run: mvn -pl shaft-visual -am -e install -DskipTests -Dgpg.skip
+        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
@@ -220,7 +220,7 @@ jobs:
       - name: Check running containers
         run: docker ps
       - name: Install optional visual test runtime
-        run: mvn -pl shaft-visual -am -e install -DskipTests -Dgpg.skip
+        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
@@ -255,7 +255,7 @@ jobs:
       - name: Check running containers
         run: docker ps
       - name: Install optional visual test runtime
-        run: mvn -pl shaft-visual -am -e install -DskipTests -Dgpg.skip
+        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"

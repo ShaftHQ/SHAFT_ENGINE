@@ -43,7 +43,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install optional visual test runtime
-        run: mvn -pl shaft-visual -am -e install -DskipTests -Dgpg.skip
+        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Print Edge version
         continue-on-error: true
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
@@ -75,7 +75,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install optional visual test runtime
-        run: mvn -pl shaft-visual -am -e install -DskipTests -Dgpg.skip
+        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}, !%regex[.*MobileEmulation.*]"
@@ -104,7 +104,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install optional visual test runtime
-        run: mvn -pl shaft-visual -am -e install -DskipTests -Dgpg.skip
+        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}"
@@ -133,7 +133,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install optional visual test runtime
-        run: mvn -pl shaft-visual -am -e install -DskipTests -Dgpg.skip
+        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}"
