@@ -14,10 +14,21 @@ updates:
 
   # Maintain dependencies for maven
   - package-ecosystem: "maven"
-    directory: "/"
+    directories:
+      - "/"
+      - "/shaft-engine"
+      - "/shaft-browserstack"
+      - "/shaft-video"
+      - "/shaft-visual"
+      - "/shaft-bom"
+      - "/legacy-shaft-engine"
+      - "/report-aggregate"
     schedule:
       interval: "daily"
       time: "00:00"
       timezone: "Africa/Cairo"
     labels:
       - "dependencies"
+    groups:
+      aligned-maven-dependencies:
+        group-by: dependency-name

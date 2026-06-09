@@ -36,6 +36,9 @@ on:
       - 'scripts/ci/**'
       - 'tests/scripts/**'
       - 'shaft-engine/src/test/java/com/shaft/api/**'
+      - 'report-aggregate/**'
+      - 'pom.xml'
+      - 'codecov.yml'
 
 permissions:
   contents: read
@@ -85,7 +88,7 @@ jobs:
 
       - name: Generate JaCoCo report
         if: always()
-        run: mvn -pl shaft-engine -am jacoco:report -Dgpg.skip
+        run: mvn -pl report-aggregate -am verify -DskipTests -Dgpg.skip
 
       - name: Summarize coverage
         id: coverage
@@ -95,7 +98,7 @@ jobs:
           if [ "${ENFORCE_COVERAGE}" = "true" ]; then
             enforce_args+=(--enforce)
           fi
-          scripts/ci/jacoco_coverage_gate.py shaft-engine/target/jacoco/jacoco.csv \
+          scripts/ci/jacoco_coverage_gate.py target/jacoco/jacoco.csv \
             --metric "${COVERAGE_METRIC}" \
             --minimum "${COVERAGE_MINIMUM}" \
             "${enforce_args[@]}" | tee jacoco-coverage-summary.md
@@ -114,6 +117,15 @@ jobs:
             cat jacoco-coverage-summary.md
           } >> "${GITHUB_STEP_SUMMARY}"
 
+      - name: Upload aggregate coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          disable_search: true
+          files: ./target/jacoco/jacoco.xml
+
       - name: Upload readiness artifacts
         if: always()
         uses: actions/upload-artifact@v7
@@ -123,7 +135,7 @@ jobs:
             e2e-test-inventory.md
             allure-failures.md
             jacoco-coverage-summary.md
-            shaft-engine/target/jacoco/**
+            target/jacoco/**
             shaft-engine/target/surefire-reports/**
             shaft-engine/allure-results/**
           if-no-files-found: ignore

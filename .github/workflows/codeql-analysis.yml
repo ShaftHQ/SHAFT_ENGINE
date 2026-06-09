@@ -57,11 +57,11 @@ jobs:
           gpg -K --keyid-format SHORT
           export GPG_TTY=$(tty)
 
-      - name: Build SHAFT_Engine
+      - name: Build all Java-bearing SHAFT modules
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-        run: mvn -B -pl shaft-engine,shaft-browserstack,shaft-video,shaft-visual -am clean package --file pom.xml -DskipTests
+        run: mvn -B -pl shaft-engine,shaft-browserstack,shaft-video,shaft-visual -am clean package --file pom.xml -DskipTests -Dgpg.skip
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
