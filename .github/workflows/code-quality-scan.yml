@@ -148,7 +148,7 @@ jobs:
           DRIFT_DETAILS=""
 
           for POM in $(find shaft-engine/src/main/resources/examples -name "pom.xml"); do
-            SAMPLE_VERSION=$(grep '<shaft_engine.version>' "$POM" | head -1 | sed 's/.*<shaft_engine.version>\(.*\)<\/shaft_engine.version>.*/\1/' | tr -d ' ')
+            SAMPLE_VERSION=$(grep '<shaft.version>' "$POM" | head -1 | sed 's/.*<shaft.version>\(.*\)<\/shaft.version>.*/\1/' | tr -d ' ')
             if [ -n "$SAMPLE_VERSION" ] && [ "$SAMPLE_VERSION" != "$MAIN_VERSION" ]; then
               DRIFT_FOUND=true
               DRIFT_DETAILS="$DRIFT_DETAILS\n- $POM: $SAMPLE_VERSION (expected $MAIN_VERSION)"
@@ -211,7 +211,7 @@ jobs:
           script: |
             const title = '⚠️ Sample Project Version Drift Detected';
             const labels = ['dependencies', 'automated', 'examples'];
-            const body = `## Sample Projects Out of Sync\n\nThe following sample project \`pom.xml\` files have a \`shaft_engine.version\` that does not match the current main \`pom.xml\` version.\n\n${{ steps.version-drift.outputs.drift_details }}\n\nRun the **Sync Sample Projects SHAFT Version** workflow to fix this automatically.`;
+            const body = `## Sample Projects Out of Sync\n\nThe following sample project \`pom.xml\` files have a \`shaft.version\` that does not match the current main \`pom.xml\` version.\n\n${{ steps.version-drift.outputs.drift_details }}\n\nRun the **Sync Sample Projects SHAFT Version** workflow to fix this automatically.`;
 
             const { data: issues } = await github.rest.issues.listForRepo({
               owner: context.repo.owner,

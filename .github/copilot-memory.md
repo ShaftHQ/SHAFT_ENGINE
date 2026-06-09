@@ -76,7 +76,7 @@ Purpose: keep high-signal, reusable learnings from implementation sessions in on
 - Date: 2026-05-13
 - Area: Release preparation / version metadata
 - Trigger: First Codex-generated release PR request for `10.2.20260513`.
-- Lesson: Release PRs are metadata-sensitive and must be opened directly once validated. Always inspect recent merged release PRs, compute the version with `{major}.{quarter}.{YYYYMMDD}`, update root `pom.xml`, `Internal.java` `shaftEngineVersion`, verify/update `allure3Version` and `nodeLtsVersion`, and update all seven sample/demo project `<shaft_engine.version>` values before opening the PR. Do not rely on the post-release sample-sync workflow to fix stale sample POMs.
+- Lesson: Release PRs are metadata-sensitive and must be opened directly once validated. Always inspect recent merged release PRs, compute the version with `{major}.{quarter}.{YYYYMMDD}`, update root `pom.xml`, `Internal.java` `shaftEngineVersion`, verify/update `allure3Version` and `nodeLtsVersion`, and update all seven sample/demo project `<shaft.version>` values before opening the PR. Do not rely on the post-release sample-sync workflow to fix stale sample POMs.
 - Evidence: PRs #2502, #2494, #2439, #2428, #2418; `pom.xml`; `src/main/java/com/shaft/properties/internal/Internal.java`; `src/main/resources/examples/**/pom.xml`; `.github/copilot-instructions.md`; `AGENTS.md`.
 - Action taken: Added release-preparation notes to agent instructions, framework-source instructions, and this memory entry while preparing the release branch.
 

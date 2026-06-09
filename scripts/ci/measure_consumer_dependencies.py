@@ -27,11 +27,14 @@ BROWSERSTACK_ROOT = ROOT / "shaft-browserstack"
 BROWSERSTACK_POM = BROWSERSTACK_ROOT / "pom.xml"
 VIDEO_ROOT = ROOT / "shaft-video"
 VIDEO_POM = VIDEO_ROOT / "pom.xml"
+VISUAL_ROOT = ROOT / "shaft-visual"
+VISUAL_POM = VISUAL_ROOT / "pom.xml"
 LEGACY_POM = ROOT / "legacy-shaft-engine" / "pom.xml"
 PROJECT_COORDINATES = (
     "io.github.shafthq:shaft-engine",
     "io.github.shafthq:shaft-browserstack",
     "io.github.shafthq:shaft-video",
+    "io.github.shafthq:shaft-visual",
     "io.github.shafthq:SHAFT_ENGINE",
 )
 DEPENDENCY_LINE = re.compile(r"^\s*([^\s].*?):(/.*|[A-Za-z]:\\.*)$")
@@ -83,6 +86,13 @@ def seed_project_artifact(repository: Path, jar: Path, version: str) -> int:
     shutil.copy2(
         VIDEO_ROOT / "target" / f"shaft-video-{version}.jar",
         video_destination / f"shaft-video-{version}.jar",
+    )
+    visual_destination = repository / "io" / "github" / "shafthq" / "shaft-visual" / version
+    visual_destination.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(VISUAL_POM, visual_destination / f"shaft-visual-{version}.pom")
+    shutil.copy2(
+        VISUAL_ROOT / "target" / f"shaft-visual-{version}.jar",
+        visual_destination / f"shaft-visual-{version}.jar",
     )
     seed_pom(repository, "SHAFT_ENGINE", LEGACY_POM, version)
     seed_pom(repository, "shaft-parent", ROOT / "pom.xml", version)
@@ -148,11 +158,15 @@ def expected_jave_coordinate(system: str | None = None, machine: str | None = No
 def validate_required_artifacts(manifest: dict[str, object]) -> list[str]:
     artifacts = {artifact["coordinate"]: artifact for artifact in manifest["artifacts"]}
     errors: list[str] = []
-    required = {
-        "org.openpnp:opencv:jar:4.9.0-0": 109_619_828,
-    }
+    required: dict[str, int] = {}
+    opencv_coordinate = "org.openpnp:opencv:jar:4.9.0-0"
+    optional_fixture = str(manifest.get("fixture"))
+    if optional_fixture in {"opencv-visual", "bom", "combined-modules"}:
+        required[opencv_coordinate] = 109_619_828
+    elif opencv_coordinate in artifacts:
+        errors.append(f"forbidden artifact {opencv_coordinate}")
     browserstack_coordinate = "com.browserstack:browserstack-java-sdk:jar:1.59.8"
-    if manifest.get("fixture") == "browserstack-sdk":
+    if optional_fixture in {"browserstack-sdk", "combined-modules"}:
         required[browserstack_coordinate] = 38_204_017
     elif browserstack_coordinate in artifacts:
         errors.append(f"forbidden artifact {browserstack_coordinate}")
@@ -172,7 +186,7 @@ def validate_required_artifacts(manifest: dict[str, object]) -> list[str]:
     resolved_desktop = sorted(
         coordinate for coordinate in artifacts if coordinate.startswith(desktop_coordinates)
     )
-    if manifest.get("fixture") == "desktop-video":
+    if optional_fixture in {"desktop-video", "combined-modules"}:
         expected_jave = expected_jave_coordinate()
         resolved_jave = sorted(
             coordinate for coordinate in artifacts if coordinate.startswith("ws.schild:jave-nativebin-")

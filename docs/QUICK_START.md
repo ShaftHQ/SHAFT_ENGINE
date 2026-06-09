@@ -282,6 +282,10 @@ Feature: Search functionality
 > After upgrading your Engine to a new major release it is sometimes recommended to delete the properties
 folder ```src\main\resources\properties``` and allow SHAFT to regenerate the defaults by running any test method.
 
+## Optional modular integrations
+
+The base coordinate is `io.github.shafthq:shaft-engine`. Import `io.github.shafthq:shaft-bom` to align versions, then add `shaft-browserstack`, `shaft-video`, or `shaft-visual` only when the project uses those capabilities. API, Appium/mobile, and database testing remain in `shaft-engine`. Existing `SHAFT_ENGINE` users should follow the [upgrade guide](UPGRADING_TO_MODULAR_SHAFT.md).
+
 ---
 
 [← Back to README](../README.md) | [Features →](FEATURES.md)

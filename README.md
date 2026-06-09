@@ -22,7 +22,7 @@
 SHAFT Engine is an open-source **Java test automation framework** built on top of [Selenium](https://www.selenium.dev/), [Appium](https://appium.io/), and [REST Assured](https://rest-assured.io/). It provides a unified, fluent API for **cross-browser testing**, **mobile app testing**, **API testing**, **CLI testing**, and **database testing** — so you can automate anything, from any platform, with zero boilerplate.
 
 [![GitHub Stars](https://img.shields.io/github/stars/ShaftHQ/SHAFT_ENGINE?style=for-the-badge&logo=github&label=Stars&color=gold)](https://github.com/ShaftHQ/SHAFT_ENGINE/stargazers)
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/SHAFT_ENGINE?style=for-the-badge&logo=apachemaven&label=Maven%20Central&color=indigo)](https://central.sonatype.com/artifact/io.github.shafthq/SHAFT_ENGINE)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/shaft-engine?style=for-the-badge&logo=apachemaven&label=Maven%20Central&color=indigo)](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)
 [![License](https://img.shields.io/github/license/ShaftHQ/SHAFT_Engine?color=indigo&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE)
 [![E2E Tests](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/e2eTests.yml?branch=main&color=forestgreen&label=E2E%20Tests&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/e2eTests.yml)
 [![Code QL](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/codeql-analysis.yml?branch=main&label=Security&color=forestgreen&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/codeql-analysis.yml)
@@ -62,6 +62,7 @@ SHAFT Engine is an open-source **Java test automation framework** built on top o
 - [🚀 Why SHAFT?](#-why-shaft)
 - [💡 See the Difference](#-see-the-difference)
 - [⚡ Quick Start](#-quick-start)
+- [⬆️ Upgrade from `SHAFT_ENGINE`](docs/UPGRADING_TO_MODULAR_SHAFT.md)
 - [🧭 Allure CLI Version Enforcement (Opt-in)](#-allure-cli-version-enforcement-opt-in)
 - [✨ Key Features](#-key-features)
 - [🌍 Success Partners](#-success-partners)
@@ -176,18 +177,35 @@ mvn archetype:generate \
 <summary><b>Maven</b> — add to your <code>pom.xml</code></summary>
 
 ```xml
-<dependency>
-    <groupId>io.github.shafthq</groupId>
-    <artifactId>shaft-engine</artifactId>
+<properties>
     <!-- Get the latest version from Maven Central ↓ -->
-    <version><!-- SEE BADGE BELOW --></version>
-</dependency>
+    <shaft.version><!-- SEE BADGE BELOW --></shaft.version>
+</properties>
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>io.github.shafthq</groupId>
+            <artifactId>shaft-bom</artifactId>
+            <version>${shaft.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+<dependencies>
+    <dependency>
+        <groupId>io.github.shafthq</groupId>
+        <artifactId>shaft-engine</artifactId>
+    </dependency>
+</dependencies>
 ```
 </details>
 
 > ℹ️ This repository enforces a Maven-only execution policy for global consistency across local IDE runs and CI/CD pipelines.
 
 > 💡 Check the latest version: [![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/shaft-engine?style=flat-square&label=latest%20version)](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)
+
+> ⬆️ Upgrading from `io.github.shafthq:SHAFT_ENGINE`? Follow the **[modular SHAFT upgrade guide](docs/UPGRADING_TO_MODULAR_SHAFT.md)** before changing coordinates.
 
 ### Your First Test
 

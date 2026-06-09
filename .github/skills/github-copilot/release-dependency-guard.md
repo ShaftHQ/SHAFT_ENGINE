@@ -25,7 +25,7 @@ Verify that the SHAFT engine version is consistent across all required locations
 |---|---|---|
 | 1 | `pom.xml` (line 6) | `<version>X.Y.Z</version>` |
 | 2 | `src/main/java/com/shaft/properties/internal/Internal.java` | `@DefaultValue("X.Y.Z")` on `shaftEngineVersion()` |
-| 3 | All 7 `pom.xml` files under `src/main/resources/examples/` | `<shaft_engine.version>X.Y.Z</shaft_engine.version>` |
+| 3 | All 7 `pom.xml` files under `src/main/resources/examples/` | `<shaft.version>X.Y.Z</shaft.version>` |
 
 ### Validation Rules
 - All locations must declare the **same** version string.

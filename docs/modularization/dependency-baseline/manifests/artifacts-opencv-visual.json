@@ -92,10 +92,10 @@
       "sha256": "5cf40ab0cc77828ab2b875b1f3ecd71c8295d7721933476abc2e08fddcea164a"
     },
     {
-      "coordinate": "com.fasterxml.jackson.core:jackson-annotations:jar:2.22",
+      "coordinate": "com.fasterxml.jackson.core:jackson-annotations:jar:2.21",
       "scope": "compile",
-      "compressedBytes": 84211,
-      "sha256": "21ddb598807d3a51a876704eb979d9296e1c6a6f47ab1826ff88c6d6a127a2d0"
+      "compressedBytes": 82104,
+      "sha256": "53ca085f4a150f703f49e1aabd935bd03b43e1ea3d55d135438292af22cef56b"
     },
     {
       "coordinate": "com.fasterxml.jackson.core:jackson-core:jar:2.22.0",
@@ -104,16 +104,16 @@
       "sha256": "d2e8dd4df1e0f61b786ea06792f5bf4235d8278f158f3be6e997e955931c0c98"
     },
     {
-      "coordinate": "com.fasterxml.jackson.core:jackson-databind:jar:2.22.0",
+      "coordinate": "com.fasterxml.jackson.core:jackson-databind:jar:2.21.2",
       "scope": "compile",
-      "compressedBytes": 1703374,
-      "sha256": "3520a0351f294699e3e1b7a37c7a726afd81e1a89ae702ac7d47ff347fd2ecbf"
+      "compressedBytes": 1701926,
+      "sha256": "8c982f01f148d805f0aaac2339011244757e0df7c6ff8951f2fa3f433b8ed849"
     },
     {
-      "coordinate": "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:jar:2.22.0",
+      "coordinate": "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:jar:2.18.3",
       "scope": "compile",
-      "compressedBytes": 60605,
-      "sha256": "bcdbf949c9d5bde823d144b1707ab137c7866f32dee5887ac25fa3049653c08b"
+      "compressedBytes": 55579,
+      "sha256": "3ca00e47cfcb43e79438ddcfc8fc735e9ebac3824fb7769138609be6bd56e483"
     },
     {
       "coordinate": "com.fasterxml.jackson.datatype:jackson-datatype-jdk8:jar:2.22.0",
@@ -122,10 +122,10 @@
       "sha256": "f1051ed0938aa5edb7567ab19c2c7e1fade58f7fbad43d99a74cb506389c1ac5"
     },
     {
-      "coordinate": "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:jar:2.22.0",
+      "coordinate": "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:jar:2.21.1",
       "scope": "compile",
-      "compressedBytes": 136581,
-      "sha256": "c8b3f56855523ed7eae685ca292d2dbe97ff2205adf2fe91a0759e3ee0754d4c"
+      "compressedBytes": 136580,
+      "sha256": "4d63378b0a6b53733f086ebd301023ba211b9387e417bd584a5400320cd08b8d"
     },
     {
       "coordinate": "com.github.ben-manes.caffeine:caffeine:jar:3.2.4",
@@ -236,10 +236,10 @@
       "sha256": "ba734e1e84c09d615af6a09d33034b4f0442f8772dec120efb376d86a565ae15"
     },
     {
-      "coordinate": "com.google.api-client:google-api-client:jar:2.9.0",
+      "coordinate": "com.google.api-client:google-api-client:jar:2.2.0",
       "scope": "compile",
-      "compressedBytes": 303788,
-      "sha256": "461377a5c904e8e4e0091cd1b4752bc9ef58b7223d608886d9642436d4b21273"
+      "compressedBytes": 299589,
+      "sha256": "58eca9fb0a869391689ffc828b3bd0b19ac76042ff9fab4881eddf7fde76903f"
     },
     {
       "coordinate": "com.google.api.grpc:grpc-google-common-protos:jar:2.26.0",
@@ -254,16 +254,16 @@
       "sha256": "d6717c5eeacb589e23f9c8adfbc619767fd54a72cfd2cfc8aff1f9068bda11e3"
     },
     {
-      "coordinate": "com.google.api.grpc:proto-google-cloud-kms-v1:jar:2.96.0",
+      "coordinate": "com.google.api.grpc:proto-google-cloud-kms-v1:jar:0.124.0",
       "scope": "compile",
-      "compressedBytes": 1519801,
-      "sha256": "e22cbf998551ab34d23abe0e5087abb9cd2b99af3f9783c08008df346b08a45a"
+      "compressedBytes": 887790,
+      "sha256": "b77f2858bd0eae5ebd5513ecc03f4659ed5f9116d0c0db768f0f34a961bc9296"
     },
     {
-      "coordinate": "com.google.api.grpc:proto-google-common-protos:jar:2.72.0",
+      "coordinate": "com.google.api.grpc:proto-google-common-protos:jar:2.26.0",
       "scope": "compile",
-      "compressedBytes": 2829882,
-      "sha256": "ffcffa6f095043d257c0acd2861a6e01f43de62d6eb4cc59dff61461bb499e16"
+      "compressedBytes": 2030847,
+      "sha256": "66d5875ffe9c44f9e773843441ca11de3163c2730b3645a061269a3925ff00e9"
     },
     {
       "coordinate": "com.google.api.grpc:proto-google-iam-v1:jar:1.21.0",
@@ -272,10 +272,10 @@
       "sha256": "d56a8f10cb20f716299a3b67fdf1eeaefc2d6bf14558cf0c5bb4015c4e18415a"
     },
     {
-      "coordinate": "com.google.api:api-common:jar:2.64.0",
+      "coordinate": "com.google.api:api-common:jar:2.18.0",
       "scope": "compile",
-      "compressedBytes": 51404,
-      "sha256": "d2e69f2f7ab50eb3197ae33c532ee1d67902e964a49fbf711ab11b077ac39b0f"
+      "compressedBytes": 50119,
+      "sha256": "7fddde4add854f353c66299a9889e6815639510d70f32b6115108a0039c1357d"
     },
     {
       "coordinate": "com.google.api:gax-grpc:jar:2.35.0",
@@ -302,16 +302,16 @@
       "sha256": "6c98eb64a9b692127bc9f144837a6f70d5c391132ac198ebb92bfb326d3d2ab4"
     },
     {
-      "coordinate": "com.google.auth:google-auth-library-credentials:jar:1.48.0",
+      "coordinate": "com.google.auth:google-auth-library-credentials:jar:1.19.0",
       "scope": "compile",
-      "compressedBytes": 8554,
-      "sha256": "220b419a81679b2711cb2d3496e34ebcbef03c3ca38b68fac848462db37e1935"
+      "compressedBytes": 5950,
+      "sha256": "095984b0594888a47f311b3c9dcf6da9ed86feeea8f78140c55e14c27b0593e5"
     },
     {
-      "coordinate": "com.google.auth:google-auth-library-oauth2-http:jar:1.48.0",
+      "coordinate": "com.google.auth:google-auth-library-oauth2-http:jar:1.20.0",
       "scope": "compile",
-      "compressedBytes": 337580,
-      "sha256": "2ab4c031319b0e933a1be7cdc89dc8eef1cc5ce03eb779a3bfd7fd9dc5e15cd8"
+      "compressedBytes": 250402,
+      "sha256": "ab3ee74eeccb12fca40f4444af4d45df9e290f2c3f4751e855697dedf52f7a73"
     },
     {
       "coordinate": "com.google.auto.service:auto-service-annotations:jar:1.1.1",
@@ -320,10 +320,10 @@
       "sha256": "16a76dd00a2650568447f5d6e3a9e2c809d9a42367d56b45215cfb89731f4d24"
     },
     {
-      "coordinate": "com.google.auto.value:auto-value-annotations:jar:1.11.1",
+      "coordinate": "com.google.auto.value:auto-value-annotations:jar:1.10.4",
       "scope": "compile",
-      "compressedBytes": 7492,
-      "sha256": "6c61a11420a5cddf3313888e9d335d5eedfbeb9a8da26591470fbfe61f5bf859"
+      "compressedBytes": 7493,
+      "sha256": "e1c45e6beadaef9797cb0d9afd5a45621ad061cd8632012f85582853a3887825"
     },
     {
       "coordinate": "com.google.cloud:google-cloud-kms:jar:2.31.0",
@@ -338,10 +338,10 @@
       "sha256": "766ad2a0783f2687962c8ad74ceecc38a28b9f72a2d085ee438b7813e928d0c7"
     },
     {
-      "coordinate": "com.google.code.gson:gson:jar:2.14.0",
+      "coordinate": "com.google.code.gson:gson:jar:2.13.2",
       "scope": "compile",
-      "compressedBytes": 313604,
-      "sha256": "2cbd119bf1961c28788310963dc80ba65f58cdeec1dd139c8bdb1240faa2c36f"
+      "compressedBytes": 289901,
+      "sha256": "dd0ce1b55a3ed2080cb70f9c655850cda86c206862310009dcb5e5c95265a5e0"
     },
     {
       "coordinate": "com.google.crypto.tink:tink-awskms:jar:2.0.0",
@@ -362,10 +362,10 @@
       "sha256": "065086dbbd61c95529f782966c3462838cc8a801ba78420223aa319175a444ff"
     },
     {
-      "coordinate": "com.google.errorprone:error_prone_annotations:jar:2.49.0",
+      "coordinate": "com.google.errorprone:error_prone_annotations:jar:2.47.0",
       "scope": "compile",
-      "compressedBytes": 20255,
-      "sha256": "3b1003e51b8ae56fdbd7c71073e81d1683b97e6c4dff5a9151164d59b769d13c"
+      "compressedBytes": 20254,
+      "sha256": "5364bc6f22e72e98195e406a58d3ba1c09ffa11dea0729592cb870dc2de4056d"
     },
     {
       "coordinate": "com.google.guava:failureaccess:jar:1.0.3",
@@ -386,22 +386,22 @@
       "sha256": "b372a037d4230aa57fbeffdef30fd6123f9c0c2db85d0aced00c91b974f33f99"
     },
     {
-      "coordinate": "com.google.http-client:google-http-client-apache-v2:jar:2.0.0",
+      "coordinate": "com.google.http-client:google-http-client-apache-v2:jar:1.42.3",
       "scope": "compile",
-      "compressedBytes": 11666,
-      "sha256": "9dfeedb952d2f0351dabc3327c42d87431acba63ad15eee272282af56ec033ab"
+      "compressedBytes": 10666,
+      "sha256": "86d112c6f7e55c8f6d1bfbd47a02d25afd072c60a80dea8ef616fba278637600"
     },
     {
-      "coordinate": "com.google.http-client:google-http-client-gson:jar:2.1.0",
+      "coordinate": "com.google.http-client:google-http-client-gson:jar:1.43.3",
       "scope": "compile",
-      "compressedBytes": 12828,
-      "sha256": "3cf72c7b88375a34bf721c664f42edc8e096e2370e4126c9b8933c3c92e591f3"
+      "compressedBytes": 11941,
+      "sha256": "e31a4edcb9c83954a2587e14fa2f3f8f4aad56152381b3321a3bd0bcae03fa26"
     },
     {
-      "coordinate": "com.google.http-client:google-http-client:jar:2.1.0",
+      "coordinate": "com.google.http-client:google-http-client:jar:1.43.3",
       "scope": "compile",
-      "compressedBytes": 297122,
-      "sha256": "20aa0948f6ceb5cfa9b2b3adddd9b7e990ab40230e084081642cbb81235d3eef"
+      "compressedBytes": 292922,
+      "sha256": "60aca7428c5a1ff3655b70541a98ff3d70dded48ac1324dae1af39f1b61914af"
     },
     {
       "coordinate": "com.google.j2objc:j2objc-annotations:jar:3.1",
@@ -410,22 +410,22 @@
       "sha256": "84d3a150518485f8140ea99b8a985656749629f6433c92b80c75b36aba3b099b"
     },
     {
-      "coordinate": "com.google.oauth-client:google-oauth-client:jar:1.39.0",
+      "coordinate": "com.google.oauth-client:google-oauth-client:jar:1.34.1",
       "scope": "compile",
-      "compressedBytes": 81752,
-      "sha256": "27fc61ee2d526e33d31350b5ea383091c0879345e261f9b2e6fcc97a20c86f88"
+      "compressedBytes": 81086,
+      "sha256": "193edf97aefa28b93c5892bdc598bac34fa4c396588030084f290b1440e8b98a"
     },
     {
-      "coordinate": "com.google.protobuf:protobuf-java-util:jar:4.35.0",
+      "coordinate": "com.google.protobuf:protobuf-java-util:jar:3.24.3",
       "scope": "compile",
-      "compressedBytes": 79325,
-      "sha256": "1153aadc409482ac094727e8ed4f641aebc87a68e6d6f96cd602acd837c1846d"
+      "compressedBytes": 73057,
+      "sha256": "359e5e0833a49e845080441ce1dba42db80bddbc96bebbb2761a1617a31345f8"
     },
     {
-      "coordinate": "com.google.protobuf:protobuf-java:jar:4.35.0",
+      "coordinate": "com.google.protobuf:protobuf-java:jar:4.31.1",
       "scope": "compile",
-      "compressedBytes": 1843506,
-      "sha256": "400621a8f0aac52fab7ec88f492edd356f5a4355caa8f92028f217a8b5e4ac3b"
+      "compressedBytes": 1873183,
+      "sha256": "d60dfe7c68a0d38a248cca96924f289dc7e1966a887ee7cae397701af08575ae"
     },
     {
       "coordinate": "com.google.re2j:re2j:jar:1.7",
@@ -548,16 +548,16 @@
       "sha256": "f76b85adb0c00721ae267b7cfde4da7f71d3121cc2160c9fc00c0c89f8c53c8a"
     },
     {
-      "coordinate": "commons-codec:commons-codec:jar:1.22.0",
+      "coordinate": "commons-codec:commons-codec:jar:1.19.0",
       "scope": "compile",
-      "compressedBytes": 420480,
-      "sha256": "d164fe79f262c32d9b18a0b5b2d317d1c27653d5e98fd2b998c24bf901c72ce4"
+      "compressedBytes": 374716,
+      "sha256": "5c3881e4f556855e9c532927ee0c9dfde94cc66760d5805c031a59887070af5f"
     },
     {
-      "coordinate": "commons-io:commons-io:jar:2.22.0",
+      "coordinate": "commons-io:commons-io:jar:2.7",
       "scope": "compile",
-      "compressedBytes": 609182,
-      "sha256": "2b9a7b1f726fb86216dbd2c8321eabe0221dbd5b1be81c18e1cb53811b104758"
+      "compressedBytes": 276413,
+      "sha256": "4547858fff38bbf15262d520685b184a3dce96897bc1844871f055b96e8f6e95"
     },
     {
       "coordinate": "io.appium:java-client:jar:10.1.1",
@@ -728,178 +728,154 @@
       "sha256": "414ee0f7b60d015fb06e5add180cdd9c920608e299685d74f0fc64769a4c7683"
     },
     {
-      "coordinate": "io.grpc:grpc-alts:jar:1.81.0",
+      "coordinate": "io.grpc:grpc-alts:jar:1.58.0",
       "scope": "compile",
-      "compressedBytes": 324010,
-      "sha256": "d3cbd38d2f10c6a6cdaa32efecf3b7eea7b10d1faebe0ae469e0dfbba2520a9d"
+      "compressedBytes": 318074,
+      "sha256": "d108912b6466c16a15bcb62e3418a45ed3c9baa8d34a8e587384af84c52d0948"
     },
     {
-      "coordinate": "io.grpc:grpc-api:jar:1.81.0",
+      "coordinate": "io.grpc:grpc-api:jar:1.58.0",
       "scope": "compile",
-      "compressedBytes": 341888,
-      "sha256": "3e6a659ba3edcdac730c857b27725e2e4d985c2241055e8326eb4fe0f9573d53"
+      "compressedBytes": 293825,
+      "sha256": "d688d25f4f533979df2fcd0881e1e30c2928e5b654ff09bf1440923282b0d945"
     },
     {
-      "coordinate": "io.grpc:grpc-auth:jar:1.81.0",
+      "coordinate": "io.grpc:grpc-auth:jar:1.58.0",
       "scope": "compile",
-      "compressedBytes": 14757,
-      "sha256": "7f1b81147a731f3f097c609ccb76ee875350027a098e490ec54237b664d8ddff"
+      "compressedBytes": 14730,
+      "sha256": "5dfb03827cb61ddde6dde1799188e66071764d261594329f19c9b68e870fc63a"
     },
     {
-      "coordinate": "io.grpc:grpc-context:jar:1.81.0",
+      "coordinate": "io.grpc:grpc-context:jar:1.58.0",
       "scope": "compile",
-      "compressedBytes": 292,
-      "sha256": "05de695306f90ded01d41b083b7500eb13dc53763097ac8c5b0264842df06679"
+      "compressedBytes": 293,
+      "sha256": "3a7626d13084958bcdeab59412e4ec873f07c8315ff2510d363856fac7fadc51"
     },
     {
-      "coordinate": "io.grpc:grpc-core:jar:1.81.0",
+      "coordinate": "io.grpc:grpc-core:jar:1.58.0",
       "scope": "compile",
-      "compressedBytes": 655070,
-      "sha256": "3ffe1a91dedf0603269ce597469bf82f93477b12968a9e0d80fbd407e5ba6e99"
+      "compressedBytes": 630431,
+      "sha256": "93c8880824ee124b91c31f0f1052f86372719d6ece6e4be1c591b7d6dc639f5f"
     },
     {
-      "coordinate": "io.grpc:grpc-googleapis:jar:1.81.0",
+      "coordinate": "io.grpc:grpc-googleapis:jar:1.58.0",
       "scope": "runtime",
-      "compressedBytes": 14876,
-      "sha256": "dcbc663bce922ca56005336195367cdbc7d53267afa8b49251fe4f9b3b05fbc7"
+      "compressedBytes": 14731,
+      "sha256": "d76cac9caffc591ad4c8c526377d881057b538ebd38cd15f4be6dfa9585ceb88"
     },
     {
-      "coordinate": "io.grpc:grpc-grpclb:jar:1.81.0",
+      "coordinate": "io.grpc:grpc-grpclb:jar:1.58.0",
       "scope": "compile",
-      "compressedBytes": 181438,
-      "sha256": "77d6218e6814277ca3cb4f082968b0a3cb1dc82d62e88e7d98ab721065c08f03"
+      "compressedBytes": 177145,
+      "sha256": "a2bc4555451c58c1fb0d3ad49e9b97963bb731aab7a710efaa7d5bc92c22ae53"
     },
     {
-      "coordinate": "io.grpc:grpc-inprocess:jar:1.81.0",
+      "coordinate": "io.grpc:grpc-inprocess:jar:1.58.0",
       "scope": "compile",
-      "compressedBytes": 39596,
-      "sha256": "12dd243a8caf32b00095460a6f9531a2c5685b2e701fd162cb1931af04dd7dce"
+      "compressedBytes": 40269,
+      "sha256": "574864b84b212f211a45f67c3ca3ddfade655654fa76a17ab6a6f273b8800425"
     },
     {
-      "coordinate": "io.grpc:grpc-netty-shaded:jar:1.81.0",
+      "coordinate": "io.grpc:grpc-netty-shaded:jar:1.58.0",
       "scope": "compile",
-      "compressedBytes": 10740192,
-      "sha256": "37bc04a00311f268726c92dad9f8211d24551a442ef19dbcc907d5751d36ef12"
+      "compressedBytes": 9730914,
+      "sha256": "12fc8479b8a43ef62955c452a4fda63c47c20d6d78fd990f9b3a6a7c09fc0977"
     },
     {
-      "coordinate": "io.grpc:grpc-protobuf-lite:jar:1.81.0",
+      "coordinate": "io.grpc:grpc-protobuf-lite:jar:1.58.0",
       "scope": "compile",
-      "compressedBytes": 7814,
-      "sha256": "1bf6294b09925cc6aa82b1fd8750650010e45e0c88972670bdc3135c74aaab4c"
+      "compressedBytes": 7841,
+      "sha256": "f5d2a3f601620db036f72d51bde4a19f939ac7618058e5743fb3599e778992e7"
     },
     {
-      "coordinate": "io.grpc:grpc-protobuf:jar:1.81.0",
+      "coordinate": "io.grpc:grpc-protobuf:jar:1.58.0",
       "scope": "compile",
-      "compressedBytes": 5203,
-      "sha256": "d274af74b76a7846194e0279708d48900c19070f069241a4034bacd42918df1d"
+      "compressedBytes": 5241,
+      "sha256": "77f16774992d5802cfeef7a9d00b3a3f9a82d324ce1cab7f84c6f1a0df5a39c3"
     },
     {
-      "coordinate": "io.grpc:grpc-services:jar:1.81.0",
+      "coordinate": "io.grpc:grpc-services:jar:1.58.0",
       "scope": "runtime",
-      "compressedBytes": 951301,
-      "sha256": "b2ed13276b452af5fb5cf0900a49a264b214eef90149be9c94d90b9a146a8da6"
+      "compressedBytes": 829152,
+      "sha256": "5d8c55fa26f9175c0eac89c2afa9f50dd33d8f608851fed943e41d47a627b231"
     },
     {
-      "coordinate": "io.grpc:grpc-stub:jar:1.81.0",
+      "coordinate": "io.grpc:grpc-stub:jar:1.58.0",
       "scope": "compile",
-      "compressedBytes": 61813,
-      "sha256": "963e75cc63c3659ee8e4cb956436cefdd511761f4e85a674caeeb3052744e39d"
+      "compressedBytes": 49947,
+      "sha256": "1af7bbc56be7b1131c1322ba183126dd050306f91128193f4b9bd5ea71ac8c88"
     },
     {
-      "coordinate": "io.grpc:grpc-util:jar:1.81.0",
+      "coordinate": "io.grpc:grpc-util:jar:1.58.0",
       "scope": "runtime",
-      "compressedBytes": 108747,
-      "sha256": "5ef3f554329ebc18b7ca65de15289acf723a26b8c0bd4e502f41e41abe5a347f"
+      "compressedBytes": 96492,
+      "sha256": "9e8999d98523fb975c7a316bd524671576c1c638b1b1fd357340bb90be14b5db"
     },
     {
-      "coordinate": "io.grpc:grpc-xds:jar:1.81.0",
+      "coordinate": "io.grpc:grpc-xds:jar:1.58.0",
       "scope": "runtime",
-      "compressedBytes": 10958044,
-      "sha256": "7401920c5f909df5d2ff6a137a82ddb7aa09b31f8a3138fd8d9bc9d5b99737d4"
+      "compressedBytes": 12442659,
+      "sha256": "e59e2b4deb6facec9d36083d0f5f9fbef38849d48e0b0eac6bc21d6ffe82d89e"
     },
     {
-      "coordinate": "io.netty:netty-buffer:jar:4.2.15.Final",
+      "coordinate": "io.netty:netty-buffer:jar:4.1.112.Final",
       "scope": "runtime",
-      "compressedBytes": 371912,
-      "sha256": "1361fd9c9ba85b9831cf54a1b2e45ddc3ce34a768931726c099d3f5ef0efe4a3"
+      "compressedBytes": 336505,
+      "sha256": "bc182c48f5369d48cd8370d2ab0c5b8d99dd8ffa4a0f8ac701652d57bd380eff"
     },
     {
-      "coordinate": "io.netty:netty-codec-base:jar:4.2.15.Final",
+      "coordinate": "io.netty:netty-codec-http2:jar:4.1.112.Final",
       "scope": "runtime",
-      "compressedBytes": 152914,
-      "sha256": "2c6d39d7270628b8cfc3166fbd7a93d595958e59c461bc32ddb383c8c91bf811"
+      "compressedBytes": 490314,
+      "sha256": "7f73efc845e8818d71da23b21dc65d69132dd0e12ed0e80cc937bd79ab7d5749"
     },
     {
-      "coordinate": "io.netty:netty-codec-compression:jar:4.2.15.Final",
+      "coordinate": "io.netty:netty-codec-http:jar:4.1.112.Final",
       "scope": "runtime",
-      "compressedBytes": 183091,
-      "sha256": "4adaa5cdd4d2e9b50b23e4c3eff42e73de6eb40848718b3aa84cd5b454da6ce8"
+      "compressedBytes": 668248,
+      "sha256": "21b502d1374d6992728d004e0c1c95544d46d971f55ea78dcb854ce1ac0c83bc"
     },
     {
-      "coordinate": "io.netty:netty-codec-http2:jar:4.2.15.Final",
+      "coordinate": "io.netty:netty-codec:jar:4.1.112.Final",
       "scope": "runtime",
-      "compressedBytes": 494121,
-      "sha256": "4a9b052bd815c765d9c05e27b32abbd32a2c7c3e3364ccb992ce71da1a26bc0d"
+      "compressedBytes": 352121,
+      "sha256": "72db4f93629f7ea520d2998c08e2b1d69f9c6a4792b53da5e9a001d24c78b151"
     },
     {
-      "coordinate": "io.netty:netty-codec-http:jar:4.2.15.Final",
+      "coordinate": "io.netty:netty-common:jar:4.1.112.Final",
       "scope": "runtime",
-      "compressedBytes": 674986,
-      "sha256": "76ae57e87af37b3c4107140f50b9244b1456163a6a225510838f7c5a4458ec22"
+      "compressedBytes": 694486,
+      "sha256": "b03967f32c65de5ed339b97729170e0289b22ffa5729e7f45f68bf6b431fb567"
     },
     {
-      "coordinate": "io.netty:netty-codec-marshalling:jar:4.2.15.Final",
+      "coordinate": "io.netty:netty-handler:jar:4.1.112.Final",
       "scope": "runtime",
-      "compressedBytes": 20378,
-      "sha256": "bbc655b5253387f566b25d4185152951f0121fb3afef2c352e7aa52b9fb965d3"
+      "compressedBytes": 571223,
+      "sha256": "ea4d6062a5fb10a6e2364d8bbdebc1cfa814f1fc9f910ef57e5caf02fb15c588"
     },
     {
-      "coordinate": "io.netty:netty-codec-protobuf:jar:4.2.15.Final",
+      "coordinate": "io.netty:netty-resolver:jar:4.1.112.Final",
       "scope": "runtime",
-      "compressedBytes": 15111,
-      "sha256": "ecf3a24695374b3544700d94db56875da90c1dfbe1e43c744dcc15e1e8998a01"
+      "compressedBytes": 37838,
+      "sha256": "6b4ac9f3b67f562f0770d57c389279ff9c708eb401e1a3635f52297f0f897edc"
     },
     {
-      "coordinate": "io.netty:netty-codec:jar:4.2.15.Final",
+      "coordinate": "io.netty:netty-transport-classes-epoll:jar:4.1.112.Final",
       "scope": "runtime",
-      "compressedBytes": 3954,
-      "sha256": "153b11a166459733af79fb0d4667f30bfa39792896f689b21c93a4a4091387ea"
+      "compressedBytes": 147377,
+      "sha256": "96cf2e6622ea70e2bc67aed373607df32863f863d0d7b8c9c94d468efd1d0638"
     },
     {
-      "coordinate": "io.netty:netty-common:jar:4.2.15.Final",
+      "coordinate": "io.netty:netty-transport-native-unix-common:jar:4.1.112.Final",
       "scope": "runtime",
-      "compressedBytes": 818260,
-      "sha256": "78206aa7f6d197caa926291408c01889b6b910ca0f74017d3fcbdaccf9562959"
+      "compressedBytes": 44156,
+      "sha256": "e79ccea1b87a6348d4ebd3dfb37a2cccd9b7cb65c3375f6ccdac086c7b5ce487"
     },
     {
-      "coordinate": "io.netty:netty-handler:jar:4.2.15.Final",
+      "coordinate": "io.netty:netty-transport:jar:4.1.112.Final",
       "scope": "runtime",
-      "compressedBytes": 586442,
-      "sha256": "99b59e4bea72220d2aed52df8baf37d97431b06ade0b135226cdf73168975eab"
-    },
-    {
-      "coordinate": "io.netty:netty-resolver:jar:4.2.15.Final",
-      "scope": "runtime",
-      "compressedBytes": 32977,
-      "sha256": "24318497f2a3a645964fed418f48879ba11365cab8e1f8d66c47fa7da15ef19a"
-    },
-    {
-      "coordinate": "io.netty:netty-transport-classes-epoll:jar:4.2.15.Final",
-      "scope": "runtime",
-      "compressedBytes": 159908,
-      "sha256": "be509407fd71a4b83378567c613420db544d659bb522df7b253a1dbe8ca297fe"
-    },
-    {
-      "coordinate": "io.netty:netty-transport-native-unix-common:jar:4.2.15.Final",
-      "scope": "runtime",
-      "compressedBytes": 46876,
-      "sha256": "b9ea9fc5ad5eba04e99afdff75b2eb97b5ddfb2ad772e2f2ef5d8f277f3cbd76"
-    },
-    {
-      "coordinate": "io.netty:netty-transport:jar:4.2.15.Final",
-      "scope": "runtime",
-      "compressedBytes": 549606,
-      "sha256": "9fb671e96651066cf1a28dad3f1382c7c99df5b8326d4a214d9a375b311f8dc1"
+      "compressedBytes": 517957,
+      "sha256": "d38e31624d25ca790ee413d529c152170217ebedbcdcf61164fa6291f3a56c92"
     },
     {
       "coordinate": "io.opencensus:opencensus-api:jar:0.31.1",
@@ -1316,10 +1292,10 @@
       "sha256": "3f34a6e4a9104c492dbd397691d3e1d1863568b19c3132471bde0a65611b5156"
     },
     {
-      "coordinate": "org.apache.httpcomponents.client5:httpclient5:jar:5.6.1",
+      "coordinate": "org.apache.httpcomponents.client5:httpclient5:jar:5.6",
       "scope": "compile",
-      "compressedBytes": 1054142,
-      "sha256": "1e3d8444c3c27772e4b9d42a790f06b3345a8ece4fd16d00981f2f2460e1e772"
+      "compressedBytes": 1050450,
+      "sha256": "0992b7dd57fbfc8334df2201e1788a2752ff11b6a638f5ce521915bef72ca4ad"
     },
     {
       "coordinate": "org.apache.httpcomponents.core5:httpcore5-h2:jar:5.4",
@@ -1334,16 +1310,16 @@
       "sha256": "cec2981fa7f520efb63f0787c24f10af2679e31f9f75c448c4dde40a3ae8100d"
     },
     {
-      "coordinate": "org.apache.httpcomponents:httpclient:jar:4.5.14",
+      "coordinate": "org.apache.httpcomponents:httpclient:jar:4.5.13",
       "scope": "compile",
-      "compressedBytes": 785639,
-      "sha256": "c8bc7e1c51a6d4ce72f40d2ebbabf1c4b68bfe76e732104b04381b493478e9d6"
+      "compressedBytes": 780321,
+      "sha256": "6fe9026a566c6a5001608cf3fc32196641f6c1e5e1986d1037ccdbd5f31ef743"
     },
     {
-      "coordinate": "org.apache.httpcomponents:httpcore:jar:4.4.16",
+      "coordinate": "org.apache.httpcomponents:httpcore:jar:4.4.13",
       "scope": "compile",
-      "compressedBytes": 327891,
-      "sha256": "6c9b3dd142a09dc468e23ad39aad6f75a0f2b85125104469f026e52a474e464f"
+      "compressedBytes": 328593,
+      "sha256": "e06e89d40943245fcfa39ec537cdbfce3762aecde8f9c597780d2b00c2b43424"
     },
     {
       "coordinate": "org.apache.httpcomponents:httpmime:jar:4.5.13",
@@ -1442,16 +1418,16 @@
       "sha256": "ac97f7b4b1d8e9337edfa0e34044f8d0efe7223f6ad8f3a85d54cc1018ea2e04"
     },
     {
-      "coordinate": "org.checkerframework:checker-qual:jar:4.2.0",
+      "coordinate": "org.checkerframework:checker-qual:jar:3.33.0",
       "scope": "compile",
-      "compressedBytes": 243432,
-      "sha256": "30bb4494b13f41cbd1502b094caafeb2b1d1f347311c72e7c74f83160acbdf0e"
+      "compressedBytes": 223979,
+      "sha256": "e316255bbfcd9fe50d165314b85abb2b33cb2a66a93c491db648e498a82c2de1"
     },
     {
-      "coordinate": "org.codehaus.mojo:animal-sniffer-annotations:jar:1.27",
-      "scope": "compile",
-      "compressedBytes": 3194,
-      "sha256": "cfd7e51a828fe6b98bc0dbb99e34900c9e9012322cb9ddd57fd8dd0b02da5e27"
+      "coordinate": "org.codehaus.mojo:animal-sniffer-annotations:jar:1.23",
+      "scope": "runtime",
+      "compressedBytes": 3109,
+      "sha256": "9ffe526bf43a6348e9d8b33b9cd6f580a7f5eed0cf055913007eda263de974d0"
     },
     {
       "coordinate": "org.conscrypt:conscrypt-openjdk-uber:jar:2.5.2",
@@ -1538,10 +1514,10 @@
       "sha256": "6f128a71c5e87a16f810513a73ad3c77d0ee0bb622ee0ce1ead115bccbc76d0a"
     },
     {
-      "coordinate": "org.javassist:javassist:jar:3.31.0-GA",
+      "coordinate": "org.javassist:javassist:jar:3.18.1-GA",
       "scope": "compile",
-      "compressedBytes": 812570,
-      "sha256": "44b6b900ca352f4a0048e9428efab16582a014e10f8f65b4e58f5136c704624e"
+      "compressedBytes": 714194,
+      "sha256": "3fb71231afd098bb0f93f5eb97aa8291c8d0556379125e596f92ec8f944c6162"
     },
     {
       "coordinate": "org.jcommander:jcommander:jar:1.83",
@@ -1556,22 +1532,22 @@
       "sha256": "cde3341ba18a2ba262b0b7cf6c55b20c90e8d434e42c9a13e6a3f770db965a88"
     },
     {
-      "coordinate": "org.jetbrains.kotlin:kotlin-stdlib-jdk7:jar:2.4.0",
+      "coordinate": "org.jetbrains.kotlin:kotlin-stdlib-jdk7:jar:1.8.21",
       "scope": "runtime",
-      "compressedBytes": 946,
-      "sha256": "5072265564b6b0296f9c7b21fee65edee760c5697436f5ae7427033fa58fc034"
+      "compressedBytes": 963,
+      "sha256": "33d148db0e11debd0d90677d28242bced907f9c77730000fd597867089039d86"
     },
     {
-      "coordinate": "org.jetbrains.kotlin:kotlin-stdlib-jdk8:jar:2.4.0",
+      "coordinate": "org.jetbrains.kotlin:kotlin-stdlib-jdk8:jar:1.8.21",
       "scope": "runtime",
-      "compressedBytes": 952,
-      "sha256": "d96b4e297136b8a4b2b88c1adcdc64d92e90d52a417e4315cdcf964adede8aa2"
+      "compressedBytes": 968,
+      "sha256": "3db752a30074f06ee6c57984aa6f27da44f4d2bbc7f5442651f6988f1cb2b7d7"
     },
     {
-      "coordinate": "org.jetbrains.kotlin:kotlin-stdlib:jar:2.4.0",
+      "coordinate": "org.jetbrains.kotlin:kotlin-stdlib:jar:1.8.21",
       "scope": "runtime",
-      "compressedBytes": 1841929,
-      "sha256": "ccb14ff83fabcb11458b798dbc9824748ccdffeec79c9aba789e6ed1cda86b1c"
+      "compressedBytes": 1670468,
+      "sha256": "042a1cd1ac976cdcfe5eb63f1d8e0b0b892c9248e15a69c8cfba495d546ea52a"
     },
     {
       "coordinate": "org.jetbrains:annotations:jar:13.0",
@@ -1808,16 +1784,16 @@
       "sha256": "719095c07d4203961320da593441d8b3b643c18eb1d81aa98ea933bb7eb351ba"
     },
     {
-      "coordinate": "org.slf4j:jcl-over-slf4j:jar:2.0.18",
+      "coordinate": "org.slf4j:jcl-over-slf4j:jar:1.7.30",
       "scope": "compile",
-      "compressedBytes": 18422,
-      "sha256": "ec5c36d57d2dbe100f84878f944575cb7871da32c7a115b8d7e0721277045d67"
+      "compressedBytes": 16537,
+      "sha256": "71e9ee37b9e4eb7802a2acc5f41728a4cf3915e7483d798db3b4ff2ec8847c50"
     },
     {
-      "coordinate": "org.slf4j:slf4j-api:jar:2.0.18",
+      "coordinate": "org.slf4j:slf4j-api:jar:2.0.17",
       "scope": "compile",
-      "compressedBytes": 69982,
-      "sha256": "44508fd1576500688c790b190acdd16fec4f8c79a3e0b900afd70503cf055f55"
+      "compressedBytes": 69908,
+      "sha256": "7b751d952061954d5abfed7181c1f645d336091b679891591d63329c622eb832"
     },
     {
       "coordinate": "org.testng:testng:jar:7.12.0",

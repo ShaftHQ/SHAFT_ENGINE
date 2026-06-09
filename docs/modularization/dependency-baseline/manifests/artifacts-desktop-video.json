@@ -2,36 +2,6 @@
   "schemaVersion": 1,
   "artifacts": [
     {
-      "coordinate": "com.applitools:eyes-common-java4:jar:4.14.0",
-      "scope": "compile",
-      "compressedBytes": 95526,
-      "sha256": "7bf4d2d204cfc75145721ed7f31f5f19c14bda45194238b534a89391d40dc072"
-    },
-    {
-      "coordinate": "com.applitools:eyes-connectivity-java4-jersey2x:jar:4.14.0",
-      "scope": "compile",
-      "compressedBytes": 10509,
-      "sha256": "1aad1e29fdb7edccac77e8b4ccc40ceb088fa65d99bce5198da71c87e227457c"
-    },
-    {
-      "coordinate": "com.applitools:eyes-images-java4:jar:4.14.0",
-      "scope": "compile",
-      "compressedBytes": 11005,
-      "sha256": "09e9210a8521fe95741e497fd89a8a35be3a344081ab8d83184bf1d32cb322ed"
-    },
-    {
-      "coordinate": "com.applitools:eyes-sdk-core-java4:jar:4.14.0",
-      "scope": "compile",
-      "compressedBytes": 111149,
-      "sha256": "bcefc04ea6810e772b4862f093e1ff5bd89b4ad9e927a3f0a20e00a6e3458e95"
-    },
-    {
-      "coordinate": "com.assertthat:selenium-shutterbug:jar:1.6",
-      "scope": "compile",
-      "compressedBytes": 44532,
-      "sha256": "0a269d75ccb452d66c9f4062187164e431097011fa64fb9b4dc1dbe6c9f6eb48"
-    },
-    {
       "coordinate": "com.atlassian.oai:openapi-request-validator-core:jar:3.0.0",
       "scope": "compile",
       "compressedBytes": 200613,
@@ -240,12 +210,6 @@
       "scope": "compile",
       "compressedBytes": 117159,
       "sha256": "ad95b08b8bbf9d7d17e5e00814898fa23324f32bc5b62f1a37801e6a56ce0079"
-    },
-    {
-      "coordinate": "com.github.zafarkhaja:java-semver:jar:0.9.0",
-      "scope": "compile",
-      "compressedBytes": 46843,
-      "sha256": "2218c73b40f9af98b570d084420c1b4a81332297bd7fc27ddd552e903be8e93c"
     },
     {
       "coordinate": "com.google.android:annotations:jar:4.1.1.4",
@@ -458,18 +422,6 @@
       "sha256": "f430c92394c2053f168715853da96d99996e94e34e5a291b97c5c86a5ad62a98"
     },
     {
-      "coordinate": "com.helger:ph-commons:jar:9.0.2",
-      "scope": "compile",
-      "compressedBytes": 1269522,
-      "sha256": "ac56801148617c1fc0d77fb161cbe9435a6779d4ef5676d7e8b2779fcc47885f"
-    },
-    {
-      "coordinate": "com.helger:ph-css:jar:6.1.1",
-      "scope": "compile",
-      "compressedBytes": 509525,
-      "sha256": "0ba2e837ffa5c523f37d5f16e3b45152853a7afffa0ebba43d66a52b6a536829"
-    },
-    {
       "coordinate": "com.ibm.db2.jcc:db2jcc:jar:db2jcc4",
       "scope": "compile",
       "compressedBytes": 4239628,
@@ -558,12 +510,6 @@
       "scope": "compile",
       "compressedBytes": 295444,
       "sha256": "0076c249b4387d8369146528fd5dacb3efba098dc02ecf9ac81debdfc2e12fd5"
-    },
-    {
-      "coordinate": "com.vaadin.external.google:android-json:jar:0.0.20131108.vaadin1",
-      "scope": "compile",
-      "compressedBytes": 18279,
-      "sha256": "dfb7bae2f404cfe0b72b4d23944698cb716b7665171812a0a4d0f5926c0fac79"
     },
     {
       "coordinate": "com.zaxxer:SparseBitSet:jar:1.3",
@@ -748,14 +694,14 @@
     {
       "coordinate": "io.github.shafthq:shaft-engine:jar:10.2.20260605",
       "scope": "compile",
-      "compressedBytes": 695946,
-      "sha256": "43869beba48828c2ecf3b8146786452c5436ddb47e730aa6d25bfda5e8e7b149"
+      "compressedBytes": 693114,
+      "sha256": "79bc203a06b277d6913aee0f595e3ecbc0ba24386c60be09b1b259a0ccffae73"
     },
     {
       "coordinate": "io.github.shafthq:shaft-video:jar:10.2.20260605",
       "scope": "compile",
-      "compressedBytes": 7909,
-      "sha256": "d84be1ef3752c9f432ba7a1cd3b0d4d19f4e80f004c68921408f1a9788d4c4d3"
+      "compressedBytes": 7756,
+      "sha256": "9f27fb24294ab285244ba9b9376a1729b3617936701ebb6a4c96a4f6c4a35bbe"
     },
     {
       "coordinate": "io.grpc:grpc-alts:jar:1.58.0",
@@ -1202,12 +1148,6 @@
       "sha256": "e04ba5195bcd555dc95650f7cc614d151e4bcd52d29a10b8aa2197f3ab89ab9b"
     },
     {
-      "coordinate": "javax.ws.rs:javax.ws.rs-api:jar:2.0.1",
-      "scope": "compile",
-      "compressedBytes": 115534,
-      "sha256": "38607d626f2288d8fbc1b1f8a62c369e63806d9a313ac7cbc5f9d6c94f4b466d"
-    },
-    {
       "coordinate": "joda-time:joda-time:jar:2.10.5",
       "scope": "compile",
       "compressedBytes": 643043,
@@ -1478,78 +1418,6 @@
       "sha256": "ab829182363e747a1530a368436242f4cca7ff309dd29bfca638a1fdc7b6771d"
     },
     {
-      "coordinate": "org.glassfish.hk2.external:aopalliance-repackaged:jar:2.4.0-b09",
-      "scope": "compile",
-      "compressedBytes": 14767,
-      "sha256": "a97667a617fa5d427c2e95ce6f3eab5cf2d21d00c69ad2a7524ff6d9a9144f58"
-    },
-    {
-      "coordinate": "org.glassfish.hk2.external:javax.inject:jar:2.4.0-b09",
-      "scope": "compile",
-      "compressedBytes": 5951,
-      "sha256": "2265cfd5566d311fcbd8bfe224fb7f978b3018827920b7e0d3167b128a8ff297"
-    },
-    {
-      "coordinate": "org.glassfish.hk2:hk2-api:jar:2.4.0-b09",
-      "scope": "compile",
-      "compressedBytes": 182425,
-      "sha256": "a4e767a36fcb0467d04d4e024a2355488c3064d633eda95935b2b7f9afabde28"
-    },
-    {
-      "coordinate": "org.glassfish.hk2:hk2-locator:jar:2.4.0-b09",
-      "scope": "compile",
-      "compressedBytes": 171065,
-      "sha256": "16d86f041fecbedf49f2d58cce66ee90e440e0ae041631f48f9e3b962c8a1368"
-    },
-    {
-      "coordinate": "org.glassfish.hk2:hk2-utils:jar:2.4.0-b09",
-      "scope": "compile",
-      "compressedBytes": 95318,
-      "sha256": "dfafcfc3a82d37fa7d66bd232920175a2a211e76e3375ff88544d4a5dbe92263"
-    },
-    {
-      "coordinate": "org.glassfish.hk2:osgi-resource-locator:jar:1.0.1",
-      "scope": "compile",
-      "compressedBytes": 20235,
-      "sha256": "775003be577e8806f51b6e442be1033d83be2cb2207227b349be0bf16e6c0843"
-    },
-    {
-      "coordinate": "org.glassfish.jersey.bundles.repackaged:jersey-guava:jar:2.16",
-      "scope": "compile",
-      "compressedBytes": 964502,
-      "sha256": "6ee96b6887386d3fca64789303aa2bf044c22c47377a3953c0b8ca47a70e385b"
-    },
-    {
-      "coordinate": "org.glassfish.jersey.connectors:jersey-apache-connector:jar:2.16",
-      "scope": "compile",
-      "compressedBytes": 23432,
-      "sha256": "9a4b86f05407f9710364828892fb815ff468f50810632a5fc3a8b546e3142a37"
-    },
-    {
-      "coordinate": "org.glassfish.jersey.core:jersey-client:jar:2.16",
-      "scope": "compile",
-      "compressedBytes": 155715,
-      "sha256": "b2cbe55fe21a836b5e1f978bc48ac66c8ce8438f5255e19ca53c2faec5aa9855"
-    },
-    {
-      "coordinate": "org.glassfish.jersey.core:jersey-common:jar:2.16",
-      "scope": "compile",
-      "compressedBytes": 676243,
-      "sha256": "f9dd3acdb6376945fa45f03370f590c532a0526ed69b8855be97fae50eb76ce8"
-    },
-    {
-      "coordinate": "org.hamcrest:hamcrest-core:jar:1.3",
-      "scope": "compile",
-      "compressedBytes": 45024,
-      "sha256": "66fdef91e9739348df7a096aa384a5685f4e875584cce89386a7a47251c4d8e9"
-    },
-    {
-      "coordinate": "org.hamcrest:hamcrest-library:jar:1.3",
-      "scope": "compile",
-      "compressedBytes": 53070,
-      "sha256": "711d64522f9ec410983bd310934296da134be4254a125080a0416ec178dfad1c"
-    },
-    {
       "coordinate": "org.hamcrest:hamcrest:jar:2.2",
       "scope": "compile",
       "compressedBytes": 123360,
@@ -1560,12 +1428,6 @@
       "scope": "compile",
       "compressedBytes": 27893,
       "sha256": "6f128a71c5e87a16f810513a73ad3c77d0ee0bb622ee0ce1ead115bccbc76d0a"
-    },
-    {
-      "coordinate": "org.javassist:javassist:jar:3.18.1-GA",
-      "scope": "compile",
-      "compressedBytes": 714194,
-      "sha256": "3fb71231afd098bb0f93f5eb97aa8291c8d0556379125e596f92ec8f944c6162"
     },
     {
       "coordinate": "org.jcommander:jcommander:jar:1.83",
@@ -1698,12 +1560,6 @@
       "scope": "compile",
       "compressedBytes": 55684,
       "sha256": "5e168368fbc250af3c79aa5fef0c3467a2d64e5a7bd74005f25d8399aeb0708d"
-    },
-    {
-      "coordinate": "org.openpnp:opencv:jar:4.9.0-0",
-      "scope": "compile",
-      "compressedBytes": 109619828,
-      "sha256": "17823d249cb8ba18bc3cdb878db84936694d1cfaeac0f95517e320c8a8c458d9"
     },
     {
       "coordinate": "org.opentest4j:opentest4j:jar:1.3.0",

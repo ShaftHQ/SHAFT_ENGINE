@@ -6,11 +6,11 @@
     "system": "Linux",
     "machine": "x86_64"
   },
-  "artifactCount": 342,
-  "artifactBytes": 313850103,
-  "seededRepositoryBytes": 791366,
-  "repositoryBytes": 342866059,
-  "repositoryGrowthBytes": 342074693,
-  "elapsedSeconds": 76.184,
+  "artifactCount": 318,
+  "artifactBytes": 198872925,
+  "seededRepositoryBytes": 812508,
+  "repositoryBytes": 227215182,
+  "repositoryGrowthBytes": 226402674,
+  "elapsedSeconds": 58.4,
   "artifactsRef": "artifacts-desktop-video.json"
 }

@@ -4,14 +4,15 @@ Each fixture was compiled against its declared SHAFT module using an empty tempo
 
 | Fixture | Artifacts | Classpath JAR bytes | Repository growth bytes | Elapsed seconds |
 | --- | ---: | ---: | ---: | ---: |
-| api | 329 | 284,731,691 | 312,843,433 | 67.838 |
-| appium-mobile | 329 | 284,731,691 | 312,843,433 | 66.955 |
-| bom | 333 | 286,667,824 | 310,129,676 | 41.254 |
-| browserstack-sdk | 331 | 322,940,699 | 351,088,061 | 72.772 |
-| desktop-video | 342 | 313,850,103 | 342,074,693 | 76.184 |
-| junit-web | 329 | 284,731,691 | 312,843,433 | 75.297 |
-| legacy-coordinate | 329 | 284,731,691 | 312,843,433 | 69.006 |
-| opencv-visual | 329 | 284,731,691 | 312,843,433 | 79.584 |
-| testng-web | 329 | 284,731,691 | 312,843,433 | 73.035 |
+| api | 308 | 169,941,464 | 197,369,199 | 61.304 |
+| appium-mobile | 308 | 169,941,464 | 197,369,199 | 63.201 |
+| bom | 334 | 286,750,752 | 310,207,843 | 48.687 |
+| browserstack-sdk | 310 | 208,151,248 | 235,613,827 | 63.801 |
+| combined-modules | 345 | 353,844,292 | 381,372,591 | 44.794 |
+| desktop-video | 318 | 198,872,925 | 226,402,674 | 58.400 |
+| junit-web | 308 | 169,941,464 | 197,369,199 | 59.694 |
+| legacy-coordinate | 308 | 169,941,464 | 197,369,199 | 65.667 |
+| opencv-visual | 330 | 284,527,061 | 312,634,039 | 69.092 |
+| testng-web | 308 | 169,941,464 | 197,369,199 | 61.174 |
 
 Elapsed time and repository growth are observations, not equality gates. Artifact coordinates, scopes, compressed JAR sizes, and SHA-256 values are compared exactly by `--verify`.

@@ -139,7 +139,7 @@ Use this protocol whenever a maintainer tags `@codex` to start work, says `start
 - Do not expose secrets or copy values from `.env`, credential files, BrowserStack/LambdaTest variables, Maven Central credentials, GPG keys, or CI secrets.
 - Do not run deployment/release commands, `scm-publish`, history rewrites, destructive cleanup, or credentialed cloud workflows unless explicitly requested.
 - Treat `target/`, generated reports, downloaded binaries, and build artifacts as generated outputs; do not commit them unless maintainers explicitly request it.
-- Be careful with release `pom.xml` version changes: release PRs must update the root `pom.xml` project version, `Internal.java` `shaftEngineVersion`, `allure3Version`, and `nodeLtsVersion`, and every sample/demo `<shaft_engine.version>` under `shaft-engine/src/main/resources/examples/**/pom.xml` in the same branch before opening the PR. Do not rely on the post-release sample-sync workflow to fix release PR drift.
+- Be careful with release `pom.xml` version changes: release PRs must update the root `pom.xml` project version, `Internal.java` `shaftEngineVersion`, `allure3Version`, and `nodeLtsVersion`, and every sample/demo `<shaft.version>` under `shaft-engine/src/main/resources/examples/**/pom.xml` in the same branch before opening the PR. Do not rely on the post-release sample-sync workflow to fix release PR drift.
 - Binary mobile test assets (`*.apk`, `*.ipa`) have special JaCoCo exclusions; do not move or reclassify them casually.
 - Docker Compose E2E services should be stopped/cleaned up after local use.
 

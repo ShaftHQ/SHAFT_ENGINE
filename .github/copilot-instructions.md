@@ -772,9 +772,9 @@ Follow these steps in order when preparing a new SHAFT release:
   - change the `@DefaultValue` of `shaftEngineVersion()` to match the new release version.
   - also check and update `allure3Version()` to the latest stable Allure 3 npm package version.
   - also check and update `nodeLtsVersion()` to the latest Node.js LTS patch version.
-- **All example/demo `pom.xml` files** under `src/main/resources/examples/` (7 files — TestNG, JUnit, Cucumber variants): change `<shaft_engine.version>OLD</shaft_engine.version>` to `<shaft_engine.version>NEW</shaft_engine.version>` in the release PR itself. Do not wait for the post-release sync workflow to correct sample/demo projects after the release. You can do this in bulk with:
+- **All example/demo `pom.xml` files** under `src/main/resources/examples/` (7 files — TestNG, JUnit, Cucumber variants): change `<shaft.version>OLD</shaft.version>` to `<shaft.version>NEW</shaft.version>` in the release PR itself. Do not wait for the post-release sync workflow to correct sample/demo projects after the release. You can do this in bulk with:
   ```bash
-  find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<shaft_engine.version>OLD</shaft_engine.version>|<shaft_engine.version>NEW</shaft_engine.version>|g'
+  find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<shaft.version>OLD</shaft.version>|<shaft.version>NEW</shaft.version>|g'
   ```
 
 ### 2. Sync All Sample Project Properties with Main `pom.xml`
@@ -785,7 +785,7 @@ After updating the SHAFT version, compare every versioned property in each sampl
 
 | Property | Where to read the canonical value in main `pom.xml` |
 |---|---|
-| `shaft_engine.version` | `<project><version>` (line 6) |
+| `shaft.version` | `<project><version>` (line 6) |
 | `jdk.version` | `<source>` / `<target>` inside `maven-compiler-plugin` configuration |
 | `aspectjweaver.version` | `<version>` of `org.aspectj:aspectjweaver` in `<dependencies>` |
 | `maven-compiler-plugin.version` | `<version>` of the `maven-compiler-plugin` in `<build><plugins>` |
@@ -861,7 +861,7 @@ Merging to `main` automatically triggers the **Maven Central Continuous Delivery
 
 After the release is published, additional workflows fire automatically:
 - **JavaDocs Publisher** (`publishJavaDocs.yml`) — regenerates and publishes the JavaDoc site.
-- **Sync Sample Projects SHAFT Version** (`sync-sample-projects-version.yml`) — opens a PR syncing all example `pom.xml` files to the new `shaft_engine.version` **and** all tracked plugin/dependency versions (`jdk.version`, `aspectjweaver.version`, `maven-compiler-plugin.version`, `maven-resources-plugin.version`, `maven-surefire-plugin.version`, `surefire-testng.version`).
+- **Sync Sample Projects SHAFT Version** (`sync-sample-projects-version.yml`) — opens a PR syncing all example `pom.xml` files to the new `shaft.version` **and** all tracked plugin/dependency versions (`jdk.version`, `aspectjweaver.version`, `maven-compiler-plugin.version`, `maven-resources-plugin.version`, `maven-surefire-plugin.version`, `surefire-testng.version`).
 - **Automated Release Blog Post** (`shafthq.github.io/.github/workflows/automated-release-blog-post.yml`) — triggered by the `shaft-engine-release` `repository_dispatch` event; creates a PR adding a new blog post to the user guide. See notes below.
 
 ### Cross-Repo Dispatch Payload Contract
@@ -898,7 +898,7 @@ See: https://github.com/ShaftHQ/shafthq.github.io/issues/468
 - [ ] `Internal.java` `shaftEngineVersion` `@DefaultValue` updated
 - [ ] `Internal.java` `allure3Version` checked/updated to latest stable
 - [ ] `Internal.java` `nodeLtsVersion` checked/updated to latest LTS patch
-- [ ] All 7 example/demo `pom.xml` files under `src/main/resources/examples/` updated in this release PR — bump `<shaft_engine.version>` manually (use the bulk `sed` command above); do **not** wait for the **Sync Sample Projects SHAFT Version** workflow to fix release PR drift
+- [ ] All 7 example/demo `pom.xml` files under `src/main/resources/examples/` updated in this release PR — bump `<shaft.version>` manually (use the bulk `sed` command above); do **not** wait for the **Sync Sample Projects SHAFT Version** workflow to fix release PR drift
 - [ ] All 7 example `pom.xml` files synced with main `pom.xml` for plugin/dependency versions — the **Sync Sample Projects SHAFT Version** workflow handles `jdk.version`, `aspectjweaver.version`, `maven-compiler-plugin.version`, `maven-resources-plugin.version`, `maven-surefire-plugin.version`, and `surefire-testng.version` automatically; manually verify only if the workflow fails
 - [ ] Dependency currency gate executed: `versions:display-dependency-updates`, `versions:display-plugin-updates`, and `versions:display-property-updates`
 - [ ] No stable dependency/plugin/property updates skipped
