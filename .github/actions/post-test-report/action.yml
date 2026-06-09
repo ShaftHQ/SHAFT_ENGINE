@@ -1,5 +1,5 @@
 name: 'Post-Test Report and Check'
-description: 'Uploads coverage, generates Allure report artifacts, creates test summary, and checks test results using Allure data'
+description: 'Generates Allure report artifacts, creates test summary, and checks test results using Allure data'
 outputs:
   job:
     description: 'Job display name'
@@ -26,49 +26,52 @@ inputs:
   job-name:
     description: 'Name of the job (used for naming the Allure report artifact)'
     required: true
-  codecov-token:
-    description: 'Codecov upload token'
+
+  module-directory:
+    description: 'Module that produced the test and report outputs'
     required: false
-    default: ''
+    default: 'shaft-engine'
 runs:
   using: 'composite'
   steps:
-    - name: Upload coverage to Codecov
-      if: always()
-      uses: codecov/codecov-action@v6
-      with:
-        token: ${{ inputs.codecov-token }}
-        fail_ci_if_error: false
-        files: ./target/jacoco/jacoco.xml
-        verbose: true
-        disable_search: true
     - name: Generate Allure Report Fallback
       if: always()
       shell: bash
       run: |
         # Derive Allure 3 version from Internal.java — the single source of truth for the engine.
         ALLURE3_VERSION=$(grep -A2 'Key("allure3Version")' \
-          src/main/java/com/shaft/properties/internal/Internal.java \
+          shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java \
           | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/')
         ALLURE3_VERSION=${ALLURE3_VERSION:-3.3.1}
-        if [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
+        if [ -d "${{ inputs.module-directory }}/allure-results" ] && [ -n "$(ls -A "${{ inputs.module-directory }}/allure-results" 2>/dev/null)" ]; then
           # Generate single-file report if SHAFT didn't already create one
-          if ! ls allure-report/*AllureReport.html 1>/dev/null 2>&1; then
-            npx --yes allure@${ALLURE3_VERSION} generate allure-results --config allurerc.yaml -o allure-report 2>/dev/null || true
-            if [ -f "allure-report/index.html" ]; then
-              mv allure-report/index.html allure-report/AllureReport.html
+          if ! ls "${{ inputs.module-directory }}"/allure-report/*AllureReport.html 1>/dev/null 2>&1; then
+            CONFIG_FILE="${{ inputs.module-directory }}/allurerc.yaml"
+            if [ ! -f "$CONFIG_FILE" ]; then
+              CONFIG_FILE="${RUNNER_TEMP:-/tmp}/shaft-allurerc.yaml"
+              cat > "$CONFIG_FILE" <<'YAML'
+        plugins:
+          awesome:
+            options:
+              reportName: "SHAFT-powered test report"
+              singleFile: true
+        YAML
+            fi
+            npx --yes allure@${ALLURE3_VERSION} generate "${{ inputs.module-directory }}/allure-results" --config "$CONFIG_FILE" -o "${{ inputs.module-directory }}/allure-report" 2>/dev/null || true
+            if [ -f "${{ inputs.module-directory }}/allure-report/index.html" ]; then
+              mv "${{ inputs.module-directory }}/allure-report/index.html" "${{ inputs.module-directory }}/allure-report/AllureReport.html"
             fi
           fi
         fi
     - name: Rename Allure Report for Upload
       if: always()
       shell: bash
-      run: mv allure-report/*AllureReport.html "allure-report/${{ inputs.job-name }}_Allure.html" 2>/dev/null || true
+      run: mv "${{ inputs.module-directory }}"/allure-report/*AllureReport.html "${{ inputs.module-directory }}/allure-report/${{ inputs.job-name }}_Allure.html" 2>/dev/null || true
     - name: Upload Allure Report as Pipeline Artifact
       if: always()
       uses: actions/upload-artifact@v7
       with:
-        path: "allure-report/${{ inputs.job-name }}_Allure.html"
+        path: "${{ inputs.module-directory }}/allure-report/${{ inputs.job-name }}_Allure.html"
         archive: false
     - name: Write Summary and Check Test Results
       id: collect_results
@@ -85,8 +88,15 @@ runs:
           grep -o "\"${field}\" *: *[0-9]*" "$file" 2>/dev/null | head -1 | grep -o '[0-9]*' || true
         }
 
+        # Count raw Allure result files before interpreting the generated summary.
+        # An empty raw-results directory means the run is invalid, even if a stale summary exists.
+        ALLURE_RESULTS_DIR="${{ inputs.module-directory }}/allure-results"
+        RESULT_COUNT=$(find "$ALLURE_RESULTS_DIR" -name '*-result.json' -type f 2>/dev/null | wc -l | tr -d ' ')
+        RESULT_COUNT=${RESULT_COUNT:-0}
+        echo "Allure raw result files: $RESULT_COUNT"
+
         # SHAFT writes summary.json at the report root after generating the single-file HTML.
-        ALLURE_SUMMARY="allure-report/summary.json"
+        ALLURE_SUMMARY="${{ inputs.module-directory }}/allure-report/summary.json"
 
         if [ -f "$ALLURE_SUMMARY" ]; then
           TOTAL=$(extract_field total "$ALLURE_SUMMARY");   TOTAL=${TOTAL:-0}
@@ -135,16 +145,21 @@ runs:
 
         # Primary check: use Allure report data.
         if [ -f "$ALLURE_SUMMARY" ]; then
+          if [ "$RESULT_COUNT" -eq 0 ]; then
+            echo "::error::No raw Allure result files were generated in $ALLURE_RESULTS_DIR. Treating this as an invalid test run."
+            exit 1
+          fi
           if [ "$TOTAL" -eq 0 ]; then
-            echo "::warning::No tests were executed. Check test configuration."
+            echo "::error::No tests were executed according to the Allure summary. Check test configuration."
+            exit 1
           fi
           if [ "$FAILED" -gt 0 ] || [ "$BROKEN" -gt 0 ]; then
             if command -v python3 >/dev/null 2>&1; then
               ALLURE_FAILURE_SOURCE=""
-              if [ -d "allure-results" ]; then
-                ALLURE_FAILURE_SOURCE="allure-results"
-              elif [ -d "allure-report" ]; then
-                ALLURE_FAILURE_SOURCE="allure-report"
+              if [ -d "${{ inputs.module-directory }}/allure-results" ]; then
+                ALLURE_FAILURE_SOURCE="${{ inputs.module-directory }}/allure-results"
+              elif [ -d "${{ inputs.module-directory }}/allure-report" ]; then
+                ALLURE_FAILURE_SOURCE="${{ inputs.module-directory }}/allure-report"
               fi
               if [ -n "$ALLURE_FAILURE_SOURCE" ]; then
                 {
@@ -159,10 +174,14 @@ runs:
           fi
           echo "All tests passed according to Allure report."
         else
+          if [ "$RESULT_COUNT" -eq 0 ]; then
+            echo "::error::No Allure summary or raw result files were generated for ${{ inputs.module-directory }}."
+            exit 1
+          fi
           echo "::warning::Allure report summary not found. Falling back to surefire reports."
           # Fallback: Check surefire reports if allure data is unavailable.
-          if [ -d "target/surefire-reports" ]; then
-            if grep -rq "failures=\"[1-9]" target/surefire-reports/ || grep -rq "errors=\"[1-9]" target/surefire-reports/; then
+          if [ -d "${{ inputs.module-directory }}/target/surefire-reports" ]; then
+            if grep -rq "failures=\"[1-9]" "${{ inputs.module-directory }}/target/surefire-reports/" || grep -rq "errors=\"[1-9]" "${{ inputs.module-directory }}/target/surefire-reports/"; then
               echo "::error::Surefire reports indicate test failures. Failing the job."
               exit 1
             fi

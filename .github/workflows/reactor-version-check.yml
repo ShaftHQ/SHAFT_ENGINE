@@ -1,0 +1,47 @@
+name: Reactor Quality Configuration Check
+
+on:
+  pull_request:
+    paths:
+      - 'pom.xml'
+      - '*/pom.xml'
+      - 'scripts/ci/validate_reactor_versions.py'
+      - 'tests/scripts/test_validate_reactor_versions.py'
+      - 'scripts/ci/validate_quality_configuration.py'
+      - 'tests/scripts/test_validate_quality_configuration.py'
+      - 'report-aggregate/**'
+      - '.github/dependabot.yml'
+      - '.github/actions/post-test-report/action.yml'
+      - '.github/workflows/codeql-analysis.yml'
+      - '.github/workflows/coverage-readiness.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'pom.xml'
+      - '*/pom.xml'
+      - 'scripts/ci/validate_reactor_versions.py'
+      - 'tests/scripts/test_validate_reactor_versions.py'
+      - 'scripts/ci/validate_quality_configuration.py'
+      - 'tests/scripts/test_validate_quality_configuration.py'
+      - 'report-aggregate/**'
+      - '.github/dependabot.yml'
+      - '.github/actions/post-test-report/action.yml'
+      - '.github/workflows/codeql-analysis.yml'
+      - '.github/workflows/coverage-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-reactor-quality:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Reject divergent SHAFT reactor versions
+        run: python3 scripts/ci/validate_reactor_versions.py
+      - name: Validate aggregate quality configuration
+        run: python3 scripts/ci/validate_quality_configuration.py
+      - name: Test configuration validators
+        run: python3 -m unittest tests.scripts.test_validate_reactor_versions tests.scripts.test_validate_quality_configuration

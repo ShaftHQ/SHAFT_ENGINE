@@ -7,10 +7,11 @@ This file gives durable, repository-specific guidance for Codex and other coding
 SHAFT_ENGINE is a Maven-published Java test automation framework with a fluent API for web, mobile, API, CLI, database, visual, accessibility, and performance testing.
 
 Important directories:
-- `src/main/java/com/shaft/`: framework source. Key packages include `driver` (`SHAFT` facade), `gui`, `api`, `cli`, `db`, `validation`, `properties`, `listeners`, and `tools`.
-- `src/test/java/`: TestNG/JUnit/Cucumber framework validation tests and examples.
-- `src/test/resources/`: Cucumber features, test suites, and test data files.
-- `src/main/resources/`: default configuration, examples, Docker/Kubernetes assets, Allure resources, images, and runtime support assets.
+- `shaft-engine/src/main/java/com/shaft/`: framework source. Key packages include `driver` (`SHAFT` facade), `gui`, `api`, `cli`, `db`, `validation`, `properties`, `listeners`, and `tools`.
+- `shaft-engine/src/test/java/`: TestNG/JUnit/Cucumber framework validation tests and examples.
+- `shaft-engine/src/test/resources/`: Cucumber features, test suites, and test data files.
+- `shaft-engine/src/main/resources/`: default configuration, examples, Docker/Kubernetes assets, Allure resources, images, and runtime support assets.
+- `shaft-engine/pom.xml`: published engine JAR build, dependencies, resources, tests, and module-specific plugin executions.
 - `docs/`: human documentation and architecture/runbook notes.
 - `.github/workflows/`: CI for E2E tests, local tests, cloud tests, CodeQL, link checks, Maven Central deployment, JavaDocs, and dependency/version sync.
 - `.github/instructions/`: path-scoped Copilot rules for Java source and tests; consult these before touching matching files.
@@ -35,27 +36,27 @@ Important directories:
 | --- | --- | --- |
 | Install dependencies / compile package | `mvn clean install -DskipTests -Dgpg.skip` | Mandatory pre-commit compile for code changes in existing agent guidance. Skips tests and GPG signing. |
 | Run all tests | `mvn test` | Can be slow/environment-dependent; Surefire is configured with `testFailureIgnore=true`. Treat Allure results as the pass/fail source of truth. |
-| Run targeted tests | `mvn test -Dtest=TestClassName` | Preferred first validation for focused changes. Comma-separated and `%regex[...]` patterns are used in CI. |
-| Run targeted tests with properties | `mvn -e test "-Dtest=TestClassName" "-DtargetBrowserName=chrome"` | Use quoted `-D...` args when values include regex, commas, or shell-sensitive characters. |
-| Generate JavaDocs | `mvn javadoc:javadoc` | Use when public API JavaDocs are changed. |
-| Publish JavaDocs | `mvn resources:resources javadoc:javadoc scm-publish:publish-scm` | Listed in `pom.xml`; do not run unless explicitly requested. |
+| Run targeted tests | `mvn -pl shaft-engine -am test -Dtest=TestClassName` | Preferred first validation for focused changes. Comma-separated and `%regex[...]` patterns are used in CI. |
+| Run targeted tests with properties | `mvn -e -pl shaft-engine -am test "-Dtest=TestClassName" "-DtargetBrowserName=chrome"` | Use quoted `-D...` args when values include regex, commas, or shell-sensitive characters. |
+| Generate JavaDocs | `mvn -pl shaft-engine javadoc:javadoc` | Use when public API JavaDocs are changed. |
+| Publish JavaDocs | `mvn -pl shaft-engine resources:resources javadoc:javadoc scm-publish:publish-scm` | Listed in `pom.xml`; do not run unless explicitly requested. |
 | Build/deploy to Maven Central | `mvn clean deploy -DskipTests` | Release-only; requires credentials/signing and should not be run during normal agent work. |
-| Start Selenium Grid | `docker compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=1 --scale edge=0 --scale firefox=0 -d` | CI scales nodes higher. Requires Docker and cleanup after use. |
+| Start Selenium Grid | `docker compose -f shaft-engine/src/main/resources/docker-compose/selenium4.yml up --scale chrome=1 --scale edge=0 --scale firefox=0 -d` | CI scales nodes higher. Requires Docker and cleanup after use. |
 | Format | Verify before relying on this | No explicit formatter command was found. Preserve existing style. |
 | Lint/static analysis | Verify before relying on this | No local lint command was found; CodeQL/Codacy run in CI. Use compile/tests/JavaDocs locally. |
 | Typecheck | `mvn clean install -DskipTests -Dgpg.skip` | Java typechecking happens during Maven compilation. |
 | Local app/service run | Not applicable | This repo is a library/framework, not a standalone web app. |
 
 ## Testing Guidance
-- Primary test locations are `src/test/java/` and `src/test/resources/`.
+- Primary test locations are `shaft-engine/src/test/java/` and `shaft-engine/src/test/resources/`.
 - Test frameworks: TestNG is primary; JUnit and Cucumber are also supported via Maven/Surefire profiles and listeners.
-- Prefer narrow validation first: `mvn test -Dtest=AffectedTestClass`.
+- Prefer narrow validation first: `mvn -pl shaft-engine -am test -Dtest=AffectedTestClass`.
 - CI uses many property-driven E2E runs, including local browsers, Docker Selenium Grid, BrowserStack, LambdaTest, mobile/Appium, API, DB, Cucumber, and Flutter-related tests. Do not assume those all run on a bare machine.
 - Allure result JSON/report output is the authoritative pass/fail source for SHAFT test runs. Surefire output is useful diagnostics, but do not use it as the final oracle when it disagrees with Allure.
 - Before analyzing Allure statuses, first count the executed tests/result JSON files. If the count is zero or unexpectedly low, treat the report as empty/invalid and fix rerun/report generation before drawing conclusions.
 - For GitHub Actions E2E investigations, use `docs/CI_FAILURE_INVESTIGATION.md` to pull run/job metadata, download job logs, and parse self-contained `*_Allure.html` artifacts directly from embedded `data/test-results/*.json` payloads instead of opening large reports manually.
 - Surefire is configured to continue after failures so JaCoCo/report generation can complete. Use `target/surefire-reports` as supporting evidence only after validating the Allure run is populated.
-- Test data belongs under `src/test/resources/testDataFiles/`; avoid hardcoding data in tests when existing guidance requires JSON test data.
+- Test data belongs under `shaft-engine/src/test/resources/testDataFiles/`; avoid hardcoding data in tests when existing guidance requires JSON test data.
 - For TestNG browser tests, existing instructions require fresh driver setup per test and `@AfterMethod(alwaysRun = true)` cleanup with `driver.quit()`.
 - For parallel tests, isolate state with `ThreadLocal` and avoid sharing driver instances across methods.
 - Under TestNG `setParallel=METHODS`, ordinary instance fields are shared by concurrently running methods in the same test class. Store per-method temp directories, files, mocks, and setup state in `ThreadLocal` or keep the class `@Test(singleThreaded = true)` when it must mutate static/shared state; otherwise one method's `@AfterMethod` can delete or reset another method's resources.
@@ -70,7 +71,7 @@ Important directories:
 - Utility classes should have a private constructor that throws `IllegalStateException("Utility class")`.
 - Prefer specific exceptions, meaningful logging via SHAFT logging utilities, and no silent exception swallowing.
 - Do not call `System.out.println` in framework code.
-- Do not hardcode configurable values such as versions, URLs, timeouts, thresholds, or behavior switches. Add `@Key`/`@DefaultValue` entries in the appropriate `src/main/java/com/shaft/properties/internal/` interface and access them through `SHAFT.Properties...`.
+- Do not hardcode configurable values such as versions, URLs, timeouts, thresholds, or behavior switches. Add `@Key`/`@DefaultValue` entries in the appropriate `shaft-engine/src/main/java/com/shaft/properties/internal/` interface and access them through `SHAFT.Properties...`.
 - Do not call `System.getProperty()` directly in framework code; use the SHAFT properties layer.
 - Use `ThreadLocalPropertiesManager` for per-test/per-thread property overrides and clear thread-local properties at lifecycle boundaries with `Properties.clearForCurrentThread()`.
 - Test assertions should use SHAFT fluent assertion wrappers where applicable, not raw TestNG/JUnit assertions.
@@ -102,7 +103,7 @@ Important directories:
 - When the user asks to create, draft, edit, or optimize a ticket/issue, create or update a GitHub Issue directly with `gh issue create`/`gh issue edit` or the authenticated GitHub API. Do not add a repository Markdown ticket file for that request unless the user explicitly asks for a checked-in document. If GitHub authentication, repository remotes, or publication access are unavailable, say so clearly and provide the intended issue title/body as a handoff instead of committing it as `docs/tickets/*.md`.
 
 ## Agent Workflow
-- Start by reading this file plus any scoped instructions relevant to the files you will touch, especially `.github/instructions/framework-source.instructions.md` for `src/main/java/**/*.java` and `.github/instructions/java-tests.instructions.md` for `src/test/java/**/*.java`.
+- Start by reading this file plus any scoped instructions relevant to the files you will touch, especially `.github/instructions/framework-source.instructions.md` for `shaft-engine/src/main/java/**/*.java` and `.github/instructions/java-tests.instructions.md` for `shaft-engine/src/test/java/**/*.java`.
 - When the user asks you to start work on a task, mentions `@codex` with `start` or `init`, or otherwise uses those keywords to begin implementation, follow the full start/init protocol below before coding. For `@codex init` comment triggers, begin with a planning phase and publish that plan back to the originating conversation before implementation.
 - When the user asks you to work on an issue, create a dedicated branch from that issue and ensure the branch is linked to the issue correctly. Open a draft pull request early with a generic implementation-plan description, continue working locally on that branch, and push changes to the remote branch once you reach a good implementation milestone. When the work is complete, push the latest code, mark the pull request ready for review, and notify the user that the pull request is ready for review.
 - Follow existing PDCA-style guidance: plan, make the smallest focused change, validate, then refactor only as needed.
@@ -130,7 +131,7 @@ Use this protocol whenever a maintainer tags `@codex` to start work, says `start
 ## Release Preparation Notes
 - Release versions use `{major}.{quarter}.{YYYYMMDD}`; for example, a Q2 release generated on May 13, 2026 is `10.2.20260513`.
 - A release PR title should include the release name/version and clearly say that the PR generates or prepares a new release.
-- Before opening a release PR, inspect recent merged release PRs for changed files and PR-body conventions, then update these locations together: root `pom.xml`, `src/main/java/com/shaft/properties/internal/Internal.java`, and all seven sample/demo project `pom.xml` files under `src/main/resources/examples/`.
+- Before opening a release PR, inspect recent merged release PRs for changed files and PR-body conventions, then update these locations together: root `pom.xml`, `shaft-engine/pom.xml`, `shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java`, and all seven sample/demo project `pom.xml` files under `shaft-engine/src/main/resources/examples/`.
 - In `Internal.java`, verify `allure3Version` against the latest stable `allure` npm package and `nodeLtsVersion` against the latest Node.js LTS patch; record when a value is already current.
 - Validate release-only changes with dependency-update checks and `mvn clean install -DskipTests -Dgpg.skip`; merging the PR to `main` starts the Maven Central release pipeline, so do not run deploy/release commands locally.
 
@@ -138,7 +139,7 @@ Use this protocol whenever a maintainer tags `@codex` to start work, says `start
 - Do not expose secrets or copy values from `.env`, credential files, BrowserStack/LambdaTest variables, Maven Central credentials, GPG keys, or CI secrets.
 - Do not run deployment/release commands, `scm-publish`, history rewrites, destructive cleanup, or credentialed cloud workflows unless explicitly requested.
 - Treat `target/`, generated reports, downloaded binaries, and build artifacts as generated outputs; do not commit them unless maintainers explicitly request it.
-- Be careful with release `pom.xml` version changes: release PRs must update the root `pom.xml` project version, `Internal.java` `shaftEngineVersion`, `allure3Version`, and `nodeLtsVersion`, and every sample/demo `<shaft_engine.version>` under `src/main/resources/examples/**/pom.xml` in the same branch before opening the PR. Do not rely on the post-release sample-sync workflow to fix release PR drift.
+- Be careful with release `pom.xml` version changes: release PRs must update the root `pom.xml` project version, `Internal.java` `shaftEngineVersion`, `allure3Version`, and `nodeLtsVersion`, and every sample/demo `<shaft_engine.version>` under `shaft-engine/src/main/resources/examples/**/pom.xml` in the same branch before opening the PR. Do not rely on the post-release sample-sync workflow to fix release PR drift.
 - Binary mobile test assets (`*.apk`, `*.ipa`) have special JaCoCo exclusions; do not move or reclassify them casually.
 - Docker Compose E2E services should be stopped/cleaned up after local use.
 

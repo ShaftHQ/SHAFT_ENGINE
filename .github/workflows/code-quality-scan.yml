@@ -30,13 +30,13 @@ jobs:
           maven-version: 3.9.5
 
       - name: Compile
-        run: mvn clean compile -DskipTests -Dgpg.skip -q
+        run: mvn -pl shaft-engine -am clean compile -DskipTests -Dgpg.skip -q
 
       - name: Check for Dependency Updates
         id: dep-updates
         run: |
-          mvn versions:display-dependency-updates -Dgpg.skip 2>&1 | tee /tmp/dep-updates-raw.txt || true
-          mvn versions:display-plugin-updates -Dgpg.skip 2>&1 | tee -a /tmp/dep-updates-raw.txt || true
+          mvn -pl shaft-engine,shaft-browserstack,shaft-video,shaft-visual -am versions:display-dependency-updates -Dgpg.skip 2>&1 | tee /tmp/dep-updates-raw.txt || true
+          mvn -pl shaft-engine,shaft-browserstack,shaft-video,shaft-visual -am versions:display-plugin-updates -Dgpg.skip 2>&1 | tee -a /tmp/dep-updates-raw.txt || true
 
           # Capture only true stable upgrades (exclude prereleases and version downgrades)
           python3 <<'PY'
@@ -132,7 +132,7 @@ jobs:
               VALIDATION_FAILED=true
               FAILED_POMS="${FAILED_POMS}\n- $POM"
             fi
-          done < <(find src/main/resources/examples -name "pom.xml" -print0)
+          done < <(find shaft-engine/src/main/resources/examples -name "pom.xml" -print0)
 
           if [ "$VALIDATION_FAILED" = true ]; then
             echo "Sample project validation failed for the following pom.xml files:"
@@ -147,7 +147,7 @@ jobs:
           DRIFT_FOUND=false
           DRIFT_DETAILS=""
 
-          for POM in $(find src/main/resources/examples -name "pom.xml"); do
+          for POM in $(find shaft-engine/src/main/resources/examples -name "pom.xml"); do
             SAMPLE_VERSION=$(grep '<shaft_engine.version>' "$POM" | head -1 | sed 's/.*<shaft_engine.version>\(.*\)<\/shaft_engine.version>.*/\1/' | tr -d ' ')
             if [ -n "$SAMPLE_VERSION" ] && [ "$SAMPLE_VERSION" != "$MAIN_VERSION" ]; then
               DRIFT_FOUND=true

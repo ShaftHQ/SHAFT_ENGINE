@@ -1,10 +1,10 @@
 ---
-applyTo: "src/main/java/**/*.java"
+applyTo: "shaft-engine/src/main/java/**/*.java"
 ---
 
 ## Framework Source Code Requirements
 
-When writing or editing framework source files under `src/main/java/`, follow these rules:
+When writing or editing framework source files under `shaft-engine/src/main/java/`, follow these rules:
 
 ### JavaDoc
 - Every `public` class and `public` method **must** have a JavaDoc comment
@@ -49,7 +49,7 @@ private static final String ALLURE_VERSION = "3.4.0";
 ```
 
 ### No Hardcoded Values Policy
-Every configurable value — version strings, URLs, timeouts, thresholds, behavioral switches — **must** be declared as a `@Key`/`@DefaultValue` entry in the appropriate interface under `src/main/java/com/shaft/properties/internal/`:
+Every configurable value — version strings, URLs, timeouts, thresholds, behavioral switches — **must** be declared as a `@Key`/`@DefaultValue` entry in the appropriate interface under `shaft-engine/src/main/java/com/shaft/properties/internal/`:
 
 | Interface | Purpose |
 |-----------|---------|
@@ -109,12 +109,12 @@ When fixing a bug or unexpected behavior in framework source files, you **must**
 - Run regression tests to confirm no other behavior is broken
 
 ### Release Metadata Updates in `Internal.java`
-When preparing a SHAFT release and editing `src/main/java/com/shaft/properties/internal/Internal.java`, update/verify these keys together:
+When preparing a SHAFT release and editing `shaft-engine/shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java`, update/verify these keys together:
 - `shaftEngineVersion` (must match root `pom.xml` project version)
 - `allure3Version` (latest stable Allure 3 npm package)
 - `nodeLtsVersion` (latest Node.js LTS patch)
 
-Release PRs must also update every sample/demo `<shaft_engine.version>` under `src/main/resources/examples/**/pom.xml` in the same branch before the PR is opened; do not depend on the post-release sample-sync workflow to repair stale demo project versions.
+Release PRs must also update every sample/demo `<shaft_engine.version>` under `shaft-engine/src/main/resources/examples/**/pom.xml` in the same branch before the PR is opened; do not depend on the post-release sample-sync workflow to repair stale demo project versions.
 
 ### ⛔ Mandatory Pre-Commit Rules (No Exceptions)
 > **You MUST NEVER commit untested framework code. There are no exceptions to these rules.**

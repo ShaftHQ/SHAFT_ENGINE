@@ -38,6 +38,8 @@ jobs:
         uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
+      - name: Reject divergent SHAFT reactor versions
+        run: python3 scripts/ci/validate_reactor_versions.py
       # Captures the engine version from the pom.xml
       - name: Set Release Version Number
         run: |

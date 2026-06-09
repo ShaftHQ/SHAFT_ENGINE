@@ -57,13 +57,13 @@ You will be credited in the release notes (unless you prefer to remain anonymous
 
 The following are **in scope** for security reports:
 
-- Vulnerabilities in SHAFT Engine's own source code (`src/main/java/`)
+- Vulnerabilities in SHAFT Engine's own source code (`shaft-engine/src/main/java/`)
 - Unsafe defaults in configuration or properties that could expose user data
 - Dependency vulnerabilities that have a direct exploitable path through SHAFT's public API
 
 The following are **out of scope**:
 
-- Vulnerabilities in test code (`src/test/java/`) — these are example tests, not production code
+- Vulnerabilities in test code (`shaft-engine/src/test/java/`) — these are example tests, not production code
 - Issues in third-party libraries where no exploitable path through SHAFT exists (report these upstream)
 - Social engineering or phishing attacks
 

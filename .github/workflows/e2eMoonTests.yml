@@ -72,15 +72,15 @@ jobs:
       - name: Enable JUnit Test Runtime
         shell: bash
         run: |
-          mkdir -p src/test/resources/META-INF/services
-          rm -f src/test/resources/META-INF/services/org.testng.ITestNGListener
-          printf 'com.shaft.listeners.JunitListener\n' > src/test/resources/META-INF/services/org.junit.platform.launcher.LauncherSessionListener
+          mkdir -p shaft-engine/src/test/resources/META-INF/services
+          rm -f shaft-engine/src/test/resources/META-INF/services/org.testng.ITestNGListener
+          printf 'com.shaft.listeners.JunitListener\n' > shaft-engine/src/test/resources/META-INF/services/org.junit.platform.launcher.LauncherSessionListener
 
       - name: Run Moon Tests
         continue-on-error: true
         shell: bash
         run: |
-          mvn -e -Pjunit test \
+          mvn -e -Pjunit -pl shaft-engine -am test \
             "-DskipTestNG=true" \
             "-DdefaultElementIdentificationTimeout=5" \
             "-DretryMaximumNumberOfAttempts=1" \
@@ -96,7 +96,7 @@ jobs:
         if: always()
         shell: bash
         run: |
-          RESULT_COUNT=$(find allure-results -name '*-result.json' -type f 2>/dev/null | wc -l | tr -d ' ')
+          RESULT_COUNT=$(find shaft-engine/allure-results -name '*-result.json' -type f 2>/dev/null | wc -l | tr -d ' ')
           echo "Allure result files: ${RESULT_COUNT}"
           if [ "${RESULT_COUNT}" -lt 2 ]; then
             echo "::error::Expected MoonTests to generate at least 2 Allure result files."
@@ -127,4 +127,3 @@ jobs:
         uses: ./.github/actions/post-test-report
         with:
           job-name: Ubuntu_Chrome_Moon
-          codecov-token: ${{ secrets.CODECOV_TOKEN }}

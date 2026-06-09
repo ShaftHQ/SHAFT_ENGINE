@@ -22,7 +22,7 @@
 SHAFT Engine is an open-source **Java test automation framework** built on top of [Selenium](https://www.selenium.dev/), [Appium](https://appium.io/), and [REST Assured](https://rest-assured.io/). It provides a unified, fluent API for **cross-browser testing**, **mobile app testing**, **API testing**, **CLI testing**, and **database testing** — so you can automate anything, from any platform, with zero boilerplate.
 
 [![GitHub Stars](https://img.shields.io/github/stars/ShaftHQ/SHAFT_ENGINE?style=for-the-badge&logo=github&label=Stars&color=gold)](https://github.com/ShaftHQ/SHAFT_ENGINE/stargazers)
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/SHAFT_ENGINE?style=for-the-badge&logo=apachemaven&label=Maven%20Central&color=indigo)](https://central.sonatype.com/artifact/io.github.shafthq/SHAFT_ENGINE)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/shaft-engine?style=for-the-badge&logo=apachemaven&label=Maven%20Central&color=indigo)](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)
 [![License](https://img.shields.io/github/license/ShaftHQ/SHAFT_Engine?color=indigo&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE)
 [![E2E Tests](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/e2eTests.yml?branch=main&color=forestgreen&label=E2E%20Tests&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/e2eTests.yml)
 [![Code QL](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/codeql-analysis.yml?branch=main&label=Security&color=forestgreen&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/codeql-analysis.yml)
@@ -178,7 +178,7 @@ mvn archetype:generate \
 ```xml
 <dependency>
     <groupId>io.github.shafthq</groupId>
-    <artifactId>SHAFT_ENGINE</artifactId>
+    <artifactId>shaft-engine</artifactId>
     <!-- Get the latest version from Maven Central ↓ -->
     <version><!-- SEE BADGE BELOW --></version>
 </dependency>
@@ -187,7 +187,7 @@ mvn archetype:generate \
 
 > ℹ️ This repository enforces a Maven-only execution policy for global consistency across local IDE runs and CI/CD pipelines.
 
-> 💡 Check the latest version: [![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/SHAFT_ENGINE?style=flat-square&label=latest%20version)](https://central.sonatype.com/artifact/io.github.shafthq/SHAFT_ENGINE)
+> 💡 Check the latest version: [![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/shaft-engine?style=flat-square&label=latest%20version)](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)
 
 ### Your First Test
 
@@ -391,7 +391,7 @@ Made with ❤️ by the [SHAFT community](https://github.com/ShaftHQ/SHAFT_ENGIN
   =========================================================
   Project:      SHAFT Engine
   Full name:    SHAFT — Unified Test Automation Engine
-  Maven:        io.github.shafthq:SHAFT_ENGINE
+  Maven:        io.github.shafthq:shaft-engine
   Language:     Java 21
   License:      MIT
   Maintained:   Yes (active, production-ready)

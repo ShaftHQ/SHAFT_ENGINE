@@ -47,14 +47,13 @@ jobs:
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}"
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
         uses: ./.github/actions/post-test-report
         with:
           job-name: Windows_Edge_Local
-          codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   MacOSX_Safari_Local:
     runs-on: macos-latest
@@ -75,14 +74,13 @@ jobs:
           node-version: '20'
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}, !%regex[.*MobileEmulation.*]"
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}, !%regex[.*MobileEmulation.*]"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
         uses: ./.github/actions/post-test-report
         with:
           job-name: MacOSX_Safari_Local
-          codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Windows_Chrome_Local:
     runs-on: windows-latest
@@ -103,14 +101,13 @@ jobs:
           node-version: '20'
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}"
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
         uses: ./.github/actions/post-test-report
         with:
           job-name: Windows_Chrome_Local
-          codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   MacOSX_Chrome_Local:
     runs-on: macos-latest
@@ -131,14 +128,13 @@ jobs:
           node-version: '20'
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}"
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
         uses: ./.github/actions/post-test-report
         with:
           job-name: MacOSX_Chrome_Local
-          codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Windows_Edge_Cucumber_Local:
     runs-on: windows-latest
@@ -162,11 +158,10 @@ jobs:
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DmaximumPerformanceMode=2" "-DtargetBrowserName=MicrosoftEdge" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DmaximumPerformanceMode=2" "-DtargetBrowserName=MicrosoftEdge" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
         uses: ./.github/actions/post-test-report
         with:
           job-name: Windows_Edge_Cucumber_Local
-          codecov-token: ${{ secrets.CODECOV_TOKEN }}

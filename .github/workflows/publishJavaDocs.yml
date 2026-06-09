@@ -52,3 +52,5 @@ jobs:
           javadoc-branch: javadoc
           java-version: 25
           project: maven
+          custom-command: mvn -pl shaft-engine -am javadoc:javadoc -Dgpg.skip
+          javadoc-source-folder: shaft-engine/target/reports/apidocs

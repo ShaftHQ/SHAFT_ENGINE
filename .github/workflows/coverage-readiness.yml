@@ -35,7 +35,10 @@ on:
       - '.github/workflows/e2eLambdaTestTests.yml'
       - 'scripts/ci/**'
       - 'tests/scripts/**'
-      - 'src/test/java/com/shaft/api/**'
+      - 'shaft-engine/src/test/java/com/shaft/api/**'
+      - 'report-aggregate/**'
+      - 'pom.xml'
+      - 'codecov.yml'
 
 permissions:
   contents: read
@@ -70,22 +73,22 @@ jobs:
       - name: Run selected Maven tests
         id: maven_tests
         continue-on-error: true
-        run: mvn -e test "-Dtest=${TEST_SELECTOR}" "-DgenerateAllureReportArchive=true" -Dgpg.skip
+        run: mvn -e -pl shaft-engine -am test "-Dtest=${TEST_SELECTOR}" "-DgenerateAllureReportArchive=true" -Dgpg.skip
 
       - name: Extract Allure failures
         id: allure_failures
         if: always()
         continue-on-error: true
         run: |
-          if [ -d allure-results ]; then
-            scripts/ci/extract_allure_failures.py allure-results | tee allure-failures.md
+          if [ -d shaft-engine/allure-results ]; then
+            scripts/ci/extract_allure_failures.py shaft-engine/allure-results | tee allure-failures.md
           else
             echo 'No allure-results directory was generated.' | tee allure-failures.md
           fi
 
       - name: Generate JaCoCo report
         if: always()
-        run: mvn jacoco:report -Dgpg.skip
+        run: mvn -pl report-aggregate -am verify -DskipTests -Dgpg.skip
 
       - name: Summarize coverage
         id: coverage
@@ -114,6 +117,15 @@ jobs:
             cat jacoco-coverage-summary.md
           } >> "${GITHUB_STEP_SUMMARY}"
 
+      - name: Upload aggregate coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          disable_search: true
+          files: ./target/jacoco/jacoco.xml
+
       - name: Upload readiness artifacts
         if: always()
         uses: actions/upload-artifact@v7
@@ -124,8 +136,8 @@ jobs:
             allure-failures.md
             jacoco-coverage-summary.md
             target/jacoco/**
-            target/surefire-reports/**
-            allure-results/**
+            shaft-engine/target/surefire-reports/**
+            shaft-engine/allure-results/**
           if-no-files-found: ignore
 
       - name: Fail on test failures
