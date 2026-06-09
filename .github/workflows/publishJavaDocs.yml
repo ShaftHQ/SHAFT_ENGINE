@@ -1,6 +1,5 @@
 name: JavaDocs Publisher
-# Executed automatically when a new PR is merged to master, if the release number already exists this job will fail
-# This pipeline will build from main, upload the artifacts, and create the GitHub release
+# Publishes one navigable JavaDocs site after a successful Maven Central release.
 
 on:
   workflow_run:
@@ -12,6 +11,7 @@ on:
 
 jobs:
   generate_java_docs:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     env:
       gpg.keyname: ${{ secrets.GPG_KEYNAME }}
       gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
@@ -39,7 +39,7 @@ jobs:
         uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
-      # Captures the engine version from the pom.xml
+      # Captures the reactor version from the root pom.xml.
       - name: Set Release Version Number
         run: |
           echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
@@ -52,5 +52,5 @@ jobs:
           javadoc-branch: javadoc
           java-version: 25
           project: maven
-          custom-command: mvn -pl shaft-engine -am javadoc:javadoc -Dgpg.skip
-          javadoc-source-folder: shaft-engine/target/reports/apidocs
+          custom-command: mvn --batch-mode clean install "-DskipTests" "-Dgpg.skip" && python3 scripts/ci/assemble_javadocs.py
+          javadoc-source-folder: target/javadocs

@@ -109,7 +109,7 @@ When fixing a bug or unexpected behavior in framework source files, you **must**
 - Run regression tests to confirm no other behavior is broken
 
 ### Release Metadata Updates in `Internal.java`
-When preparing a SHAFT release and editing `shaft-engine/shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java`, update/verify these keys together:
+When preparing a SHAFT release and editing `shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java`, update/verify these keys together:
 - `shaftEngineVersion` (must match root `pom.xml` project version)
 - `allure3Version` (latest stable Allure 3 npm package)
 - `nodeLtsVersion` (latest Node.js LTS patch)

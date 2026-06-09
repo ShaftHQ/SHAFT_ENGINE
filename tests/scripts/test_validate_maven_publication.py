@@ -54,6 +54,7 @@ class MavenPublicationValidationTest(unittest.TestCase):
         import shutil
         source = MODULE.ROOT
         for relative in [Path("pom.xml"), Path(".github/workflows/mavenCentral_cd.yml"),
+                         Path(".github/workflows/publishJavaDocs.yml"),
                          Path("report-aggregate/pom.xml"), Path("shaft-bom/pom.xml")]:
             destination = root / relative
             destination.parent.mkdir(parents=True, exist_ok=True)

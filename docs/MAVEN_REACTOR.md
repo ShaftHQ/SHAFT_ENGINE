@@ -61,7 +61,8 @@ mvn -pl shaft-browserstack -am test -Dtest=BrowserStackHelperUnitTest
 mvn -pl shaft-video -am test -Dtest=DesktopVideoRecordingProviderRegistrationTest
 mvn -pl shaft-visual -am test -Dtest=ImageProcessingActionsUnitTest
 mvn -pl shaft-engine -am test
-mvn -pl shaft-engine javadoc:javadoc
+mvn clean install -DskipTests -Dgpg.skip
+python3 scripts/ci/assemble_javadocs.py
 ```
 
 Build and test outputs are module-local. Important locations include:
@@ -99,7 +100,7 @@ Workflow commands run from the repository root and select only the modules requi
 | `e2eLocalTests.yml`, `e2eLambdaTestTests.yml`, `e2eMoonTests.yml` | Use `-pl shaft-engine -am`; Appium and ordinary browser jobs do not resolve `shaft-video`. |
 | `coverage-readiness.yml` | Runs focused engine tests, builds `report-aggregate`, gates `target/jacoco/jacoco.csv`, and uploads only `target/jacoco/jacoco.xml` to Codecov. |
 | `code-quality-scan.yml`, `codeql-analysis.yml`, `copilot-setup-steps.yml` | Select the code-bearing engine and optional integration modules explicitly; BOM and relocation-only modules are excluded from compilation/analysis. |
-| `publishJavaDocs.yml` | Generates JavaDocs only for `shaft-engine` and publishes `shaft-engine/target/reports/apidocs`. |
+| `publishJavaDocs.yml` | Builds JavaDocs for all four Java-bearing modules, assembles a navigable site at `target/javadocs`, and publishes it only after a successful Central release. |
 | `mavenCentral_cd.yml` | Intentionally deploys the complete reactor because every published module, BOM, and relocation POM belongs to a release. |
 | `reactor-version-check.yml` | Uses the reactor-version validation script and does not invoke Maven. |
 | `dependency_review.yml`, `link-check.yml`, `refresh-agent-instructions.yml` | Do not build Java modules and therefore require no reactor selection. |

@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -49,8 +51,6 @@ public class ReportManagerHelperUnitTests {
         setPrivateStaticField("featureName", "");
         setPrivateStaticField("debugMode", false);
         invokePrivateStaticMethod("resetRetryDiagnosticLogging");
-        setPrivateStaticField("debugFileLoggingEnabled", false);
-        setPrivateStaticField("previousRootLogLevel", null);
         ReportManagerHelper.setOpenIssuesForFailedTestsCounter(0);
         ReportManagerHelper.setOpenIssuesForPassedTestsCounter(0);
         ReportManagerHelper.setFailedTestsWithoutOpenIssuesCounter(0);
@@ -205,12 +205,10 @@ public class ReportManagerHelperUnitTests {
         ReportManagerHelper.setDiscreteLogging(true);
         SHAFT.Validations.assertThat().object(ReportManagerHelper.getDiscreteLogging()).isTrue().perform();
 
-        ReportManagerHelper.logImportantEntry("important log should force non-discrete logging temporarily", Level.WARN);
+        ReportManagerHelper.logImportantEntry("important log should preserve discrete logging state", Level.INFO);
         SHAFT.Validations.assertThat().object(ReportManagerHelper.getDiscreteLogging()).isTrue().perform();
 
-        setPrivateStaticField("logger", null);
         ReportManagerHelper.writeStepToReport("logger initialization branch");
-        setPrivateStaticField("logger", null);
         ReportManagerHelper.logImportantEntry("important logger initialization branch", Level.INFO);
 
         ReportManagerHelper.setDebugMode(true);
@@ -255,19 +253,21 @@ public class ReportManagerHelperUnitTests {
         ReportManagerHelper.createLogEntry("prime logger before directory path check", Level.INFO);
         Path directoryPath = Files.createTempDirectory("rpmgr-debug-directory-");
         ThreadLocalPropertiesManager.setProperty("appender.file.fileName", directoryPath.toString());
+        SHAFT.Properties.reporting.set().disableLogging(true);
 
         ReportManagerHelper.enableDebugFileLogging();
 
-        boolean debugFileLoggingEnabled = getPrivateStaticField("debugFileLoggingEnabled", Boolean.class);
+        boolean debugFileLoggingEnabled = isRetryDiagnosticLoggingEnabledForCurrentThread();
         SHAFT.Validations.assertThat().object(debugFileLoggingEnabled).isFalse().perform();
         SHAFT.Validations.assertThat().object(Files.isDirectory(directoryPath)).isTrue().perform();
 
         Path missingLog = directoryPath.resolve("missing.log");
         ThreadLocalPropertiesManager.setProperty("appender.file.fileName", missingLog.toString());
-        setPrivateStaticField("debugFileLoggingEnabled", true);
+        ReportManagerHelper.enableDebugFileLogging();
+        Files.deleteIfExists(missingLog);
         ReportManagerHelper.attachEngineLog("missing-log");
 
-        debugFileLoggingEnabled = getPrivateStaticField("debugFileLoggingEnabled", Boolean.class);
+        debugFileLoggingEnabled = isRetryDiagnosticLoggingEnabledForCurrentThread();
         SHAFT.Validations.assertThat().object(debugFileLoggingEnabled).isFalse().perform();
         SHAFT.Validations.assertThat().object(Files.exists(missingLog)).isFalse().perform();
         Files.deleteIfExists(directoryPath);
@@ -278,10 +278,9 @@ public class ReportManagerHelperUnitTests {
         Path debugDirectory = Files.createTempDirectory("rpmgr-debug-nested-");
         Path nestedLogFile = debugDirectory.resolve("nested").resolve("debug.log");
         ThreadLocalPropertiesManager.setProperty("appender.file.fileName", nestedLogFile.toString());
-        setPrivateStaticField("logger", null);
 
         ReportManagerHelper.enableDebugFileLogging();
-        invokePrivateStaticMethod("writeToDebugLogFileIfEnabled", "nested debug entry", Level.ERROR);
+        invokePrivateStaticMethod("writeToDebugLogFileIfEnabled", "nested debug entry", Level.DEBUG);
 
         SHAFT.Validations.assertThat().object(Files.isRegularFile(nestedLogFile)).isTrue().perform();
         SHAFT.Validations.assertThat().object(Files.readString(nestedLogFile)).contains("nested debug entry").perform();
@@ -370,8 +369,10 @@ public class ReportManagerHelperUnitTests {
         ReportManagerHelper.logScenarioInformation("Scenario", "Scenario Name", "Given step");
         ReportManagerHelper.logConfigurationMethodInformation("ClassX", "beforeMethod", "beforeMethod");
         ReportManagerHelper.logExecutionSummary("4", "3", "1", "0");
+        SHAFT.Properties.reporting.set().disableLogging(true);
         ReportManagerHelper.logFinishedTestInformation("ClassX", "methodX", "description", "FAILED");
         ReportManagerHelper.logFinishedTestInformation("ClassX", "methodX", "", "SKIPPED");
+        SHAFT.Properties.reporting.set().disableLogging(false);
         ReportManagerHelper.logFinishedTestInformation("ClassX", "methodX", "", "PASSED");
         ReportManagerHelper.logFinishedTestInformation("ClassX", "methodX", "", "BROKEN");
         ReportManagerHelper.logEngineVersion();
@@ -381,7 +382,7 @@ public class ReportManagerHelperUnitTests {
         ReportManagerHelper.setTestCaseDescription("Given و Then");
         ReportManagerHelper.setTestCaseDescription("Given Then");
         ReportManagerHelper.writeStepToReport("passed step");
-        ReportManagerHelper.writeStepToReport("failed step", Level.WARN);
+        ReportManagerHelper.writeStepToReport("failed step", Level.INFO);
         ReportManagerHelper.logImportantEntry("important log", Level.INFO);
 
         ReportManagerHelper.attach("Attachment", "From String", "value");
@@ -407,8 +408,10 @@ public class ReportManagerHelperUnitTests {
         ReportManagerHelper.logNestedSteps("assertion passed", attachments);
         ReportManagerHelper.log(new RuntimeException("runtime exception"));
         ReportManagerHelper.log(new RuntimeException());
+        SHAFT.Properties.reporting.set().disableLogging(true);
         ReportManagerHelper.logDiscrete(new RuntimeException("discrete exception"));
         ReportManagerHelper.logDiscrete(new RuntimeException("discrete exception warning"), Level.WARN);
+        SHAFT.Properties.reporting.set().disableLogging(false);
         ReportManagerHelper.logDiscrete("discrete text", Level.INFO);
 
         int testCaseCounter = getPrivateStaticField("testCasesCounter", AtomicInteger.class).get();
@@ -428,9 +431,56 @@ public class ReportManagerHelperUnitTests {
         SHAFT.Validations.assertThat().object(new File(logFilePath).isFile()).isTrue().perform();
         ReportManagerHelper.attachEngineLog("execution-end");
 
-        boolean debugFileLoggingEnabled = getPrivateStaticField("debugFileLoggingEnabled", Boolean.class);
+        boolean debugFileLoggingEnabled = isRetryDiagnosticLoggingEnabledForCurrentThread();
         SHAFT.Validations.assertThat().object(debugFileLoggingEnabled).isFalse().perform();
         SHAFT.Validations.assertThat().object(new File(logFilePath).exists()).isFalse().perform();
+    }
+
+    @Test
+    public void resettingRetryDiagnosticsShouldNotClearAnotherThreadSession() throws Exception {
+        Path workerLog = Path.of("target", "logs", "report-manager-helper-worker-" + System.nanoTime() + ".log");
+        CountDownLatch workerEnabled = new CountDownLatch(1);
+        CountDownLatch mainResetComplete = new CountDownLatch(1);
+        AtomicReference<Boolean> workerSessionActiveAfterMainReset = new AtomicReference<>(false);
+        AtomicReference<Throwable> workerFailure = new AtomicReference<>();
+
+        Thread worker = new Thread(() -> {
+            try {
+                ThreadLocalPropertiesManager.setProperty("appender.file.fileName", workerLog.toString());
+                ReportManagerHelper.enableDebugFileLogging();
+                workerEnabled.countDown();
+                mainResetComplete.await();
+                workerSessionActiveAfterMainReset.set(isRetryDiagnosticLoggingEnabledForCurrentThread());
+                invokePrivateStaticMethod("resetRetryDiagnosticLogging");
+            } catch (Throwable throwable) {
+                workerFailure.set(throwable);
+            } finally {
+                workerEnabled.countDown();
+                Properties.clearForCurrentThread();
+            }
+        }, "retry-diagnostics-worker");
+
+        worker.setDaemon(true);
+        worker.start();
+        boolean workerReachedEnabledState = workerEnabled.await(5, TimeUnit.SECONDS);
+        try {
+            if (workerReachedEnabledState) {
+                invokePrivateStaticMethod("resetRetryDiagnosticLogging");
+            }
+        } finally {
+            mainResetComplete.countDown();
+        }
+        worker.join(5000);
+
+        try {
+            SHAFT.Validations.assertThat().object(workerReachedEnabledState).isTrue().perform();
+            SHAFT.Validations.assertThat().object(worker.isAlive()).isFalse().perform();
+            SHAFT.Validations.assertThat().object(workerFailure.get()).isNull().perform();
+            SHAFT.Validations.assertThat().object(workerSessionActiveAfterMainReset.get()).isTrue().perform();
+        } finally {
+            worker.interrupt();
+            Files.deleteIfExists(workerLog);
+        }
     }
 
     @Test
@@ -515,6 +565,13 @@ public class ReportManagerHelperUnitTests {
         Field field = ReportManagerHelper.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(null, value);
+    }
+
+    private static boolean isRetryDiagnosticLoggingEnabledForCurrentThread() throws Exception {
+        Method method = ReportManagerHelper.class
+                .getDeclaredMethod("isRetryDiagnosticLoggingEnabledForCurrentThread");
+        method.setAccessible(true);
+        return (boolean) method.invoke(null);
     }
 
     private static <T> T getPrivateStaticFieldUnchecked(String fieldName, Class<T> type) {

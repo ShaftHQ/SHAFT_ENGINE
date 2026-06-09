@@ -8,6 +8,19 @@ import scripts.ci.measure_consumer_dependencies as measure
 
 
 class MeasureConsumerDependenciesTest(unittest.TestCase):
+    def test_maven_executable_prefers_windows_command_shim(self):
+        with mock.patch.object(
+            measure.shutil,
+            "which",
+            side_effect=lambda candidate: "C:/tools/mvn.cmd" if candidate == "mvn.cmd" else None,
+        ):
+            self.assertEqual(measure.maven_executable("Windows"), "C:/tools/mvn.cmd")
+
+    def test_maven_executable_reports_missing_maven(self):
+        with mock.patch.object(measure.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(RuntimeError, "Maven executable was not found"):
+                measure.maven_executable("Linux")
+
     def test_fixture_root_coordinate_reads_direct_shaft_dependency(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             pom = Path(temp_dir) / "pom.xml"
@@ -131,6 +144,42 @@ The following files have been resolved:
             expected_path = Path(temp_dir) / "expected.json"
             expected_path.write_text(json.dumps(expected), encoding="utf-8")
             self.assertEqual(measure.verify_manifest(actual, expected_path), [])
+
+    def test_verify_manifest_ignores_platform_specific_jave_binary(self):
+        expected = {
+            "schemaVersion": 1,
+            "fixture": "desktop-video",
+            "platform": {"system": "Linux", "machine": "x86_64"},
+            "artifactCount": 1,
+            "artifacts": [
+                {
+                    "coordinate": "ws.schild:jave-nativebin-linux64:jar:3.5.0",
+                    "scope": "runtime",
+                    "compressedBytes": 28_201_169,
+                    "sha256": "linux",
+                }
+            ],
+        }
+        actual = {
+            **expected,
+            "platform": {"system": "Windows", "machine": "AMD64"},
+            "artifacts": [
+                {
+                    "coordinate": "ws.schild:jave-nativebin-win64:jar:3.5.0",
+                    "scope": "runtime",
+                    "compressedBytes": 31_035_375,
+                    "sha256": "windows",
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            expected_path = Path(temp_dir) / "expected.json"
+            expected_path.write_text(json.dumps(expected), encoding="utf-8")
+            with (
+                mock.patch.object(measure, "expected_jave_coordinate",
+                                  return_value="ws.schild:jave-nativebin-win64:jar:3.5.0"),
+            ):
+                self.assertEqual(measure.verify_manifest(actual, expected_path), [])
 
     def test_seed_project_artifact_writes_engine_and_parent_poms(self):
         with tempfile.TemporaryDirectory() as temp_dir:

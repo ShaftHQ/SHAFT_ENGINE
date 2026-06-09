@@ -36,6 +36,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@Test(singleThreaded = true)
 public class ScreenshotManagerCoverageUnitTest {
     private String whenToTakeScreenshot;
     private String screenshotType;
@@ -44,6 +45,7 @@ public class ScreenshotManagerCoverageUnitTest {
     private String highlightMethod;
     private boolean createAnimatedGif;
     private boolean watermark;
+    private boolean disableLogging;
 
     @BeforeMethod(alwaysRun = true)
     public void beforeMethod() {
@@ -54,6 +56,7 @@ public class ScreenshotManagerCoverageUnitTest {
         highlightMethod = SHAFT.Properties.visuals.screenshotParamsHighlightMethod();
         createAnimatedGif = SHAFT.Properties.visuals.createAnimatedGif();
         watermark = SHAFT.Properties.visuals.screenshotParamsWatermark();
+        disableLogging = SHAFT.Properties.reporting.disableLogging();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -65,6 +68,7 @@ public class ScreenshotManagerCoverageUnitTest {
         SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod(highlightMethod);
         SHAFT.Properties.visuals.set().createAnimatedGif(createAnimatedGif);
         SHAFT.Properties.visuals.set().screenshotParamsWatermark(watermark);
+        SHAFT.Properties.reporting.set().disableLogging(disableLogging);
     }
 
     @Test
@@ -106,6 +110,7 @@ public class ScreenshotManagerCoverageUnitTest {
 
     @Test
     public void takeScreenshotFallbackAndElementBranchesShouldBeCovered() throws Exception {
+        SHAFT.Properties.reporting.set().disableLogging(true);
         SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("FULL");
         SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("AI");
         SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(false);
@@ -136,7 +141,8 @@ public class ScreenshotManagerCoverageUnitTest {
             ScreenshotManager manager = new ScreenshotManager();
             byte[] screenshot = manager.takeScreenshot(healingDriver, By.id("x"));
             Assert.assertTrue(Arrays.equals(screenshot, viewport));
-            Assert.assertEquals(SHAFT.Properties.visuals.screenshotParamsScreenshotType(), "VIEWPORT");
+            String expectedScreenshotType = SHAFT.Properties.testNG.parallel().equals("NONE") ? "VIEWPORT" : "FULL";
+            Assert.assertEquals(SHAFT.Properties.visuals.screenshotParamsScreenshotType(), expectedScreenshotType);
 
             byte[] elementShot = manager.takeElementScreenshot(delegateDriver, By.id("x"));
             Assert.assertTrue(Arrays.equals(elementShot, new byte[]{9}));
@@ -155,6 +161,7 @@ public class ScreenshotManagerCoverageUnitTest {
 
     @Test
     public void fullPageAndHighlightMethodsShouldBeCovered() throws Exception {
+        SHAFT.Properties.reporting.set().disableLogging(true);
         SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("VIEWPORT");
         SHAFT.Properties.visuals.set().screenshotParamsSkippedElementsFromScreenshot("//div[@id='hide']");
         SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(true);

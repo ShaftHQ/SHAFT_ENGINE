@@ -64,6 +64,8 @@ jobs:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
         run: mvn --batch-mode deploy "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
+      - name: Verify published Maven Central coordinates
+        run: python3 scripts/ci/verify_maven_central_release.py "${RELEASE_VERSION}"
       - name: Prepare Release Body
         run: sed "s/\$RELEASE_VERSION/${{ env.RELEASE_VERSION }}/g" .github/RELEASE_BODY_TEMPLATE.md > /tmp/release_body.md
       - name: Create GitHub Release

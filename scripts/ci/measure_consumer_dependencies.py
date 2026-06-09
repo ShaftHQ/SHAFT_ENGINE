@@ -40,6 +40,16 @@ PROJECT_COORDINATES = (
 DEPENDENCY_LINE = re.compile(r"^\s*([^\s].*?):(/.*|[A-Za-z]:\\.*)$")
 
 
+def maven_executable(system: str | None = None) -> str:
+    system = system or platform.system()
+    candidates = ("mvn.cmd", "mvn") if system == "Windows" else ("mvn",)
+    for candidate in candidates:
+        executable = shutil.which(candidate)
+        if executable:
+            return executable
+    raise RuntimeError("Maven executable was not found on PATH.")
+
+
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -206,7 +216,7 @@ def run_fixture(fixture: Path, jar: Path, keep_repositories: Path | None = None)
     seeded_bytes = seed_project_artifact(repository, jar, version)
     dependency_output = temporary / "dependencies.txt"
     command = [
-        "mvn", "--batch-mode", "--no-transfer-progress", "-f", str(fixture / "pom.xml"),
+        maven_executable(), "--batch-mode", "--no-transfer-progress", "-f", str(fixture / "pom.xml"),
         f"-Dmaven.repo.local={repository}", f"-Dshaft.version={version}", "test-compile",
         "dependency:list", "-DincludeScope=test", "-DoutputAbsoluteArtifactFilename=true",
         f"-DoutputFile={dependency_output}", "-DappendOutput=false",
@@ -254,16 +264,18 @@ def run_fixture(fixture: Path, jar: Path, keep_repositories: Path | None = None)
 def stable_manifest(manifest: dict[str, object]) -> dict[str, object]:
     ignored = {
         "artifactBytes", "elapsedSeconds", "repositoryBytes", "repositoryGrowthBytes",
-        "seededRepositoryBytes", "artifactsRef", "rootCoordinate",
+        "seededRepositoryBytes", "artifactsRef", "rootCoordinate", "platform",
     }
     stable = {key: value for key, value in manifest.items() if key not in ignored}
     # The reactor migration rebuilds SHAFT itself; compare the downstream graph byte-for-byte
-    # while validating the engine JAR separately by its entry list.
+    # while validating project JARs and the host-specific JAVE binary separately.
     project_jar_prefixes = tuple(f"{coordinate}:jar:" for coordinate in PROJECT_COORDINATES)
     if "artifacts" in stable:
         stable["artifacts"] = [
             artifact for artifact in stable["artifacts"]
-            if not str(artifact["coordinate"]).startswith(project_jar_prefixes)
+            if not str(artifact["coordinate"]).startswith(
+                project_jar_prefixes + ("ws.schild:jave-nativebin-",)
+            )
         ]
     return stable
 

@@ -7,7 +7,6 @@ import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
-import com.shaft.validation.Validations;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Platform;
@@ -292,18 +291,9 @@ public class ImageProcessingActions {
                 continue;
             }
 
-            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
-            try {
-                // add to pass/fail counter depending on assertion result, without logging
-                ReportManagerHelper.setDiscreteLogging(true);
-                Validations.assertThat()
-                        .number(percentage)
-                        .isGreaterThanOrEquals(threshold)
-                        .perform();
-                ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
+            if (percentage >= threshold) {
                 passedImagesCount++;
-            } catch (AssertionError e) {
-                ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
+            } else {
                 // copying image to failed images directory
                 FileActions.getInstance(true).copyFile(screenshot.getAbsolutePath(),
                         testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_testImage");
@@ -312,20 +302,28 @@ public class ImageProcessingActions {
                         testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_referenceImage");
                 failedImagesCount++;
             }
-
-            Validations.verifyThat()
-                    .number(percentage)
-                    .isGreaterThanOrEquals(threshold)
-                    .perform();
         }
 
         ReportManager.log("[" + passedImagesCount + "] images passed, and [" + failedImagesCount
                 + "] images failed the threshold of [" + threshold + "%] matching.");
+        if (failedImagesCount > 0) {
+            FailureReporter.fail("[" + failedImagesCount + "] images failed the threshold of ["
+                    + threshold + "%] matching.");
+        }
 
     }
 
     public static void loadOpenCV() {
         VisualProcessingProviderRegistry.requireProvider().load();
+    }
+
+    /**
+     * Loads the optional visual processing provider when it is available.
+     * Engine startup uses this method so installations that do not include
+     * {@code shaft-visual} remain quiet until a visual operation is requested.
+     */
+    public static void loadOpenCVIfAvailable() {
+        VisualProcessingProviderRegistry.findProvider().ifPresent(VisualProcessingProvider::load);
     }
 
     private static String getAiFolderPath() {

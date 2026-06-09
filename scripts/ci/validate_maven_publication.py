@@ -95,6 +95,7 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
     required_steps = [
         "Validate Maven publication",
         "Deploy to Maven Central",
+        "Verify published Maven Central coordinates",
         "Create GitHub Release",
         "Notify User Guide Repository",
         "Announce Release on Slack",
@@ -104,6 +105,16 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
         errors.append("release workflow must validate and deploy before release creation and announcements")
     if "-f pom.xml help:evaluate" not in workflow:
         errors.append("release workflow must derive the version from the reactor parent pom.xml")
+    if "verify_maven_central_release.py" not in workflow:
+        errors.append("release workflow must smoke published Maven Central coordinates before release creation")
+
+    javadocs_workflow = (root / ".github/workflows/publishJavaDocs.yml").read_text(encoding="utf-8")
+    if "workflow_run.conclusion == 'success'" not in javadocs_workflow:
+        errors.append("JavaDocs publication must require a successful Maven Central workflow")
+    if "scripts/ci/assemble_javadocs.py" not in javadocs_workflow:
+        errors.append("JavaDocs workflow must assemble all Java-bearing module documentation")
+    if "javadoc-source-folder: target/javadocs" not in javadocs_workflow:
+        errors.append("JavaDocs workflow must publish the assembled root target/javadocs site")
 
     if check_build_outputs:
         version = _version(root)
