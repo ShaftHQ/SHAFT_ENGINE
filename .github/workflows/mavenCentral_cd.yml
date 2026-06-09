@@ -40,6 +40,12 @@ jobs:
           maven-version: 3.9.5
       - name: Reject divergent SHAFT reactor versions
         run: python3 scripts/ci/validate_reactor_versions.py
+      - name: Validate publication topology and release ordering
+        run: python3 scripts/ci/validate_publication_configuration.py
+      - name: Install the release reactor for consumer validation
+        run: mvn --batch-mode clean install -DskipTests -Dgpg.skip
+      - name: Validate the combined-module consumer
+        run: mvn --batch-mode --file tools/modularization/publication-fixtures/all-modules/pom.xml verify
       # Captures the aligned reactor version explicitly from the root parent POM.
       - name: Set Release Version Number
         run: |

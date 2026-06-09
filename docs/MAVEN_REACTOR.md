@@ -105,8 +105,10 @@ mvn --batch-mode --file tools/modularization/publication-fixtures/all-modules/po
 The combined consumer imports `shaft-bom`, resolves all published JAR modules, enforces dependency convergence,
 rejects duplicate classes, and writes a CycloneDX JSON SBOM under its `target/` directory.
 
-The Central workflow extracts the version from the root parent and waits for the atomic reactor deployment to reach
-the `published` state before it creates a GitHub release, dispatches the user-guide update, or posts to Slack. If
+The Central workflow repeats the publication-topology check, installs the complete release reactor, and verifies the
+combined-module consumer before it imports signing credentials or starts the immutable deployment. It then extracts
+the version from the root parent and waits for the atomic reactor deployment to reach the `published` state before it
+creates a GitHub release, dispatches the user-guide update, or posts to Slack. If
 validation, signing, upload, or Central publication fails, no user-facing release action has run and the workflow can
 be retried after correcting the cause. Do not create a compensating GitHub release for a failed Central deployment.
 If a failure occurs after Central reports `published`, keep the immutable Central artifacts, repair only the failed

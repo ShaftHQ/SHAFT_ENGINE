@@ -115,6 +115,19 @@ def validate_publication_configuration(root: Path = ROOT) -> list[str]:
             errors.append("release workflow is missing the Maven Central deployment step")
         elif release_index < 0 or deploy_index > release_index:
             errors.append("Maven Central deployment must complete before GitHub release creation")
+
+        pre_deploy_checks = {
+            "publication configuration validation": "python3 scripts/ci/validate_publication_configuration.py",
+            "release reactor installation": "mvn --batch-mode clean install -DskipTests -Dgpg.skip",
+            "combined-module consumer validation": (
+                "mvn --batch-mode --file tools/modularization/publication-fixtures/all-modules/pom.xml verify"
+            ),
+        }
+        for check_name, command in pre_deploy_checks.items():
+            check_index = workflow.find(command)
+            if check_index < 0 or (deploy_index >= 0 and check_index > deploy_index):
+                errors.append(f"release workflow must run {check_name} before Maven Central deployment")
+
         if "mvn --non-recursive help:evaluate -Dexpression=project.version" not in workflow:
             errors.append("release version must be extracted explicitly from the root parent POM")
         for downstream_step in ("Notify User Guide Repository", "Announce Release on Slack"):

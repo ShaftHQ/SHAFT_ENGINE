@@ -30,6 +30,9 @@ class ValidatePublicationConfigurationTest(unittest.TestCase):
 
             self.assertTrue(any("missing deployable modules" in error for error in errors))
             self.assertIn("Maven Central deployment must complete before GitHub release creation", errors)
+            self.assertTrue(any("publication configuration validation" in error for error in errors))
+            self.assertTrue(any("release reactor installation" in error for error in errors))
+            self.assertTrue(any("combined-module consumer validation" in error for error in errors))
             self.assertTrue(any("combined-module fixture" in error for error in errors))
 
 
