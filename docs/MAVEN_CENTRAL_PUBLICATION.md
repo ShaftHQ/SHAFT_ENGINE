@@ -44,8 +44,9 @@ For a signed staging rehearsal, import a disposable GPG key into an isolated `GN
 1. Read the version from the root parent POM and reject reactor version drift.
 2. Validate configuration, build all publication artifacts, and run the combined consumer checks.
 3. Sign and deploy the complete reactor through the Central Publishing Maven Plugin, waiting for publication success.
-4. Create the GitHub tag and release.
-5. Dispatch the guide update and announce the release on Slack.
+4. Verify every POM, JAR, sources JAR, JavaDocs JAR, and signature from Maven Central, then compile canonical, combined-module, and legacy-relocation consumers from isolated repositories.
+5. Create the GitHub tag and release.
+6. Dispatch the guide update and announce the release on Slack.
 
 This ordering prevents a GitHub release, guide update, or Slack announcement from claiming availability when Central publication failed.
 

@@ -55,10 +55,13 @@ jobs:
             python3 -c "import sys,xml.etree.ElementTree as ET; ns='http://maven.apache.org/POM/4.0.0'; root=ET.parse('pom.xml').getroot(); [print(p.find('{%s}version'%ns).text) or sys.exit(0) for p in root.findall('.//{%s}plugin'%ns) if p.find('{%s}artifactId'%ns) is not None and p.find('{%s}artifactId'%ns).text=='$artifactId' and p.find('{%s}version'%ns) is not None]"
           }
 
-          # JDK version: read from maven-compiler-plugin <source> configuration
-          JDK_VERSION=$(grep -A10 '<artifactId>maven-compiler-plugin</artifactId>' pom.xml | grep '<source>' | head -1 | sed 's/.*<source>\(.*\)<\/source>.*/\1/' | tr -d ' ')
+          extract_property_version() {
+            local property="$1"
+            python3 -c "import xml.etree.ElementTree as ET; ns='http://maven.apache.org/POM/4.0.0'; root=ET.parse('pom.xml').getroot(); print(root.find('{%s}properties/{%s}%s' % (ns, ns, '$property')).text)"
+          }
 
-          ASPECTJWEAVER_VERSION=$(grep -A2 '<artifactId>aspectjweaver</artifactId>' pom.xml | grep '<version>' | head -1 | sed 's/.*<version>\(.*\)<\/version>.*/\1/' | tr -d ' ')
+          JDK_VERSION=$(extract_property_version "jdk.version")
+          ASPECTJWEAVER_VERSION=$(extract_property_version "aspectj.version")
           COMPILER_PLUGIN_VERSION=$(extract_plugin_version "maven-compiler-plugin")
           RESOURCES_PLUGIN_VERSION=$(extract_plugin_version "maven-resources-plugin")
           SUREFIRE_PLUGIN_VERSION=$(extract_plugin_version "maven-surefire-plugin")
@@ -72,7 +75,7 @@ jobs:
           echo "SUREFIRE_TESTNG_VERSION=$SUREFIRE_TESTNG_VERSION" >> $GITHUB_OUTPUT
 
           # Fail early if any version resolved to empty — prevents silently skipping properties
-          if [ -z "$COMPILER_PLUGIN_VERSION" ] || [ -z "$RESOURCES_PLUGIN_VERSION" ] || [ -z "$SUREFIRE_PLUGIN_VERSION" ]; then
+          if [ -z "$JDK_VERSION" ] || [ -z "$ASPECTJWEAVER_VERSION" ] || [ -z "$COMPILER_PLUGIN_VERSION" ] || [ -z "$RESOURCES_PLUGIN_VERSION" ] || [ -z "$SUREFIRE_PLUGIN_VERSION" ]; then
             echo "::error::One or more plugin versions could not be extracted from pom.xml"
             exit 1
           fi
@@ -170,13 +173,13 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: |
-            Sync sample projects to SHAFT Engine ${{ steps.get-version.outputs.NEW_VERSION }}
+            Sync sample projects to modular SHAFT ${{ steps.get-version.outputs.NEW_VERSION }}
 
-            Updated all example pom.xml files to use SHAFT_ENGINE ${{ steps.get-version.outputs.NEW_VERSION }}
+            Updated all example pom.xml files to use shaft-engine ${{ steps.get-version.outputs.NEW_VERSION }}
             and synced all plugin/dependency versions with the main pom.xml.
           branch: auto-update-sample-projects-version
           delete-branch: true
-          title: 'Sync sample projects to SHAFT Engine ${{ steps.get-version.outputs.NEW_VERSION }}'
+          title: 'Sync sample projects to modular SHAFT ${{ steps.get-version.outputs.NEW_VERSION }}'
           body: |
             ## 🤖 Automated Sample Projects Version Sync
 
@@ -184,7 +187,7 @@ jobs:
 
             ### Version Update:
 
-            **New SHAFT_ENGINE Version:** `${{ steps.get-version.outputs.NEW_VERSION }}`
+            **New SHAFT Version:** `${{ steps.get-version.outputs.NEW_VERSION }}`
 
             **Previous Versions:** `${{ steps.check-current.outputs.CURRENT_VERSIONS }}`
 
