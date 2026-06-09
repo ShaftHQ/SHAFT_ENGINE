@@ -93,3 +93,10 @@ Purpose: keep high-signal, reusable learnings from implementation sessions in on
 - Lesson: In TestNG `setParallel=METHODS`, ordinary instance fields are shared by concurrently running methods in the same class. If `@BeforeMethod` writes a per-method temp path to a shared field and `@AfterMethod` deletes from that field, another method can delete files still being read, surfacing as misleading image IO errors such as `javax.imageio.IIOException: Can't create an ImageInputStream!`. Use `ThreadLocal` for per-method temp paths or serialize classes that intentionally mutate shared/static state. Also inspect retried/skipped Allure result JSON and adjacent job logs, because the final summary can pass after retries while exposing the race.
 - Evidence: `src/test/java/testPackage/unitTests/ImageProcessingActionsUnitTest.java`, `.github/workflows/e2eTests.yml`, run `27004138692`.
 - Action taken: Converted the test temp directory state to `ThreadLocal`, added CI/test instruction guidance, and validated with the Edge Grid workflow properties.
+
+- Date: 2026-06-09
+- Area: Modular release readiness / Maven Central immutability
+- Trigger: Final release-candidate validation for issues #2809 and #2822.
+- Lesson: The first modular release must use a version newer than the final monolithic `SHAFT_ENGINE` release because Maven Central coordinates are immutable and the legacy relocation POM cannot replace an existing JAR version. Release automation must wait for Central publication, verify all public POM/JAR/classifier/signature paths, and compile canonical, combined-module, and legacy-relocation consumers before creating the GitHub release or announcements. Publish one navigable JavaDocs site covering every Java-bearing module.
+- Evidence: `pom.xml`, `.github/workflows/mavenCentral_cd.yml`, `.github/workflows/publishJavaDocs.yml`, `scripts/ci/verify_maven_central_release.py`, `scripts/ci/assemble_javadocs.py`, PR #2838.
+- Action taken: Prepared `10.2.20260609`, upgraded Allure to `3.10.0`, added Central smoke verification and aggregate JavaDocs assembly, and expanded release validators.

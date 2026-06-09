@@ -5,15 +5,15 @@ Guide Copilot coding agent to generate concise, maintainable, and secure code fo
 
 ## Repository Overview
 SHAFT_ENGINE is a unified test automation framework built with:
-- **Language**: Java 21
+- **Language**: Java 25
 - **Build Tool**: Maven
 - **Testing Frameworks**: TestNG, JUnit5, Cucumber
 - **Key Technologies**: Selenium WebDriver, Appium, REST Assured, Allure Reports
 - **Project Structure**:
-  - `src/main/java/com/shaft/` - Core framework code
-  - `src/test/java/` - Test examples and validation tests
-  - `src/test/resources/testDataFiles/` - JSON test data files
-  - `src/main/resources/` - Framework configuration and Docker compose files
+  - `shaft-engine/src/main/java/com/shaft/` - Core framework code
+  - `shaft-engine/src/test/java/` - Test examples and validation tests
+  - `shaft-engine/src/test/resources/testDataFiles/` - JSON test data files
+  - `shaft-engine/src/main/resources/` - Framework configuration and Docker compose files
   - `docs/` - Documentation
   - `.github/workflows/` - CI/CD pipelines
   - `.github/instructions/` - Path-specific Copilot instructions (java-tests, framework-source)
@@ -766,15 +766,15 @@ When generating changelogs, release notes, or updating `Internal.java`, always f
 
 Follow these steps in order when preparing a new SHAFT release:
 
-### 1. Update Version Numbers (Three Places — Always All)
-- **`pom.xml`** (line 6): change `<version>OLD</version>` to `<version>NEW</version>`.  The comment next to it reminds you to also update `Internal.java`.
-- **`src/main/java/com/shaft/properties/internal/Internal.java`**:
+### 1. Update Version Numbers (All Reactor Locations)
+- **Root and child POMs**: update the root `pom.xml` project version and every reactor module parent version together.
+- **`shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java`**:
   - change the `@DefaultValue` of `shaftEngineVersion()` to match the new release version.
   - also check and update `allure3Version()` to the latest stable Allure 3 npm package version.
   - also check and update `nodeLtsVersion()` to the latest Node.js LTS patch version.
-- **All example/demo `pom.xml` files** under `src/main/resources/examples/` (7 files — TestNG, JUnit, Cucumber variants): change `<shaft.version>OLD</shaft.version>` to `<shaft.version>NEW</shaft.version>` in the release PR itself. Do not wait for the post-release sync workflow to correct sample/demo projects after the release. You can do this in bulk with:
+- **All example/demo `pom.xml` files** under `shaft-engine/src/main/resources/examples/` (7 files — TestNG, JUnit, Cucumber variants): change `<shaft.version>OLD</shaft.version>` to `<shaft.version>NEW</shaft.version>` in the release PR itself. Do not wait for the post-release sync workflow to correct sample/demo projects after the release. You can do this in bulk with:
   ```bash
-  find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<shaft.version>OLD</shaft.version>|<shaft.version>NEW</shaft.version>|g'
+  find shaft-engine/src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<shaft.version>OLD</shaft.version>|<shaft.version>NEW</shaft.version>|g'
   ```
 
 ### 2. Sync All Sample Project Properties with Main `pom.xml`
@@ -786,7 +786,7 @@ After updating the SHAFT version, compare every versioned property in each sampl
 | Property | Where to read the canonical value in main `pom.xml` |
 |---|---|
 | `shaft.version` | `<project><version>` (line 6) |
-| `jdk.version` | `<source>` / `<target>` inside `maven-compiler-plugin` configuration |
+| `jdk.version` | Root `<properties><jdk.version>` |
 | `aspectjweaver.version` | `<version>` of `org.aspectj:aspectjweaver` in `<dependencies>` |
 | `maven-compiler-plugin.version` | `<version>` of the `maven-compiler-plugin` in `<build><plugins>` |
 | `maven-resources-plugin.version` | `<version>` of the `maven-resources-plugin` in `<build><plugins>` |
@@ -799,20 +799,20 @@ After updating the SHAFT version, compare every versioned property in each sampl
 grep -E "aspectjweaver|maven-compiler-plugin|maven-resources-plugin|maven-surefire-plugin|surefire-testng" pom.xml | grep "<version>"
 
 # Check what the sample projects currently declare
-grep -rE "jdk\.version|aspectjweaver\.version|maven-compiler-plugin\.version|maven-resources-plugin\.version|maven-surefire-plugin\.version|surefire-testng\.version" src/main/resources/examples/
+grep -rE "jdk\.version|aspectjweaver\.version|maven-compiler-plugin\.version|maven-resources-plugin\.version|maven-surefire-plugin\.version|surefire-testng\.version" shaft-engine/src/main/resources/examples/
 ```
 
 Apply bulk sed updates for each drifted property across all 7 sample files, for example:
 ```bash
 # Example: updating jdk.version from OLD to NEW
-find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<jdk.version>OLD</jdk.version>|<jdk.version>NEW</jdk.version>|g'
+find shaft-engine/src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<jdk.version>OLD</jdk.version>|<jdk.version>NEW</jdk.version>|g'
 
 # Example: updating aspectjweaver.version
-find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<aspectjweaver.version>OLD</aspectjweaver.version>|<aspectjweaver.version>NEW</aspectjweaver.version>|g'
+find shaft-engine/src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<aspectjweaver.version>OLD</aspectjweaver.version>|<aspectjweaver.version>NEW</aspectjweaver.version>|g'
 
 # Example: updating maven-surefire-plugin.version and surefire-testng.version
-find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<maven-surefire-plugin.version>OLD</maven-surefire-plugin.version>|<maven-surefire-plugin.version>NEW</maven-surefire-plugin.version>|g'
-find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<surefire-testng.version>OLD</surefire-testng.version>|<surefire-testng.version>NEW</surefire-testng.version>|g'
+find shaft-engine/src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<maven-surefire-plugin.version>OLD</maven-surefire-plugin.version>|<maven-surefire-plugin.version>NEW</maven-surefire-plugin.version>|g'
+find shaft-engine/src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<surefire-testng.version>OLD</surefire-testng.version>|<surefire-testng.version>NEW</surefire-testng.version>|g'
 ```
 
 ### 3. Dependency Version Check
@@ -833,18 +833,19 @@ mvn clean install -DskipTests -Dgpg.skip    # must succeed
 > [!NOTE]
 > For **release-generation-only** PRs (version metadata updates, release-workflow improvements, or release-doc updates that do not modify framework source code or test logic),
 > skip baseline/full test-suite reruns to keep release preparation lightweight; rely on pre-release validation already completed and CI on merge.
-> If any file under `src/main/java/` or `src/test/java/` is modified, the mandatory pre-commit rules apply in full. In all cases, `mvn clean install -DskipTests -Dgpg.skip` must pass before commit.
+> If any file under `shaft-engine/src/main/java/` or `shaft-engine/src/test/java/` is modified, the mandatory pre-commit rules apply in full. In all cases, `mvn clean install -DskipTests -Dgpg.skip` must pass before commit.
 
 ### 5. Open the Release PR
 Use a PR title that includes the release name/version and clearly says this PR generates/prepares a new release, for example: `chore(release): generate SHAFT_ENGINE 10.2.20260513 release`. Open the PR directly after validation; do not wait for a separate prompt once the release metadata is ready.
 
 ### 6. Commit and Merge to `main`
 Merging to `main` automatically triggers the **Maven Central Continuous Delivery** workflow (`mavenCentral_cd.yml`), which:
-1. Substitutes `$RELEASE_VERSION` in `.github/RELEASE_BODY_TEMPLATE.md` and uses it as the release body.
-2. Creates a GitHub Release via `ncipollo/release-action` with `generateReleaseNotes: true` **and** `bodyFile`.
-3. Dispatches a `shaft-engine-release` event to `ShaftHQ/shafthq.github.io` (user guide repo) via `BOT_TOKEN`.
-4. Resolves the generated release-blog-post PR link and sends it in the Slack release announcement (when `SLACK_WEBHOOK_URL` is configured).
-5. Deploys the artifact to Maven Central.
+1. Validates the complete reactor and publication outputs.
+2. Deploys the aligned public artifact set to Maven Central.
+3. Verifies POMs, JARs, classifiers, signatures, canonical consumers, combined modules, and legacy relocation from Central.
+4. Creates the GitHub Release via `ncipollo/release-action`.
+5. Dispatches a `shaft-engine-release` event to `ShaftHQ/shafthq.github.io`.
+6. Announces the release on Slack when configured.
 
 > [!IMPORTANT]
 > **How release notes are assembled — do not break this contract:**
@@ -898,7 +899,8 @@ See: https://github.com/ShaftHQ/shafthq.github.io/issues/468
 - [ ] `Internal.java` `shaftEngineVersion` `@DefaultValue` updated
 - [ ] `Internal.java` `allure3Version` checked/updated to latest stable
 - [ ] `Internal.java` `nodeLtsVersion` checked/updated to latest LTS patch
-- [ ] All 7 example/demo `pom.xml` files under `src/main/resources/examples/` updated in this release PR — bump `<shaft.version>` manually (use the bulk `sed` command above); do **not** wait for the **Sync Sample Projects SHAFT Version** workflow to fix release PR drift
+- [ ] All reactor parent versions match the root project version
+- [ ] All 7 example/demo `pom.xml` files under `shaft-engine/src/main/resources/examples/` updated in this release PR — bump `<shaft.version>` manually (use the bulk `sed` command above); do **not** wait for the **Sync Sample Projects SHAFT Version** workflow to fix release PR drift
 - [ ] All 7 example `pom.xml` files synced with main `pom.xml` for plugin/dependency versions — the **Sync Sample Projects SHAFT Version** workflow handles `jdk.version`, `aspectjweaver.version`, `maven-compiler-plugin.version`, `maven-resources-plugin.version`, `maven-surefire-plugin.version`, and `surefire-testng.version` automatically; manually verify only if the workflow fails
 - [ ] Dependency currency gate executed: `versions:display-dependency-updates`, `versions:display-plugin-updates`, and `versions:display-property-updates`
 - [ ] No stable dependency/plugin/property updates skipped
