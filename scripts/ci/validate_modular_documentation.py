@@ -94,6 +94,23 @@ def main() -> None:
         fail("runtime property download path is missing")
     if "refs/heads/main/shaft-engine/src/main/resources/examples/" not in setup_page:
         fail("setup-page example download paths are missing")
+    example_workflows = {
+        name: (EXAMPLES / ".github/workflows" / name).read_text(encoding="utf-8")
+        for name in ("api.yml", "web.yml")
+    }
+    for name, workflow in example_workflows.items():
+        if "actions/checkout@v6" not in workflow:
+            fail(f"{name}: use the current checkout action")
+        if "Set up JDK 25" not in workflow or "java-version: '25'" not in workflow:
+            fail(f"{name}: use the repository JDK 25 baseline")
+    web_workflow = example_workflows["web.yml"]
+    if "refs/heads/main/src/main/resources/" in web_workflow:
+        fail("web example workflow still uses the pre-reactor resource path")
+    if (
+        "refs/heads/main/shaft-engine/src/main/resources/docker-compose/selenium4.yml"
+        not in web_workflow
+    ):
+        fail("web example workflow Docker Compose download path is missing")
     sync_workflow = (ROOT / ".github/workflows/sync-sample-projects-version.yml").read_text(
         encoding="utf-8"
     )
