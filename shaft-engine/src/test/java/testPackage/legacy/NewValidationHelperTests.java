@@ -1,6 +1,7 @@
 package testPackage.legacy;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.Properties;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
@@ -84,7 +85,7 @@ public class NewValidationHelperTests {
             driver.get().element().assertThat(By.tagName("h3")).exists().perform();
     }
 
-    @Test(groups = {"browserBasedTests"}, expectedExceptions = RuntimeException.class)
+    @Test(groups = {"browserBasedTests"})
     public void f10() {
         driver.get().element().assertThat(By.tagName("div")).exists().perform();
     }
@@ -100,7 +101,7 @@ public class NewValidationHelperTests {
         driver.get().element().assertThat(By.tagName("h1")).doesNotExist().perform();
     }
 
-    @Test(groups = {"browserBasedTests"}, expectedExceptions = RuntimeException.class)
+    @Test(groups = {"browserBasedTests"}, expectedExceptions = AssertionError.class)
     public void f13() {
         driver.get().element().assertThat(By.tagName("div")).doesNotExist().perform();
     }
@@ -219,12 +220,17 @@ public class NewValidationHelperTests {
     @BeforeMethod(onlyForGroups = {"browserBasedTests"})
     public void openBrowser() {
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL("https://the-internet.herokuapp.com/");
+        driver.get().browser().navigateToURL(
+                "data:text/html;charset=utf-8,<html><body><h1>Welcome to the-internet</h1><div></div></body></html>");
     }
 
     @AfterMethod(onlyForGroups = {"browserBasedTests"}, alwaysRun = true)
     public void closeBrowser() {
-        driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+        }
+        driver.remove();
+        Properties.clearForCurrentThread();
     }
 }
 

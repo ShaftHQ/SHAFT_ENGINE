@@ -90,6 +90,19 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
         errors.append("CodeQL build must compile every Java-bearing module")
 
     engine_pom = (root / "shaft-engine" / "pom.xml").read_text(encoding="utf-8")
+    if "<id>visual-test-runtime</id>" not in engine_pom:
+        errors.append("shaft-engine must define the optional visual test runtime profile")
+    if "<name>includeVisualTestRuntime</name>" not in engine_pom:
+        errors.append("visual test runtime profile must use explicit property activation")
+    if "<additionalClasspathDependency>" not in engine_pom or "<artifactId>shaft-visual</artifactId>" not in engine_pom:
+        errors.append("visual test runtime profile must add shaft-visual to the Surefire classpath")
+    visual_profile = (
+        engine_pom.split("<id>visual-test-runtime</id>", 1)[1].split("</profile>", 1)[0]
+        if "<id>visual-test-runtime</id>" in engine_pom
+        else ""
+    )
+    if "<artifactId>shaft-engine</artifactId>" not in visual_profile:
+        errors.append("visual test runtime profile must exclude shaft-engine's transitive tree")
     for artifact in (
         "com.browserstack:browserstack-java-sdk",
         "ws.schild:jave-*",
@@ -100,6 +113,17 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     ):
         if f"<exclude>{artifact}</exclude>" not in engine_pom:
             errors.append(f"shaft-engine dependency boundary does not ban {artifact}")
+
+    visual_install_command = "mvn -pl shaft-visual -am -e install -DskipTests -Dgpg.skip"
+    for workflow_name, expected_jobs in (("e2eLocalTests.yml", 4), ("e2eTests.yml", 3)):
+        workflow = (root / ".github" / "workflows" / workflow_name).read_text(encoding="utf-8")
+        install_count = workflow.count(visual_install_command)
+        activation_count = workflow.count('"-DincludeVisualTestRuntime"')
+        if install_count != expected_jobs or activation_count != expected_jobs:
+            errors.append(
+                f"{workflow_name} must prepare and activate the visual test runtime "
+                f"for {expected_jobs} broad browser jobs"
+            )
     return errors
 
 
