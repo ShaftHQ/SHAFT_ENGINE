@@ -44,7 +44,7 @@
 		<maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
 		<maven-resources-plugin.version>3.5.0</maven-resources-plugin.version>
 		<surefire-testng.version>3.5.5</surefire-testng.version>
-		<maven-surefire-plugin.version>3.5.5</maven-surefire-plugin.version>
+		<maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
 		<junit-jupiter-engine.version>6.0.3</junit-jupiter-engine.version>
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
 	</properties>
