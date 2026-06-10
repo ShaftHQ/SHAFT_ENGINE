@@ -6,7 +6,7 @@ SHAFT publishes the complete reactor as one Maven Central deployment. Publicatio
 
 | Coordinate | Packaging | Additional required artifacts |
 | --- | --- | --- |
-| `io.github.shafthq:shaft-parent` | POM | signature |
+| `io.github.shafthq:shaft-parent` | POM | aggregate CycloneDX JSON, signatures |
 | `io.github.shafthq:shaft-engine` | JAR | sources, JavaDocs, signatures |
 | `io.github.shafthq:shaft-browserstack` | JAR | sources, JavaDocs, signatures |
 | `io.github.shafthq:shaft-video` | JAR | sources, JavaDocs, signatures |
@@ -14,7 +14,7 @@ SHAFT publishes the complete reactor as one Maven Central deployment. Publicatio
 | `io.github.shafthq:shaft-bom` | POM | signature |
 | `io.github.shafthq:SHAFT_ENGINE` | relocation POM | signature |
 
-`report-aggregate` is build support only. It participates in the reactor to produce aggregate JaCoCo output but sets Maven deployment and GPG signing skip properties so it cannot enter a Central deployment.
+`report-aggregate` is build support only. It participates in the reactor to produce aggregate JaCoCo output but skips Maven deployment, Central publishing, and GPG signing so it cannot enter a Central deployment.
 
 The BOM may manage only artifacts in the public set. `scripts/ci/validate_maven_publication.py` rejects unpublished BOM references, missing publication plugins, an unsafe release-workflow order, or an incomplete build output set.
 
@@ -35,7 +35,7 @@ python3 scripts/ci/validate_maven_publication.py \
 
 The combined consumer imports `shaft-bom`, resolves all four JAR modules, enforces dependency convergence, detects duplicate classes outside the BrowserStack SDK's documented shaded JAR, and writes a CycloneDX SBOM.
 
-For a signed staging rehearsal, import a disposable GPG key into an isolated `GNUPGHOME`, run the reactor without `-Dgpg.skip`, and add `--require-signatures` to both validator commands. Never use release credentials for a local rehearsal and never run `deploy` as part of the dry run.
+For a signed staging rehearsal, import a disposable GPG key into an isolated `GNUPGHOME`, run the reactor without `-Dgpg.skip`, and add `--require-signatures` to both validator commands. The aggregate CycloneDX artifact is attached before the shared `maven-gpg-plugin` `verify` execution so it is signed like every POM, JAR, sources JAR, and JavaDocs JAR. Never use release credentials for a local rehearsal.
 
 ## Atomic release order
 

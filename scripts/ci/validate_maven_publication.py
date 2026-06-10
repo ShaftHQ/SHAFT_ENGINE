@@ -47,13 +47,21 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
     if "report-aggregate" not in modules:
         errors.append("reactor must include report-aggregate")
 
-    active_plugins = {
+    active_plugins = [
         _text(plugin, "m:artifactId")
         for plugin in parent.findall("m:build/m:plugins/m:plugin", NS)
-    }
+    ]
     for plugin in ("central-publishing-maven-plugin", "maven-gpg-plugin", "cyclonedx-maven-plugin"):
         if plugin not in active_plugins:
             errors.append(f"parent build must activate {plugin}")
+    central = parent.find(
+        "m:build/m:plugins/m:plugin[m:artifactId='central-publishing-maven-plugin']", NS
+    )
+    if central is not None and _text(central, "m:inherited") == "false":
+        errors.append("Central publishing must be inherited by every deployable reactor module")
+    if all(plugin in active_plugins for plugin in ("cyclonedx-maven-plugin", "maven-gpg-plugin")):
+        if active_plugins.index("cyclonedx-maven-plugin") > active_plugins.index("maven-gpg-plugin"):
+            errors.append("aggregate SBOM must be attached before Maven GPG signs verify-phase artifacts")
     sbom_skip = _text(
         parent,
         "m:build/m:plugins/m:plugin[m:artifactId='cyclonedx-maven-plugin']"
@@ -67,6 +75,8 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
         errors.append("report-aggregate must set maven.deploy.skip=true")
     if _text(aggregate, "m:properties/m:gpg.skip") != "true":
         errors.append("report-aggregate must set gpg.skip=true")
+    if _text(aggregate, "m:properties/m:skipPublishing") != "true":
+        errors.append("report-aggregate must set skipPublishing=true")
 
     bom = _parse(root / "shaft-bom" / "pom.xml")
     bom_artifacts = {
@@ -139,6 +149,8 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
                         errors.append(f"missing signature: {output.relative_to(root)}.asc")
         if not (root / "target" / "bom.json").is_file():
             errors.append("missing aggregate SBOM: target/bom.json")
+        if require_signatures and not (root / "target" / "bom.json.asc").is_file():
+            errors.append("missing signature: target/bom.json.asc")
     return errors
 
 
@@ -167,7 +179,12 @@ def create_bundle(destination: Path, root: Path = ROOT, require_signatures: bool
                 archive.write(source, f"{base}/{name}")
                 if signature.is_file():
                     archive.write(signature, f"{base}/{name}.asc")
-        archive.write(root / "target" / "bom.json", "sbom/bom.json")
+        sbom_name = f"shaft-parent-{version}-cyclonedx.json"
+        sbom_base = f"io/github/shafthq/shaft-parent/{version}"
+        archive.write(root / "target" / "bom.json", f"{sbom_base}/{sbom_name}")
+        sbom_signature = root / "target" / "bom.json.asc"
+        if sbom_signature.is_file():
+            archive.write(sbom_signature, f"{sbom_base}/{sbom_name}.asc")
 
 
 def main() -> int:
