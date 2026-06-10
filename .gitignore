@@ -67,3 +67,10 @@ log/
 
 __pycache__/
 .pytest_cache/
+
+/src/main/resources/examples/*/*/allure-results/
+/src/main/resources/examples/*/*/execution-summary/
+/src/main/resources/examples/*/*/allure-report/
+/src/main/resources/examples/*/*/generate_allure_report.bat
+/src/test/resources/META-INF/services/
+/src/main/resources/examples/*/*/performanceReport/
