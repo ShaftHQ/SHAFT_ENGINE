@@ -5,13 +5,18 @@
     <parent>
         <groupId>io.github.shafthq</groupId>
         <artifactId>shaft-parent</artifactId>
-        <version>10.2.20260605</version>
+        <version>10.2.20260610</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>report-aggregate</artifactId>
     <packaging>pom</packaging>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Non-deployed aggregate quality reports for all Java-bearing SHAFT modules.</description>
+
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <gpg.skip>true</gpg.skip>
+    </properties>
 
     <dependencies>
         <dependency>

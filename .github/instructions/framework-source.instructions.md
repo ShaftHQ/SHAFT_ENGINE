@@ -109,12 +109,12 @@ When fixing a bug or unexpected behavior in framework source files, you **must**
 - Run regression tests to confirm no other behavior is broken
 
 ### Release Metadata Updates in `Internal.java`
-When preparing a SHAFT release and editing `shaft-engine/shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java`, update/verify these keys together:
+When preparing a SHAFT release and editing `shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java`, update/verify these keys together:
 - `shaftEngineVersion` (must match root `pom.xml` project version)
 - `allure3Version` (latest stable Allure 3 npm package)
 - `nodeLtsVersion` (latest Node.js LTS patch)
 
-Release PRs must also update every sample/demo `<shaft_engine.version>` under `shaft-engine/src/main/resources/examples/**/pom.xml` in the same branch before the PR is opened; do not depend on the post-release sample-sync workflow to repair stale demo project versions.
+Release PRs must also update every sample/demo `<shaft.version>` under `shaft-engine/src/main/resources/examples/**/pom.xml` in the same branch before the PR is opened; do not depend on the post-release sample-sync workflow to repair stale demo project versions.
 
 ### ⛔ Mandatory Pre-Commit Rules (No Exceptions)
 > **You MUST NEVER commit untested framework code. There are no exceptions to these rules.**

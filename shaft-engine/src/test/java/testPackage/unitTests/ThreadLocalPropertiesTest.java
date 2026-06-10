@@ -8,8 +8,6 @@ import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.LoggerContext;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 import org.testng.Assert;
@@ -39,6 +37,7 @@ public class ThreadLocalPropertiesTest {
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
         // Clear thread-local overrides after each test to avoid cross-test contamination
+        resetRetryDiagnosticLoggingForCurrentThread();
         Properties.clearForCurrentThread();
     }
 
@@ -289,7 +288,7 @@ public class ThreadLocalPropertiesTest {
     public void testRetryDiagnosticsLoggingLifecycle() throws java.io.IOException {
         int originalRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
         File logFile = new File(SHAFT.Properties.log4j.appenderFile_FileName());
-        Level originalRootLogLevel = getRootLogLevel();
+        resetRetryDiagnosticLoggingForCurrentThread();
         if (logFile.exists()) {
             Files.deleteIfExists(logFile.toPath());
         }
@@ -308,8 +307,6 @@ public class ThreadLocalPropertiesTest {
                     "Retry diagnostics should enable debug file logging while retry evidence is active");
             Assert.assertTrue(logFile.isFile(), "Retry diagnostics should ensure the log file exists");
             Assert.assertTrue(logFile.length() > 0, "Retry diagnostics should write to the log file");
-            Assert.assertEquals(getRootLogLevel(), Level.DEBUG,
-                    "Retry diagnostics should temporarily push the root log level to debug");
             String retryLog = Files.readString(logFile.toPath(), StandardCharsets.UTF_8);
             Assert.assertTrue(retryLog.contains("[DEBUG"),
                     "Retry diagnostics should include at least one debug-level entry");
@@ -317,8 +314,6 @@ public class ThreadLocalPropertiesTest {
             Assert.assertFalse(isRetryDebugFileLoggingEnabled(),
                     "Retry diagnostics should be disabled after engine log attachment completes");
             Assert.assertFalse(logFile.exists(), "Generated retry diagnostics log should be attached and removed");
-            Assert.assertEquals(getRootLogLevel(), originalRootLogLevel,
-                    "Retry diagnostics should restore the exact pre-test root log level after attaching logs");
         } finally {
             SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetryCount);
             Files.deleteIfExists(logFile.toPath());
@@ -336,6 +331,7 @@ public class ThreadLocalPropertiesTest {
 
         try {
             ThreadLocalPropertiesManager.setProperty("appender.file.fileName", nonFileLogPath.toString());
+            SHAFT.Properties.reporting.set().disableLogging(true);
             boolean isLogFileReady = (boolean) ensureLogFileExists.invoke(null);
             Assert.assertFalse(isLogFileReady,
                     "Retry diagnostics should reject non-regular log file paths");
@@ -358,10 +354,6 @@ public class ThreadLocalPropertiesTest {
         Method writeToDebugLogFile = ReportManagerHelper.class
                 .getDeclaredMethod("writeToDebugLogFile", String.class, Level.class);
         writeToDebugLogFile.setAccessible(true);
-        Method resetRetryDiagnosticLogging = ReportManagerHelper.class
-                .getDeclaredMethod("resetRetryDiagnosticLogging");
-        resetRetryDiagnosticLogging.setAccessible(true);
-
         try {
             ThreadLocalPropertiesManager.setProperty("appender.file.fileName", logFilePath.toString());
             ReportManager.logDiscrete("Initialize logger for UTF-8 retry diagnostics test");
@@ -372,7 +364,7 @@ public class ThreadLocalPropertiesTest {
             Assert.assertTrue(writtenLog.contains(unicodeLogEntry),
                     "Retry debug log writer should preserve Unicode characters when written/read as UTF-8");
         } finally {
-            resetRetryDiagnosticLogging.invoke(null);
+            resetRetryDiagnosticLoggingForCurrentThread();
             ThreadLocalPropertiesManager.setProperty("appender.file.fileName", originalLogFilePath);
             Files.deleteIfExists(logFilePath);
             Files.deleteIfExists(tempDirectory);
@@ -380,15 +372,22 @@ public class ThreadLocalPropertiesTest {
         }
     }
 
-    private Level getRootLogLevel() {
-        return ((LoggerContext) LogManager.getContext(false)).getConfiguration().getRootLogger().getLevel();
+    private void resetRetryDiagnosticLoggingForCurrentThread() {
+        try {
+            Method method = ReportManagerHelper.class.getDeclaredMethod("resetRetryDiagnosticLogging");
+            method.setAccessible(true);
+            method.invoke(null);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Could not reset retry diagnostics debug logging state", e);
+        }
     }
 
     private boolean isRetryDebugFileLoggingEnabled() {
         try {
-            var field = ReportManagerHelper.class.getDeclaredField("debugFileLoggingEnabled");
-            field.setAccessible(true);
-            return field.getBoolean(null);
+            Method method = ReportManagerHelper.class
+                    .getDeclaredMethod("isRetryDiagnosticLoggingEnabledForCurrentThread");
+            method.setAccessible(true);
+            return (boolean) method.invoke(null);
         } catch (ReflectiveOperationException e) {
             throw new AssertionError("Could not inspect retry diagnostics debug logging state", e);
         }

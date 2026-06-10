@@ -9,7 +9,7 @@
 
     <properties>
         <!-- Make sure you point to the latest release version: https://github.com/ShaftHQ/SHAFT_ENGINE/releases -->
-        <shaft_engine.version>10.2.20260605</shaft_engine.version>
+        <shaft.version>10.2.20260610</shaft.version>
         <jdk.version>25</jdk.version>
         <aspectjweaver.version>1.9.25.1</aspectjweaver.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
@@ -18,11 +18,21 @@
         <maven-surefire-plugin.version>3.5.5</maven-surefire-plugin.version>
         <surefireArgLine></surefireArgLine>
     </properties>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.github.shafthq</groupId>
+                <artifactId>shaft-bom</artifactId>
+                <version>${shaft.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>io.github.shafthq</groupId>
             <artifactId>shaft-engine</artifactId>
-            <version>${shaft_engine.version}</version>
         </dependency>
         <dependency>
             <groupId>org.aspectj</groupId>

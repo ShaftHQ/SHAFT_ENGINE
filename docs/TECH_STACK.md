@@ -14,6 +14,12 @@
 
 ## Powered By
 
+The required `shaft-engine` artifact includes Selenium, Appium, REST Assured,
+and the core reporting stack. OpenCV, Applitools Eyes, and Shutterbug are
+provided by `shaft-visual`; the BrowserStack Java SDK is provided by
+`shaft-browserstack`; desktop recording and JAVE/FFmpeg are provided by
+`shaft-video`. See the [module map](ARCHITECTURE.md#published-maven-artifacts).
+
 <table border="0" align="center">
  <tr>
   <td align="center"><br/>

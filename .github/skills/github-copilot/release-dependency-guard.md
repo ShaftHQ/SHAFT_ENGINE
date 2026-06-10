@@ -24,8 +24,9 @@ Verify that the SHAFT engine version is consistent across all required locations
 | # | File | Field / Pattern |
 |---|---|---|
 | 1 | `pom.xml` (line 6) | `<version>X.Y.Z</version>` |
-| 2 | `src/main/java/com/shaft/properties/internal/Internal.java` | `@DefaultValue("X.Y.Z")` on `shaftEngineVersion()` |
-| 3 | All 7 `pom.xml` files under `src/main/resources/examples/` | `<shaft_engine.version>X.Y.Z</shaft_engine.version>` |
+| 2 | All reactor child `pom.xml` files | Parent `<version>X.Y.Z</version>` |
+| 3 | `shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java` | `@DefaultValue("X.Y.Z")` on `shaftEngineVersion()` |
+| 4 | All 7 `pom.xml` files under `shaft-engine/src/main/resources/examples/` | `<shaft.version>X.Y.Z</shaft.version>` |
 
 ### Validation Rules
 - All locations must declare the **same** version string.
@@ -40,7 +41,7 @@ Compare the following properties across the main `pom.xml` and all 7 sample proj
 
 | Property | Main `pom.xml` Location |
 |---|---|
-| `jdk.version` | `<source>` / `<target>` in `maven-compiler-plugin` config |
+| `jdk.version` | Root `<properties><jdk.version>` |
 | `aspectjweaver.version` | `<version>` of `org.aspectj:aspectjweaver` in `<dependencies>` |
 | `maven-compiler-plugin.version` | `<version>` of `maven-compiler-plugin` in `<build><plugins>` |
 | `maven-resources-plugin.version` | `<version>` of `maven-resources-plugin` in `<build><plugins>` |
@@ -115,7 +116,7 @@ Use this exact structure:
 **Remediation** (if drift detected):
 ```bash
 # Copy-paste ready fix commands
-find src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<OLD>|<NEW>|g'
+find shaft-engine/src/main/resources/examples -name "pom.xml" | xargs sed -i 's|<OLD>|<NEW>|g'
 ```
 
 ### Dependency Updates Available

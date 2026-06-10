@@ -131,7 +131,7 @@ Use this protocol whenever a maintainer tags `@codex` to start work, says `start
 ## Release Preparation Notes
 - Release versions use `{major}.{quarter}.{YYYYMMDD}`; for example, a Q2 release generated on May 13, 2026 is `10.2.20260513`.
 - A release PR title should include the release name/version and clearly say that the PR generates or prepares a new release.
-- Before opening a release PR, inspect recent merged release PRs for changed files and PR-body conventions, then update these locations together: root `pom.xml`, `shaft-engine/pom.xml`, `shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java`, and all seven sample/demo project `pom.xml` files under `shaft-engine/src/main/resources/examples/`.
+- Before opening a release PR, inspect recent merged release PRs for changed files and PR-body conventions, then update these locations together: root `pom.xml`, every reactor child parent version, `shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java`, all consumer fixture `<shaft.version>` values, and all seven sample/demo project `pom.xml` files under `shaft-engine/src/main/resources/examples/`.
 - In `Internal.java`, verify `allure3Version` against the latest stable `allure` npm package and `nodeLtsVersion` against the latest Node.js LTS patch; record when a value is already current.
 - Validate release-only changes with dependency-update checks and `mvn clean install -DskipTests -Dgpg.skip`; merging the PR to `main` starts the Maven Central release pipeline, so do not run deploy/release commands locally.
 
@@ -139,7 +139,7 @@ Use this protocol whenever a maintainer tags `@codex` to start work, says `start
 - Do not expose secrets or copy values from `.env`, credential files, BrowserStack/LambdaTest variables, Maven Central credentials, GPG keys, or CI secrets.
 - Do not run deployment/release commands, `scm-publish`, history rewrites, destructive cleanup, or credentialed cloud workflows unless explicitly requested.
 - Treat `target/`, generated reports, downloaded binaries, and build artifacts as generated outputs; do not commit them unless maintainers explicitly request it.
-- Be careful with release `pom.xml` version changes: release PRs must update the root `pom.xml` project version, `Internal.java` `shaftEngineVersion`, `allure3Version`, and `nodeLtsVersion`, and every sample/demo `<shaft_engine.version>` under `shaft-engine/src/main/resources/examples/**/pom.xml` in the same branch before opening the PR. Do not rely on the post-release sample-sync workflow to fix release PR drift.
+- Be careful with release `pom.xml` version changes: release PRs must update the root project version, every reactor child parent version, consumer fixtures, `Internal.java` `shaftEngineVersion`, `allure3Version`, and `nodeLtsVersion`, and every sample/demo `<shaft.version>` under `shaft-engine/src/main/resources/examples/**/pom.xml` in the same branch before opening the PR. Do not rely on the post-release sample-sync workflow to fix release PR drift.
 - Binary mobile test assets (`*.apk`, `*.ipa`) have special JaCoCo exclusions; do not move or reclassify them casually.
 - Docker Compose E2E services should be stopped/cleaned up after local use.
 

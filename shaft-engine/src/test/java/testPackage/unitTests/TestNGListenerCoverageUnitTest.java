@@ -4,12 +4,12 @@ import com.epam.reportportal.listeners.ItemStatus;
 import com.epam.reportportal.testng.ITestNGService;
 import com.shaft.listeners.TestNGListener;
 import com.shaft.listeners.internal.TestNGListenerHelper;
+import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import org.mockito.Mockito;
 import org.testng.ITestClass;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
@@ -19,22 +19,13 @@ import java.util.List;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
+@Test(singleThreaded = true)
 public class TestNGListenerCoverageUnitTest {
-
-    @BeforeMethod(alwaysRun = true)
-    public void beforeMethod() throws Exception {
-        clearTrackedMethods("passedTests");
-        clearTrackedMethods("failedTests");
-        clearTrackedMethods("skippedTests");
-    }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() throws Exception {
         setReportPortalEnabled(false);
         TestNGListenerHelper.setPendingConfigFailure(null);
-        clearTrackedMethods("passedTests");
-        clearTrackedMethods("failedTests");
-        clearTrackedMethods("skippedTests");
         com.shaft.properties.internal.Properties.clearForCurrentThread();
     }
 
@@ -50,6 +41,18 @@ public class TestNGListenerCoverageUnitTest {
 
         Throwable pendingFailure = TestNGListenerHelper.getAndClearPendingConfigFailure();
         assertEquals(pendingFailure, throwable);
+    }
+
+    @Test
+    public void onExecutionStartShouldNotInitializeReportPortalWhenDisabled() throws Exception {
+        ThreadLocalPropertiesManager.setProperty("rp.enable", "false");
+        TestNGListener listener = new TestNGListener();
+
+        Method initializeReportPortal = TestNGListener.class.getDeclaredMethod("initializeReportPortalIfEnabled");
+        initializeReportPortal.setAccessible(true);
+        initializeReportPortal.invoke(listener);
+
+        assertNull(getReportPortalService(listener));
     }
 
     @Test
@@ -149,13 +152,13 @@ public class TestNGListenerCoverageUnitTest {
         ITestNGMethod failedOnly = createTestMethod("failedOnly");
         ITestNGMethod skippedOnly = createTestMethod("skippedOnly");
 
-        getTrackedMethods("passedTests").addAll(List.of(passedOnly, flakyThenPassed));
-        getTrackedMethods("failedTests").addAll(List.of(flakyThenPassed, failedOnly, failedOnly));
-        getTrackedMethods("skippedTests").addAll(List.of(skippedOnly, failedOnly));
-
-        Method getDeduplicatedTestExecutionCounts = TestNGListener.class.getDeclaredMethod("getDeduplicatedTestExecutionCounts");
+        Method getDeduplicatedTestExecutionCounts = TestNGListener.class.getDeclaredMethod(
+                "getDeduplicatedTestExecutionCounts", List.class, List.class, List.class);
         getDeduplicatedTestExecutionCounts.setAccessible(true);
-        Object counts = getDeduplicatedTestExecutionCounts.invoke(null);
+        Object counts = getDeduplicatedTestExecutionCounts.invoke(null,
+                List.of(passedOnly, flakyThenPassed),
+                List.of(flakyThenPassed, failedOnly, failedOnly),
+                List.of(skippedOnly, failedOnly));
 
         assertEquals(invokeCount(counts, "passed"), 1);
         assertEquals(invokeCount(counts, "failed"), 1);
@@ -167,10 +170,6 @@ public class TestNGListenerCoverageUnitTest {
     @SuppressWarnings("unchecked")
     private static void removeTrackedMethod(String fieldName, ITestNGMethod testMethod) throws Exception {
         getTrackedMethods(fieldName).remove(testMethod);
-    }
-
-    private static void clearTrackedMethods(String fieldName) throws Exception {
-        getTrackedMethods(fieldName).clear();
     }
 
     @SuppressWarnings("unchecked")
@@ -223,5 +222,11 @@ public class TestNGListenerCoverageUnitTest {
         Field reportPortalServiceField = TestNGListener.class.getDeclaredField("reportPortalTestNGService");
         reportPortalServiceField.setAccessible(true);
         reportPortalServiceField.set(listener, reportPortalService);
+    }
+
+    private static ITestNGService getReportPortalService(TestNGListener listener) throws Exception {
+        Field reportPortalServiceField = TestNGListener.class.getDeclaredField("reportPortalTestNGService");
+        reportPortalServiceField.setAccessible(true);
+        return (ITestNGService) reportPortalServiceField.get(listener);
     }
 }

@@ -13,6 +13,20 @@ import java.util.Map;
 
 
 public class ApiPerformanceReportTest {
+    private static final String BOOKING_REQUEST_BODY = """
+            {
+              "firstname": "Jim",
+              "lastname": "Brown",
+              "totalprice": 111,
+              "depositpaid": true,
+              "bookingdates": {
+                "checkin": "2018-01-01",
+                "checkout": "2019-01-01"
+              },
+              "additionalneeds": "Breakfast"
+            }
+            """;
+
     ThreadLocal<SHAFT.API> api = new ThreadLocal<>();
 
     @BeforeMethod(onlyForGroups = {"restful-booker"})
@@ -49,8 +63,15 @@ public class ApiPerformanceReportTest {
 
     @Test(groups = {"restful-booker"})
     public void testGetBooking() {
-        api.get().get("booking/1").
-                setTargetStatusCode(0).
+        int bookingId = api.get().post("booking").
+                setContentType("application/json").
+                setRequestBody(BOOKING_REQUEST_BODY).
+                perform().
+                getResponse().
+                path("bookingid");
+
+        api.get().get("booking/{bookingId}").
+                setPathParameters(String.valueOf(bookingId)).
                 perform();
     }
 
@@ -58,9 +79,7 @@ public class ApiPerformanceReportTest {
     public void testCreateBookingJSON() {
         api.get().post("booking").
                 setContentType("application/json").
-                setRequestBody("{\"firstname\":\"Jim\",\"lastname\":\"Brown\",\"totalprice\":111,\n" +
-                        " \"depositpaid\":true,\"bookingdates\":{\"checkin\":\"2018-01-01\",\"checkout\":\"2019-01-01\"},\n" +
-                        " \"additionalneeds\":\"Breakfast\"}").
+                setRequestBody(BOOKING_REQUEST_BODY).
                 perform();
     }
 

@@ -542,12 +542,6 @@
       "sha256": "0076c249b4387d8369146528fd5dacb3efba098dc02ecf9ac81debdfc2e12fd5"
     },
     {
-      "coordinate": "com.vaadin.external.google:android-json:jar:0.0.20131108.vaadin1",
-      "scope": "compile",
-      "compressedBytes": 18279,
-      "sha256": "dfb7bae2f404cfe0b72b4d23944698cb716b7665171812a0a4d0f5926c0fac79"
-    },
-    {
       "coordinate": "com.zaxxer:SparseBitSet:jar:1.3",
       "scope": "compile",
       "compressedBytes": 25843,
@@ -724,8 +718,14 @@
     {
       "coordinate": "io.github.shafthq:shaft-engine:jar:10.2.20260605",
       "scope": "compile",
-      "compressedBytes": 695946,
-      "sha256": "43869beba48828c2ecf3b8146786452c5436ddb47e730aa6d25bfda5e8e7b149"
+      "compressedBytes": 693114,
+      "sha256": "79bc203a06b277d6913aee0f595e3ecbc0ba24386c60be09b1b259a0ccffae73"
+    },
+    {
+      "coordinate": "io.github.shafthq:shaft-visual:jar:10.2.20260605",
+      "scope": "compile",
+      "compressedBytes": 15335,
+      "sha256": "414ee0f7b60d015fb06e5add180cdd9c920608e299685d74f0fc64769a4c7683"
     },
     {
       "coordinate": "io.grpc:grpc-alts:jar:1.81.0",
@@ -1590,6 +1590,12 @@
       "scope": "compile",
       "compressedBytes": 264973,
       "sha256": "fd68a98b32b1132035c62102e5df0b0fdc358e7c87a9f876ce7071450b4d10da"
+    },
+    {
+      "coordinate": "org.json:json:jar:20260522",
+      "scope": "compile",
+      "compressedBytes": 88704,
+      "sha256": "d671b45e5954211f3566722aa614fbd3b5d46e95f4f9da4dc58c173280bb1799"
     },
     {
       "coordinate": "org.jsoup:jsoup:jar:1.22.2",

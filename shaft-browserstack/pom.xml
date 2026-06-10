@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.github.shafthq</groupId>
         <artifactId>shaft-parent</artifactId>
-        <version>10.2.20260605</version>
+        <version>10.2.20260610</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>shaft-browserstack</artifactId>
@@ -48,6 +48,19 @@
             </exclusions>
         </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
     <properties>
         <surefire.failIfNoSpecifiedTests>false</surefire.failIfNoSpecifiedTests>
     </properties>

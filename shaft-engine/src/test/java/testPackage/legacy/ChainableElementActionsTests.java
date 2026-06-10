@@ -1,6 +1,7 @@
 package testPackage.legacy;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.Properties;
 import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -11,6 +12,7 @@ public class ChainableElementActionsTests {
 
     @BeforeMethod
     public void beforeMethod() {
+        SHAFT.Properties.flags.set().clearBeforeTypingMode("native");
         driver.set(new SHAFT.GUI.WebDriver());
     }
 
@@ -33,5 +35,6 @@ public class ChainableElementActionsTests {
             driver.get().quit();
         }
         driver.remove();
+        Properties.clearForCurrentThread();
     }
 }

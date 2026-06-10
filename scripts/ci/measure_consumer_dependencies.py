@@ -27,14 +27,27 @@ BROWSERSTACK_ROOT = ROOT / "shaft-browserstack"
 BROWSERSTACK_POM = BROWSERSTACK_ROOT / "pom.xml"
 VIDEO_ROOT = ROOT / "shaft-video"
 VIDEO_POM = VIDEO_ROOT / "pom.xml"
+VISUAL_ROOT = ROOT / "shaft-visual"
+VISUAL_POM = VISUAL_ROOT / "pom.xml"
 LEGACY_POM = ROOT / "legacy-shaft-engine" / "pom.xml"
 PROJECT_COORDINATES = (
     "io.github.shafthq:shaft-engine",
     "io.github.shafthq:shaft-browserstack",
     "io.github.shafthq:shaft-video",
+    "io.github.shafthq:shaft-visual",
     "io.github.shafthq:SHAFT_ENGINE",
 )
 DEPENDENCY_LINE = re.compile(r"^\s*([^\s].*?):(/.*|[A-Za-z]:\\.*)$")
+
+
+def maven_executable(system: str | None = None) -> str:
+    system = system or platform.system()
+    candidates = ("mvn.cmd", "mvn") if system == "Windows" else ("mvn",)
+    for candidate in candidates:
+        executable = shutil.which(candidate)
+        if executable:
+            return executable
+    raise RuntimeError("Maven executable was not found on PATH.")
 
 
 def sha256(path: Path) -> str:
@@ -83,6 +96,13 @@ def seed_project_artifact(repository: Path, jar: Path, version: str) -> int:
     shutil.copy2(
         VIDEO_ROOT / "target" / f"shaft-video-{version}.jar",
         video_destination / f"shaft-video-{version}.jar",
+    )
+    visual_destination = repository / "io" / "github" / "shafthq" / "shaft-visual" / version
+    visual_destination.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(VISUAL_POM, visual_destination / f"shaft-visual-{version}.pom")
+    shutil.copy2(
+        VISUAL_ROOT / "target" / f"shaft-visual-{version}.jar",
+        visual_destination / f"shaft-visual-{version}.jar",
     )
     seed_pom(repository, "SHAFT_ENGINE", LEGACY_POM, version)
     seed_pom(repository, "shaft-parent", ROOT / "pom.xml", version)
@@ -148,11 +168,15 @@ def expected_jave_coordinate(system: str | None = None, machine: str | None = No
 def validate_required_artifacts(manifest: dict[str, object]) -> list[str]:
     artifacts = {artifact["coordinate"]: artifact for artifact in manifest["artifacts"]}
     errors: list[str] = []
-    required = {
-        "org.openpnp:opencv:jar:4.9.0-0": 109_619_828,
-    }
+    required: dict[str, int] = {}
+    opencv_coordinate = "org.openpnp:opencv:jar:4.9.0-0"
+    optional_fixture = str(manifest.get("fixture"))
+    if optional_fixture in {"opencv-visual", "bom", "combined-modules"}:
+        required[opencv_coordinate] = 109_619_828
+    elif opencv_coordinate in artifacts:
+        errors.append(f"forbidden artifact {opencv_coordinate}")
     browserstack_coordinate = "com.browserstack:browserstack-java-sdk:jar:1.59.8"
-    if manifest.get("fixture") == "browserstack-sdk":
+    if optional_fixture in {"browserstack-sdk", "combined-modules"}:
         required[browserstack_coordinate] = 38_204_017
     elif browserstack_coordinate in artifacts:
         errors.append(f"forbidden artifact {browserstack_coordinate}")
@@ -172,7 +196,7 @@ def validate_required_artifacts(manifest: dict[str, object]) -> list[str]:
     resolved_desktop = sorted(
         coordinate for coordinate in artifacts if coordinate.startswith(desktop_coordinates)
     )
-    if manifest.get("fixture") == "desktop-video":
+    if optional_fixture in {"desktop-video", "combined-modules"}:
         expected_jave = expected_jave_coordinate()
         resolved_jave = sorted(
             coordinate for coordinate in artifacts if coordinate.startswith("ws.schild:jave-nativebin-")
@@ -192,7 +216,7 @@ def run_fixture(fixture: Path, jar: Path, keep_repositories: Path | None = None)
     seeded_bytes = seed_project_artifact(repository, jar, version)
     dependency_output = temporary / "dependencies.txt"
     command = [
-        "mvn", "--batch-mode", "--no-transfer-progress", "-f", str(fixture / "pom.xml"),
+        maven_executable(), "--batch-mode", "--no-transfer-progress", "-f", str(fixture / "pom.xml"),
         f"-Dmaven.repo.local={repository}", f"-Dshaft.version={version}", "test-compile",
         "dependency:list", "-DincludeScope=test", "-DoutputAbsoluteArtifactFilename=true",
         f"-DoutputFile={dependency_output}", "-DappendOutput=false",
@@ -240,16 +264,18 @@ def run_fixture(fixture: Path, jar: Path, keep_repositories: Path | None = None)
 def stable_manifest(manifest: dict[str, object]) -> dict[str, object]:
     ignored = {
         "artifactBytes", "elapsedSeconds", "repositoryBytes", "repositoryGrowthBytes",
-        "seededRepositoryBytes", "artifactsRef", "rootCoordinate",
+        "seededRepositoryBytes", "artifactsRef", "rootCoordinate", "platform",
     }
     stable = {key: value for key, value in manifest.items() if key not in ignored}
     # The reactor migration rebuilds SHAFT itself; compare the downstream graph byte-for-byte
-    # while validating the engine JAR separately by its entry list.
+    # while validating project JARs and the host-specific JAVE binary separately.
     project_jar_prefixes = tuple(f"{coordinate}:jar:" for coordinate in PROJECT_COORDINATES)
     if "artifacts" in stable:
         stable["artifacts"] = [
             artifact for artifact in stable["artifacts"]
-            if not str(artifact["coordinate"]).startswith(project_jar_prefixes)
+            if not str(artifact["coordinate"]).startswith(
+                project_jar_prefixes + ("ws.schild:jave-nativebin-",)
+            )
         ]
     return stable
 

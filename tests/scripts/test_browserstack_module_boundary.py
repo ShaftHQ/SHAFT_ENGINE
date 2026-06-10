@@ -73,7 +73,10 @@ class BrowserStackModuleBoundaryTest(unittest.TestCase):
         for command in commands:
             if "-DexecutionAddress=browserstack" in command:
                 expected_module = "shaft-browserstack"
-            elif "ImageProcessingActionsUnitTest" in command:
+            elif (
+                "ImageProcessingActionsUnitTest" in command
+                or "-pl shaft-visual -am" in command
+            ):
                 expected_module = "shaft-visual"
             elif "DesktopVideoRecordingProviderRegistrationTest" in command:
                 expected_module = "shaft-video"

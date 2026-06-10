@@ -281,6 +281,11 @@ driver.assertThat()
 SHAFT Engine's Flutter integration works seamlessly with cloud providers:
 
 ### BrowserStack
+
+This direct SHAFT Appium path requires only `shaft-engine`. Add
+`shaft-browserstack` only when the BrowserStack Java SDK must consume
+`browserstack.yml` for SDK interception or orchestration.
+
 ```java
 SHAFT.Properties.platform.set().executionAddress("browserstack");
 SHAFT.Properties.browserStack.set().platformVersion("13.0");

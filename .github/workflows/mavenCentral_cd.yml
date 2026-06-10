@@ -40,14 +40,34 @@ jobs:
           maven-version: 3.9.5
       - name: Reject divergent SHAFT reactor versions
         run: python3 scripts/ci/validate_reactor_versions.py
-      # Captures the engine version from the pom.xml
+      # Read the canonical release version from the reactor parent.
       - name: Set Release Version Number
         run: |
-          echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
-      # Inject the release version into the minimal release body summary
+          echo "RELEASE_VERSION=$(mvn -f pom.xml help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
+      - name: Validate Maven publication
+        run: |
+          python3 scripts/ci/validate_maven_publication.py
+          mvn --batch-mode clean install -DskipTests -Dgpg.skip
+          python3 scripts/ci/validate_maven_publication.py --check-build-outputs
+          mvn --batch-mode -f tools/modularization/consumer-fixtures/combined-modules/pom.xml verify \
+            "-Dshaft.version=${RELEASE_VERSION}"
+      - name: Setup Prerequisites
+        run: |
+          git config --global user.signingKey "${{ secrets.GPG_KEYNAME }}"
+          git config --global commit.gpgsign true
+          gpg --version
+          gpgconf --kill gpg-agent
+          gpg -K --keyid-format SHORT
+          export GPG_TTY=$(tty)
+      - name: Deploy to Maven Central
+        env:
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+        run: mvn --batch-mode deploy "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
+      - name: Verify published Maven Central coordinates
+        run: python3 scripts/ci/verify_maven_central_release.py "${RELEASE_VERSION}"
       - name: Prepare Release Body
         run: sed "s/\$RELEASE_VERSION/${{ env.RELEASE_VERSION }}/g" .github/RELEASE_BODY_TEMPLATE.md > /tmp/release_body.md
-      # Attempt to create a GitHub release using the version in the pom.xml, if this release already exists, this job will fail fast
       - name: Create GitHub Release
         id: create_release
         uses: ncipollo/release-action@v1.21.0
@@ -120,16 +140,3 @@ jobs:
             --header 'Content-type: application/json' \
             --data @/tmp/slack_release_payload.json \
             "$SLACK_WEBHOOK_URL"
-      - name: Setup Prerequisites
-        run: |
-          git config --global user.signingKey "${{ secrets.GPG_KEYNAME }}"
-          git config --global commit.gpgsign true
-          gpg --version
-          gpgconf --kill gpg-agent
-          gpg -K --keyid-format SHORT
-          export GPG_TTY=$(tty)
-      - name: Deploy to maven central
-        env:
-          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-        run: mvn --batch-mode deploy "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
