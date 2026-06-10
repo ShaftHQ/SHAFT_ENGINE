@@ -13,7 +13,6 @@ on:
       - '.github/dependabot.yml'
       - '.github/actions/post-test-report/action.yml'
       - '.github/workflows/codeql-analysis.yml'
-      - '.github/workflows/coverage-readiness.yml'
   push:
     branches: [ main ]
     paths:
@@ -27,7 +26,6 @@ on:
       - '.github/dependabot.yml'
       - '.github/actions/post-test-report/action.yml'
       - '.github/workflows/codeql-analysis.yml'
-      - '.github/workflows/coverage-readiness.yml'
   workflow_dispatch:
 
 permissions:
