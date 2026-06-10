@@ -4,7 +4,7 @@ FROM eclipse-temurin:25-jre
 LABEL io.modelcontextprotocol.server.name="io.github.ShaftHQ/shaft-mcp"
 
 # Download the released JAR from Maven Central
-ADD https://repo1.maven.org/maven2/io/github/shafthq/SHAFT_MCP/10.2.20260501/SHAFT_MCP-10.2.20260501.jar /app/SHAFT_MCP.jar
+ADD https://repo1.maven.org/maven2/io/github/shafthq/SHAFT_MCP/10.2.20260506/SHAFT_MCP-10.2.20260506.jar /app/SHAFT_MCP.jar
 
 WORKDIR /app
 
