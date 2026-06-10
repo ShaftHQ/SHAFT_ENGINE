@@ -1,10 +1,351 @@
 # Upgrade to modular SHAFT
 
-This guide migrates projects from the final monolithic release,
-`io.github.shafthq:SHAFT_ENGINE:10.2.20260605`, to modular SHAFT
-`10.2.20260609`. Java imports remain under `com.shaft`; the migration changes
-Maven coordinates and moves three dependency-heavy capabilities into optional
-runtime modules.
+The preferred upgrade route is the transactional
+[`shaft-upgrader`](../shaft-upgrader/README.md) module and its
+[`upgrade_to_modular_shaft.py`](../shaft-upgrader/upgrade_to_modular_shaft.py)
+script. It upgrades:
+
+- Native Selenium, Appium, or REST Assured Maven projects using TestNG or JUnit.
+- Projects already using modular SHAFT.
+- Legacy projects using `io.github.shafthq:SHAFT_ENGINE`.
+
+For native projects, the script preserves the existing Selenium, Appium, REST
+Assured, TestNG, and JUnit source and dependencies. It adds modular SHAFT so the
+project can adopt the SHAFT API incrementally; it does not mechanically rewrite
+all native test code. Native projects start with `shaft-engine` only; their
+existing third-party BrowserStack, OpenCV, or video dependencies are preserved
+without being reinterpreted as SHAFT optional-module usage.
+
+For legacy SHAFT projects, Java imports remain under `com.shaft`. The script
+replaces the old Maven coordinate, imports the BOM, scans source and
+configuration for optional capabilities, compiles the result, and rolls back
+every changed file if compilation does not pass.
+
+The manual dependency reference remains below for review and troubleshooting.
+
+## Preferred automated upgrade
+
+### What the script guarantees
+
+1. Finds supported Maven POMs without scanning generated `target`, `build`,
+   `.git`, IDE, or report directories.
+2. Resolves the latest published `shaft-engine` release from Maven Central,
+   unless `--shaft-version` is supplied.
+3. Compiles the unchanged project first. A broken baseline stops the migration
+   before any file is changed.
+4. Parses `pom.xml` as XML, imports `shaft-bom`, adds `shaft-engine`, and removes
+   the legacy `SHAFT_ENGINE` dependency.
+5. Adds only the optional modules supported by project evidence.
+6. Runs Maven `test-compile` so both main and test source are compiled.
+7. Commits the file transaction only after compilation passes.
+8. Restores every touched file byte-for-byte when validation fails.
+9. Optionally uses the OpenAI Responses API for exactly three repair attempts
+   before rollback.
+
+```mermaid
+flowchart TD
+    Start["Run upgrade_to_modular_shaft.py"] --> Discover["Discover Maven POMs and project type"]
+    Discover --> Supported{"Legacy/modular SHAFT<br/>or supported native stack?"}
+    Supported -- No --> Stop["Stop without changing files"]
+    Supported -- Yes --> Resolve["Resolve latest modular SHAFT version"]
+    Resolve --> Baseline["Compile unchanged project"]
+    Baseline --> BaselinePass{"Baseline passes?"}
+    BaselinePass -- No --> Stop
+    BaselinePass -- Yes --> Snapshot["Open file transaction"]
+    Snapshot --> Upgrade["Update POM and select optional modules"]
+    Upgrade --> Compile["Run Maven test-compile"]
+    Compile --> Pass{"Compilation passes?"}
+    Pass -- Yes --> Commit["Commit upgraded files"]
+    Pass -- No --> Key{"OpenAI API key available?"}
+    Key -- No --> Rollback["Restore original bytes"]
+    Key -- Yes --> Repair["Request constrained repair"]
+    Repair --> Retry["Apply allowed POM/Java replacements"]
+    Retry --> AICompile["Recompile after repair"]
+    AICompile --> AIPass{"Compilation passes?"}
+    AIPass -- Yes --> Commit
+    AIPass -- No --> Attempts{"Three repair attempts exhausted?"}
+    Attempts -- No --> Repair
+    Attempts -- Yes --> Rollback
+```
+
+### Prerequisites
+
+- A Maven project with at least one `pom.xml`.
+- Python 3.9 or newer. The script uses only the Python standard library.
+- Maven on `PATH`, or a project Maven wrapper (`mvnw`/`mvnw.cmd`).
+- A JDK compatible with the latest SHAFT release. Current SHAFT builds require
+  JDK 25.
+- A clean version-control working tree is strongly recommended. The script has
+  its own transaction, but Git remains useful for reviewing the successful
+  migration.
+
+### Download and run
+
+From the project that should be upgraded:
+
+Linux/macOS:
+
+```bash
+curl -fsSLo upgrade_to_modular_shaft.py \
+  https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/shaft-upgrader/upgrade_to_modular_shaft.py
+python3 upgrade_to_modular_shaft.py --project .
+```
+
+Windows PowerShell:
+
+```powershell
+Invoke-WebRequest `
+  https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/shaft-upgrader/upgrade_to_modular_shaft.py `
+  -OutFile upgrade_to_modular_shaft.py
+python .\upgrade_to_modular_shaft.py --project .
+```
+
+The script prints:
+
+- Detected project type, native automation stack, and test runner.
+- Every POM selected for migration.
+- Whether each optional module will be added.
+- The source/configuration evidence behind each optional-module decision.
+- Baseline, upgraded, and optional AI repair compilation status.
+
+Review the plan and answer `y` to start the transaction.
+
+### Preview without changing files
+
+```bash
+python3 upgrade_to_modular_shaft.py --project . --dry-run
+```
+
+Dry-run prints unified POM diffs. It does not write files or run Maven.
+
+### Non-interactive usage
+
+```bash
+python3 upgrade_to_modular_shaft.py \
+  --project . \
+  --yes \
+  --report target/shaft-upgrade-report.json
+```
+
+`--yes` is required when standard input is not interactive. The optional report
+records the selected version, POMs, detected modules, evidence, compile count,
+AI attempt count, and rollback status. It never contains the API key.
+
+### Command reference
+
+| Option | Purpose |
+| --- | --- |
+| `--project PATH` | Project root. Defaults to the current directory. |
+| `--shaft-version VERSION` | Use a controlled version instead of Maven Central's latest release. Useful for local/offline repositories. |
+| `--compile-command COMMAND` | Override the default Maven `test-compile -DskipTests -Dgpg.skip` command. |
+| `--compile-timeout SECONDS` | Set the timeout for each compile invocation. Default: 900 seconds. |
+| `--skip-baseline-compile` | Skip the unchanged-project compile. This weakens failure attribution and is not recommended. |
+| `--dry-run` | Print POM diffs without writing or compiling. |
+| `--yes` | Do not prompt before applying changes. |
+| `--report PATH` | Write an optional JSON result report. |
+| `--prompt-for-openai-key` | Securely prompt for an optional API key. |
+| `--openai-key-env NAME` | Read the API key from another environment variable. Default: `OPENAI_API_KEY`. |
+| `--openai-model MODEL` | Select another Responses API model. |
+| `--no-ai` | Disable AI repair even if an API key is present. |
+
+## Project detection
+
+The script supports projects when it detects one of these shapes:
+
+| Project shape | Detection |
+| --- | --- |
+| Legacy SHAFT | `io.github.shafthq:SHAFT_ENGINE` in a POM. |
+| Modular SHAFT | `shaft-engine`, `shaft-bom`, or an optional SHAFT module in a POM. |
+| Native Selenium | Selenium dependency/import plus TestNG or JUnit dependency/import. |
+| Native Appium | Appium dependency/import plus TestNG or JUnit dependency/import. |
+| Native REST Assured | REST Assured dependency/import plus TestNG or JUnit dependency/import. |
+
+For multi-module builds, POMs that directly declare SHAFT or a supported native
+stack/runner pair are updated. Other reactor POMs are left unchanged.
+
+## Optional-module scan
+
+For legacy and existing modular SHAFT projects, optional modules are inferred
+from existing POMs, Java source, properties, JSON, XML, and YAML. File contents
+are not printed; the report records only paths and detection reasons. Native
+projects receive `shaft-engine` only because native third-party integrations do
+not prove that the corresponding SHAFT provider API is used.
+
+```mermaid
+flowchart LR
+    Scan["Scan code, POMs, and configuration"] --> Visual{"Reference-image assertion,<br/>visual engine, OpenCV/Eyes/Shutterbug,<br/>or image-path touch API?"}
+    Scan --> Video{"videoParamsRecordVideo=true,<br/>zero-argument desktop recording,<br/>JAVE, or Automation Remarks?"}
+    Scan --> BrowserStack{"BrowserStack SDK dependency,<br/>platformsList/parallelsPerPlatform,<br/>automation switch, or SDK YAML?"}
+
+    Visual -- Yes --> AddVisual["Add shaft-visual"]
+    Visual -- No --> CoreVisual["Keep visual module absent"]
+    Video -- Yes --> AddVideo["Add shaft-video"]
+    Video -- No --> CoreVideo["Keep video module absent"]
+    BrowserStack -- Yes --> AddBrowserStack["Add shaft-browserstack"]
+    BrowserStack -- No --> Direct["Direct BrowserStack remains in shaft-engine"]
+```
+
+Existing modular optional dependencies are preserved even when no additional
+scan evidence is found.
+
+### BrowserStack evidence
+
+The BrowserStack module is selected for BrowserStack Java SDK behavior, not for
+ordinary remote sessions. Evidence includes:
+
+- `com.browserstack:browserstack-java-sdk`.
+- `browserStack.platformsList`.
+- `browserStack.parallelsPerPlatform`.
+- `browserStack.browserstackAutomation`.
+- `browserStack.customBrowserStackYmlPath`.
+- A BrowserStack YAML file with SDK `platforms` or `parallelsPerPlatform`.
+
+Direct BrowserStack WebDriver/Appium execution still requires only
+`shaft-engine`.
+
+### Visual evidence
+
+The visual module is selected for reference-image or image-engine behavior,
+including:
+
+- `matchesReferenceImage(...)` and `doesNotMatchReferenceImage(...)`.
+- `VisualValidationEngine`.
+- `findImageWithinCurrentPage(...)`, `compareAgainstBaseline(...)`, or
+  `loadOpenCV()`.
+- Image-path touch/wait/swipe APIs.
+- Explicit OpenCV, Applitools Eyes, Selenium Shutterbug, or `shaft-visual`
+  dependencies.
+
+Ordinary screenshots, highlighting, GIF generation, and folder comparison do
+not select `shaft-visual`.
+
+### Video evidence
+
+The video module is selected for local desktop recording:
+
+- `videoParamsRecordVideo=true`.
+- A zero-argument `startVideoRecording()` call.
+- Explicit Automation Remarks, JAVE/FFmpeg, or `shaft-video` dependencies.
+
+Appium driver-native recording and cloud-provider video do not select
+`shaft-video`.
+
+## Compilation and rollback
+
+The default validation command is:
+
+```bash
+mvn test-compile -DskipTests -Dgpg.skip
+```
+
+`test-compile` compiles both production and test source without executing tests.
+The same command runs before and after migration. Use `--compile-command` only
+when the project requires a profile, settings file, module selector, or another
+project-specific compile entry point.
+
+The transaction records original bytes and file permissions immediately before
+the first write to each file. A normal success discards that in-memory
+snapshot. A failure, invalid AI response, path-policy violation, interruption,
+or exhausted retry budget restores the originals.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Script
+    participant Files
+    participant Maven
+    participant OpenAI
+
+    User->>Script: Start upgrade
+    Script->>Maven: Compile unchanged project
+    Maven-->>Script: Success
+    Script->>Files: Remember original bytes
+    Script->>Files: Write modular POM
+    Script->>Maven: Compile upgraded project
+    alt Compilation succeeds
+        Maven-->>Script: Success
+        Script->>Files: Commit transaction
+        Script-->>User: Upgraded project retained
+    else Compilation fails without API key
+        Maven-->>Script: Failure
+        Script->>Files: Restore original bytes
+        Script-->>User: Original project restored
+    else Compilation fails with API key
+        Maven-->>Script: Failure diagnostics
+        loop Maximum three repair attempts
+            Script->>OpenAI: Redacted diagnostics and allowed files
+            OpenAI-->>Script: Structured replacements
+            Script->>Files: Apply validated replacements
+            Script->>Maven: Recompile
+        end
+        alt A repair compiles
+            Script->>Files: Commit transaction
+        else All attempts fail
+            Script->>Files: Restore POM and all AI-edited files
+        end
+    end
+```
+
+The rollback guarantee covers failures handled by the running process. An
+operating-system kill, power loss, or hardware failure can terminate any
+program before cleanup runs, which is another reason to use version control.
+
+## Optional OpenAI compile repair
+
+OpenAI repair is disabled unless a key is supplied. The safest interactive
+setup avoids shell history:
+
+```bash
+python3 upgrade_to_modular_shaft.py \
+  --project . \
+  --prompt-for-openai-key
+```
+
+For CI or an existing secret manager, set `OPENAI_API_KEY` and run the normal
+command:
+
+```bash
+export OPENAI_API_KEY="..."
+python3 upgrade_to_modular_shaft.py --project . --yes
+```
+
+PowerShell:
+
+```powershell
+$env:OPENAI_API_KEY = "..."
+python .\upgrade_to_modular_shaft.py --project . --yes
+```
+
+Do not paste a real API key into the script, `pom.xml`, source code, or a
+checked-in properties file.
+
+When the upgraded compile fails, the script uses the
+[OpenAI Responses API](https://developers.openai.com/api/docs/guides/text) with
+[Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
+The default model is `gpt-5.5`; override it with `--openai-model` when required.
+
+Each request is constrained as follows:
+
+- Compiler output is redacted for common tokens, passwords, bearer headers, and
+  private keys.
+- Only candidate POMs and Java files named by compiler diagnostics are
+  considered.
+- A file containing a detected secret is excluded from editable context.
+- The model can replace only existing, non-symlink `pom.xml` and `.java` files
+  that were supplied in the request.
+- Absolute paths, parent traversal, new files, unrelated extensions, invalid
+  XML, oversized output, and changes outside the supplied context are rejected.
+- The modular BOM/version contract is revalidated after every accepted repair.
+- The project is recompiled after each of the three repair attempts.
+- If no attempt passes, the POM and every AI-edited file are rolled back.
+
+Use `--no-ai` to force deterministic rollback even when the environment already
+contains an API key.
+
+## Manual migration reference
+
+The following sections describe the exact Maven result produced by the script
+and remain useful for review, unusual project layouts, and troubleshooting.
 
 ## Migration outcome
 

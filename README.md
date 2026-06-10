@@ -62,7 +62,7 @@ SHAFT Engine is an open-source **Java test automation framework** built on top o
 - [🚀 Why SHAFT?](#-why-shaft)
 - [💡 See the Difference](#-see-the-difference)
 - [⚡ Quick Start](#-quick-start)
-- [⬆️ Upgrade from `SHAFT_ENGINE`](docs/UPGRADING_TO_MODULAR_SHAFT.md)
+- [⬆️ Preferred automated upgrade](docs/UPGRADING_TO_MODULAR_SHAFT.md)
 - [🧭 Allure CLI Version Enforcement (Opt-in)](#-allure-cli-version-enforcement-opt-in)
 - [✨ Key Features](#-key-features)
 - [🌍 Success Partners](#-success-partners)
@@ -173,8 +173,17 @@ mvn archetype:generate \
 
 ### Option 3: Add to an Existing Project (Maven-only Policy)
 
+> [!IMPORTANT]
+> For an existing Selenium, Appium, REST Assured, or legacy `SHAFT_ENGINE`
+> project, the preferred route is the transactional
+> **[`shaft-upgrader`](shaft-upgrader/README.md)** module and its
+> [`upgrade_to_modular_shaft.py`](shaft-upgrader/upgrade_to_modular_shaft.py)
+> script. It selects optional modules, compiles before and after migration, and
+> restores all changed files if validation fails. Follow the
+> **[automated upgrade guide](docs/UPGRADING_TO_MODULAR_SHAFT.md)**.
+
 <details>
-<summary><b>Maven</b> — add to your <code>pom.xml</code></summary>
+<summary><b>Manual Maven reference</b> — add to your <code>pom.xml</code></summary>
 
 ```xml
 <properties>
@@ -205,7 +214,7 @@ mvn archetype:generate \
 
 > 💡 Check the latest version: [![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/shaft-engine?style=flat-square&label=latest%20version)](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)
 
-> ⬆️ Upgrading from `io.github.shafthq:SHAFT_ENGINE`? Follow the **[modular SHAFT upgrade guide](docs/UPGRADING_TO_MODULAR_SHAFT.md)** before changing coordinates.
+> ⬆️ Upgrading an existing project? Run the **[preferred automated upgrade](docs/UPGRADING_TO_MODULAR_SHAFT.md)** before changing coordinates manually.
 
 ### Choose Only the Modules You Use
 

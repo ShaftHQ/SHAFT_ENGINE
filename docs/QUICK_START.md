@@ -20,10 +20,33 @@ Get started with SHAFT Engine in minutes! Choose the option that best fits your 
 - The easiest and most straightforward way to create a new project that uses SHAFT.
 - Just [follow the simple steps here ➡️](https://shaftengine.netlify.app/docs/Getting_Started/first_steps_5#option-2-maven-archetype) to generate your new project with one command (all configurations included).
 
-## Option 3: Start from Scratch
+## Option 3: Upgrade an Existing Project
 
 > [!TIP]
-> Recommended if you're upgrading an existing project from Native Selenium WebDriver to SHAFT.
+> This is the recommended route for native Selenium, Appium, REST Assured, and
+> legacy `SHAFT_ENGINE` Maven projects using TestNG or JUnit.
+
+Run the transactional
+[`shaft-upgrader`](../shaft-upgrader/README.md) module's
+[`upgrade_to_modular_shaft.py`](../shaft-upgrader/upgrade_to_modular_shaft.py)
+script
+from the existing project:
+
+```bash
+python3 upgrade_to_modular_shaft.py --project .
+```
+
+The script resolves the latest modular SHAFT release, imports `shaft-bom`, adds
+`shaft-engine`, scans legacy projects for optional BrowserStack, visual, and
+desktop-video modules, and runs Maven `test-compile`. If compilation fails, it
+restores all changed files. An optional `OPENAI_API_KEY` enables up to three
+constrained repair-and-recompile attempts before rollback.
+
+Read the complete
+[automated upgrade and rollback guide](UPGRADING_TO_MODULAR_SHAFT.md) before
+running it on a production repository.
+
+### Manual setup reference
 
 ### Step 1: Initial Setup
 

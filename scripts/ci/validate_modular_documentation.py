@@ -17,6 +17,7 @@ REQUIRED_GUIDE_TERMS = (
     "io.github.shafthq:SHAFT_ENGINE", "io.github.shafthq:shaft-engine",
     "shaft-bom", "shaft-browserstack", "shaft-video", "shaft-visual",
     "API", "Appium", "database", "relocation", "cache", "Rollback",
+    "upgrade_to_modular_shaft.py", "OPENAI_API_KEY", "three repair attempts",
     "matchesReferenceImage", "doesNotMatchReferenceImage",
     "tap(String", "waitUntilElementIsVisible(String",
     "platformsList", "parallelsPerPlatform", "browserstackAutomation",
@@ -80,6 +81,14 @@ def main() -> None:
     for path in (ROOT / "README.md", ROOT / ".github/RELEASE_BODY_TEMPLATE.md"):
         if "UPGRADING_TO_MODULAR_SHAFT.md" not in path.read_text(encoding="utf-8"):
             fail(f"{path}: prominently link the upgrade guide")
+    for path in (ROOT / "README.md", ROOT / "docs/QUICK_START.md"):
+        if "upgrade_to_modular_shaft.py" not in path.read_text(encoding="utf-8"):
+            fail(f"{path}: highlight the automated upgrade script")
+    if "shaft-upgrader" not in (ROOT / "README.md").read_text(encoding="utf-8"):
+        fail("README.md must reference the dedicated shaft-upgrader module")
+    relocation = (ROOT / "legacy-shaft-engine/pom.xml").read_text(encoding="utf-8")
+    if "UPGRADING_TO_MODULAR_SHAFT.md" not in relocation:
+        fail("legacy relocation message must link the automated upgrade documentation")
     module_docs = {
         "SHAFT_BROWSERSTACK_MODULE.md": (
             "BrowserStackSdkHelper.generateBrowserStackYml()",
