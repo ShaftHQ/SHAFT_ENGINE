@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.github.shafthq</groupId>
         <artifactId>shaft-parent</artifactId>
-        <version>10.2.20260609</version>
+        <version>10.2.20260610</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>shaft-browserstack</artifactId>

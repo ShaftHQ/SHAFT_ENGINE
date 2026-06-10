@@ -373,7 +373,7 @@ After, using the recommended BOM:
 
 ```xml
 <properties>
-    <shaft.version>10.2.20260609</shaft.version>
+    <shaft.version>10.2.20260610</shaft.version>
 </properties>
 
 <dependencyManagement>
@@ -396,12 +396,12 @@ After, using the recommended BOM:
 </dependencies>
 ```
 
-Version `10.2.20260609` is the prepared first modular SHAFT release.
+Version `10.2.20260610` is the prepared first modular SHAFT release.
 
 > [!IMPORTANT]
 > Do not change production coordinates until
 > [the canonical artifact on Maven Central](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)
-> lists `10.2.20260609`. Until that publication completes, the latest public
+> lists `10.2.20260610`. Until that publication completes, the latest public
 > artifact remains `io.github.shafthq:SHAFT_ENGINE:10.2.20260605`.
 
 ## Module map
