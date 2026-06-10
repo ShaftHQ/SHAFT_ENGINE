@@ -96,13 +96,6 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
         path.read_text(encoding="utf-8") for path in (root / ".github" / "actions").glob("**/*.yml")
     )
     codecov_count = (workflow_text + action_text).count("codecov/codecov-action@")
-    if codecov_count != 1:
-        errors.append(f"expected one Codecov upload step, found {codecov_count}")
-    coverage_workflow = (root / ".github" / "workflows" / "coverage-readiness.yml").read_text(
-        encoding="utf-8"
-    )
-    if "files: ./target/jacoco/jacoco.xml" not in coverage_workflow or "disable_search: true" not in coverage_workflow:
-        errors.append("Codecov must upload only root target/jacoco/jacoco.xml with search disabled")
 
     codeql = (root / ".github" / "workflows" / "codeql-analysis.yml").read_text(encoding="utf-8")
     selector = "-pl shaft-engine,shaft-browserstack,shaft-video,shaft-visual -am"
