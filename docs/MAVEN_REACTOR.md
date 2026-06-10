@@ -9,11 +9,16 @@ relocation artifact that points consumers to the canonical JAR.
 - The root `pom.xml` is the `io.github.shafthq:shaft-parent` aggregator and build parent. It owns shared version properties, dependency management, and plugin management.
 - `shaft-engine/pom.xml` builds the engine JAR. All framework source, resources, tests, examples, and runtime support assets remain under `shaft-engine/src/`; Java packages remain under `com.shaft`.
 - `shaft-bom/pom.xml` publishes the consumer BOM. Importing it manages the `shaft-engine`, `shaft-browserstack`, `shaft-video`, and `shaft-visual` versions without adding dependencies by itself.
+- `shaft-browserstack/pom.xml` builds the optional BrowserStack Java SDK integration. Direct BrowserStack
+  WebDriver/Appium sessions remain in `shaft-engine`.
 - `shaft-video/pom.xml` builds the optional desktop video recording provider. Add it when local desktop screen recording is needed; Appium-native recording remains in `shaft-engine`.
-- `shaft-visual/pom.xml` builds the optional OpenCV visual-processing provider and its focused visual tests.
+- `shaft-visual/pom.xml` builds the optional OpenCV, Applitools Eyes, and Shutterbug visual-processing provider and its
+  focused visual tests.
 - `legacy-shaft-engine/pom.xml` publishes the legacy `SHAFT_ENGINE` coordinate as relocation metadata only; it contains no classes.
 
-API, Appium/mobile, database, and other retained core capabilities remain dependencies of the engine module. Optional BrowserStack SDK, desktop video/FFmpeg, and OpenCV visual-processing support are provided by `shaft-browserstack`, `shaft-video`, and `shaft-visual` respectively.
+API, Appium/mobile, database, and other retained core capabilities remain dependencies of the engine module. Optional
+BrowserStack SDK, desktop video/FFmpeg, and OpenCV/Eyes/Shutterbug visual-processing support are provided by
+`shaft-browserstack`, `shaft-video`, and `shaft-visual` respectively.
 
 ## Consumer usage
 
@@ -68,6 +73,7 @@ python3 scripts/ci/assemble_javadocs.py
 Build and test outputs are module-local. Important locations include:
 
 - Engine JAR: `shaft-engine/target/shaft-engine-<version>.jar`
+- Optional BrowserStack SDK JAR: `shaft-browserstack/target/shaft-browserstack-<version>.jar`
 - Optional desktop video JAR: `shaft-video/target/shaft-video-<version>.jar`
 - Optional visual-processing JAR: `shaft-visual/target/shaft-visual-<version>.jar`
 - Surefire reports: `<module>/target/surefire-reports/`
@@ -121,3 +127,7 @@ scripts/ci/jacoco_coverage_gate.py target/jacoco/jacoco.csv --metric line --mini
 ```
 
 Codecov receives only `target/jacoco/jacoco.xml`; automatic coverage-file discovery is disabled so module-local reports cannot duplicate source entries. Dependabot scans every reactor POM and groups the same Maven dependency across directories into one aligned update. `scripts/ci/validate_quality_configuration.py` protects these settings, while the `shaft-engine` Enforcer execution rejects optional BrowserStack, desktop-video, or visual-processing dependencies that leak back into the core engine.
+
+Consumer-facing method boundaries are documented in
+`docs/UPGRADING_TO_MODULAR_SHAFT.md`, with focused guides for
+`shaft-browserstack`, `shaft-video`, and `shaft-visual`.

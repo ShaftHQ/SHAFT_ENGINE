@@ -1,6 +1,7 @@
 # Visual-processing provider boundary
 
-Issue [#2816](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/2816) introduces the boundary needed to move optional computer-vision behavior out of `shaft-engine` without moving screenshot capture or Healenium integration.
+Issue [#2816](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/2816) introduced the implemented boundary that moved
+optional computer-vision behavior out of `shaft-engine` without moving screenshot capture or Healenium integration.
 
 ## Operation inventory
 
@@ -15,6 +16,12 @@ Issue [#2816](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/2816) introduces th
 | `compareAgainstBaseline` / `EXACT_OPENCV` | Optional computer vision | Delegates to the discovered provider. |
 | `compareAgainstBaseline` / Shutterbug and Applitools engines | Third-party visual integrations | Delegates to the discovered provider. |
 | `loadOpenCV` | Backward-compatible OpenCV entry point | Delegates provider loading and no longer embeds OpenCV types in the core class. |
+
+Public fluent APIs that reach the provider include
+`matchesReferenceImage(...)`, `doesNotMatchReferenceImage(...)`,
+`TouchActions.tap(String)`, `TouchActions.waitUntilElementIsVisible(String)`,
+and the image-path `swipeElementIntoView(...)` overloads. The focused
+[visual module guide](SHAFT_VISUAL_MODULE.md) is the consumer-facing reference.
 
 `ScreenshotManager`, Selenium screenshot capture, and Healenium integration remain outside this provider boundary.
 

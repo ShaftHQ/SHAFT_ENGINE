@@ -34,7 +34,7 @@
             <groupId>io.github.shafthq</groupId>
             <artifactId>shaft-engine</artifactId>
         </dependency>
-        <!-- Optional module used by this example; version is aligned by shaft-bom. -->
+        <!-- Required by the built-in OpenCV reference-image assertion step. -->
         <dependency>
             <groupId>io.github.shafthq</groupId>
             <artifactId>shaft-visual</artifactId>

@@ -66,7 +66,7 @@ By firstSearchResult = Locator.hasTagName("article").isFirst().build(); // synon
 @Test
 public void navigateToDuckDuckGoAndAssertBrowserTitleIsDisplayedCorrectly() {
   driver.browser().navigateToURL(targetUrl)
-          .and().assertThat().browser().title().contains(testData.getTestData("expectedTitle"));
+          .and().assertThat().title().contains(testData.get("expectedTitle"));
 }
 
 @Test
@@ -78,8 +78,8 @@ public void navigateToDuckDuckGoAndAssertLogoIsDisplayedCorrectly() {
 @Test
 public void searchForQueryAndAssert() {
   driver.browser().navigateToURL(targetUrl)
-          .and().element().type(searchBox, testData.getTestData("searchQuery") + Keys.ENTER)
-          .and().assertThat(firstSearchResult).text().doesNotEqual(testData.getTestData("unexpectedInFirstResult"));
+          .and().element().type(searchBox, testData.get("searchQuery") + Keys.ENTER)
+          .and().assertThat(firstSearchResult).text().doesNotEqual(testData.get("unexpectedInFirstResult"));
 }
 
 @BeforeClass
@@ -130,7 +130,7 @@ By firstSearchResult = Locator.hasTagName("article").isFirst().build(); // synon
 @Test
 public void navigateToDuckDuckGoAndAssertBrowserTitleIsDisplayedCorrectly() {
   driver.browser().navigateToURL(targetUrl)
-          .and().assertThat().browser().title().contains(testData.getTestData("expectedTitle"));
+          .and().assertThat().title().contains(testData.get("expectedTitle"));
 }
 
 @Test
@@ -142,8 +142,8 @@ public void navigateToDuckDuckGoAndAssertLogoIsDisplayedCorrectly() {
 @Test
 public void searchForQueryAndAssert() {
   driver.browser().navigateToURL(targetUrl)
-          .and().element().type(searchBox, testData.getTestData("searchQuery") + Keys.ENTER)
-          .and().assertThat(firstSearchResult).text().doesNotEqual(testData.getTestData("unexpectedInFirstResult"));
+          .and().element().type(searchBox, testData.get("searchQuery") + Keys.ENTER)
+          .and().assertThat(firstSearchResult).text().doesNotEqual(testData.get("unexpectedInFirstResult"));
 }
 
 @BeforeAll
@@ -280,11 +280,30 @@ Feature: Search functionality
 - <b>Join</b> our ![GitHub Repo stars](https://img.shields.io/github/stars/shafthq/shaft_engine?logoColor=black&style=social) to get notified by email when a new release is pushed out.
 > [!NOTE]
 > After upgrading your Engine to a new major release it is sometimes recommended to delete the properties
-folder ```src\main\resources\properties``` and allow SHAFT to regenerate the defaults by running any test method.
+> folder ```src\main\resources\properties``` and allow SHAFT to regenerate the defaults by running any test method.
 
 ## Optional modular integrations
 
-The base coordinate is `io.github.shafthq:shaft-engine`. Import `io.github.shafthq:shaft-bom` to align versions, then add `shaft-browserstack`, `shaft-video`, or `shaft-visual` only when the project uses those capabilities. API, Appium/mobile, and database testing remain in `shaft-engine`. Existing `SHAFT_ENGINE` users should follow the [upgrade guide](UPGRADING_TO_MODULAR_SHAFT.md).
+The TestNG, JUnit, and Cucumber web samples call a reference-image assertion,
+so their POMs include `shaft-visual`:
+
+```java
+driver.browser().navigateToURL(targetUrl)
+        .and().element().assertThat(logo).matchesReferenceImage();
+```
+
+This method, its engine overloads, negative reference-image assertions, and
+image-path touch actions require `shaft-visual`. Ordinary screenshots,
+highlighted report screenshots, API tests, Appium locator actions, database
+tests, and CLI tests need only `shaft-engine`.
+
+Add `shaft-browserstack` only for BrowserStack SDK interception/orchestration;
+direct BrowserStack sessions work through `shaft-engine`. Add `shaft-video`
+only for local non-headless desktop recording; Appium-native recording remains
+in `shaft-engine`.
+
+Use the [module selection and migration guide](UPGRADING_TO_MODULAR_SHAFT.md)
+for the complete method matrix.
 
 ---
 

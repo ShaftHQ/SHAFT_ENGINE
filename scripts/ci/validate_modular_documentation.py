@@ -10,13 +10,16 @@ EXAMPLES = ROOT / "shaft-engine/src/main/resources/examples"
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 EXPECTED_OPTIONAL = {
     "shaft-cucumber-web": "shaft-visual",
-    "shaft-junit-web": "shaft-video",
-    "shaft-testng-web": "shaft-browserstack",
+    "shaft-junit-web": "shaft-visual",
+    "shaft-testng-web": "shaft-visual",
 }
 REQUIRED_GUIDE_TERMS = (
     "io.github.shafthq:SHAFT_ENGINE", "io.github.shafthq:shaft-engine",
     "shaft-bom", "shaft-browserstack", "shaft-video", "shaft-visual",
     "API", "Appium", "database", "relocation", "cache", "Rollback",
+    "matchesReferenceImage", "doesNotMatchReferenceImage",
+    "tap(String", "waitUntilElementIsVisible(String",
+    "platformsList", "parallelsPerPlatform", "browserstackAutomation",
     "Linux x64", "Linux ARM64", "Windows x64", "macOS x64", "macOS ARM64",
 )
 
@@ -77,6 +80,34 @@ def main() -> None:
     for path in (ROOT / "README.md", ROOT / ".github/RELEASE_BODY_TEMPLATE.md"):
         if "UPGRADING_TO_MODULAR_SHAFT.md" not in path.read_text(encoding="utf-8"):
             fail(f"{path}: prominently link the upgrade guide")
+    module_docs = {
+        "SHAFT_BROWSERSTACK_MODULE.md": (
+            "BrowserStackSdkHelper.generateBrowserStackYml()",
+            "platformsList",
+            "parallelsPerPlatform",
+            "shaft-engine",
+            "shaft-browserstack",
+        ),
+        "SHAFT_VISUAL_MODULE.md": (
+            "matchesReferenceImage",
+            "doesNotMatchReferenceImage",
+            "compareImageFolders",
+            "highlightElementInScreenshot",
+            "shaft-engine",
+            "shaft-visual",
+        ),
+        "SHAFT_VIDEO_MODULE.md": (
+            "startVideoRecording(WebDriver)",
+            "Appium",
+            "shaft-engine",
+            "shaft-video",
+        ),
+    }
+    for filename, required_terms in module_docs.items():
+        contents = (ROOT / "docs" / filename).read_text(encoding="utf-8")
+        for term in required_terms:
+            if term not in contents:
+                fail(f"{filename}: missing dependency-boundary term {term!r}")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     if "maven-central/v/io.github.shafthq/SHAFT_ENGINE" in readme:
         fail("README Maven Central badge still targets the legacy coordinate")

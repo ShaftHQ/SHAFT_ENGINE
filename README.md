@@ -81,16 +81,16 @@ Built on industry-standard technologies — [Selenium](https://www.selenium.dev/
 
 ### What Makes SHAFT Different?
 
-| Feature | What You Get |
-|---|---|
-| 🎯 **Unified API** | One fluent syntax for Web, Mobile, API, CLI, and Database testing |
-| 🔧 **Zero Boilerplate** | Smart auto-configuration — no WebDriverManager, no manual waits, no setup code |
-| 📊 **Rich Reporting** | Built-in [Allure](https://allurereport.org/) integration with screenshots, videos, and detailed logs |
-| 🤖 **AI-Powered Validation** | Visual testing with [OpenCV](https://opencv.org/) and intelligent element detection |
-| 🌐 **Cloud-Ready** | Native support for [BrowserStack](https://www.browserstack.com/), [LambdaTest](https://www.testmuai.com/?utm_medium=sponsor&utm_source=shaft-engine), and [Selenium Grid](https://www.selenium.dev/documentation/grid/) |
-| ⚙️ **Any Test Runner** | Works with [TestNG](https://testng.org/), [JUnit 5](https://junit.org/junit5/), and [Cucumber](https://cucumber.io/) out of the box |
-| 🐳 **Containerized** | Ready-to-use Docker support for CI/CD pipelines |
-| 📱 **Full Mobile** | Native, Hybrid, and [Flutter](https://flutter.dev/) apps on Android & iOS via [Appium](https://appium.io/) |
+| Feature                      | What You Get                                                                                                                                                                                                                   |
+|------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 🎯 **Unified API**           | One fluent syntax for Web, Mobile, API, CLI, and Database testing                                                                                                                                                              |
+| 🔧 **Zero Boilerplate**      | Smart auto-configuration — no WebDriverManager, no manual waits, no setup code                                                                                                                                                 |
+| 📊 **Rich Reporting**        | Built-in [Allure](https://allurereport.org/) integration with screenshots and detailed logs, plus provider-native or optional desktop video                                                                                    |
+| 🤖 **AI-Powered Validation** | Optional `shaft-visual` module for [OpenCV](https://opencv.org/), Applitools Eyes, Shutterbug, and image-based element detection                                                                                               |
+| 🌐 **Cloud-Ready**           | Direct [BrowserStack](https://www.browserstack.com/), [LambdaTest](https://www.testmuai.com/?utm_medium=sponsor&utm_source=shaft-engine), and Selenium Grid support in `shaft-engine`; optional BrowserStack SDK orchestration |
+| ⚙️ **Any Test Runner**       | Works with [TestNG](https://testng.org/), [JUnit 5](https://junit.org/junit5/), and [Cucumber](https://cucumber.io/) out of the box                                                                                            |
+| 🐳 **Containerized**         | Ready-to-use Docker support for CI/CD pipelines                                                                                                                                                                                |
+| 📱 **Full Mobile**           | Native, Hybrid, and [Flutter](https://flutter.dev/) apps on Android & iOS via [Appium](https://appium.io/)                                                                                                                     |
 
 ---
 
@@ -138,7 +138,7 @@ SHAFT.GUI.WebDriver driver =
 driver.browser().navigateToURL("https://example.com")
   .and().element().type(By.name("q"),
       "SHAFT" + Keys.ENTER)
-  .and().assertThat().browser().title()
+  .and().assertThat().title()
       .contains("SHAFT");
 driver.quit();
 ```
@@ -207,6 +207,20 @@ mvn archetype:generate \
 
 > ⬆️ Upgrading from `io.github.shafthq:SHAFT_ENGINE`? Follow the **[modular SHAFT upgrade guide](docs/UPGRADING_TO_MODULAR_SHAFT.md)** before changing coordinates.
 
+### Choose Only the Modules You Use
+
+| Capability                                                               | Dependency           |
+|--------------------------------------------------------------------------|----------------------|
+| Web, Appium/Flutter, API, DB, CLI, reporting, screenshots, accessibility | `shaft-engine`       |
+| BrowserStack SDK and multi-platform `browserstack.yml` orchestration     | `shaft-browserstack` |
+| Local non-headless desktop recording                                     | `shaft-video`        |
+| Reference-image assertions and image-based touch lookup                  | `shaft-visual`       |
+
+Direct BrowserStack sessions, Appium-native recording, ordinary screenshots,
+and `ImageProcessingActions.compareImageFolders(...)` remain in
+`shaft-engine`. The [upgrade guide](docs/UPGRADING_TO_MODULAR_SHAFT.md) lists
+the exact methods that cross each optional dependency boundary.
+
 ### Your First Test
 
 ```java
@@ -227,7 +241,7 @@ public class QuickStartTest {
         driver.browser().navigateToURL("https://duckduckgo.com/")
               .and().element().type(By.name("q"), "SHAFT_Engine")
               .and().element().click(By.cssSelector("button[type='submit']"))
-              .and().assertThat().browser().title().contains("SHAFT_Engine");
+              .and().assertThat().title().contains("SHAFT_Engine");
     }
 
     @AfterMethod(alwaysRun = true)
@@ -319,12 +333,16 @@ When enabled, SHAFT checks `allure --version` and only uses system `allure` when
 
 <div align="center">
 
-| Resource | Description |
-|----------|-------------|
-| 📖 **[User Guide](https://ShaftHQ.github.io/)** | Comprehensive documentation, tutorials, and configuration reference |
-| 🏗️ **[Architecture](docs/ARCHITECTURE.md)** | Framework design, module overview, and Mermaid diagrams |
-| 🛠️ **[Tech Stack](docs/TECH_STACK.md)** | Technologies and libraries powering SHAFT |
-| ✨ **[Features](docs/FEATURES.md)** | Full feature list with platform compatibility matrix |
+| Resource                                                           | Description                                                         |
+|--------------------------------------------------------------------|---------------------------------------------------------------------|
+| 📖 **[User Guide](https://ShaftHQ.github.io/)**                    | Comprehensive documentation, tutorials, and configuration reference |
+| 🏗️ **[Architecture](docs/ARCHITECTURE.md)**                       | Framework design, module overview, and Mermaid diagrams             |
+| ⬆️ **[Modular Upgrade Guide](docs/UPGRADING_TO_MODULAR_SHAFT.md)** | Complete migration checklist and method-level dependency matrix     |
+| 🌐 **[BrowserStack Module](docs/SHAFT_BROWSERSTACK_MODULE.md)**    | Direct-session versus BrowserStack SDK behavior                     |
+| 🖼️ **[Visual Module](docs/SHAFT_VISUAL_MODULE.md)**               | Exact APIs that require OpenCV/Eyes/Shutterbug                      |
+| 🎥 **[Video Module](docs/SHAFT_VIDEO_MODULE.md)**                  | Desktop-provider versus Appium-native recording                     |
+| 🛠️ **[Tech Stack](docs/TECH_STACK.md)**                           | Technologies and libraries powering SHAFT                           |
+| ✨ **[Features](docs/FEATURES.md)**                                 | Full feature list with platform compatibility matrix                |
 
 ### 🤖 AI-Powered Code Exploration
 
@@ -418,7 +436,8 @@ Made with ❤️ by the [SHAFT community](https://github.com/ShaftHQ/SHAFT_ENGIN
   SHAFT Engine is a Java test automation framework that wraps Selenium WebDriver, Appium,
   and REST Assured behind a single fluent API. It eliminates boilerplate, provides automatic
   synchronization, built-in Allure reporting, and supports cross-browser, mobile, API,
-  database, and CLI testing from a single dependency.
+  database, and CLI testing from the required `shaft-engine` artifact, with
+  optional provider modules for dependency-heavy integrations.
 
   SUPPORTED TEST RUNNERS:   TestNG, JUnit 5, Cucumber BDD
   SUPPORTED BROWSERS:       Chrome, Edge, Firefox, Safari (desktop and mobile emulation)

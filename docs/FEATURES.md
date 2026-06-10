@@ -1,8 +1,22 @@
 # 🚀 Features
 
-The base `shaft-engine` artifact provides comprehensive test automation capabilities across multiple platforms and testing needs.
+The required `shaft-engine` artifact provides the public facade and core test
+automation capabilities. Three dependency-heavy integrations are optional.
 
-> BrowserStack SDK orchestration, desktop video, and OpenCV visual matching require `shaft-browserstack`, `shaft-video`, and `shaft-visual` respectively. API, mobile/Appium, and database support remain in the base artifact. See the [upgrade guide](UPGRADING_TO_MODULAR_SHAFT.md).
+## Feature-to-module map
+
+| Feature                                                                                          | Maven artifact       |
+|--------------------------------------------------------------------------------------------------|----------------------|
+| Web, mobile/Appium/Flutter, API, database, CLI, test data, accessibility, reporting, screenshots | `shaft-engine`       |
+| Direct BrowserStack WebDriver/Appium sessions and app upload                                     | `shaft-engine`       |
+| BrowserStack SDK interception, multi-platform YAML, and SDK orchestration                        | `shaft-browserstack` |
+| Appium Android/iOS driver-native recording                                                       | `shaft-engine`       |
+| Local non-headless desktop recording                                                             | `shaft-video`        |
+| Reference-image assertions and image-path touch actions                                          | `shaft-visual`       |
+| Screenshot highlighting, animated GIFs, and `compareImageFolders(...)`                           | `shaft-engine`       |
+
+See the [upgrade guide](UPGRADING_TO_MODULAR_SHAFT.md) for the exact method
+boundaries.
 
 ## Smart Features
 
@@ -21,15 +35,15 @@ All of SHAFT's smart features target the three pillars of successful test automa
 
 ### Reliability
 
-| Automated synchronization | Logging | Reporting | Screenshots/Attachments| Video recording|
-|:-------------------------:|:---: |:---: |:---: |:---: |
-|    :white_check_mark:     |:white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
+| Automated synchronization |      Logging       |     Reporting      | Screenshots/Attachments |                     Video recording                     |
+|:-------------------------:|:------------------:|:------------------:|:-----------------------:|:-------------------------------------------------------:|
+|    :white_check_mark:     | :white_check_mark: | :white_check_mark: |   :white_check_mark:    | Core for Appium/remote; `shaft-video` for local desktop |
 
 ### Maintainability
 
-| Fluent design | Locator builder |   Smart locators   | Native `WebDriver` access | Element/Browser validations builder| AI-powered visual validations
-| :---: |:---: |:------------------:|:---: |:---: |:---: |
-| :white_check_mark: |:white_check_mark: | :white_check_mark: |:white_check_mark: |:white_check_mark: |:white_check_mark: |
+|   Fluent design    |  Locator builder   |   Smart locators   | Native `WebDriver` access | Element/Browser validations builder | Visual validations |
+|:------------------:|:------------------:|:------------------:|:-------------------------:|:-----------------------------------:|:------------------:|
+| :white_check_mark: | :white_check_mark: | :white_check_mark: |    :white_check_mark:     |         :white_check_mark:          |   `shaft-visual`   |
 
 ## Supported Platforms
 
