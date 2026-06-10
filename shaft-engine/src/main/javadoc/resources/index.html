@@ -421,7 +421,7 @@
         // Fetch available projects from GitHub
         async function loadProjectData() {
             try {
-                const examplesUrl = 'https://api.github.com/repos/ShaftHQ/SHAFT_ENGINE/contents/src/main/resources/examples';
+                const examplesUrl = 'https://api.github.com/repos/ShaftHQ/SHAFT_ENGINE/contents/shaft-engine/src/main/resources/examples';
                 const response = await fetch(examplesUrl);
                 const runners = await response.json();
                 
@@ -620,7 +620,7 @@
                 const zip = new JSZip();
                 
                 // Fetch template files from GitHub
-                const baseUrl = `https://api.github.com/repos/ShaftHQ/SHAFT_ENGINE/contents/src/main/resources/examples/${selectedRunner}/${templateProject}`;
+                const baseUrl = `https://api.github.com/repos/ShaftHQ/SHAFT_ENGINE/contents/shaft-engine/src/main/resources/examples/${selectedRunner}/${templateProject}`;
                 
                 await fetchDirectoryContents(zip, artifactId, baseUrl, '');
                 
