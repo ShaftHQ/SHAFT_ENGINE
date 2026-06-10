@@ -20,11 +20,25 @@ DEPENDABOT_DIRECTORIES = {
     "/legacy-shaft-engine",
     "/report-aggregate",
 }
+JAVA_25_UNSAFE_FLAG = "--sun-misc-unsafe-memory-access=allow"
+IGNORE_UNRECOGNIZED_VM_OPTIONS = "-XX:+IgnoreUnrecognizedVMOptions"
 
 
 def text(element: ET.Element, path: str) -> str | None:
     value = element.findtext(path, namespaces=NS)
     return value.strip() if value else None
+
+
+def validate_maven_jvm_configuration(root: Path = ROOT) -> list[str]:
+    jvm_config_path = root / ".mvn" / "jvm.config"
+    jvm_config = jvm_config_path.read_text(encoding="utf-8") if jvm_config_path.is_file() else ""
+    unsafe_flag_index = jvm_config.find(JAVA_25_UNSAFE_FLAG)
+    compatibility_guard_index = jvm_config.find(IGNORE_UNRECOGNIZED_VM_OPTIONS)
+    if unsafe_flag_index >= 0 and not 0 <= compatibility_guard_index < unsafe_flag_index:
+        return [
+            "Maven JVM configuration must guard Java 25-only options for the dependency submission Java 21 runtime"
+        ]
+    return []
 
 
 def validate_quality_configuration(root: Path = ROOT) -> list[str]:
@@ -34,14 +48,11 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     modules = {value.text.strip() for value in root_pom.iterfind("m:modules/m:module", NS) if value.text}
     if "report-aggregate" not in modules:
         errors.append("root pom.xml must include report-aggregate")
-    if "--sun-misc-unsafe-memory-access=allow" not in root_pom_text or "-Xshare:off" not in root_pom_text:
+    if JAVA_25_UNSAFE_FLAG not in root_pom_text or "-Xshare:off" not in root_pom_text:
         errors.append("Surefire JVM arguments must suppress Java 25 Unsafe and CDS agent warnings")
     if "<mockitoAgentArgLine>" not in root_pom_text:
         errors.append("root pom.xml must define the Mockito startup agent")
-    jvm_config_path = root / ".mvn" / "jvm.config"
-    jvm_config = jvm_config_path.read_text(encoding="utf-8") if jvm_config_path.is_file() else ""
-    if "--sun-misc-unsafe-memory-access=allow" not in jvm_config:
-        errors.append("Maven JVM configuration must allow legacy Unsafe access without startup warnings")
+    errors.extend(validate_maven_jvm_configuration(root))
 
     aggregate_path = root / "report-aggregate" / "pom.xml"
     if not aggregate_path.is_file():
