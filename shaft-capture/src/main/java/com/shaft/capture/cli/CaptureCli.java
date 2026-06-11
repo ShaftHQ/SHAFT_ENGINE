@@ -6,12 +6,17 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.shaft.capture.control.CaptureControlClient;
 import com.shaft.capture.control.CaptureControlFiles;
 import com.shaft.capture.control.CaptureControlServer;
+import com.shaft.capture.generate.CaptureGenerationRequest;
+import com.shaft.capture.generate.CaptureGenerationResult;
+import com.shaft.capture.generate.CaptureGenerator;
 import com.shaft.capture.model.Checkpoint;
 import com.shaft.capture.privacy.CapturePrivacyClassifier;
 import com.shaft.capture.runtime.CaptureBrowser;
 import com.shaft.capture.runtime.CaptureManager;
 import com.shaft.capture.runtime.CaptureStartRequest;
 import com.shaft.capture.runtime.CaptureStatus;
+import com.shaft.pilot.ai.ApprovalPolicy;
+import com.shaft.pilot.ai.EvidenceCategory;
 
 import java.io.File;
 import java.io.FileDescriptor;
@@ -30,6 +35,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -92,6 +98,7 @@ public final class CaptureCli {
                 case "status" -> status(options);
                 case "stop" -> stop(options);
                 case "checkpoint" -> checkpoint(options);
+                case "generate" -> generate(options);
                 case "daemon" -> daemon(options);
                 default -> throw new IllegalArgumentException(usage());
             };
@@ -169,6 +176,42 @@ public final class CaptureCli {
         }
         print(client.checkpoint(options.required("description"), kind));
         return 0;
+    }
+
+    private static int generate(Arguments options) {
+        CaptureGenerationRequest.EnrichmentMode enrichmentMode =
+                options.flag("ai-preview")
+                        ? CaptureGenerationRequest.EnrichmentMode.PREVIEW
+                        : options.values().containsKey("apply-enrichment")
+                        ? CaptureGenerationRequest.EnrichmentMode.APPLY
+                        : CaptureGenerationRequest.EnrichmentMode.NONE;
+        Path output = options.path("output-dir", Path.of("generated-tests"));
+        Path preview = enrichmentMode == CaptureGenerationRequest.EnrichmentMode.APPLY
+                ? options.pathRequired("apply-enrichment")
+                : options.path("enrichment-preview",
+                output.resolve("target/shaft-capture/enrichment-preview.json"));
+        ApprovalPolicy approval = new ApprovalPolicy(
+                options.flag("allow-local-ai"),
+                options.flag("allow-remote-ai"),
+                EnumSet.of(EvidenceCategory.TEXT));
+        long timeoutSeconds = parsePositiveLong(
+                options.value("replay-timeout-seconds", "300"),
+                "replay-timeout-seconds");
+        CaptureGenerationResult result = new CaptureGenerator().generate(new CaptureGenerationRequest(
+                options.pathRequired("session"),
+                output,
+                options.value("package", "generated.capture"),
+                options.value("class-name", ""),
+                options.flag("overwrite"),
+                !options.flag("skip-compile"),
+                options.flag("replay"),
+                Duration.ofSeconds(timeoutSeconds),
+                enrichmentMode,
+                preview,
+                options.flag("approve-enrichment"),
+                approval));
+        print(result);
+        return result.successful() ? 0 : 1;
     }
 
     private static int daemon(Arguments options) {
@@ -325,10 +368,18 @@ public final class CaptureCli {
     }
 
     private static void print(CaptureStatus status) {
+        printJson(status, "Capture status could not be serialized.");
+    }
+
+    private static void print(CaptureGenerationResult result) {
+        printJson(result, "Capture generation result could not be serialized.");
+    }
+
+    private static void printJson(Object value, String failureMessage) {
         try {
-            OUTPUT.println(MAPPER.writeValueAsString(status));
+            OUTPUT.println(MAPPER.writeValueAsString(value));
         } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
-            throw new IllegalStateException("Capture status could not be serialized.", exception);
+            throw new IllegalStateException(failureMessage, exception);
         }
     }
 
@@ -346,7 +397,25 @@ public final class CaptureCli {
     private static String usage() {
         return "Usage: capture start --url <url> [--browser chrome|edge] [--output <path>] "
                 + "[--runtime-dir <path>] [--headless] | status | stop [--discard] | "
-                + "checkpoint --description <text> [--kind USER_MARKER|ASSERTION|PAGE_TRANSITION|RECOVERY]";
+                + "checkpoint --description <text> [--kind USER_MARKER|ASSERTION|PAGE_TRANSITION|RECOVERY] | "
+                + "generate --session <capture.json> [--output-dir <path>] [--package <name>] "
+                + "[--class-name <name>] [--overwrite] [--skip-compile] [--replay] "
+                + "[--replay-timeout-seconds <seconds>] [--ai-preview --allow-local-ai|--allow-remote-ai] "
+                + "[--enrichment-preview <path>] "
+                + "[--apply-enrichment <path> --approve-enrichment]";
+    }
+
+    private static long parsePositiveLong(String value, String option) {
+        try {
+            long parsed = Long.parseLong(value);
+            if (parsed <= 0) {
+                throw new NumberFormatException();
+            }
+            return parsed;
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException("Capture option --" + option
+                    + " must be a positive integer.", exception);
+        }
     }
 
     private record Arguments(Map<String, String> values, java.util.Set<String> flags) {
@@ -359,7 +428,16 @@ public final class CaptureCli {
                     throw new IllegalArgumentException("Unexpected capture argument.");
                 }
                 String name = argument.substring(2);
-                if ("headless".equals(name) || "discard".equals(name)) {
+                if (Set.of(
+                        "headless",
+                        "discard",
+                        "overwrite",
+                        "skip-compile",
+                        "replay",
+                        "ai-preview",
+                        "approve-enrichment",
+                        "allow-local-ai",
+                        "allow-remote-ai").contains(name)) {
                     flags.add(name);
                 } else {
                     if (index + 1 >= args.length || args[index + 1].startsWith("--")) {

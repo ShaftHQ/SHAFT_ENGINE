@@ -21,6 +21,8 @@ The packaged server supports:
 - Streamable HTTP with `--spring.profiles.active=http`, at `/mcp`;
 - managed recording through `capture_start`, `capture_status`, and
   `capture_stop`, with no AI provider required;
+- deterministic TestNG generation through `capture_generate`, with compile,
+  optional replay, and review-only AI enrichment phases;
 - legacy SSE endpoint properties as configuration aliases during migration.
 
 The HTTP port defaults to `8081` and can be overridden with `PORT` or
@@ -33,10 +35,13 @@ java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar capture start \
   --url https://example.test --browser chrome --output recordings/example.json
 java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar capture status
 java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar capture stop
+java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar capture generate \
+  --session recordings/example.json --output-dir generated-tests
 ```
 
 See [SHAFT Capture](SHAFT_CAPTURE.md) for checkpoint, runtime-directory,
-privacy, browser-support, and recovery details.
+privacy, generation, replay, enrichment approval, browser-support, and
+recovery details.
 
 ## Authentication boundary
 
