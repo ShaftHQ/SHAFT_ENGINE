@@ -412,6 +412,9 @@ Importing `shaft-bom` aligns versions; it does not add runtime code.
 flowchart LR
     Project["Your test project"] --> BOM["shaft-bom<br/>version alignment"]
     Project --> Engine["shaft-engine<br/>required"]
+    Project -.->|"provider-neutral Pilot contracts"| PilotCore["shaft-pilot-core"]
+    Project -.->|"recording model + privacy"| Capture["shaft-capture"]
+    Project -.->|"optional direct AI providers"| AI["shaft-ai"]
     Project -.->|"only for BrowserStack SDK runtime"| BrowserStack["shaft-browserstack"]
     Project -.->|"only for local desktop recording"| Video["shaft-video"]
     Project -.->|"only for image-engine operations"| Visual["shaft-visual"]
@@ -419,6 +422,9 @@ flowchart LR
     BrowserStack --> Engine
     Video --> Engine
     Visual --> Engine
+    PilotCore --> Engine
+    Capture --> PilotCore
+    AI --> PilotCore
 
     Engine --> Core["Web + Appium + API + DB + CLI<br/>reporting + screenshots + accessibility"]
     BrowserStack --> SDK["browserstack.yml orchestration<br/>SDK listeners/interception"]
@@ -433,6 +439,9 @@ flowchart LR
 | WebDriver browser actions, element actions, locators, screenshots, reporting | `shaft-engine`       | Normal local, Docker, Selenium Grid, LambdaTest, or direct BrowserStack sessions |
 | Appium native/mobile web/Flutter actions and Appium screen recording         | `shaft-engine`       | Driver-native Android/iOS recording                                              |
 | REST Assured API, database, CLI, test data, accessibility, Cucumber steps    | `shaft-engine`       | Any of these capabilities by themselves                                          |
+| Provider-neutral Pilot requests, approval, redaction, and deterministic fallback | `shaft-pilot-core` | Direct provider HTTP calls                                                        |
+| Versioned browser recording, privacy classification, and capture JSON        | `shaft-capture`      | Ordinary engine screenshots or desktop video                                     |
+| Direct OpenAI, Anthropic, Gemini, or Ollama provider calls                    | `shaft-ai`           | Deterministic Capture creation, validation, migration, or replay data             |
 | BrowserStack SDK interception and `browserstack.yml` orchestration           | `shaft-browserstack` | Direct BrowserStack WebDriver/Appium sessions built by SHAFT                     |
 | Local, non-headless desktop recording managed by SHAFT                       | `shaft-video`        | Remote-provider video or Appium `startRecordingScreen()`                         |
 | Reference-image assertions and image-based touch lookup                      | `shaft-visual`       | Ordinary screenshots, screenshot highlighting, GIFs, or folder comparison        |
@@ -446,8 +455,19 @@ Add optional modules beside `shaft-engine`; their versions come from the BOM:
 </dependency>
 ```
 
-Use the same shape for `shaft-browserstack` or `shaft-video`, but add only the
-artifacts selected by the tables below.
+Use the same shape for `shaft-pilot-core`, `shaft-capture`, `shaft-ai`,
+`shaft-browserstack`, or `shaft-video`, but add only the artifacts selected by
+the tables below.
+
+## Capture dependency boundary
+
+Add `shaft-capture` when a project creates, validates, migrates, reviews, or
+persists SHAFT Capture recording JSON. It transitively uses
+`shaft-pilot-core` for provider-neutral security contracts but does not resolve
+`shaft-ai`. Recording and privacy enforcement remain deterministic with
+`pilot.ai.enabled=false`.
+
+See the [SHAFT Capture format guide](SHAFT_CAPTURE.md).
 
 ## Visual dependency boundary
 

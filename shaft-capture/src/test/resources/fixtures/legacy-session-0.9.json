@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "0.9",
+  "sessionId": "legacy-session",
+  "state": "INCOMPLETE",
+  "startedAt": "2026-01-02T03:04:05Z",
+  "browser": {
+    "browserName": "chrome",
+    "browserVersion": "136",
+    "platform": "Linux",
+    "logicalSessionId": "legacy-browser",
+    "capabilities": {}
+  },
+  "events": [
+    {
+      "eventType": "navigation",
+      "context": {
+        "sequence": 1,
+        "timestamp": "2026-01-02T03:04:06Z",
+        "page": {
+          "url": "https://example.test",
+          "title": "Example",
+          "logicalWindowId": "window-1",
+          "framePath": [],
+          "viewportWidth": 1280,
+          "viewportHeight": 720
+        }
+      },
+      "action": "OPEN",
+      "targetUrl": "https://example.test"
+    }
+  ]
+}

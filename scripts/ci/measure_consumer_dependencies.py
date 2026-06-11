@@ -24,6 +24,8 @@ ENGINE_ROOT = ROOT / "shaft-engine"
 ENGINE_POM = ENGINE_ROOT / "pom.xml"
 PILOT_CORE_ROOT = ROOT / "shaft-pilot-core"
 PILOT_CORE_POM = PILOT_CORE_ROOT / "pom.xml"
+CAPTURE_ROOT = ROOT / "shaft-capture"
+CAPTURE_POM = CAPTURE_ROOT / "pom.xml"
 AI_ROOT = ROOT / "shaft-ai"
 AI_POM = AI_ROOT / "pom.xml"
 BOM_POM = ROOT / "shaft-bom" / "pom.xml"
@@ -37,6 +39,7 @@ LEGACY_POM = ROOT / "legacy-shaft-engine" / "pom.xml"
 PROJECT_COORDINATES = (
     "io.github.shafthq:shaft-engine",
     "io.github.shafthq:shaft-pilot-core",
+    "io.github.shafthq:shaft-capture",
     "io.github.shafthq:shaft-ai",
     "io.github.shafthq:shaft-browserstack",
     "io.github.shafthq:shaft-video",
@@ -95,6 +98,13 @@ def seed_project_artifact(repository: Path, jar: Path, version: str) -> int:
     shutil.copy2(
         PILOT_CORE_ROOT / "target" / f"shaft-pilot-core-{version}.jar",
         pilot_core_destination / f"shaft-pilot-core-{version}.jar",
+    )
+    capture_destination = repository / "io" / "github" / "shafthq" / "shaft-capture" / version
+    capture_destination.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(CAPTURE_POM, capture_destination / f"shaft-capture-{version}.pom")
+    shutil.copy2(
+        CAPTURE_ROOT / "target" / f"shaft-capture-{version}.jar",
+        capture_destination / f"shaft-capture-{version}.jar",
     )
     ai_destination = repository / "io" / "github" / "shafthq" / "shaft-ai" / version
     ai_destination.mkdir(parents=True, exist_ok=True)

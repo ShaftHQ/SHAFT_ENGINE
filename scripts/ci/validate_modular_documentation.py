@@ -15,7 +15,8 @@ EXPECTED_OPTIONAL = {
 }
 REQUIRED_GUIDE_TERMS = (
     "io.github.shafthq:SHAFT_ENGINE", "io.github.shafthq:shaft-engine",
-    "shaft-bom", "shaft-browserstack", "shaft-video", "shaft-visual",
+    "shaft-bom", "shaft-pilot-core", "shaft-capture", "shaft-ai",
+    "shaft-browserstack", "shaft-video", "shaft-visual",
     "API", "Appium", "database", "relocation", "cache", "Rollback",
     "upgrade_to_modular_shaft.py", "OPENAI_API_KEY", "three repair attempts",
     "matchesReferenceImage", "doesNotMatchReferenceImage",
@@ -129,6 +130,17 @@ def main() -> None:
     ):
         if term not in pilot_doc:
             fail(f"SHAFT_PILOT_AI.md: missing security or dependency term {term!r}")
+    capture_doc = (ROOT / "docs/SHAFT_CAPTURE.md").read_text(encoding="utf-8")
+    for term in (
+        "shaft-capture",
+        "schemaVersion",
+        "pilot.ai.enabled=false",
+        "CapturePrivacyClassifier",
+        "CaptureSessionStore",
+        "capture-data.json",
+    ):
+        if term not in capture_doc:
+            fail(f"SHAFT_CAPTURE.md: missing format or privacy term {term!r}")
     mcp_fixtures = ROOT / "docs/examples/shaft-pilot/mcp"
     for fixture in ("codex-config.toml", "claude-desktop.json", "gemini-settings.json", "vscode-mcp.json"):
         contents = (mcp_fixtures / fixture).read_text(encoding="utf-8")

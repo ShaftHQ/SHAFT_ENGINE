@@ -29,4 +29,4 @@ jobs:
           maven-version: 3.9.5
 
       - name: Pre-download Maven dependencies
-        run: mvn -pl shaft-engine,shaft-pilot-core,shaft-ai,shaft-browserstack,shaft-video,shaft-visual,shaft-mcp -am dependency:resolve -DskipTests -Dgpg.skip
+        run: mvn -pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-ai,shaft-browserstack,shaft-video,shaft-visual,shaft-mcp -am dependency:resolve -DskipTests -Dgpg.skip

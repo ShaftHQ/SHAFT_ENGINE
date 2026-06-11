@@ -8,8 +8,9 @@ relocation artifact that points consumers to the canonical JAR.
 
 - The root `pom.xml` is the `io.github.shafthq:shaft-parent` aggregator and build parent. It owns shared version properties, dependency management, and plugin management.
 - `shaft-engine/pom.xml` builds the engine JAR. All framework source, resources, tests, examples, and runtime support assets remain under `shaft-engine/src/`; Java packages remain under `com.shaft`.
-- `shaft-bom/pom.xml` publishes the consumer BOM. Importing it manages the `shaft-engine`, `shaft-pilot-core`, `shaft-ai`, `shaft-browserstack`, `shaft-video`, `shaft-visual`, and `SHAFT_MCP` versions without adding dependencies by itself.
+- `shaft-bom/pom.xml` publishes the consumer BOM. Importing it manages the `shaft-engine`, `shaft-pilot-core`, `shaft-capture`, `shaft-ai`, `shaft-browserstack`, `shaft-video`, `shaft-visual`, and `SHAFT_MCP` versions without adding dependencies by itself.
 - `shaft-pilot-core/pom.xml` builds provider-neutral Pilot contracts, security controls, configuration snapshots, and deterministic fallback. It depends on `shaft-engine`; the engine has no reverse dependency.
+- `shaft-capture/pom.xml` builds versioned recording contracts, deterministic privacy classification, schema migration, and atomic JSON persistence. It depends on `shaft-pilot-core` and has no dependency on `shaft-ai`.
 - `shaft-ai/pom.xml` builds optional direct OpenAI, Anthropic, Gemini, and Ollama adapters. It depends on `shaft-pilot-core` and exposes no provider SDK types.
 - `shaft-mcp/pom.xml` builds the optional executable MCP server. It depends on `shaft-engine`; the engine has no reverse dependency on MCP.
 - `shaft-browserstack/pom.xml` builds the optional BrowserStack Java SDK integration. Direct BrowserStack
@@ -68,7 +69,7 @@ mvn -pl shaft-engine -am test -Dtest=TestClassName
 mvn -pl shaft-browserstack -am test -Dtest=BrowserStackHelperUnitTest
 mvn -pl shaft-video -am test -Dtest=DesktopVideoRecordingProviderRegistrationTest
 mvn -pl shaft-visual -am test -Dtest=ImageProcessingActionsUnitTest
-mvn -pl shaft-pilot-core,shaft-ai -am test
+mvn -pl shaft-pilot-core,shaft-capture,shaft-ai -am test
 mvn -pl shaft-mcp -am test -Dtest=ShaftMcpApplicationTests
 mvn -pl shaft-mcp -am package -DskipTests -Dgpg.skip
 python3 scripts/ci/validate_shaft_mcp_transports.py
@@ -81,6 +82,7 @@ Build and test outputs are module-local. Important locations include:
 
 - Engine JAR: `shaft-engine/target/shaft-engine-<version>.jar`
 - Pilot contracts JAR: `shaft-pilot-core/target/shaft-pilot-core-<version>.jar`
+- Capture contracts JAR: `shaft-capture/target/shaft-capture-<version>.jar`
 - Optional direct providers JAR: `shaft-ai/target/shaft-ai-<version>.jar`
 - Optional BrowserStack SDK JAR: `shaft-browserstack/target/shaft-browserstack-<version>.jar`
 - Optional desktop video JAR: `shaft-video/target/shaft-video-<version>.jar`
@@ -148,3 +150,6 @@ documented in [SHAFT MCP](SHAFT_MCP.md).
 
 Pilot contracts, direct-provider configuration, approval, and redaction are
 documented in [SHAFT Pilot AI](SHAFT_PILOT_AI.md).
+
+The versioned browser recording format and deterministic privacy boundary are
+documented in [SHAFT Capture](SHAFT_CAPTURE.md).

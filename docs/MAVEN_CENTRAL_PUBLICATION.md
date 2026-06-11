@@ -9,6 +9,7 @@ SHAFT publishes the complete reactor as one Maven Central deployment. Publicatio
 | `io.github.shafthq:shaft-parent` | POM | aggregate CycloneDX JSON, signatures |
 | `io.github.shafthq:shaft-engine` | JAR | sources, JavaDocs, signatures |
 | `io.github.shafthq:shaft-pilot-core` | JAR | sources, JavaDocs, signatures |
+| `io.github.shafthq:shaft-capture` | JAR | sources, JavaDocs, signatures |
 | `io.github.shafthq:shaft-ai` | JAR | sources, JavaDocs, signatures |
 | `io.github.shafthq:shaft-browserstack` | JAR | sources, JavaDocs, signatures |
 | `io.github.shafthq:shaft-video` | JAR | sources, JavaDocs, signatures |
@@ -36,7 +37,7 @@ python3 scripts/ci/validate_maven_publication.py \
   --create-bundle target/publication-dry-run/central-bundle.zip
 ```
 
-The combined consumer imports `shaft-bom`, resolves the engine and optional library modules, enforces dependency convergence, detects duplicate classes outside the BrowserStack SDK's documented shaded JAR, and writes a CycloneDX SBOM. The `pilot-core` fixture compiles against provider-neutral contracts while banning `shaft-ai`; the separate `mcp` fixture resolves and copies the preserved executable coordinate without adding it to ordinary engine consumers.
+The combined consumer imports `shaft-bom`, resolves the engine and optional library modules including `shaft-capture`, enforces dependency convergence, detects duplicate classes outside the BrowserStack SDK's documented shaded JAR, and writes a CycloneDX SBOM. The `pilot-core` fixture compiles against provider-neutral contracts while banning `shaft-ai`; the separate `mcp` fixture resolves and copies the preserved executable coordinate without adding it to ordinary engine consumers.
 
 For a signed staging rehearsal, import a disposable GPG key into an isolated `GNUPGHOME`, run the reactor without `-Dgpg.skip`, and add `--require-signatures` to both validator commands. The aggregate CycloneDX artifact is attached before the shared `maven-gpg-plugin` `verify` execution so it is signed like every POM, JAR, sources JAR, and JavaDocs JAR. Never use release credentials for a local rehearsal.
 

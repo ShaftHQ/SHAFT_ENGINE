@@ -61,7 +61,7 @@ jobs:
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-        run: mvn -B -pl shaft-engine,shaft-pilot-core,shaft-ai,shaft-browserstack,shaft-video,shaft-visual,shaft-mcp -am clean package --file pom.xml -DskipTests -Dgpg.skip
+        run: mvn -B -pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-ai,shaft-browserstack,shaft-video,shaft-visual,shaft-mcp -am clean package --file pom.xml -DskipTests -Dgpg.skip
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4

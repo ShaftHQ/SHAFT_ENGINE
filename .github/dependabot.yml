@@ -18,6 +18,7 @@ updates:
       - "/"
       - "/shaft-engine"
       - "/shaft-pilot-core"
+      - "/shaft-capture"
       - "/shaft-ai"
       - "/shaft-browserstack"
       - "/shaft-video"

@@ -30,6 +30,7 @@ class VerifyMavenCentralReleaseTest(unittest.TestCase):
 
         self.assertIn("io/github/shafthq/shaft-engine/1.2.3/shaft-engine-1.2.3.jar", paths)
         self.assertIn("io/github/shafthq/shaft-pilot-core/1.2.3/shaft-pilot-core-1.2.3.jar", paths)
+        self.assertIn("io/github/shafthq/shaft-capture/1.2.3/shaft-capture-1.2.3.jar", paths)
         self.assertIn("io/github/shafthq/shaft-ai/1.2.3/shaft-ai-1.2.3-javadoc.jar.asc", paths)
         self.assertIn("io/github/shafthq/shaft-visual/1.2.3/shaft-visual-1.2.3-javadoc.jar.asc", paths)
         self.assertIn("io/github/shafthq/shaft-bom/1.2.3/shaft-bom-1.2.3.pom.asc", paths)
