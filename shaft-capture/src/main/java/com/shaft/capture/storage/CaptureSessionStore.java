@@ -4,10 +4,13 @@ import com.shaft.capture.format.CaptureJsonCodec;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureSession;
 import com.shaft.capture.model.Checkpoint;
+import com.shaft.capture.model.ExternalTestDataReference;
+import com.shaft.capture.model.RedactionSummary;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -72,6 +75,21 @@ public final class CaptureSessionStore {
     }
 
     /**
+     * Appends an event with privacy references and summary in one atomic snapshot.
+     *
+     * @param event event to append
+     * @param references external references used by the event
+     * @param summary safe privacy summary
+     * @return updated session
+     */
+    public CaptureSession append(
+            CaptureEvent event,
+            List<ExternalTestDataReference> references,
+            RedactionSummary summary) {
+        return update(session -> session.withDataReferences(references, summary).append(event));
+    }
+
+    /**
      * Adds a checkpoint and atomically publishes the updated session.
      *
      * @param checkpoint checkpoint to add
@@ -79,6 +97,17 @@ public final class CaptureSessionStore {
      */
     public CaptureSession checkpoint(Checkpoint checkpoint) {
         return update(session -> session.checkpoint(checkpoint));
+    }
+
+    /**
+     * Adds a checkpoint and its sanitized-text summary atomically.
+     *
+     * @param checkpoint checkpoint to add
+     * @param summary safe privacy summary
+     * @return updated session
+     */
+    public CaptureSession checkpoint(Checkpoint checkpoint, RedactionSummary summary) {
+        return update(session -> session.withDataReferences(List.of(), summary).checkpoint(checkpoint));
     }
 
     /**

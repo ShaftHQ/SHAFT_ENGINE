@@ -193,6 +193,16 @@ public final class CapturePrivacyClassifier {
     }
 
     /**
+     * Redacts configured secret-looking patterns from browser metadata text.
+     *
+     * @param rawValue original text
+     * @return sanitized text and safe summary
+     */
+    public SanitizedText sanitizeText(String rawValue) {
+        return redactPatternMatches(rawValue, false);
+    }
+
+    /**
      * Produces a safe basename for upload or evidence artifacts.
      *
      * @param sourcePath original path or filename

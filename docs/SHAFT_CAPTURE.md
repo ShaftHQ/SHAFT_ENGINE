@@ -1,13 +1,50 @@
-# SHAFT Capture recording format
+# SHAFT Capture
 
 `shaft-capture` defines the provider-neutral intermediate representation used
-by SHAFT Capture. It records browser intent for review, replay, migration, and
-future Java/JUnit/Cucumber generators without collecting browser events itself
-and without depending on `shaft-ai`.
+by SHAFT Capture and the managed-browser recorder that produces it. It records
+browser intent for review, replay, migration, and future Java/JUnit/Cucumber
+generators without depending on `shaft-ai`.
 
 Capture creation, validation, serialization, and privacy enforcement work with
 `pilot.ai.enabled=false`. Optional AI consumers may receive only the already
 redacted representation after the separate Pilot approval checks succeed.
+
+## Managed browser recording
+
+The recorder launches a fresh SHAFT-managed Chrome or Edge session. Firefox is
+rejected with an explicit unsupported-browser message until equivalent event
+coverage is available. WebDriver BiDi supplies navigation, browsing-context,
+prompt, and preload-script signals when available. A JavaScript listener
+drained through ordinary WebDriver provides deterministic interaction capture
+and remains the compatibility fallback.
+
+Build the executable MCP JAR, then use its `capture` subcommand:
+
+```bash
+mvn -pl shaft-mcp -am package -DskipTests -Dgpg.skip
+java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar capture start \
+  --url https://example.test --browser chrome \
+  --output recordings/example.json --headless
+java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar capture status
+java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar capture checkpoint \
+  --description "Checkout ready"
+java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar capture stop
+```
+
+Use `--runtime-dir <path>` on every command to isolate control files. `stop`
+also accepts `--discard`. Only one recorder may own a runtime directory at a
+time. The daemon control endpoint is bound to loopback, requires a generated
+bearer token, and removes its token and descriptor at shutdown. Browser
+profiles are temporary and removed after normal stop or interruption.
+
+The same lifecycle is exposed by the `capture_start`, `capture_status`, and
+`capture_stop` MCP tools. Status contains safe metadata and counts, never typed
+values.
+
+All process arguments and filesystem paths are built with Java APIs
+(`ProcessBuilder`, `Path`, and `Files`). No Windows, POSIX shell, or path
+separator is assumed; restrictive POSIX permissions are applied when supported
+and otherwise the host filesystem's inherited permissions are used.
 
 ## Format
 
@@ -78,4 +115,12 @@ Run the focused suite with:
 
 ```bash
 mvn -pl shaft-capture -am test
+```
+
+The real-browser Chrome and Edge suite is opt-in:
+
+```bash
+mvn -pl shaft-capture -am test \
+  -DincludeCaptureBrowserE2E=true \
+  -Dtest=ManagedCaptureRecorderBrowserTest
 ```

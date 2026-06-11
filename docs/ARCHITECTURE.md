@@ -15,7 +15,7 @@ flowchart TB
     Consumer["Consumer project"] --> BOM["shaft-bom<br/>dependency management"]
     Consumer --> Engine["shaft-engine<br/>required runtime"]
     Consumer -.->|optional| PilotCore["shaft-pilot-core<br/>contracts + security"]
-    Consumer -.->|optional| Capture["shaft-capture<br/>recording model + privacy"]
+    Consumer -.->|optional| Capture["shaft-capture<br/>managed recording + privacy"]
     Consumer -.->|optional| AI["shaft-ai<br/>direct providers"]
     Consumer -.->|optional| BrowserStack["shaft-browserstack<br/>BrowserStack Java SDK"]
     Consumer -.->|optional| Video["shaft-video<br/>local desktop recording"]
@@ -26,6 +26,7 @@ flowchart TB
     Video --> Engine
     Visual --> Engine
     MCP --> Engine
+    MCP --> Capture
     PilotCore --> Engine
     Capture --> PilotCore
     AI --> PilotCore
@@ -42,12 +43,12 @@ flowchart TB
 |----------------------|----------------|--------------------------------------------------------------------------------------------------------------------------|
 | `shaft-engine`       | JAR            | Required facade and core web, mobile, API, database, CLI, reporting, and accessibility implementation.                   |
 | `shaft-pilot-core`   | JAR            | Provider-neutral Pilot contracts, consent, redaction, budgets, audit metadata, and deterministic fallback.               |
-| `shaft-capture`      | JAR            | Versioned recording model, deterministic privacy classification, schema migration, and atomic JSON persistence.          |
+| `shaft-capture`      | JAR            | Managed Chrome/Edge recording, deterministic privacy classification, versioned schema, and atomic JSON persistence.       |
 | `shaft-ai`           | JAR            | Optional direct OpenAI, Anthropic, Gemini, and Ollama HTTP adapters discovered through `ServiceLoader`.                  |
 | `shaft-browserstack` | JAR            | BrowserStack SDK interception and `browserstack.yml` orchestration. Direct BrowserStack sessions stay in `shaft-engine`. |
 | `shaft-video`        | JAR            | Local non-headless desktop recording. Appium-native recording stays in `shaft-engine`.                                   |
 | `shaft-visual`       | JAR            | Reference-image assertions and image-based lookup through OpenCV, Eyes, and Shutterbug.                                  |
-| `SHAFT_MCP`          | executable JAR | Optional MCP server exposing SHAFT browser automation tools over stdio and Streamable HTTP.                              |
+| `SHAFT_MCP`          | executable JAR | Optional MCP server and CLI exposing SHAFT browser automation and managed capture controls.                              |
 | `shaft-bom`          | POM            | Aligns all SHAFT artifact versions; adds no runtime classes.                                                             |
 | `SHAFT_ENGINE`       | relocation POM | Temporary legacy-coordinate bridge to `shaft-engine`; adds no optional providers.                                        |
 
