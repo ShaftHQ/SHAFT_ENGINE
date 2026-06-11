@@ -1,0 +1,51 @@
+name: Agent Guidance Check
+
+on:
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - 'CONTRIBUTING.md'
+      - '.github/copilot-instructions.md'
+      - '.github/instructions/**'
+      - '.github/skills/**'
+      - '.github/pull_request_template.md'
+      - '.github/codex/prompts/refresh-agent-instructions.md'
+      - '.github/workflows/agent-guidance-check.yml'
+      - '.github/workflows/refresh-agent-instructions.yml'
+      - 'docs/AGENT_GUIDANCE_MAINTENANCE.md'
+      - 'scripts/ci/agent_guidance_budget.json'
+      - 'scripts/ci/validate_agent_guidance.py'
+      - 'tests/scripts/test_validate_agent_guidance.py'
+  push:
+    branches: [ main ]
+    paths:
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - 'CONTRIBUTING.md'
+      - '.github/copilot-instructions.md'
+      - '.github/instructions/**'
+      - '.github/skills/**'
+      - '.github/pull_request_template.md'
+      - '.github/codex/prompts/refresh-agent-instructions.md'
+      - '.github/workflows/agent-guidance-check.yml'
+      - '.github/workflows/refresh-agent-instructions.yml'
+      - 'docs/AGENT_GUIDANCE_MAINTENANCE.md'
+      - 'scripts/ci/agent_guidance_budget.json'
+      - 'scripts/ci/validate_agent_guidance.py'
+      - 'tests/scripts/test_validate_agent_guidance.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-agent-guidance:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Validate Agent Guidance
+        run: python3 scripts/ci/validate_agent_guidance.py
+      - name: Test Agent Guidance Validator
+        run: python3 -m unittest tests.scripts.test_validate_agent_guidance

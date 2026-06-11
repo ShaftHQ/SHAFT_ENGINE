@@ -2,9 +2,16 @@ name: Refresh Agent Instructions
 
 on:
   workflow_dispatch:
-  schedule:
-    # Weekly on Mondays at 04:37 UTC. Avoid minute 0 to reduce schedule congestion.
-    - cron: '37 4 * * 1'
+    inputs:
+      reason:
+        description: Why an AI review is needed or what drift should be corrected
+        required: true
+        type: string
+      force_ai:
+        description: Run the paid AI review even when the deterministic audit passes
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -23,7 +30,41 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
 
+      - name: Audit Current Guidance
+        id: audit
+        shell: bash
+        env:
+          FORCE_AI: ${{ inputs.force_ai }}
+          REFRESH_REASON: ${{ inputs.reason }}
+        run: |
+          set +e
+          python3 scripts/ci/validate_agent_guidance.py --format json > .agent-guidance-audit.json
+          audit_status=$?
+          set -e
+
+          cat .agent-guidance-audit.json
+          if [ "$FORCE_AI" = "true" ] || [ "$audit_status" -ne 0 ]; then
+            echo "needs_ai=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_ai=false" >> "$GITHUB_OUTPUT"
+            echo "Guidance is valid; skipping the paid AI action."
+          fi
+
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          Path(".agent-guidance-refresh-request.md").write_text(
+              "# Agent Guidance Refresh Request\n\n"
+              f"Reason: {os.environ['REFRESH_REASON']}\n\n"
+              "Read `.agent-guidance-audit.json` and change only the surfaces "
+              "needed to address its violations or the stated reason.\n",
+              encoding="utf-8",
+          )
+          PY
+
       - name: Run Codex Agent Instruction Refresh
+        if: steps.audit.outputs.needs_ai == 'true'
         id: run-codex
         uses: openai/codex-action@v1
         with:
@@ -32,6 +73,14 @@ jobs:
           sandbox: workspace-write
           safety-strategy: drop-sudo
           allow-bots: true
+
+      - name: Remove Temporary Audit Context
+        if: always()
+        shell: bash
+        run: rm -f .agent-guidance-audit.json .agent-guidance-refresh-request.md
+
+      - name: Validate Final Guidance
+        run: python3 scripts/ci/validate_agent_guidance.py
 
       - name: Check Changes and Enforce Allowlist
         id: changes
@@ -55,17 +104,13 @@ jobs:
           disallowed_files=()
           for file in "${changed_files[@]}"; do
             case "$file" in
-              AGENTS.md|*/AGENTS.md)
+              AGENTS.md|CLAUDE.md|CONTRIBUTING.md)
                 ;;
-              CLAUDE.md|GEMINI.md|.cursorrules|.windsurfrules|.clinerules)
+              .github/copilot-instructions.md|.github/pull_request_template.md)
                 ;;
-              MEMORY.md|NOTES.md|PLANS.md|HANDOFF.md)
+              .github/instructions/*|.github/skills/*)
                 ;;
-              .cursor/rules/*|.roo/*|.codex/*|.agents/*|.ai/*)
-                ;;
-              .github/codex/prompts/*|.github/copilot-instructions.md|.github/copilot-memory.md)
-                ;;
-              .github/instructions/*|.github/skills/*|docs/AGENT_KNOWLEDGE_MIGRATION.md)
+              docs/AGENT_GUIDANCE_MAINTENANCE.md)
                 ;;
               *)
                 disallowed_files+=("$file")
@@ -74,11 +119,9 @@ jobs:
           done
 
           if [ "${#disallowed_files[@]}" -gt 0 ]; then
-            echo "::error::Codex changed files outside the agent-guidance allowlist. Refusing to open a pull request."
+            echo "::error::Codex changed files outside the guidance allowlist."
             printf 'Disallowed files:\n'
             printf ' - %s\n' "${disallowed_files[@]}"
-            printf '\nAll changed files:\n'
-            printf ' - %s\n' "${changed_files[@]}"
             exit 1
           fi
 
@@ -89,37 +132,31 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
-          echo "Allowed agent instruction changes detected:"
-          printf ' - %s\n' "${changed_files[@]}"
-
       - name: Create Pull Request
         if: steps.changes.outputs.changes == 'true'
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: 'docs: refresh agent instructions'
+          commit-message: 'docs: refresh agent guidance'
           branch: automation/refresh-agent-instructions
           delete-branch: true
-          title: 'docs: refresh agent instructions'
+          title: 'docs: refresh agent guidance'
           body: |
             ## Summary
-            This automated PR refreshes durable Codex/agent instruction documentation using `openai/codex-action@v1`.
+            This PR updates agent guidance after a deterministic budget and
+            consistency audit.
 
-            ### Changed instruction files
+            **Requested reason:** ${{ inputs.reason }}
+
+            ### Changed files
             ${{ steps.changes.outputs.files }}
 
-            ## Files inspected by Codex
-            See the Codex summary below for the files or file groups inspected during the refresh.
+            ## Validation
+            - `python3 scripts/ci/validate_agent_guidance.py`
+            - Paid AI review ran only because the audit found drift or
+              `force_ai` was selected.
 
-            ## Validation performed
-            - Enforced the workflow allowlist before opening this PR.
-            - No product-code validation was run because this workflow is limited to agent-guidance documentation.
-
-            ## Unresolved questions
-            - Review any “Verify before relying on this” items that Codex leaves in the updated documentation.
-
-            ## Codex summary
+            ## Agent summary
             ${{ steps.run-codex.outputs.final-message }}
 
-            ## Safety note
-            No product code was intentionally changed. This workflow refuses to open a PR if Codex modifies files outside the agent-guidance allowlist.
+            No product code was intentionally changed.

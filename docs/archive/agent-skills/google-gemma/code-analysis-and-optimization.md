@@ -1,4 +1,4 @@
-# Skill: Code Analysis and Optimization
+# Archived Skill: Code Analysis and Optimization
 
 ## Skill Name
 
@@ -6,25 +6,30 @@
 
 ## Description
 
-A SHAFT-focused analysis skill for identifying reliability and performance issues, ranking root causes, and proposing minimal-risk fixes with clear validation steps.
+A SHAFT-focused analysis skill for identifying reliability and performance issues, ranking root causes, and proposing
+minimal-risk fixes with clear validation steps.
 
 ## High-Value Enhancements for Accuracy
 
 ### 1) Root-Cause-First Diagnosis
+
 - Distinguish symptom, trigger, and root cause for each issue.
 - Require code-location evidence before assigning high confidence.
 - Separate primary cause from secondary suspects.
 
 ### 2) Confidence Scoring
+
 - **High**: direct anti-pattern match in provided code.
 - **Medium**: partial evidence with probable mapping.
 - **Low**: missing critical files/flows.
 
 ### 3) Fix Ordering by Risk
+
 - Prioritize by impact and blast radius: leaks/flakiness first, then maintainability.
 - Recommend minimal viable fix first, then optional improvements.
 
 ### 4) Validation-Centric Output
+
 - Every suggested fix includes explicit “how to verify” checks.
 - Include regression checks for adjacent code paths.
 

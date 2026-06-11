@@ -30,12 +30,14 @@
 
 ## ✅ Pre-Submission Checklist
 
-> **All items must be checked before requesting review.** Unchecked items will delay the review.
+> Check the items that apply to this change and explain any unavailable
+> environment-dependent validation.
 
 - [ ] I have read the [Contributing Guide](../CONTRIBUTING.md) and this PR follows its guidelines.
-- [ ] My code compiles: `mvn clean install -DskipTests -Dgpg.skip` succeeds.
-- [ ] I have added or updated tests that cover the changed code (no untested code is submitted).
-- [ ] All new and existing tests pass: `mvn test -Dtest=<AffectedTestClass>` succeeds.
+- [ ] Documentation/agent-only changes pass their deterministic validators and `git diff --check`.
+- [ ] Behavior changes have focused automated coverage.
+- [ ] Affected tests pass: `mvn -pl shaft-engine -am test -Dtest=<AffectedTestClass>`.
+- [ ] Code/build changes compile once with `mvn clean install -DskipTests -Dgpg.skip`.
 - [ ] New `public` methods and classes have JavaDoc comments with `@param` / `@return` / `@throws` tags.
 - [ ] I have not introduced any hardcoded credentials, secrets, or sensitive data.
 - [ ] I have not broken backward compatibility (or documented the breaking change above).
@@ -49,13 +51,13 @@
 2. 
 3. 
 
+## Evidence
 
-## 📸 Evidence (Screenshots / Test Results)
+> Provide the smallest evidence that proves the change: validator output, test
+> results, logs, or a concise before/after. Attach screenshots only for visual
+> behavior.
 
-> Attach screenshots or paste console output showing the change working and tests passing.
-> For bug fixes, include a "before" and "after".
-
-<!-- Drag and drop images here, or paste test output -->
+<!-- Paste results or attach relevant visual evidence. -->
 
 
 ## 📝 Additional Notes

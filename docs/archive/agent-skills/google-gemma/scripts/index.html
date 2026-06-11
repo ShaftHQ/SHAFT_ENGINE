@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+<script>
+    // Tune this limit based on expected max source file size and model context constraints.
+    const MAX_FILE_SIZE_BYTES = 1_000_000;
+    // Tune timeout based on expected network conditions in your deployment environment.
+    const FETCH_TIMEOUT_MS = 15_000;
+
+    window['ai_edge_gallery_get_result'] = async (data) => {
+        let rawUrl = "";
+        try {
+            const jsonData = JSON.parse(data || "{}");
+            const inputUrl = (jsonData.url || "").trim();
+
+            if (!inputUrl) {
+                return JSON.stringify({error: "Missing required field: url"});
+            }
+
+            rawUrl = toRawUrl(inputUrl);
+        } catch (e) {
+            return JSON.stringify({error: `Invalid input: ${e.message}`});
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+        try {
+            const response = await fetch(rawUrl, {
+                headers: {
+                    Accept: "text/plain,application/octet-stream,*/*"
+                },
+                signal: controller.signal
+            });
+
+            if (!response.ok) {
+                return JSON.stringify({
+                    error: `Failed to fetch file (HTTP ${response.status}). Ensure the URL is a valid public GitHub file URL.`
+                });
+            }
+
+            const contentLengthHeader = response.headers.get("content-length");
+            if (contentLengthHeader) {
+                const contentLength = Number.parseInt(contentLengthHeader, 10);
+                if (Number.isFinite(contentLength) && contentLength > 0 && contentLength > MAX_FILE_SIZE_BYTES) {
+                    return JSON.stringify({
+                        error: `File is too large (${contentLength} bytes). Please provide a smaller file.`
+                    });
+                }
+            }
+
+            const contentType = (response.headers.get("content-type") || "").toLowerCase();
+            if (contentType.includes("text/html")) {
+                return JSON.stringify({
+                    error: "Received HTML instead of raw source. Verify the URL points to a single file, not a repository page."
+                });
+            }
+
+            const content = await readResponseTextWithLimit(response, MAX_FILE_SIZE_BYTES, controller);
+            if (!content || content.trim().length === 0) {
+                return JSON.stringify({error: "File is empty or could not be read."});
+            }
+
+            return JSON.stringify({result: content});
+        } catch (e) {
+            const isAbort = typeof DOMException !== "undefined"
+                ? (e instanceof DOMException && e.name === "AbortError")
+                : (e && e.name === "AbortError");
+            return JSON.stringify({
+                error: isAbort ? "Fetch timed out. Please retry with a valid public GitHub file URL." : `Network fetch error: ${e.message}`
+            });
+        } finally {
+            clearTimeout(timeout);
+        }
+    };
+
+    async function readResponseTextWithLimit(response, maxBytes, controller) {
+        if (!response.body || typeof response.body.getReader !== "function") {
+            const fallbackText = await response.text();
+            const fallbackBytes = new TextEncoder().encode(fallbackText).byteLength;
+            if (fallbackBytes > maxBytes) {
+                if (controller) {
+                    controller.abort();
+                }
+                throw new Error(`File exceeded maximum allowed size (${maxBytes} bytes).`);
+            }
+            return fallbackText;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let totalBytes = 0;
+        let text = "";
+
+        while (true) {
+            const {done, value} = await reader.read();
+            if (done) {
+                break;
+            }
+
+            totalBytes += value.byteLength;
+            if (totalBytes > maxBytes) {
+                if (controller) {
+                    controller.abort();
+                }
+                throw new Error(`File exceeded maximum allowed size (${maxBytes} bytes).`);
+            }
+
+            text += decoder.decode(value, {stream: true});
+        }
+
+        text += decoder.decode();
+        return text;
+    }
+
+    function toRawUrl(url) {
+        let parsed;
+        try {
+            parsed = new URL(url);
+        } catch {
+            throw new Error("Invalid URL format.");
+        }
+
+        const hostname = parsed.hostname.toLowerCase();
+        const path = parsed.pathname;
+
+        // Normalize trailing slashes; query/hash are excluded from pathname by URL parsing.
+        const cleanPath = path.replace(/\/+$/, "");
+
+        if (hostname === "raw.githubusercontent.com") {
+            // Expected raw path shape: /owner/repo/branch/file (root file) or deeper
+            // Minimum segments are 4: owner, repo, branch, file
+            const rawParts = cleanPath.split("/").filter(Boolean);
+            if (!cleanPath || rawParts.length < 4) {
+                throw new Error("Invalid raw GitHub file URL.");
+            }
+            const [owner, repo, branch, ...fileParts] = rawParts;
+            if (!owner || !repo || !branch || fileParts.length === 0) {
+                throw new Error("Incomplete raw GitHub file URL.");
+            }
+            return `https://raw.githubusercontent.com${cleanPath}`;
+        }
+
+        if (hostname !== "github.com") {
+            throw new Error("Only github.com and raw.githubusercontent.com file URLs are supported.");
+        }
+
+        // URL.hash and URL.search are parsed separately, so pathname is deterministic here.
+        const parts = cleanPath.split("/").filter(Boolean);
+        // Expected github.com path shape: /owner/repo/blob/branch/file (root file) or deeper
+        // -> 'blob' must be at index 2 and minimum segments are 5
+        if (parts.length < 5 || parts[2] !== "blob") {
+            throw new Error("Expected a GitHub file URL in /owner/repo/blob/branch/path format.");
+        }
+
+        const owner = parts[0];
+        const repo = parts[1];
+        const refAndPath = parts.slice(3).join("/");
+
+        if (!owner || !repo || !refAndPath) {
+            throw new Error("Incomplete GitHub file URL.");
+        }
+
+        // Preserve refs with slashes by switching to GitHub's `/raw/` route while keeping all remaining segments.
+        // GitHub resolves `/owner/repo/raw/<ref>/<path>` server-side, so `<ref>` may contain `/`.
+        return `https://github.com/${owner}/${repo}/raw/${refAndPath}`;
+    }
+</script>
+</body>
+</html>
