@@ -95,6 +95,7 @@ public class PropertiesHelper {
         Properties.basePerformance = ConfigFactory.create(Performance.class);
         Properties.baseLambdaTest = ConfigFactory.create(LambdaTest.class);
         Properties.baseApi = ConfigFactory.create(API.class);
+        Properties.basePilot = ConfigFactory.create(Pilot.class);
         Properties.initialized = true;
     }
 

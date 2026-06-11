@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[2]
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 MODULES = {
     "shaft-engine": "Core engine",
+    "shaft-pilot-core": "SHAFT Pilot contracts and security",
+    "shaft-ai": "Optional direct AI providers",
     "shaft-browserstack": "BrowserStack integration",
     "shaft-video": "Desktop video integration",
     "shaft-visual": "Visual processing integration",

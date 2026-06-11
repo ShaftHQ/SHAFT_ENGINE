@@ -117,6 +117,25 @@ def main() -> None:
         for term in required_terms:
             if term not in contents:
                 fail(f"{filename}: missing dependency-boundary term {term!r}")
+    pilot_doc = (ROOT / "docs/SHAFT_PILOT_AI.md").read_text(encoding="utf-8")
+    for term in (
+        "pilot.ai.enabled=false",
+        "pilot.ai.provider=none",
+        "shaft-pilot-core",
+        "shaft-ai",
+        "deterministicFallback",
+        "GitHub/Microsoft",
+        "MCP",
+    ):
+        if term not in pilot_doc:
+            fail(f"SHAFT_PILOT_AI.md: missing security or dependency term {term!r}")
+    mcp_fixtures = ROOT / "docs/examples/shaft-pilot/mcp"
+    for fixture in ("codex-config.toml", "claude-desktop.json", "gemini-settings.json", "vscode-mcp.json"):
+        contents = (mcp_fixtures / fixture).read_text(encoding="utf-8")
+        if "SHAFT_MCP-<version>.jar" not in contents:
+            fail(f"{fixture}: missing versioned SHAFT MCP command")
+        if "API_KEY" in contents or "apiKey" in contents:
+            fail(f"{fixture}: MCP client fixture must not request a provider API key")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     if "maven-central/v/io.github.shafthq/SHAFT_ENGINE" in readme:
         fail("README Maven Central badge still targets the legacy coordinate")

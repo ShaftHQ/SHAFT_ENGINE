@@ -1,23 +1,8 @@
 name: SHAFT MCP
 
 on:
-  pull_request:
-    paths:
-      - 'pom.xml'
-      - 'shaft-engine/**'
-      - 'shaft-mcp/**'
-      - 'shaft-bom/pom.xml'
-      - 'scripts/ci/validate_shaft_mcp_transports.py'
-      - '.github/workflows/shaft-mcp.yml'
-  push:
-    branches: [ main ]
-    paths:
-      - 'pom.xml'
-      - 'shaft-engine/**'
-      - 'shaft-mcp/**'
-      - 'shaft-bom/pom.xml'
-      - 'scripts/ci/validate_shaft_mcp_transports.py'
-      - '.github/workflows/shaft-mcp.yml'
+  schedule:
+    - cron: '00 1 * * *'
   workflow_dispatch:
 
 permissions:

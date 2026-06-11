@@ -99,6 +99,11 @@ def validate(root: Path = ROOT) -> list[str]:
     for workflow in ("shaft-mcp.yml", "publish-shaft-mcp.yml", "deploy-shaft-mcp.yml"):
         if not (root / ".github/workflows" / workflow).is_file():
             errors.append(f"missing root MCP workflow: {workflow}")
+    mcp_workflow = (root / ".github/workflows/shaft-mcp.yml").read_text(encoding="utf-8")
+    if "workflow_dispatch:" not in mcp_workflow or "cron: '00 1 * * *'" not in mcp_workflow:
+        errors.append("shaft-mcp workflow must run manually and once daily with local E2E workflows")
+    if "pull_request:" in mcp_workflow or "\n  push:" in mcp_workflow:
+        errors.append("shaft-mcp workflow must not run on pull_request or push")
 
     for dockerfile in (root / "shaft-mcp").glob("Dockerfile*"):
         content = dockerfile.read_text(encoding="utf-8")

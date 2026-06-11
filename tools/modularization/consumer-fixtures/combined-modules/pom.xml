@@ -33,6 +33,16 @@
         </dependency>
         <dependency>
             <groupId>io.github.shafthq</groupId>
+            <artifactId>shaft-pilot-core</artifactId>
+            <version>${shaft.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.shafthq</groupId>
+            <artifactId>shaft-ai</artifactId>
+            <version>${shaft.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.shafthq</groupId>
             <artifactId>shaft-browserstack</artifactId>
             <version>${shaft.version}</version>
         </dependency>
