@@ -30,7 +30,7 @@ jobs:
       - name: Read reactor version
         run: echo "VERSION=$(mvn -f pom.xml help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
