@@ -5,9 +5,9 @@ The more you contribute, the more you'll get the hang of how things are done.
 
 ## Requirements
 
-For any fixes we need evidence before and after the fix on all impacted platforms.
-For every new feature we need tests to validate it.
-For every new public method we need clear JavaDocs.
+For fixes, provide focused evidence that reproduces the problem and proves the
+result on the affected path. Add tests for behavior changes and JavaDocs for
+new public APIs.
 
 Nothing fancy... Just keep it clear and simple.
 
@@ -37,13 +37,21 @@ Nothing fancy... Just keep it clear and simple.
 - Use meaningful, descriptive names for variables and methods.
 - Prefer direct boolean expressions over multi-branch temporary flags when readability is improved.
 
-## Continuous Improvement Guard Rails (PDCA Cycles 2-5)
+## Validation By Risk
 
-- **JavaDocs:** For any edited public API, add concise JavaDoc with `@param`/`@return` where applicable and at least one `@see` reference to the [SHAFT User Guide](https://shafthq.github.io/).
-- **Complexity:** Keep surgical simplifications localized to touched methods and preserve behavior.
-- **Testing:** Every behavior change requires focused automated tests in `shaft-engine/src/test/java/`.
-- **Memory:** Always clear `ThreadLocal` state with `.remove()` when lifecycle ends to prevent leaks on pooled threads.
-- **Logging UX:** Keep CI output readable; disable ANSI-heavy formatting when non-interactive or explicitly configured off.
+- **Documentation or agent guidance:** run the relevant deterministic validator
+  and `git diff --check`; no Maven build is needed.
+- **Localized code:** run the affected tests, then compile/package once before
+  finalizing the change.
+- **Shared API, concurrency, build, or release changes:** run targeted tests,
+  relevant module checks, and the full compile/package command.
+- **Visual behavior:** include image or browser evidence. Console output and
+  test reports are sufficient for non-visual changes.
+- **External/cloud E2E:** run only when the required infrastructure is
+  available and the result is necessary to prove the change.
+
+Keep simplifications local, clear `ThreadLocal` state at lifecycle boundaries,
+and preserve readable non-interactive logging.
 
 ## Build & Test
 

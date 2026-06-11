@@ -1,0 +1,113 @@
+{
+  "file_budgets": {
+    "AGENTS.md": {
+      "max_bytes": 8192
+    },
+    "CLAUDE.md": {
+      "max_bytes": 4096,
+      "max_lines": 120
+    },
+    ".github/copilot-instructions.md": {
+      "max_chars": 3999
+    },
+    ".github/instructions/framework-source.instructions.md": {
+      "max_chars": 3999
+    },
+    ".github/instructions/java-tests.instructions.md": {
+      "max_chars": 3999
+    }
+  },
+  "host_contexts": {
+    "codex": [
+      "AGENTS.md"
+    ],
+    "claude": [
+      "AGENTS.md",
+      "CLAUDE.md"
+    ],
+    "copilot": [
+      "AGENTS.md",
+      ".github/copilot-instructions.md",
+      ".github/instructions/framework-source.instructions.md",
+      ".github/instructions/java-tests.instructions.md"
+    ]
+  },
+  "max_estimated_tokens_per_host": 3500,
+  "active_guidance_globs": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".github/copilot-instructions.md",
+    ".github/instructions/*.instructions.md",
+    ".github/skills/*/SKILL.md"
+  ],
+  "total_guidance_globs": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".github/copilot-instructions.md",
+    ".github/instructions/*.instructions.md",
+    ".github/skills/README.md",
+    ".github/skills/*/SKILL.md",
+    ".github/codex/prompts/refresh-agent-instructions.md",
+    "docs/AGENT_GUIDANCE_MAINTENANCE.md"
+  ],
+  "reduction_baseline_bytes": 145162,
+  "minimum_reduction_percent": 60,
+  "reference_scan_globs": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "CONTRIBUTING.md",
+    ".github/copilot-instructions.md",
+    ".github/instructions/*.instructions.md",
+    ".github/skills/README.md",
+    ".github/skills/*/SKILL.md",
+    ".github/pull_request_template.md",
+    ".github/codex/prompts/refresh-agent-instructions.md",
+    ".github/workflows/refresh-agent-instructions.yml",
+    "docs/AGENT_GUIDANCE_MAINTENANCE.md"
+  ],
+  "scope_files": [
+    ".github/instructions/framework-source.instructions.md",
+    ".github/instructions/java-tests.instructions.md"
+  ],
+  "skills_root": ".github/skills",
+  "duplicate_paragraph_min_chars": 180,
+  "forbidden_patterns": [
+    {
+      "pattern": "(?i)at least three (?:full )?pdca",
+      "message": "mandatory repeated PDCA cycles"
+    },
+    {
+      "pattern": "(?i)minimum 3[- ]iteration",
+      "message": "mandatory repeated implementation iterations"
+    },
+    {
+      "pattern": "(?i)before every commit",
+      "message": "per-commit validation ceremony"
+    },
+    {
+      "pattern": "(?i)capture screenshots? of (?:test|passing)",
+      "message": "routine screenshot evidence"
+    },
+    {
+      "pattern": "(?i)mandatory for non-trivial sessions",
+      "message": "automatic session-memory updates"
+    },
+    {
+      "pattern": "(?i)open a draft pr before",
+      "message": "automatic remote PR creation"
+    }
+  ],
+  "stale_references": [
+    ".github/copilot-memory.md",
+    "COPILOT_SETUP_VERIFICATION.md",
+    "docs/AGENT_KNOWLEDGE_MIGRATION.md",
+    "scripts/ai/orchestrate_models.py",
+    "tests/scripts/test_orchestrate_models.py",
+    ".github/skills/github-copilot/",
+    ".github/skills/google-gemma/",
+    ".github/skills/claude-code/",
+    ".github/skills/deepseek/",
+    ".github/skills/qwen/"
+  ],
+  "refresh_workflow": ".github/workflows/refresh-agent-instructions.yml"
+}

@@ -1,5 +1,9 @@
 # Ticket: Agent Knowledge Migration and Instruction Consolidation
 
+> Historical record: this workflow was superseded by
+> `docs/AGENT_GUIDANCE_MAINTENANCE.md`. Do not use the ticket's branch,
+> memory-ledger, or automatic-PR requirements as current agent policy.
+
 - **Date created:** 2026-05-08
 - **Branch:** `task/agent-memory-migration-runbook`
 - **Type:** Documentation / AI-agent enablement
