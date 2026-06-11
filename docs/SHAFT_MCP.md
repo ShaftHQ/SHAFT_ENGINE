@@ -19,10 +19,24 @@ The packaged server supports:
 
 - stdio by default, with protocol messages only on stdout and logs on stderr;
 - Streamable HTTP with `--spring.profiles.active=http`, at `/mcp`;
+- managed recording through `capture_start`, `capture_status`, and
+  `capture_stop`, with no AI provider required;
 - legacy SSE endpoint properties as configuration aliases during migration.
 
 The HTTP port defaults to `8081` and can be overridden with `PORT` or
 `--server.port`.
+
+The same JAR also provides a local SHAFT Capture CLI:
+
+```bash
+java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar capture start \
+  --url https://example.test --browser chrome --output recordings/example.json
+java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar capture status
+java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar capture stop
+```
+
+See [SHAFT Capture](SHAFT_CAPTURE.md) for checkpoint, runtime-directory,
+privacy, browser-support, and recovery details.
 
 ## Authentication boundary
 

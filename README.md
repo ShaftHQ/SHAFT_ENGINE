@@ -222,7 +222,7 @@ mvn archetype:generate \
 |--------------------------------------------------------------------------|----------------------|
 | Web, Appium/Flutter, API, DB, CLI, reporting, screenshots, accessibility | `shaft-engine`       |
 | Provider-neutral Pilot contracts, approval, redaction, and fallback      | `shaft-pilot-core`   |
-| Deterministic browser recording model, privacy, and JSON persistence     | `shaft-capture`      |
+| Managed Chrome/Edge recording, privacy, and JSON persistence             | `shaft-capture`      |
 | Optional direct OpenAI, Anthropic, Gemini, and Ollama calls              | `shaft-ai`           |
 | BrowserStack SDK and multi-platform `browserstack.yml` orchestration     | `shaft-browserstack` |
 | Local non-headless desktop recording                                     | `shaft-video`        |

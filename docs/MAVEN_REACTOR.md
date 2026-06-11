@@ -10,9 +10,9 @@ relocation artifact that points consumers to the canonical JAR.
 - `shaft-engine/pom.xml` builds the engine JAR. All framework source, resources, tests, examples, and runtime support assets remain under `shaft-engine/src/`; Java packages remain under `com.shaft`.
 - `shaft-bom/pom.xml` publishes the consumer BOM. Importing it manages the `shaft-engine`, `shaft-pilot-core`, `shaft-capture`, `shaft-ai`, `shaft-browserstack`, `shaft-video`, `shaft-visual`, and `SHAFT_MCP` versions without adding dependencies by itself.
 - `shaft-pilot-core/pom.xml` builds provider-neutral Pilot contracts, security controls, configuration snapshots, and deterministic fallback. It depends on `shaft-engine`; the engine has no reverse dependency.
-- `shaft-capture/pom.xml` builds versioned recording contracts, deterministic privacy classification, schema migration, and atomic JSON persistence. It depends on `shaft-pilot-core` and has no dependency on `shaft-ai`.
+- `shaft-capture/pom.xml` builds managed Chrome/Edge recording, versioned contracts, deterministic privacy classification, schema migration, and atomic JSON persistence. It depends on `shaft-pilot-core` and has no dependency on `shaft-ai`.
 - `shaft-ai/pom.xml` builds optional direct OpenAI, Anthropic, Gemini, and Ollama adapters. It depends on `shaft-pilot-core` and exposes no provider SDK types.
-- `shaft-mcp/pom.xml` builds the optional executable MCP server. It depends on `shaft-engine`; the engine has no reverse dependency on MCP.
+- `shaft-mcp/pom.xml` builds the optional executable MCP server and SHAFT Capture CLI. It depends on `shaft-engine` and `shaft-capture`; the engine has no reverse dependency on MCP.
 - `shaft-browserstack/pom.xml` builds the optional BrowserStack Java SDK integration. Direct BrowserStack
   WebDriver/Appium sessions remain in `shaft-engine`.
 - `shaft-video/pom.xml` builds the optional desktop video recording provider. Add it when local desktop screen recording is needed; Appium-native recording remains in `shaft-engine`.
@@ -151,5 +151,6 @@ documented in [SHAFT MCP](SHAFT_MCP.md).
 Pilot contracts, direct-provider configuration, approval, and redaction are
 documented in [SHAFT Pilot AI](SHAFT_PILOT_AI.md).
 
-The versioned browser recording format and deterministic privacy boundary are
-documented in [SHAFT Capture](SHAFT_CAPTURE.md).
+Managed-browser recording, its CLI/MCP controls, the versioned format, and the
+deterministic privacy boundary are documented in
+[SHAFT Capture](SHAFT_CAPTURE.md).

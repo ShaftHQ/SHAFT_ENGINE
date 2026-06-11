@@ -44,7 +44,7 @@ class CaptureJsonCodecTest {
 
         CaptureSession session = codec.read(golden);
 
-        assertEquals(golden, codec.write(session));
+        assertEquals(normalizeLineEndings(golden), normalizeLineEndings(codec.write(session)));
     }
 
     @Test
@@ -122,5 +122,9 @@ class CaptureJsonCodecTest {
             }
             return new String(input.readAllBytes(), StandardCharsets.UTF_8);
         }
+    }
+
+    private static String normalizeLineEndings(String value) {
+        return value.replace("\r\n", "\n");
     }
 }
