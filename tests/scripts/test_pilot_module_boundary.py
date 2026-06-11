@@ -20,14 +20,19 @@ class PilotModuleBoundaryTest(unittest.TestCase):
         engine_dependencies = artifacts(ROOT / "shaft-engine/pom.xml")
 
         self.assertNotIn("shaft-pilot-core", engine_dependencies)
+        self.assertNotIn("shaft-capture", engine_dependencies)
         self.assertNotIn("shaft-ai", engine_dependencies)
 
-    def test_dependency_direction_is_engine_then_core_then_ai(self):
+    def test_dependency_direction_is_engine_then_core_then_capture_or_ai(self):
         core_dependencies = artifacts(ROOT / "shaft-pilot-core/pom.xml")
+        capture_dependencies = artifacts(ROOT / "shaft-capture/pom.xml")
         ai_dependencies = artifacts(ROOT / "shaft-ai/pom.xml")
 
         self.assertIn("shaft-engine", core_dependencies)
+        self.assertNotIn("shaft-capture", core_dependencies)
         self.assertNotIn("shaft-ai", core_dependencies)
+        self.assertIn("shaft-pilot-core", capture_dependencies)
+        self.assertNotIn("shaft-ai", capture_dependencies)
         self.assertIn("shaft-pilot-core", ai_dependencies)
 
     def test_direct_provider_module_uses_service_loader_without_provider_sdks(self):
@@ -60,8 +65,15 @@ class PilotModuleBoundaryTest(unittest.TestCase):
         )
 
         self.assertIn("shaft-pilot-core", managed)
+        self.assertIn("shaft-capture", managed)
         self.assertIn("shaft-ai", managed)
         self.assertEqual(fixture_dependencies, {"shaft-pilot-core"})
+
+    def test_capture_jar_packages_the_versioned_schema(self):
+        capture_pom = (ROOT / "shaft-capture/pom.xml").read_text(encoding="utf-8")
+
+        self.assertIn("<artifactId>maven-jar-plugin</artifactId>", capture_pom)
+        self.assertIn("<include>schema/**/*</include>", capture_pom)
 
     def test_mcp_workflow_is_manual_and_daily_only(self):
         workflow = (ROOT / ".github/workflows/shaft-mcp.yml").read_text(encoding="utf-8")

@@ -31,6 +31,7 @@
     <modules>
         <module>shaft-engine</module>
         <module>shaft-pilot-core</module>
+        <module>shaft-capture</module>
         <module>shaft-ai</module>
         <module>shaft-mcp</module>
         <module>shaft-browserstack</module>

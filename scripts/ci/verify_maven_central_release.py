@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 GROUP_PATH = "io/github/shafthq"
 DEFAULT_REPOSITORY = "https://repo.maven.apache.org/maven2"
 JAR_ARTIFACTS = (
-    "shaft-engine", "shaft-pilot-core", "shaft-ai", "shaft-browserstack",
+    "shaft-engine", "shaft-pilot-core", "shaft-capture", "shaft-ai", "shaft-browserstack",
     "shaft-video", "shaft-visual", "SHAFT_MCP",
 )
 POM_ARTIFACTS = ("shaft-parent", "shaft-bom", "SHAFT_ENGINE")

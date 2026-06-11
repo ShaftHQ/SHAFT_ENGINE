@@ -50,6 +50,9 @@ for test Java.
 - For bugs, reproduce the failure and add focused regression coverage when
   practical before changing behavior.
 - Update documentation when public behavior changes.
+- For each new GitHub ticket assigned by the user, sync the latest default
+  branch, create a dedicated branch from it, implement and validate the work,
+  then open a pull request.
 - Perform GitHub, cloud, deployment, release, or destructive operations only
   when the task explicitly requires them.
 

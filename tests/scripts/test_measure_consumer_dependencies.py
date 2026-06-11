@@ -190,6 +190,9 @@ The following files have been resolved:
             pilot_core_root = root / "shaft-pilot-core"
             pilot_core_pom = pilot_core_root / "pom.xml"
             pilot_core_jar = pilot_core_root / "target" / "shaft-pilot-core-1.2.3.jar"
+            capture_root = root / "shaft-capture"
+            capture_pom = capture_root / "pom.xml"
+            capture_jar = capture_root / "target" / "shaft-capture-1.2.3.jar"
             ai_root = root / "shaft-ai"
             ai_pom = ai_root / "pom.xml"
             ai_jar = ai_root / "target" / "shaft-ai-1.2.3.jar"
@@ -210,6 +213,10 @@ The following files have been resolved:
             pilot_core_pom.write_text("<project>pilot-core</project>", encoding="utf-8")
             pilot_core_jar.parent.mkdir(parents=True)
             pilot_core_jar.write_bytes(b"pilot-core-jar")
+            capture_pom.parent.mkdir(parents=True)
+            capture_pom.write_text("<project>capture</project>", encoding="utf-8")
+            capture_jar.parent.mkdir(parents=True)
+            capture_jar.write_bytes(b"capture-jar")
             ai_pom.parent.mkdir(parents=True)
             ai_pom.write_text("<project>ai</project>", encoding="utf-8")
             ai_jar.parent.mkdir(parents=True)
@@ -234,6 +241,8 @@ The following files have been resolved:
                 mock.patch.object(measure, "ENGINE_POM", engine_pom),
                 mock.patch.object(measure, "PILOT_CORE_ROOT", pilot_core_root),
                 mock.patch.object(measure, "PILOT_CORE_POM", pilot_core_pom),
+                mock.patch.object(measure, "CAPTURE_ROOT", capture_root),
+                mock.patch.object(measure, "CAPTURE_POM", capture_pom),
                 mock.patch.object(measure, "AI_ROOT", ai_root),
                 mock.patch.object(measure, "AI_POM", ai_pom),
                 mock.patch.object(measure, "BOM_POM", bom_pom),
@@ -262,6 +271,10 @@ The following files have been resolved:
             self.assertEqual(
                 (repository / "io/github/shafthq/shaft-pilot-core/1.2.3/shaft-pilot-core-1.2.3.jar").read_bytes(),
                 b"pilot-core-jar",
+            )
+            self.assertEqual(
+                (repository / "io/github/shafthq/shaft-capture/1.2.3/shaft-capture-1.2.3.jar").read_bytes(),
+                b"capture-jar",
             )
             self.assertEqual(
                 (repository / "io/github/shafthq/shaft-ai/1.2.3/shaft-ai-1.2.3.jar").read_bytes(),

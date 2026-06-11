@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shafthq.github.io/schemas/capture/session-1.0.schema.json",
+  "title": "SHAFT Capture Session",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "sessionId",
+    "status",
+    "startedAt",
+    "browser",
+    "events",
+    "checkpoints",
+    "dataReferences",
+    "redactionSummary",
+    "extensions"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "enum": [
+        "1.0"
+      ]
+    },
+    "sessionId": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "INCOMPLETE",
+        "COMPLETED"
+      ]
+    },
+    "startedAt": {
+      "type": "string"
+    },
+    "endedAt": {
+      "type": "string"
+    },
+    "browser": {
+      "type": "object",
+      "required": [
+        "browserName",
+        "logicalSessionId",
+        "capabilities"
+      ]
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "type",
+          "context"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "navigation",
+              "click",
+              "type",
+              "clear",
+              "select",
+              "toggle",
+              "upload",
+              "keyboard",
+              "window",
+              "frame",
+              "alert",
+              "wait",
+              "verification"
+            ]
+          },
+          "context": {
+            "type": "object",
+            "required": [
+              "sequence",
+              "timestamp",
+              "page",
+              "replayStatus",
+              "evidence",
+              "extensions"
+            ]
+          }
+        }
+      }
+    },
+    "checkpoints": {
+      "type": "array"
+    },
+    "dataReferences": {
+      "type": "array"
+    },
+    "redactionSummary": {
+      "type": "object",
+      "required": [
+        "redactedValueCount",
+        "removedAttributeCount",
+        "redactedUrlParameterCount",
+        "appliedRules"
+      ]
+    },
+    "extensions": {
+      "type": "object"
+    }
+  }
+}

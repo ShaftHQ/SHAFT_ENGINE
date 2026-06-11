@@ -11,8 +11,10 @@ access:
 - `shaft-engine` exposes only thread-local `SHAFT.Properties.pilot`
   configuration. It has no dependency on either Pilot module.
 
-Capture and Doctor-style features depend on `shaft-pilot-core`. Add `shaft-ai`
-only when direct provider calls are required.
+`shaft-capture` and Doctor-style features depend on `shaft-pilot-core`. Add
+`shaft-ai` only when direct provider calls are required. Capture creation,
+validation, migration, and redaction remain deterministic with
+`pilot.ai.enabled=false`.
 
 ## Safe defaults
 

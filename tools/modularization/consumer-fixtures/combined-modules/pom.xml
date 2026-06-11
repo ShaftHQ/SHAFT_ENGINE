@@ -38,6 +38,11 @@
         </dependency>
         <dependency>
             <groupId>io.github.shafthq</groupId>
+            <artifactId>shaft-capture</artifactId>
+            <version>${shaft.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.shafthq</groupId>
             <artifactId>shaft-ai</artifactId>
             <version>${shaft.version}</version>
         </dependency>
