@@ -35,8 +35,8 @@ jobs:
       - name: Check for Dependency Updates
         id: dep-updates
         run: |
-          mvn -pl shaft-engine,shaft-browserstack,shaft-video,shaft-visual -am versions:display-dependency-updates -Dgpg.skip 2>&1 | tee /tmp/dep-updates-raw.txt || true
-          mvn -pl shaft-engine,shaft-browserstack,shaft-video,shaft-visual -am versions:display-plugin-updates -Dgpg.skip 2>&1 | tee -a /tmp/dep-updates-raw.txt || true
+          mvn -pl shaft-engine,shaft-browserstack,shaft-video,shaft-visual,shaft-mcp -am versions:display-dependency-updates -Dgpg.skip 2>&1 | tee /tmp/dep-updates-raw.txt || true
+          mvn -pl shaft-engine,shaft-browserstack,shaft-video,shaft-visual,shaft-mcp -am versions:display-plugin-updates -Dgpg.skip 2>&1 | tee -a /tmp/dep-updates-raw.txt || true
 
           # Capture only true stable upgrades (exclude prereleases and version downgrades)
           python3 <<'PY'

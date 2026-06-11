@@ -5,7 +5,6 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.remote.Browser;
 import org.testng.annotations.*;
-import testPackage.legacy.SearchOptimizationTest;
 
 public class CoverageTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
@@ -106,19 +105,6 @@ public class CoverageTests {
         driver.get().element().click(By.id("prompt-button"))
                 .and().alert().typeIntoPromptAlert("nachos").acceptAlert();
         driver.get().element().assertThat(By.id("prompt-result")).text().isEqualTo("nachos").perform();
-    }
-
-    @Test(enabled = false)
-    public void submitFormUsingJavaScript() {
-        By searchBox = SearchOptimizationTest.searchBox;
-        By searchResult = SHAFT.GUI.Locator.hasTagName("a").containsAttribute("href", "SHAFT_ENGINE").isFirst().build();
-        boolean isElementDisplayed = driver.get().browser().navigateToURL("https://www.google.com/ncr")
-                .and().element().type(searchBox, "SHAFT_Engine")
-                .and().clear(searchBox)
-                .and().element().type(searchBox, "SHAFT_Engine")
-                .and().submitFormUsingJavaScript(searchBox)
-                .and().get().isDisplayed(searchResult);
-        SHAFT.Validations.assertThat().object(isElementDisplayed).isEqualTo(true).withCustomReportMessage("target search result is displayed").perform();
     }
 
     @BeforeClass

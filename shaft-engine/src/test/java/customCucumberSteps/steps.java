@@ -1,13 +1,9 @@
 package customCucumberSteps;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
-import org.openqa.selenium.By;
-import org.openqa.selenium.Keys;
-import poms.GoogleSearch;
 
 public class steps {
     /**
@@ -18,17 +14,18 @@ public class steps {
      * cucumber.extraGlue=
      * cucumber.plugin=pretty, html:allure-results/cucumberReport.html, com.shaft.listeners.CucumberFeatureListener
      * cucumber.glue=customCucumberSteps
-     */
+    */
     private SHAFT.GUI.WebDriver driver;
-    private DriverFactoryHelper helper;
+
     @Given("I open the target browser")
     public void i_open_the_target_browser() {
         driver = new SHAFT.GUI.WebDriver();
     }
+
     @When("I navigate to {string}")
     public void i_navigate_to(String pageName) {
-        if (pageName.equals("Google Home")) {
-            driver.browser().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
+        if (pageName.equals("Local Home")) {
+            driver.browser().navigateToURL("data:text/html,<title>Local Home</title><h1>SHAFT</h1>");
         }
     }
 

@@ -1,13 +1,12 @@
 runtime: "container"
 
 build:
-  dockerfile: "Dockerfile.smithery.build"
+  dockerfile: "shaft-mcp/Dockerfile.smithery.build"
   dockerBuildPath: "."
 
 startCommand:
   type: "http"
 
-# Configuration schema for optional user-provided settings
 configSchema:
   type: object
   properties:
@@ -18,7 +17,5 @@ configSchema:
       default: "CHROME"
   required: []
 
-# Example configuration for documentation
 exampleConfig:
   browserType: "CHROME"
-

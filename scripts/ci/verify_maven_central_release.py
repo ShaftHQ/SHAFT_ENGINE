@@ -16,12 +16,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 GROUP_PATH = "io/github/shafthq"
 DEFAULT_REPOSITORY = "https://repo.maven.apache.org/maven2"
-JAR_ARTIFACTS = ("shaft-engine", "shaft-browserstack", "shaft-video", "shaft-visual")
+JAR_ARTIFACTS = ("shaft-engine", "shaft-browserstack", "shaft-video", "shaft-visual", "SHAFT_MCP")
 POM_ARTIFACTS = ("shaft-parent", "shaft-bom", "SHAFT_ENGINE")
 FIXTURE_GOALS = {
     "api": "test-compile",
     "combined-modules": "verify",
     "legacy-coordinate": "test-compile",
+    "mcp": "verify",
 }
 
 

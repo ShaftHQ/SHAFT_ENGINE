@@ -1,33 +1,30 @@
-# Dockerfile for Render.com deployment
-# Optimized for Render free tier (512 MB RAM)
+FROM maven:3.9.11-eclipse-temurin-25 AS builder
+
+WORKDIR /build
+COPY . .
+RUN mvn --batch-mode --no-transfer-progress -pl shaft-mcp -am package -DskipTests -Dgpg.skip \
+    && find shaft-mcp/target -maxdepth 1 -name 'SHAFT_MCP-*.jar' \
+        ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
+        -exec cp {} /build/SHAFT_MCP.jar \; -quit
 
 FROM eclipse-temurin:25-jre
 
-# Install Chrome and dependencies for web automation (headless mode)
-RUN apt-get update && apt-get install -y \
-    wget \
-    gnupg \
-    ca-certificates \
-    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg \
-    && sh -c 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates gnupg wget \
+    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub \
+        | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" \
+        > /etc/apt/sources.list.d/google.list \
     && apt-get update \
-    && apt-get install -y google-chrome-stable \
+    && apt-get install -y --no-install-recommends google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
-# MCP Registry validation label
 LABEL io.modelcontextprotocol.server.name="io.github.ShaftHQ/shaft-mcp"
 
-# Create app directory
 WORKDIR /app
+COPY --from=builder /build/SHAFT_MCP.jar /app/SHAFT_MCP.jar
 
-# Download the released JAR from Maven Central
-ADD https://repo1.maven.org/maven2/io/github/shafthq/SHAFT_MCP/10.2.20260506/SHAFT_MCP-10.2.20260506.jar /app/SHAFT_MCP.jar
-
-# Expose port for HTTP transport
 EXPOSE 8081
-
-# Set environment for HTTP profile
 ENV SPRING_PROFILES_ACTIVE=http
 
-# Run the application with memory optimizations for 512MB RAM
 CMD ["java", "-XX:+UseSerialGC", "-Xms128m", "-Xmx384m", "-XX:MaxMetaspaceSize=64m", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "-Dspring.main.lazy-initialization=true", "-jar", "SHAFT_MCP.jar"]

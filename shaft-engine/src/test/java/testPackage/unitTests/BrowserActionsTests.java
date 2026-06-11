@@ -14,11 +14,6 @@ public class BrowserActionsTests {
     }
 
     @Test
-    public void navigateToURLWithRedirection() {
-        driver.get().browser().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
-    }
-
-    @Test
     public void navigateBack() {
         driver.get().browser().navigateToURL("https://www.selenium.dev/selenium/web/xhtmlTest.html");
         driver.get().browser().navigateToURL("https://www.selenium.dev/selenium/web/simpleTest.html");

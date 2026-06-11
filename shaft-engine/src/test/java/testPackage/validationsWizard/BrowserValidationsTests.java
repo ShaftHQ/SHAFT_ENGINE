@@ -13,18 +13,18 @@ public class BrowserValidationsTests {
 
     @Test
     public void url() {
-        Validations.assertThat().browser(driver.get().getDriver()).url().contains("google.com").perform();
+        Validations.assertThat().browser(driver.get().getDriver()).url().contains("coverageTestPage.html").perform();
     }
 
     @Test
     public void title() {
-        Validations.assertThat().browser(driver.get().getDriver()).title().contains("oogle").perform();
+        Validations.assertThat().browser(driver.get().getDriver()).title().contains("SHAFT Coverage").perform();
     }
 
     @BeforeMethod
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        String url = "https://www.google.com/";
+        String url = SHAFT.Properties.paths.testData() + "coverageTestPage.html";
         new BrowserActions(driver.get().getDriver()).navigateToURL(url);
     }
 

@@ -9,13 +9,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
-JAVA_MODULES = {"shaft-engine", "shaft-browserstack", "shaft-video", "shaft-visual"}
+JAVA_MODULES = {"shaft-engine", "shaft-browserstack", "shaft-video", "shaft-visual", "SHAFT_MCP"}
 DEPENDABOT_DIRECTORIES = {
     "/",
     "/shaft-engine",
     "/shaft-browserstack",
     "/shaft-video",
     "/shaft-visual",
+    "/shaft-mcp",
     "/shaft-bom",
     "/legacy-shaft-engine",
     "/report-aggregate",
@@ -98,7 +99,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     codecov_count = (workflow_text + action_text).count("codecov/codecov-action@")
 
     codeql = (root / ".github" / "workflows" / "codeql-analysis.yml").read_text(encoding="utf-8")
-    selector = "-pl shaft-engine,shaft-browserstack,shaft-video,shaft-visual -am"
+    selector = "-pl shaft-engine,shaft-browserstack,shaft-video,shaft-visual,shaft-mcp -am"
     if selector not in codeql:
         errors.append("CodeQL build must compile every Java-bearing module")
 

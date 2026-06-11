@@ -1,0 +1,53 @@
+name: Deploy SHAFT MCP
+
+on:
+  workflow_run:
+    workflows: ["Publish SHAFT MCP Distributions"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-render:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Trigger Render deployment
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "RENDER_DEPLOY_HOOK_URL is not configured; skipping."
+            exit 0
+          fi
+          curl --fail --show-error --request POST "$RENDER_DEPLOY_HOOK_URL"
+
+  deploy-fly:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout released source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      - name: Set up Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@1.6
+      - name: Deploy to Fly.io
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "FLY_API_TOKEN is not configured; skipping."
+            exit 0
+          fi
+          flyctl deploy --remote-only --config shaft-mcp/fly.toml
+
+  smithery:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Record Smithery deployment handoff
+        run: echo "Smithery rebuilds from the root smithery.yaml GitHub integration."

@@ -22,4 +22,4 @@ committed pre-modularization baseline is under `docs/modularization/dependency-b
 
 ## Combined publication consumer
 
-`combined-modules/pom.xml` imports `shaft-bom` and resolves the engine plus all optional modules together. Its `verify` phase enforces dependency convergence, checks duplicate classes/resources (while excluding BrowserStack's intentionally shaded SDK and documented upstream resource overlaps), and generates a CycloneDX JSON SBOM. See `docs/MAVEN_CENTRAL_PUBLICATION.md` for the release dry-run command.
+`combined-modules/pom.xml` imports `shaft-bom` and resolves the engine plus all optional modules together. Its `verify` phase enforces dependency convergence, checks duplicate classes/resources (while excluding BrowserStack's intentionally shaded SDK and documented upstream resource overlaps), and generates a CycloneDX JSON SBOM. `mcp/pom.xml` resolves and copies the preserved `io.github.shafthq:SHAFT_MCP` executable coordinate without adding it to ordinary engine consumers. See `docs/MAVEN_CENTRAL_PUBLICATION.md` for the release dry-run command.

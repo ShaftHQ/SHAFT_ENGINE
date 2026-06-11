@@ -1,0 +1,78 @@
+name: SHAFT MCP
+
+on:
+  pull_request:
+    paths:
+      - 'pom.xml'
+      - 'shaft-engine/**'
+      - 'shaft-mcp/**'
+      - 'shaft-bom/pom.xml'
+      - 'scripts/ci/validate_shaft_mcp_transports.py'
+      - '.github/workflows/shaft-mcp.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'pom.xml'
+      - 'shaft-engine/**'
+      - 'shaft-mcp/**'
+      - 'shaft-bom/pom.xml'
+      - 'scripts/ci/validate_shaft_mcp_transports.py'
+      - '.github/workflows/shaft-mcp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-and-smoke:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v5
+        with:
+          maven-version: 3.9.5
+      - name: Validate reactor versions
+        run: |
+          python3 scripts/ci/validate_reactor_versions.py
+          python3 scripts/ci/validate_shaft_mcp_configuration.py
+      - name: Run MCP module tests
+        run: mvn --batch-mode -pl shaft-mcp -am test -Dgpg.skip
+      - name: Verify MCP Allure results
+        run: test -n "$(find shaft-mcp/allure-results -name '*-result.json' -type f -print -quit)"
+      - name: Package and smoke transports
+        run: |
+          mvn --batch-mode -pl shaft-mcp -am package -DskipTests -Dgpg.skip
+          python3 scripts/ci/validate_shaft_mcp_transports.py
+      - name: Build container
+        run: docker build -f shaft-mcp/Dockerfile -t shaft-mcp:test .
+      - name: Smoke container startup
+        shell: bash
+        run: |
+          cleanup() {
+            docker rm -f shaft-mcp-smoke >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker run -d --name shaft-mcp-smoke \
+            -e SPRING_PROFILES_ACTIVE=http \
+            -p 127.0.0.1:8081:8081 \
+            shaft-mcp:test
+          for attempt in {1..60}; do
+            if curl --fail --silent --show-error \
+              -H 'Accept: application/json, text/event-stream' \
+              -H 'Content-Type: application/json' \
+              --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"container-smoke","version":"1.0"}}}' \
+              http://127.0.0.1:8081/mcp | grep -q '"name":"shaft-mcp"'; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs shaft-mcp-smoke
+          exit 1

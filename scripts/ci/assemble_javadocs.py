@@ -15,6 +15,7 @@ MODULES = {
     "shaft-browserstack": "BrowserStack integration",
     "shaft-video": "Desktop video integration",
     "shaft-visual": "Visual processing integration",
+    "shaft-mcp": "Model Context Protocol server",
 }
 
 

@@ -16,7 +16,7 @@ public class AccessibilityTest {
     @BeforeMethod(alwaysRun = true)
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL("https://www.google.com");
+        driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "coverageTestPage.html");
     }
 
     /* ==========================
@@ -56,7 +56,6 @@ public class AccessibilityTest {
 
     @Test(description = "Analyze page and ignore specific rules")
     public void testAnalyzeWithIgnoredRules() {
-        driver.get().browser().navigateToURL("https://www.google.com");
         List<String> ignoredRules = Collections.singletonList("color-contrast");
 
         try {
@@ -106,7 +105,6 @@ public class AccessibilityTest {
        ========================== */
     @Test(description = "Accessibility score above threshold should pass")
     public void testAccessibilityScorePass() {
-        // Assert that the page is at least 80% accessible (Google.com currently scores ~88.9%)
         driver.get().browser().accessibility()
                 .assertAccessibilityScoreAtLeast("samplePage", 80.0);
     }

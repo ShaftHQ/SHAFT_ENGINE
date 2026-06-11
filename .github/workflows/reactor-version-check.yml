@@ -7,7 +7,11 @@ on:
       - '*/pom.xml'
       - 'scripts/ci/validate_reactor_versions.py'
       - 'tests/scripts/test_validate_reactor_versions.py'
+      - 'scripts/ci/check_maven_release_version.py'
+      - 'tests/scripts/test_check_maven_release_version.py'
+      - '.github/workflows/mavenCentral_cd.yml'
       - 'scripts/ci/validate_quality_configuration.py'
+      - 'scripts/ci/validate_shaft_mcp_configuration.py'
       - 'tests/scripts/test_validate_quality_configuration.py'
       - 'report-aggregate/**'
       - '.github/dependabot.yml'
@@ -20,7 +24,11 @@ on:
       - '*/pom.xml'
       - 'scripts/ci/validate_reactor_versions.py'
       - 'tests/scripts/test_validate_reactor_versions.py'
+      - 'scripts/ci/check_maven_release_version.py'
+      - 'tests/scripts/test_check_maven_release_version.py'
+      - '.github/workflows/mavenCentral_cd.yml'
       - 'scripts/ci/validate_quality_configuration.py'
+      - 'scripts/ci/validate_shaft_mcp_configuration.py'
       - 'tests/scripts/test_validate_quality_configuration.py'
       - 'report-aggregate/**'
       - '.github/dependabot.yml'
@@ -41,5 +49,11 @@ jobs:
         run: python3 scripts/ci/validate_reactor_versions.py
       - name: Validate aggregate quality configuration
         run: python3 scripts/ci/validate_quality_configuration.py
+      - name: Validate SHAFT MCP integration
+        run: python3 scripts/ci/validate_shaft_mcp_configuration.py
       - name: Test configuration validators
-        run: python3 -m unittest tests.scripts.test_validate_reactor_versions tests.scripts.test_validate_quality_configuration
+        run: >-
+          python3 -m unittest
+          tests.scripts.test_check_maven_release_version
+          tests.scripts.test_validate_reactor_versions
+          tests.scripts.test_validate_quality_configuration

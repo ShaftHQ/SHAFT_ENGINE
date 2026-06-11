@@ -15,7 +15,7 @@ public class NegativeValidationsTests {
     private final By checkedBox = By.xpath("//input[@type='checkbox'][2]");
     private final By NotCheckedBox = By.xpath("//input[@type='checkbox'][1]");
 
-    private final String url = "data:text/html,<script>var result;</script><button alt='Google' onclick='result=\"Clicked\"'>Go</button> <div id=\"content\" class=\"large-12 columns\">\n" +
+    private final String url = "data:text/html,<script>var result;</script><button alt='Sample' onclick='result=\"Clicked\"'>Go</button> <div id=\"content\" class=\"large-12 columns\">\n" +
             "        <div class=\"example\">\n" +
             "  <h3>Checkboxes</h3>\n" +
             "  <form id=\"checkboxes\">\n" +
@@ -27,7 +27,7 @@ public class NegativeValidationsTests {
 
     @Test(expectedExceptions = AssertionError.class)
     public void url_failing() {
-        driver.get().browser().assertThat().url().contains("google.comm").perform();
+        driver.get().browser().assertThat().url().contains("example.invalid").perform();
     }
 
     @Test
@@ -98,7 +98,7 @@ public class NegativeValidationsTests {
 
     @Test(expectedExceptions = AssertionError.class)
     public void attribute() {
-        driver.get().element().assertThat(button).attribute("alt").isEqualTo("Googlee").perform();
+        driver.get().element().assertThat(button).attribute("alt").isEqualTo("Samplee").perform();
     }
 
     @Test(expectedExceptions = AssertionError.class)
