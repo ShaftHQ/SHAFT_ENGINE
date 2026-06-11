@@ -38,13 +38,6 @@ public class SmartLocatorsPOC1Tests extends Tests {
         click("Login");
     }
 
-    public void testSmartLocators5(){
-        driver.get().browser().navigateToURL("https://www.facebook.com/login.php/");
-        type("Email", "test");
-        type("Password", "test");
-        click("Log in");
-    }
-
     public void testSmartLocators6(){
         driver.get().browser().navigateToURL("https://www.selenium.dev/selenium/web/web-form.html");
         type("Text input", "text");

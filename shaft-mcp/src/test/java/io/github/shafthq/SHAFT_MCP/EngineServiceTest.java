@@ -1,6 +1,7 @@
 package io.github.shafthq.SHAFT_MCP;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +15,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * These tests verify that the MCP server can actually open a browser,
  * navigate to pages, interact with elements, and retrieve data.
  */
-@SpringBootTest
+@SpringBootTest(properties = "spring.ai.mcp.server.enabled=false")
+@Tag("external-e2e")
 class EngineServiceTest {
     private static final Logger logger = LoggerFactory.getLogger(EngineServiceTest.class);
     private static final String TEST_URL = "https://shafthq.github.io/";

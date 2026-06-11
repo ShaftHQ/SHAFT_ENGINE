@@ -5,17 +5,17 @@ import com.shaft.validation.Validations;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import poms.GoogleSearch;
 
 public class VerifyEqualsTests {
     // Declaring webdriver instance
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
+    private static final org.openqa.selenium.By SEARCH_BOX = org.openqa.selenium.By.name("q");
 
     @Test
     public void test_assertElementAttribute() {
-        driver.get().element().type(GoogleSearch.getSearchBox_textField(),
+        driver.get().element().type(SEARCH_BOX,
                 "INC_004010050:Another SCHEDULER with the same name [Duplicate Job Name] already exists.");
-        Validations.verifyThat().element(driver.get().getDriver(), GoogleSearch.getSearchBox_textField())
+        Validations.verifyThat().element(driver.get().getDriver(), SEARCH_BOX)
                 .text()
                 .matchesRegex("INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.")
                 .perform();
@@ -23,9 +23,9 @@ public class VerifyEqualsTests {
 
     @Test
     public void test_assertEquals() {
-        driver.get().element().type(GoogleSearch.getSearchBox_textField(),
+        driver.get().element().type(SEARCH_BOX,
                 "INC_004010050:Another SCHEDULER with the same name [Duplicate Job Name] already exists.");
-        String actualValue = driver.get().element().get().text(GoogleSearch.getSearchBox_textField());
+        String actualValue = driver.get().element().get().text(SEARCH_BOX);
         Validations.verifyThat()
                 .object(actualValue)
                 .matchesRegex("INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.")
@@ -34,9 +34,9 @@ public class VerifyEqualsTests {
 
     @Test
     public void test_verifyElementAttribute() {
-        driver.get().element().type(GoogleSearch.getSearchBox_textField(),
+        driver.get().element().type(SEARCH_BOX,
                 "© Copyright 2014-2017 Incorta, Inc Version: Rel3.3-dev Build May 29, 2018 15:30");
-        Validations.verifyThat().element(driver.get().getDriver(), GoogleSearch.getSearchBox_textField())
+        Validations.verifyThat().element(driver.get().getDriver(), SEARCH_BOX)
                 .text()
                 .matchesRegex("([\\s\\S]*Rel3.3[\\s\\S]*)")
                 .perform();
@@ -45,7 +45,7 @@ public class VerifyEqualsTests {
     @BeforeMethod // Set-up method, to be run once before the first test
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL("https://www.google.com/ncr", "https://www.google.com/");
+        driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "searchFixture.html");
     }
 
     @AfterMethod(alwaysRun = true)

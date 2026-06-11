@@ -11,6 +11,7 @@ SHAFT publishes the complete reactor as one Maven Central deployment. Publicatio
 | `io.github.shafthq:shaft-browserstack` | JAR | sources, JavaDocs, signatures |
 | `io.github.shafthq:shaft-video` | JAR | sources, JavaDocs, signatures |
 | `io.github.shafthq:shaft-visual` | JAR | sources, JavaDocs, signatures |
+| `io.github.shafthq:SHAFT_MCP` | executable JAR | sources, JavaDocs, signatures |
 | `io.github.shafthq:shaft-bom` | POM | signature |
 | `io.github.shafthq:SHAFT_ENGINE` | relocation POM | signature |
 
@@ -33,7 +34,7 @@ python3 scripts/ci/validate_maven_publication.py \
   --create-bundle target/publication-dry-run/central-bundle.zip
 ```
 
-The combined consumer imports `shaft-bom`, resolves all four JAR modules, enforces dependency convergence, detects duplicate classes outside the BrowserStack SDK's documented shaded JAR, and writes a CycloneDX SBOM.
+The combined consumer imports `shaft-bom`, resolves the engine and optional library modules, enforces dependency convergence, detects duplicate classes outside the BrowserStack SDK's documented shaded JAR, and writes a CycloneDX SBOM. The separate `mcp` fixture resolves and copies the preserved executable coordinate without adding it to ordinary engine consumers.
 
 For a signed staging rehearsal, import a disposable GPG key into an isolated `GNUPGHOME`, run the reactor without `-Dgpg.skip`, and add `--require-signatures` to both validator commands. The aggregate CycloneDX artifact is attached before the shared `maven-gpg-plugin` `verify` execution so it is signed like every POM, JAR, sources JAR, and JavaDocs JAR. Never use release credentials for a local rehearsal.
 
@@ -41,17 +42,19 @@ For a signed staging rehearsal, import a disposable GPG key into an isolated `GN
 
 `.github/workflows/mavenCentral_cd.yml` performs these irreversible actions in order:
 
-1. Read the version from the root parent POM and reject reactor version drift.
-2. Validate configuration, build all publication artifacts, and run the combined consumer checks.
-3. Sign and deploy the complete reactor through the Central Publishing Maven Plugin, waiting for publication success.
-4. Verify every POM, JAR, sources JAR, JavaDocs JAR, and signature from Maven Central, then compile canonical, combined-module, and legacy-relocation consumers from isolated repositories.
-5. Create the GitHub tag and release.
-6. Dispatch the guide update and announce the release on Slack.
+1. Immediately after checkout, probe the root parent POM coordinate on Maven Central. An existing version or an inconclusive Central response stops the job before JDK, Maven, signing, or build setup.
+2. Read the version from the root parent POM and reject reactor version drift.
+3. Validate configuration, build all publication artifacts, and run the combined consumer checks.
+4. Sign and deploy the complete reactor through the Central Publishing Maven Plugin, waiting for publication success.
+5. Verify every POM, JAR, sources JAR, JavaDocs JAR, and signature from Maven Central, then compile canonical, combined-module, legacy-relocation, and MCP consumers from isolated repositories.
+6. Create the GitHub tag and release.
+7. Dispatch the guide update and announce the release on Slack.
 
 This ordering prevents a GitHub release, guide update, or Slack announcement from claiming availability when Central publication failed.
 
 ## Failure and rollback behavior
 
+- **Version already exists:** choose a new reactor version. Maven Central releases are immutable, so the workflow deliberately stops before environment setup or artifact construction.
 - **Before Central succeeds:** fix the validation, signing, metadata, or Central error and rerun. No GitHub release or announcement has been created.
 - **After Central succeeds but before GitHub release creation:** Maven Central releases are immutable. Do not overwrite or delete the published version. A maintainer may rerun the workflow to create the missing GitHub release if the tag does not exist, or create it manually using the exact published version.
 - **After GitHub release creation but before dispatch/Slack:** rerun or manually perform only the missing notification. Do not republish the Maven version.

@@ -3,16 +3,16 @@
   "name": "io.github.ShaftHQ/shaft-mcp",
   "title": "SHAFT MCP",
   "description": "Web automation and testing server using SHAFT Engine (Selenium-based)",
-  "version": "10.2.20260422",
+  "version": "@project.version@",
   "repository": {
-    "url": "https://github.com/ShaftHQ/SHAFT_MCP",
+    "url": "https://github.com/ShaftHQ/SHAFT_ENGINE",
     "source": "github"
   },
   "websiteUrl": "https://ShaftHQ.github.io/",
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/shafthq/shaft-mcp:10.2.20260422",
+      "identifier": "ghcr.io/shafthq/shaft-mcp:@project.version@",
       "transport": {
         "type": "stdio"
       }

@@ -20,6 +20,7 @@ updates:
       - "/shaft-browserstack"
       - "/shaft-video"
       - "/shaft-visual"
+      - "/shaft-mcp"
       - "/shaft-bom"
       - "/legacy-shaft-engine"
       - "/report-aggregate"

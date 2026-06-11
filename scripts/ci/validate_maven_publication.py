@@ -17,6 +17,7 @@ PUBLIC_ARTIFACTS = {
     "shaft-browserstack": (Path("shaft-browserstack/pom.xml"), "jar"),
     "shaft-video": (Path("shaft-video/pom.xml"), "jar"),
     "shaft-visual": (Path("shaft-visual/pom.xml"), "jar"),
+    "SHAFT_MCP": (Path("shaft-mcp/pom.xml"), "jar"),
     "shaft-bom": (Path("shaft-bom/pom.xml"), "pom"),
     "SHAFT_ENGINE": (Path("legacy-shaft-engine/pom.xml"), "pom"),
 }
@@ -103,6 +104,7 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
 
     workflow = (root / ".github/workflows/mavenCentral_cd.yml").read_text(encoding="utf-8")
     required_steps = [
+        "Reject existing Maven Central release version",
         "Validate Maven publication",
         "Deploy to Maven Central",
         "Verify published Maven Central coordinates",
@@ -112,7 +114,16 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
     ]
     positions = [workflow.find(step) for step in required_steps]
     if any(position < 0 for position in positions) or positions != sorted(positions):
-        errors.append("release workflow must validate and deploy before release creation and announcements")
+        errors.append(
+            "release workflow must reject existing versions before validation, deployment, "
+            "release creation, and announcements"
+        )
+    preflight = workflow.find("Reject existing Maven Central release version")
+    jdk_setup = workflow.find("Set up JDK 25")
+    if preflight < 0 or jdk_setup < 0 or preflight > jdk_setup:
+        errors.append("release version preflight must run before JDK and Maven setup")
+    if "scripts/ci/check_maven_release_version.py" not in workflow:
+        errors.append("release workflow must probe Maven Central before building")
     if "-f pom.xml help:evaluate" not in workflow:
         errors.append("release workflow must derive the version from the reactor parent pom.xml")
     if "verify_maven_central_release.py" not in workflow:

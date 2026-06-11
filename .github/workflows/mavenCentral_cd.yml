@@ -1,6 +1,6 @@
 name: Maven Central Continuous Delivery
-# Executed automatically when a new PR is merged to master, if the release number already exists this job will fail
-# This pipeline will build from main, upload the artifacts, and create the GitHub release
+# Executed automatically when a new PR is merged to main.
+# Existing immutable Maven Central versions stop immediately after checkout.
 
 on:
   push:
@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
+      - name: Reject existing Maven Central release version
+        run: python3 scripts/ci/check_maven_release_version.py
       - name: Set up JDK 25
         uses: actions/setup-java@v5
         with:

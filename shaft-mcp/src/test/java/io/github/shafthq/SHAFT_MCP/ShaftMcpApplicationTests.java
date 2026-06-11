@@ -1,28 +1,42 @@
 package io.github.shafthq.SHAFT_MCP;
 
-import com.shaft.driver.SHAFT;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.openqa.selenium.By;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+@SpringBootTest(properties = "spring.ai.mcp.server.enabled=false")
 class ShaftMcpApplicationTests {
-	SHAFT.GUI.WebDriver driver;
+
+    private static final Set<String> REPRESENTATIVE_TOOLS = Set.of(
+            "driver_initialize",
+            "browser_navigate",
+            "browser_get_current_url",
+            "element_click"
+    );
+
+    @Autowired
+    private ApplicationContext context;
+
 	@Test
-	void contextLoads() {
-		driver.browser().navigateToURL("https://shafthq.github.io/")
-				.element().assertThat(By.tagName("h1")).text().contains("SHAFT");
-	}
-	@BeforeEach
-	void setUp() {
-		driver = new SHAFT.GUI.WebDriver();
-	}
-	@AfterEach
-	void tearDown() {
-		if (driver != null) {
-			driver.quit();
-		}
-	}
+	void contextRegistersExistingMcpToolApi() {
+        Object bean = context.getBean("shaftTools");
+        assertTrue(bean instanceof List<?>);
+        List<?> callbacks = (List<?>) bean;
+        assertEquals(40, callbacks.size());
+
+        Set<String> toolNames = callbacks.stream()
+                .map(ToolCallback.class::cast)
+                .map(callback -> callback.getToolDefinition().name())
+                .collect(Collectors.toSet());
+        assertTrue(toolNames.containsAll(REPRESENTATIVE_TOOLS));
+    }
 }
