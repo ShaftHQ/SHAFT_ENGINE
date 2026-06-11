@@ -1,0 +1,37 @@
+name: Package and Test
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      selenium:
+        image: selenium/standalone-chrome:latest
+        options: --shm-size="2g"
+        ports:
+          - 4444:4444
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      - name: Package (skip tests and gpg)
+        run: mvn clean package -DskipTests -Dgpg.skip
+
+      - name: Run tests
+        env:
+          REMOTE_DRIVER_ADDRESS: http://localhost:4444/wd/hub
+        run: |
+          mkdir -p src/main/resources/properties
+          mvn clean test -Pjunit

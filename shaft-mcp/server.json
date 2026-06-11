@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "name": "io.github.ShaftHQ/shaft-mcp",
+  "title": "SHAFT MCP",
+  "description": "Web automation and testing server using SHAFT Engine (Selenium-based)",
+  "version": "10.2.20260422",
+  "repository": {
+    "url": "https://github.com/ShaftHQ/SHAFT_MCP",
+    "source": "github"
+  },
+  "websiteUrl": "https://ShaftHQ.github.io/",
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/shafthq/shaft-mcp:10.2.20260422",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
