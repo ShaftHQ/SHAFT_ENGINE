@@ -22,6 +22,10 @@ FIXTURES_ROOT = ROOT / "tools" / "modularization" / "consumer-fixtures"
 BASELINE_ROOT = ROOT / "docs" / "modularization" / "dependency-baseline"
 ENGINE_ROOT = ROOT / "shaft-engine"
 ENGINE_POM = ENGINE_ROOT / "pom.xml"
+PILOT_CORE_ROOT = ROOT / "shaft-pilot-core"
+PILOT_CORE_POM = PILOT_CORE_ROOT / "pom.xml"
+AI_ROOT = ROOT / "shaft-ai"
+AI_POM = AI_ROOT / "pom.xml"
 BOM_POM = ROOT / "shaft-bom" / "pom.xml"
 BROWSERSTACK_ROOT = ROOT / "shaft-browserstack"
 BROWSERSTACK_POM = BROWSERSTACK_ROOT / "pom.xml"
@@ -32,6 +36,8 @@ VISUAL_POM = VISUAL_ROOT / "pom.xml"
 LEGACY_POM = ROOT / "legacy-shaft-engine" / "pom.xml"
 PROJECT_COORDINATES = (
     "io.github.shafthq:shaft-engine",
+    "io.github.shafthq:shaft-pilot-core",
+    "io.github.shafthq:shaft-ai",
     "io.github.shafthq:shaft-browserstack",
     "io.github.shafthq:shaft-video",
     "io.github.shafthq:shaft-visual",
@@ -83,6 +89,20 @@ def seed_project_artifact(repository: Path, jar: Path, version: str) -> int:
     shutil.copy2(jar, engine_destination / f"shaft-engine-{version}.jar")
     shutil.copy2(ENGINE_POM, engine_destination / f"shaft-engine-{version}.pom")
     seed_pom(repository, "shaft-bom", BOM_POM, version)
+    pilot_core_destination = repository / "io" / "github" / "shafthq" / "shaft-pilot-core" / version
+    pilot_core_destination.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(PILOT_CORE_POM, pilot_core_destination / f"shaft-pilot-core-{version}.pom")
+    shutil.copy2(
+        PILOT_CORE_ROOT / "target" / f"shaft-pilot-core-{version}.jar",
+        pilot_core_destination / f"shaft-pilot-core-{version}.jar",
+    )
+    ai_destination = repository / "io" / "github" / "shafthq" / "shaft-ai" / version
+    ai_destination.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(AI_POM, ai_destination / f"shaft-ai-{version}.pom")
+    shutil.copy2(
+        AI_ROOT / "target" / f"shaft-ai-{version}.jar",
+        ai_destination / f"shaft-ai-{version}.jar",
+    )
     browserstack_destination = repository / "io" / "github" / "shafthq" / "shaft-browserstack" / version
     browserstack_destination.mkdir(parents=True, exist_ok=True)
     shutil.copy2(BROWSERSTACK_POM, browserstack_destination / f"shaft-browserstack-{version}.pom")

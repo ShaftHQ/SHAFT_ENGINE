@@ -17,6 +17,8 @@ updates:
     directories:
       - "/"
       - "/shaft-engine"
+      - "/shaft-pilot-core"
+      - "/shaft-ai"
       - "/shaft-browserstack"
       - "/shaft-video"
       - "/shaft-visual"

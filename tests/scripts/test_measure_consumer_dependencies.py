@@ -187,6 +187,12 @@ The following files have been resolved:
             repository = root / "repository"
             jar = root / "shaft-engine.jar"
             engine_pom = root / "shaft-engine-pom.xml"
+            pilot_core_root = root / "shaft-pilot-core"
+            pilot_core_pom = pilot_core_root / "pom.xml"
+            pilot_core_jar = pilot_core_root / "target" / "shaft-pilot-core-1.2.3.jar"
+            ai_root = root / "shaft-ai"
+            ai_pom = ai_root / "pom.xml"
+            ai_jar = ai_root / "target" / "shaft-ai-1.2.3.jar"
             bom_pom = root / "shaft-bom-pom.xml"
             browserstack_root = root / "shaft-browserstack"
             browserstack_pom = browserstack_root / "pom.xml"
@@ -200,6 +206,14 @@ The following files have been resolved:
             legacy_pom = root / "legacy-pom.xml"
             jar.write_bytes(b"jar")
             engine_pom.write_text("<project>engine</project>", encoding="utf-8")
+            pilot_core_pom.parent.mkdir(parents=True)
+            pilot_core_pom.write_text("<project>pilot-core</project>", encoding="utf-8")
+            pilot_core_jar.parent.mkdir(parents=True)
+            pilot_core_jar.write_bytes(b"pilot-core-jar")
+            ai_pom.parent.mkdir(parents=True)
+            ai_pom.write_text("<project>ai</project>", encoding="utf-8")
+            ai_jar.parent.mkdir(parents=True)
+            ai_jar.write_bytes(b"ai-jar")
             bom_pom.write_text("<project>bom</project>", encoding="utf-8")
             browserstack_pom.parent.mkdir(parents=True)
             browserstack_pom.write_text("<project>browserstack</project>", encoding="utf-8")
@@ -218,6 +232,10 @@ The following files have been resolved:
 
             with (
                 mock.patch.object(measure, "ENGINE_POM", engine_pom),
+                mock.patch.object(measure, "PILOT_CORE_ROOT", pilot_core_root),
+                mock.patch.object(measure, "PILOT_CORE_POM", pilot_core_pom),
+                mock.patch.object(measure, "AI_ROOT", ai_root),
+                mock.patch.object(measure, "AI_POM", ai_pom),
                 mock.patch.object(measure, "BOM_POM", bom_pom),
                 mock.patch.object(measure, "BROWSERSTACK_ROOT", browserstack_root),
                 mock.patch.object(measure, "BROWSERSTACK_POM", browserstack_pom),
@@ -240,6 +258,14 @@ The following files have been resolved:
             self.assertEqual(
                 (repository / "io/github/shafthq/shaft-bom/1.2.3/shaft-bom-1.2.3.pom").read_text(encoding="utf-8"),
                 "<project>bom</project>",
+            )
+            self.assertEqual(
+                (repository / "io/github/shafthq/shaft-pilot-core/1.2.3/shaft-pilot-core-1.2.3.jar").read_bytes(),
+                b"pilot-core-jar",
+            )
+            self.assertEqual(
+                (repository / "io/github/shafthq/shaft-ai/1.2.3/shaft-ai-1.2.3.jar").read_bytes(),
+                b"ai-jar",
             )
             self.assertEqual(
                 (repository / "io/github/shafthq/shaft-browserstack/1.2.3/shaft-browserstack-1.2.3.pom").read_text(encoding="utf-8"),

@@ -1,0 +1,234 @@
+package com.shaft.ai.provider;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+import com.shaft.driver.SHAFT;
+import com.shaft.pilot.ai.AiBudget;
+import com.shaft.pilot.ai.AiExecutionService;
+import com.shaft.pilot.ai.AiProvider;
+import com.shaft.pilot.ai.AiProviderRegistry;
+import com.shaft.pilot.ai.AiRequest;
+import com.shaft.pilot.ai.AiResponse;
+import com.shaft.pilot.ai.AiResponseStatus;
+import com.shaft.pilot.ai.ApprovalPolicy;
+import com.shaft.pilot.ai.EvidenceCategory;
+import com.shaft.pilot.ai.ProcessingLocation;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.http.HttpClient;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.EnumSet;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class ProviderConformanceTest {
+    private static final ObjectMapper JSON = new ObjectMapper();
+    private HttpServer server;
+
+    @AfterEach
+    void cleanup() {
+        if (server != null) {
+            server.stop(0);
+        }
+        SHAFT.Properties.clearForCurrentThread();
+    }
+
+    @ParameterizedTest(name = "{0} returns the same structured contract")
+    @MethodSource("providerIds")
+    void allProvidersPassStructuredMockConformance(String providerId) throws Exception {
+        AtomicReference<String> capturedBody = new AtomicReference<>("");
+        server = server(exchange -> {
+            capturedBody.set(readBody(exchange));
+            respond(exchange, 200, successfulResponse(providerId, "{\"answer\":\"ok\"}"));
+        });
+        configure(providerId, server.getAddress().getPort());
+        AiResponse response = execute(providerId, request(providerId, Duration.ofSeconds(1)));
+
+        assertEquals(AiResponseStatus.SUCCESS, response.status());
+        assertEquals("ok", response.structuredPayload().path("answer").asText());
+        assertFalse(capturedBody.get().contains("do-not-transmit"));
+        assertTrue(capturedBody.get().contains("[REDACTED]"));
+        assertTrue(capturedBody.get().contains("answer"));
+    }
+
+    @ParameterizedTest(name = "{0} normalizes {1}")
+    @MethodSource("providerFailures")
+    void allProvidersNormalizeFailures(String providerId, FailureCase failureCase,
+                                       AiResponseStatus expectedStatus) throws Exception {
+        server = server(exchange -> {
+            if (failureCase == FailureCase.TIMEOUT) {
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                }
+                respondQuietly(exchange, 200, successfulResponse(providerId, "{\"answer\":\"late\"}"));
+            } else if (failureCase == FailureCase.MALFORMED_JSON) {
+                respond(exchange, 200, "{not-json");
+            } else if (failureCase == FailureCase.SCHEMA_VIOLATION) {
+                respond(exchange, 200, successfulResponse(providerId, "{\"wrong\":true}"));
+            } else if (failureCase == FailureCase.RATE_LIMIT) {
+                respond(exchange, 429, "{}");
+            } else {
+                respond(exchange, 401, "{}");
+            }
+        });
+        configure(providerId, server.getAddress().getPort());
+        Duration timeout = failureCase == FailureCase.TIMEOUT ? Duration.ofMillis(50) : Duration.ofSeconds(1);
+
+        AiResponse response = execute(providerId, request(providerId, timeout));
+
+        assertEquals(expectedStatus, response.status());
+        assertEquals("deterministic", response.structuredPayload().path("answer").asText());
+        assertFalse(response.fallbackReason().contains("do-not-transmit"));
+        assertFalse(response.fallbackReason().contains("test-credential"));
+    }
+
+    @Test
+    void serviceLoaderDiscoversAllDirectProviders() {
+        var ids = new AiProviderRegistry().serviceProviders().stream().map(AiProvider::id).toList();
+
+        assertEquals(java.util.List.of("anthropic", "gemini", "ollama", "openai"), ids);
+    }
+
+    private AiResponse execute(String providerId, AiRequest request) {
+        AiProviderRegistry registry = new AiProviderRegistry();
+        registry.registerForCurrentThread(provider(providerId));
+        try {
+            return new AiExecutionService(registry, com.shaft.pilot.config.PilotConfiguration::current,
+                    event -> {
+                    }).execute(request);
+        } finally {
+            registry.clearForCurrentThread();
+        }
+    }
+
+    private static AiProvider provider(String providerId) {
+        HttpClient client = HttpClient.newBuilder().build();
+        return switch (providerId) {
+            case "openai" -> new OpenAiProvider(client, ignored -> "test-credential");
+            case "anthropic" -> new AnthropicProvider(client, ignored -> "test-credential");
+            case "gemini" -> new GeminiProvider(client, ignored -> "test-credential");
+            case "ollama" -> new OllamaProvider(client, ignored -> "");
+            default -> throw new IllegalArgumentException("Unknown provider: " + providerId);
+        };
+    }
+
+    private static AiRequest request(String providerId, Duration timeout) {
+        JsonNode schema = JSON.createObjectNode()
+                .put("type", "object")
+                .set("properties", JSON.createObjectNode()
+                        .set("answer", JSON.createObjectNode().put("type", "string")));
+        ((com.fasterxml.jackson.databind.node.ObjectNode) schema).putArray("required").add("answer");
+        boolean local = "ollama".equals(providerId);
+        ApprovalPolicy approval = new ApprovalPolicy(local, !local, EnumSet.allOf(EvidenceCategory.class));
+        return AiRequest.builder("provider-conformance", schema)
+                .text("Authorization: Bearer do-not-transmit")
+                .budget(new AiBudget(1_000, 100, java.math.BigDecimal.ONE))
+                .approvalPolicy(approval)
+                .timeout(timeout)
+                .deterministicFallback(JSON.createObjectNode().put("answer", "deterministic"))
+                .build();
+    }
+
+    private static void configure(String providerId, int port) {
+        boolean local = "ollama".equals(providerId);
+        var properties = SHAFT.Properties.pilot.set()
+                .enabled(true)
+                .provider(providerId)
+                .localConsent(local)
+                .remoteConsent(!local)
+                .allowedEvidenceCategories("TEXT")
+                .retryMaxAttempts(1)
+                .timeoutSeconds(1);
+        String base = "http://127.0.0.1:" + port;
+        switch (providerId) {
+            case "openai" -> properties.openAiEndpoint(base + "/responses").openAiModel("test-model");
+            case "anthropic" -> properties.anthropicEndpoint(base + "/messages").anthropicModel("test-model");
+            case "gemini" -> properties.geminiEndpoint(base + "/v1beta/models").geminiModel("test-model");
+            case "ollama" -> properties.ollamaEndpoint(base + "/api/chat").ollamaModel("test-model");
+            default -> throw new IllegalArgumentException("Unknown provider: " + providerId);
+        }
+    }
+
+    private static Stream<String> providerIds() {
+        return Stream.of("openai", "anthropic", "gemini", "ollama");
+    }
+
+    private static Stream<Arguments> providerFailures() {
+        return providerIds().flatMap(providerId -> Stream.of(
+                Arguments.of(providerId, FailureCase.AUTHENTICATION, AiResponseStatus.AUTHENTICATION_FAILED),
+                Arguments.of(providerId, FailureCase.RATE_LIMIT, AiResponseStatus.RATE_LIMITED),
+                Arguments.of(providerId, FailureCase.TIMEOUT, AiResponseStatus.TIMEOUT),
+                Arguments.of(providerId, FailureCase.MALFORMED_JSON, AiResponseStatus.INVALID_RESPONSE),
+                Arguments.of(providerId, FailureCase.SCHEMA_VIOLATION, AiResponseStatus.INVALID_RESPONSE)));
+    }
+
+    private static HttpServer server(ExchangeHandler handler) throws IOException {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> handler.handle(exchange));
+        server.start();
+        return server;
+    }
+
+    private static String successfulResponse(String providerId, String payload) {
+        String escaped = payload.replace("\\", "\\\\").replace("\"", "\\\"");
+        return switch (providerId) {
+            case "openai" -> "{\"model\":\"test-model\",\"output\":[{\"content\":[{\"type\":\"output_text\","
+                    + "\"text\":\"" + escaped + "\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2}}";
+            case "anthropic" -> "{\"model\":\"test-model\",\"content\":[{\"type\":\"text\",\"text\":\""
+                    + escaped + "\"}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2}}";
+            case "gemini" -> "{\"modelVersion\":\"test-model\",\"candidates\":[{\"content\":{\"parts\":[{\"text\":\""
+                    + escaped + "\"}]}}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2}}";
+            case "ollama" -> "{\"model\":\"test-model\",\"message\":{\"role\":\"assistant\",\"content\":\""
+                    + escaped + "\"},\"prompt_eval_count\":3,\"eval_count\":2}";
+            default -> throw new IllegalArgumentException("Unknown provider: " + providerId);
+        };
+    }
+
+    private static String readBody(HttpExchange exchange) throws IOException {
+        return new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+    }
+
+    private static void respond(HttpExchange exchange, int status, String body) throws IOException {
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(status, bytes.length);
+        exchange.getResponseBody().write(bytes);
+        exchange.close();
+    }
+
+    private static void respondQuietly(HttpExchange exchange, int status, String body) {
+        try {
+            respond(exchange, status, body);
+        } catch (IOException ignored) {
+            exchange.close();
+        }
+    }
+
+    @FunctionalInterface
+    private interface ExchangeHandler {
+        void handle(HttpExchange exchange) throws IOException;
+    }
+
+    private enum FailureCase {
+        AUTHENTICATION,
+        RATE_LIMIT,
+        TIMEOUT,
+        MALFORMED_JSON,
+        SCHEMA_VIOLATION
+    }
+}

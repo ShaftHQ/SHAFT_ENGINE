@@ -61,7 +61,9 @@ Client-specific locations:
 - **Gemini CLI:** place the server under the top-level `mcpServers` object in
   Gemini `settings.json`.
 - **GitHub Copilot in an MCP-capable IDE:** use the IDE's MCP server
-  configuration and the same `java -jar` command.
+  configuration and the same `java -jar` command. Copilot remains the MCP
+  host and uses its own authentication; there is no generic Copilot model API
+  key for SHAFT to request or store.
 - **Generic MCP clients:** configure a stdio server command with newline
   delimited JSON-RPC over stdin/stdout.
 
@@ -94,6 +96,9 @@ Current client references:
 - [Claude MCP](https://docs.anthropic.com/en/docs/claude-code/mcp)
 - [Gemini CLI MCP](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md)
 - [GitHub Copilot MCP](https://docs.github.com/copilot/how-tos/copilot-on-github/customize-copilot/configure-mcp-servers)
+
+Credential-free sample files for Codex, Claude Desktop, Gemini CLI, and VS Code
+with GitHub Copilot are under `docs/examples/shaft-pilot/mcp/`.
 
 ## Distribution identity
 

@@ -83,6 +83,11 @@ class MavenPublicationValidationTest(unittest.TestCase):
             with zipfile.ZipFile(bundle) as archive:
                 names = set(archive.namelist())
             self.assertIn(f"io/github/shafthq/shaft-engine/{version}/shaft-engine-{version}.jar", names)
+            self.assertIn(
+                f"io/github/shafthq/shaft-pilot-core/{version}/shaft-pilot-core-{version}.jar",
+                names,
+            )
+            self.assertIn(f"io/github/shafthq/shaft-ai/{version}/shaft-ai-{version}.jar", names)
             self.assertIn(f"io/github/shafthq/SHAFT_ENGINE/{version}/SHAFT_ENGINE-{version}.pom", names)
             sbom = f"io/github/shafthq/shaft-parent/{version}/shaft-parent-{version}-cyclonedx.json"
             self.assertIn(sbom, names)

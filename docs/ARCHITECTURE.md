@@ -14,6 +14,8 @@ functionality remains in the required `shaft-engine` JAR.
 flowchart TB
     Consumer["Consumer project"] --> BOM["shaft-bom<br/>dependency management"]
     Consumer --> Engine["shaft-engine<br/>required runtime"]
+    Consumer -.->|optional| PilotCore["shaft-pilot-core<br/>contracts + security"]
+    Consumer -.->|optional| AI["shaft-ai<br/>direct providers"]
     Consumer -.->|optional| BrowserStack["shaft-browserstack<br/>BrowserStack Java SDK"]
     Consumer -.->|optional| Video["shaft-video<br/>local desktop recording"]
     Consumer -.->|optional| Visual["shaft-visual<br/>OpenCV + Eyes + Shutterbug"]
@@ -23,6 +25,8 @@ flowchart TB
     Video --> Engine
     Visual --> Engine
     MCP --> Engine
+    PilotCore --> Engine
+    AI --> PilotCore
 
     Legacy["SHAFT_ENGINE<br/>relocation POM only"] -.->|relocates| Engine
 
@@ -35,6 +39,8 @@ flowchart TB
 | Artifact             | Packaging      | Consumer purpose                                                                                                         |
 |----------------------|----------------|--------------------------------------------------------------------------------------------------------------------------|
 | `shaft-engine`       | JAR            | Required facade and core web, mobile, API, database, CLI, reporting, and accessibility implementation.                   |
+| `shaft-pilot-core`   | JAR            | Provider-neutral Pilot contracts, consent, redaction, budgets, audit metadata, and deterministic fallback.               |
+| `shaft-ai`           | JAR            | Optional direct OpenAI, Anthropic, Gemini, and Ollama HTTP adapters discovered through `ServiceLoader`.                  |
 | `shaft-browserstack` | JAR            | BrowserStack SDK interception and `browserstack.yml` orchestration. Direct BrowserStack sessions stay in `shaft-engine`. |
 | `shaft-video`        | JAR            | Local non-headless desktop recording. Appium-native recording stays in `shaft-engine`.                                   |
 | `shaft-visual`       | JAR            | Reference-image assertions and image-based lookup through OpenCV, Eyes, and Shutterbug.                                  |
@@ -119,6 +125,7 @@ present.
 - [Visual processing module](SHAFT_VISUAL_MODULE.md)
 - [Desktop video module](SHAFT_VIDEO_MODULE.md)
 - [SHAFT MCP](SHAFT_MCP.md)
+- [SHAFT Pilot AI](SHAFT_PILOT_AI.md)
 - [Maven reactor layout](MAVEN_REACTOR.md)
 
 ---
