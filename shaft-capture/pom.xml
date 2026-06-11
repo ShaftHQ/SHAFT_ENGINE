@@ -12,7 +12,7 @@
     <artifactId>shaft-capture</artifactId>
     <packaging>jar</packaging>
     <name>${project.groupId}:${project.artifactId}</name>
-    <description>Deterministic SHAFT Capture recording contracts, privacy controls, and persistence.</description>
+    <description>Deterministic SHAFT Capture recording, privacy, TestNG generation, and replay validation.</description>
 
     <dependencies>
         <dependency>

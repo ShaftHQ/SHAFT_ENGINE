@@ -3,7 +3,8 @@
 `shaft-capture` defines the provider-neutral intermediate representation used
 by SHAFT Capture and the managed-browser recorder that produces it. It records
 browser intent for review, replay, migration, and future Java/JUnit/Cucumber
-generators without depending on `shaft-ai`.
+consumers. It generates Java 25 SHAFT/TestNG tests without depending on
+`shaft-ai`; provider adapters remain optional.
 
 Capture creation, validation, serialization, and privacy enforcement work with
 `pilot.ai.enabled=false`. Optional AI consumers may receive only the already
@@ -38,8 +39,8 @@ bearer token, and removes its token and descriptor at shutdown. Browser
 profiles are temporary and removed after normal stop or interruption.
 
 The same lifecycle is exposed by the `capture_start`, `capture_status`, and
-`capture_stop` MCP tools. Status contains safe metadata and counts, never typed
-values.
+`capture_stop` MCP tools. Generation is exposed by `capture_generate`. Status
+contains safe metadata and counts, never typed values.
 
 All process arguments and filesystem paths are built with Java APIs
 (`ProcessBuilder`, `Path`, and `Files`). No Windows, POSIX shell, or path
@@ -111,16 +112,80 @@ store.append(captureEvent);
 store.stop(Instant.now());
 ```
 
+## Deterministic TestNG generation
+
+Generate a test, SHAFT JSON test data, and a deterministic report:
+
+```bash
+java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar capture generate \
+  --session recordings/example.json \
+  --output-dir generated-tests
+```
+
+The default output layout is:
+
+```text
+generated-tests/
+  src/test/java/generated/capture/<SessionName>Test.java
+  src/test/resources/testDataFiles/<session-name>-test.json
+  target/shaft-capture/generation-report.json
+```
+
+Generation selects locators in the accessibility, label, test-ID, stable
+ID/name, CSS, then XPath family. The report records the score contribution from
+uniqueness, visibility, interactability, semantic match, volatility,
+frame/shadow context, and replay evidence, plus ranked fallbacks. Stable
+user-provided locators can outrank volatile semantic evidence.
+
+Ordinary values are copied from the recording's external JSON into the
+generated test-data file. Secret and sensitive references become required
+environment variables and are typed securely. Uploads remain relative fixture
+references under `src/test/resources`. Missing data is reported as required
+user input. Captured credentials, cookies, authorization values, and absolute
+personal paths fail the privacy scan instead of entering generated artifacts.
+
+Every generated class creates a fresh driver in `@BeforeMethod` and calls
+`driver.quit()` from `@AfterMethod(alwaysRun = true)`. Only explicit
+`VerificationEvent` records become assertions. An `ASSERTION` checkpoint must
+point at a verification event; unsupported steps fail generation with their
+event IDs and remediation.
+
+Compilation is enabled by default. Add `--replay` to run the compiled TestNG
+class in an isolated process and require populated, passing Allure result
+files. Existing source, data, report, or preview files are never replaced
+unless `--overwrite` is supplied.
+
+AI enrichment is optional and uses two phases:
+
+```bash
+# Calls the enabled provider only with explicit processing approval.
+java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar capture generate \
+  --session recordings/example.json --output-dir generated-tests \
+  --ai-preview --allow-local-ai
+
+# Apply the reviewed, fingerprinted preview.
+java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar capture generate \
+  --session recordings/example.json --output-dir generated-tests-enriched \
+  --apply-enrichment generated-tests/target/shaft-capture/enrichment-preview.json \
+  --approve-enrichment --replay
+```
+
+The provider may suggest Java names and captured-state assertions only. It
+cannot replace deterministic locators. Preview output is schema-validated and
+privacy-scanned; apply rejects stale fingerprints, invalid identifiers,
+unknown events, and assertions that contradict captured state. Accepted
+changes are compiled and replayed again.
+
 Run the focused suite with:
 
 ```bash
 mvn -pl shaft-capture -am test
 ```
 
-The real-browser Chrome and Edge suite is opt-in:
+The real-browser recording and generated-replay suites are opt-in:
 
 ```bash
 mvn -pl shaft-capture -am test \
   -DincludeCaptureBrowserE2E=true \
-  -Dtest=ManagedCaptureRecorderBrowserTest
+  -Dtest=ManagedCaptureRecorderBrowserTest,CaptureGeneratedReplayBrowserTest
 ```

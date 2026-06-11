@@ -1,17 +1,24 @@
 package io.github.shafthq.SHAFT_MCP;
 
+import com.shaft.capture.generate.CaptureGenerationRequest;
+import com.shaft.capture.generate.CaptureGenerationResult;
+import com.shaft.capture.generate.CaptureGenerator;
 import com.shaft.capture.runtime.CaptureBrowser;
 import com.shaft.capture.runtime.CaptureManager;
 import com.shaft.capture.runtime.CaptureStartRequest;
 import com.shaft.capture.runtime.CaptureStatus;
+import com.shaft.pilot.ai.ApprovalPolicy;
+import com.shaft.pilot.ai.EvidenceCategory;
 import jakarta.annotation.PreDestroy;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.EnumSet;
 
 /**
  * MCP adapter for deterministic managed-browser SHAFT Capture recording.
@@ -75,6 +82,67 @@ public class CaptureService {
             description = "stops SHAFT Capture and optionally discards the local recording")
     public CaptureStatus stop(boolean discard) {
         return manager.stop(discard);
+    }
+
+    /**
+     * Generates a deterministic SHAFT TestNG test from a persisted Capture session.
+     *
+     * @param sessionPath persisted Capture JSON path
+     * @param outputDirectory generated project root
+     * @param packageName generated Java package
+     * @param className optional generated class name
+     * @param overwrite whether existing artifacts may be replaced
+     * @param replay whether to execute the compiled generated test
+     * @param aiPreview whether to request a review-only AI proposal
+     * @param enrichmentPreviewPath preview path to write or apply
+     * @param applyEnrichment whether to apply the reviewed preview
+     * @param approveEnrichment explicit approval to apply the preview
+     * @param allowLocalAi explicit approval for local inference
+     * @param allowRemoteAi explicit approval for remote inference
+     * @return generated artifacts and validation report
+     */
+    @Tool(name = "capture_generate",
+            description = "generates, compiles, and optionally replays a deterministic SHAFT TestNG test")
+    public CaptureGenerationResult generate(
+            String sessionPath,
+            String outputDirectory,
+            String packageName,
+            String className,
+            boolean overwrite,
+            boolean replay,
+            boolean aiPreview,
+            String enrichmentPreviewPath,
+            boolean applyEnrichment,
+            boolean approveEnrichment,
+            boolean allowLocalAi,
+            boolean allowRemoteAi) {
+        Path output = outputDirectory == null || outputDirectory.isBlank()
+                ? Path.of("generated-tests")
+                : Path.of(outputDirectory);
+        Path preview = enrichmentPreviewPath == null || enrichmentPreviewPath.isBlank()
+                ? output.resolve("target/shaft-capture/enrichment-preview.json")
+                : Path.of(enrichmentPreviewPath);
+        CaptureGenerationRequest.EnrichmentMode mode = applyEnrichment
+                ? CaptureGenerationRequest.EnrichmentMode.APPLY
+                : aiPreview
+                ? CaptureGenerationRequest.EnrichmentMode.PREVIEW
+                : CaptureGenerationRequest.EnrichmentMode.NONE;
+        return new CaptureGenerator().generate(new CaptureGenerationRequest(
+                Path.of(sessionPath),
+                output,
+                packageName,
+                className,
+                overwrite,
+                true,
+                replay,
+                Duration.ofMinutes(5),
+                mode,
+                preview,
+                approveEnrichment,
+                new ApprovalPolicy(
+                        allowLocalAi,
+                        allowRemoteAi,
+                        EnumSet.of(EvidenceCategory.TEXT))));
     }
 
     /**

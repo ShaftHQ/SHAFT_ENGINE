@@ -23,7 +23,8 @@ class ShaftMcpApplicationTests {
             "element_click",
             "capture_start",
             "capture_status",
-            "capture_stop"
+            "capture_stop",
+            "capture_generate"
     );
 
     @Autowired
@@ -34,7 +35,7 @@ class ShaftMcpApplicationTests {
         Object bean = context.getBean("shaftTools");
         assertTrue(bean instanceof List<?>);
         List<?> callbacks = (List<?>) bean;
-        assertEquals(43, callbacks.size());
+        assertEquals(44, callbacks.size());
 
         Set<String> toolNames = callbacks.stream()
                 .map(ToolCallback.class::cast)
