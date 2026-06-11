@@ -1,0 +1,29 @@
+# Fly.io configuration for SHAFT MCP
+# MCP Server-Sent Events endpoint is available at /mcp
+
+app = "shaft-mcp"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile.fly"
+
+[env]
+  SPRING_PROFILES_ACTIVE = "http"
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 25
+    hard_limit = 50
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

@@ -1,0 +1,66 @@
+name: Maven Central Continuous Delivery
+# Executed automatically when a new PR is merged to master, if the release number already exists this job will fail
+# This pipeline will build from main, upload the artifacts, and create the GitHub release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build_release_and_deliver:
+    env:
+      gpg.keyname: ${{ secrets.GPG_KEYNAME }}
+      gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+      MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write  # if you have a protection rule on your repository, you'll need to give write permission to the workflow.
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v5
+        with:
+          maven-version: 3.9.5
+      # Captures the engine version from the pom.xml
+      - name: Set Release Version Number
+        run: |
+          echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
+      # Attempt to create a GitHub release using the version in the pom.xml, if this release already exists, this job will fail fast
+      - name: Create GitHub Release
+        id: create_release
+        uses: ncipollo/release-action@v1.20.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          allowUpdates: false
+          generateReleaseNotes: true
+          name: ${{ env.RELEASE_VERSION }}
+          tag: ${{ env.RELEASE_VERSION }}
+      - name: Setup Prerequisites
+        run: |
+          git config --global user.signingKey "${{ secrets.GPG_KEYNAME }}"
+          git config --global commit.gpgsign true
+          gpg --version
+          gpgconf --kill gpg-agent
+          gpg -K --keyid-format SHORT
+          export GPG_TTY=$(tty)
+      - name: Deploy to maven central
+        env:
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+        run: mvn --batch-mode deploy "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"

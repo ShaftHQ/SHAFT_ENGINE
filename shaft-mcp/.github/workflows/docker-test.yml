@@ -1,0 +1,20 @@
+name: Test Docker Image
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '00 1 * * *'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Build Docker image
+        run: docker build -t shaft_mcp:test .
+
+      - name: Run Docker container
+        run: docker run --rm shaft_mcp:test

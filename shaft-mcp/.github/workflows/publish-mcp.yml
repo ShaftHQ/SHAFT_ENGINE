@@ -1,0 +1,107 @@
+name: Publish to GitHub Container Registry and MCP Registry
+
+on:
+  workflow_run:
+    workflows: ["Maven Central Continuous Delivery"]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  publish-docker:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write  # Required for MCP Registry OIDC authentication
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      # Get the version from pom.xml
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+
+      - name: Get version from pom.xml
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Extracted version: $VERSION"
+
+      # Install jq for JSON processing
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      # Update server.json with current version
+      - name: Update server.json version
+        run: |
+          jq --arg v "$VERSION" '.version = $v | .packages[0].identifier = "ghcr.io/shafthq/shaft-mcp:" + $v' server.json > tmp && mv tmp server.json
+          cat server.json
+
+      # Update Dockerfile with current version
+      - name: Update Dockerfile version
+        run: |
+          sed -i "s|SHAFT_MCP/[0-9.]\+/SHAFT_MCP-[0-9.]\+\.jar|SHAFT_MCP/$VERSION/SHAFT_MCP-$VERSION.jar|g" Dockerfile
+          cat Dockerfile
+
+      # Log in to GitHub Container Registry
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build and push Docker image
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/shafthq/shaft-mcp:${{ env.VERSION }}
+            ghcr.io/shafthq/shaft-mcp:latest
+
+      # Validate server.json against schema
+      - name: Validate server.json
+        run: |
+          python3 -m pip install jsonschema --quiet
+          python3 << 'PYEOF'
+          import json
+          import urllib.request
+          from jsonschema import validate, ValidationError
+          
+          with open('server.json', 'r') as f:
+              server_data = json.load(f)
+          
+          schema_url = server_data.get('$schema')
+          with urllib.request.urlopen(schema_url) as response:
+              schema = json.loads(response.read())
+          
+          try:
+              validate(instance=server_data, schema=schema)
+              print("✅ server.json is valid according to the schema")
+          except ValidationError as e:
+              print(f"❌ server.json validation failed: {e.message}")
+              raise
+          PYEOF
+
+      # Install MCP Publisher CLI
+      - name: Install MCP Publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar -xzf - mcp-publisher
+          chmod +x mcp-publisher
+
+      # Authenticate with MCP Registry using GitHub OIDC
+      - name: Login to MCP Registry
+        run: ./mcp-publisher login github-oidc
+
+      # Publish to MCP Registry
+      - name: Publish to MCP Registry
+        run: ./mcp-publisher publish

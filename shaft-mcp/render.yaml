@@ -1,0 +1,14 @@
+# Render infrastructure configuration for SHAFT MCP
+# This deploys the MCP server as a Docker-based web service on the free plan.
+# MCP SSE endpoint note: clients should connect to /mcp.
+
+services:
+  - type: web
+    name: shaft-mcp
+    runtime: docker
+    dockerfilePath: ./Dockerfile.render
+    plan: free
+    # No health check path is configured because Spring Actuator is not enabled.
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: http

@@ -1,0 +1,24 @@
+runtime: "container"
+
+build:
+  dockerfile: "Dockerfile.smithery.build"
+  dockerBuildPath: "."
+
+startCommand:
+  type: "http"
+
+# Configuration schema for optional user-provided settings
+configSchema:
+  type: object
+  properties:
+    browserType:
+      type: string
+      description: "Default browser type to use (CHROME, FIREFOX, SAFARI, EDGE)"
+      enum: ["CHROME", "FIREFOX", "SAFARI", "EDGE"]
+      default: "CHROME"
+  required: []
+
+# Example configuration for documentation
+exampleConfig:
+  browserType: "CHROME"
+

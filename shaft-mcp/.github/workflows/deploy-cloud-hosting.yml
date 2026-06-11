@@ -1,0 +1,188 @@
+name: Deploy to Cloud Hosting Platforms
+
+# Runs automatically after the Maven CD pipeline + GHCR/MCP publish step succeed.
+# Also supports manual re-deploys via workflow_dispatch.
+#
+# Platforms deployed:
+#   1. Render.com  – triggered via Deploy Hook URL (RENDER_DEPLOY_HOOK_URL secret)
+#   2. Fly.io      – deployed via flyctl using FLY_API_TOKEN secret
+#   3. Smithery.ai – auto-deploys from the connected GitHub repository (no API needed)
+#
+# Required repository secrets:
+#   RENDER_DEPLOY_HOOK_URL  – Render service deploy hook (Settings → Deploy Hook in Render dashboard)
+#   FLY_API_TOKEN           – Fly.io personal access token (fly tokens create deploy)
+
+on:
+  workflow_run:
+    workflows: ["Publish to GitHub Container Registry and MCP Registry"]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Render.com deployment
+  # ---------------------------------------------------------------------------
+  deploy-render:
+    name: Deploy to Render.com
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+
+      - name: Get version from pom.xml
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Deploying version: $VERSION"
+
+      - name: Trigger Render.com deployment
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "RENDER_DEPLOY_TRIGGERED=false" >> $GITHUB_ENV
+            echo "⚠️ Render.com deployment skipped because RENDER_DEPLOY_HOOK_URL is not configured."
+            exit 0
+          fi
+
+          curl -X POST "$RENDER_DEPLOY_HOOK_URL" \
+            --fail \
+            --show-error
+          echo "RENDER_DEPLOY_TRIGGERED=true" >> $GITHUB_ENV
+          echo "✅ Render.com deployment triggered for version $VERSION"
+
+      - name: Write job summary
+        run: |
+          echo "## 🚀 Render.com Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: \`$VERSION\`" >> $GITHUB_STEP_SUMMARY
+          if [ "$RENDER_DEPLOY_TRIGGERED" = "true" ]; then
+            echo "- **Status**: Deployment triggered successfully" >> $GITHUB_STEP_SUMMARY
+            echo "- **Dockerfile**: \`Dockerfile.render\`" >> $GITHUB_STEP_SUMMARY
+            echo "- **MCP Endpoint**: \`https://shaft-mcp.onrender.com/mcp\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "> ⚠️ Render free tier services sleep after 15 minutes of inactivity." >> $GITHUB_STEP_SUMMARY
+            echo "> The first request after sleep may take ~30 s due to cold start." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Status**: ⚠️ Deployment skipped — \`RENDER_DEPLOY_HOOK_URL\` secret is not configured." >> $GITHUB_STEP_SUMMARY
+            echo "- **Setup**: Add the Deploy Hook URL from Render dashboard → Service → Settings → Deploy Hook." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Fly.io deployment
+  # ---------------------------------------------------------------------------
+  deploy-fly:
+    name: Deploy to Fly.io
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+
+      - name: Get version from pom.xml
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Deploying version: $VERSION"
+
+      - name: Set up Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@1.6
+
+      - name: Deploy to Fly.io
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "FLY_DEPLOY_TRIGGERED=false" >> $GITHUB_ENV
+            echo "⚠️ Fly.io deployment skipped because FLY_API_TOKEN is not configured."
+            exit 0
+          fi
+          flyctl deploy --remote-only --config fly.toml
+          echo "FLY_DEPLOY_TRIGGERED=true" >> $GITHUB_ENV
+          echo "✅ Fly.io deployment complete for version $VERSION"
+
+      - name: Write job summary
+        run: |
+          echo "## 🚀 Fly.io Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: \`$VERSION\`" >> $GITHUB_STEP_SUMMARY
+          if [ "$FLY_DEPLOY_TRIGGERED" = "true" ]; then
+            echo "- **Status**: Deployed successfully" >> $GITHUB_STEP_SUMMARY
+            echo "- **Dockerfile**: \`Dockerfile.fly\`" >> $GITHUB_STEP_SUMMARY
+            echo "- **MCP Endpoint**: \`https://shaft-mcp.fly.dev/mcp\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "> Fly.io may cold start after idle because machines are allowed to suspend." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Status**: ⚠️ Deployment skipped — \`FLY_API_TOKEN\` secret is not configured." >> $GITHUB_STEP_SUMMARY
+            echo "- **Setup**: Run \`fly tokens create deploy -a shaft-mcp\` and add the token as a repository secret." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Smithery.ai — auto-deploys via GitHub webhook (no API call needed)
+  # ---------------------------------------------------------------------------
+  notify-smithery:
+    name: Confirm Smithery.ai auto-deploy
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+
+      - name: Get version from pom.xml
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Version: $VERSION"
+
+      - name: Confirm Smithery auto-deploy
+        run: |
+          echo "ℹ️ Smithery.ai auto-deploys from the connected GitHub repository."
+          echo "No explicit API trigger is needed — Smithery detects the new commit"
+          echo "via GitHub webhook and rebuilds automatically using smithery.yaml"
+          echo "and Dockerfile.smithery.build."
+          echo ""
+          echo "Monitor the live deployment at:"
+          echo "  https://smithery.ai/server/@ShaftHQ/shaft-mcp"
+
+      - name: Write job summary
+        run: |
+          echo "## 🚀 Smithery.ai Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: \`$VERSION\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: Auto-deploying via GitHub webhook" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dockerfile**: \`Dockerfile.smithery.build\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry**: [smithery.ai/server/@ShaftHQ/shaft-mcp](https://smithery.ai/server/@ShaftHQ/shaft-mcp)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> Smithery.ai is purpose-built for MCP servers and always-on." >> $GITHUB_STEP_SUMMARY
