@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0",
+  "observations": [
+    {
+      "statement": "The submitted evidence reports a locator exception.",
+      "evidenceIds": [
+        "evidence-1"
+      ]
+    }
+  ],
+  "hypotheses": [
+    {
+      "causeCategory": "INFRASTRUCTURE",
+      "statement": "The remote execution infrastructure may be unavailable.",
+      "confidence": "MEDIUM",
+      "evidenceIds": [
+        "evidence-1"
+      ]
+    }
+  ],
+  "missingEvidence": [],
+  "recommendedActions": [],
+  "limitations": [
+    "The hypothesis conflicts with the deterministic locator classification."
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0",
+  "observations": [
+    {
+      "statement": "An unsubmitted network trace shows a connection failure.",
+      "evidenceIds": [
+        "invented-evidence"
+      ]
+    }
+  ],
+  "hypotheses": [],
+  "missingEvidence": [],
+  "recommendedActions": [],
+  "limitations": []
+}

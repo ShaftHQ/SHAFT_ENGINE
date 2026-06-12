@@ -16,6 +16,12 @@ access:
 validation, migration, and redaction remain deterministic with
 `pilot.ai.enabled=false`.
 
+SHAFT Doctor uses these contracts for an optional separately rendered advisory.
+It submits only minimized evidence from an already-redacted `EvidenceBundle`
+plus the deterministic diagnosis. Provider output cannot replace the baseline,
+must cite only submitted evidence IDs, and falls back safely for provider,
+budget, timeout, or validation failures. See [SHAFT Doctor](SHAFT_DOCTOR.md).
+
 ## Safe defaults
 
 AI is off unless both settings are changed:
@@ -110,7 +116,9 @@ key.
 
 Credential-free MCP configuration fixtures are under
 `docs/examples/shaft-pilot/mcp/`. See [SHAFT MCP](SHAFT_MCP.md) for transport
-and deployment details.
+and deployment details. The representative `doctor_analyze` fixture covers
+ChatGPT, Codex, Claude, Gemini, and GitHub Copilot without embedding any client
+or provider credential.
 
 Provider request mappings follow the official
 [OpenAI structured output](https://developers.openai.com/api/docs/guides/structured-outputs),

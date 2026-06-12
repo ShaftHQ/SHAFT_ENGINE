@@ -160,6 +160,12 @@ def main() -> None:
             fail(f"{fixture}: missing versioned SHAFT MCP command")
         if "API_KEY" in contents or "apiKey" in contents:
             fail(f"{fixture}: MCP client fixture must not request a provider API key")
+    doctor_invocations = (mcp_fixtures / "doctor-analyze-invocations.json").read_text(encoding="utf-8")
+    for term in ("doctor_analyze", "ChatGPT", "Codex", "Claude", "Gemini", "GitHub Copilot"):
+        if term not in doctor_invocations:
+            fail(f"doctor-analyze-invocations.json: missing {term!r}")
+    if "API_KEY" in doctor_invocations or "apiKey" in doctor_invocations:
+        fail("doctor-analyze-invocations.json must not request provider credentials")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     if "maven-central/v/io.github.shafthq/SHAFT_ENGINE" in readme:
         fail("README Maven Central badge still targets the legacy coordinate")

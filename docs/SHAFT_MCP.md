@@ -23,8 +23,9 @@ The packaged server supports:
   `capture_stop`, with no AI provider required;
 - deterministic TestNG generation through `capture_generate`, with compile,
   optional replay, and review-only AI enrichment phases;
-- offline deterministic diagnosis through `doctor_analyze`, restricted to
-  explicit input paths and allowed roots;
+- deterministic diagnosis through `doctor_analyze`, restricted to explicit
+  input paths and allowed roots, with an optional separately identified
+  provider advisory when Pilot AI is explicitly enabled;
 - legacy SSE endpoint properties as configuration aliases during migration.
 
 The HTTP port defaults to `8081` and can be overridden with `PORT` or
@@ -49,7 +50,8 @@ privacy, generation, replay, enrichment approval, browser-support, and
 recovery details.
 
 See [SHAFT Doctor](SHAFT_DOCTOR.md) for evidence categories, allowlisted path
-handling, deterministic rules, redaction, and offline bundle analysis.
+handling, deterministic rules, redaction, offline bundle analysis, optional
+provider advisories, and safe fallback behavior.
 
 ## Authentication boundary
 
@@ -126,6 +128,10 @@ Current client references:
 
 Credential-free sample files for Codex, Claude Desktop, Gemini CLI, and VS Code
 with GitHub Copilot are under `docs/examples/shaft-pilot/mcp/`.
+`doctor-analyze-invocations.json` adds representative ChatGPT, Codex, Claude,
+Gemini, and GitHub Copilot calls to the same `doctor_analyze` tool. Client
+authentication remains outside SHAFT; Copilot is not treated as a direct
+generic API-key provider.
 
 ## Distribution identity
 

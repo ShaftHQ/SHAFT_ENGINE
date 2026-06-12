@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.shaft.doctor.model.Diagnosis;
+import com.shaft.doctor.model.DoctorAdvisory;
 import com.shaft.doctor.model.EvidenceBundle;
 import com.shaft.pilot.json.JsonSchemaValidator;
 
@@ -144,6 +145,34 @@ public final class DoctorJsonCodec {
             atomicWrite(path, json);
         } catch (JsonProcessingException exception) {
             throw new DoctorFormatException("Doctor report could not be serialized.", exception);
+        }
+    }
+
+    /**
+     * Writes the combined report with a separately identified optional advisory.
+     *
+     * @param path destination
+     * @param bundle evidence bundle
+     * @param diagnosis deterministic diagnosis
+     * @param advisory provider advisory or safe fallback
+     */
+    public void writeReport(
+            Path path,
+            EvidenceBundle bundle,
+            Diagnosis diagnosis,
+            DoctorAdvisory advisory) {
+        if (advisory == null) {
+            throw new DoctorFormatException("Doctor advisory is required.");
+        }
+        try {
+            JsonNode bundleTree = mapper.readTree(write(bundle));
+            JsonNode diagnosisTree = mapper.readTree(write(diagnosis));
+            JsonNode advisoryTree = mapper.valueToTree(advisory);
+            String json = mapper.writer(printer).writeValueAsString(
+                    Map.of("bundle", bundleTree, "diagnosis", diagnosisTree, "advisory", advisoryTree)) + "\n";
+            atomicWrite(path, json);
+        } catch (JsonProcessingException exception) {
+            throw new DoctorFormatException("Doctor advisory report could not be serialized.", exception);
         }
     }
 
