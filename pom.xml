@@ -55,7 +55,7 @@
         <lombok.version>1.18.46</lombok.version>
         <maven.min.version>3.9.0</maven.min.version>
         <spring-boot.version>4.1.0</spring-boot.version>
-        <spring-ai.version>1.1.7</spring-ai.version>
+        <spring-ai.version>2.0.0</spring-ai.version>
         <!-- Dependency BOM Versions -->
         <junit.bom.version>6.1.0</junit.bom.version>
         <allure.bom.version>2.35.2</allure.bom.version>
