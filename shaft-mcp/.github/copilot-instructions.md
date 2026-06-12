@@ -216,9 +216,12 @@ The following are auto-generated and must never be committed (already in `.gitig
 - IDE-specific files (`.idea/`, `.vscode/`, `.settings/`, etc.)
 - `HELP.md` - Auto-generated Spring Boot help
 
-## Cloud Deployment (Smithery)
+## Optional Cloud Deployment
 
-SHAFT MCP is listed on [Smithery.ai](https://smithery.ai/server/@ShaftHQ/shaft-mcp) and supports zero-install cloud deployment via HTTP/SSE transport.
+The repository includes Smithery, Render, and Fly.io templates for Streamable
+HTTP deployment. No hosted endpoint is guaranteed by the source repository;
+verify the external account integration and `/mcp` initialization before
+documenting one as live.
 
 ### Deployment Flow
 1. Smithery uses `smithery.yaml` → builds via `Dockerfile.smithery.build`
@@ -313,5 +316,4 @@ Pull requests should:
 - Model Context Protocol Spec: https://modelcontextprotocol.io/
 - Spring AI MCP: https://docs.spring.io/spring-ai/reference/api/mcp/index.html
 - Maven Central: https://central.sonatype.com/artifact/io.github.shafthq/SHAFT_MCP
-- Smithery listing: https://smithery.ai/server/@ShaftHQ/shaft-mcp
 

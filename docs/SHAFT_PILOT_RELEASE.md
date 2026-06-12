@@ -67,11 +67,19 @@ After Maven Central succeeds:
    same package version.
 4. Confirm the GitHub release, JavaDocs, aggregate CycloneDX SBOM, sources,
    signatures, BOM, and legacy relocation coordinate use the same version.
-5. Exercise one credential-free stdio client configuration and one reachable
-   HTTPS Streamable HTTP client.
+5. Exercise one credential-free stdio client configuration and the packaged
+   Streamable HTTP transport. Exercise a hosted HTTPS endpoint only when its
+   external deployment account is configured; otherwise record it as a known
+   limitation instead of presenting the endpoint as live.
 
 Record exact versions, immutable URLs, checksums, workflow runs, and known
 limitations in the release or pull request before migration finalization.
+
+For release `10.2.20260612`, the Render and Fly repository secrets were not
+configured, the Fly hostname did not resolve, Render returned `404` at `/mcp`,
+and the historical Smithery listing was unavailable. These optional hosted
+services are not release installation paths. GHCR, MCP Registry, the executable
+JAR, stdio, and packaged/container Streamable HTTP were verified.
 
 ## Standalone repository migration
 

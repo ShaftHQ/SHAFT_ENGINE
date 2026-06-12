@@ -49,5 +49,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-22.04
     steps:
-      - name: Record Smithery deployment handoff
-        run: echo "Smithery rebuilds from the root smithery.yaml GitHub integration."
+      - name: Record optional Smithery deployment handoff
+        run: |
+          echo "This job does not deploy to Smithery."
+          echo "Connect ShaftHQ/SHAFT_ENGINE in Smithery, then verify the resulting /mcp endpoint."
