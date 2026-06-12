@@ -19,6 +19,7 @@ updates:
       - "/shaft-engine"
       - "/shaft-pilot-core"
       - "/shaft-capture"
+      - "/shaft-doctor"
       - "/shaft-ai"
       - "/shaft-browserstack"
       - "/shaft-video"

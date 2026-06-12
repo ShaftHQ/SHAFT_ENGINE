@@ -414,6 +414,7 @@ flowchart LR
     Project --> Engine["shaft-engine<br/>required"]
     Project -.->|"provider-neutral Pilot contracts"| PilotCore["shaft-pilot-core"]
     Project -.->|"recording model + privacy"| Capture["shaft-capture"]
+    Project -.->|"offline failure diagnosis"| Doctor["shaft-doctor"]
     Project -.->|"optional direct AI providers"| AI["shaft-ai"]
     Project -.->|"only for BrowserStack SDK runtime"| BrowserStack["shaft-browserstack"]
     Project -.->|"only for local desktop recording"| Video["shaft-video"]
@@ -424,6 +425,7 @@ flowchart LR
     Visual --> Engine
     PilotCore --> Engine
     Capture --> PilotCore
+    Doctor --> PilotCore
     AI --> PilotCore
 
     Engine --> Core["Web + Appium + API + DB + CLI<br/>reporting + screenshots + accessibility"]
@@ -441,6 +443,7 @@ flowchart LR
 | REST Assured API, database, CLI, test data, accessibility, Cucumber steps    | `shaft-engine`       | Any of these capabilities by themselves                                          |
 | Provider-neutral Pilot requests, approval, redaction, and deterministic fallback | `shaft-pilot-core` | Direct provider HTTP calls                                                        |
 | Versioned browser recording, privacy classification, and capture JSON        | `shaft-capture`      | Ordinary engine screenshots or desktop video                                     |
+| Portable evidence bundles and deterministic offline failure diagnosis         | `shaft-doctor`       | Allure report rendering or direct AI provider calls                               |
 | Direct OpenAI, Anthropic, Gemini, or Ollama provider calls                    | `shaft-ai`           | Deterministic Capture creation, validation, migration, or replay data             |
 | BrowserStack SDK interception and `browserstack.yml` orchestration           | `shaft-browserstack` | Direct BrowserStack WebDriver/Appium sessions built by SHAFT                     |
 | Local, non-headless desktop recording managed by SHAFT                       | `shaft-video`        | Remote-provider video or Appium `startRecordingScreen()`                         |
@@ -455,7 +458,7 @@ Add optional modules beside `shaft-engine`; their versions come from the BOM:
 </dependency>
 ```
 
-Use the same shape for `shaft-pilot-core`, `shaft-capture`, `shaft-ai`,
+Use the same shape for `shaft-pilot-core`, `shaft-capture`, `shaft-doctor`, `shaft-ai`,
 `shaft-browserstack`, or `shaft-video`, but add only the artifacts selected by
 the tables below.
 
@@ -468,6 +471,14 @@ persists SHAFT Capture recording JSON. It transitively uses
 `pilot.ai.enabled=false`.
 
 See the [SHAFT Capture format guide](SHAFT_CAPTURE.md).
+
+## Doctor dependency boundary
+
+Add `shaft-doctor` when a project needs allowlisted local evidence collection,
+portable redacted bundles, deterministic root-cause classification, or
+JSON/Markdown diagnosis reports. It uses `shaft-pilot-core` security helpers
+but does not resolve `shaft-ai` or make network calls. See the
+[SHAFT Doctor guide](SHAFT_DOCTOR.md).
 
 ## Visual dependency boundary
 

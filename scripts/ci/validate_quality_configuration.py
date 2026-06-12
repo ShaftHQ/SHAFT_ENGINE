@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 JAVA_MODULES = {
-    "shaft-engine", "shaft-pilot-core", "shaft-capture", "shaft-ai", "shaft-browserstack",
+    "shaft-engine", "shaft-pilot-core", "shaft-capture", "shaft-doctor", "shaft-ai", "shaft-browserstack",
     "shaft-video", "shaft-visual", "SHAFT_MCP",
 }
 DEPENDABOT_DIRECTORIES = {
@@ -18,6 +18,7 @@ DEPENDABOT_DIRECTORIES = {
     "/shaft-engine",
     "/shaft-pilot-core",
     "/shaft-capture",
+    "/shaft-doctor",
     "/shaft-ai",
     "/shaft-browserstack",
     "/shaft-video",
@@ -105,7 +106,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     codecov_count = (workflow_text + action_text).count("codecov/codecov-action@")
 
     codeql = (root / ".github" / "workflows" / "codeql-analysis.yml").read_text(encoding="utf-8")
-    selector = "-pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-ai,shaft-browserstack,shaft-video,shaft-visual,shaft-mcp -am"
+    selector = "-pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-browserstack,shaft-video,shaft-visual,shaft-mcp -am"
     if selector not in codeql:
         errors.append("CodeQL build must compile every Java-bearing module")
 
@@ -132,6 +133,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     for artifact in (
         "io.github.shafthq:shaft-pilot-core",
         "io.github.shafthq:shaft-capture",
+        "io.github.shafthq:shaft-doctor",
         "io.github.shafthq:shaft-ai",
         "com.browserstack:browserstack-java-sdk",
         "ws.schild:jave-*",

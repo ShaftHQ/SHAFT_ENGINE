@@ -46,6 +46,8 @@ def validate(root: Path = ROOT) -> list[str]:
     }
     if ("shaft-engine", "${project.version}") not in dependencies:
         errors.append("shaft-mcp must use the canonical in-reactor shaft-engine dependency")
+    if ("shaft-doctor", "${project.version}") not in dependencies:
+        errors.append("shaft-mcp must use the in-reactor shaft-doctor dependency")
     mcp_pom_text = (root / "shaft-mcp" / "pom.xml").read_text(encoding="utf-8")
     if "shaft_engine.version" in mcp_pom_text:
         errors.append("shaft-mcp must not define an independent SHAFT engine version")

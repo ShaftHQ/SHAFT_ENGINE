@@ -1,6 +1,7 @@
 package io.github.shafthq.SHAFT_MCP;
 
 import com.shaft.capture.cli.CaptureCli;
+import com.shaft.doctor.cli.DoctorCli;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.boot.SpringApplication;
@@ -25,6 +26,13 @@ public class ShaftMcpApplication {
      * @param args command-line arguments
      */
 	public static void main(String[] args) throws IOException {
+        if (args.length > 0 && "doctor".equalsIgnoreCase(args[0])) {
+            int exitCode = DoctorCli.run(Arrays.copyOfRange(args, 1, args.length));
+            if (exitCode != 0) {
+                System.exit(exitCode);
+            }
+            return;
+        }
         if (args.length > 0 && "capture".equalsIgnoreCase(args[0])) {
             int exitCode = CaptureCli.run(
                     Arrays.copyOfRange(args, 1, args.length),
@@ -47,17 +55,20 @@ public class ShaftMcpApplication {
             EngineService engineService,
             BrowserService browserService,
             ElementService elementService,
-            CaptureService captureService) {
+            CaptureService captureService,
+            DoctorService doctorService) {
         var engineServiceList = List.of(ToolCallbacks.from(engineService));
         var browserServiceList = List.of(ToolCallbacks.from(browserService));
         var elementServiceList = List.of(ToolCallbacks.from(elementService));
         var captureServiceList = List.of(ToolCallbacks.from(captureService));
+        var doctorServiceList = List.of(ToolCallbacks.from(doctorService));
 
         var serviceList = new java.util.ArrayList<ToolCallback>();
         serviceList.addAll(engineServiceList);
         serviceList.addAll(browserServiceList);
         serviceList.addAll(elementServiceList);
         serviceList.addAll(captureServiceList);
+        serviceList.addAll(doctorServiceList);
         return serviceList;
 	}
 
