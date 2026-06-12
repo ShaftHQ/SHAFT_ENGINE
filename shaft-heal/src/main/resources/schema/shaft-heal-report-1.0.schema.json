@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shafthq.github.io/schema/shaft-heal-report-1.0.schema.json",
+  "title": "SHAFT Heal Report",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "attemptId",
+    "timestamp",
+    "originalLocator",
+    "failureCategory",
+    "pageKey",
+    "context",
+    "candidates",
+    "decision",
+    "provider",
+    "privacy",
+    "action"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "attemptId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "originalLocator": {
+      "type": "string"
+    },
+    "failureCategory": {
+      "const": "LOCATOR_NOT_FOUND"
+    },
+    "pageKey": {
+      "type": "string"
+    },
+    "context": {
+      "type": "string"
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "candidateId",
+          "proposedLocator",
+          "fingerprint",
+          "score",
+          "evidence",
+          "unique",
+          "visible",
+          "interactable",
+          "contextMatched"
+        ]
+      }
+    },
+    "decision": {
+      "type": "object",
+      "required": [
+        "status",
+        "selectedCandidateId",
+        "confidence",
+        "reason",
+        "actionOnly",
+        "sourcePatchProposed"
+      ]
+    },
+    "provider": {
+      "type": "object"
+    },
+    "privacy": {
+      "type": "object"
+    },
+    "action": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false
+}

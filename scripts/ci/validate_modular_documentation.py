@@ -16,7 +16,7 @@ EXPECTED_OPTIONAL = {
 REQUIRED_GUIDE_TERMS = (
     "io.github.shafthq:SHAFT_ENGINE", "io.github.shafthq:shaft-engine",
     "shaft-bom", "shaft-pilot-core", "shaft-capture", "shaft-doctor", "shaft-ai",
-    "shaft-browserstack", "shaft-video", "shaft-visual",
+    "shaft-heal", "shaft-browserstack", "shaft-video", "shaft-visual",
     "API", "Appium", "database", "relocation", "cache", "Rollback",
     "upgrade_to_modular_shaft.py", "OPENAI_API_KEY", "three repair attempts",
     "matchesReferenceImage", "doesNotMatchReferenceImage",
@@ -91,6 +91,15 @@ def main() -> None:
     if "UPGRADING_TO_MODULAR_SHAFT.md" not in relocation:
         fail("legacy relocation message must link the automated upgrade documentation")
     module_docs = {
+        "SHAFT_HEAL.md": (
+            "healing.strategy=shaft-heal",
+            "healing.strategy=composite",
+            "heal-enabled=true",
+            "healing.ai.enabled=false",
+            "healing.visual.enabled=false",
+            "shaft-engine",
+            "shaft-heal",
+        ),
         "SHAFT_BROWSERSTACK_MODULE.md": (
             "BrowserStackSdkHelper.generateBrowserStackYml()",
             "platformsList",

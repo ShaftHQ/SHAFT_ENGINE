@@ -16,6 +16,7 @@ MODULES = {
     "shaft-capture": "Deterministic browser capture model",
     "shaft-doctor": "Offline deterministic failure diagnosis",
     "shaft-ai": "Optional direct AI providers",
+    "shaft-heal": "Deterministic explainable element recovery",
     "shaft-browserstack": "BrowserStack integration",
     "shaft-video": "Desktop video integration",
     "shaft-visual": "Visual processing integration",

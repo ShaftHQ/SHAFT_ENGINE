@@ -30,6 +30,8 @@ DOCTOR_ROOT = ROOT / "shaft-doctor"
 DOCTOR_POM = DOCTOR_ROOT / "pom.xml"
 AI_ROOT = ROOT / "shaft-ai"
 AI_POM = AI_ROOT / "pom.xml"
+HEAL_ROOT = ROOT / "shaft-heal"
+HEAL_POM = HEAL_ROOT / "pom.xml"
 BOM_POM = ROOT / "shaft-bom" / "pom.xml"
 BROWSERSTACK_ROOT = ROOT / "shaft-browserstack"
 BROWSERSTACK_POM = BROWSERSTACK_ROOT / "pom.xml"
@@ -44,6 +46,7 @@ PROJECT_COORDINATES = (
     "io.github.shafthq:shaft-capture",
     "io.github.shafthq:shaft-doctor",
     "io.github.shafthq:shaft-ai",
+    "io.github.shafthq:shaft-heal",
     "io.github.shafthq:shaft-browserstack",
     "io.github.shafthq:shaft-video",
     "io.github.shafthq:shaft-visual",
@@ -122,6 +125,13 @@ def seed_project_artifact(repository: Path, jar: Path, version: str) -> int:
     shutil.copy2(
         AI_ROOT / "target" / f"shaft-ai-{version}.jar",
         ai_destination / f"shaft-ai-{version}.jar",
+    )
+    heal_destination = repository / "io" / "github" / "shafthq" / "shaft-heal" / version
+    heal_destination.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(HEAL_POM, heal_destination / f"shaft-heal-{version}.pom")
+    shutil.copy2(
+        HEAL_ROOT / "target" / f"shaft-heal-{version}.jar",
+        heal_destination / f"shaft-heal-{version}.jar",
     )
     browserstack_destination = repository / "io" / "github" / "shafthq" / "shaft-browserstack" / version
     browserstack_destination.mkdir(parents=True, exist_ok=True)
@@ -215,9 +225,9 @@ def validate_required_artifacts(manifest: dict[str, object]) -> list[str]:
         required[opencv_coordinate] = 109_619_828
     elif opencv_coordinate in artifacts:
         errors.append(f"forbidden artifact {opencv_coordinate}")
-    browserstack_coordinate = "com.browserstack:browserstack-java-sdk:jar:1.59.8"
+    browserstack_coordinate = "com.browserstack:browserstack-java-sdk:jar:1.59.9"
     if optional_fixture in {"browserstack-sdk", "combined-modules"}:
-        required[browserstack_coordinate] = 38_204_017
+        required[browserstack_coordinate] = 38_207_662
     elif browserstack_coordinate in artifacts:
         errors.append(f"forbidden artifact {browserstack_coordinate}")
     for coordinate, expected_bytes in required.items():

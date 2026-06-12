@@ -34,6 +34,7 @@
         <module>shaft-capture</module>
         <module>shaft-doctor</module>
         <module>shaft-ai</module>
+        <module>shaft-heal</module>
         <module>shaft-mcp</module>
         <module>shaft-browserstack</module>
         <module>shaft-video</module>

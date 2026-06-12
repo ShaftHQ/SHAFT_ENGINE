@@ -13,6 +13,7 @@ automation capabilities. Three dependency-heavy integrations are optional.
 | Appium Android/iOS driver-native recording                                                       | `shaft-engine`       |
 | Local non-headless desktop recording                                                             | `shaft-video`        |
 | Reference-image assertions and image-path touch actions                                          | `shaft-visual`       |
+| Deterministic explainable web element recovery                                                    | `shaft-heal`         |
 | Screenshot highlighting, animated GIFs, and `compareImageFolders(...)`                           | `shaft-engine`       |
 
 See the [upgrade guide](UPGRADING_TO_MODULAR_SHAFT.md) for the exact method

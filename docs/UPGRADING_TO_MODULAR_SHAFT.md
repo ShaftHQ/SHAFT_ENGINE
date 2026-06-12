@@ -416,6 +416,7 @@ flowchart LR
     Project -.->|"recording model + privacy"| Capture["shaft-capture"]
     Project -.->|"offline failure diagnosis"| Doctor["shaft-doctor"]
     Project -.->|"optional direct AI providers"| AI["shaft-ai"]
+    Project -.->|"deterministic web element recovery"| Heal["shaft-heal"]
     Project -.->|"only for BrowserStack SDK runtime"| BrowserStack["shaft-browserstack"]
     Project -.->|"only for local desktop recording"| Video["shaft-video"]
     Project -.->|"only for image-engine operations"| Visual["shaft-visual"]
@@ -427,11 +428,14 @@ flowchart LR
     Capture --> PilotCore
     Doctor --> PilotCore
     AI --> PilotCore
+    Heal --> Engine
+    Heal --> PilotCore
 
     Engine --> Core["Web + Appium + API + DB + CLI<br/>reporting + screenshots + accessibility"]
     BrowserStack --> SDK["browserstack.yml orchestration<br/>SDK listeners/interception"]
     Video --> Desktop["local non-headless desktop video<br/>Automation Remarks + JAVE/FFmpeg"]
     Visual --> CV["reference-image assertions<br/>OpenCV + Eyes + Shutterbug"]
+    Heal --> Recovery["action-scoped recovery<br/>history + structured reports"]
 ```
 
 ## Select dependencies by functionality
@@ -445,6 +449,7 @@ flowchart LR
 | Versioned browser recording, privacy classification, and capture JSON        | `shaft-capture`      | Ordinary engine screenshots or desktop video                                     |
 | Portable evidence bundles and deterministic offline failure diagnosis         | `shaft-doctor`       | Allure report rendering or direct AI provider calls                               |
 | Direct OpenAI, Anthropic, Gemini, or Ollama provider calls                    | `shaft-ai`           | Deterministic Capture creation, validation, migration, or replay data             |
+| Deterministic explainable web element recovery                                | `shaft-heal`         | Normal element actions when locator recovery is not explicitly enabled            |
 | BrowserStack SDK interception and `browserstack.yml` orchestration           | `shaft-browserstack` | Direct BrowserStack WebDriver/Appium sessions built by SHAFT                     |
 | Local, non-headless desktop recording managed by SHAFT                       | `shaft-video`        | Remote-provider video or Appium `startRecordingScreen()`                         |
 | Reference-image assertions and image-based touch lookup                      | `shaft-visual`       | Ordinary screenshots, screenshot highlighting, GIFs, or folder comparison        |
@@ -458,9 +463,24 @@ Add optional modules beside `shaft-engine`; their versions come from the BOM:
 </dependency>
 ```
 
-Use the same shape for `shaft-pilot-core`, `shaft-capture`, `shaft-doctor`, `shaft-ai`,
-`shaft-browserstack`, or `shaft-video`, but add only the artifacts selected by
-the tables below.
+Use the same shape for `shaft-pilot-core`, `shaft-capture`, `shaft-doctor`,
+`shaft-ai`, `shaft-heal`, `shaft-browserstack`, or `shaft-video`, but add only
+the artifacts selected by the tables below.
+
+## SHAFT Heal dependency boundary
+
+Add `shaft-heal` only when WebDriver locator recovery is required, then opt in
+with `healing.strategy=shaft-heal`. The module is disabled by default and does
+not alter native mobile execution. Use `healing.strategy=composite` only when
+both SHAFT Heal and Healenium are intentionally required; legacy
+`heal-enabled=true` continues to select Healenium when no explicit SHAFT Heal
+strategy is configured.
+
+Visual evidence remains local and requires both `shaft-visual` and
+`healing.visual.enabled=true`. AI candidate reranking requires
+`healing.ai.enabled=true` plus the normal Pilot approval/provider controls.
+Neither optional score can bypass deterministic confidence and ambiguity
+checks. See the [SHAFT Heal guide](SHAFT_HEAL.md).
 
 ## Capture dependency boundary
 
@@ -669,6 +689,8 @@ Allure summary as authoritative.
 | Direct BrowserStack session fails to start                                      | Check credentials, execution address, capabilities, and connectivity first; `shaft-browserstack` is not required for the direct path. |
 | `platformsList` or `parallelsPerPlatform` has no effect                         | Add `shaft-browserstack` and verify the BrowserStack SDK is active and reading the generated `browserstack.yml`.                      |
 | Desktop recording reports no provider                                           | Add `shaft-video`; confirm the OS-specific `ws.schild:jave-nativebin-*` artifact resolves.                                            |
+| `healing.strategy=shaft-heal` logs that the provider is absent                   | Add `shaft-heal`; confirm the BOM aligns it with `shaft-engine`.                                                                      |
+| SHAFT Heal rejects every candidate                                               | Inspect the Allure healing report, confidence threshold, ambiguity margin, and retained fingerprint instead of weakening checks blindly. |
 | Mobile recording changed unexpectedly                                           | Do not add `shaft-video`; verify the Appium driver supports native recording.                                                         |
 | `NoSuchMethodError` or mixed SHAFT modules                                      | Import `shaft-bom`, remove explicit mismatched module versions, and inspect `mvn dependency:tree -Dincludes=io.github.shafthq`.       |
 
@@ -705,6 +727,7 @@ POM: Linux x64 28,201,169 bytes, Linux ARM64 24,204,474 bytes, Windows x64
 - [ ] Replace `SHAFT_ENGINE` with `shaft-engine`.
 - [ ] Import `shaft-bom` and remove explicit versions from SHAFT module dependencies.
 - [ ] Add `shaft-visual` only for the listed reference-image and image-lookup methods.
+- [ ] Add `shaft-heal` only for explicitly configured web locator recovery.
 - [ ] Add `shaft-browserstack` only for BrowserStack SDK orchestration.
 - [ ] Add `shaft-video` only for local non-headless desktop recording.
 - [ ] Update CI cache keys and run one clean-cache build.

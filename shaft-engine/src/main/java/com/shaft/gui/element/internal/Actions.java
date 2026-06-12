@@ -8,6 +8,8 @@ import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
+import com.shaft.gui.internal.healing.HealingManager;
+import com.shaft.gui.internal.healing.HealingResolution;
 import com.shaft.gui.internal.image.AnimatedGifManager;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotHelper;
@@ -361,11 +363,16 @@ public class Actions extends ElementActions {
         AtomicReference<String> accessibleName = new AtomicReference<>(JavaHelper.formatLocatorToString(locator));
         AtomicReferenceArray<byte[]> screenshot = new AtomicReferenceArray<>(1);
         AtomicReference<List<WebElement>> foundElements = new AtomicReference<>();
+        AtomicReference<HealingResolution> healingResolution = new AtomicReference<>();
+        AtomicReference<HealingResolution> secondaryHealingResolution = new AtomicReference<>();
+        AtomicReference<By> secondaryLocator = new AtomicReference<>();
 
         try {
             new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait(true).until(d -> {
                 // find all elements matching the target locator
-                foundElements.set(findAllElements(locator));
+                ElementLookup lookup = findAllElements(locator, action.name());
+                foundElements.set(lookup.elements());
+                healingResolution.set(lookup.healingResolution());
 
                 // fail fast if no elements were found
                 if (foundElements.get().isEmpty())
@@ -374,6 +381,17 @@ public class Actions extends ElementActions {
                 // ensure element locator is unique if applicable
                 if (foundElements.get().size() > 1 && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique() && !(locator instanceof RelativeLocator.RelativeBy) && !(locator instanceof ByAll))
                     throw new MultipleElementsFoundException();
+
+                if (healingResolution.get() == null) {
+                    HealingManager.observe(
+                            d,
+                            locator,
+                            foundElements.get(),
+                            action.name(),
+                            LocatorBuilder.getIFrameLocator().get(),
+                            ShadowLocatorBuilder.shadowDomLocator.get(),
+                            ShadowLocatorBuilder.cssSelector.get());
+                }
 
                 // identify run type
                 boolean isMobileNativeExecution = DriverFactoryHelper.isMobileNativeExecution();
@@ -538,7 +556,22 @@ public class Actions extends ElementActions {
 
                             By destinationLocator = (By) data;
                             currentDragAndDropSubstep = "resolve destination element";
-                            List<WebElement> destinationElements = ElementActionsHelper.safeFindElements(d, destinationLocator);
+                            ElementLookup destinationLookup = findAllElements(
+                                    destinationLocator,
+                                    action.name() + "_DESTINATION");
+                            List<WebElement> destinationElements = destinationLookup.elements();
+                            secondaryHealingResolution.set(destinationLookup.healingResolution());
+                            secondaryLocator.set(destinationLocator);
+                            if (destinationLookup.healingResolution() == null) {
+                                HealingManager.observe(
+                                        d,
+                                        destinationLocator,
+                                        destinationElements,
+                                        action.name() + "_DESTINATION",
+                                        LocatorBuilder.getIFrameLocator().get(),
+                                        ShadowLocatorBuilder.shadowDomLocator.get(),
+                                        ShadowLocatorBuilder.cssSelector.get());
+                            }
                             logDragAndDropTrace("substep=resolveDestinationElements, locator=" + JavaHelper.formatLocatorToString(destinationLocator)
                                     + ", matchedElements=" + destinationElements.size());
                             WebElement destinationElement = chooseDragAndDropElement(destinationElements, destinationLocator, "destination");
@@ -627,9 +660,37 @@ public class Actions extends ElementActions {
                 // take screenshot if not already taken before action
                 if (screenshot.get(0) == null)
                     screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
+                HealingManager.recordOutcome(
+                        d,
+                        healingResolution.get(),
+                        locator,
+                        action.name(),
+                        true,
+                        "");
+                HealingManager.recordOutcome(
+                        d,
+                        secondaryHealingResolution.get(),
+                        secondaryLocator.get(),
+                        action.name() + "_DESTINATION",
+                        true,
+                        "");
                 return true;
             });
         } catch (WebDriverException exception) {
+            HealingManager.recordOutcome(
+                    driverFactoryHelper.getDriver(),
+                    healingResolution.get(),
+                    locator,
+                    action.name(),
+                    false,
+                    exception.getClass().getSimpleName());
+            HealingManager.recordOutcome(
+                    driverFactoryHelper.getDriver(),
+                    secondaryHealingResolution.get(),
+                    secondaryLocator.get(),
+                    action.name() + "_DESTINATION",
+                    false,
+                    exception.getClass().getSimpleName());
             try {
                 // take failure screenshot if needed
                 if (screenshot.get(0) == null) {
@@ -691,6 +752,10 @@ public class Actions extends ElementActions {
     }
 
     private List<WebElement> findAllElements(By locator) {
+        return findAllElements(locator, "UNKNOWN").elements();
+    }
+
+    private ElementLookup findAllElements(By locator, String action) {
         List<WebElement> foundElements;
 
         By shadowDomLocator = ShadowLocatorBuilder.shadowDomLocator.get();
@@ -714,7 +779,24 @@ public class Actions extends ElementActions {
             //normal case, just find the elements
             foundElements = ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), locator);
         }
-        return foundElements;
+        if (!foundElements.isEmpty()) {
+            return new ElementLookup(foundElements, null);
+        }
+        HealingResolution resolution = HealingManager.resolve(
+                        driverFactoryHelper.getDriver(),
+                        locator,
+                        action,
+                        true,
+                        LocatorBuilder.getIFrameLocator().get(),
+                        shadowDomLocator,
+                        cssSelector)
+                .orElse(null);
+        return resolution == null
+                ? new ElementLookup(foundElements, null)
+                : new ElementLookup(resolution.elements(), resolution);
+    }
+
+    private record ElementLookup(List<WebElement> elements, HealingResolution healingResolution) {
     }
 
     private byte[] takeActionScreenshot(WebElement element) {

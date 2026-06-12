@@ -33,6 +33,7 @@ public class Properties {
     static BrowserStack baseBrowserStack;
     static Platform basePlatform;
     static Healenium baseHealenium;
+    static Healing baseHealing;
     static Jira baseJira;
     static Mobile baseMobile;
     static Paths basePaths;
@@ -55,6 +56,7 @@ public class Properties {
     static final ThreadLocal<BrowserStack> browserStackOverride = new ThreadLocal<>();
     static final ThreadLocal<Platform> platformOverride = new ThreadLocal<>();
     static final ThreadLocal<Healenium> healeniumOverride = new ThreadLocal<>();
+    static final ThreadLocal<Healing> healingOverride = new ThreadLocal<>();
     static final ThreadLocal<Jira> jiraOverride = new ThreadLocal<>();
     static final ThreadLocal<Mobile> mobileOverride = new ThreadLocal<>();
     static final ThreadLocal<Paths> pathsOverride = new ThreadLocal<>();
@@ -76,6 +78,7 @@ public class Properties {
     public static final BrowserStack browserStack = createProxy(BrowserStack.class, browserStackOverride, () -> baseBrowserStack);
     public static final Platform platform = createProxy(Platform.class, platformOverride, () -> basePlatform);
     public static final Healenium healenium = createProxy(Healenium.class, healeniumOverride, () -> baseHealenium);
+    public static final Healing healing = createProxy(Healing.class, healingOverride, () -> baseHealing);
     public static final Jira jira = createProxy(Jira.class, jiraOverride, () -> baseJira);
     public static final Mobile mobile = createProxy(Mobile.class, mobileOverride, () -> baseMobile);
     public static final Paths paths = createProxy(Paths.class, pathsOverride, () -> basePaths);
@@ -204,6 +207,7 @@ public class Properties {
         browserStackOverride.remove();
         platformOverride.remove();
         healeniumOverride.remove();
+        healingOverride.remove();
         jiraOverride.remove();
         mobileOverride.remove();
         pathsOverride.remove();

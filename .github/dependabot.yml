@@ -21,6 +21,7 @@ updates:
       - "/shaft-capture"
       - "/shaft-doctor"
       - "/shaft-ai"
+      - "/shaft-heal"
       - "/shaft-browserstack"
       - "/shaft-video"
       - "/shaft-visual"

@@ -323,7 +323,9 @@ tests, and CLI tests need only `shaft-engine`.
 Add `shaft-browserstack` only for BrowserStack SDK interception/orchestration;
 direct BrowserStack sessions work through `shaft-engine`. Add `shaft-video`
 only for local non-headless desktop recording; Appium-native recording remains
-in `shaft-engine`.
+in `shaft-engine`. Add `shaft-heal` and set
+`healing.strategy=shaft-heal` only when deterministic web locator recovery is
+required. See the [SHAFT Heal guide](SHAFT_HEAL.md).
 
 Use the [module selection and migration guide](UPGRADING_TO_MODULAR_SHAFT.md)
 for the complete method matrix.

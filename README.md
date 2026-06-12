@@ -225,6 +225,7 @@ mvn archetype:generate \
 | Managed Chrome/Edge recording, privacy, and JSON persistence             | `shaft-capture`      |
 | Offline evidence bundles and deterministic failure diagnosis             | `shaft-doctor`       |
 | Optional direct OpenAI, Anthropic, Gemini, and Ollama calls              | `shaft-ai`           |
+| Deterministic explainable web element recovery                            | `shaft-heal`         |
 | BrowserStack SDK and multi-platform `browserstack.yml` orchestration     | `shaft-browserstack` |
 | Local non-headless desktop recording                                     | `shaft-video`        |
 | Reference-image assertions and image-based touch lookup                  | `shaft-visual`       |
@@ -232,7 +233,9 @@ mvn archetype:generate \
 Direct BrowserStack sessions, Appium-native recording, ordinary screenshots,
 and `ImageProcessingActions.compareImageFolders(...)` remain in
 `shaft-engine`. Capture and Doctor remain fully deterministic without
-`shaft-ai`. The
+`shaft-ai`. SHAFT Heal is disabled unless `shaft-heal` is present and
+`healing.strategy=shaft-heal` or `composite` is selected. See the
+[SHAFT Heal guide](docs/SHAFT_HEAL.md). The
 [upgrade guide](docs/UPGRADING_TO_MODULAR_SHAFT.md) lists the exact methods
 that cross each optional dependency boundary.
 
