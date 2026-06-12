@@ -30,9 +30,15 @@ A normal unsigned local validation does not contact Maven Central:
 ```bash
 python3 scripts/ci/validate_reactor_versions.py
 python3 scripts/ci/validate_maven_publication.py
+python3 scripts/ci/validate_shaft_pilot_release.py
 mvn --batch-mode clean install -DskipTests -Dgpg.skip
 python3 scripts/ci/validate_maven_publication.py --check-build-outputs
+python3 scripts/ci/validate_shaft_pilot_release.py --check-build-outputs
+mvn --batch-mode -f tools/modularization/consumer-fixtures/pilot-core/pom.xml \
+  verify -Dshaft.version="$(mvn -f pom.xml help:evaluate -Dexpression=project.version -q -DforceStdout)"
 mvn --batch-mode -f tools/modularization/consumer-fixtures/combined-modules/pom.xml \
+  verify -Dshaft.version="$(mvn -f pom.xml help:evaluate -Dexpression=project.version -q -DforceStdout)"
+mvn --batch-mode -f tools/modularization/consumer-fixtures/mcp/pom.xml \
   verify -Dshaft.version="$(mvn -f pom.xml help:evaluate -Dexpression=project.version -q -DforceStdout)"
 python3 scripts/ci/validate_maven_publication.py \
   --create-bundle target/publication-dry-run/central-bundle.zip
@@ -48,9 +54,9 @@ For a signed staging rehearsal, import a disposable GPG key into an isolated `GN
 
 1. Immediately after checkout, probe the root parent POM coordinate on Maven Central. An existing version or an inconclusive Central response stops the job before JDK, Maven, signing, or build setup.
 2. Read the version from the root parent POM and reject reactor version drift.
-3. Validate configuration, build all publication artifacts, and run the combined consumer checks.
+3. Validate the Pilot contract, run deterministic Pilot module tests with populated Allure results, complete the headless Capture release journey, build all publication artifacts, run the provider-neutral core, combined-module, and MCP consumer checks, and smoke-test the HTTP MCP container.
 4. Sign and deploy the complete reactor through the Central Publishing Maven Plugin, waiting for publication success.
-5. Verify every POM, JAR, sources JAR, JavaDocs JAR, and signature from Maven Central, then compile canonical, combined-module, legacy-relocation, and MCP consumers from isolated repositories.
+5. Verify every POM, JAR, sources JAR, JavaDocs JAR, and signature from Maven Central, then compile canonical, provider-neutral core, combined-module, legacy-relocation, and MCP consumers from isolated repositories.
 6. Create the GitHub tag and release.
 7. Dispatch the guide update and announce the release on Slack.
 

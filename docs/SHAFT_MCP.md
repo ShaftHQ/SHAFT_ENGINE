@@ -53,6 +53,11 @@ See [SHAFT Doctor](SHAFT_DOCTOR.md) for evidence categories, allowlisted path
 handling, deterministic rules, redaction, offline bundle analysis, optional
 provider advisories, and safe fallback behavior.
 
+See [SHAFT Pilot](SHAFT_PILOT.md) for installation, provider configuration,
+Capture and Doctor examples, privacy defaults, and client-specific MCP setup.
+Maintainers should use the [SHAFT Pilot release runbook](SHAFT_PILOT_RELEASE.md)
+for the deterministic release gate and standalone-repository archival order.
+
 ## Authentication boundary
 
 SHAFT MCP does not require or store OpenAI, Anthropic, Google, Microsoft, or

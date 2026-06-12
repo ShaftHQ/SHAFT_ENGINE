@@ -46,13 +46,73 @@ jobs:
       - name: Set Release Version Number
         run: |
           echo "RELEASE_VERSION=$(mvn -f pom.xml help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
+      - name: Validate SHAFT Pilot release contract
+        run: |
+          python3 scripts/ci/validate_modular_documentation.py
+          python3 scripts/ci/validate_shaft_mcp_configuration.py
+          python3 scripts/ci/validate_shaft_pilot_release.py
+      - name: Install SHAFT Pilot prerequisites without tests
+        run: >-
+          mvn --batch-mode
+          -pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-mcp
+          -am install -DskipTests -Dgpg.skip
+      - name: Reset Pilot Allure result contents
+        run: |
+          for module in shaft-pilot-core shaft-capture shaft-doctor shaft-ai shaft-mcp; do
+            mkdir -p "${module}/allure-results"
+            find "${module}/allure-results" -mindepth 1 -delete
+          done
+      - name: Run deterministic SHAFT Pilot tests
+        run: >-
+          mvn --batch-mode
+          -pl shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-mcp
+          test -Dgpg.skip
+      - name: Verify populated Pilot Allure results
+        run: python3 scripts/ci/validate_shaft_pilot_release.py --check-test-results
+      - name: Run headless SHAFT Capture release journey
+        run: >-
+          mvn --batch-mode
+          -pl shaft-capture test
+          -DincludeCaptureBrowserE2E
+          -Dtest=ManagedCaptureRecorderBrowserTest,CaptureGeneratedReplayBrowserTest
+          -Dgpg.skip
       - name: Validate Maven publication
         run: |
           python3 scripts/ci/validate_maven_publication.py
           mvn --batch-mode clean install -DskipTests -Dgpg.skip
           python3 scripts/ci/validate_maven_publication.py --check-build-outputs
+          python3 scripts/ci/validate_shaft_pilot_release.py --check-build-outputs
+          python3 scripts/ci/validate_shaft_mcp_transports.py
+          mvn --batch-mode -f tools/modularization/consumer-fixtures/pilot-core/pom.xml verify \
+            "-Dshaft.version=${RELEASE_VERSION}"
           mvn --batch-mode -f tools/modularization/consumer-fixtures/combined-modules/pom.xml verify \
             "-Dshaft.version=${RELEASE_VERSION}"
+          mvn --batch-mode -f tools/modularization/consumer-fixtures/mcp/pom.xml verify \
+            "-Dshaft.version=${RELEASE_VERSION}"
+      - name: Build and smoke SHAFT MCP container
+        shell: bash
+        run: |
+          docker build -f shaft-mcp/Dockerfile -t shaft-pilot-release:test .
+          cleanup() {
+            docker rm -f shaft-pilot-release-smoke >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker run -d --name shaft-pilot-release-smoke \
+            -e SPRING_PROFILES_ACTIVE=http \
+            -p 127.0.0.1:8081:8081 \
+            shaft-pilot-release:test
+          for attempt in {1..60}; do
+            if curl --fail --silent --show-error \
+              -H "Accept: application/json, text/event-stream" \
+              -H "Content-Type: application/json" \
+              --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"release-smoke","version":"1.0"}}}' \
+              http://127.0.0.1:8081/mcp | grep -q '"name":"shaft-mcp"'; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs shaft-pilot-release-smoke
+          exit 1
       - name: Setup Prerequisites
         run: |
           git config --global user.signingKey "${{ secrets.GPG_KEYNAME }}"

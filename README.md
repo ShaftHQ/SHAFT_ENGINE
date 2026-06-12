@@ -236,6 +236,10 @@ and `ImageProcessingActions.compareImageFolders(...)` remain in
 [upgrade guide](docs/UPGRADING_TO_MODULAR_SHAFT.md) lists the exact methods
 that cross each optional dependency boundary.
 
+Use the [SHAFT Pilot guide](docs/SHAFT_PILOT.md) for complete Capture, TestNG
+generation, Doctor, reviewed repair, MCP, provider, privacy, and
+troubleshooting examples.
+
 ### Your First Test
 
 ```java
@@ -352,6 +356,7 @@ When enabled, SHAFT checks `allure --version` and only uses system `allure` when
 |--------------------------------------------------------------------|---------------------------------------------------------------------|
 | 📖 **[User Guide](https://ShaftHQ.github.io/)**                    | Comprehensive documentation, tutorials, and configuration reference |
 | 🏗️ **[Architecture](docs/ARCHITECTURE.md)**                       | Framework design, module overview, and Mermaid diagrams             |
+| 🧭 **[SHAFT Pilot](docs/SHAFT_PILOT.md)**                         | Capture, Doctor, MCP, optional providers, and usage examples         |
 | ⬆️ **[Modular Upgrade Guide](docs/UPGRADING_TO_MODULAR_SHAFT.md)** | Complete migration checklist and method-level dependency matrix     |
 | 🌐 **[BrowserStack Module](docs/SHAFT_BROWSERSTACK_MODULE.md)**    | Direct-session versus BrowserStack SDK behavior                     |
 | 🖼️ **[Visual Module](docs/SHAFT_VISUAL_MODULE.md)**               | Exact APIs that require OpenCV/Eyes/Shutterbug                      |

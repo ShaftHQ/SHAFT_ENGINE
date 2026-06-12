@@ -133,6 +133,8 @@ present.
 - [BrowserStack SDK module](SHAFT_BROWSERSTACK_MODULE.md)
 - [Visual processing module](SHAFT_VISUAL_MODULE.md)
 - [Desktop video module](SHAFT_VIDEO_MODULE.md)
+- [SHAFT Pilot](SHAFT_PILOT.md)
+- [SHAFT Pilot release runbook](SHAFT_PILOT_RELEASE.md)
 - [SHAFT MCP](SHAFT_MCP.md)
 - [SHAFT Pilot AI](SHAFT_PILOT_AI.md)
 - [SHAFT Capture](SHAFT_CAPTURE.md)
