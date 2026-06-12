@@ -24,6 +24,7 @@ import java.util.Set;
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DoctorServiceTest {
@@ -117,6 +118,15 @@ class DoctorServiceTest {
         assertTrue(fixture.path("arguments").path("includePageSnapshots").isBoolean());
         assertTrue(!json.contains("API_KEY") && !json.contains("apiKey")
                 && !json.toLowerCase(java.util.Locale.ROOT).contains("authorization"));
+    }
+
+    @Test
+    void draftPublicationRequiresExplicitApprovalBeforeReadingManifest() {
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> new DoctorService().publishDraftPr(
+                        "missing-proposal.json", false, "", false, "", ""));
+
+        assertTrue(failure.getMessage().contains("approval"));
     }
 
     private static Path repositoryRoot() {

@@ -25,7 +25,9 @@ class ShaftMcpApplicationTests {
             "capture_status",
             "capture_stop",
             "capture_generate",
-            "doctor_analyze"
+            "doctor_analyze",
+            "doctor_propose_fix",
+            "doctor_publish_draft_pr"
     );
 
     @Autowired
@@ -36,7 +38,7 @@ class ShaftMcpApplicationTests {
         Object bean = context.getBean("shaftTools");
         assertTrue(bean instanceof List<?>);
         List<?> callbacks = (List<?>) bean;
-        assertEquals(45, callbacks.size());
+        assertEquals(47, callbacks.size());
 
         Set<String> toolNames = callbacks.stream()
                 .map(ToolCallback.class::cast)
