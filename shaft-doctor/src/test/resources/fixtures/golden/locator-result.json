@@ -1,0 +1,23 @@
+{
+  "uuid": "golden-locator",
+  "historyId": "golden-locator",
+  "name": "locatorFailure",
+  "fullName": "example.GoldenTest.locatorFailure",
+  "status": "failed",
+  "start": 100,
+  "stop": 200,
+  "statusDetails": {
+    "message": "NoSuchElementException: unable to locate element",
+    "trace": "org.openqa.selenium.NoSuchElementException: unable to locate element\n\tat example.GoldenTest.locatorFailure(GoldenTest.java:42)"
+  },
+  "labels": [
+    {
+      "name": "testClass",
+      "value": "example.GoldenTest"
+    },
+    {
+      "name": "testMethod",
+      "value": "locatorFailure"
+    }
+  ]
+}

@@ -8,11 +8,12 @@ relocation artifact that points consumers to the canonical JAR.
 
 - The root `pom.xml` is the `io.github.shafthq:shaft-parent` aggregator and build parent. It owns shared version properties, dependency management, and plugin management.
 - `shaft-engine/pom.xml` builds the engine JAR. All framework source, resources, tests, examples, and runtime support assets remain under `shaft-engine/src/`; Java packages remain under `com.shaft`.
-- `shaft-bom/pom.xml` publishes the consumer BOM. Importing it manages the `shaft-engine`, `shaft-pilot-core`, `shaft-capture`, `shaft-ai`, `shaft-browserstack`, `shaft-video`, `shaft-visual`, and `SHAFT_MCP` versions without adding dependencies by itself.
+- `shaft-bom/pom.xml` publishes the consumer BOM. Importing it manages the `shaft-engine`, `shaft-pilot-core`, `shaft-capture`, `shaft-doctor`, `shaft-ai`, `shaft-browserstack`, `shaft-video`, `shaft-visual`, and `SHAFT_MCP` versions without adding dependencies by itself.
 - `shaft-pilot-core/pom.xml` builds provider-neutral Pilot contracts, security controls, configuration snapshots, and deterministic fallback. It depends on `shaft-engine`; the engine has no reverse dependency.
 - `shaft-capture/pom.xml` builds managed Chrome/Edge recording, versioned contracts, deterministic privacy classification, Java/TestNG generation, compile/replay validation, schema migration, and atomic JSON persistence. It depends on `shaft-pilot-core` and has no dependency on `shaft-ai`.
+- `shaft-doctor/pom.xml` builds allowlisted local evidence collection, redacted portable bundles, deterministic failure rules, and JSON/Markdown reports. It depends on `shaft-pilot-core` and has no dependency on `shaft-ai`.
 - `shaft-ai/pom.xml` builds optional direct OpenAI, Anthropic, Gemini, and Ollama adapters. It depends on `shaft-pilot-core` and exposes no provider SDK types.
-- `shaft-mcp/pom.xml` builds the optional executable MCP server and SHAFT Capture CLI. It depends on `shaft-engine` and `shaft-capture`; the engine has no reverse dependency on MCP.
+- `shaft-mcp/pom.xml` builds the optional executable MCP server plus SHAFT Capture and Doctor CLIs. It depends on `shaft-engine`, `shaft-capture`, and `shaft-doctor`; the engine has no reverse dependency on MCP.
 - `shaft-browserstack/pom.xml` builds the optional BrowserStack Java SDK integration. Direct BrowserStack
   WebDriver/Appium sessions remain in `shaft-engine`.
 - `shaft-video/pom.xml` builds the optional desktop video recording provider. Add it when local desktop screen recording is needed; Appium-native recording remains in `shaft-engine`.
@@ -69,7 +70,7 @@ mvn -pl shaft-engine -am test -Dtest=TestClassName
 mvn -pl shaft-browserstack -am test -Dtest=BrowserStackHelperUnitTest
 mvn -pl shaft-video -am test -Dtest=DesktopVideoRecordingProviderRegistrationTest
 mvn -pl shaft-visual -am test -Dtest=ImageProcessingActionsUnitTest
-mvn -pl shaft-pilot-core,shaft-capture,shaft-ai -am test
+mvn -pl shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai -am test
 mvn -pl shaft-mcp -am test -Dtest=ShaftMcpApplicationTests
 mvn -pl shaft-mcp -am package -DskipTests -Dgpg.skip
 python3 scripts/ci/validate_shaft_mcp_transports.py
@@ -83,6 +84,7 @@ Build and test outputs are module-local. Important locations include:
 - Engine JAR: `shaft-engine/target/shaft-engine-<version>.jar`
 - Pilot contracts JAR: `shaft-pilot-core/target/shaft-pilot-core-<version>.jar`
 - Capture contracts JAR: `shaft-capture/target/shaft-capture-<version>.jar`
+- Doctor analyzer JAR: `shaft-doctor/target/shaft-doctor-<version>.jar`
 - Optional direct providers JAR: `shaft-ai/target/shaft-ai-<version>.jar`
 - Optional BrowserStack SDK JAR: `shaft-browserstack/target/shaft-browserstack-<version>.jar`
 - Optional desktop video JAR: `shaft-video/target/shaft-video-<version>.jar`
@@ -154,3 +156,6 @@ documented in [SHAFT Pilot AI](SHAFT_PILOT_AI.md).
 Managed-browser recording, its CLI/MCP controls, the versioned format, and the
 deterministic privacy boundary are documented in
 [SHAFT Capture](SHAFT_CAPTURE.md).
+
+Portable evidence, deterministic diagnosis, CLI/MCP usage, and sharing guidance
+are documented in [SHAFT Doctor](SHAFT_DOCTOR.md).

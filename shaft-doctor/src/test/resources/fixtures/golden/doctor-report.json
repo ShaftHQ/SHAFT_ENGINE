@@ -1,0 +1,118 @@
+{
+  "bundle" : {
+    "schemaVersion" : "1.0",
+    "bundleId" : "bundle-8d2c46c24c57991fcfcc",
+    "evidence" : [
+      {
+        "id" : "e-1ff53f9d5c86d501149d",
+        "category" : "EXCEPTION_CHAIN",
+        "mediaType" : "text/plain",
+        "relativePath" : "",
+        "sha256" : "ece4db2b2508b74f453121aa791b474e45f3ae32fb8f8e55bc6fc15691a6efb0",
+        "sizeBytes" : 175,
+        "content" : "NoSuchElementException: unable to locate element\norg.openqa.selenium.NoSuchElementException: unable to locate element\n\tat example.GoldenTest.locatorFailure(GoldenTest.java:42)",
+        "redacted" : true,
+        "truncated" : false,
+        "attributes" : {
+          "historyId" : "golden-locator",
+          "signature" : "dc30e26c768afc4c27e2",
+          "status" : "failed"
+        },
+        "provenance" : {
+          "adapter" : "allure-exception-chain",
+          "sourceReference" : "root-1/locator-result.json",
+          "originalSha256" : "ece4db2b2508b74f453121aa791b474e45f3ae32fb8f8e55bc6fc15691a6efb0"
+        }
+      },
+      {
+        "id" : "e-9ec0926f96f896af0007",
+        "category" : "ALLURE_RESULT",
+        "mediaType" : "application/json",
+        "relativePath" : "",
+        "sha256" : "e7b30977cbb8c562970188a9657f5a59d26610ced02c91b71f9c04bf2aec0e87",
+        "sizeBytes" : 614,
+        "content" : "{\n  \"uuid\" : \"golden-locator\",\n  \"historyId\" : \"golden-locator\",\n  \"name\" : \"locatorFailure\",\n  \"fullName\" : \"example.GoldenTest.locatorFailure\",\n  \"status\" : \"failed\",\n  \"start\" : 100,\n  \"stop\" : 200,\n  \"statusDetails\" : {\n    \"message\" : \"NoSuchElementException: unable to locate element\",\n    \"trace\" : \"org.openqa.selenium.NoSuchElementException: unable to locate element\\n\\tat example.GoldenTest.locatorFailure(GoldenTest.java:42)\"\n  },\n  \"labels\" : [\n    {\n      \"name\" : \"testClass\",\n      \"value\" : \"example.GoldenTest\"\n    },\n    {\n      \"name\" : \"testMethod\",\n      \"value\" : \"locatorFailure\"\n    }\n  ]\n}",
+        "redacted" : true,
+        "truncated" : false,
+        "attributes" : {
+          "failureMessage" : "NoSuchElementException: unable to locate element",
+          "historyId" : "golden-locator",
+          "invalid" : "false",
+          "name" : "example.GoldenTest.locatorFailure",
+          "signature" : "dc30e26c768afc4c27e2",
+          "start" : "100",
+          "status" : "failed",
+          "stop" : "200",
+          "testMethod" : "locatorFailure",
+          "traceTop" : "org.openqa.selenium.NoSuchElementException: unable to locate element",
+          "uuid" : "golden-locator"
+        },
+        "provenance" : {
+          "adapter" : "allure-result-json",
+          "sourceReference" : "root-1/locator-result.json",
+          "originalSha256" : "e7b30977cbb8c562970188a9657f5a59d26610ced02c91b71f9c04bf2aec0e87"
+        }
+      }
+    ],
+    "redaction" : {
+      "appliedRules" : [ ],
+      "removedFieldNames" : [ ],
+      "omittedItems" : 0
+    },
+    "metadata" : {
+      "allureResultCount" : "1",
+      "collector" : "shaft-doctor",
+      "invalidAllureResultCount" : "0",
+      "minimumAllureResultCount" : "1",
+      "retainedBytes" : "789"
+    }
+  },
+  "diagnosis" : {
+    "schemaVersion" : "1.0",
+    "primaryCause" : "LOCATOR",
+    "contributingCauses" : [ ],
+    "confidence" : "HIGH",
+    "summary" : "Locator did not resolve an element.",
+    "rationale" : "The first matching rule in stable precedence order was locator-not-found; later matches are reported as contributing causes.",
+    "findings" : [
+      {
+        "id" : "f-0c4a83601adc4307",
+        "kind" : "INFERENCE",
+        "category" : "LOCATOR",
+        "severity" : "ERROR",
+        "title" : "Locator did not resolve an element",
+        "detail" : "Rule locator-not-found matched sanitized failure text in 1 cited evidence item(s).",
+        "ruleId" : "locator-not-found",
+        "evidenceIds" : [
+          "e-9ec0926f96f896af0007"
+        ]
+      },
+      {
+        "id" : "f-fbb8666e96795d9b",
+        "kind" : "OBSERVATION",
+        "category" : "UNKNOWN",
+        "severity" : "ERROR",
+        "title" : "Failed or broken test attempt",
+        "detail" : "example.GoldenTest.locatorFailure: NoSuchElementException: unable to locate element",
+        "ruleId" : "allure-attempt-observation",
+        "evidenceIds" : [
+          "e-9ec0926f96f896af0007"
+        ]
+      }
+    ],
+    "remediations" : [
+      {
+        "id" : "r-locator-not-found",
+        "title" : "Locator did not resolve an element",
+        "action" : "Inspect the cited locator against the failing page state and update it only after confirming the intended element.",
+        "findingIds" : [
+          "f-0c4a83601adc4307"
+        ],
+        "evidenceIds" : [
+          "e-9ec0926f96f896af0007"
+        ]
+      }
+    ],
+    "missingEvidence" : [ ]
+  }
+}

@@ -223,6 +223,7 @@ mvn archetype:generate \
 | Web, Appium/Flutter, API, DB, CLI, reporting, screenshots, accessibility | `shaft-engine`       |
 | Provider-neutral Pilot contracts, approval, redaction, and fallback      | `shaft-pilot-core`   |
 | Managed Chrome/Edge recording, privacy, and JSON persistence             | `shaft-capture`      |
+| Offline evidence bundles and deterministic failure diagnosis             | `shaft-doctor`       |
 | Optional direct OpenAI, Anthropic, Gemini, and Ollama calls              | `shaft-ai`           |
 | BrowserStack SDK and multi-platform `browserstack.yml` orchestration     | `shaft-browserstack` |
 | Local non-headless desktop recording                                     | `shaft-video`        |
@@ -230,7 +231,8 @@ mvn archetype:generate \
 
 Direct BrowserStack sessions, Appium-native recording, ordinary screenshots,
 and `ImageProcessingActions.compareImageFolders(...)` remain in
-`shaft-engine`. Capture remains fully deterministic without `shaft-ai`. The
+`shaft-engine`. Capture and Doctor remain fully deterministic without
+`shaft-ai`. The
 [upgrade guide](docs/UPGRADING_TO_MODULAR_SHAFT.md) lists the exact methods
 that cross each optional dependency boundary.
 

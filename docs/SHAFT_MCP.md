@@ -23,6 +23,8 @@ The packaged server supports:
   `capture_stop`, with no AI provider required;
 - deterministic TestNG generation through `capture_generate`, with compile,
   optional replay, and review-only AI enrichment phases;
+- offline deterministic diagnosis through `doctor_analyze`, restricted to
+  explicit input paths and allowed roots;
 - legacy SSE endpoint properties as configuration aliases during migration.
 
 The HTTP port defaults to `8081` and can be overridden with `PORT` or
@@ -37,11 +39,17 @@ java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar capture status
 java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar capture stop
 java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar capture generate \
   --session recordings/example.json --output-dir generated-tests
+java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar doctor analyze \
+  --input allure-results --allowed-root "$PWD" \
+  --output-dir target/shaft-doctor
 ```
 
 See [SHAFT Capture](SHAFT_CAPTURE.md) for checkpoint, runtime-directory,
 privacy, generation, replay, enrichment approval, browser-support, and
 recovery details.
+
+See [SHAFT Doctor](SHAFT_DOCTOR.md) for evidence categories, allowlisted path
+handling, deterministic rules, redaction, and offline bundle analysis.
 
 ## Authentication boundary
 

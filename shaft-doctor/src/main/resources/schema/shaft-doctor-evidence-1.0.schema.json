@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shafthq.github.io/schemas/doctor/evidence-1.0.schema.json",
+  "title": "SHAFT Doctor Evidence Bundle",
+  "type": "object",
+  "required": ["schemaVersion", "bundleId", "evidence", "redaction", "metadata"],
+  "properties": {
+    "schemaVersion": {"type": "string", "enum": ["1.0"]},
+    "bundleId": {"type": "string", "minLength": 1},
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id", "category", "mediaType", "relativePath", "sha256", "sizeBytes",
+          "redacted", "truncated", "attributes", "provenance"
+        ],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "category": {
+            "type": "string",
+            "enum": [
+              "ALLURE_RESULT", "SHAFT_LOG", "EXCEPTION_CHAIN", "SCREENSHOT",
+              "PAGE_SNAPSHOT", "ENVIRONMENT", "DEPENDENCY_BUILD",
+              "CONFIGURATION", "OTHER"
+            ]
+          },
+          "mediaType": {"type": "string", "minLength": 1},
+          "relativePath": {"type": "string"},
+          "sha256": {"type": "string", "minLength": 1},
+          "sizeBytes": {"type": "integer", "minimum": 0},
+          "content": {"type": ["string", "null"]},
+          "redacted": {"type": "boolean"},
+          "truncated": {"type": "boolean"},
+          "attributes": {"type": "object", "additionalProperties": {"type": "string"}},
+          "provenance": {
+            "type": "object",
+            "required": ["adapter", "sourceReference", "originalSha256"],
+            "properties": {
+              "adapter": {"type": "string", "minLength": 1},
+              "sourceReference": {"type": "string"},
+              "originalSha256": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "required": ["appliedRules", "removedFieldNames", "omittedItems"]
+    },
+    "metadata": {"type": "object", "additionalProperties": {"type": "string"}}
+  }
+}

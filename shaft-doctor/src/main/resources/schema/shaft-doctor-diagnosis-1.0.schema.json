@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shafthq.github.io/schemas/doctor/diagnosis-1.0.schema.json",
+  "title": "SHAFT Doctor Diagnosis",
+  "type": "object",
+  "required": [
+    "schemaVersion", "primaryCause", "contributingCauses", "confidence",
+    "summary", "rationale", "findings", "remediations", "missingEvidence"
+  ],
+  "properties": {
+    "schemaVersion": {"type": "string", "enum": ["1.0"]},
+    "primaryCause": {
+      "type": "string",
+      "enum": [
+        "PRODUCT", "TEST", "LOCATOR", "DATA", "TIMING_SYNCHRONIZATION",
+        "ENVIRONMENT_CONFIGURATION", "INFRASTRUCTURE", "UNKNOWN"
+      ]
+    },
+    "contributingCauses": {"type": "array", "items": {"type": "string"}},
+    "confidence": {"type": "string", "enum": ["HIGH", "MEDIUM", "LOW", "UNKNOWN"]},
+    "summary": {"type": "string", "minLength": 1},
+    "rationale": {"type": "string", "minLength": 1},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id", "kind", "category", "severity", "title", "detail", "ruleId", "evidenceIds"
+        ]
+      }
+    },
+    "remediations": {"type": "array"},
+    "missingEvidence": {"type": "array", "items": {"type": "string"}}
+  }
+}
