@@ -23,6 +23,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
       - name: Reject existing Maven Central release version
         run: python3 scripts/ci/check_maven_release_version.py
       - name: Set up JDK 25
