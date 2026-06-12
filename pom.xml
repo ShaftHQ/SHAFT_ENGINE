@@ -64,7 +64,7 @@
         <selenium.version>4.44.0</selenium.version>
         <slf4j.version>2.0.18</slf4j.version>
         <grpc.version>1.82.0</grpc.version>
-        <protobuf.version>4.35.0</protobuf.version>
+        <protobuf.version>4.35.1</protobuf.version>
         <google.auth.library.version>1.48.0</google.auth.library.version>
         <kotlin.version>2.4.0</kotlin.version>
         <netty.version>4.2.15.Final</netty.version>
