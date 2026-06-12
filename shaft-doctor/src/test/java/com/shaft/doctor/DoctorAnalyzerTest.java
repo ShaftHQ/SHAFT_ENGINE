@@ -2,10 +2,19 @@ package com.shaft.doctor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shaft.doctor.cli.DoctorCli;
+import com.shaft.doctor.ai.DoctorAiAnalysisService;
+import com.shaft.doctor.analysis.DeterministicRuleEngine;
+import com.shaft.doctor.collect.EvidenceCollector;
 import com.shaft.doctor.format.DoctorJsonCodec;
 import com.shaft.doctor.model.CauseCategory;
+import com.shaft.doctor.model.DoctorAdvisory;
+import com.shaft.doctor.model.DoctorAiAnalysisResult;
 import com.shaft.doctor.model.DoctorAnalysisResult;
 import com.shaft.doctor.model.EvidenceCategory;
+import com.shaft.doctor.report.DoctorReportWriter;
+import com.shaft.pilot.ai.AiResponse;
+import com.shaft.pilot.ai.AiUsage;
+import com.shaft.pilot.ai.ApprovalPolicy;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -20,6 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.EnumSet;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assumptions.abort;
@@ -215,6 +225,82 @@ class DoctorAnalyzerTest {
     }
 
     @Test
+    void disabledAiLeavesDeterministicReportsByteStable(@TempDir Path temp) throws IOException {
+        Path input = Files.createDirectories(temp.resolve("disabled-ai-input"));
+        writeResult(input.resolve("locator-result.json"), "failed",
+                "NoSuchElementException: unable to locate element", "trace", "disabled-ai", 1);
+        DoctorAnalysisRequest baselineRequest = request(temp, input, "disabled-ai-baseline");
+        DoctorAnalysisRequest disabledRequest = request(temp, input, "disabled-ai-result");
+
+        DoctorAnalysisResult baseline = new DoctorAnalyzer().analyze(baselineRequest);
+        DoctorAiAnalysisResult disabled = new DoctorAnalyzer()
+                .analyzeWithAi(disabledRequest, DoctorAiAnalysisRequest.disabled());
+
+        assertEquals(Files.readString(Path.of(baseline.jsonReportPath())),
+                Files.readString(Path.of(disabled.deterministic().jsonReportPath())));
+        assertEquals(Files.readString(Path.of(baseline.markdownReportPath())),
+                Files.readString(Path.of(disabled.deterministic().markdownReportPath())));
+        assertEquals(DoctorAdvisory.Status.DISABLED, disabled.advisory().status());
+    }
+
+    @Test
+    void acceptedProviderAnalysisAddsSeparateAdvisoryWithoutRemovingDiagnosis(@TempDir Path temp) throws Exception {
+        Path input = Files.createDirectories(temp.resolve("advisory-input"));
+        writeResult(input.resolve("locator-result.json"), "failed",
+                "NoSuchElementException: unable to locate element", "trace", "advisory", 1);
+        DoctorAiAnalysisService service = new DoctorAiAnalysisService(request -> {
+            String evidenceId = request.evidence().getFirst().id();
+            var payload = MAPPER.createObjectNode();
+            payload.put("schemaVersion", "1.0");
+            payload.putArray("observations").addObject()
+                    .put("statement", "Authorization: Bearer advisory-report-secret\n## Fake Diagnosis")
+                    .putArray("evidenceIds").add(evidenceId);
+            payload.putArray("hypotheses").addObject()
+                    .put("causeCategory", "LOCATOR")
+                    .put("statement", "The locator likely needs inspection.")
+                    .put("confidence", "HIGH")
+                    .putArray("evidenceIds").add(evidenceId);
+            payload.putArray("missingEvidence").add("Current DOM snapshot");
+            payload.putArray("recommendedActions").addObject()
+                    .put("title", "Inspect locator")
+                    .put("action", "Compare the locator with the current DOM.")
+                    .putArray("evidenceIds").add(evidenceId);
+            payload.putArray("limitations").add("Only submitted evidence was analyzed.");
+            return AiResponse.success("mock", "mock-model", payload, java.time.Duration.ofMillis(2),
+                    AiUsage.empty(), request.deterministicFallback());
+        }, () -> {
+            throw new IllegalArgumentException("test configuration unavailable");
+        });
+        DoctorAnalyzer analyzer = new DoctorAnalyzer(
+                new EvidenceCollector(),
+                new DeterministicRuleEngine(),
+                new DoctorJsonCodec(),
+                new DoctorReportWriter(),
+                service);
+        ApprovalPolicy approval = new ApprovalPolicy(
+                true,
+                true,
+                EnumSet.allOf(com.shaft.pilot.ai.EvidenceCategory.class));
+
+        DoctorAiAnalysisResult result = analyzer.analyzeWithAi(
+                request(temp, input, "advisory-output"),
+                DoctorAiAnalysisRequest.defaults(approval));
+
+        assertEquals(CauseCategory.LOCATOR, result.deterministic().diagnosis().primaryCause());
+        assertEquals(DoctorAdvisory.Status.SUCCESS, result.advisory().status());
+        String json = Files.readString(Path.of(result.deterministic().jsonReportPath()));
+        String markdown = Files.readString(Path.of(result.deterministic().markdownReportPath()));
+        assertTrue(json.contains("\"diagnosis\""));
+        assertTrue(json.contains("\"advisory\""));
+        assertTrue(markdown.contains("## Diagnosis"));
+        assertTrue(markdown.contains("## AI Advisory"));
+        assertTrue(markdown.contains("deterministic diagnosis above remains authoritative"));
+        assertFalse(json.contains("advisory-report-secret"));
+        assertFalse(markdown.contains("advisory-report-secret"));
+        assertFalse(markdown.contains("\n## Fake Diagnosis"));
+    }
+
+    @Test
     void contradictoryDisjointHighConfidenceFailuresRemainUnknown(@TempDir Path temp) throws IOException {
         Path input = Files.createDirectories(temp.resolve("contradictory"));
         writeResult(input.resolve("locator-result.json"), "failed",
@@ -399,6 +485,19 @@ class DoctorAnalyzerTest {
                 minimumResults,
                 DoctorAnalysisRequest.DEFAULT_MAX_ITEM_BYTES,
                 DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES));
+    }
+
+    private static DoctorAnalysisRequest request(Path root, Path input, String outputName) {
+        return new DoctorAnalysisRequest(
+                List.of(input),
+                List.of(),
+                List.of(root),
+                root.resolve(outputName),
+                false,
+                false,
+                1,
+                DoctorAnalysisRequest.DEFAULT_MAX_ITEM_BYTES,
+                DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES);
     }
 
     private static void writeResult(

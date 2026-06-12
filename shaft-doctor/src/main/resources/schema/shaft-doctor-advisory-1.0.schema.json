@@ -1,0 +1,134 @@
+{
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "observations",
+    "hypotheses",
+    "missingEvidence",
+    "recommendedActions",
+    "limitations"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "enum": [
+        "1.0"
+      ]
+    },
+    "observations": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "required": [
+          "statement",
+          "evidenceIds"
+        ],
+        "properties": {
+          "statement": {
+            "type": "string"
+          },
+          "evidenceIds": {
+            "type": "array",
+            "maxItems": 12,
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "hypotheses": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "required": [
+          "causeCategory",
+          "statement",
+          "confidence",
+          "evidenceIds"
+        ],
+        "properties": {
+          "causeCategory": {
+            "type": "string",
+            "enum": [
+              "PRODUCT",
+              "TEST",
+              "LOCATOR",
+              "DATA",
+              "TIMING_SYNCHRONIZATION",
+              "ENVIRONMENT_CONFIGURATION",
+              "INFRASTRUCTURE",
+              "UNKNOWN"
+            ]
+          },
+          "statement": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "HIGH",
+              "MEDIUM",
+              "LOW",
+              "UNKNOWN"
+            ]
+          },
+          "evidenceIds": {
+            "type": "array",
+            "maxItems": 12,
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "missingEvidence": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string"
+      }
+    },
+    "recommendedActions": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "required": [
+          "title",
+          "action",
+          "evidenceIds"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "evidenceIds": {
+            "type": "array",
+            "maxItems": 12,
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,9 +1,12 @@
 package com.shaft.doctor;
 
+import com.shaft.doctor.ai.DoctorAiAnalysisService;
 import com.shaft.doctor.analysis.DeterministicRuleEngine;
 import com.shaft.doctor.collect.EvidenceCollector;
 import com.shaft.doctor.format.DoctorJsonCodec;
 import com.shaft.doctor.model.Diagnosis;
+import com.shaft.doctor.model.DoctorAdvisory;
+import com.shaft.doctor.model.DoctorAiAnalysisResult;
 import com.shaft.doctor.model.DoctorAnalysisResult;
 import com.shaft.doctor.model.EvidenceBundle;
 import com.shaft.doctor.report.DoctorReportWriter;
@@ -22,13 +25,14 @@ public final class DoctorAnalyzer {
     private final DeterministicRuleEngine rules;
     private final DoctorJsonCodec codec;
     private final DoctorReportWriter reports;
+    private final DoctorAiAnalysisService aiAnalysis;
 
     /**
      * Creates the default analyzer.
      */
     public DoctorAnalyzer() {
         this(new EvidenceCollector(), new DeterministicRuleEngine(),
-                new DoctorJsonCodec(), new DoctorReportWriter());
+                new DoctorJsonCodec(), new DoctorReportWriter(), new DoctorAiAnalysisService());
     }
 
     DoctorAnalyzer(
@@ -36,10 +40,20 @@ public final class DoctorAnalyzer {
             DeterministicRuleEngine rules,
             DoctorJsonCodec codec,
             DoctorReportWriter reports) {
+        this(collector, rules, codec, reports, new DoctorAiAnalysisService());
+    }
+
+    DoctorAnalyzer(
+            EvidenceCollector collector,
+            DeterministicRuleEngine rules,
+            DoctorJsonCodec codec,
+            DoctorReportWriter reports,
+            DoctorAiAnalysisService aiAnalysis) {
         this.collector = collector;
         this.rules = rules;
         this.codec = codec;
         this.reports = reports;
+        this.aiAnalysis = aiAnalysis;
     }
 
     /**
@@ -65,6 +79,45 @@ public final class DoctorAnalyzer {
                 bundlePath.toString(),
                 jsonReportPath.toString(),
                 markdownReportPath.toString());
+    }
+
+    /**
+     * Runs deterministic analysis first, then optionally appends a separate provider advisory.
+     *
+     * <p>The deterministic diagnosis is never replaced or rewritten. A disabled request
+     * delegates to {@link #analyze(DoctorAnalysisRequest)} without changing report bytes.</p>
+     *
+     * @param request explicit local analysis policy
+     * @param aiRequest explicit provider-analysis policy
+     * @return deterministic result and separately identified advisory
+     */
+    public DoctorAiAnalysisResult analyzeWithAi(
+            DoctorAnalysisRequest request,
+            DoctorAiAnalysisRequest aiRequest) {
+        DoctorAiAnalysisRequest resolvedAiRequest =
+                aiRequest == null ? DoctorAiAnalysisRequest.disabled() : aiRequest;
+        DoctorAnalysisResult deterministic = analyze(request);
+        if (!resolvedAiRequest.enabled()) {
+            return new DoctorAiAnalysisResult(deterministic, DoctorAdvisory.disabled());
+        }
+
+        Path output = Path.of(deterministic.jsonReportPath()).toAbsolutePath().normalize().getParent();
+        DoctorAdvisory advisory = aiAnalysis.analyze(
+                deterministic.bundle(),
+                deterministic.diagnosis(),
+                resolvedAiRequest,
+                output);
+        codec.writeReport(
+                Path.of(deterministic.jsonReportPath()),
+                deterministic.bundle(),
+                deterministic.diagnosis(),
+                advisory);
+        reports.writeMarkdown(
+                Path.of(deterministic.markdownReportPath()),
+                deterministic.bundle(),
+                deterministic.diagnosis(),
+                advisory);
+        return new DoctorAiAnalysisResult(deterministic, advisory);
     }
 
     private static DoctorAnalysisRequest resolveOutputBoundary(DoctorAnalysisRequest request) {

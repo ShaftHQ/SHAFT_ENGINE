@@ -2,9 +2,14 @@ package com.shaft.doctor.cli;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.shaft.doctor.DoctorAiAnalysisRequest;
 import com.shaft.doctor.DoctorAnalysisRequest;
 import com.shaft.doctor.DoctorAnalyzer;
+import com.shaft.doctor.model.DoctorAdvisory;
+import com.shaft.doctor.model.DoctorAiAnalysisResult;
 import com.shaft.doctor.model.DoctorAnalysisResult;
+import com.shaft.pilot.ai.ApprovalPolicy;
+import com.shaft.pilot.config.PilotConfiguration;
 
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
@@ -72,7 +77,10 @@ public final class DoctorCli {
                 throw new IllegalArgumentException(usage());
             }
             Arguments options = Arguments.parse(Arrays.copyOfRange(args, 1, args.length));
-            DoctorAnalysisResult result = new DoctorAnalyzer().analyze(new DoctorAnalysisRequest(
+            if (options.flag("ai-cache") && !options.flag("ai")) {
+                throw new IllegalArgumentException("Doctor option --ai-cache requires --ai.");
+            }
+            DoctorAnalysisRequest request = new DoctorAnalysisRequest(
                     options.pathsRequired("input"),
                     options.paths("history"),
                     options.pathsRequired("allowed-root"),
@@ -81,14 +89,41 @@ public final class DoctorCli {
                     options.flag("include-page-snapshots"),
                     Math.toIntExact(options.positiveLong("minimum-results", 1)),
                     options.positiveLong("max-item-bytes", DoctorAnalysisRequest.DEFAULT_MAX_ITEM_BYTES),
-                    options.positiveLong("max-bundle-bytes", DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES)));
-            output.println(MAPPER.writeValueAsString(Map.of(
-                    "bundleId", result.bundle().bundleId(),
-                    "primaryCause", result.diagnosis().primaryCause(),
-                    "confidence", result.diagnosis().confidence(),
-                    "bundlePath", result.bundlePath(),
-                    "jsonReportPath", result.jsonReportPath(),
-                    "markdownReportPath", result.markdownReportPath())));
+                    options.positiveLong("max-bundle-bytes", DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES));
+            DoctorAnalyzer analyzer = new DoctorAnalyzer();
+            DoctorAnalysisResult result;
+            DoctorAdvisory advisory = null;
+            if (options.flag("ai")) {
+                DoctorAiAnalysisRequest defaults = DoctorAiAnalysisRequest.defaults(currentApprovalPolicy());
+                DoctorAiAnalysisResult aiResult = analyzer.analyzeWithAi(request, new DoctorAiAnalysisRequest(
+                        true,
+                        defaults.approvalPolicy(),
+                        defaults.timeout(),
+                        defaults.budget(),
+                        defaults.maxEvidenceItems(),
+                        defaults.maxEvidenceBytes(),
+                        defaults.maxResponseBytes(),
+                        options.flag("ai-cache")));
+                result = aiResult.deterministic();
+                advisory = aiResult.advisory();
+            } else {
+                result = analyzer.analyze(request);
+            }
+            Map<String, Object> summary = new LinkedHashMap<>();
+            summary.put("bundleId", result.bundle().bundleId());
+            summary.put("primaryCause", result.diagnosis().primaryCause());
+            summary.put("confidence", result.diagnosis().confidence());
+            summary.put("bundlePath", result.bundlePath());
+            summary.put("jsonReportPath", result.jsonReportPath());
+            summary.put("markdownReportPath", result.markdownReportPath());
+            if (advisory != null) {
+                summary.put("advisoryStatus", advisory.status());
+                summary.put("providerStatus", advisory.metadata().providerStatus());
+                summary.put("provider", advisory.metadata().provider());
+                summary.put("model", advisory.metadata().model());
+                summary.put("fallbackReason", advisory.metadata().fallbackReason());
+            }
+            output.println(MAPPER.writeValueAsString(summary));
             return 0;
         } catch (RuntimeException exception) {
             error.println("SHAFT Doctor command failed: " + safeMessage(exception));
@@ -110,7 +145,16 @@ public final class DoctorCli {
                 + "[--history <doctor-evidence.json>] [--output-dir <path>] "
                 + "[--include-screenshots] [--include-page-snapshots] "
                 + "[--minimum-results <count>] "
-                + "[--max-item-bytes <bytes>] [--max-bundle-bytes <bytes>]";
+                + "[--max-item-bytes <bytes>] [--max-bundle-bytes <bytes>] "
+                + "[--ai] [--ai-cache]";
+    }
+
+    private static ApprovalPolicy currentApprovalPolicy() {
+        try {
+            return PilotConfiguration.current().approvalPolicy();
+        } catch (RuntimeException ignored) {
+            return ApprovalPolicy.denyAll();
+        }
     }
 
     private record Arguments(Map<String, List<String>> values, Set<String> flags) {
@@ -123,7 +167,7 @@ public final class DoctorCli {
                     throw new IllegalArgumentException("Unexpected Doctor argument.");
                 }
                 String name = argument.substring(2).toLowerCase(Locale.ROOT);
-                if (Set.of("include-screenshots", "include-page-snapshots").contains(name)) {
+                if (Set.of("include-screenshots", "include-page-snapshots", "ai", "ai-cache").contains(name)) {
                     flags.add(name);
                 } else {
                     if (index + 1 >= args.length || args[index + 1].startsWith("--")) {

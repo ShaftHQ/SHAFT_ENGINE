@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1.0",
+  "tool": "doctor_analyze",
+  "clients": [
+    {
+      "name": "ChatGPT",
+      "transport": "streamable-http"
+    },
+    {
+      "name": "Codex",
+      "transport": "stdio-or-streamable-http"
+    },
+    {
+      "name": "Claude",
+      "transport": "stdio-or-streamable-http"
+    },
+    {
+      "name": "Gemini",
+      "transport": "stdio"
+    },
+    {
+      "name": "GitHub Copilot",
+      "transport": "stdio-or-streamable-http"
+    }
+  ],
+  "arguments": {
+    "inputPaths": [
+      "/absolute/project/allure-results"
+    ],
+    "historicalBundlePaths": [],
+    "allowedRoots": [
+      "/absolute/project"
+    ],
+    "outputDirectory": "/absolute/project/target/shaft-doctor",
+    "includeScreenshots": false,
+    "includePageSnapshots": false,
+    "minimumAllureResults": 1
+  }
+}

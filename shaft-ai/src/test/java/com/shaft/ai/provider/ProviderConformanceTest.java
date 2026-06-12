@@ -1,10 +1,22 @@
 package com.shaft.ai.provider;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import com.shaft.driver.SHAFT;
+import com.shaft.doctor.DoctorAiAnalysisRequest;
+import com.shaft.doctor.ai.DoctorAiAnalysisService;
+import com.shaft.doctor.model.CauseCategory;
+import com.shaft.doctor.model.Confidence;
+import com.shaft.doctor.model.Diagnosis;
+import com.shaft.doctor.model.DoctorAdvisory;
+import com.shaft.doctor.model.EvidenceBundle;
+import com.shaft.doctor.model.EvidenceItem;
+import com.shaft.doctor.model.EvidenceProvenance;
+import com.shaft.doctor.model.Finding;
+import com.shaft.doctor.model.RedactionSummary;
 import com.shaft.pilot.ai.AiBudget;
 import com.shaft.pilot.ai.AiExecutionService;
 import com.shaft.pilot.ai.AiProvider;
@@ -15,8 +27,10 @@ import com.shaft.pilot.ai.AiResponseStatus;
 import com.shaft.pilot.ai.ApprovalPolicy;
 import com.shaft.pilot.ai.EvidenceCategory;
 import com.shaft.pilot.ai.ProcessingLocation;
+import com.shaft.pilot.config.PilotConfiguration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -25,8 +39,11 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
@@ -36,6 +53,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProviderConformanceTest {
     private static final ObjectMapper JSON = new ObjectMapper();
+    @TempDir
+    Path temp;
     private HttpServer server;
 
     @AfterEach
@@ -62,6 +81,45 @@ class ProviderConformanceTest {
         assertFalse(capturedBody.get().contains("do-not-transmit"));
         assertTrue(capturedBody.get().contains("[REDACTED]"));
         assertTrue(capturedBody.get().contains("answer"));
+    }
+
+    @ParameterizedTest(name = "{0} accepts the Doctor advisory contract")
+    @MethodSource("providerIds")
+    void allProvidersPassDoctorAdvisoryConformance(String providerId) throws Exception {
+        AtomicReference<String> capturedBody = new AtomicReference<>("");
+        server = server(exchange -> {
+            capturedBody.set(readBody(exchange));
+            respond(exchange, 200, successfulResponse(providerId, doctorPayload()));
+        });
+        configure(providerId, server.getAddress().getPort());
+        boolean local = "ollama".equals(providerId);
+        ApprovalPolicy approval = new ApprovalPolicy(local, !local, EnumSet.allOf(EvidenceCategory.class));
+        AiProviderRegistry registry = new AiProviderRegistry();
+        registry.registerForCurrentThread(provider(providerId));
+        try {
+            DoctorAiAnalysisService service = new DoctorAiAnalysisService(
+                    request -> new AiExecutionService(
+                            registry,
+                            PilotConfiguration::current,
+                            event -> {
+                            }).execute(request),
+                    PilotConfiguration::current);
+
+            DoctorAdvisory advisory = service.analyze(
+                    doctorBundle(),
+                    doctorDiagnosis(),
+                    DoctorAiAnalysisRequest.defaults(approval),
+                    temp.resolve(providerId));
+
+            assertEquals(DoctorAdvisory.Status.SUCCESS, advisory.status());
+            assertEquals(providerId, advisory.metadata().provider());
+            assertEquals(List.of("evidence-1"),
+                    advisory.analysis().observations().getFirst().evidenceIds());
+            assertTrue(capturedBody.get().contains("schemaVersion"));
+            assertTrue(capturedBody.get().contains("evidence-1"));
+        } finally {
+            registry.clearForCurrentThread();
+        }
     }
 
     @ParameterizedTest(name = "{0} normalizes {1}")
@@ -151,7 +209,7 @@ class ProviderConformanceTest {
                 .provider(providerId)
                 .localConsent(local)
                 .remoteConsent(!local)
-                .allowedEvidenceCategories("TEXT")
+                .allowedEvidenceCategories("TEXT,LOG,CONFIGURATION,DOM")
                 .retryMaxAttempts(1)
                 .timeoutSeconds(1);
         String base = "http://127.0.0.1:" + port;
@@ -175,6 +233,66 @@ class ProviderConformanceTest {
                 Arguments.of(providerId, FailureCase.TIMEOUT, AiResponseStatus.TIMEOUT),
                 Arguments.of(providerId, FailureCase.MALFORMED_JSON, AiResponseStatus.INVALID_RESPONSE),
                 Arguments.of(providerId, FailureCase.SCHEMA_VIOLATION, AiResponseStatus.INVALID_RESPONSE)));
+    }
+
+    private static String doctorPayload() throws JsonProcessingException {
+        return JSON.writeValueAsString(Map.of(
+                "schemaVersion", "1.0",
+                "observations", List.of(Map.of(
+                        "statement", "The submitted exception reports a missing element.",
+                        "evidenceIds", List.of("evidence-1"))),
+                "hypotheses", List.of(Map.of(
+                        "causeCategory", "LOCATOR",
+                        "statement", "The locator likely no longer matches the intended element.",
+                        "confidence", "HIGH",
+                        "evidenceIds", List.of("evidence-1"))),
+                "missingEvidence", List.of("Current DOM snapshot"),
+                "recommendedActions", List.of(Map.of(
+                        "title", "Inspect locator",
+                        "action", "Compare the locator with the current DOM.",
+                        "evidenceIds", List.of("evidence-1"))),
+                "limitations", List.of("Only submitted evidence was analyzed.")));
+    }
+
+    private static EvidenceBundle doctorBundle() {
+        return new EvidenceBundle(
+                EvidenceBundle.CURRENT_SCHEMA_VERSION,
+                "bundle-1",
+                List.of(new EvidenceItem(
+                        "evidence-1",
+                        com.shaft.doctor.model.EvidenceCategory.EXCEPTION_CHAIN,
+                        "text/plain",
+                        "",
+                        "sha-1",
+                        50,
+                        "NoSuchElementException: unable to locate element",
+                        true,
+                        false,
+                        Map.of(),
+                        new EvidenceProvenance("fixture", "fixture/result.json", "sha-1"))),
+                new RedactionSummary(List.of(), List.of(), 0),
+                Map.of());
+    }
+
+    private static Diagnosis doctorDiagnosis() {
+        return new Diagnosis(
+                Diagnosis.CURRENT_SCHEMA_VERSION,
+                CauseCategory.LOCATOR,
+                List.of(),
+                Confidence.HIGH,
+                "Locator did not resolve an element.",
+                "The deterministic locator rule matched submitted evidence.",
+                List.of(new Finding(
+                        "finding-1",
+                        Finding.Kind.INFERENCE,
+                        CauseCategory.LOCATOR,
+                        Finding.Severity.ERROR,
+                        "Locator not found",
+                        "The locator did not resolve an element.",
+                        "locator-not-found",
+                        List.of("evidence-1"))),
+                List.of(),
+                List.of("Current DOM snapshot"));
     }
 
     private static HttpServer server(ExchangeHandler handler) throws IOException {

@@ -29,6 +29,7 @@ flowchart TB
     MCP --> Engine
     MCP --> Capture
     MCP --> Doctor
+    MCP --> AI
     PilotCore --> Engine
     Capture --> PilotCore
     Doctor --> PilotCore
@@ -47,12 +48,12 @@ flowchart TB
 | `shaft-engine`       | JAR            | Required facade and core web, mobile, API, database, CLI, reporting, and accessibility implementation.                   |
 | `shaft-pilot-core`   | JAR            | Provider-neutral Pilot contracts, consent, redaction, budgets, audit metadata, and deterministic fallback.               |
 | `shaft-capture`      | JAR            | Managed Chrome/Edge recording, deterministic privacy classification, versioned schema, and atomic JSON persistence.       |
-| `shaft-doctor`       | JAR            | Portable redacted evidence bundles, deterministic diagnosis rules, and JSON/Markdown reports.                            |
+| `shaft-doctor`       | JAR            | Portable redacted evidence bundles, deterministic diagnosis rules, and optional separately rendered provider advisory.    |
 | `shaft-ai`           | JAR            | Optional direct OpenAI, Anthropic, Gemini, and Ollama HTTP adapters discovered through `ServiceLoader`.                  |
 | `shaft-browserstack` | JAR            | BrowserStack SDK interception and `browserstack.yml` orchestration. Direct BrowserStack sessions stay in `shaft-engine`. |
 | `shaft-video`        | JAR            | Local non-headless desktop recording. Appium-native recording stays in `shaft-engine`.                                   |
 | `shaft-visual`       | JAR            | Reference-image assertions and image-based lookup through OpenCV, Eyes, and Shutterbug.                                  |
-| `SHAFT_MCP`          | executable JAR | Optional MCP server and CLI exposing browser automation, managed capture, and offline Doctor analysis.                    |
+| `SHAFT_MCP`          | executable JAR | Optional MCP server and CLI exposing browser automation, managed capture, Doctor analysis, and packaged direct adapters.  |
 | `shaft-bom`          | POM            | Aligns all SHAFT artifact versions; adds no runtime classes.                                                             |
 | `SHAFT_ENGINE`       | relocation POM | Temporary legacy-coordinate bridge to `shaft-engine`; adds no optional providers.                                        |
 
