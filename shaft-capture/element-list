@@ -1,0 +1,9 @@
+com.shaft.capture.cli
+com.shaft.capture.collector
+com.shaft.capture.control
+com.shaft.capture.format
+com.shaft.capture.generate
+com.shaft.capture.model
+com.shaft.capture.privacy
+com.shaft.capture.runtime
+com.shaft.capture.storage
