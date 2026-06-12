@@ -81,6 +81,12 @@ def validate_host_contexts(root: Path, budget: dict) -> list[dict[str, str]]:
                 characters += len(path.read_text(encoding="utf-8"))
             else:
                 missing.append(configured_path)
+        metadata_patterns = budget.get("host_skill_metadata_globs", {}).get(host, [])
+        for path in expand_globs(root, metadata_patterns):
+            frontmatter = parse_frontmatter(path.read_text(encoding="utf-8"))
+            if frontmatter:
+                characters += len(frontmatter.get("name", ""))
+                characters += len(frontmatter.get("description", ""))
         if missing:
             errors.append(
                 issue("host-context-missing", host, f"missing context files: {', '.join(missing)}")
@@ -137,29 +143,44 @@ def parse_frontmatter(content: str) -> dict[str, str] | None:
 def validate_skills(root: Path, budget: dict) -> list[dict[str, str]]:
     """Validate discoverable skill directories and required frontmatter."""
     errors: list[dict[str, str]] = []
-    skills_root = root / budget.get("skills_root", ".github/skills")
-    if not skills_root.is_dir():
-        return [issue("skill-root-missing", relative(root, skills_root), "skills root is missing")]
-    for directory in sorted(path for path in skills_root.iterdir() if path.is_dir()):
-        if not any(path.is_file() for path in directory.rglob("*")):
-            continue
-        skill_path = directory / "SKILL.md"
-        skill_relative = relative(root, skill_path)
-        if not skill_path.is_file():
-            errors.append(issue("skill-missing", skill_relative, "skill directory must contain SKILL.md"))
-            continue
-        frontmatter = parse_frontmatter(skill_path.read_text(encoding="utf-8"))
-        if frontmatter is None:
-            errors.append(issue("skill-frontmatter", skill_relative, "valid YAML frontmatter is required"))
-            continue
-        if frontmatter.get("name") != directory.name:
+    configured_roots = budget.get("skills_roots")
+    if configured_roots is None:
+        configured_roots = [budget.get("skills_root", ".github/skills")]
+    for configured_root in configured_roots:
+        skills_root = root / configured_root
+        if not skills_root.is_dir():
             errors.append(
-                issue("skill-name", skill_relative, "frontmatter name must match the skill directory")
+                issue("skill-root-missing", configured_root, "skills root is missing")
             )
-        if not frontmatter.get("description"):
-            errors.append(
-                issue("skill-description", skill_relative, "frontmatter description is required")
-            )
+            continue
+        for directory in sorted(path for path in skills_root.iterdir() if path.is_dir()):
+            if not any(path.is_file() for path in directory.rglob("*")):
+                continue
+            skill_path = directory / "SKILL.md"
+            skill_relative = relative(root, skill_path)
+            if not skill_path.is_file():
+                errors.append(
+                    issue("skill-missing", skill_relative, "skill directory must contain SKILL.md")
+                )
+                continue
+            frontmatter = parse_frontmatter(skill_path.read_text(encoding="utf-8"))
+            if frontmatter is None:
+                errors.append(
+                    issue("skill-frontmatter", skill_relative, "valid YAML frontmatter is required")
+                )
+                continue
+            if frontmatter.get("name") != directory.name:
+                errors.append(
+                    issue(
+                        "skill-name",
+                        skill_relative,
+                        "frontmatter name must match the skill directory",
+                    )
+                )
+            if not frontmatter.get("description"):
+                errors.append(
+                    issue("skill-description", skill_relative, "frontmatter description is required")
+                )
     return errors
 
 

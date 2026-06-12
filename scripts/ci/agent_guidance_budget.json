@@ -1,14 +1,14 @@
 {
   "file_budgets": {
     "AGENTS.md": {
-      "max_bytes": 8192
+      "max_bytes": 4096
     },
     "CLAUDE.md": {
-      "max_bytes": 4096,
-      "max_lines": 120
+      "max_bytes": 1536,
+      "max_lines": 40
     },
     ".github/copilot-instructions.md": {
-      "max_chars": 3999
+      "max_chars": 1500
     },
     ".github/instructions/framework-source.instructions.md": {
       "max_chars": 3999
@@ -32,10 +32,19 @@
       ".github/instructions/java-tests.instructions.md"
     ]
   },
-  "max_estimated_tokens_per_host": 3500,
+  "host_skill_metadata_globs": {
+    "codex": [
+      ".agents/skills/*/SKILL.md"
+    ],
+    "claude": [
+      ".agents/skills/*/SKILL.md"
+    ]
+  },
+  "max_estimated_tokens_per_host": 2500,
   "active_guidance_globs": [
     "AGENTS.md",
     "CLAUDE.md",
+    ".agents/skills/*/SKILL.md",
     ".github/copilot-instructions.md",
     ".github/instructions/*.instructions.md",
     ".github/skills/*/SKILL.md"
@@ -43,6 +52,7 @@
   "total_guidance_globs": [
     "AGENTS.md",
     "CLAUDE.md",
+    ".agents/skills/*/SKILL.md",
     ".github/copilot-instructions.md",
     ".github/instructions/*.instructions.md",
     ".github/skills/README.md",
@@ -51,11 +61,12 @@
     "docs/AGENT_GUIDANCE_MAINTENANCE.md"
   ],
   "reduction_baseline_bytes": 145162,
-  "minimum_reduction_percent": 60,
+  "minimum_reduction_percent": 80,
   "reference_scan_globs": [
     "AGENTS.md",
     "CLAUDE.md",
     "CONTRIBUTING.md",
+    ".agents/skills/*/SKILL.md",
     ".github/copilot-instructions.md",
     ".github/instructions/*.instructions.md",
     ".github/skills/README.md",
@@ -69,7 +80,10 @@
     ".github/instructions/framework-source.instructions.md",
     ".github/instructions/java-tests.instructions.md"
   ],
-  "skills_root": ".github/skills",
+  "skills_roots": [
+    ".agents/skills",
+    ".github/skills"
+  ],
   "duplicate_paragraph_min_chars": 180,
   "forbidden_patterns": [
     {

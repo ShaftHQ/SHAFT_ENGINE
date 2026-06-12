@@ -29,6 +29,10 @@ class ValidateAgentGuidanceTest(unittest.TestCase):
             "---\nname: example\ndescription: Example task workflow.\n---\n\n# Example\n",
         )
         self.write(
+            ".agents/skills/example-bridge/SKILL.md",
+            "---\nname: example-bridge\ndescription: Load the example workflow.\n---\n\n# Bridge\n",
+        )
+        self.write(
             ".github/workflows/refresh-agent-instructions.yml",
             """name: Refresh
 on:
@@ -60,6 +64,7 @@ steps:
             "active_guidance_globs": [
                 "AGENTS.md",
                 "CLAUDE.md",
+                ".agents/skills/*/SKILL.md",
                 ".github/copilot-instructions.md",
                 ".github/instructions/*.instructions.md",
                 ".github/skills/*/SKILL.md",
@@ -67,6 +72,7 @@ steps:
             "reference_scan_globs": [
                 "AGENTS.md",
                 "CLAUDE.md",
+                ".agents/skills/*/SKILL.md",
                 ".github/copilot-instructions.md",
                 ".github/instructions/*.instructions.md",
                 ".github/skills/*/SKILL.md",
@@ -75,7 +81,7 @@ steps:
                 ".github/instructions/source.instructions.md",
                 ".github/instructions/tests.instructions.md",
             ],
-            "skills_root": ".github/skills",
+            "skills_roots": [".agents/skills", ".github/skills"],
             "duplicate_paragraph_min_chars": 80,
             "forbidden_patterns": [
                 {"pattern": "(?i)before every commit", "message": "per-commit ceremony"}
@@ -121,6 +127,21 @@ steps:
         self.write("AGENTS.md", "x" * 50)
         self.assertIn("total-reduction", self.codes())
 
+    def test_counts_skill_metadata_in_host_budget(self):
+        self.budget["host_contexts"] = {"codex": ["AGENTS.md"]}
+        self.budget["host_skill_metadata_globs"] = {
+            "codex": [".agents/skills/*/SKILL.md"]
+        }
+        self.budget["max_estimated_tokens_per_host"] = 10
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertTrue(
+            any(
+                error["code"] == "host-token-budget" and error["path"] == "codex"
+                for error in errors
+            )
+        )
+
     def test_rejects_duplicate_long_paragraphs(self):
         paragraph = "This duplicated instruction is deliberately long enough for deterministic detection. " * 2
         self.write("AGENTS.md", f"# Agents\n\n{paragraph}\n")
@@ -137,6 +158,15 @@ steps:
 
     def test_rejects_invalid_skill_frontmatter(self):
         self.write(".github/skills/example/SKILL.md", "---\nname: wrong\n---\n\n# Example\n")
+        codes = self.codes()
+        self.assertIn("skill-name", codes)
+        self.assertIn("skill-description", codes)
+
+    def test_rejects_invalid_codex_skill_frontmatter(self):
+        self.write(
+            ".agents/skills/example-bridge/SKILL.md",
+            "---\nname: wrong\n---\n\n# Bridge\n",
+        )
         codes = self.codes()
         self.assertIn("skill-name", codes)
         self.assertIn("skill-description", codes)
