@@ -12,7 +12,7 @@
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/shafthq/shaft-mcp:@project.version@",
+      "identifier": "ghcr.io/shafthq/shaft-engine-mcp:@project.version@",
       "transport": {
         "type": "stdio"
       }

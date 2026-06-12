@@ -18,7 +18,7 @@ to an unverified artifact.
 | Containers | The release Docker image starts in HTTP mode and completes MCP initialization. |
 | External agents | ChatGPT, Codex, Claude, Gemini, and GitHub Copilot setup is documented with current client limitations and credential ownership. |
 | Publication | Maven Central artifacts, sources, JavaDocs, signatures, BOM, executable JAR, aggregate SBOM, GHCR image, MCP registry metadata, and GitHub release use one version. |
-| Migration | The preserved `io.github.shafthq:SHAFT_MCP` coordinate, `shaft-mcp` server ID, and `ghcr.io/shafthq/shaft-mcp` image resolve before the standalone repository is archived. |
+| Migration | The preserved `io.github.shafthq:SHAFT_MCP` coordinate and `shaft-mcp` server ID resolve. `ghcr.io/shafthq/shaft-mcp:10.2.20260612` remains a tested compatibility image, while `ghcr.io/shafthq/shaft-engine-mcp` is published by the monorepo for current and future releases. |
 
 Live paid-provider smoke tests are optional. Run them only with explicit
 approval and credentials in the provider-native environment variable. Their
@@ -60,8 +60,9 @@ After Maven Central succeeds:
 
 1. Run `scripts/ci/verify_maven_central_release.py <version>` from isolated
    local repositories.
-2. Pull `ghcr.io/shafthq/shaft-mcp:<version>` and initialize `/mcp` in a clean
-   container.
+2. Pull `ghcr.io/shafthq/shaft-engine-mcp:<version>` and initialize `/mcp` in
+   a clean container. For the first monorepo release, also verify the
+   `ghcr.io/shafthq/shaft-mcp:10.2.20260612` compatibility image.
 3. Confirm the MCP registry entry `io.github.ShaftHQ/shaft-mcp` references the
    same package version.
 4. Confirm the GitHub release, JavaDocs, aggregate CycloneDX SBOM, sources,

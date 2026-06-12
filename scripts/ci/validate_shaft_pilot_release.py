@@ -151,6 +151,7 @@ def validate_static(root: Path = ROOT) -> list[str]:
         "Streamable HTTP",
         "mock",
         "Maven Central",
+        "ghcr.io/shafthq/shaft-engine-mcp",
         "ghcr.io/shafthq/shaft-mcp",
         "ShaftHQ/SHAFT_MCP",
         "Rollback",

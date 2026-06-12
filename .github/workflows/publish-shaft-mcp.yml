@@ -42,8 +42,8 @@ jobs:
           file: shaft-mcp/Dockerfile
           push: true
           tags: |
-            ghcr.io/shafthq/shaft-mcp:${{ env.VERSION }}
-            ghcr.io/shafthq/shaft-mcp:latest
+            ghcr.io/shafthq/shaft-engine-mcp:${{ env.VERSION }}
+            ghcr.io/shafthq/shaft-engine-mcp:latest
       - name: Materialize and validate MCP registry metadata
         working-directory: shaft-mcp
         run: |
