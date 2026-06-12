@@ -328,6 +328,23 @@ in `shaft-engine`.
 Use the [module selection and migration guide](UPGRADING_TO_MODULAR_SHAFT.md)
 for the complete method matrix.
 
+For a no-AI browser-recording workflow, build or download the executable
+`SHAFT_MCP` JAR and run:
+
+```bash
+java -jar SHAFT_MCP-<version>.jar capture start \
+  --url https://example.test --browser chrome \
+  --output recordings/example.json --headless
+java -jar SHAFT_MCP-<version>.jar capture stop
+java -jar SHAFT_MCP-<version>.jar capture generate \
+  --session recordings/example.json \
+  --output-dir generated-tests --replay
+```
+
+See the [SHAFT Pilot guide](SHAFT_PILOT.md) for Doctor analysis, reviewed
+repairs, MCP clients, optional provider configuration, privacy controls, and
+troubleshooting.
+
 ---
 
 [← Back to README](../README.md) | [Features →](FEATURES.md)

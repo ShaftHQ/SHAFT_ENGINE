@@ -1,0 +1,31 @@
+{
+  "patches": [
+    {
+      "path": "src/test/java/example/CheckoutTest.java",
+      "operation": "REPLACE",
+      "content": "package example;\n\npublic class CheckoutTest {\n    // Replace with the complete reviewed file content.\n}\n",
+      "rationale": "Apply the reviewed locator correction supported by evidence-1.",
+      "evidenceIds": [
+        "evidence-1"
+      ]
+    }
+  ],
+  "validationCommands": [
+    [
+      "mvn",
+      "-pl",
+      "shaft-engine",
+      "-am",
+      "test",
+      "-Dtest=CheckoutTest"
+    ],
+    [
+      "mvn",
+      "-pl",
+      "shaft-engine",
+      "-am",
+      "compile",
+      "-DskipTests"
+    ]
+  ]
+}

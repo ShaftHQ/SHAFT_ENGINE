@@ -9,7 +9,7 @@
 
     <properties>
         <!-- Make sure you point to the latest release version: https://github.com/ShaftHQ/SHAFT_ENGINE/releases -->
-        <shaft.version>10.2.20260610</shaft.version>
+        <shaft.version>10.2.20260612</shaft.version>
         <jdk.version>25</jdk.version>
         <aspectjweaver.version>1.9.25.1</aspectjweaver.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>

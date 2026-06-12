@@ -49,7 +49,7 @@ class CaptureGeneratorTest {
         String data = Files.readString(first.testDataPath());
         String golden = Files.readString(Path.of(
                 "src/test/resources/fixtures/golden-generated-session-1.java"));
-        assertEquals(golden, source);
+        assertEquals(normalizeLineEndings(golden), normalizeLineEndings(source));
         assertTrue(source.contains("@AfterMethod(alwaysRun = true)"));
         assertTrue(source.contains("driver.quit();"));
         assertTrue(source.contains("SHAFT.GUI.Locator.inputField(\"Username\")"));
@@ -212,6 +212,10 @@ class CaptureGeneratorTest {
         Path path = temp.resolve("capture.json");
         new CaptureJsonCodec().write(path, captureSession);
         return path;
+    }
+
+    private static String normalizeLineEndings(String value) {
+        return value.replace("\r\n", "\n").replace('\r', '\n');
     }
 
     private void writeCaptureData(String username) throws Exception {

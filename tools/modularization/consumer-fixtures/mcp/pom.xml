@@ -9,7 +9,7 @@
     <description>Resolves the preserved SHAFT_MCP executable coordinate through the SHAFT BOM.</description>
 
     <properties>
-        <shaft.version>10.2.20260610</shaft.version>
+        <shaft.version>10.2.20260612</shaft.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
