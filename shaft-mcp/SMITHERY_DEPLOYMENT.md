@@ -56,13 +56,14 @@ https://shaft-mcp.fly.dev/mcp
 1. The root Maven Central workflow publishes `io.github.shafthq:SHAFT_MCP`
    with the complete SHAFT reactor.
 2. `publish-shaft-mcp.yml` builds and pushes
-   `ghcr.io/shafthq/shaft-mcp:<version>` and `latest`.
+   `ghcr.io/shafthq/shaft-engine-mcp:<version>` and `latest`.
 3. The same workflow renders `shaft-mcp/server.json` from the root version,
    validates it against the MCP registry schema, and publishes it with GitHub
    OIDC.
 4. `deploy-shaft-mcp.yml` triggers configured Render and Fly.io deployments;
    Smithery rebuilds through its GitHub integration.
 
-The source `ShaftHQ/SHAFT_MCP` repository remains active during the transition.
-The preserved Maven, OCI, server, and registry identifiers let existing
-consumers move to monorepo-produced releases without a naming migration.
+The historical `ShaftHQ/SHAFT_MCP` repository is read-only. Its
+`ghcr.io/shafthq/shaft-mcp:10.2.20260612` compatibility image was built from
+the monorepo and remains available for migration. Use
+`ghcr.io/shafthq/shaft-engine-mcp` for current and future container releases.

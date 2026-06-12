@@ -161,7 +161,7 @@ When writing XPath locators for SHAFT Engine:
 
 ### Dockerfile
 - Downloads released JAR from Maven Central (STDIO transport)
-- Published to GitHub Container Registry: `ghcr.io/shafthq/shaft-mcp`
+- Published to GitHub Container Registry: `ghcr.io/shafthq/shaft-engine-mcp`
 
 ### Dockerfile.smithery
 - Downloads released JAR from Maven Central (HTTP/SSE transport)

@@ -144,10 +144,12 @@ The first monorepo release preserves:
 
 - Maven: `io.github.shafthq:SHAFT_MCP`
 - MCP server name: `shaft-mcp`
-- OCI image: `ghcr.io/shafthq/shaft-mcp`
+- Canonical OCI image: `ghcr.io/shafthq/shaft-engine-mcp`
+- First-release compatibility image: `ghcr.io/shafthq/shaft-mcp:10.2.20260612`
 - MCP registry name: `io.github.ShaftHQ/shaft-mcp`
 - Java package and existing tool names
 
 `shaft-mcp/server.json` is a release template. The publication workflow
 replaces `@project.version@` from the root reactor version before registry
-validation and publication.
+validation and publication. Existing users of the historical image can pin
+the compatibility version above; use the canonical image for upgrades.

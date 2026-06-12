@@ -2,8 +2,10 @@
 
 SHAFT MCP exposes SHAFT browser automation through the Model Context Protocol.
 The module preserves the published `io.github.shafthq:SHAFT_MCP` coordinate,
-`shaft-mcp` server name, existing Java packages and tool names, and the
-`ghcr.io/shafthq/shaft-mcp` image identity.
+`shaft-mcp` server name, existing Java packages, and tool names. New container
+releases use the canonical `ghcr.io/shafthq/shaft-engine-mcp` image. The
+verified `ghcr.io/shafthq/shaft-mcp:10.2.20260612` image remains available as
+the standalone-repository migration alias.
 
 ## Build
 
