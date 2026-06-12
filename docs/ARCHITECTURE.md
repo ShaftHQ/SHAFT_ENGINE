@@ -48,7 +48,7 @@ flowchart TB
 | `shaft-engine`       | JAR            | Required facade and core web, mobile, API, database, CLI, reporting, and accessibility implementation.                   |
 | `shaft-pilot-core`   | JAR            | Provider-neutral Pilot contracts, consent, redaction, budgets, audit metadata, and deterministic fallback.               |
 | `shaft-capture`      | JAR            | Managed Chrome/Edge recording, deterministic privacy classification, versioned schema, and atomic JSON persistence.       |
-| `shaft-doctor`       | JAR            | Portable redacted evidence bundles, deterministic diagnosis rules, and optional separately rendered provider advisory.    |
+| `shaft-doctor`       | JAR            | Portable redacted evidence, deterministic diagnosis, optional advisory, and approval-gated isolated repair proposals.       |
 | `shaft-ai`           | JAR            | Optional direct OpenAI, Anthropic, Gemini, and Ollama HTTP adapters discovered through `ServiceLoader`.                  |
 | `shaft-browserstack` | JAR            | BrowserStack SDK interception and `browserstack.yml` orchestration. Direct BrowserStack sessions stay in `shaft-engine`. |
 | `shaft-video`        | JAR            | Local non-headless desktop recording. Appium-native recording stays in `shaft-engine`.                                   |

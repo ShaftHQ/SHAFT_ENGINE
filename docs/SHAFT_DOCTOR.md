@@ -130,6 +130,88 @@ the client and is not ingested by SHAFT. Copilot is MCP interoperability, not a
 generic Copilot API-key adapter. Credential-free representative invocations
 are in `docs/examples/shaft-pilot/mcp/doctor-analyze-invocations.json`.
 
+## Reviewed repair proposals
+
+Doctor repair is a separate, approval-gated workflow. `propose-fix` requires an
+exact 40-character base commit SHA, explicit repository-relative file
+allowlists, structured full-file patches, and tokenized Maven validation
+commands. It creates `codex/doctor-<issue-or-session>-<proposal>` in a temporary
+Git worktree, applies changes only there, and returns a persisted manifest with
+the complete unified diff, patch checksums, diagnosis/evidence references,
+exact validation commands, populated Allure counts, residual risk, rollback
+guidance, and a one-proposal approval token.
+
+Example `repair-input.json`:
+
+```json
+{
+  "patches": [
+    {
+      "path": "src/test/java/example/CheckoutTest.java",
+      "operation": "REPLACE",
+      "content": "package example;\n\nfinal class CheckoutTest {}\n",
+      "rationale": "Apply the reviewed diagnosis.",
+      "evidenceIds": ["allure-result-1"]
+    }
+  ],
+  "validationCommands": [
+    ["mvn", "-pl", "shaft-engine", "-am", "test", "-Dtest=CheckoutTest"],
+    ["mvn", "-pl", "shaft-engine", "-am", "compile", "-DskipTests"]
+  ]
+}
+```
+
+```bash
+java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar doctor propose-fix \
+  --repository "$PWD" \
+  --base-sha <full-approved-sha> \
+  --diagnosis target/shaft-doctor/doctor-report.json \
+  --evidence-bundle target/shaft-doctor/doctor-evidence.json \
+  --issue 2857 \
+  --allowed-path src/test/java/example/CheckoutTest.java \
+  --repair-input repair-input.json \
+  --output-dir target/shaft-doctor/repairs
+```
+
+Only Maven compile, test, package, install, verification, Surefire/Failsafe, and
+JavaDoc goals are accepted. Commands are executed as argument arrays without a
+shell. Release, deployment, SCM, Versions Plugin, shell metacharacter, and
+arbitrary executable input is rejected. Test-running commands are forced to
+include `-DheadlessExecution=true`; a zero process exit alone is insufficient
+when populated passing Allure results are expected. Maven runs offline by
+default. CLI users must add `--approve-network-validation`, or MCP clients must
+set `networkValidationApproved=true`, before validation may access the network.
+
+`--ai` can request an optional provider-generated patch. The provider receives
+only the deterministic diagnosis and exact approved regular source files under
+explicit `TEXT` and `SOURCE` consent. Output must match the versioned repair
+patch schema. Invented paths, commands, symlinks, binary or oversized content,
+protected workflows, generated paths, and secret-like material are rejected.
+Provider, consent, timeout, or schema failure returns no patch and does not
+create a worktree.
+
+Publishing is always a later explicit action:
+
+```bash
+java -jar shaft-mcp/target/SHAFT_MCP-<version>.jar doctor publish-draft-pr \
+  --manifest target/shaft-doctor/repairs/repair-proposal-<id>.json \
+  --approval-token <token-from-reviewed-proposal> \
+  --approve
+```
+
+Failed validation blocks publication by default. An explicit
+`--override-failed-validation` also requires `--override-rationale`, which is
+recorded in the manifest and pull-request body. Publication stages only the
+manifested files, creates a Doctor-identified commit, pushes the dedicated
+branch, and creates or reuses an open draft pull request through authenticated
+`gh`. It never marks a PR ready, merges, releases, deploys, resets, cleans, or
+switches the user's current worktree. The temporary worktree is removed after
+publication or explicit cancellation; the published branch remains.
+
+The MCP equivalents are `doctor_propose_fix` and
+`doctor_publish_draft_pr`. The latter requires the same separate `approved`
+boolean and exact proposal token.
+
 ## Evidence
 
 The collector recognizes populated Allure `*-result.json`, normalized exception

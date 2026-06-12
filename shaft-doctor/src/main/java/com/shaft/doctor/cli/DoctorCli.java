@@ -8,6 +8,13 @@ import com.shaft.doctor.DoctorAnalyzer;
 import com.shaft.doctor.model.DoctorAdvisory;
 import com.shaft.doctor.model.DoctorAiAnalysisResult;
 import com.shaft.doctor.model.DoctorAnalysisResult;
+import com.shaft.doctor.model.Diagnosis;
+import com.shaft.doctor.repair.DoctorRepairAiRequest;
+import com.shaft.doctor.repair.DoctorRepairAiService;
+import com.shaft.doctor.repair.DoctorRepairPublicationRequest;
+import com.shaft.doctor.repair.DoctorRepairRequest;
+import com.shaft.doctor.repair.DoctorRepairService;
+import com.shaft.doctor.repair.DoctorRepairPatchResult;
 import com.shaft.pilot.ai.ApprovalPolicy;
 import com.shaft.pilot.config.PilotConfiguration;
 
@@ -16,6 +23,7 @@ import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -73,10 +81,27 @@ public final class DoctorCli {
      */
     public static int run(String[] args, PrintWriter output, PrintWriter error) {
         try {
-            if (args == null || args.length == 0 || !"analyze".equalsIgnoreCase(args[0])) {
+            if (args == null || args.length == 0) {
                 throw new IllegalArgumentException(usage());
             }
             Arguments options = Arguments.parse(Arrays.copyOfRange(args, 1, args.length));
+            return switch (args[0].toLowerCase(Locale.ROOT)) {
+                case "analyze" -> analyze(options, output);
+                case "propose-fix" -> proposeFix(options, output);
+                case "publish-draft-pr" -> publishDraft(options, output);
+                default -> throw new IllegalArgumentException(usage());
+            };
+        } catch (RuntimeException exception) {
+            error.println("SHAFT Doctor command failed: " + safeMessage(exception));
+            return 1;
+        } catch (java.io.IOException exception) {
+            error.println("SHAFT Doctor command failed: local JSON input could not be read.");
+            return 1;
+        }
+    }
+
+    private static int analyze(Arguments options, PrintWriter output)
+            throws com.fasterxml.jackson.core.JsonProcessingException {
             if (options.flag("ai-cache") && !options.flag("ai")) {
                 throw new IllegalArgumentException("Doctor option --ai-cache requires --ai.");
             }
@@ -125,13 +150,57 @@ public final class DoctorCli {
             }
             output.println(MAPPER.writeValueAsString(summary));
             return 0;
-        } catch (RuntimeException exception) {
-            error.println("SHAFT Doctor command failed: " + safeMessage(exception));
-            return 1;
-        } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
-            error.println("SHAFT Doctor command failed: result could not be serialized.");
-            return 1;
+    }
+
+    private static int proposeFix(Arguments options, PrintWriter output) throws java.io.IOException {
+        RepairInput input = MAPPER.readValue(
+                Files.readString(options.pathRequired("repair-input"), StandardCharsets.UTF_8),
+                RepairInput.class);
+        List<DoctorRepairRequest.FilePatch> patches = input.patches();
+        if (options.flag("ai")) {
+            Diagnosis diagnosis = readDiagnosis(options.pathRequired("diagnosis"));
+            DoctorRepairPatchResult generated = new DoctorRepairAiService().generate(
+                    options.pathRequired("repository"),
+                    diagnosis,
+                    options.values("allowed-path"),
+                    DoctorRepairAiRequest.defaults(currentApprovalPolicy()));
+            if (!generated.successful()) {
+                output.println(MAPPER.writeValueAsString(generated));
+                return 0;
+            }
+            patches = generated.patches();
         }
+        DoctorRepairRequest request = new DoctorRepairRequest(
+                options.pathRequired("repository"),
+                options.valueRequired("base-sha"),
+                options.pathRequired("diagnosis"),
+                options.optionalPath("evidence-bundle"),
+                options.valueRequired("issue"),
+                options.values("allowed-path"),
+                patches,
+                input.validationCommands().stream()
+                        .map(DoctorRepairRequest.ValidationCommand::new)
+                        .toList(),
+                options.flag("approve-network-validation"),
+                options.path("output-dir", Path.of("target", "shaft-doctor", "repairs")),
+                options.positiveLong("max-patch-bytes", DoctorRepairRequest.DEFAULT_MAX_PATCH_BYTES),
+                java.time.Duration.ofSeconds(options.positiveLong("command-timeout-seconds",
+                        DoctorRepairRequest.DEFAULT_COMMAND_TIMEOUT.toSeconds())));
+        output.println(MAPPER.writeValueAsString(new DoctorRepairService().propose(request)));
+        return 0;
+    }
+
+    private static int publishDraft(Arguments options, PrintWriter output)
+            throws com.fasterxml.jackson.core.JsonProcessingException {
+        var result = new DoctorRepairService().publishDraft(new DoctorRepairPublicationRequest(
+                options.pathRequired("manifest"),
+                options.flag("approve"),
+                options.valueRequired("approval-token"),
+                options.flag("override-failed-validation"),
+                options.value("override-rationale", ""),
+                options.value("title", "")));
+        output.println(MAPPER.writeValueAsString(result));
+        return 0;
     }
 
     private static String safeMessage(RuntimeException exception) {
@@ -146,7 +215,14 @@ public final class DoctorCli {
                 + "[--include-screenshots] [--include-page-snapshots] "
                 + "[--minimum-results <count>] "
                 + "[--max-item-bytes <bytes>] [--max-bundle-bytes <bytes>] "
-                + "[--ai] [--ai-cache]";
+                + "[--ai] [--ai-cache]\n"
+                + "doctor propose-fix --repository <path> --base-sha <40-char-sha> "
+                + "--diagnosis <json> --issue <reference> --allowed-path <path> "
+                + "--repair-input <json> [--evidence-bundle <json>] [--ai] "
+                + "[--approve-network-validation] [--output-dir <path>]\n"
+                + "doctor publish-draft-pr --manifest <json> --approval-token <token> "
+                + "--approve [--override-failed-validation --override-rationale <text>] "
+                + "[--title <text>]";
     }
 
     private static ApprovalPolicy currentApprovalPolicy() {
@@ -167,7 +243,8 @@ public final class DoctorCli {
                     throw new IllegalArgumentException("Unexpected Doctor argument.");
                 }
                 String name = argument.substring(2).toLowerCase(Locale.ROOT);
-                if (Set.of("include-screenshots", "include-page-snapshots", "ai", "ai-cache").contains(name)) {
+                if (Set.of("include-screenshots", "include-page-snapshots", "ai", "ai-cache",
+                        "approve", "override-failed-validation", "approve-network-validation").contains(name)) {
                     flags.add(name);
                 } else {
                     if (index + 1 >= args.length || args[index + 1].startsWith("--")) {
@@ -198,6 +275,32 @@ public final class DoctorCli {
             return options.isEmpty() ? fallback : Path.of(options.getLast());
         }
 
+        private Path pathRequired(String name) {
+            return Path.of(valueRequired(name));
+        }
+
+        private Path optionalPath(String name) {
+            String value = value(name, "");
+            return value.isBlank() ? null : Path.of(value);
+        }
+
+        private String valueRequired(String name) {
+            String value = value(name, "");
+            if (value.isBlank()) {
+                throw new IllegalArgumentException("Doctor option --" + name + " is required.");
+            }
+            return value;
+        }
+
+        private String value(String name, String fallback) {
+            List<String> options = values.getOrDefault(name, List.of());
+            return options.isEmpty() ? fallback : options.getLast();
+        }
+
+        private List<String> values(String name) {
+            return values.getOrDefault(name, List.of());
+        }
+
         private boolean flag(String name) {
             return flags.contains(name);
         }
@@ -217,6 +320,20 @@ public final class DoctorCli {
                 throw new IllegalArgumentException("Doctor option --" + name
                         + " must be a positive integer.", exception);
             }
+        }
+    }
+
+    private static Diagnosis readDiagnosis(Path path) throws java.io.IOException {
+        var root = MAPPER.readTree(Files.readString(path, StandardCharsets.UTF_8));
+        return MAPPER.treeToValue(root.has("diagnosis") ? root.path("diagnosis") : root, Diagnosis.class);
+    }
+
+    private record RepairInput(
+            List<DoctorRepairRequest.FilePatch> patches,
+            List<List<String>> validationCommands) {
+        private RepairInput {
+            patches = patches == null ? List.of() : List.copyOf(patches);
+            validationCommands = validationCommands == null ? List.of() : List.copyOf(validationCommands);
         }
     }
 }

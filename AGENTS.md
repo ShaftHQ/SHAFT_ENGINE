@@ -31,6 +31,8 @@ for test Java.
   reads before broad scans.
 - Reuse existing command output and repository facts. Do not reread unchanged
   files or repeat checks without a reason.
+- Do not rerun a passing check unless later edits, changed dependencies, or a
+  changed environment invalidate its evidence.
 - Prefer deterministic local scripts before web, MCP, GitHub, browser, cloud,
   subagent, image, or additional-model calls.
 - Load one matching skill when needed; do not preload every playbook.
@@ -77,6 +79,8 @@ for test Java.
 - Keep thread and test state isolated; clear `ThreadLocal` state at lifecycle
   boundaries.
 - Keep WebDriver capabilities W3C-compliant and vendor options namespaced.
+- Run browser tests headlessly. Do not launch a headed browser during ordinary
+  agent work; headed-only behavior requires explicit user approval.
 
 ## Validation By Risk
 
@@ -99,6 +103,9 @@ mvn clean install -DskipTests -Dgpg.skip
 mvn -pl shaft-engine javadoc:javadoc
 python3 scripts/ci/validate_agent_guidance.py
 ```
+
+On PowerShell, single-quote every Maven `-D` argument, including selectors and
+dotted names, for example `'-Dtest=TestClassName'` and `'-Dgpg.skip'`.
 
 For SHAFT tests, verify Allure result files are populated before trusting the
 verdict. Surefire is supporting diagnostics because test failures may be
