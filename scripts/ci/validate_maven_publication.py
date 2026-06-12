@@ -18,6 +18,7 @@ PUBLIC_ARTIFACTS = {
     "shaft-capture": (Path("shaft-capture/pom.xml"), "jar"),
     "shaft-doctor": (Path("shaft-doctor/pom.xml"), "jar"),
     "shaft-ai": (Path("shaft-ai/pom.xml"), "jar"),
+    "shaft-heal": (Path("shaft-heal/pom.xml"), "jar"),
     "shaft-browserstack": (Path("shaft-browserstack/pom.xml"), "jar"),
     "shaft-video": (Path("shaft-video/pom.xml"), "jar"),
     "shaft-visual": (Path("shaft-visual/pom.xml"), "jar"),

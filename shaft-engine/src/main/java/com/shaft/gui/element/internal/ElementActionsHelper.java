@@ -8,6 +8,8 @@ import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.enums.internal.ClipboardAction;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
+import com.shaft.gui.internal.healing.HealingManager;
+import com.shaft.gui.internal.healing.HealingResolution;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
@@ -295,6 +297,14 @@ public class ElementActionsHelper {
                         }
                         elementInformation.setFirstElement(targetElement[0]);
                         elementInformation.setLocator(elementLocator);
+                        HealingManager.observe(
+                                driver,
+                                elementLocator,
+                                List.of(targetElement[0]),
+                                "ELEMENT_RESOLUTION",
+                                LocatorBuilder.getIFrameLocator().get(),
+                                shadowDomLocator,
+                                cssSelector);
 
                         return elementInformation.toList();
                         // int numberOfFoundElements
@@ -306,6 +316,18 @@ public class ElementActionsHelper {
                     });
         } catch (org.openqa.selenium.TimeoutException timeoutException) {
             // In case the element was not found / not visible and the timeout expired
+            HealingResolution resolution = HealingManager.resolve(
+                            driver,
+                            elementLocator,
+                            "ELEMENT_RESOLUTION",
+                            isValidToCheckForVisibility,
+                            LocatorBuilder.getIFrameLocator().get(),
+                            ShadowLocatorBuilder.shadowDomLocator.get(),
+                            ShadowLocatorBuilder.cssSelector.get())
+                    .orElse(null);
+            if (resolution != null) {
+                return recoveredElementInformation(driver, elementLocator, resolution);
+            }
             var causeMessage = timeoutException.getCause().getMessage();
             causeMessage = !causeMessage.isBlank() && causeMessage.contains("\n") ? timeoutException.getMessage() + " || " + causeMessage.substring(0, causeMessage.indexOf("\n")) : timeoutException.getMessage();
             ReportManager.logDiscrete(causeMessage);
@@ -323,6 +345,41 @@ public class ElementActionsHelper {
             elementInformation.add(invalidSelectorException);
             return elementInformation;
         }
+    }
+
+    private List<Object> recoveredElementInformation(
+            WebDriver driver,
+            By originalLocator,
+            HealingResolution resolution) {
+        WebElement element = resolution.elements().getFirst();
+        ElementInformation information = new ElementInformation();
+        information.setNumberOfFoundElements(1);
+        information.setFirstElement(element);
+        information.setLocator(resolution.selectedLocator());
+        try {
+            information.setElementRect(element.getRect());
+        } catch (WebDriverException ignored) {
+            // Optional metadata must not invalidate an otherwise safe recovery.
+        }
+        if (!DriverFactoryHelper.isMobileNativeExecution() && GET_ELEMENT_HTML) {
+            information.setOuterHTML(Objects.requireNonNullElse(element.getDomProperty("outerHTML"), ""));
+            information.setInnerHTML(Objects.requireNonNullElse(element.getDomProperty("innerHTML"), ""));
+        }
+        if (SHAFT.Properties.reporting.captureElementName()) {
+            try {
+                information.setElementName(Objects.requireNonNullElse(element.getAccessibleName(), ""));
+            } catch (WebDriverException ignored) {
+                information.setElementName(JavaHelper.formatLocatorToString(resolution.selectedLocator()));
+            }
+        }
+        HealingManager.recordOutcome(
+                driver,
+                resolution,
+                originalLocator,
+                "ELEMENT_RESOLUTION",
+                true,
+                "");
+        return information.toList();
     }
 
     /**

@@ -83,6 +83,7 @@ public class PropertiesHelper {
         Properties.baseFlags = ConfigFactory.create(Flags.class);
         Properties.cucumber = ConfigFactory.create(Cucumber.class);
         Properties.baseHealenium = ConfigFactory.create(Healenium.class);
+        Properties.baseHealing = ConfigFactory.create(Healing.class);
         Properties.baseJira = ConfigFactory.create(Jira.class);
         Properties.basePattern = ConfigFactory.create(Pattern.class);
         Properties.baseReporting = ConfigFactory.create(Reporting.class);
@@ -350,6 +351,7 @@ public class PropertiesHelper {
         switch (maximumPerformanceMode) {
             case 1, 2 -> {
                 SHAFT.Properties.healenium.set().healEnabled(false);
+                SHAFT.Properties.healing.set().strategy("disabled");
                 SHAFT.Properties.flags.set().autoMaximizeBrowserWindow(false);
                 SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
                 SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(false);

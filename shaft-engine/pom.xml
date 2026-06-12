@@ -667,12 +667,13 @@
                             <rules>
                                 <bannedDependencies>
                                     <searchTransitive>true</searchTransitive>
-                                    <message>Optional BrowserStack, desktop-video, visual-processing, Pilot, Capture, Doctor, and AI dependencies must remain outside shaft-engine.</message>
+                                    <message>Optional BrowserStack, desktop-video, visual-processing, Pilot, Capture, Doctor, AI, and SHAFT Heal dependencies must remain outside shaft-engine.</message>
                                     <excludes>
                                         <exclude>io.github.shafthq:shaft-pilot-core</exclude>
                                         <exclude>io.github.shafthq:shaft-capture</exclude>
                                         <exclude>io.github.shafthq:shaft-doctor</exclude>
                                         <exclude>io.github.shafthq:shaft-ai</exclude>
+                                        <exclude>io.github.shafthq:shaft-heal</exclude>
                                         <exclude>com.browserstack:browserstack-java-sdk</exclude>
                                         <exclude>ws.schild:jave-*</exclude>
                                         <exclude>com.automation-remarks:video-recorder-*</exclude>

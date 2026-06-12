@@ -18,6 +18,7 @@ flowchart TB
     Consumer -.->|optional| Capture["shaft-capture<br/>managed recording + privacy"]
     Consumer -.->|optional| Doctor["shaft-doctor<br/>offline evidence + diagnosis"]
     Consumer -.->|optional| AI["shaft-ai<br/>direct providers"]
+    Consumer -.->|optional| Heal["shaft-heal<br/>deterministic element recovery"]
     Consumer -.->|optional| BrowserStack["shaft-browserstack<br/>BrowserStack Java SDK"]
     Consumer -.->|optional| Video["shaft-video<br/>local desktop recording"]
     Consumer -.->|optional| Visual["shaft-visual<br/>OpenCV + Eyes + Shutterbug"]
@@ -34,6 +35,8 @@ flowchart TB
     Capture --> PilotCore
     Doctor --> PilotCore
     AI --> PilotCore
+    Heal --> Engine
+    Heal --> PilotCore
 
     Legacy["SHAFT_ENGINE<br/>relocation POM only"] -.->|relocates| Engine
 
@@ -50,6 +53,7 @@ flowchart TB
 | `shaft-capture`      | JAR            | Managed Chrome/Edge recording, deterministic privacy classification, versioned schema, and atomic JSON persistence.       |
 | `shaft-doctor`       | JAR            | Portable redacted evidence, deterministic diagnosis, optional advisory, and approval-gated isolated repair proposals.       |
 | `shaft-ai`           | JAR            | Optional direct OpenAI, Anthropic, Gemini, and Ollama HTTP adapters discovered through `ServiceLoader`.                  |
+| `shaft-heal`         | JAR            | Deterministic, explainable, action-scoped web element recovery with bounded local history and optional reranking.         |
 | `shaft-browserstack` | JAR            | BrowserStack SDK interception and `browserstack.yml` orchestration. Direct BrowserStack sessions stay in `shaft-engine`. |
 | `shaft-video`        | JAR            | Local non-headless desktop recording. Appium-native recording stays in `shaft-engine`.                                   |
 | `shaft-visual`       | JAR            | Reference-image assertions and image-based lookup through OpenCV, Eyes, and Shutterbug.                                  |
@@ -117,10 +121,10 @@ graph TB
 
 ## Optional provider discovery
 
-`shaft-visual` and `shaft-video` implement SHAFT-owned provider interfaces and
-register them through Java `ServiceLoader`. The facade and orchestration remain
-in `shaft-engine`, which means users add a provider JAR without changing test
-method calls.
+`shaft-heal`, `shaft-visual`, and `shaft-video` implement SHAFT-owned provider
+interfaces and register them through Java `ServiceLoader`. The facade and
+orchestration remain in `shaft-engine`, which means users add a provider JAR
+without changing test method calls.
 
 `shaft-browserstack` is a runtime integration rather than a SHAFT provider. It
 adds `browserstack-java-sdk`; SHAFT's core BrowserStack driver path also
@@ -130,6 +134,7 @@ present.
 ## Module guides
 
 - [Upgrade and module selection](UPGRADING_TO_MODULAR_SHAFT.md)
+- [SHAFT Heal](SHAFT_HEAL.md)
 - [BrowserStack SDK module](SHAFT_BROWSERSTACK_MODULE.md)
 - [Visual processing module](SHAFT_VISUAL_MODULE.md)
 - [Desktop video module](SHAFT_VIDEO_MODULE.md)

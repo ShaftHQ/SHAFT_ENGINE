@@ -4,6 +4,8 @@ import com.epam.healenium.SelfHealingDriver;
 import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.internal.healing.HealingManager;
+import com.shaft.gui.internal.healing.HealingStrategy;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.PropertiesHelper;
@@ -419,6 +421,7 @@ public class DriverFactoryHelper {
             } catch (Exception e) {
                 ReportManagerHelper.logDiscrete(e);
             } finally {
+                HealingManager.clear(driver);
                 seleniumWebSocketLogger.setLevel(previousWebSocketLoggerLevel);
                 webDriverManager.remove();
                 ReportManager.log("Successfully Closed Driver.");
@@ -910,7 +913,7 @@ public class DriverFactoryHelper {
             FailureReporter.fail(DriverFactoryHelper.class, "Unhandled Exception with Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".", e);
         }
 
-        if (SHAFT.Properties.healenium.healEnabled()) {
+        if (HealingStrategy.current().usesHealenium()) {
             ReportManager.logDiscrete("Initializing Healenium's Self Healing Driver...");
 //            driver =ThreadGuard.protect(SelfHealingDriver.create(driver)));
             setDriver(SelfHealingDriver.create(driver));

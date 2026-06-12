@@ -8,11 +8,12 @@ relocation artifact that points consumers to the canonical JAR.
 
 - The root `pom.xml` is the `io.github.shafthq:shaft-parent` aggregator and build parent. It owns shared version properties, dependency management, and plugin management.
 - `shaft-engine/pom.xml` builds the engine JAR. All framework source, resources, tests, examples, and runtime support assets remain under `shaft-engine/src/`; Java packages remain under `com.shaft`.
-- `shaft-bom/pom.xml` publishes the consumer BOM. Importing it manages the `shaft-engine`, `shaft-pilot-core`, `shaft-capture`, `shaft-doctor`, `shaft-ai`, `shaft-browserstack`, `shaft-video`, `shaft-visual`, and `SHAFT_MCP` versions without adding dependencies by itself.
+- `shaft-bom/pom.xml` publishes the consumer BOM. Importing it manages the `shaft-engine`, `shaft-pilot-core`, `shaft-capture`, `shaft-doctor`, `shaft-ai`, `shaft-heal`, `shaft-browserstack`, `shaft-video`, `shaft-visual`, and `SHAFT_MCP` versions without adding dependencies by itself.
 - `shaft-pilot-core/pom.xml` builds provider-neutral Pilot contracts, security controls, configuration snapshots, and deterministic fallback. It depends on `shaft-engine`; the engine has no reverse dependency.
 - `shaft-capture/pom.xml` builds managed Chrome/Edge recording, versioned contracts, deterministic privacy classification, Java/TestNG generation, compile/replay validation, schema migration, and atomic JSON persistence. It depends on `shaft-pilot-core` and has no dependency on `shaft-ai`.
 - `shaft-doctor/pom.xml` builds allowlisted local evidence collection, redacted portable bundles, deterministic failure rules, JSON/Markdown reports, provider-neutral optional advisory integration, and isolated approval-gated repair proposals. It depends on `shaft-pilot-core` and has no dependency on `shaft-ai`.
 - `shaft-ai/pom.xml` builds optional direct OpenAI, Anthropic, Gemini, and Ollama adapters. It depends on `shaft-pilot-core` and exposes no provider SDK types.
+- `shaft-heal/pom.xml` builds optional deterministic web element recovery, bounded local history, structured reports, and provider-neutral optional reranking. It depends on `shaft-engine` and `shaft-pilot-core`.
 - `shaft-mcp/pom.xml` builds the optional executable MCP server plus SHAFT Capture and Doctor CLIs. It depends on `shaft-engine`, `shaft-capture`, `shaft-doctor`, and `shaft-ai` so the executable can offer explicitly configured direct-provider advisories; the engine has no reverse dependency on MCP.
 - `shaft-browserstack/pom.xml` builds the optional BrowserStack Java SDK integration. Direct BrowserStack
   WebDriver/Appium sessions remain in `shaft-engine`.
@@ -22,8 +23,9 @@ relocation artifact that points consumers to the canonical JAR.
 - `legacy-shaft-engine/pom.xml` publishes the legacy `SHAFT_ENGINE` coordinate as relocation metadata only; it contains no classes.
 
 API, Appium/mobile, database, and other retained core capabilities remain dependencies of the engine module. Optional
-BrowserStack SDK, desktop video/FFmpeg, and OpenCV/Eyes/Shutterbug visual-processing support are provided by
-`shaft-browserstack`, `shaft-video`, and `shaft-visual` respectively.
+SHAFT Heal, BrowserStack SDK, desktop video/FFmpeg, and OpenCV/Eyes/Shutterbug
+visual-processing support are provided by `shaft-heal`, `shaft-browserstack`,
+`shaft-video`, and `shaft-visual` respectively.
 
 ## Consumer usage
 
@@ -70,6 +72,7 @@ mvn -pl shaft-engine -am test -Dtest=TestClassName
 mvn -pl shaft-browserstack -am test -Dtest=BrowserStackHelperUnitTest
 mvn -pl shaft-video -am test -Dtest=DesktopVideoRecordingProviderRegistrationTest
 mvn -pl shaft-visual -am test -Dtest=ImageProcessingActionsUnitTest
+mvn -pl shaft-heal -am test
 mvn -pl shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai -am test
 mvn -pl shaft-mcp -am test -Dtest=ShaftMcpApplicationTests
 mvn -pl shaft-mcp -am package -DskipTests -Dgpg.skip
@@ -86,6 +89,7 @@ Build and test outputs are module-local. Important locations include:
 - Capture contracts JAR: `shaft-capture/target/shaft-capture-<version>.jar`
 - Doctor analyzer JAR: `shaft-doctor/target/shaft-doctor-<version>.jar`
 - Optional direct providers JAR: `shaft-ai/target/shaft-ai-<version>.jar`
+- Optional SHAFT Heal JAR: `shaft-heal/target/shaft-heal-<version>.jar`
 - Optional BrowserStack SDK JAR: `shaft-browserstack/target/shaft-browserstack-<version>.jar`
 - Optional desktop video JAR: `shaft-video/target/shaft-video-<version>.jar`
 - Optional visual-processing JAR: `shaft-visual/target/shaft-visual-<version>.jar`
@@ -107,7 +111,9 @@ mvn clean install -DskipTests -Dgpg.skip
 python3 scripts/ci/measure_consumer_dependencies.py --verify
 ```
 
-The measurement script seeds the canonical engine JAR, optional integration JARs, the BOM, the legacy relocation POM, and the reactor parent into each isolated Maven repository.
+The measurement script seeds the canonical engine JAR, optional integration
+JARs including `shaft-heal`, the BOM, the legacy relocation POM, and the reactor
+parent into each isolated Maven repository.
 
 
 ## GitHub Actions reactor policy
@@ -141,11 +147,20 @@ mvn -pl report-aggregate -am verify -DskipTests -Dgpg.skip
 scripts/ci/jacoco_coverage_gate.py target/jacoco/jacoco.csv --metric line --minimum 0
 ```
 
-Codecov receives only `target/jacoco/jacoco.xml`; automatic coverage-file discovery is disabled so module-local reports cannot duplicate source entries. Dependabot scans every reactor POM and groups the same Maven dependency across directories into one aligned update. `scripts/ci/validate_quality_configuration.py` protects these settings, while the `shaft-engine` Enforcer execution rejects optional BrowserStack, desktop-video, or visual-processing dependencies that leak back into the core engine.
+Codecov receives only `target/jacoco/jacoco.xml`; automatic coverage-file
+discovery is disabled so module-local reports cannot duplicate source entries.
+Dependabot scans every reactor POM and groups the same Maven dependency across
+directories into one aligned update. `scripts/ci/validate_quality_configuration.py`
+protects these settings, while the `shaft-engine` Enforcer execution rejects
+optional SHAFT Heal, BrowserStack, desktop-video, or visual-processing
+dependencies that leak back into the core engine.
 
 Consumer-facing method boundaries are documented in
 `docs/UPGRADING_TO_MODULAR_SHAFT.md`, with focused guides for
-`shaft-browserstack`, `shaft-video`, and `shaft-visual`.
+`shaft-heal`, `shaft-browserstack`, `shaft-video`, and `shaft-visual`.
+
+Deterministic element recovery, Healenium coexistence, privacy, and optional
+visual/AI evidence are documented in [SHAFT Heal](SHAFT_HEAL.md).
 
 MCP client configuration, transport behavior, and credential boundaries are
 documented in [SHAFT MCP](SHAFT_MCP.md).

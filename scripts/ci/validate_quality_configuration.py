@@ -10,8 +10,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 JAVA_MODULES = {
-    "shaft-engine", "shaft-pilot-core", "shaft-capture", "shaft-doctor", "shaft-ai", "shaft-browserstack",
-    "shaft-video", "shaft-visual", "SHAFT_MCP",
+    "shaft-engine", "shaft-pilot-core", "shaft-capture", "shaft-doctor", "shaft-ai", "shaft-heal",
+    "shaft-browserstack", "shaft-video", "shaft-visual", "SHAFT_MCP",
 }
 DEPENDABOT_DIRECTORIES = {
     "/",
@@ -20,6 +20,7 @@ DEPENDABOT_DIRECTORIES = {
     "/shaft-capture",
     "/shaft-doctor",
     "/shaft-ai",
+    "/shaft-heal",
     "/shaft-browserstack",
     "/shaft-video",
     "/shaft-visual",
@@ -106,16 +107,21 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     codecov_count = (workflow_text + action_text).count("codecov/codecov-action@")
 
     codeql = (root / ".github" / "workflows" / "codeql-analysis.yml").read_text(encoding="utf-8")
-    selector = "-pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-browserstack,shaft-video,shaft-visual,shaft-mcp -am"
+    selector = "-pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,shaft-mcp -am"
     if selector not in codeql:
         errors.append("CodeQL build must compile every Java-bearing module")
 
     engine_pom = (root / "shaft-engine" / "pom.xml").read_text(encoding="utf-8")
     visual_pom_path = root / "shaft-visual" / "pom.xml"
     visual_pom = visual_pom_path.read_text(encoding="utf-8") if visual_pom_path.is_file() else ""
+    heal_pom_path = root / "shaft-heal" / "pom.xml"
+    heal_pom = heal_pom_path.read_text(encoding="utf-8") if heal_pom_path.is_file() else ""
     if "<artifactId>allure-jupiter</artifactId>" not in engine_pom or "<artifactId>allure-junit5</artifactId>" in engine_pom:
         errors.append("shaft-engine must use the current Allure Jupiter artifact without relocation warnings")
-    if "${mockitoAgentArgLine}" not in engine_pom or "${mockitoAgentArgLine}" not in visual_pom:
+    if any(
+        "${mockitoAgentArgLine}" not in pom
+        for pom in (engine_pom, visual_pom, heal_pom)
+    ):
         errors.append("Mockito-based modules must attach Mockito as a startup agent")
     if "<id>visual-test-runtime</id>" not in engine_pom:
         errors.append("shaft-engine must define the optional visual test runtime profile")
@@ -135,6 +141,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
         "io.github.shafthq:shaft-capture",
         "io.github.shafthq:shaft-doctor",
         "io.github.shafthq:shaft-ai",
+        "io.github.shafthq:shaft-heal",
         "com.browserstack:browserstack-java-sdk",
         "ws.schild:jave-*",
         "com.automation-remarks:video-recorder-*",
