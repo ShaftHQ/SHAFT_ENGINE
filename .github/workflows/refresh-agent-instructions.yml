@@ -108,7 +108,7 @@ jobs:
                 ;;
               .github/copilot-instructions.md|.github/pull_request_template.md)
                 ;;
-              .github/instructions/*|.github/skills/*)
+              .agents/skills/*|.github/instructions/*|.github/skills/*)
                 ;;
               docs/AGENT_GUIDANCE_MAINTENANCE.md)
                 ;;
