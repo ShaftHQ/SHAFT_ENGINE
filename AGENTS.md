@@ -39,7 +39,11 @@ The bridge skills point to canonical rules under `.github/instructions/` and
 - Preserve user changes in a dirty worktree. Never revert unrelated work.
 - Use structured APIs for XML, JSON, YAML, and other structured data.
 - Reproduce bugs and add focused regression coverage when practical.
-- For public behavior changes, update the Docusaurus repository and link its PR.
+- Public documentation lives only in `ShaftHQ/shafthq.github.io`; recurring
+  commands and versions belong in its shared data/components, not this repo.
+- Deliver user-facing changes site-first: verify the docs preview, deploy it,
+  and confirm canonical production routes return HTTP 200 before merging a
+  dependent engine cleanup or removing its previous documentation.
 - Do not add local public guides or non-root README files.
 - Preserve public API compatibility; removals and renames require deprecation.
 - Never expose secrets or credentials.
@@ -71,6 +75,7 @@ mvn clean install -DskipTests -Dgpg.skip
 mvn -pl shaft-engine javadoc:javadoc
 python3 scripts/ci/validate_agent_guidance.py
 python3 scripts/ci/validate_documentation_boundaries.py
+python3 scripts/ci/validate_modular_documentation.py
 ```
 
 On PowerShell, single-quote every Maven `-D` argument. For SHAFT tests, confirm
