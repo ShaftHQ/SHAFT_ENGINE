@@ -11,8 +11,9 @@ Key locations:
 - `shaft-engine/`: core framework, tests, resources, and compatibility artifact.
 - `shaft-browserstack/`, `shaft-video/`, `shaft-visual/`: optional modules.
 - `shaft-bom/`, `legacy-shaft-engine/`, `report-aggregate/`: publication modules.
-- `docs/`: architecture and runbooks.
 - `scripts/ci/`: deterministic validators and report tools.
+- `https://shaftengine.netlify.app`: canonical product and maintainer docs,
+  sourced from `ShaftHQ/shafthq.github.io`.
 
 Start with the user goal and directly relevant files. Prefer `rg`, targeted
 excerpts, structured parsers, and existing local scripts. Expand context only
@@ -38,7 +39,8 @@ The bridge skills point to canonical rules under `.github/instructions/` and
 - Preserve user changes in a dirty worktree. Never revert unrelated work.
 - Use structured APIs for XML, JSON, YAML, and other structured data.
 - Reproduce bugs and add focused regression coverage when practical.
-- Update documentation when public behavior changes.
+- For public behavior changes, update the Docusaurus repository and link its PR.
+- Do not add local public guides or non-root README files.
 - Preserve public API compatibility; removals and renames require deprecation.
 - Never expose secrets or credentials.
 - Do not run deployment, publication, history rewrites, destructive cleanup,
@@ -53,7 +55,8 @@ The bridge skills point to canonical rules under `.github/instructions/` and
 
 Use the smallest check that proves the change:
 
-- Guidance/docs: relevant validator, reference check, and `git diff --check`.
+- Guidance/docs: relevant validator, documentation-boundary check, and
+  `git diff --check`.
 - Localized code: affected tests, then one compile/package pass.
 - Shared API, concurrency, build, or release: targeted tests, module checks,
   then full compile/package.
@@ -67,6 +70,7 @@ mvn -pl shaft-engine -am test -Dtest=TestClassName
 mvn clean install -DskipTests -Dgpg.skip
 mvn -pl shaft-engine javadoc:javadoc
 python3 scripts/ci/validate_agent_guidance.py
+python3 scripts/ci/validate_documentation_boundaries.py
 ```
 
 On PowerShell, single-quote every Maven `-D` argument. For SHAFT tests, confirm

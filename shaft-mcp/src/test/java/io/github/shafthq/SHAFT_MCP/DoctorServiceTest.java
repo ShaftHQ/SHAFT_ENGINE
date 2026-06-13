@@ -107,7 +107,7 @@ class DoctorServiceTest {
     void documentedExternalClientsInvokeDoctorAnalyzeWithoutCredentials() throws Exception {
         Path root = repositoryRoot();
         String json = Files.readString(root.resolve(
-                "docs/examples/shaft-pilot/mcp/doctor-analyze-invocations.json"));
+                "shaft-mcp/src/test/resources/fixtures/shaft-pilot/mcp/doctor-analyze-invocations.json"));
         var fixture = new ObjectMapper().readTree(json);
 
         assertEquals("doctor_analyze", fixture.path("tool").asText());
@@ -134,7 +134,7 @@ class DoctorServiceTest {
         while (current != null) {
             if (Files.isRegularFile(current.resolve("pom.xml"))
                     && Files.isDirectory(current.resolve("shaft-mcp"))
-                    && Files.isDirectory(current.resolve("docs"))) {
+                    && Files.isDirectory(current.resolve("shaft-engine"))) {
                 return current;
             }
             current = current.getParent();

@@ -360,7 +360,7 @@ public class ReportManagerHelper {
         String engineVersion = "⚡ Powered by " + ANSI_BOLD_MAGENTA + "SHAFT" + ANSI_BOLD_MAGENTA_OFF
                 + " v." + ANSI_BOLD + SHAFT.Properties.internal.shaftEngineVersion() + ANSI_BOLD_OFF;
         createImportantReportEntry(engineVersion + "\n" + "Visit SHAFT's user guide "
-                + ANSI_UNDERLINE + "https://shafthq.github.io/" + ANSI_UNDERLINE_OFF + " to learn more");
+                + ANSI_UNDERLINE + "https://shaftengine.netlify.app/" + ANSI_UNDERLINE_OFF + " to learn more");
     }
 
     public static void logEngineClosure() {
@@ -370,7 +370,7 @@ public class ReportManagerHelper {
                 + " v." + ANSI_BOLD + SHAFT.Properties.internal.shaftEngineVersion() + ANSI_BOLD_OFF + "\n"
                 + "SHAFT " + ANSI_BOLD_UNDERLINE + "is and will always be 100% FREE" + ANSI_BOLD_UNDERLINE_OFF + " for commercial and private use\n"
                 + "in compliance with the " + ANSI_BOLD + "MIT license" + ANSI_BOLD_OFF + "\n"
-                + "Visit SHAFT's user guide " + ANSI_UNDERLINE + "https://shafthq.github.io/" + ANSI_UNDERLINE_OFF + " to learn more";
+                + "Visit SHAFT's user guide " + ANSI_UNDERLINE + "https://shaftengine.netlify.app/" + ANSI_UNDERLINE_OFF + " to learn more";
         createImportantReportEntry(copyrights);
     }
 

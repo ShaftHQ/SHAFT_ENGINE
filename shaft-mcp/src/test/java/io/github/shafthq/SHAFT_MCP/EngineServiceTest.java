@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @Tag("external-e2e")
 class EngineServiceTest {
     private static final Logger logger = LoggerFactory.getLogger(EngineServiceTest.class);
-    private static final String TEST_URL = "https://shafthq.github.io/";
+    private static final String TEST_URL = "https://shaftengine.netlify.app/";
 
     @Autowired
     private EngineService engineService;

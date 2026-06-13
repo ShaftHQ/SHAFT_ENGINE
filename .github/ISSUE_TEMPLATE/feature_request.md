@@ -12,7 +12,7 @@ assignees: ''
 Please confirm the following before submitting:
 
 - [ ] I have searched [existing issues](https://github.com/ShaftHQ/SHAFT_ENGINE/issues) and this feature has not been requested before.
-- [ ] I have checked the [documentation](https://shafthq.github.io/) and this capability does not already exist.
+- [ ] I have checked the [documentation](https://shaftengine.netlify.app/docs/start/overview) and this capability does not already exist.
 - [ ] I am using the **latest release** of SHAFT_ENGINE.
 
 

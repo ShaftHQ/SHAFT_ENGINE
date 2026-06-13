@@ -21,7 +21,7 @@ public class CustomDriverInitializationTests {
 
     @Test(enabled = false)
     public void upgradeNowButton(){
-        driver.browser().navigateToURL("https://shafthq.github.io/")
+        driver.browser().navigateToURL("https://shaftengine.netlify.app/")
                 .and().element().assertThat(upgradeNowButton).exists();
     }
 

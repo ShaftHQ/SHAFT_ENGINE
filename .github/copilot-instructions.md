@@ -10,5 +10,6 @@ Follow `AGENTS.md` as the canonical repository policy.
 - Prefer targeted reads and deterministic local checks; reuse valid evidence.
 - Preserve unrelated work and never expose secrets or claim unverified remote
   results.
-- For guidance changes, run `python3 scripts/ci/validate_agent_guidance.py`
-  and `git diff --check`.
+- For guidance changes, run `python3 scripts/ci/validate_agent_guidance.py`,
+  `python3 scripts/ci/validate_documentation_boundaries.py`, and
+  `git diff --check`.

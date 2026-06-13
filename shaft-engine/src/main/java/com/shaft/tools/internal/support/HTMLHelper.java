@@ -511,7 +511,7 @@ public enum HTMLHelper {
             
             <body>
             <center>
-            	<a href="https://shafthq.github.io/" target="_blank"><img src="${LOGO_URL}" alt="SHAFT logo" height="100" id="logo"></a>
+                <a href="https://shaftengine.netlify.app/" target="_blank"><img src="${LOGO_URL}" alt="SHAFT logo" height="100" id="logo"></a>
                 <h1>Execution Summary Report</h1>
                 <br>
                 <div class="content">
@@ -579,7 +579,7 @@ public enum HTMLHelper {
                     </div>
                     </div>
                     </div>
-                    <h6>Visit <a href="https://shafthq.github.io/" target="_blank">SHAFT's user guide</a> to learn more about the engine and its capabilities.<h6/>
+                    <h6>Visit <a href="https://shaftengine.netlify.app/" target="_blank">SHAFT's user guide</a> to learn more about the engine and its capabilities.<h6/>
                     </div>
                     <br><br>
                 </div>

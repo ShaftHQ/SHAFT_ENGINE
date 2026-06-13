@@ -81,7 +81,7 @@ import static io.restassured.RestAssured.given;
  *
  * @see com.shaft.driver.SHAFT.API
  * @see RequestBuilder
- * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
+ * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; API Testing</a>
  */
 @SuppressWarnings("unused")
 public class RestActions {
@@ -164,7 +164,7 @@ public class RestActions {
      * @param serviceName   the endpoint path (e.g. {@code "users/1"})
      * @param requestType   the HTTP method to use (e.g. {@link RequestType#GET})
      * @return a {@link RequestBuilder} ready for further configuration and execution
-     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
+     * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; API Testing</a>
      */
     public static RequestBuilder buildNewRequest(String serviceURI, String serviceName, RequestType requestType) {
         return new RequestBuilder(new RestActions(serviceURI), serviceName, requestType);
@@ -407,7 +407,7 @@ public class RestActions {
      * @param response the REST-Assured response object
      * @param jsonPath the JSONPath expression that resolves to an array (e.g. {@code "$.items[*].id"})
      * @return a {@link List} of matched objects, or {@code null} if none are found
-     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
+     * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; API Testing</a>
      */
     public static List<Object> getResponseJSONValueAsList(Response response, String jsonPath) {
         List<Object> searchPool = null;
@@ -482,7 +482,7 @@ public class RestActions {
      * @param response the REST-Assured response object with an XML body
      * @param xmlPath  the XPath expression (e.g. {@code "root.item.name"})
      * @return the extracted string value, or {@code null} if not found
-     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
+     * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; API Testing</a>
      */
     public static String getResponseXMLValue(Response response, String xmlPath) {
         String searchPool = "";
@@ -1045,7 +1045,7 @@ public class RestActions {
      * @param serviceName the endpoint path relative to this instance's base URI
      * @param requestType the HTTP method to use (e.g. {@link RequestType#POST})
      * @return a {@link RequestBuilder} for configuring and executing the request
-     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
+     * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; API Testing</a>
      */
     public RequestBuilder buildNewRequest(String serviceName, RequestType requestType) {
         return new RequestBuilder(this, serviceName, requestType);

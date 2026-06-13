@@ -16,7 +16,7 @@ Nothing fancy... Just keep it clear and simple.
 ### JavaDocs
 - Every `public` class and method **must** have a JavaDoc comment.
 - Include `@param`, `@return`, and `@throws` tags where applicable.
-- Add `@see` links to related classes and the [SHAFT User Guide](https://shafthq.github.io/) where appropriate.
+- Add `@see` links to related classes and the [SHAFT User Guide](https://shaftengine.netlify.app/docs/start/overview) where appropriate.
 - Use `{@code ...}` for inline code references and `{@link ...}` for type references.
 - Validate JavaDoc output locally with `mvn -pl shaft-engine javadoc:javadoc` before opening a PR when JavaDocs were changed.
 
@@ -40,7 +40,8 @@ Nothing fancy... Just keep it clear and simple.
 ## Validation By Risk
 
 - **Documentation or agent guidance:** run the relevant deterministic validator
-  and `git diff --check`; no Maven build is needed.
+  plus `python3 scripts/ci/validate_documentation_boundaries.py` and
+  `git diff --check`; no Maven build is needed.
 - **Localized code:** run the affected tests, then compile/package once before
   finalizing the change.
 - **Shared API, concurrency, build, or release changes:** run targeted tests,
@@ -52,6 +53,22 @@ Nothing fancy... Just keep it clear and simple.
 
 Keep simplifications local, clear `ThreadLocal` state at lifecycle boundaries,
 and preserve readable non-interactive logging.
+
+## Documentation
+
+The Docusaurus site is the canonical location for product, usage,
+architecture, migration, and maintainer documentation. Do not add public
+guides, module READMEs, or a local `docs/` tree to this repository.
+
+When a change affects users:
+
+1. Update [ShaftHQ/shafthq.github.io](https://github.com/ShaftHQ/shafthq.github.io).
+2. Link the documentation pull request in the engine pull request.
+3. If documentation is not required, provide a concrete reason in the pull
+   request template.
+
+Operational Markdown remains allowed for agent instructions, governance,
+GitHub templates, skills, and test fixtures.
 
 ## Build & Test
 

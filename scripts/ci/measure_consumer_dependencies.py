@@ -19,7 +19,7 @@ from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES_ROOT = ROOT / "tools" / "modularization" / "consumer-fixtures"
-BASELINE_ROOT = ROOT / "docs" / "modularization" / "dependency-baseline"
+BASELINE_ROOT = ROOT / "tests" / "fixtures" / "modularization" / "dependency-baseline"
 ENGINE_ROOT = ROOT / "shaft-engine"
 ENGINE_POM = ENGINE_ROOT / "pom.xml"
 PILOT_CORE_ROOT = ROOT / "shaft-pilot-core"

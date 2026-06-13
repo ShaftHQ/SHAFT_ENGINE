@@ -18,7 +18,7 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>shaft-engine</artifactId>
             <version>${project.version}</version>
-            <message>SHAFT Engine moved to io.github.shafthq:shaft-engine. Use the preferred automated upgrade: https://github.com/ShaftHQ/SHAFT_ENGINE/blob/main/docs/UPGRADING_TO_MODULAR_SHAFT.md</message>
+            <message>SHAFT Engine moved to io.github.shafthq:shaft-engine. Use the preferred automated upgrade: https://shaftengine.netlify.app/docs/start/upgrade</message>
         </relocation>
     </distributionManagement>
 </project>
