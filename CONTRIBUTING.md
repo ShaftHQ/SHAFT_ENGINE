@@ -63,8 +63,11 @@ guides, module READMEs, or a local `docs/` tree to this repository.
 When a change affects users:
 
 1. Update [ShaftHQ/shafthq.github.io](https://github.com/ShaftHQ/shafthq.github.io).
-2. Link the documentation pull request in the engine pull request.
-3. If documentation is not required, provide a concrete reason in the pull
+2. Verify the documentation deploy preview and its affected canonical routes.
+3. Link the documentation pull request in the engine pull request.
+4. Merge and deploy the documentation first. Confirm the production routes
+   return HTTP 200 before merging dependent engine documentation cleanup.
+5. If documentation is not required, provide a concrete reason in the pull
    request template.
 
 Operational Markdown remains allowed for agent instructions, governance,
