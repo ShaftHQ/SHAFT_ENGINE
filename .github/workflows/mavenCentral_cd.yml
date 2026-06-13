@@ -53,6 +53,7 @@ jobs:
       - name: Validate SHAFT Pilot release contract
         run: |
           python3 scripts/ci/validate_modular_documentation.py
+          python3 scripts/ci/validate_documentation_boundaries.py
           python3 scripts/ci/validate_shaft_mcp_configuration.py
           python3 scripts/ci/validate_shaft_pilot_release.py
       - name: Install SHAFT Pilot prerequisites without tests

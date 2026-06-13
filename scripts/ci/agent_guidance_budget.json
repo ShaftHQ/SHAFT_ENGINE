@@ -57,8 +57,7 @@
     ".github/instructions/*.instructions.md",
     ".github/skills/README.md",
     ".github/skills/*/SKILL.md",
-    ".github/codex/prompts/refresh-agent-instructions.md",
-    "docs/AGENT_GUIDANCE_MAINTENANCE.md"
+    ".github/codex/prompts/refresh-agent-instructions.md"
   ],
   "reduction_baseline_bytes": 145162,
   "minimum_reduction_percent": 80,
@@ -73,8 +72,7 @@
     ".github/skills/*/SKILL.md",
     ".github/pull_request_template.md",
     ".github/codex/prompts/refresh-agent-instructions.md",
-    ".github/workflows/refresh-agent-instructions.yml",
-    "docs/AGENT_GUIDANCE_MAINTENANCE.md"
+    ".github/workflows/refresh-agent-instructions.yml"
   ],
   "scope_files": [
     ".github/instructions/framework-source.instructions.md",

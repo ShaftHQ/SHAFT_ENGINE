@@ -59,6 +59,14 @@
 
 <!-- Paste results or attach relevant visual evidence. -->
 
+## Documentation Site
+
+> Link the matching `ShaftHQ/shafthq.github.io` pull request, or explain
+> concretely why this change does not require public documentation.
+
+- Documentation PR:
+- Documentation not required because:
+
 
 ## 📝 Additional Notes
 

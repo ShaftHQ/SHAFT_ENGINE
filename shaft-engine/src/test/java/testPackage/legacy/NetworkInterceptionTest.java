@@ -20,7 +20,7 @@ public class NetworkInterceptionTest extends Tests {
         if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
                 || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
             // prepare the expected result => should always pass
-            driver.get().browser().navigateToURL("https://shafthq.github.io/")
+            driver.get().browser().navigateToURL("https://shaftengine.netlify.app/")
                     .element().assertThat(By.xpath("//img[@alt='SHAFT_Engine']")).matchesReferenceImage().perform();
 
             //more samples here: https://www.selenium.dev/selenium/docs/api/java/org/openqa/selenium/devtools/NetworkInterceptor.html
@@ -33,7 +33,7 @@ public class NetworkInterceptionTest extends Tests {
 
             // mock and compare actual to expected => should always fail
             driver.get().browser().mock(requestPredicate, mockedResponse)
-                    .navigateToURL("https://shafthq.github.io/")
+                    .navigateToURL("https://shaftengine.netlify.app/")
                     .element().assertThat(By.xpath("//img[@alt='SHAFT_Engine']")).doesNotMatchReferenceImage().perform();
         }
     }

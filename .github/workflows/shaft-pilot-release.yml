@@ -12,11 +12,9 @@ on:
       - "shaft-mcp/**"
       - "shaft-bom/**"
       - "report-aggregate/**"
-      - "docs/SHAFT_PILOT*.md"
-      - "docs/SHAFT_CAPTURE.md"
-      - "docs/SHAFT_DOCTOR.md"
-      - "docs/SHAFT_MCP.md"
-      - "docs/examples/shaft-pilot/**"
+      - "README.md"
+      - "shaft-mcp/src/test/resources/fixtures/shaft-pilot/**"
+      - "scripts/ci/validate_documentation_boundaries.py"
       - "scripts/ci/validate_shaft_pilot_release.py"
       - "scripts/ci/validate_maven_publication.py"
       - "scripts/ci/validate_reactor_versions.py"
@@ -52,6 +50,7 @@ jobs:
         run: |
           python3 scripts/ci/validate_reactor_versions.py
           python3 scripts/ci/validate_modular_documentation.py
+          python3 scripts/ci/validate_documentation_boundaries.py
           python3 scripts/ci/validate_maven_publication.py
           python3 scripts/ci/validate_shaft_mcp_configuration.py
           python3 scripts/ci/validate_shaft_pilot_release.py

@@ -16,7 +16,7 @@ import com.shaft.validation.internal.ValidationsBuilder;
  * }</pre>
  *
  * @see com.shaft.driver.SHAFT.Validations
- * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Validations</a>
+ * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; Validations</a>
  */
 public class Validations {
     private Validations() {

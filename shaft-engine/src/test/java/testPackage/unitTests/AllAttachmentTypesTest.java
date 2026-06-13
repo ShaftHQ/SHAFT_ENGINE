@@ -67,7 +67,7 @@ public class AllAttachmentTypesTest {
     private static final String SAMPLE_PROPERTIES =
             "targetBrowserName=chrome\nbrowser.headless=false\nbaseUrl=https://example.com\n";
     private static final String SAMPLE_URI =
-            "https://shafthq.github.io/SHAFT_ENGINE/\n";
+            "https://shaftengine.netlify.app/SHAFT_ENGINE/\n";
     private static final String SAMPLE_MHTML =
             "MIME-Version: 1.0\nContent-Type: multipart/related;\n\n--boundary\n"
                     + "Content-Type: text/html\n\n<html><body>Snapshot</body></html>\n";

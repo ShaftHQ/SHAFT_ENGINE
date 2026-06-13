@@ -17,11 +17,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
 
+      - name: Validate Markdown boundaries
+        run: python3 scripts/ci/validate_documentation_boundaries.py
+
       - name: Check Links in Markdown Files
         id: lychee
         uses: lycheeverse/lychee-action@v2
         with:
-          # Check all Markdown files in docs/, root, and .github templates
+          # Check the landing page and approved operational Markdown.
           args: >
             --verbose
             --no-progress
@@ -36,13 +39,15 @@ jobs:
             --exclude 'mailto:'
             --exclude 'https://img.shields.io'
             --exclude 'https://join.slack.com'
-            docs/
             README.md
+            AGENTS.md
+            CLAUDE.md
             CONTRIBUTING.md
             SECURITY.md
             CODE_OF_CONDUCT.md
-            .github/RELEASE_BODY_TEMPLATE.md
-            .github/pull_request_template.md
+            .agents/
+            .github/
+            shaft-mcp/.github/
           fail: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

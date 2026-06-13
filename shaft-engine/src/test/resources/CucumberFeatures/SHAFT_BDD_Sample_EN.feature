@@ -27,6 +27,6 @@ Feature: Basic SHAFT_Engine BDD POC
 
   Scenario: Element visual assertions
     Given I Open the target browser
-    When I Navigate to "https://shafthq.github.io/"
+    When I Navigate to "https://shaftengine.netlify.app/"
     Then I Assert that the element found by "xpath": "(//img[contains(@src,'shaft.svg')])[1]", does exist
     And I Close the current window

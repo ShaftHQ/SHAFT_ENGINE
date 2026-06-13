@@ -80,7 +80,9 @@ jobs:
         run: rm -f .agent-guidance-audit.json .agent-guidance-refresh-request.md
 
       - name: Validate Final Guidance
-        run: python3 scripts/ci/validate_agent_guidance.py
+        run: |
+          python3 scripts/ci/validate_agent_guidance.py
+          python3 scripts/ci/validate_documentation_boundaries.py
 
       - name: Check Changes and Enforce Allowlist
         id: changes
@@ -109,8 +111,6 @@ jobs:
               .github/copilot-instructions.md|.github/pull_request_template.md)
                 ;;
               .agents/skills/*|.github/instructions/*|.github/skills/*)
-                ;;
-              docs/AGENT_GUIDANCE_MAINTENANCE.md)
                 ;;
               *)
                 disallowed_files+=("$file")

@@ -87,7 +87,7 @@ class BrowserStackModuleBoundaryTest(unittest.TestCase):
                 self.assertNotIn("shaft-browserstack", command)
 
     def test_direct_cold_cache_saving_meets_issue_threshold(self):
-        manifests = ROOT / "docs/modularization/dependency-baseline/manifests"
+        manifests = ROOT / "tests/fixtures/modularization/dependency-baseline/manifests"
         summary = json.loads((manifests / "browserstack-sdk.json").read_text(encoding="utf-8"))
         baseline = json.loads(
             (manifests / summary["artifactsRef"]).read_text(encoding="utf-8")

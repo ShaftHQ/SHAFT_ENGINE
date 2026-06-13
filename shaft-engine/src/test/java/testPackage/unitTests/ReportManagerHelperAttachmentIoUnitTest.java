@@ -30,7 +30,7 @@ import static org.testng.Assert.assertTrue;
  * Verifies that attachment-related IO paths close {@link InputStream}s and that
  * ReportPortal temp files are deleted after emit (no cumulative {@code rp-test*} leaks).
  *
- * @see <a href="https://shafthq.github.io/">SHAFT User Guide</a>
+ * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide</a>
  */
 @Test(singleThreaded = true)
 public class ReportManagerHelperAttachmentIoUnitTest {

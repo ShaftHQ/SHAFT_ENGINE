@@ -48,7 +48,7 @@ public class PropertiesHelperInitializationUnitTest {
     public void defaultCustomPropertiesTemplateShouldContainCommonDefaultsAndDocumentationLink() throws IOException {
         String customTemplateContent = Files.readString(Path.of(PROPERTIES_FOLDER_PATH, "default", "custom.properties"));
 
-        Assert.assertTrue(customTemplateContent.contains("https://shafthq.github.io/"),
+        Assert.assertTrue(customTemplateContent.contains("https://shaftengine.netlify.app/"),
                 "custom.properties template should include a user guide link.");
         List.of(
                 "executionAddress=local",

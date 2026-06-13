@@ -115,7 +115,7 @@ class VideoModuleBoundaryTest(unittest.TestCase):
         self.assertIn(("io.github.shafthq", "shaft-video"), fixture_dependencies)
 
     def test_linux_x64_native_payload_meets_issue_threshold(self):
-        manifests = ROOT / "docs/modularization/dependency-baseline/manifests"
+        manifests = ROOT / "tests/fixtures/modularization/dependency-baseline/manifests"
         summary = json.loads((manifests / "desktop-video.json").read_text(encoding="utf-8"))
         baseline = json.loads(
             (manifests / summary["artifactsRef"]).read_text(encoding="utf-8")

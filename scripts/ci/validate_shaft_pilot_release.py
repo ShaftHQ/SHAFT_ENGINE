@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate SHAFT Pilot release documentation, evidence, and packaged outputs."""
+"""Validate SHAFT Pilot release contracts, fixtures, evidence, and outputs."""
 
 from __future__ import annotations
 
@@ -119,47 +119,7 @@ def validate_static(root: Path = ROOT) -> list[str]:
         if required not in pilot_properties:
             errors.append(f"Pilot safe default is missing: {required.splitlines()[0]}")
 
-    guide = (root / "docs/SHAFT_PILOT.md").read_text(encoding="utf-8")
-    for required in (
-        "AI is optional and disabled by default",
-        "pilot.ai.enabled=false",
-        "capture start",
-        "capture generate",
-        "doctor analyze",
-        "doctor propose-fix",
-        "doctor_publish_draft_pr",
-        "OpenAI",
-        "Anthropic",
-        "Gemini",
-        "Ollama",
-        "GitHub Copilot",
-        "Troubleshooting",
-    ):
-        if required not in guide:
-            errors.append(f"SHAFT_PILOT.md is missing {required!r}")
-
-    release_guide = (root / "docs/SHAFT_PILOT_RELEASE.md").read_text(
-        encoding="utf-8"
-    )
-    for required in (
-        "Release-candidate matrix",
-        "JDK 25",
-        "Maven 3.9",
-        "Chrome",
-        "Edge",
-        "stdio",
-        "Streamable HTTP",
-        "mock",
-        "Maven Central",
-        "ghcr.io/shafthq/shaft-engine-mcp",
-        "ghcr.io/shafthq/shaft-mcp",
-        "ShaftHQ/SHAFT_MCP",
-        "Rollback",
-    ):
-        if required not in release_guide:
-            errors.append(f"SHAFT_PILOT_RELEASE.md is missing {required!r}")
-
-    examples = root / "docs/examples/shaft-pilot"
+    examples = root / "shaft-mcp/src/test/resources/fixtures/shaft-pilot"
     for path in sorted(examples.rglob("*")):
         if not path.is_file():
             continue

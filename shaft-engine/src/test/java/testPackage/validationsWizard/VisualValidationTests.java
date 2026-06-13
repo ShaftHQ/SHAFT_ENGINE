@@ -38,7 +38,7 @@ public class VisualValidationTests {
     @BeforeMethod
     public void beforeMethod(){
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL("https://shafthq.github.io/");
+        driver.get().browser().navigateToURL("https://shaftengine.netlify.app/");
     }
 
     @AfterMethod(alwaysRun = true)
