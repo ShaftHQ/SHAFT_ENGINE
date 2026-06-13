@@ -232,6 +232,38 @@ public class TerminalActionsUnitTest {
         Assert.assertTrue(failure.getMessage().contains("Local file does not exist"));
     }
 
+    @Test(description = "forwardLocalPort should fail for local terminals")
+    public void forwardLocalPortShouldFailForLocalTerminal() {
+        TerminalActions terminal = new TerminalActions();
+        RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                () -> terminal.forwardLocalPort(8080, "127.0.0.1", 80));
+        Assert.assertTrue(failure.getMessage().contains("remote SSH terminals"));
+    }
+
+    @Test(description = "forwardLocalPort should fail for ephemeral remote terminals")
+    public void forwardLocalPortShouldFailForEphemeralRemoteTerminal() {
+        TerminalActions terminal = new TerminalActions("host.example.com", 22, "user", "/keys/", "id_rsa");
+        RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                () -> terminal.forwardLocalPort(8080, "127.0.0.1", 80));
+        Assert.assertTrue(failure.getMessage().contains("SHAFT.CLI.remoteTerminal"));
+    }
+
+    @Test(description = "forwardRemotePort should fail for dockerized remote terminals")
+    public void forwardRemotePortShouldFailForDockerizedRemoteTerminal() {
+        TerminalActions dockerizedTerminal = new TerminalActions(
+                "host.example.com", 22, "user", "/keys/", "id_rsa", "appContainer", "appUser");
+        RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                () -> dockerizedTerminal.forwardRemotePort(9090, "127.0.0.1", 8080));
+        Assert.assertTrue(failure.getMessage().contains("dockerized remote terminals"));
+    }
+
+    @Test(description = "getJschSession should fail for ephemeral remote terminals")
+    public void getJschSessionShouldFailForEphemeralRemoteTerminal() {
+        TerminalActions terminal = new TerminalActions("host.example.com", 22, "user", "/keys/", "id_rsa");
+        RuntimeException failure = Assert.expectThrows(RuntimeException.class, terminal::getJschSession);
+        Assert.assertTrue(failure.getMessage().contains("SHAFT.CLI.remoteTerminal"));
+    }
+
     // --- Default SSH Values ---
 
     @Test(description = "Default SSH port should be 22")

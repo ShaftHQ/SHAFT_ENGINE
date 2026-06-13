@@ -65,6 +65,8 @@ public class TerminalActions {
     private Session reusableRemoteSession;
     private ScheduledExecutorService reusableSessionTimeoutScheduler;
     private ScheduledFuture<?> reusableSessionTimeoutTask;
+    private final List<Integer> activeLocalPortForwards = new ArrayList<>();
+    private final List<Integer> activeRemotePortForwards = new ArrayList<>();
 
 
     /**
@@ -325,6 +327,73 @@ public class TerminalActions {
     }
 
     /**
+     * Forwards a local port through the reusable SSH session to a remote host and port.
+     *
+     * <p>Use {@code 0} for {@code localPort} to let JSch assign an available local port.
+     * Active forwards are removed when {@link #quit()} is called.</p>
+     *
+     * @param localPort  local bind port, or {@code 0} for an ephemeral local port
+     * @param remoteHost remote target host as seen from the SSH server
+     * @param remotePort remote target port
+     * @return the bound local port as a string
+     */
+    public String forwardLocalPort(int localPort, String remoteHost, int remotePort) {
+        verifyReusableRemoteSessionFeature();
+        String testData = "Host Name: \"" + sshHostName + "\" | Local Port: \"" + localPort
+                + "\" | Remote Host: \"" + remoteHost + "\" | Remote Port: \"" + remotePort + "\"";
+        Session remoteSession = getRemoteSession();
+        try {
+            int assignedPort = remoteSession.setPortForwardingL(localPort, remoteHost, remotePort);
+            activeLocalPortForwards.add(assignedPort);
+            passAction(testData, "Forwarded local port \"" + assignedPort + "\" to \"" + remoteHost + ":" + remotePort + "\"");
+            return String.valueOf(assignedPort);
+        } catch (JSchException exception) {
+            failAction(testData, exception);
+            return "";
+        }
+    }
+
+    /**
+     * Forwards a remote port through the reusable SSH session to a local host and port.
+     *
+     * <p>Remote port forwarding may require server-side SSH configuration. Active forwards are
+     * removed when {@link #quit()} is called.</p>
+     *
+     * @param remotePort remote bind port on the SSH server
+     * @param localHost  local target host as seen from the SSH client machine
+     * @param localPort  local target port
+     * @return the remote bind port as a string
+     */
+    public String forwardRemotePort(int remotePort, String localHost, int localPort) {
+        verifyReusableRemoteSessionFeature();
+        String testData = "Host Name: \"" + sshHostName + "\" | Remote Port: \"" + remotePort
+                + "\" | Local Host: \"" + localHost + "\" | Local Port: \"" + localPort + "\"";
+        Session remoteSession = getRemoteSession();
+        try {
+            remoteSession.setPortForwardingR(remotePort, localHost, localPort);
+            activeRemotePortForwards.add(remotePort);
+            passAction(testData, "Forwarded remote port \"" + remotePort + "\" to \"" + localHost + ":" + localPort + "\"");
+            return String.valueOf(remotePort);
+        } catch (JSchException exception) {
+            failAction(testData, exception);
+            return "";
+        }
+    }
+
+    /**
+     * Returns the underlying JSch session for advanced remote terminal usage.
+     *
+     * <p>Only available for reusable remote terminals created through
+     * {@link com.shaft.driver.SHAFT.CLI#remoteTerminal(String, int, String, String, String)}.</p>
+     *
+     * @return the connected reusable JSch session
+     */
+    public Session getJschSession() {
+        verifyReusableRemoteSessionFeature();
+        return getRemoteSession();
+    }
+
+    /**
      * Disconnects any reusable SSH session owned by this terminal actions instance.
      *
      * <p>This method is safe to call before the first remote command is executed and is a no-op
@@ -333,9 +402,12 @@ public class TerminalActions {
     public synchronized void quit() {
         cancelReusableSessionTimeoutTask();
         if (reusableRemoteSession != null && reusableRemoteSession.isConnected()) {
+            clearPortForwards(reusableRemoteSession);
             reusableRemoteSession.disconnect();
         }
         reusableRemoteSession = null;
+        activeLocalPortForwards.clear();
+        activeRemotePortForwards.clear();
         if (reusableSessionTimeoutScheduler != null) {
             reusableSessionTimeoutScheduler.shutdown();
             reusableSessionTimeoutScheduler = null;
@@ -505,6 +577,38 @@ public class TerminalActions {
     private void disconnectSftpChannel(ChannelSftp sftpChannel) {
         if (sftpChannel != null && sftpChannel.isConnected()) {
             sftpChannel.disconnect();
+        }
+    }
+
+    private void verifyReusableRemoteSessionFeature() {
+        if (!isRemoteTerminal()) {
+            failAction("Reusable remote SSH feature",
+                    new IllegalStateException("This feature is only supported for remote SSH terminals."));
+        }
+        if (isDockerizedTerminal()) {
+            failAction("Reusable remote SSH feature", new IllegalStateException(
+                    "This feature operates on the remote host SSH session. Use performTerminalCommand(...) for dockerized remote terminals."));
+        }
+        if (!reuseRemoteSession) {
+            failAction("Reusable remote SSH feature", new IllegalStateException(
+                    "This feature requires a reusable remote terminal. Use SHAFT.CLI.remoteTerminal(...)."));
+        }
+    }
+
+    private void clearPortForwards(Session session) {
+        for (Integer localPort : new ArrayList<>(activeLocalPortForwards)) {
+            try {
+                session.delPortForwardingL(localPort);
+            } catch (Exception exception) {
+                ReportManager.logDiscrete("Failed to remove local port forward on port " + localPort + ": " + exception.getMessage());
+            }
+        }
+        for (Integer remotePort : new ArrayList<>(activeRemotePortForwards)) {
+            try {
+                session.delPortForwardingR(remotePort);
+            } catch (Exception exception) {
+                ReportManager.logDiscrete("Failed to remove remote port forward on port " + remotePort + ": " + exception.getMessage());
+            }
         }
     }
 
