@@ -30,6 +30,18 @@ jobs:
           python3 scripts/ci/validate_shaft_mcp_configuration.py
       - name: Run MCP module tests
         run: mvn --batch-mode -pl shaft-mcp -am test -Dgpg.skip
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+          disable_search: true
+          files: >-
+            ./target/jacoco/jacoco.xml,
+            ./shaft-engine/target/jacoco/jacoco.xml,
+            ./shaft-mcp/target/jacoco/jacoco.xml
+          verbose: true
       - name: Verify MCP Allure results
         run: test -n "$(find shaft-mcp/allure-results -name '*-result.json' -type f -print -quit)"
       - name: Package and smoke transports

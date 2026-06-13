@@ -1,5 +1,5 @@
 name: 'Post-Test Report and Check'
-description: 'Generates Allure report artifacts, creates test summary, and checks test results using Allure data'
+description: 'Uploads coverage, generates Allure report artifacts, creates test summary, and checks test results using Allure data'
 outputs:
   job:
     description: 'Job display name'
@@ -31,9 +31,34 @@ inputs:
     description: 'Module that produced the test and report outputs'
     required: false
     default: 'shaft-engine'
+
+  codecov-token:
+    description: 'Codecov upload token'
+    required: false
+    default: ''
 runs:
   using: 'composite'
   steps:
+    - name: Upload coverage to Codecov
+      if: always()
+      uses: codecov/codecov-action@v7
+      with:
+        token: ${{ inputs.codecov-token }}
+        fail_ci_if_error: false
+        disable_search: true
+        files: >-
+          ./target/jacoco/jacoco.xml,
+          ./shaft-engine/target/jacoco/jacoco.xml,
+          ./shaft-pilot-core/target/jacoco/jacoco.xml,
+          ./shaft-capture/target/jacoco/jacoco.xml,
+          ./shaft-doctor/target/jacoco/jacoco.xml,
+          ./shaft-ai/target/jacoco/jacoco.xml,
+          ./shaft-heal/target/jacoco/jacoco.xml,
+          ./shaft-browserstack/target/jacoco/jacoco.xml,
+          ./shaft-video/target/jacoco/jacoco.xml,
+          ./shaft-visual/target/jacoco/jacoco.xml,
+          ./shaft-mcp/target/jacoco/jacoco.xml
+        verbose: true
     - name: Generate Allure Report Fallback
       if: always()
       shell: bash
