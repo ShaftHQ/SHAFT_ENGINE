@@ -127,3 +127,4 @@ jobs:
         uses: ./.github/actions/post-test-report
         with:
           job-name: Ubuntu_Chrome_Moon
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
