@@ -193,6 +193,45 @@ public class TerminalActionsUnitTest {
                 "Fluent terminal execution should return the same TerminalActions instance");
     }
 
+    @Test(description = "uploadFile should fail for local terminals")
+    public void uploadFileShouldFailForLocalTerminal() {
+        TerminalActions terminal = new TerminalActions();
+        RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                () -> terminal.uploadFile("local.txt", "/tmp/remote.txt"));
+        Assert.assertTrue(failure.getMessage().contains("SFTP is only supported for remote SSH terminals"));
+    }
+
+    @Test(description = "downloadFile should fail for local terminals")
+    public void downloadFileShouldFailForLocalTerminal() {
+        TerminalActions terminal = new TerminalActions();
+        RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                () -> terminal.downloadFile("/tmp/remote.txt", "local.txt"));
+        Assert.assertTrue(failure.getMessage().contains("SFTP is only supported for remote SSH terminals"));
+    }
+
+    @Test(description = "uploadFile should fail for dockerized remote terminals")
+    public void uploadFileShouldFailForDockerizedRemoteTerminal() throws Exception {
+        Files.createDirectories(TEMP_DIR);
+        Path localFile = TEMP_DIR.resolve("upload-source.txt");
+        Files.writeString(localFile, "payload");
+
+        TerminalActions terminal = new TerminalActions(
+                "host.example.com", 22, "user", TEMP_DIR.toAbsolutePath() + "/", "id_rsa",
+                "appContainer", "appUser");
+
+        RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                () -> terminal.uploadFile(localFile.toString(), "/tmp/remote.txt"));
+        Assert.assertTrue(failure.getMessage().contains("dockerized remote terminals"));
+    }
+
+    @Test(description = "uploadFile should fail when the local source file does not exist")
+    public void uploadFileShouldFailWhenLocalSourceFileIsMissing() {
+        TerminalActions terminal = new TerminalActions("host.example.com", 22, "user", "/keys/", "id_rsa");
+        RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                () -> terminal.uploadFile("target/temp/does-not-exist.txt", "/tmp/remote.txt"));
+        Assert.assertTrue(failure.getMessage().contains("Local file does not exist"));
+    }
+
     // --- Default SSH Values ---
 
     @Test(description = "Default SSH port should be 22")
