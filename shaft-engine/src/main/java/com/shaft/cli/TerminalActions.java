@@ -1,9 +1,11 @@
 package com.shaft.cli;
 
 import com.jcraft.jsch.ChannelExec;
+import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
+import com.jcraft.jsch.SftpException;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -15,6 +17,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -294,6 +298,33 @@ public class TerminalActions {
     }
 
     /**
+     * Uploads a local file to the connected remote host over SFTP.
+     *
+     * <p>Requires a remote terminal created through a remote SSH constructor or
+     * {@link com.shaft.driver.SHAFT.CLI#remoteTerminal(String, int, String, String, String)}.
+     * Docker-wrapped remote terminals are not supported; use {@link #performTerminalCommand(String)}
+     * for file operations inside a container.</p>
+     *
+     * @param localFilePath  relative or absolute path to the local source file
+     * @param remoteFilePath destination path on the remote host
+     * @return the remote destination path for assertions
+     */
+    public String uploadFile(String localFilePath, String remoteFilePath) {
+        return performSftpTransfer(SftpTransferDirection.UPLOAD, localFilePath, remoteFilePath);
+    }
+
+    /**
+     * Downloads a file from the connected remote host over SFTP.
+     *
+     * @param remoteFilePath source path on the remote host
+     * @param localFilePath  relative or absolute destination path on the local machine
+     * @return the local absolute destination path for assertions
+     */
+    public String downloadFile(String remoteFilePath, String localFilePath) {
+        return performSftpTransfer(SftpTransferDirection.DOWNLOAD, remoteFilePath, localFilePath);
+    }
+
+    /**
      * Disconnects any reusable SSH session owned by this terminal actions instance.
      *
      * <p>This method is safe to call before the first remote command is executed and is a no-op
@@ -393,6 +424,87 @@ public class TerminalActions {
     private void disconnectRemoteSessionIfEphemeral(Session session) {
         if (!reuseRemoteSession && session != null && session.isConnected()) {
             session.disconnect();
+        }
+    }
+
+    private enum SftpTransferDirection {
+        UPLOAD,
+        DOWNLOAD
+    }
+
+    private String performSftpTransfer(SftpTransferDirection direction, String sourcePath, String destinationPath) {
+        verifyRemoteSftpTerminal();
+        String localPath;
+        String remotePath;
+        if (direction == SftpTransferDirection.UPLOAD) {
+            // upload sources may live under the test data folder, so reuse SHAFT path resolution
+            localPath = FileActions.getInstance(true).getAbsolutePath(sourcePath);
+            remotePath = destinationPath;
+        } else {
+            remotePath = sourcePath;
+            // download destinations are saved exactly where the caller asks, relative to the project directory
+            localPath = new File(destinationPath).getAbsolutePath();
+        }
+
+        String testData = "Host Name: \"" + sshHostName + "\" | SSH Port Number: \"" + sshPortNumber
+                + "\" | SSH Username: \"" + sshUsername + "\" | Local Path: \"" + localPath
+                + "\" | Remote Path: \"" + remotePath + "\"";
+
+        if (direction == SftpTransferDirection.UPLOAD && !Files.isRegularFile(Path.of(localPath))) {
+            failAction(testData, new IOException("Local file does not exist: \"" + localPath + "\""));
+        }
+
+        if (direction == SftpTransferDirection.DOWNLOAD) {
+            Path localDestination = Path.of(localPath);
+            Path parentDirectory = localDestination.getParent();
+            if (parentDirectory != null) {
+                FileActions.getInstance(true).createFolder(parentDirectory.toString());
+            }
+        }
+
+        Session remoteSession = getRemoteSession();
+        ChannelSftp sftpChannel = null;
+        try {
+            sftpChannel = openSftpChannel(remoteSession);
+            if (direction == SftpTransferDirection.UPLOAD) {
+                sftpChannel.put(localPath, remotePath);
+                passAction(testData, "Uploaded file to \"" + remotePath + "\"");
+                return remotePath;
+            }
+            sftpChannel.get(remotePath, localPath);
+            passAction(testData, "Downloaded file to \"" + localPath + "\"");
+            return localPath;
+        } catch (JSchException | SftpException exception) {
+            failAction(testData, exception);
+            return "";
+        } finally {
+            disconnectSftpChannel(sftpChannel);
+            disconnectRemoteSessionIfEphemeral(remoteSession);
+        }
+    }
+
+    private void verifyRemoteSftpTerminal() {
+        if (!isRemoteTerminal()) {
+            failAction("SFTP file transfer",
+                    new IllegalStateException("SFTP is only supported for remote SSH terminals."));
+        }
+        if (isDockerizedTerminal()) {
+            failAction("SFTP file transfer", new IllegalStateException(
+                    "SFTP operates on the remote host filesystem. Use performTerminalCommand(...) for dockerized remote terminals."));
+        }
+    }
+
+    private ChannelSftp openSftpChannel(Session session) throws JSchException {
+        int sessionTimeout = Math.toIntExact(TimeUnit.MINUTES.toMillis(SHAFT.Properties.timeouts.shellSessionTimeout()));
+        session.setTimeout(sessionTimeout);
+        ChannelSftp sftpChannel = (ChannelSftp) session.openChannel("sftp");
+        sftpChannel.connect();
+        return sftpChannel;
+    }
+
+    private void disconnectSftpChannel(ChannelSftp sftpChannel) {
+        if (sftpChannel != null && sftpChannel.isConnected()) {
+            sftpChannel.disconnect();
         }
     }
 
