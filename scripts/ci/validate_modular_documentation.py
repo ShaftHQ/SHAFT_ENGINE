@@ -27,14 +27,19 @@ def text(node, path):
     return (node.findtext(path, default="", namespaces=NS) or "").strip()
 
 
+def parse_trusted_pom(path: Path):
+    # Repository-owned Maven POMs are trusted validator inputs.
+    return ET.parse(path).getroot()  # nosec B314
+
+
 def main() -> None:
-    reactor_version = text(ET.parse(ROOT / "pom.xml").getroot(), "m:version")
+    reactor_version = text(parse_trusted_pom(ROOT / "pom.xml"), "m:version")
     poms = sorted(EXAMPLES.rglob("pom.xml"))
     if len(poms) != 7:
         fail(f"expected seven bundled example POMs, found {len(poms)}")
 
     for pom in poms:
-        root = ET.parse(pom).getroot()
+        root = parse_trusted_pom(pom)
         artifact = text(root, "m:artifactId")
         props = root.find("m:properties", NS)
         prop_names = {
@@ -76,7 +81,7 @@ def main() -> None:
 
     for pom in sorted((ROOT / "tools/modularization/consumer-fixtures").glob("*/pom.xml")):
         fixture_version = text(
-            ET.parse(pom).getroot().find("m:properties", NS),
+            parse_trusted_pom(pom).find("m:properties", NS),
             "m:shaft.version",
         )
         if fixture_version != reactor_version:

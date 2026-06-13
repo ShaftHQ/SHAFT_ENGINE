@@ -2,8 +2,8 @@
 """Enforce the engine repository's operational Markdown boundary."""
 
 from fnmatch import fnmatch
+import os
 from pathlib import Path
-import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,27 +34,31 @@ FORBIDDEN_LINK_FRAGMENTS = (
     "github.com/ShaftHQ/SHAFT_ENGINE/blob/main/docs/",
     "github.com/ShaftHQ/SHAFT_ENGINE/tree/main/docs/",
 )
+IGNORED_DIRECTORIES = {
+    ".git",
+    ".idea",
+    "allure-report",
+    "allure-results",
+    "build",
+    "node_modules",
+    "target",
+}
 
 
 def tracked_markdown() -> list[str]:
-    result = subprocess.run(
-        [
-            "git",
-            "ls-files",
-            "--cached",
-            "--others",
-            "--exclude-standard",
-            "--",
-            "*.md",
-            "*.mdx",
-        ],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    paths = [line.strip().replace("\\", "/") for line in result.stdout.splitlines()]
-    return [path for path in paths if (ROOT / path).is_file()]
+    paths: list[str] = []
+    for directory, child_directories, files in os.walk(ROOT):
+        child_directories[:] = [
+            child for child in child_directories
+            if child not in IGNORED_DIRECTORIES
+        ]
+        for filename in files:
+            if Path(filename).suffix.lower() not in {".md", ".mdx"}:
+                continue
+            paths.append(
+                (Path(directory) / filename).relative_to(ROOT).as_posix()
+            )
+    return sorted(paths)
 
 
 def is_allowed(path: str) -> bool:
