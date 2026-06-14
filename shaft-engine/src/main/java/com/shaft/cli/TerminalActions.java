@@ -89,7 +89,10 @@ public class TerminalActions {
      * @param dockerUsername the username which will be used to access the docker
      *                       instance. Must have the access/privilege to execute the
      *                       terminal command
+     * @deprecated Docker-wrapped terminal execution is deprecated for removal; use
+     * {@link #performTerminalCommand(String)} on the host or target environment directly.
      */
+    @Deprecated(since = "10.2.20260614", forRemoval = true)
     public TerminalActions(String dockerName, String dockerUsername) {
         this.dockerName = dockerName;
         this.dockerUsername = dockerUsername;
@@ -140,7 +143,10 @@ public class TerminalActions {
      * @param dockerUsername       the username which will be used to access the
      *                             docker instance. Must have the access/privilege
      *                             to execute the terminal command
+     * @deprecated Docker-wrapped terminal execution is deprecated for removal; use remote or
+     * local {@link #performTerminalCommand(String)} without docker wrapping instead.
      */
+    @Deprecated(since = "10.2.20260614", forRemoval = true)
     public TerminalActions(String sshHostName, int sshPortNumber, String sshUsername, String sshKeyFileFolderName,
                            String sshKeyFileName, String dockerName, String dockerUsername) {
         this.sshHostName = sshHostName;
@@ -228,6 +234,10 @@ public class TerminalActions {
         return !sshHostName.isEmpty();
     }
 
+    /**
+     * @deprecated Docker-wrapped terminal execution is deprecated for removal.
+     */
+    @Deprecated(since = "10.2.20260614", forRemoval = true)
     public boolean isDockerizedTerminal() {
         return !dockerName.isEmpty();
     }
@@ -240,11 +250,11 @@ public class TerminalActions {
      * Executes one or more terminal commands with the supplied environment variables.
      *
      * <p>For local terminals the variables are added to the spawned process environment.
-     * For dockerized remote terminals they are injected into the container through
-     * {@code docker exec -e}. For non-dockerized remote terminals they are sent as SSH
-     * {@code env} requests, which only take effect when the SSH server allows them (for
-     * example via {@code AcceptEnv} in {@code sshd_config}); otherwise they are silently
-     * ignored by the server.</p>
+     * For remote terminals they are sent as SSH {@code env} requests, which only take
+     * effect when the SSH server allows them (for example via {@code AcceptEnv} in
+     * {@code sshd_config}); otherwise they are silently ignored by the server.
+     * Docker-wrapped terminal execution is deprecated and not extended for environment
+     * variables.</p>
      *
      * @param commands             the commands to execute
      * @param environmentVariables the environment variables to expose to the command
@@ -254,7 +264,7 @@ public class TerminalActions {
         var internalCommands = commands;
 
         // Build long command and refactor for dockerized execution if needed
-        String longCommand = buildLongCommand(internalCommands, environmentVariables);
+        String longCommand = buildLongCommand(internalCommands);
 
         if (internalCommands.size() == 1) {
             if (internalCommands.getFirst().contains(" && ")) {
@@ -634,10 +644,6 @@ public class TerminalActions {
     }
 
     private String buildLongCommand(List<String> commands) {
-        return buildLongCommand(commands, Collections.emptyMap());
-    }
-
-    private String buildLongCommand(List<String> commands, Map<String, String> environmentVariables) {
         StringBuilder command = new StringBuilder();
         // build long command
         for (Iterator<String> i = commands.iterator(); i.hasNext(); ) {
@@ -650,24 +656,18 @@ public class TerminalActions {
 
         // refactor long command for dockerized execution
         if (isDockerizedTerminal()) {
-            command.insert(0, "docker exec " + buildDockerEnvironmentFlags(environmentVariables) + "-u " + dockerUsername
-                    + " -i " + dockerName + " timeout "
+            command.insert(0, "docker exec -u " + dockerUsername + " -i " + dockerName + " timeout "
                     + SHAFT.Properties.timeouts.dockerCommandTimeout() + " sh -c '");
             command.append("'");
         }
         return command.toString();
     }
 
-    private String buildDockerEnvironmentFlags(Map<String, String> environmentVariables) {
-        if (environmentVariables == null || environmentVariables.isEmpty()) {
-            return "";
+    private void applyLocalProcessEnvironment(ProcessBuilder processBuilder, Map<String, String> environmentVariables) {
+        processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"));
+        if (environmentVariables != null) {
+            environmentVariables.forEach(processBuilder.environment()::put);
         }
-        StringBuilder flags = new StringBuilder();
-        environmentVariables.forEach((key, value) -> {
-            String safeValue = value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
-            flags.append("-e \"").append(key).append("=").append(safeValue).append("\" ");
-        });
-        return flags.toString();
     }
 
     private List<String> executeLocalCommand(List<String> commands, String longCommand, Map<String, String> environmentVariables) {
@@ -696,10 +696,7 @@ public class TerminalActions {
                     throw new InterruptedException("Current thread was interrupted before local command execution.");
                 }
                 ProcessBuilder pb = getProcessBuilder(command, finalDirectory, isWindows);
-                pb.environment().put("JAVA_HOME", System.getProperty("java.home"));
-                if (environmentVariables != null) {
-                    environmentVariables.forEach(pb.environment()::put);
-                }
+                applyLocalProcessEnvironment(pb, environmentVariables);
                 if (!asynchronous) {
                     pb.redirectErrorStream(true);
                     Process localProcess = pb.start();

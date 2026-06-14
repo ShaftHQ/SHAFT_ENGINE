@@ -59,6 +59,10 @@ public interface Timeouts extends EngineProperties<Timeouts> {
     @DefaultValue("30")
     long shellSessionTimeout();
 
+    /**
+     * @deprecated Docker-wrapped terminal execution is deprecated for removal.
+     */
+    @Deprecated(since = "10.2.20260614", forRemoval = true)
     @Key("dockerCommandTimeout")
     @DefaultValue("30")
     int dockerCommandTimeout();
@@ -146,6 +150,10 @@ public interface Timeouts extends EngineProperties<Timeouts> {
             return this;
         }
 
+        /**
+         * @deprecated Docker-wrapped terminal execution is deprecated for removal.
+         */
+        @Deprecated(since = "10.2.20260614", forRemoval = true)
         public SetProperty dockerCommandTimeout(int value) {
             setProperty("dockerCommandTimeout", String.valueOf(value));
             return this;

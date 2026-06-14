@@ -47,7 +47,8 @@ public class TerminalActionsUnitTest {
                 "Async terminal should not be dockerized");
     }
 
-    @Test(description = "Docker constructor should create a dockerized, non-remote terminal")
+    @Test(description = "docker constructor should create a dockerized, non-remote terminal")
+    @SuppressWarnings("deprecation")
     public void dockerConstructorShouldCreateDockerizedTerminal() {
         TerminalActions terminal = new TerminalActions("myContainer", "root");
         Assert.assertFalse(terminal.isRemoteTerminal(),
@@ -80,7 +81,8 @@ public class TerminalActionsUnitTest {
                 "SSH key file name should match");
     }
 
-    @Test(description = "Combined SSH + Docker constructor should create both remote and dockerized terminal")
+    @Test(description = "combined SSH + Docker constructor should create both remote and dockerized terminal")
+    @SuppressWarnings("deprecation")
     public void combinedSshDockerConstructorShouldCreateBoth() {
         TerminalActions terminal = new TerminalActions(
                 "host.example.com", 2222, "admin", "/ssh/", "key.pem",
@@ -211,6 +213,7 @@ public class TerminalActionsUnitTest {
     }
 
     @Test(description = "uploadFile should fail for dockerized remote terminals")
+    @SuppressWarnings("deprecation")
     public void uploadFileShouldFailForDockerizedRemoteTerminal() throws Exception {
         Files.createDirectories(TEMP_DIR);
         Path localFile = TEMP_DIR.resolve("upload-source.txt");
@@ -250,6 +253,7 @@ public class TerminalActionsUnitTest {
     }
 
     @Test(description = "forwardRemotePort should fail for dockerized remote terminals")
+    @SuppressWarnings("deprecation")
     public void forwardRemotePortShouldFailForDockerizedRemoteTerminal() {
         TerminalActions dockerizedTerminal = new TerminalActions(
                 "host.example.com", 22, "user", "/keys/", "id_rsa", "appContainer", "appUser");
@@ -401,6 +405,7 @@ public class TerminalActionsUnitTest {
     }
 
     @Test(description = "buildLongCommand should prepend docker exec wrapper for dockerized terminals")
+    @SuppressWarnings("deprecation")
     public void buildLongCommandShouldWrapDockerCommand() throws Exception {
         TerminalActions terminal = new TerminalActions("myContainer", "root");
         Method buildLongCommand = TerminalActions.class.getDeclaredMethod("buildLongCommand", List.class);
@@ -412,20 +417,6 @@ public class TerminalActionsUnitTest {
                 "Dockerized terminal command should be prefixed with docker exec.");
         Assert.assertTrue(command.contains("echo alpha && echo beta"),
                 "Dockerized command should keep original command chain.");
-    }
-
-    @Test(description = "buildLongCommand should inject env vars as docker exec -e flags for dockerized terminals")
-    public void buildLongCommandShouldInjectDockerEnvironmentFlags() throws Exception {
-        TerminalActions terminal = new TerminalActions("myContainer", "root");
-        Method buildLongCommand = TerminalActions.class.getDeclaredMethod("buildLongCommand", List.class, Map.class);
-        buildLongCommand.setAccessible(true);
-
-        String command = (String) buildLongCommand.invoke(terminal, List.of("echo hi"), Map.of("APP_ENV", "staging"));
-
-        Assert.assertTrue(command.startsWith("docker exec -e \"APP_ENV=staging\" -u root -i myContainer timeout "),
-                "Dockerized command should inject environment variables via docker exec -e flags.");
-        Assert.assertTrue(command.contains("sh -c 'echo hi'"),
-                "Dockerized command should keep the original command inside the shell wrapper.");
     }
 
     @Test(description = "getProcessBuilder should use expected command template based on platform and flags")
