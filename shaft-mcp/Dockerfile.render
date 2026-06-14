@@ -27,4 +27,4 @@ COPY --from=builder /build/shaft-mcp.jar /app/shaft-mcp.jar
 EXPOSE 8081
 ENV SPRING_PROFILES_ACTIVE=http
 
-CMD ["java", "-XX:+UseSerialGC", "-Xms128m", "-Xmx384m", "-XX:MaxMetaspaceSize=64m", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "-Dspring.main.lazy-initialization=true", "-jar", "shaft-mcp.jar"]
+CMD ["java", "-XX:+UseSerialGC", "-Xms128m", "-Xmx384m", "-XX:MaxMetaspaceSize=64m", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "-Dspring.main.lazy-initialization=true", "-DheadlessExecution=true", "-jar", "shaft-mcp.jar"]

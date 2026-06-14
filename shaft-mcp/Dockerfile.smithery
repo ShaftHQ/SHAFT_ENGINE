@@ -27,4 +27,4 @@ COPY --from=builder /build/shaft-mcp.jar /app/shaft-mcp.jar
 EXPOSE 8081
 ENV SPRING_PROFILES_ACTIVE=http
 
-CMD ["java", "-jar", "shaft-mcp.jar"]
+CMD ["java", "-DheadlessExecution=true", "-jar", "shaft-mcp.jar"]

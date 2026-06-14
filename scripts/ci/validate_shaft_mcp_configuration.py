@@ -115,6 +115,10 @@ def validate(root: Path = ROOT) -> list[str]:
             errors.append(f"{dockerfile.name} must build from the reactor without a hardcoded release")
         if "-pl shaft-mcp -am" not in content:
             errors.append(f"{dockerfile.name} must build shaft-mcp from the root reactor")
+        if "google-chrome-stable" not in content:
+            errors.append(f"{dockerfile.name} must install Chrome and its runtime dependencies")
+        if '"-DheadlessExecution=true"' not in content:
+            errors.append(f"{dockerfile.name} must launch Chrome headlessly in its container")
     return errors
 
 
