@@ -1,1 +1,1 @@
-typeSearchIndex = [{"l":"All Classes and Interfaces","u":"allclasses-index.html","k":"18"},{"p":"com.shaft.gui.internal.image","l":"OpenCvVisualProcessingProvider"}];updateSearchResults();
+typeSearchIndex = [{"l":"All Classes and Interfaces","u":"allclasses-index.html","k":"18"},{"p":"com.shaft.gui.internal.image","l":"OpenCvHealingVisualProvider"},{"p":"com.shaft.gui.internal.image","l":"OpenCvVisualProcessingProvider"}];updateSearchResults();
