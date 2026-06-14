@@ -233,10 +233,28 @@ public class TerminalActions {
     }
 
     public String performTerminalCommands(List<String> commands) {
+        return performTerminalCommands(commands, Collections.emptyMap());
+    }
+
+    /**
+     * Executes one or more terminal commands with the supplied environment variables.
+     *
+     * <p>For local terminals the variables are added to the spawned process environment.
+     * For dockerized remote terminals they are injected into the container through
+     * {@code docker exec -e}. For non-dockerized remote terminals they are sent as SSH
+     * {@code env} requests, which only take effect when the SSH server allows them (for
+     * example via {@code AcceptEnv} in {@code sshd_config}); otherwise they are silently
+     * ignored by the server.</p>
+     *
+     * @param commands             the commands to execute
+     * @param environmentVariables the environment variables to expose to the command
+     * @return the command output log
+     */
+    public String performTerminalCommands(List<String> commands, Map<String, String> environmentVariables) {
         var internalCommands = commands;
 
         // Build long command and refactor for dockerized execution if needed
-        String longCommand = buildLongCommand(internalCommands);
+        String longCommand = buildLongCommand(internalCommands, environmentVariables);
 
         if (internalCommands.size() == 1) {
             if (internalCommands.getFirst().contains(" && ")) {
@@ -247,7 +265,7 @@ public class TerminalActions {
         }
 
         // Perform command
-        List<String> exitLogs = isRemoteTerminal() ? executeRemoteCommand(internalCommands, longCommand) : executeLocalCommand(internalCommands, longCommand);
+        List<String> exitLogs = isRemoteTerminal() ? executeRemoteCommand(internalCommands, longCommand, environmentVariables) : executeLocalCommand(internalCommands, longCommand, environmentVariables);
         String log = exitLogs.get(0);
         String exitStatus = exitLogs.get(1);
 
@@ -277,6 +295,18 @@ public class TerminalActions {
 
     public String performTerminalCommand(String command) {
         return performTerminalCommands(Collections.singletonList(command));
+    }
+
+    /**
+     * Executes a terminal command with the supplied environment variables.
+     *
+     * @param command              the command to execute
+     * @param environmentVariables the environment variables to expose to the command
+     * @return the command output log
+     * @see #performTerminalCommands(List, Map)
+     */
+    public String performTerminalCommand(String command, Map<String, String> environmentVariables) {
+        return performTerminalCommands(Collections.singletonList(command), environmentVariables);
     }
 
     /**
@@ -604,6 +634,10 @@ public class TerminalActions {
     }
 
     private String buildLongCommand(List<String> commands) {
+        return buildLongCommand(commands, Collections.emptyMap());
+    }
+
+    private String buildLongCommand(List<String> commands, Map<String, String> environmentVariables) {
         StringBuilder command = new StringBuilder();
         // build long command
         for (Iterator<String> i = commands.iterator(); i.hasNext(); ) {
@@ -616,14 +650,27 @@ public class TerminalActions {
 
         // refactor long command for dockerized execution
         if (isDockerizedTerminal()) {
-            command.insert(0, "docker exec -u " + dockerUsername + " -i " + dockerName + " timeout "
+            command.insert(0, "docker exec " + buildDockerEnvironmentFlags(environmentVariables) + "-u " + dockerUsername
+                    + " -i " + dockerName + " timeout "
                     + SHAFT.Properties.timeouts.dockerCommandTimeout() + " sh -c '");
             command.append("'");
         }
         return command.toString();
     }
 
-    private List<String> executeLocalCommand(List<String> commands, String longCommand) {
+    private String buildDockerEnvironmentFlags(Map<String, String> environmentVariables) {
+        if (environmentVariables == null || environmentVariables.isEmpty()) {
+            return "";
+        }
+        StringBuilder flags = new StringBuilder();
+        environmentVariables.forEach((key, value) -> {
+            String safeValue = value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
+            flags.append("-e \"").append(key).append("=").append(safeValue).append("\" ");
+        });
+        return flags.toString();
+    }
+
+    private List<String> executeLocalCommand(List<String> commands, String longCommand, Map<String, String> environmentVariables) {
         StringBuilder logs = new StringBuilder();
         StringBuilder exitStatuses = new StringBuilder();
         // local execution
@@ -650,6 +697,9 @@ public class TerminalActions {
                 }
                 ProcessBuilder pb = getProcessBuilder(command, finalDirectory, isWindows);
                 pb.environment().put("JAVA_HOME", System.getProperty("java.home"));
+                if (environmentVariables != null) {
+                    environmentVariables.forEach(pb.environment()::put);
+                }
                 if (!asynchronous) {
                     pb.redirectErrorStream(true);
                     Process localProcess = pb.start();
@@ -724,7 +774,7 @@ public class TerminalActions {
         return pb;
     }
 
-    private List<String> executeRemoteCommand(List<String> commands, String longCommand) {
+    private List<String> executeRemoteCommand(List<String> commands, String longCommand, Map<String, String> environmentVariables) {
         StringBuilder logs = new StringBuilder();
         StringBuilder exitStatuses = new StringBuilder();
         int sessionTimeout = Math.toIntExact(TimeUnit.MINUTES.toMillis(SHAFT.Properties.timeouts.shellSessionTimeout()));
@@ -738,6 +788,9 @@ public class TerminalActions {
                 remoteSession.setTimeout(sessionTimeout);
                 remoteChannelExecutor = (ChannelExec) remoteSession.openChannel("exec");
                 remoteChannelExecutor.setCommand(longCommand);
+                if (environmentVariables != null) {
+                    environmentVariables.forEach(remoteChannelExecutor::setEnv);
+                }
                 remoteChannelExecutor.connect();
 
                 // Capture logs and close readers

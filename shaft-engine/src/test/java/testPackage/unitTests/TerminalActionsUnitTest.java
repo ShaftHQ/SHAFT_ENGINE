@@ -14,6 +14,7 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -335,6 +336,24 @@ public class TerminalActionsUnitTest {
         Assert.assertTrue(log.contains("beta"));
     }
 
+    @Test(description = "performTerminalCommand with env vars should expose them to the local process")
+    public void performTerminalCommandShouldExposeEnvironmentVariablesLocally() {
+        TerminalActions terminal = TerminalActions.getInstance(false, false, true);
+        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+        String command = isWindows ? "echo $env:SHAFT_ENV_TEST" : "echo $SHAFT_ENV_TEST";
+        String log = terminal.performTerminalCommand(command, Map.of("SHAFT_ENV_TEST", "env-value-123"));
+        Assert.assertTrue(log.contains("env-value-123"),
+                "Expected the injected environment variable value in command output.");
+    }
+
+    @Test(description = "performTerminalCommands env-var overload should still return command output")
+    public void performTerminalCommandsWithEnvOverloadShouldReturnOutput() {
+        TerminalActions terminal = TerminalActions.getInstance(false, false, true);
+        String log = terminal.performTerminalCommands(List.of("echo hello-env"), Map.of("UNUSED", "x"));
+        Assert.assertTrue(log.contains("hello-env"),
+                "Expected command output when using the environment-variable overload.");
+    }
+
     @Test(description = "performTerminalCommand should report action when running through public non-internal flow")
     public void performTerminalCommandShouldRunPublicReportingFlow() {
         TerminalActions terminal = new TerminalActions();
@@ -393,6 +412,20 @@ public class TerminalActionsUnitTest {
                 "Dockerized terminal command should be prefixed with docker exec.");
         Assert.assertTrue(command.contains("echo alpha && echo beta"),
                 "Dockerized command should keep original command chain.");
+    }
+
+    @Test(description = "buildLongCommand should inject env vars as docker exec -e flags for dockerized terminals")
+    public void buildLongCommandShouldInjectDockerEnvironmentFlags() throws Exception {
+        TerminalActions terminal = new TerminalActions("myContainer", "root");
+        Method buildLongCommand = TerminalActions.class.getDeclaredMethod("buildLongCommand", List.class, Map.class);
+        buildLongCommand.setAccessible(true);
+
+        String command = (String) buildLongCommand.invoke(terminal, List.of("echo hi"), Map.of("APP_ENV", "staging"));
+
+        Assert.assertTrue(command.startsWith("docker exec -e \"APP_ENV=staging\" -u root -i myContainer timeout "),
+                "Dockerized command should inject environment variables via docker exec -e flags.");
+        Assert.assertTrue(command.contains("sh -c 'echo hi'"),
+                "Dockerized command should keep the original command inside the shell wrapper.");
     }
 
     @Test(description = "getProcessBuilder should use expected command template based on platform and flags")
