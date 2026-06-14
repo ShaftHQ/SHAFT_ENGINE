@@ -1,4 +1,4 @@
-package io.github.shafthq.SHAFT_MCP;
+package com.shaft.mcp;
 
 /**
  * Locator strategies for finding elements on a web page.

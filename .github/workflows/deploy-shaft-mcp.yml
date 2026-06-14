@@ -1,8 +1,8 @@
-name: Deploy SHAFT MCP
+name: Deploy shaft-mcp
 
 on:
   workflow_run:
-    workflows: ["Publish SHAFT MCP Distributions"]
+    workflows: ["Publish shaft-mcp Distributions"]
     types: [completed]
     branches: [main]
   workflow_dispatch:

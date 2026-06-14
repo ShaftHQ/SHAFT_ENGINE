@@ -1,4 +1,4 @@
-package io.github.shafthq.SHAFT_MCP;
+package com.shaft.mcp;
 
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
@@ -7,8 +7,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
 
-import static io.github.shafthq.SHAFT_MCP.EngineService.getDriver;
-import static io.github.shafthq.SHAFT_MCP.EngineService.getLocator;
+import static com.shaft.mcp.EngineService.getDriver;
+import static com.shaft.mcp.EngineService.getLocator;
 
 @Service
 public class ElementService {

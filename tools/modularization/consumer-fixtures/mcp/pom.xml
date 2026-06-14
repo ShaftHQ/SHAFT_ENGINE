@@ -5,8 +5,8 @@
     <groupId>io.github.shafthq.fixture</groupId>
     <artifactId>shaft-mcp-consumer</artifactId>
     <version>1.0.0</version>
-    <name>SHAFT MCP publication consumer</name>
-    <description>Resolves the preserved SHAFT_MCP executable coordinate through the SHAFT BOM.</description>
+    <name>shaft-mcp publication consumer</name>
+    <description>Resolves the shaft-mcp executable coordinate through the SHAFT BOM.</description>
 
     <properties>
         <shaft.version>10.2.20260614</shaft.version>
@@ -28,7 +28,7 @@
     <dependencies>
         <dependency>
             <groupId>io.github.shafthq</groupId>
-            <artifactId>SHAFT_MCP</artifactId>
+            <artifactId>shaft-mcp</artifactId>
             <scope>runtime</scope>
         </dependency>
     </dependencies>
@@ -50,10 +50,10 @@
                             <artifactItems>
                                 <artifactItem>
                                     <groupId>io.github.shafthq</groupId>
-                                    <artifactId>SHAFT_MCP</artifactId>
+                                    <artifactId>shaft-mcp</artifactId>
                                     <version>${shaft.version}</version>
                                     <outputDirectory>${project.build.directory}</outputDirectory>
-                                    <destFileName>SHAFT_MCP.jar</destFileName>
+                                    <destFileName>shaft-mcp.jar</destFileName>
                                 </artifactItem>
                             </artifactItems>
                         </configuration>

@@ -1,4 +1,4 @@
-name: Publish SHAFT MCP Distributions
+name: Publish shaft-mcp Distributions
 
 on:
   workflow_run:

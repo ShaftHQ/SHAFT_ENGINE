@@ -49,7 +49,7 @@ jobs:
         run: python3 scripts/ci/validate_reactor_versions.py
       - name: Validate aggregate quality configuration
         run: python3 scripts/ci/validate_quality_configuration.py
-      - name: Validate SHAFT MCP integration
+      - name: Validate shaft-mcp integration
         run: python3 scripts/ci/validate_shaft_mcp_configuration.py
       - name: Test configuration validators
         run: >-

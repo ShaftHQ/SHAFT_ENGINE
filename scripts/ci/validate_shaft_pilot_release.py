@@ -26,7 +26,7 @@ PUBLIC_ARTIFACTS = {
     "shaft-capture": "shaft-capture",
     "shaft-doctor": "shaft-doctor",
     "shaft-ai": "shaft-ai",
-    "shaft-mcp": "SHAFT_MCP",
+    "shaft-mcp": "shaft-mcp",
 }
 SECRET_CANARIES = (
     b"DO-NOT-RETAIN-SECRET",

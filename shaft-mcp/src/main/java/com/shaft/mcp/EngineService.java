@@ -1,4 +1,4 @@
-package io.github.shafthq.SHAFT_MCP;
+package com.shaft.mcp;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.listeners.TestNGListener;

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate SHAFT MCP reactor, transport, metadata, and workflow integration."""
+"""Validate shaft-mcp reactor, transport, metadata, and workflow integration."""
 
 from __future__ import annotations
 
@@ -38,8 +38,8 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("root reactor must include shaft-mcp")
 
     mcp = ET.parse(root / "shaft-mcp" / "pom.xml").getroot()
-    if text(mcp, "m:artifactId") != "SHAFT_MCP":
-        errors.append("shaft-mcp must preserve the SHAFT_MCP artifactId")
+    if text(mcp, "m:artifactId") != "shaft-mcp":
+        errors.append("shaft-mcp must use the shaft-mcp artifactId")
     dependencies = {
         (text(dependency, "m:artifactId"), text(dependency, "m:version"))
         for dependency in mcp.findall("m:dependencies/m:dependency", NS)
@@ -55,16 +55,16 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("shaft-mcp must not define an independent SHAFT engine version")
 
     engine_pom = (root / "shaft-engine" / "pom.xml").read_text(encoding="utf-8")
-    if "<artifactId>SHAFT_MCP</artifactId>" in engine_pom:
-        errors.append("shaft-engine must not depend on SHAFT_MCP")
+    if "<artifactId>shaft-mcp</artifactId>" in engine_pom:
+        errors.append("shaft-engine must not depend on shaft-mcp")
 
     bom = ET.parse(root / "shaft-bom" / "pom.xml").getroot()
     bom_artifacts = {
         text(dependency, "m:artifactId")
         for dependency in bom.findall("m:dependencyManagement/m:dependencies/m:dependency", NS)
     }
-    if "SHAFT_MCP" not in bom_artifacts:
-        errors.append("shaft-bom must manage SHAFT_MCP without adding it as a dependency")
+    if "shaft-mcp" not in bom_artifacts:
+        errors.append("shaft-bom must manage shaft-mcp without adding it as a dependency")
 
     stdio = property_map(root / "shaft-mcp" / "src/main/resources/application.properties")
     expected_stdio = {
@@ -91,7 +91,7 @@ def validate(root: Path = ROOT) -> list[str]:
 
     logback = (root / "shaft-mcp/src/main/resources/logback-spring.xml").read_text(encoding="utf-8")
     if "<target>System.err</target>" not in logback:
-        errors.append("SHAFT MCP logging must target stderr")
+        errors.append("shaft-mcp logging must target stderr")
 
     server_json = (root / "shaft-mcp/server.json").read_text(encoding="utf-8")
     if server_json.count("@project.version@") < 2:
@@ -99,7 +99,7 @@ def validate(root: Path = ROOT) -> list[str]:
 
     nested_workflows = list((root / "shaft-mcp/.github/workflows").glob("*.yml"))
     if nested_workflows:
-        errors.append("SHAFT MCP workflows must live under the root .github/workflows directory")
+        errors.append("shaft-mcp workflows must live under the root .github/workflows directory")
     for workflow in ("shaft-mcp.yml", "publish-shaft-mcp.yml", "deploy-shaft-mcp.yml"):
         if not (root / ".github/workflows" / workflow).is_file():
             errors.append(f"missing root MCP workflow: {workflow}")
@@ -111,7 +111,7 @@ def validate(root: Path = ROOT) -> list[str]:
 
     for dockerfile in (root / "shaft-mcp").glob("Dockerfile*"):
         content = dockerfile.read_text(encoding="utf-8")
-        if "repo1.maven.org" in content or "SHAFT_MCP/10." in content:
+        if "repo1.maven.org" in content or "shaft-mcp/10." in content:
             errors.append(f"{dockerfile.name} must build from the reactor without a hardcoded release")
         if "-pl shaft-mcp -am" not in content:
             errors.append(f"{dockerfile.name} must build shaft-mcp from the root reactor")
@@ -123,7 +123,7 @@ def main() -> int:
     if errors:
         print("\n".join(errors), file=sys.stderr)
         return 1
-    print("SHAFT MCP reactor, transport, metadata, container, and workflow configuration is valid.")
+    print("shaft-mcp reactor, transport, metadata, container, and workflow configuration is valid.")
     return 0
 
 
