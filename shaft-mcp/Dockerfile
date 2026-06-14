@@ -7,7 +7,17 @@ RUN mvn --batch-mode --no-transfer-progress -pl shaft-mcp -am package -DskipTest
         ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
         -exec cp {} /build/shaft-mcp.jar \; -quit
 
-FROM selenium/standalone-all-browsers:latest
+FROM eclipse-temurin:25-jre
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates gnupg wget \
+    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub \
+        | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" \
+        > /etc/apt/sources.list.d/google.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends google-chrome-stable \
+    && rm -rf /var/lib/apt/lists/*
 
 LABEL io.modelcontextprotocol.server.name="io.github.ShaftHQ/shaft-mcp" \
       org.opencontainers.image.source="https://github.com/ShaftHQ/SHAFT_ENGINE" \
@@ -15,12 +25,8 @@ LABEL io.modelcontextprotocol.server.name="io.github.ShaftHQ/shaft-mcp" \
       org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
-COPY --from=builder /opt/java/openjdk /opt/java/openjdk
 COPY --from=builder /build/shaft-mcp.jar /app/shaft-mcp.jar
 
-ENV JAVA_HOME=/opt/java/openjdk \
-    PATH="/opt/java/openjdk/bin:${PATH}" \
-    REMOTE_DRIVER_ADDRESS=""
+ENV REMOTE_DRIVER_ADDRESS=""
 
-ENTRYPOINT []
-CMD ["java", "-jar", "shaft-mcp.jar"]
+CMD ["java", "-DheadlessExecution=true", "-jar", "shaft-mcp.jar"]
