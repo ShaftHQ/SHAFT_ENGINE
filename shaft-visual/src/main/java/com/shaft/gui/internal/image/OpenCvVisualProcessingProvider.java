@@ -1,6 +1,5 @@
 package com.shaft.gui.internal.image;
 
-import com.shaft.cli.FileActions;
 import com.applitools.eyes.LogHandler;
 import com.applitools.eyes.MatchLevel;
 import com.applitools.eyes.TestResults;
@@ -9,18 +8,13 @@ import com.applitools.eyes.images.Eyes;
 import com.assertthat.selenium_shutterbug.core.CaptureElement;
 import com.assertthat.selenium_shutterbug.core.Shutterbug;
 import com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesException;
+import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import nu.pattern.OpenCV;
-import org.opencv.core.Core;
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfByte;
-import org.opencv.core.Point;
-import org.opencv.core.Scalar;
-import org.opencv.core.Size;
+import org.opencv.core.*;
 import org.opencv.highgui.HighGui;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
@@ -35,7 +29,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -273,7 +266,7 @@ public class OpenCvVisualProcessingProvider implements VisualProcessingProvider 
             eyes.setHostApp(SHAFT.Properties.web.targetBrowserName());
         }
         try {
-            eyes.open("SHAFT_Engine", ReportManagerHelper.getCallingMethodFullName());
+            eyes.open("shaft-engine", ReportManagerHelper.getCallingMethodFullName());
             eyes.checkImage(elementScreenshot, Paths.get(referenceImagePath).getFileName().toString().replace(".png", ""));
             TestResults eyesValidationResult = eyes.close();
             ReportManager.logDiscrete("Successfully validated the element using AI; Applitools Eyes.");

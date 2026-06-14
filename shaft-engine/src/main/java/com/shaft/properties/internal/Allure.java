@@ -81,7 +81,7 @@ public interface Allure extends EngineProperties<Allure> {
 
     /**
      * URL pointing to a custom logo image that replaces the default SHAFT logo in the Allure report.
-     * <p>Property key: {@code allure.customLogo} — default: SHAFT_ENGINE white logo on GitHub
+     * <p>Property key: {@code allure.customLogo} — default: shaft-engine white logo on GitHub
      *
      * @return a URL string for the custom logo image
      */

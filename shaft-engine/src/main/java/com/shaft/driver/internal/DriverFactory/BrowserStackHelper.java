@@ -114,7 +114,7 @@ public class BrowserStackHelper {
         ReportManager.logDiscrete("BrowserStack appPath: " + appPath);
 
         String userProvidedCustomID = SHAFT.Properties.browserStack.customID();
-        String custom_id = "".equals(userProvidedCustomID) ? "SHAFT_Engine_" + appName.replaceAll(" ", "_") : userProvidedCustomID;
+        String custom_id = "".equals(userProvidedCustomID) ? "shaft-engine_" + appName.replaceAll(" ", "_") : userProvidedCustomID;
         ReportManager.logDiscrete("BrowserStack custom_id: " + custom_id);
 
         Map<String, Object> parameters = new LinkedHashMap<>();

@@ -91,7 +91,7 @@ public interface LambdaTest extends EngineProperties<LambdaTest> {
     String timezone();
 
     @Key("LambdaTest.project")
-    @DefaultValue("SHAFT_Engine")
+    @DefaultValue("shaft-engine")
     String project();
 
     @Key("LambdaTest.build")
