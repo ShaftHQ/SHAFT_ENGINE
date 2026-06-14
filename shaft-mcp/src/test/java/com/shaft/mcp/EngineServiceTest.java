@@ -1,4 +1,4 @@
-package io.github.shafthq.SHAFT_MCP;
+package com.shaft.mcp;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
@@ -11,7 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Integration tests for SHAFT MCP services.
+ * Integration tests for shaft-mcp services.
  * These tests verify that the MCP server can actually open a browser,
  * navigate to pages, interact with elements, and retrieve data.
  */

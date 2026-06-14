@@ -21,7 +21,7 @@ and optional agent tools without rebuilding the framework for every surface.
 
 </div>
 
-## Launch SHAFT MCP
+## Launch shaft-mcp
 
 Connect Codex to SHAFT browser automation, Capture, and Doctor:
 

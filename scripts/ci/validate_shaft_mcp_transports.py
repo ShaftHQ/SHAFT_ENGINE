@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke the packaged SHAFT MCP server over stdio and Streamable HTTP."""
+"""Smoke the packaged shaft-mcp server over stdio and Streamable HTTP."""
 
 from __future__ import annotations
 
@@ -261,7 +261,7 @@ def main() -> int:
     parser.add_argument(
         "--jar",
         type=Path,
-        default=ROOT / "shaft-mcp" / "target" / f"SHAFT_MCP-{version}.jar",
+        default=ROOT / "shaft-mcp" / "target" / f"shaft-mcp-{version}.jar",
     )
     args = parser.parse_args()
     jar = args.jar.resolve()
@@ -269,7 +269,7 @@ def main() -> int:
         raise FileNotFoundError(f"Packaged MCP server is missing: {jar}")
     validate_stdio(jar, version)
     validate_http(jar, version)
-    print(f"SHAFT MCP {version} passed packaged stdio and Streamable HTTP smoke tests.")
+    print(f"shaft-mcp {version} passed packaged stdio and Streamable HTTP smoke tests.")
     return 0
 
 

@@ -98,7 +98,7 @@ jobs:
             "-Dshaft.version=${RELEASE_VERSION}"
           mvn --batch-mode -f tools/modularization/consumer-fixtures/mcp/pom.xml verify \
             "-Dshaft.version=${RELEASE_VERSION}"
-      - name: Build and smoke SHAFT MCP container
+      - name: Build and smoke shaft-mcp container
         shell: bash
         run: |
           docker build -f shaft-mcp/Dockerfile -t shaft-pilot-release:test .

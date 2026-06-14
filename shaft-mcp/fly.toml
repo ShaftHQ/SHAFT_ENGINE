@@ -1,4 +1,4 @@
-# Fly.io configuration for SHAFT MCP
+# Fly.io configuration for shaft-mcp
 # MCP Server-Sent Events endpoint is available at /mcp
 
 app = "shaft-mcp"

@@ -129,8 +129,8 @@ def main() -> None:
         "vscode-mcp.json",
     ):
         contents = (MCP_FIXTURES / fixture).read_text(encoding="utf-8")
-        if "SHAFT_MCP-<version>.jar" not in contents:
-            fail(f"{fixture}: missing versioned SHAFT MCP command")
+        if "shaft-mcp-<version>.jar" not in contents:
+            fail(f"{fixture}: missing versioned shaft-mcp command")
         if "API_KEY" in contents or "apiKey" in contents:
             fail(f"{fixture}: MCP client fixture must not request a provider API key")
 

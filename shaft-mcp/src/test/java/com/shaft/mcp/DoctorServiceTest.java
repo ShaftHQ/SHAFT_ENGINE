@@ -1,4 +1,4 @@
-package io.github.shafthq.SHAFT_MCP;
+package com.shaft.mcp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shaft.driver.SHAFT;

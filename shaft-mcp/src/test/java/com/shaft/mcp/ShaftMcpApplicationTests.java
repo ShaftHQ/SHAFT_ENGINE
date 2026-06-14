@@ -1,4 +1,4 @@
-package io.github.shafthq.SHAFT_MCP;
+package com.shaft.mcp;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.tool.ToolCallback;

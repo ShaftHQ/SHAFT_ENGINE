@@ -1,4 +1,4 @@
-package io.github.shafthq.SHAFT_MCP;
+package com.shaft.mcp;
 
 /**
  * Supported browser types for SHAFT WebDriver initialization.

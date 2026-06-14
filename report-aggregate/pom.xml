@@ -67,7 +67,7 @@
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>SHAFT_MCP</artifactId>
+            <artifactId>shaft-mcp</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

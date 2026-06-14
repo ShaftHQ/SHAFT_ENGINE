@@ -1,4 +1,4 @@
-# SHAFT MCP Copilot Instructions
+# shaft-mcp Copilot Instructions
 
 Follow the repository-root `AGENTS.md` and `.github/copilot-instructions.md`.
 
@@ -7,7 +7,7 @@ Follow the repository-root `AGENTS.md` and `.github/copilot-instructions.md`.
 - Preserve stdio protocol purity: JSON-RPC belongs on stdout and diagnostics
   belong on stderr.
 - Keep HTTP transport behavior at `/mcp` compatible with existing clients.
-- Do not add model-provider credentials to SHAFT MCP configuration or tests.
+- Do not add model-provider credentials to shaft-mcp configuration or tests.
 - Store executable client examples under
   `src/test/resources/fixtures/shaft-pilot/`; public guidance belongs on the
   [Docusaurus MCP page](https://shaftengine.netlify.app/docs/agentic/mcp).

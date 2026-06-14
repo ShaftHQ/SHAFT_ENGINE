@@ -3,28 +3,22 @@ FROM maven:3.9.11-eclipse-temurin-25 AS builder
 WORKDIR /build
 COPY . .
 RUN mvn --batch-mode --no-transfer-progress -pl shaft-mcp -am package -DskipTests -Dgpg.skip \
-    && find shaft-mcp/target -maxdepth 1 -name 'SHAFT_MCP-*.jar' \
+    && find shaft-mcp/target -maxdepth 1 -name 'shaft-mcp-*.jar' \
         ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
-        -exec cp {} /build/SHAFT_MCP.jar \; -quit
+        -exec cp {} /build/shaft-mcp.jar \; -quit
 
-FROM eclipse-temurin:25-jre
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates gnupg wget \
-    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub \
-        | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" \
-        > /etc/apt/sources.list.d/google.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends google-chrome-stable \
-    && rm -rf /var/lib/apt/lists/*
+FROM selenium/standalone-all-browsers:latest
 
 LABEL io.modelcontextprotocol.server.name="io.github.ShaftHQ/shaft-mcp"
 
 WORKDIR /app
-COPY --from=builder /build/SHAFT_MCP.jar /app/SHAFT_MCP.jar
+COPY --from=builder /opt/java/openjdk /opt/java/openjdk
+COPY --from=builder /build/shaft-mcp.jar /app/shaft-mcp.jar
 
 EXPOSE 8081
-ENV SPRING_PROFILES_ACTIVE=http
+ENV JAVA_HOME=/opt/java/openjdk \
+    PATH="/opt/java/openjdk/bin:${PATH}" \
+    SPRING_PROFILES_ACTIVE=http
 
-CMD ["java", "-XX:+UseSerialGC", "-Xms128m", "-Xmx384m", "-XX:MaxMetaspaceSize=64m", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "-Dspring.main.lazy-initialization=true", "-jar", "SHAFT_MCP.jar"]
+ENTRYPOINT []
+CMD ["java", "-XX:+UseSerialGC", "-Xms128m", "-Xmx384m", "-XX:MaxMetaspaceSize=64m", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "-Dspring.main.lazy-initialization=true", "-jar", "shaft-mcp.jar"]
