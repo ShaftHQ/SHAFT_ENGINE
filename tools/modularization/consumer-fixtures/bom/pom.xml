@@ -8,7 +8,7 @@
     <properties>
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <shaft.version>10.2.20260612</shaft.version>
+        <shaft.version>10.2.20260614</shaft.version>
     </properties>
     <dependencyManagement>
         <dependencies>
