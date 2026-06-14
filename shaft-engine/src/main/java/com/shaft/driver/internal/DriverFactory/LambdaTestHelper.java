@@ -74,7 +74,7 @@ public class LambdaTestHelper {
         ReportManager.logDiscrete("LambdaTest appPath: " + appPath);
 
         String userProvidedCustomID = SHAFT.Properties.lambdaTest.customID();
-        String custom_id = "".equals(userProvidedCustomID) ? "SHAFT_Engine_" + appName.replaceAll(" ", "_") : userProvidedCustomID;
+        String custom_id = "".equals(userProvidedCustomID) ? "shaft-engine_" + appName.replaceAll(" ", "_") : userProvidedCustomID;
         ReportManager.logDiscrete("LambdaTest custom_id: " + custom_id);
 
         Map<String, Object> parameters = new LinkedHashMap<>();

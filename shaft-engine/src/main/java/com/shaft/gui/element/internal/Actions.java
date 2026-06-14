@@ -836,7 +836,7 @@ public class Actions extends ElementActions {
             return screenshot;
         }
         try {
-            // add SHAFT_Engine logo overlay
+            // add shaft-engine logo overlay
             BufferedImage screenshotImage = ImageIO.read(new ByteArrayInputStream(screenshot));
             ScreenshotHelper.overlayShaftEngineLogo(screenshotImage);
             ByteArrayOutputStream screenshotOutputStream = new ByteArrayOutputStream();

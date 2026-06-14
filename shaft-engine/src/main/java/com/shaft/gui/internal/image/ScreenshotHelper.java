@@ -150,26 +150,14 @@ public class ScreenshotHelper {
     @SuppressWarnings("unchecked")
     private static byte[] takeFullPageScreenshotUsingCDP(WebDriver driver, HasCdp cdpDriver) throws IOException {
         try {
-            Map<String, Object> page_rect = cdpDriver.executeCdpCommand("Page.getLayoutMetrics", new HashMap<>());
-            // accommodating deprecation warning to favor the new parameter cssContentSize https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-getLayoutMetrics
-            Map<String, Object> contentSize = page_rect.get("cssContentSize") == null ? (Map<String, Object>) page_rect.get("contentSize") : (Map<String, Object>) page_rect.get("cssContentSize");
-            Number contentWidth = (Number) contentSize.get("width");
-            Number contentHeight = (Number) contentSize.get("height");
-            Map<String, Object> clip = new HashMap<>();
-            clip.put("width", (long) contentWidth / SHAFT.Properties.visuals.screenshotParamsScalingFactor());
-            clip.put("height", (long) contentHeight / SHAFT.Properties.visuals.screenshotParamsScalingFactor());
-            clip.put("x", 0);
-            clip.put("y", 0);
-            clip.put("scale", 1);
             Map<String, Object> screenshot_config = new HashMap<>();
             screenshot_config.put("optimizeForSpeed", true);
             screenshot_config.put("captureBeyondViewport", true);
             screenshot_config.put("fromSurface", true);
-            screenshot_config.put("clip", clip);
             var result = cdpDriver.executeCdpCommand("Page.captureScreenshot", screenshot_config);
             String base64EncodedPng = (String) ((Map<String, ?>) result).get("data");
             return OutputType.BYTES.convertFromBase64Png(base64EncodedPng);
-        } catch (org.openqa.selenium.TimeoutException | UnsupportedCommandException exception) {
+        } catch (org.openqa.selenium.TimeoutException exception) {
                 /* Error:  org.openqa.selenium.TimeoutException: java.net.http.HttpTimeoutException: request timed out
                     Build info: version: '4.16.1', revision: '9b4c83354e'
                     System info: os.name: 'Mac OS X', os.arch: 'x86_64', os.version: '12.7.1', java.version: '21.0.1'
@@ -177,10 +165,6 @@ public class ScreenshotHelper {
                     Command: [xxx, executeCdpCommand {cmd=Page.captureScreenshot, params={fromSurface=true, optimizeForSpeed=true, captureBeyondViewport=true, clip={width=1905, x=0, y=0, scale=1, height=2555}}}]
                  */
             // in some cases it was noticed that the full page screenshot Cdp command can cause a timeout, and therefore a workaround should be implemented
-
-            // in some cases of chromium and headless chrome execution this error is thrown
-            // org.openqa.selenium.UnsupportedCommandException: unknown command: unknown command: session//goog/cdp/execute
-            // Command: [, executeCdpCommand {params={}, cmd=Page.getLayoutMetrics}]
             return takeFullPageScreenshotManually(driver);
         }
     }

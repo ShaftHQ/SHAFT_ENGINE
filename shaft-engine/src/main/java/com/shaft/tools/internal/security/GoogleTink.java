@@ -24,7 +24,7 @@ import java.security.GeneralSecurityException;
 import java.util.Optional;
 
 public class GoogleTink {
-    static final byte[] aad = "This is SHAFT_Engine".getBytes();
+    static final byte[] aad = "This is shaft-engine".getBytes();
     static String keysetFilename;
     static String kms;
     static String masterKeyUri;

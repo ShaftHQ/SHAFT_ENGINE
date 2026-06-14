@@ -1,11 +1,6 @@
 package com.shaft.cli;
 
-import com.jcraft.jsch.ChannelExec;
-import com.jcraft.jsch.ChannelSftp;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.Session;
-import com.jcraft.jsch.SftpException;
+import com.jcraft.jsch.*;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -20,11 +15,7 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * Executes shell commands on local or remote terminals.
@@ -723,7 +714,7 @@ public class TerminalActions {
                 // Apply the execution policy to the spawned child PowerShell as well,
                 // because Start-Process launches a separate process that does not inherit
                 // the outer shell's command-line arguments.
-                pb.command("powershell.exe", "-ExecutionPolicy", "Bypass", "Start-Process powershell.exe '-ExecutionPolicy Bypass -NoExit -WindowStyle Minimized -Command \"[Console]::Title = ''SHAFT_Engine''; " + command + "\"'");
+                pb.command("powershell.exe", "-ExecutionPolicy", "Bypass", "Start-Process powershell.exe '-ExecutionPolicy Bypass -NoExit -WindowStyle Minimized -Command \"[Console]::Title = ''shaft-engine''; " + command + "\"'");
             } else {
                 pb.command("powershell.exe", "-ExecutionPolicy", "Bypass", "-Command", command);
             }

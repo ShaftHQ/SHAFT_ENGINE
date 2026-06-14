@@ -27,25 +27,24 @@ public class JavaScriptWaitManager {
      * Waits for jQuery, Angular, and/or Javascript if present on the current page.
      */
     public static void waitForLazyLoading(WebDriver driver) {
-        try {
         if (SHAFT.Properties.timeouts.waitForLazyLoading()
                 && !DriverFactoryHelper.isMobileNativeExecution()) {
-            var lazyLoadingThreads = List.of(
-                    Thread.ofVirtual().start(() -> waitForJQuery(driver)),
-                    Thread.ofVirtual().start(() -> waitForAngular(driver)),
-                    Thread.ofVirtual().start(() -> waitForDocumentReadyState(driver)),
-                    Thread.ofVirtual().start(() -> waitUntilNoActiveNetworkRequests(driver))
-            );
-            lazyLoadingThreads.forEach(thread -> {
-                try {
-                    thread.join();
-                } catch (InterruptedException e) {
-                    //do nothing
-                }
-            });
-        }
-        } catch (Exception e) {
-            ReportManagerHelper.logDiscrete(e);
+            try {
+                waitForDocumentReadyState(driver);
+            } catch (Exception ignored) {
+            }
+            try {
+                waitUntilNoActiveNetworkRequests(driver);
+            } catch (Exception ignored) {
+            }
+            try {
+                waitForJQuery(driver);
+            } catch (Exception ignored) {
+            }
+            try {
+                waitForAngular(driver);
+            } catch (Exception ignored) {
+            }
         }
     }
 

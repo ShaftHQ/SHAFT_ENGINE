@@ -51,7 +51,7 @@ public class ProjectStructureManager {
     public static void initialize(RunType runType) {
         ReportManager.logDiscrete("Initializing Project Structure...");
         if (Properties.platform.executionAddress().equals("local")
-                && !Paths.get(System.getProperty("user.dir")).getFileName().toString().equals("SHAFT_Engine")) {
+                && !Paths.get(System.getProperty("user.dir")).getFileName().toString().equals("shaft-engine")) {
             FileActions.getInstance(true).createFolder(Properties.paths.properties());
             FileActions.getInstance(true).createFolder(Properties.paths.dynamicObjectRepository());
             FileActions.getInstance(true).createFolder(Properties.paths.testData());

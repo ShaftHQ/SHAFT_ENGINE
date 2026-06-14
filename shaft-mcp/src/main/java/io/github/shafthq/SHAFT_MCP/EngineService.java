@@ -28,7 +28,7 @@ public class EngineService {
      */
     @PostConstruct
     void configureRemoteExecution() {
-        // Set default ReportPortal property to prevent NPE in SHAFT_ENGINE
+        // Set default ReportPortal property to prevent NPE in shaft-engine
         if (System.getProperty("rp.enable") == null) {
             System.setProperty("rp.enable", "false");
         }

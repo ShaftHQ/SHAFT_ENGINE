@@ -7,7 +7,9 @@ import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -21,7 +23,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
- * Real-time test execution dashboard server for SHAFT_ENGINE.
+ * Real-time test execution dashboard server for shaft-engine.
  * <p>
  * Hosts a local HTTP server that serves a Kanban-style dashboard reflecting live
  * test execution state. The dashboard is automatically opened in the user's default
