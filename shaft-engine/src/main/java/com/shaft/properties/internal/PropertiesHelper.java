@@ -143,7 +143,10 @@ public class PropertiesHelper {
                     Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.CUCUMBER));
             case JUNIT ->
                     Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.JUNIT));
-            case AI_AGENT -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.AI_AGENT);
+            case AI_AGENT -> {
+                ProjectStructureManager.initialize(ProjectStructureManager.RunType.AI_AGENT);
+                SHAFT.Properties.web.set().forceBrowserDownload(true);
+            }
             default -> throw new IllegalStateException("Unsupported run type: " + runType);
         }
         TestNGListenerHelper.configureJVMProxy();
