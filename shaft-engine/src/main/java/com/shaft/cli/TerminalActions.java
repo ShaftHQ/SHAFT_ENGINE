@@ -89,7 +89,10 @@ public class TerminalActions {
      * @param dockerUsername the username which will be used to access the docker
      *                       instance. Must have the access/privilege to execute the
      *                       terminal command
+     * @deprecated Docker-wrapped terminal execution is deprecated for removal; use
+     * {@link #performTerminalCommand(String)} on the host or target environment directly.
      */
+    @Deprecated(since = "10.2.20260614", forRemoval = true)
     public TerminalActions(String dockerName, String dockerUsername) {
         this.dockerName = dockerName;
         this.dockerUsername = dockerUsername;
@@ -140,7 +143,10 @@ public class TerminalActions {
      * @param dockerUsername       the username which will be used to access the
      *                             docker instance. Must have the access/privilege
      *                             to execute the terminal command
+     * @deprecated Docker-wrapped terminal execution is deprecated for removal; use remote or
+     * local {@link #performTerminalCommand(String)} without docker wrapping instead.
      */
+    @Deprecated(since = "10.2.20260614", forRemoval = true)
     public TerminalActions(String sshHostName, int sshPortNumber, String sshUsername, String sshKeyFileFolderName,
                            String sshKeyFileName, String dockerName, String dockerUsername) {
         this.sshHostName = sshHostName;
@@ -228,11 +234,33 @@ public class TerminalActions {
         return !sshHostName.isEmpty();
     }
 
+    /**
+     * @deprecated Docker-wrapped terminal execution is deprecated for removal.
+     */
+    @Deprecated(since = "10.2.20260614", forRemoval = true)
     public boolean isDockerizedTerminal() {
         return !dockerName.isEmpty();
     }
 
     public String performTerminalCommands(List<String> commands) {
+        return performTerminalCommands(commands, Collections.emptyMap());
+    }
+
+    /**
+     * Executes one or more terminal commands with the supplied environment variables.
+     *
+     * <p>For local terminals the variables are added to the spawned process environment.
+     * For remote terminals they are sent as SSH {@code env} requests, which only take
+     * effect when the SSH server allows them (for example via {@code AcceptEnv} in
+     * {@code sshd_config}); otherwise they are silently ignored by the server.
+     * Docker-wrapped terminal execution is deprecated and not extended for environment
+     * variables.</p>
+     *
+     * @param commands             the commands to execute
+     * @param environmentVariables the environment variables to expose to the command
+     * @return the command output log
+     */
+    public String performTerminalCommands(List<String> commands, Map<String, String> environmentVariables) {
         var internalCommands = commands;
 
         // Build long command and refactor for dockerized execution if needed
@@ -247,7 +275,7 @@ public class TerminalActions {
         }
 
         // Perform command
-        List<String> exitLogs = isRemoteTerminal() ? executeRemoteCommand(internalCommands, longCommand) : executeLocalCommand(internalCommands, longCommand);
+        List<String> exitLogs = isRemoteTerminal() ? executeRemoteCommand(internalCommands, longCommand, environmentVariables) : executeLocalCommand(internalCommands, longCommand, environmentVariables);
         String log = exitLogs.get(0);
         String exitStatus = exitLogs.get(1);
 
@@ -277,6 +305,18 @@ public class TerminalActions {
 
     public String performTerminalCommand(String command) {
         return performTerminalCommands(Collections.singletonList(command));
+    }
+
+    /**
+     * Executes a terminal command with the supplied environment variables.
+     *
+     * @param command              the command to execute
+     * @param environmentVariables the environment variables to expose to the command
+     * @return the command output log
+     * @see #performTerminalCommands(List, Map)
+     */
+    public String performTerminalCommand(String command, Map<String, String> environmentVariables) {
+        return performTerminalCommands(Collections.singletonList(command), environmentVariables);
     }
 
     /**
@@ -623,7 +663,14 @@ public class TerminalActions {
         return command.toString();
     }
 
-    private List<String> executeLocalCommand(List<String> commands, String longCommand) {
+    private void applyLocalProcessEnvironment(ProcessBuilder processBuilder, Map<String, String> environmentVariables) {
+        processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"));
+        if (environmentVariables != null) {
+            environmentVariables.forEach(processBuilder.environment()::put);
+        }
+    }
+
+    private List<String> executeLocalCommand(List<String> commands, String longCommand, Map<String, String> environmentVariables) {
         StringBuilder logs = new StringBuilder();
         StringBuilder exitStatuses = new StringBuilder();
         // local execution
@@ -649,7 +696,7 @@ public class TerminalActions {
                     throw new InterruptedException("Current thread was interrupted before local command execution.");
                 }
                 ProcessBuilder pb = getProcessBuilder(command, finalDirectory, isWindows);
-                pb.environment().put("JAVA_HOME", System.getProperty("java.home"));
+                applyLocalProcessEnvironment(pb, environmentVariables);
                 if (!asynchronous) {
                     pb.redirectErrorStream(true);
                     Process localProcess = pb.start();
@@ -724,7 +771,7 @@ public class TerminalActions {
         return pb;
     }
 
-    private List<String> executeRemoteCommand(List<String> commands, String longCommand) {
+    private List<String> executeRemoteCommand(List<String> commands, String longCommand, Map<String, String> environmentVariables) {
         StringBuilder logs = new StringBuilder();
         StringBuilder exitStatuses = new StringBuilder();
         int sessionTimeout = Math.toIntExact(TimeUnit.MINUTES.toMillis(SHAFT.Properties.timeouts.shellSessionTimeout()));
@@ -738,6 +785,9 @@ public class TerminalActions {
                 remoteSession.setTimeout(sessionTimeout);
                 remoteChannelExecutor = (ChannelExec) remoteSession.openChannel("exec");
                 remoteChannelExecutor.setCommand(longCommand);
+                if (environmentVariables != null) {
+                    environmentVariables.forEach(remoteChannelExecutor::setEnv);
+                }
                 remoteChannelExecutor.connect();
 
                 // Capture logs and close readers

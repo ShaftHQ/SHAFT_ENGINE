@@ -14,6 +14,7 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -46,7 +47,8 @@ public class TerminalActionsUnitTest {
                 "Async terminal should not be dockerized");
     }
 
-    @Test(description = "Docker constructor should create a dockerized, non-remote terminal")
+    @Test(description = "docker constructor should create a dockerized, non-remote terminal")
+    @SuppressWarnings("deprecation")
     public void dockerConstructorShouldCreateDockerizedTerminal() {
         TerminalActions terminal = new TerminalActions("myContainer", "root");
         Assert.assertFalse(terminal.isRemoteTerminal(),
@@ -79,7 +81,8 @@ public class TerminalActionsUnitTest {
                 "SSH key file name should match");
     }
 
-    @Test(description = "Combined SSH + Docker constructor should create both remote and dockerized terminal")
+    @Test(description = "combined SSH + Docker constructor should create both remote and dockerized terminal")
+    @SuppressWarnings("deprecation")
     public void combinedSshDockerConstructorShouldCreateBoth() {
         TerminalActions terminal = new TerminalActions(
                 "host.example.com", 2222, "admin", "/ssh/", "key.pem",
@@ -210,6 +213,7 @@ public class TerminalActionsUnitTest {
     }
 
     @Test(description = "uploadFile should fail for dockerized remote terminals")
+    @SuppressWarnings("deprecation")
     public void uploadFileShouldFailForDockerizedRemoteTerminal() throws Exception {
         Files.createDirectories(TEMP_DIR);
         Path localFile = TEMP_DIR.resolve("upload-source.txt");
@@ -249,6 +253,7 @@ public class TerminalActionsUnitTest {
     }
 
     @Test(description = "forwardRemotePort should fail for dockerized remote terminals")
+    @SuppressWarnings("deprecation")
     public void forwardRemotePortShouldFailForDockerizedRemoteTerminal() {
         TerminalActions dockerizedTerminal = new TerminalActions(
                 "host.example.com", 22, "user", "/keys/", "id_rsa", "appContainer", "appUser");
@@ -335,6 +340,24 @@ public class TerminalActionsUnitTest {
         Assert.assertTrue(log.contains("beta"));
     }
 
+    @Test(description = "performTerminalCommand with env vars should expose them to the local process")
+    public void performTerminalCommandShouldExposeEnvironmentVariablesLocally() {
+        TerminalActions terminal = TerminalActions.getInstance(false, false, true);
+        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+        String command = isWindows ? "echo $env:SHAFT_ENV_TEST" : "echo $SHAFT_ENV_TEST";
+        String log = terminal.performTerminalCommand(command, Map.of("SHAFT_ENV_TEST", "env-value-123"));
+        Assert.assertTrue(log.contains("env-value-123"),
+                "Expected the injected environment variable value in command output.");
+    }
+
+    @Test(description = "performTerminalCommands env-var overload should still return command output")
+    public void performTerminalCommandsWithEnvOverloadShouldReturnOutput() {
+        TerminalActions terminal = TerminalActions.getInstance(false, false, true);
+        String log = terminal.performTerminalCommands(List.of("echo hello-env"), Map.of("UNUSED", "x"));
+        Assert.assertTrue(log.contains("hello-env"),
+                "Expected command output when using the environment-variable overload.");
+    }
+
     @Test(description = "performTerminalCommand should report action when running through public non-internal flow")
     public void performTerminalCommandShouldRunPublicReportingFlow() {
         TerminalActions terminal = new TerminalActions();
@@ -382,6 +405,7 @@ public class TerminalActionsUnitTest {
     }
 
     @Test(description = "buildLongCommand should prepend docker exec wrapper for dockerized terminals")
+    @SuppressWarnings("deprecation")
     public void buildLongCommandShouldWrapDockerCommand() throws Exception {
         TerminalActions terminal = new TerminalActions("myContainer", "root");
         Method buildLongCommand = TerminalActions.class.getDeclaredMethod("buildLongCommand", List.class);
