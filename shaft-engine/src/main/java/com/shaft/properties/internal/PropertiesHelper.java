@@ -134,7 +134,8 @@ public class PropertiesHelper {
             initialize();
         }
         ReportManager.logDiscrete("Initializing Engine Setup...");
-        SHAFT.Properties.reporting.set().disableLogging(true);
+        if (!ProjectStructureManager.RunType.AI_AGENT.equals(runType))
+            SHAFT.Properties.reporting.set().disableLogging(true);
         switch (runType) {
             case TESTNG ->
                     Thread.ofVirtual().start(() -> ProjectStructureManager.initialize(ProjectStructureManager.RunType.TESTNG));
