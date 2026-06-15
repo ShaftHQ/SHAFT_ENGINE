@@ -42,7 +42,8 @@ public final class GeminiProvider extends AbstractHttpAiProvider {
 
     @Override
     public AiCapabilities capabilities() {
-        return new AiCapabilities(true, true, true, 0, ProcessingLocation.REMOTE);
+        return new AiCapabilities(true, true, true, 0,
+                processingLocation(ProcessingLocation.REMOTE));
     }
 
     @Override

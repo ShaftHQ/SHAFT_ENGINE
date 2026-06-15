@@ -17,11 +17,12 @@ final class PilotTestConfiguration {
 
     static PilotConfiguration enabled(String provider, ProcessingLocation location) {
         boolean local = location == ProcessingLocation.LOCAL;
+        boolean onPrem = location == ProcessingLocation.ON_PREM;
         boolean remote = location == ProcessingLocation.REMOTE;
         return new PilotConfiguration(
                 true,
                 provider,
-                new ApprovalPolicy(local, remote, EnumSet.allOf(EvidenceCategory.class)),
+                new ApprovalPolicy(local, onPrem, remote, EnumSet.allOf(EvidenceCategory.class)),
                 false,
                 Duration.ofSeconds(1),
                 1024 * 1024,

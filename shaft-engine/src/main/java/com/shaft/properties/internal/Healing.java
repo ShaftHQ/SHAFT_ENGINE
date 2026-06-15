@@ -39,7 +39,7 @@ public interface Healing extends EngineProperties<Healing> {
 
     /** @return comma-separated evidence categories permitted for deterministic recovery */
     @Key("healing.evidenceCategories")
-    @DefaultValue("accessibility,label,test-id,stable-id-name,semantic,dom-fingerprint,history")
+    @DefaultValue("accessibility,label,test-id,stable-id-name,semantic,dom-fingerprint,native-state,ancestor-context,history")
     String evidenceCategories();
 
     /** @return comma-separated attributes treated as configured test IDs */

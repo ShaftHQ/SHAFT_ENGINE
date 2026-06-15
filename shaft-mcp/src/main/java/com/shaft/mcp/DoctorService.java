@@ -13,6 +13,9 @@ import com.shaft.doctor.repair.DoctorRepairProposalResult;
 import com.shaft.doctor.repair.DoctorRepairPublicationRequest;
 import com.shaft.doctor.repair.DoctorRepairRequest;
 import com.shaft.doctor.repair.DoctorRepairService;
+import com.shaft.doctor.repair.HealingLocatorProposal;
+import com.shaft.doctor.repair.HealingLocatorProposalRequest;
+import com.shaft.doctor.repair.HealingLocatorProposalService;
 import com.shaft.doctor.repair.RepairPublicationResult;
 import com.shaft.pilot.config.PilotConfiguration;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -152,6 +155,35 @@ public class DoctorService {
                 DoctorRepairRequest.DEFAULT_COMMAND_TIMEOUT);
         return new DoctorRepairProposalResult(
                 new DoctorRepairService().propose(request), providerPatch);
+    }
+
+    /**
+     * Creates a proposal-only locator patch from a verified SHAFT Heal report.
+     *
+     * @param repositoryRoot approved Git repository root
+     * @param healingReportPath verified SHAFT Heal report JSON
+     * @param sourcePath repository-relative Java source file
+     * @param sourcePatchConsent explicit proposal consent
+     * @param outputDirectory proposal artifact directory
+     * @return reviewable locator proposal and structured Doctor patch
+     */
+    @Tool(name = "doctor_propose_healed_locator",
+            description = "maps a verified SHAFT Heal report to one reviewable locator patch"
+                    + " without editing source or publishing")
+    public HealingLocatorProposal proposeHealedLocator(
+            String repositoryRoot,
+            String healingReportPath,
+            String sourcePath,
+            boolean sourcePatchConsent,
+            String outputDirectory) {
+        return new HealingLocatorProposalService().propose(new HealingLocatorProposalRequest(
+                Path.of(repositoryRoot),
+                Path.of(healingReportPath),
+                sourcePath,
+                sourcePatchConsent,
+                outputDirectory == null || outputDirectory.isBlank()
+                        ? Path.of("target", "shaft-doctor", "healing-proposals")
+                        : Path.of(outputDirectory)));
     }
 
     /**

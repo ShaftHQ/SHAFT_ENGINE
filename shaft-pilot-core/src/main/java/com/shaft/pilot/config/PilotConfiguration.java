@@ -3,6 +3,7 @@ package com.shaft.pilot.config;
 import com.shaft.driver.SHAFT;
 import com.shaft.pilot.ai.ApprovalPolicy;
 import com.shaft.pilot.ai.EvidenceCategory;
+import com.shaft.pilot.ai.ProcessingLocation;
 import com.shaft.pilot.security.RedactionPolicy;
 
 import java.math.BigDecimal;
@@ -65,17 +66,29 @@ public record PilotConfiguration(
                 split(properties.redactionPatterns(), ";;"));
         Map<String, ProviderConfiguration> providers = Map.of(
                 "openai", provider("openai", properties.openAiEndpoint(), properties.openAiModel(),
-                        properties.openAiApiKeyEnvironmentVariable()),
+                        properties.openAiApiKeyEnvironmentVariable(),
+                        parseLocation(properties.openAiProcessingLocation(), ProcessingLocation.REMOTE)),
                 "anthropic", provider("anthropic", properties.anthropicEndpoint(), properties.anthropicModel(),
                         properties.anthropicApiKeyEnvironmentVariable(),
+                        parseLocation(properties.anthropicProcessingLocation(), ProcessingLocation.REMOTE),
                         Map.of("api-version", properties.anthropicVersion())),
                 "gemini", provider("gemini", properties.geminiEndpoint(), properties.geminiModel(),
-                        properties.geminiApiKeyEnvironmentVariable()),
-                "ollama", provider("ollama", properties.ollamaEndpoint(), properties.ollamaModel(), ""));
+                        properties.geminiApiKeyEnvironmentVariable(),
+                        parseLocation(properties.geminiProcessingLocation(), ProcessingLocation.REMOTE)),
+                "ollama", provider("ollama", properties.ollamaEndpoint(), properties.ollamaModel(),
+                        properties.ollamaApiKeyEnvironmentVariable(),
+                        parseLocation(properties.ollamaProcessingLocation(), ProcessingLocation.LOCAL),
+                        Map.of(
+                                "api-key-header", properties.ollamaApiKeyHeader(),
+                                "api-key-prefix", properties.ollamaApiKeyPrefix())));
         return new PilotConfiguration(
                 properties.enabled(),
                 normalize(properties.provider()),
-                new ApprovalPolicy(properties.localConsent(), properties.remoteConsent(), categories),
+                new ApprovalPolicy(
+                        properties.localConsent(),
+                        properties.onPremConsent(),
+                        properties.remoteConsent(),
+                        categories),
                 properties.telemetryEnabled(),
                 Duration.ofSeconds(positive(properties.timeoutSeconds(), 30)),
                 positive(properties.maxRequestBytes(), 1_048_576),
@@ -105,13 +118,24 @@ public record PilotConfiguration(
         return configuration;
     }
 
-    private static ProviderConfiguration provider(String id, String endpoint, String model, String environmentVariable) {
-        return provider(id, endpoint, model, environmentVariable, Map.of());
+    private static ProviderConfiguration provider(
+            String id,
+            String endpoint,
+            String model,
+            String environmentVariable,
+            ProcessingLocation processingLocation) {
+        return provider(id, endpoint, model, environmentVariable, processingLocation, Map.of());
     }
 
-    private static ProviderConfiguration provider(String id, String endpoint, String model, String environmentVariable,
-                                                  Map<String, String> options) {
-        return new ProviderConfiguration(id, URI.create(endpoint), model, environmentVariable, options);
+    private static ProviderConfiguration provider(
+            String id,
+            String endpoint,
+            String model,
+            String environmentVariable,
+            ProcessingLocation processingLocation,
+            Map<String, String> options) {
+        return new ProviderConfiguration(
+                id, URI.create(endpoint), model, environmentVariable, processingLocation, options);
     }
 
     private static Set<EvidenceCategory> parseCategories(String value) {
@@ -151,5 +175,16 @@ public record PilotConfiguration(
 
     private static String normalize(String value) {
         return value == null ? "none" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static ProcessingLocation parseLocation(
+            String value,
+            ProcessingLocation fallback) {
+        try {
+            return ProcessingLocation.valueOf(
+                    normalize(value).replace('-', '_').toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            return fallback;
+        }
     }
 }

@@ -129,6 +129,56 @@ class DoctorServiceTest {
         assertTrue(failure.getMessage().contains("approval"));
     }
 
+    @Test
+    void healedLocatorToolCreatesProposalWithoutChangingSource(@TempDir Path temp) throws Exception {
+        SHAFT.Properties.healing.set().sourcePatchEnabled(true);
+        Path source = temp.resolve("src/test/java/example/LoginTest.java");
+        Files.createDirectories(source.getParent());
+        String sourceContent = """
+                package example;
+                import org.openqa.selenium.By;
+                class LoginTest {
+                    private static final By LOGIN = By.id("old-login");
+                }
+                """;
+        Files.writeString(source, sourceContent, StandardCharsets.UTF_8);
+        Path report = temp.resolve("healing-report.json");
+        Files.writeString(report, """
+                {
+                  "schemaVersion": "2.0",
+                  "attemptId": "attempt-mcp",
+                  "originalLocator": "By.id: old-login",
+                  "candidates": [{
+                    "candidateId": "candidate-1",
+                    "proposedLocator": "By.id: new-login",
+                    "evidence": ["test-id exact match"],
+                    "unique": true,
+                    "contextMatched": true
+                  }],
+                  "decision": {
+                    "status": "RECOVERED",
+                    "selectedCandidateId": "candidate-1",
+                    "confidence": 0.94
+                  },
+                  "action": {
+                    "outcome": "PASSED",
+                    "postActionVerification": "ELEMENT_INTERACTABLE"
+                  }
+                }
+                """, StandardCharsets.UTF_8);
+
+        var proposal = new DoctorService().proposeHealedLocator(
+                temp.toString(),
+                report.toString(),
+                "src/test/java/example/LoginTest.java",
+                true,
+                temp.resolve("target/proposals").toString());
+
+        assertEquals(sourceContent, Files.readString(source, StandardCharsets.UTF_8));
+        assertTrue(proposal.patch().content().contains("By.id(\"new-login\")"));
+        assertTrue(Files.isRegularFile(Path.of(proposal.manifestPath())));
+    }
+
     private static Path repositoryRoot() {
         Path current = Path.of("").toAbsolutePath().normalize();
         while (current != null) {

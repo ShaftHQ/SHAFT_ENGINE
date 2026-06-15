@@ -1,7 +1,10 @@
 package com.shaft.heal.internal;
 
 import com.shaft.heal.HealingConfiguration;
+import com.shaft.heal.model.HealingPlatform;
 import com.shaft.heal.model.LocatorFingerprint;
+import io.appium.java_client.AppiumDriver;
+import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
@@ -48,6 +51,9 @@ final class FingerprintExtractor {
     }
 
     LocatorFingerprint extract(WebDriver driver, WebElement element) {
+        if (driver instanceof AppiumDriver) {
+            return extractNative(driver, element);
+        }
         String type = attribute(element, "type");
         boolean sensitiveInput = "password".equalsIgnoreCase(type)
                 || "current-password".equalsIgnoreCase(attribute(element, "autocomplete"))
@@ -80,7 +86,60 @@ final class FingerprintExtractor {
                 sensitiveInput ? "" : attribute(element, "title"),
                 sanitize(testIds),
                 sanitize(semantic),
-                domPath.isBlank() ? "" : HealingSupport.sha256(domPath));
+                domPath.isBlank() ? "" : HealingSupport.sha256(domPath),
+                HealingPlatform.WEB,
+                Map.of(),
+                rectangle(element),
+                displayed(element),
+                enabled(element),
+                selected(element),
+                "");
+    }
+
+    private LocatorFingerprint extractNative(WebDriver driver, WebElement element) {
+        HealingPlatform platform = HealingSupport.context(driver, null, null, null).platform();
+        Map<String, String> attributes = new LinkedHashMap<>();
+        for (String name : new String[]{
+                "accessibility id", "content-desc", "label", "name", "resource-id",
+                "id", "class", "type", "role", "text", "hint", "placeholder",
+                "checked", "focused", "scrollable"}) {
+            add(attributes, name, nativeAttribute(element, name));
+        }
+        boolean sensitive = "true".equalsIgnoreCase(nativeAttribute(element, "password"))
+                || containsSensitive(attributes.get("class"))
+                || containsSensitive(attributes.get("type"));
+        String accessibleName = sensitive ? "" : firstNonBlank(
+                attributes.get("content-desc"),
+                attributes.get("label"),
+                attributes.get("name"),
+                attributes.get("accessibility id"));
+        String visibleText = sensitive ? "" : attributes.getOrDefault("text", "");
+        String id = firstNonBlank(attributes.get("resource-id"), attributes.get("id"));
+        String name = firstNonBlank(attributes.get("name"), attributes.get("content-desc"));
+        String role = firstNonBlank(attributes.get("role"), attributes.get("class"), attributes.get("type"));
+        String tagName = call(element::getTagName);
+        return new LocatorFingerprint(
+                LocatorFingerprint.CURRENT_SCHEMA_VERSION,
+                tagName,
+                accessibleName,
+                sensitive ? "" : firstNonBlank(attributes.get("label"), attributes.get("hint")),
+                visibleText,
+                id,
+                name,
+                role,
+                firstNonBlank(attributes.get("type"), attributes.get("class")),
+                sensitive ? "" : firstNonBlank(attributes.get("placeholder"), attributes.get("hint")),
+                "",
+                Map.of(),
+                Map.of(),
+                "",
+                platform,
+                sanitize(attributes),
+                rectangle(element),
+                displayed(element),
+                enabled(element),
+                selected(element),
+                ancestorChecksum(element));
     }
 
     private static Map<String, String> sanitize(Map<String, String> values) {
@@ -104,6 +163,10 @@ final class FingerprintExtractor {
         return HealingSupport.sanitize(call(() -> element.getDomAttribute(name)));
     }
 
+    private static String nativeAttribute(WebElement element, String name) {
+        return HealingSupport.sanitize(call(() -> element.getAttribute(name)));
+    }
+
     private static String javascript(WebDriver driver, WebElement element, String script) {
         if (!(driver instanceof JavascriptExecutor executor)) {
             return "";
@@ -122,5 +185,72 @@ final class FingerprintExtractor {
         } catch (WebDriverException exception) {
             return "";
         }
+    }
+
+    private static String rectangle(WebElement element) {
+        try {
+            var rectangle = element.getRect();
+            if (rectangle == null) {
+                return "";
+            }
+            return rectangle.getX() + "," + rectangle.getY() + ","
+                    + rectangle.getWidth() + "," + rectangle.getHeight();
+        } catch (WebDriverException exception) {
+            return "";
+        }
+    }
+
+    private static boolean displayed(WebElement element) {
+        try {
+            return element.isDisplayed();
+        } catch (WebDriverException exception) {
+            return false;
+        }
+    }
+
+    private static boolean enabled(WebElement element) {
+        try {
+            return element.isEnabled();
+        } catch (WebDriverException exception) {
+            return false;
+        }
+    }
+
+    private static boolean selected(WebElement element) {
+        try {
+            return element.isSelected();
+        } catch (WebDriverException exception) {
+            return false;
+        }
+    }
+
+    private static String ancestorChecksum(WebElement element) {
+        StringBuilder evidence = new StringBuilder();
+        WebElement current = element;
+        for (int depth = 0; depth < 3; depth++) {
+            try {
+                current = current.findElement(By.xpath(".."));
+                evidence.append(call(current::getTagName)).append('|')
+                        .append(nativeAttribute(current, "class")).append('|')
+                        .append(nativeAttribute(current, "resource-id")).append(';');
+            } catch (WebDriverException exception) {
+                break;
+            }
+        }
+        return evidence.isEmpty() ? "" : HealingSupport.sha256(evidence.toString());
+    }
+
+    private static boolean containsSensitive(String value) {
+        String normalized = value == null ? "" : value.toLowerCase(java.util.Locale.ROOT);
+        return normalized.contains("password") || normalized.contains("secure");
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
     }
 }

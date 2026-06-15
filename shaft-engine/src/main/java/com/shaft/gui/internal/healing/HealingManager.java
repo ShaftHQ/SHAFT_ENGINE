@@ -1,10 +1,11 @@
 package com.shaft.gui.internal.healing;
 
-import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.By;
+import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 
 import java.util.List;
@@ -19,7 +20,8 @@ public final class HealingManager {
     }
 
     /**
-     * Attempts recovery only for web locator-not-found failures.
+     * Attempts recovery only for locator-not-found failures at SHAFT-owned
+     * element-resolution boundaries.
      *
      * @param driver active driver
      * @param locator failed locator
@@ -38,7 +40,7 @@ public final class HealingManager {
             By frameLocator,
             By shadowHostLocator,
             By shadowContentLocator) {
-        if (!HealingStrategy.current().usesShaftHeal() || DriverFactoryHelper.isMobileNativeExecution()) {
+        if (!HealingStrategy.current().usesShaftHeal() || !isApplicable(action)) {
             return Optional.empty();
         }
         try {
@@ -78,7 +80,6 @@ public final class HealingManager {
             By shadowHostLocator,
             By shadowContentLocator) {
         if (!HealingStrategy.current().usesShaftHeal()
-                || DriverFactoryHelper.isMobileNativeExecution()
                 || elements == null
                 || elements.size() != 1) {
             return;
@@ -113,6 +114,7 @@ public final class HealingManager {
             return;
         }
         try {
+            String verification = verification(resolution, action, successful);
             HealingProviderRegistry.findProvider().ifPresent(provider -> provider.recordOutcome(
                     new HealingActionOutcome(
                             driver,
@@ -121,7 +123,7 @@ public final class HealingManager {
                             resolution.selectedLocator(),
                             action,
                             successful,
-                            "UNVERIFIABLE",
+                            verification,
                             failure)));
         } catch (RuntimeException exception) {
             ReportManagerHelper.logDiscrete(exception);
@@ -141,6 +143,47 @@ public final class HealingManager {
             HealingProviderRegistry.findProvider().ifPresent(provider -> provider.clear(driver));
         } catch (RuntimeException exception) {
             ReportManagerHelper.logDiscrete(exception);
+        }
+    }
+
+    private static boolean isApplicable(String action) {
+        String normalized = action == null ? "" : action.toUpperCase(java.util.Locale.ROOT);
+        if (normalized.contains("ASSERT") || normalized.contains("VERIFY")
+                || normalized.contains("VALIDATION")) {
+            return false;
+        }
+        for (StackTraceElement frame : Thread.currentThread().getStackTrace()) {
+            if (frame.getClassName().startsWith("com.shaft.validation.")) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static String verification(
+            HealingResolution resolution,
+            String action,
+            boolean successful) {
+        if (!successful || resolution.elements().size() != 1) {
+            return "FAILED";
+        }
+        String normalized = action == null ? "" : action.toUpperCase(java.util.Locale.ROOT);
+        if (!(normalized.contains("TYPE")
+                || normalized.contains("SELECT")
+                || normalized.contains("CLEAR")
+                || normalized.contains("ELEMENT_RESOLUTION")
+                || normalized.contains("WAIT"))) {
+            return "UNVERIFIABLE";
+        }
+        try {
+            WebElement element = resolution.elements().getFirst();
+            return element.isDisplayed() && element.isEnabled()
+                    ? "ELEMENT_INTERACTABLE"
+                    : "ELEMENT_NOT_INTERACTABLE";
+        } catch (StaleElementReferenceException exception) {
+            return "ELEMENT_STALE";
+        } catch (WebDriverException exception) {
+            return "UNVERIFIABLE";
         }
     }
 }

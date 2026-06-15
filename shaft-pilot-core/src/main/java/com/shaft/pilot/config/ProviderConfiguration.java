@@ -1,5 +1,7 @@
 package com.shaft.pilot.config;
 
+import com.shaft.pilot.ai.ProcessingLocation;
+
 import java.net.URI;
 import java.util.Map;
 import java.util.Objects;
@@ -11,6 +13,7 @@ import java.util.Objects;
  * @param endpoint provider endpoint
  * @param model model identifier
  * @param apiKeyEnvironmentVariable environment variable containing credentials, or blank for local providers
+ * @param processingLocation explicit processing location classification
  * @param options non-secret provider protocol options
  */
 public record ProviderConfiguration(
@@ -18,7 +21,22 @@ public record ProviderConfiguration(
         URI endpoint,
         String model,
         String apiKeyEnvironmentVariable,
+        ProcessingLocation processingLocation,
         Map<String, String> options) {
+    /**
+     * Creates a backward-compatible provider configuration.
+     */
+    public ProviderConfiguration(
+            String id,
+            URI endpoint,
+            String model,
+            String apiKeyEnvironmentVariable,
+            Map<String, String> options) {
+        this(id, endpoint, model, apiKeyEnvironmentVariable,
+                "ollama".equalsIgnoreCase(id) ? ProcessingLocation.LOCAL : ProcessingLocation.REMOTE,
+                options);
+    }
+
     /**
      * Creates validated provider configuration.
      */
@@ -27,6 +45,7 @@ public record ProviderConfiguration(
         endpoint = Objects.requireNonNull(endpoint, "endpoint");
         model = Objects.requireNonNullElse(model, "").trim();
         apiKeyEnvironmentVariable = Objects.requireNonNullElse(apiKeyEnvironmentVariable, "").trim();
+        processingLocation = processingLocation == null ? ProcessingLocation.NONE : processingLocation;
         options = options == null ? Map.of() : Map.copyOf(options);
     }
 
