@@ -1,16 +1,36 @@
 package com.shaft.mcp;
 
 import com.shaft.driver.SHAFT;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.WebDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Base64;
+import java.util.List;
+
 import static com.shaft.mcp.EngineService.getDriver;
 
 @Service
 public class BrowserService {
+    private static final int DEFAULT_DOM_CHARACTER_LIMIT = 200_000;
     private static final Logger logger = LoggerFactory.getLogger(BrowserService.class);
+
+    private final McpWorkspacePolicy workspacePolicy;
+
+    public BrowserService() {
+        this(McpWorkspacePolicy.current());
+    }
+
+    BrowserService(McpWorkspacePolicy workspacePolicy) {
+        this.workspacePolicy = workspacePolicy;
+    }
 
     /**
      * Navigates the browser to the specified URL.
@@ -22,9 +42,9 @@ public class BrowserService {
         try {
             SHAFT.GUI.WebDriver driver = getDriver();
             driver.browser().navigateToURL(targetUrl);
-            logger.info("Navigated to URL: {}", targetUrl);
+            logger.info("Navigated to URL (value redacted)");
         } catch (Exception e) {
-            logger.error("Failed to navigate to URL: {}", targetUrl, e);
+            logger.error("Failed to navigate to URL (value redacted)", e);
             throw e;
         }
     }
@@ -37,14 +57,13 @@ public class BrowserService {
      * @param password           The password for Basic Authentication.
      * @param targetUrlAfterAuth The URL to navigate to after authentication.
      */
-    @Tool(name = "browser_navigate_with_basic_auth", description = "navigates to a URL with Basic Authentication")
     public void navigateWithBasicAuth(String targetUrl, String username, String password, String targetUrlAfterAuth) {
         try {
             SHAFT.GUI.WebDriver driver = getDriver();
             driver.browser().navigateToURLWithBasicAuthentication(targetUrl, username, password, targetUrlAfterAuth);
-            logger.info("Navigated to URL with Basic Authentication: {}", targetUrl);
+            logger.info("Navigated with Basic Authentication (values redacted)");
         } catch (Exception e) {
-            logger.error("Failed to navigate to URL with Basic Authentication: {}", targetUrl, e);
+            logger.error("Failed to navigate with Basic Authentication (values redacted)", e);
             throw e;
         }
     }
@@ -167,9 +186,9 @@ public class BrowserService {
         try {
             SHAFT.GUI.WebDriver driver = getDriver();
             driver.browser().deleteCookie(cookieName);
-            logger.info("Cookie '{}' deleted.", cookieName);
+            logger.info("Cookie deleted (name length: {})", cookieName == null ? 0 : cookieName.length());
         } catch (Exception e) {
-            logger.error("Failed to delete cookie '{}'.", cookieName, e);
+            logger.error("Failed to delete cookie (name redacted)", e);
             throw e;
         }
     }
@@ -180,14 +199,14 @@ public class BrowserService {
      * @param name  The name of the cookie.
      * @param value The value of the cookie.
      */
-    @Tool(name = "browser_add_cookie", description = "adds a cookie")
     public void addCookie(String name, String value) {
         try {
             SHAFT.GUI.WebDriver driver = getDriver();
             driver.browser().addCookie(name, value);
-            logger.info("Cookie added: {}={}", name, value);
+            logger.info("Cookie added (name length: {}, value length: {})",
+                    name == null ? 0 : name.length(), value == null ? 0 : value.length());
         } catch (Exception e) {
-            logger.error("Failed to add cookie: {}={}", name, value, e);
+            logger.error("Failed to add cookie (values redacted)", e);
             throw e;
         }
     }
@@ -198,15 +217,14 @@ public class BrowserService {
      * @param cookieName The name of the cookie to retrieve.
      * @return The cookie value as a string, or null if not found.
      */
-    @Tool(name = "browser_get_cookie", description = "gets a cookie by name")
     public String getCookie(String cookieName) {
         try {
             SHAFT.GUI.WebDriver driver = getDriver();
             String cookieValue = driver.browser().getCookie(cookieName).getValue();
-            logger.info("Retrieved cookie: {}={}", cookieName, cookieValue);
+            logger.info("Retrieved cookie (name and value redacted)");
             return cookieValue;
         } catch (Exception e) {
-            logger.error("Failed to retrieve cookie '{}'.", cookieName, e);
+            logger.error("Failed to retrieve cookie (name redacted)", e);
             throw e;
         }
     }
@@ -216,12 +234,11 @@ public class BrowserService {
      *
      * @return A string representation of all cookies.
      */
-    @Tool(name = "browser_get_all_cookies", description = "gets all cookies")
     public String getAllCookies() {
         try {
             SHAFT.GUI.WebDriver driver = getDriver();
             String allCookies = driver.browser().getAllCookies().toString();
-            logger.info("Retrieved all cookies: {}", allCookies);
+            logger.info("Retrieved all cookies (values redacted)");
             return allCookies;
         } catch (Exception e) {
             logger.error("Failed to retrieve all cookies.", e);
@@ -239,7 +256,7 @@ public class BrowserService {
         try {
             SHAFT.GUI.WebDriver driver = getDriver();
             String currentUrl = driver.browser().getCurrentURL();
-            logger.info("Current URL retrieved: {}", currentUrl);
+            logger.info("Current URL retrieved (value redacted)");
             return currentUrl;
         } catch (Exception e) {
             logger.error("Failed to retrieve current URL.", e);
@@ -257,11 +274,88 @@ public class BrowserService {
         try {
             SHAFT.GUI.WebDriver driver = getDriver();
             String title = driver.browser().getCurrentWindowTitle();
-            logger.info("Page title retrieved: {}", title);
+            logger.info("Page title retrieved (length: {})", title == null ? 0 : title.length());
             return title;
         } catch (Exception e) {
             logger.error("Failed to retrieve page title.", e);
             throw e;
+        }
+    }
+
+    /**
+     * Captures the current page DOM for MCP browser automation inspection.
+     *
+     * @param maxCharacters maximum DOM characters to return; uses a safe default when unset or non-positive
+     * @return page DOM snapshot and browser context metadata
+     */
+    @Tool(name = "browser_get_page_dom", description = "gets the current page DOM/page source for browser automation inspection")
+    public McpPageDomSnapshot getPageDom(int maxCharacters) {
+        try {
+            SHAFT.GUI.WebDriver driver = getDriver();
+            int limit = maxCharacters <= 0 ? DEFAULT_DOM_CHARACTER_LIMIT : maxCharacters;
+            String dom = driver.browser().getPageSource();
+            String safeDom = dom == null ? "" : dom;
+            boolean truncated = safeDom.length() > limit;
+            String returnedDom = truncated ? safeDom.substring(0, limit) : safeDom;
+            logger.info("Page DOM retrieved (characters: {}, returned: {}, truncated: {})",
+                    safeDom.length(), returnedDom.length(), truncated);
+            return new McpPageDomSnapshot(
+                    driver.browser().getCurrentURL(),
+                    driver.browser().getCurrentWindowTitle(),
+                    returnedDom,
+                    safeDom.length(),
+                    truncated,
+                    truncated ? List.of("DOM was truncated; increase maxCharacters for more context.") : List.of());
+        } catch (Exception e) {
+            logger.error("Failed to retrieve page DOM.", e);
+            throw e;
+        }
+    }
+
+    /**
+     * Takes a PNG screenshot of the current browser viewport for MCP browser automation inspection.
+     *
+     * @param outputPath    optional workspace-relative or workspace-contained output file path
+     * @param includeBase64 whether to include the PNG bytes as base64 in the response
+     * @return screenshot metadata and optional base64 payload
+     */
+    @Tool(name = "browser_take_screenshot", description = "takes a PNG screenshot of the current browser viewport")
+    public McpScreenshotResult takeScreenshot(String outputPath, boolean includeBase64) {
+        try {
+            SHAFT.GUI.WebDriver shaftDriver = getDriver();
+            WebDriver seleniumDriver = shaftDriver.getDriver();
+            if (!(seleniumDriver instanceof TakesScreenshot takesScreenshot)) {
+                throw new IllegalStateException("The active browser driver does not support screenshots.");
+            }
+            byte[] png = takesScreenshot.getScreenshotAs(OutputType.BYTES);
+            Path writtenPath = writeScreenshot(outputPath, png);
+            logger.info("Browser screenshot captured (bytes: {}, persisted: {}, base64Included: {})",
+                    png.length, writtenPath != null, includeBase64);
+            return new McpScreenshotResult(
+                    "image/png",
+                    png.length,
+                    includeBase64 ? Base64.getEncoder().encodeToString(png) : null,
+                    writtenPath == null ? null : writtenPath.toString(),
+                    includeBase64 ? List.of() : List.of("Base64 omitted; set includeBase64=true to return inline PNG bytes."));
+        } catch (Exception e) {
+            logger.error("Failed to take browser screenshot.", e);
+            throw e;
+        }
+    }
+
+    private Path writeScreenshot(String outputPath, byte[] png) {
+        if (outputPath == null || outputPath.isBlank()) {
+            return null;
+        }
+        Path resolved = workspacePolicy.output(outputPath, "Screenshot output path");
+        try {
+            Path parent = resolved.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            return Files.write(resolved, png);
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("Screenshot output path cannot be written inside the MCP workspace.", exception);
         }
     }
 }

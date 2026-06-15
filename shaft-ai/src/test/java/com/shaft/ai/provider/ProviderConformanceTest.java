@@ -213,6 +213,12 @@ class ProviderConformanceTest {
         }
     }
 
+    @ParameterizedTest(name = "{0} does not advertise unsupported tool calling")
+    @MethodSource("providerIds")
+    void builtInProvidersDoNotAdvertiseToolCalling(String providerId) {
+        assertFalse(provider(providerId).capabilities().toolCalling());
+    }
+
     private AiResponse execute(String providerId, AiRequest request) {
         AiProviderRegistry registry = new AiProviderRegistry();
         registry.registerForCurrentThread(provider(providerId));

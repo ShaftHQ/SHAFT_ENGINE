@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke the packaged shaft-mcp server over stdio and Streamable HTTP."""
+"""Smoke the packaged shaft-mcp server over local stdio."""
 
 from __future__ import annotations
 
@@ -19,7 +19,29 @@ from typing import Any, TextIO
 ROOT = Path(__file__).resolve().parents[2]
 NAMESPACE = {"m": "http://maven.apache.org/POM/4.0.0"}
 PROTOCOL_VERSION = "2025-03-26"
-EXPECTED_TOOLS = {"driver_initialize", "browser_navigate", "browser_get_current_url", "element_click"}
+EXPECTED_TOOLS = {
+    "driver_initialize",
+    "browser_navigate",
+    "browser_get_current_url",
+    "browser_get_page_dom",
+    "browser_take_screenshot",
+    "mobile_initialize_web_emulation",
+    "mobile_initialize_native",
+    "mobile_get_contexts",
+    "mobile_get_accessibility_tree",
+    "mobile_take_screenshot",
+    "mobile_tap",
+    "mobile_type",
+    "mobile_record_start",
+    "mobile_recording_code_blocks",
+    "mobile_replay_recording",
+    "element_click",
+    "element_click_semantic",
+    "capture_checkpoint",
+    "capture_generate_replay",
+    "doctor_analyze_failed_allure",
+    "doctor_suggest_fix",
+}
 
 
 def reactor_version() -> str:
@@ -268,8 +290,7 @@ def main() -> int:
     if not jar.is_file():
         raise FileNotFoundError(f"Packaged MCP server is missing: {jar}")
     validate_stdio(jar, version)
-    validate_http(jar, version)
-    print(f"shaft-mcp {version} passed packaged stdio and Streamable HTTP smoke tests.")
+    print(f"shaft-mcp {version} passed packaged local stdio smoke tests.")
     return 0
 
 

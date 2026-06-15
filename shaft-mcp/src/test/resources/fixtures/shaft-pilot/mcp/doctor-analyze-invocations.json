@@ -1,18 +1,14 @@
 {
   "schemaVersion": "1.0",
-  "tool": "doctor_analyze",
+  "tool": "doctor_analyze_failed_allure",
   "clients": [
     {
-      "name": "ChatGPT",
-      "transport": "streamable-http"
-    },
-    {
       "name": "Codex",
-      "transport": "stdio-or-streamable-http"
+      "transport": "stdio"
     },
     {
       "name": "Claude",
-      "transport": "stdio-or-streamable-http"
+      "transport": "stdio"
     },
     {
       "name": "Gemini",
@@ -20,20 +16,25 @@
     },
     {
       "name": "GitHub Copilot",
-      "transport": "stdio-or-streamable-http"
+      "transport": "stdio"
     }
   ],
   "arguments": {
-    "inputPaths": [
+    "allureResultPaths": [
       "/absolute/project/allure-results"
     ],
     "historicalBundlePaths": [],
-    "allowedRoots": [
-      "/absolute/project"
-    ],
     "outputDirectory": "/absolute/project/target/shaft-doctor",
     "includeScreenshots": false,
     "includePageSnapshots": false,
-    "minimumAllureResults": 1
+    "minimumAllureResults": 1,
+    "repositoryRoot": "/absolute/project",
+    "allowedSourcePaths": [
+      "src/test/java/example/FailingTest.java"
+    ],
+    "useAi": false,
+    "allowLocalAi": false,
+    "allowRemoteAi": false,
+    "driverVariableName": "driver"
   }
 }

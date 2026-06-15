@@ -15,6 +15,7 @@ public class MobileTests {
     String app;
     String appPackage;
     String appActivity;
+    String bundleId;
 
 
     @BeforeClass
@@ -29,6 +30,7 @@ public class MobileTests {
         app = SHAFT.Properties.mobile.app();
         appPackage = SHAFT.Properties.mobile.appPackage();
         appActivity = SHAFT.Properties.mobile.appActivity();
+        bundleId = SHAFT.Properties.mobile.bundleId();
     }
 
     @Test
@@ -42,6 +44,7 @@ public class MobileTests {
                 .browserVersion(browserVersion)
                 .app(app)
                 .appPackage(appPackage)
-                .appActivity(appActivity);
+                .appActivity(appActivity)
+                .bundleId(bundleId);
     }
 }

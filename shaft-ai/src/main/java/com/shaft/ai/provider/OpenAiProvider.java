@@ -39,7 +39,7 @@ public final class OpenAiProvider extends AbstractHttpAiProvider {
 
     @Override
     public AiCapabilities capabilities() {
-        return new AiCapabilities(true, true, true, 0,
+        return new AiCapabilities(true, true, false, 0,
                 processingLocation(ProcessingLocation.REMOTE));
     }
 

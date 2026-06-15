@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.listeners.TestNGListener;
 import com.shaft.tools.io.internal.AllureManager;
 import com.shaft.tools.io.internal.ProjectStructureManager;
+import io.appium.java_client.AppiumBy;
 import jakarta.annotation.PostConstruct;
 import org.openqa.selenium.By;
 import org.slf4j.Logger;
@@ -78,6 +79,10 @@ public class EngineService {
             case NAME -> SHAFT.GUI.Locator.hasAnyTagName().hasAttribute("name", locatorValue).build();
             case TAGNAME -> SHAFT.GUI.Locator.hasTagName(locatorValue).build();
             case CLASSNAME -> SHAFT.GUI.Locator.hasAnyTagName().hasAttribute("class", locatorValue).build();
+            case ACCESSIBILITY_ID -> AppiumBy.accessibilityId(locatorValue);
+            case ANDROID_UIAUTOMATOR -> AppiumBy.androidUIAutomator(locatorValue);
+            case IOS_PREDICATE -> AppiumBy.iOSNsPredicateString(locatorValue);
+            case IOS_CLASS_CHAIN -> AppiumBy.iOSClassChain(locatorValue);
         };
     }
 
@@ -89,38 +94,46 @@ public class EngineService {
     @Tool(name = "driver_initialize", description = "launches browser")
     public void initializeDriver(BrowserType targetBrowser) {
         try {
-            // Initialize engine setup only once to avoid repeated initialization warnings
-            if (!engineInitialized) {
-                logger.info("Initializing SHAFT Engine for AI Agent mode...");
-
-                // Pre-create directories to prevent issues during SHAFT Engine initialization.
-                // The allure-results directory must exist before Allure lifecycle is initialized.
-                // The properties directory must exist (empty) before engineSetup() to prevent
-                // SHAFT Engine from extracting default property files with subdirectories that
-                // cause "Is a directory" IOException during ReportHelper.attachPropertyFiles().
-                for (String dirPath : new String[]{
-                        System.getProperty("user.dir") + File.separator + "allure-results",
-                        "src" + File.separator + "main" + File.separator + "resources" + File.separator + "properties"
-                }) {
-                    File dir = new File(dirPath);
-                    if (!dir.exists()) {
-                        if (dir.mkdirs()) {
-                            logger.debug("Created directory: {}", dirPath);
-                        } else {
-                            logger.warn("Failed to create directory: {}", dirPath);
-                        }
-                    }
-                }
-
-                TestNGListener.engineSetup(ProjectStructureManager.RunType.AI_AGENT);
-                engineInitialized = true;
-            }
             SHAFT.Properties.web.set().targetBrowserName(targetBrowser.name());
-            driver = new SHAFT.GUI.WebDriver();
-            logger.info("Driver initialized successfully: {}", targetBrowser.name());
+            initializeConfiguredDriver(targetBrowser.name());
         } catch (Exception e) {
             logger.error("Failed to initialize driver for browser: {}", targetBrowser.name(), e);
             throw e;
+        }
+    }
+
+    void initializeConfiguredDriver(String sessionName) {
+        ensureEngineInitialized();
+        driver = new SHAFT.GUI.WebDriver();
+        logger.info("Driver initialized successfully: {}", sessionName);
+    }
+
+    private static void ensureEngineInitialized() {
+        // Initialize engine setup only once to avoid repeated initialization warnings
+        if (!engineInitialized) {
+            logger.info("Initializing SHAFT Engine for AI Agent mode...");
+
+            // Pre-create directories to prevent issues during SHAFT Engine initialization.
+            // The allure-results directory must exist before Allure lifecycle is initialized.
+            // The properties directory must exist (empty) before engineSetup() to prevent
+            // SHAFT Engine from extracting default property files with subdirectories that
+            // cause "Is a directory" IOException during ReportHelper.attachPropertyFiles().
+            for (String dirPath : new String[]{
+                    System.getProperty("user.dir") + File.separator + "allure-results",
+                    "src" + File.separator + "main" + File.separator + "resources" + File.separator + "properties"
+            }) {
+                File dir = new File(dirPath);
+                if (!dir.exists()) {
+                    if (dir.mkdirs()) {
+                        logger.debug("Created directory: {}", dirPath);
+                    } else {
+                        logger.warn("Failed to create directory: {}", dirPath);
+                    }
+                }
+            }
+
+            TestNGListener.engineSetup(ProjectStructureManager.RunType.AI_AGENT);
+            engineInitialized = true;
         }
     }
 
@@ -130,8 +143,12 @@ public class EngineService {
     @Tool(name = "driver_quit", description = "closes browser")
     public void quitDriver() {
         try {
-            logger.info("Driver {} will be closed", driver);
+            logger.info("Active driver will be closed");
+            if (driver == null) {
+                return;
+            }
             driver.quit();
+            driver = null;
         } catch (Exception e) {
             logger.error("Failed to close driver.", e);
             throw e;
@@ -162,12 +179,11 @@ public class EngineService {
      * This is a support method for the AI agent to better explore the page.
      * @return The HTML source code of the current page as a string.
      */
-    @Tool(name = "browser_get_page_source", description = "gets the source code of the current page")
     public String getPageSource() {
         try {
             SHAFT.GUI.WebDriver driver = getDriver();
             String pageSource = driver.browser().getPageSource();
-            logger.info("Retrieved page source successfully.");
+            logger.info("Retrieved page source for direct Java caller (content redacted from logs).");
             return pageSource;
         } catch (Exception e) {
             logger.error("Failed to retrieve page source.", e);
