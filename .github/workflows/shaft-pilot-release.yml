@@ -4,23 +4,7 @@ on:
   pull_request:
     paths:
       - "pom.xml"
-      - "shaft-engine/**"
-      - "shaft-pilot-core/**"
-      - "shaft-capture/**"
-      - "shaft-doctor/**"
-      - "shaft-ai/**"
-      - "shaft-mcp/**"
-      - "shaft-bom/**"
-      - "report-aggregate/**"
-      - "README.md"
-      - "shaft-mcp/src/test/resources/fixtures/shaft-pilot/**"
-      - "scripts/ci/validate_documentation_boundaries.py"
-      - "scripts/ci/validate_shaft_pilot_release.py"
-      - "scripts/ci/validate_maven_publication.py"
-      - "scripts/ci/validate_reactor_versions.py"
-      - "tools/modularization/consumer-fixtures/**"
-      - ".github/workflows/shaft-pilot-release.yml"
-      - ".github/workflows/mavenCentral_cd.yml"
+      
   workflow_dispatch:
 
 permissions:
