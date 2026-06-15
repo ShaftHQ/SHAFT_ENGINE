@@ -4,7 +4,24 @@ on:
   pull_request:
     paths:
       - "pom.xml"
-      
+      - "shaft-engine/**"
+      - "shaft-pilot-core/**"
+      - "shaft-capture/**"
+      - "shaft-doctor/**"
+      - "shaft-ai/**"
+      - "shaft-mcp/**"
+      - "shaft-bom/**"
+      - "report-aggregate/**"
+      - "README.md"
+      - "shaft-mcp/src/test/resources/fixtures/shaft-pilot/**"
+      - "scripts/ci/validate_documentation_boundaries.py"
+      - "scripts/ci/validate_shaft_pilot_release.py"
+      - "scripts/ci/validate_maven_publication.py"
+      - "scripts/ci/validate_reactor_versions.py"
+      - "tools/modularization/consumer-fixtures/**"
+      - ".github/actions/upload-jacoco-coverage/action.yml"
+      - ".github/workflows/shaft-pilot-release.yml"
+      - ".github/workflows/mavenCentral_cd.yml"
   workflow_dispatch:
 
 permissions:
@@ -63,6 +80,18 @@ jobs:
           -DincludeCaptureBrowserE2E
           -Dtest=ManagedCaptureRecorderBrowserTest,CaptureGeneratedReplayBrowserTest
           -Dgpg.skip
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: >-
+            ./shaft-pilot-core/target/jacoco/jacoco.xml,
+            ./shaft-capture/target/jacoco/jacoco.xml,
+            ./shaft-doctor/target/jacoco/jacoco.xml,
+            ./shaft-ai/target/jacoco/jacoco.xml,
+            ./shaft-heal/target/jacoco/jacoco.xml,
+            ./shaft-mcp/target/jacoco/jacoco.xml
       - name: Package the complete reactor
         run: mvn --batch-mode clean install -DskipTests -Dgpg.skip
       - name: Validate packaged release outputs and MCP transports

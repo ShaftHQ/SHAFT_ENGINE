@@ -1,0 +1,96 @@
+name: 'Upload JaCoCo Coverage'
+description: 'Verifies expected JaCoCo XML reports exist, then uploads existing reports to Codecov.'
+inputs:
+  codecov-token:
+    description: 'Codecov upload token'
+    required: false
+    default: ''
+  files:
+    description: 'Candidate JaCoCo XML files to upload'
+    required: false
+    default: |-
+      ./target/jacoco/jacoco.xml,
+      ./shaft-engine/target/jacoco/jacoco.xml,
+      ./shaft-pilot-core/target/jacoco/jacoco.xml,
+      ./shaft-capture/target/jacoco/jacoco.xml,
+      ./shaft-doctor/target/jacoco/jacoco.xml,
+      ./shaft-ai/target/jacoco/jacoco.xml,
+      ./shaft-heal/target/jacoco/jacoco.xml,
+      ./shaft-browserstack/target/jacoco/jacoco.xml,
+      ./shaft-video/target/jacoco/jacoco.xml,
+      ./shaft-visual/target/jacoco/jacoco.xml,
+      ./shaft-mcp/target/jacoco/jacoco.xml
+  required-files:
+    description: 'JaCoCo XML files that must exist and be non-empty'
+    required: false
+    default: ''
+  fail-ci-if-error:
+    description: 'Whether Codecov upload errors should fail the job'
+    required: false
+    default: 'false'
+outputs:
+  files:
+    description: 'Existing JaCoCo XML files uploaded to Codecov'
+    value: ${{ steps.resolve.outputs.files }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Resolve JaCoCo XML files
+      id: resolve
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        normalize_paths() {
+          local value="$1"
+          value="${value//$'\r'/ }"
+          value="${value//$'\n'/ }"
+          value="${value//$'\t'/ }"
+          value="${value//,/ }"
+          value="${value//;/ }"
+          for item in $value; do
+            printf '%s\n' "$item"
+          done
+        }
+
+        required_missing=false
+        while IFS= read -r required_file; do
+          [ -z "$required_file" ] && continue
+          if [ ! -s "$required_file" ]; then
+            echo "::error::Expected JaCoCo XML report was not generated: $required_file"
+            required_missing=true
+          fi
+        done < <(normalize_paths "${{ inputs.required-files }}")
+
+        if [ "$required_missing" = true ]; then
+          exit 1
+        fi
+
+        existing_files=()
+        while IFS= read -r candidate_file; do
+          [ -z "$candidate_file" ] && continue
+          if [ -s "$candidate_file" ]; then
+            existing_files+=("$candidate_file")
+          else
+            echo "::notice::Skipping missing JaCoCo XML report: $candidate_file"
+          fi
+        done < <(normalize_paths "${{ inputs.files }}")
+
+        if [ "${#existing_files[@]}" -eq 0 ]; then
+          echo "::error::No JaCoCo XML reports were found for Codecov upload."
+          exit 1
+        fi
+
+        joined_files=$(IFS=,; echo "${existing_files[*]}")
+        echo "files=${joined_files}" >> "$GITHUB_OUTPUT"
+        echo "Uploading JaCoCo XML reports: ${joined_files}"
+
+    - name: Upload coverage to Codecov
+      if: always() && steps.resolve.outcome == 'success'
+      uses: codecov/codecov-action@v7
+      with:
+        token: ${{ inputs.codecov-token }}
+        fail_ci_if_error: ${{ inputs.fail-ci-if-error }}
+        disable_search: true
+        files: ${{ steps.resolve.outputs.files }}
+        verbose: true

@@ -53,8 +53,7 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
             (root / "shaft-engine").mkdir()
             (root / ".github" / "dependabot.yml").write_text("", encoding="utf-8")
             (root / ".github" / "workflows" / "coverage-readiness.yml").write_text("", encoding="utf-8")
-            (root / ".github" / "workflows" / "codeql-analysis.yml").write_text("", encoding="utf-8")
-            (root / ".github" / "workflows" / "e2eLocalTests.yml").write_text("", encoding="utf-8")
+            (root / ".github" / "workflows" / "security.yml").write_text("", encoding="utf-8")
             (root / ".github" / "workflows" / "e2eTests.yml").write_text("", encoding="utf-8")
             (root / "shaft-engine" / "pom.xml").write_text("", encoding="utf-8")
 

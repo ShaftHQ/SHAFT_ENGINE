@@ -1,0 +1,429 @@
+name: General Validations
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  changes:
+    runs-on: ubuntu-22.04
+    outputs:
+      agent: ${{ steps.filter.outputs.agent }}
+      reactor: ${{ steps.filter.outputs.reactor }}
+      docs: ${{ steps.filter.outputs.docs }}
+      ci_scripts: ${{ steps.filter.outputs.ci_scripts }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Detect relevant changes
+        id: filter
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "schedule" ] || [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            {
+              echo "agent=true"
+              echo "reactor=true"
+              echo "docs=true"
+              echo "ci_scripts=true"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          base_sha="$BEFORE_SHA"
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            base_sha="$PR_BASE_SHA"
+          fi
+
+          if [ -z "$base_sha" ] || [[ "$base_sha" =~ ^0+$ ]]; then
+            git ls-files > changed-files.txt
+          else
+            git diff --name-only "$base_sha" "$HEAD_SHA" > changed-files.txt
+          fi
+
+          matches() {
+            local pattern="$1"
+            grep -Eq "$pattern" changed-files.txt
+          }
+
+          set_output() {
+            local name="$1"
+            local pattern="$2"
+            if matches "$pattern"; then
+              echo "${name}=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "${name}=false" >> "$GITHUB_OUTPUT"
+            fi
+          }
+
+          set_output agent '^(AGENTS\.md|CLAUDE\.md|CONTRIBUTING\.md|\.agents/|\.codex/|\.github/copilot-instructions\.md|\.github/instructions/|\.github/skills/|\.memory/|\.github/pull_request_template\.md|\.github/codex/prompts/refresh-agent-instructions\.md|\.github/workflows/(general-validations|refresh-agent-instructions)\.yml|scripts/ci/(agent_guidance_budget\.json|validate_agent_setup\.py|validate_agent_guidance\.py|validate_documentation_boundaries\.py)|tests/scripts/test_validate_agent_(setup|guidance)\.py)'
+          set_output reactor '^(pom\.xml|[^/]+/pom\.xml|report-aggregate/|\.github/dependabot\.yml|\.github/actions/(post-test-report|upload-jacoco-coverage)/action\.yml|\.github/workflows/(general-validations|mavenCentral_cd|security|shaft-mcp|shaft-pilot-release)\.yml|scripts/ci/(validate_reactor_versions\.py|check_maven_release_version\.py|validate_quality_configuration\.py|validate_shaft_mcp_configuration\.py)|tests/scripts/test_(validate_reactor_versions|check_maven_release_version|validate_quality_configuration)\.py)'
+          set_output docs '^(README\.md|AGENTS\.md|CLAUDE\.md|CONTRIBUTING\.md|SECURITY\.md|CODE_OF_CONDUCT\.md|\.agents/|\.github/|shaft-mcp/\.github/|scripts/ci/validate_documentation_boundaries\.py)'
+          set_output ci_scripts '^(scripts/ci/|tests/scripts/|shaft-upgrader/upgrade_to_modular_shaft\.py|\.github/workflows/general-validations\.yml)'
+
+  agent-guidance:
+    needs: changes
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.agent == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Validate Agent Guidance
+        run: python3 scripts/ci/validate_agent_setup.py
+      - name: Test Agent Guidance Validator
+        run: >-
+          python3 -m unittest
+          tests.scripts.test_validate_agent_guidance
+          tests.scripts.test_validate_agent_setup
+
+  reactor-quality:
+    needs: changes
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.reactor == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Reject divergent SHAFT reactor versions
+        run: python3 scripts/ci/validate_reactor_versions.py
+      - name: Validate aggregate quality configuration
+        run: python3 scripts/ci/validate_quality_configuration.py
+      - name: Validate shaft-mcp integration
+        run: python3 scripts/ci/validate_shaft_mcp_configuration.py
+      - name: Test configuration validators
+        run: >-
+          python3 -m unittest
+          tests.scripts.test_check_maven_release_version
+          tests.scripts.test_validate_reactor_versions
+          tests.scripts.test_validate_quality_configuration
+
+  python-script-tests:
+    needs: changes
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.ci_scripts == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Run Python script tests
+        run: python3 -m unittest discover -s tests/scripts -p 'test_*.py'
+
+  docs-link-audit:
+    needs: changes
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.docs == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Validate Markdown boundaries
+        run: python3 scripts/ci/validate_documentation_boundaries.py
+
+      - name: Check Links in Markdown Files
+        id: lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >
+            --verbose
+            --no-progress
+            --timeout 30
+            --max-retries 3
+            --accept 200,429
+            --exclude-path node_modules
+            --exclude-path target
+            --exclude-path .git
+            --exclude 'localhost'
+            --exclude 'http://www.w3.org'
+            --exclude 'mailto:'
+            --exclude 'https://img.shields.io'
+            --exclude 'https://join.slack.com'
+            README.md
+            AGENTS.md
+            CLAUDE.md
+            CONTRIBUTING.md
+            SECURITY.md
+            CODE_OF_CONDUCT.md
+            .agents/
+            .github/
+            shaft-mcp/.github/
+          fail: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create or Update Issue for Broken Links
+        if: steps.lychee.outputs.exit_code != '0' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const title = 'Broken Links Detected in Documentation';
+            const labels = ['documentation', 'automated', 'broken-links'];
+            const reportBody = fs.readFileSync('./lychee/out.md', 'utf8');
+
+            const { owner, repo } = context.repo;
+            const { data: existingIssues } = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              labels: labels.join(','),
+              per_page: 100
+            });
+
+            const existingIssue = existingIssues.find((issue) =>
+              issue.title === title &&
+              labels.every((label) => issue.labels.some((issueLabel) => issueLabel.name === label))
+            );
+
+            if (existingIssue) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: existingIssue.number,
+                body: `A scheduled link audit detected broken links again. Latest report:\n\n${reportBody}`
+              });
+            } else {
+              await github.rest.issues.create({ owner, repo, title, body: reportBody, labels });
+            }
+
+      - name: Fail changed-file link audit
+        if: steps.lychee.outputs.exit_code != '0' && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
+        run: |
+          echo "::error::Broken links were detected in changed documentation surfaces."
+          exit 1
+
+  quality-scan:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v5
+        with:
+          maven-version: 3.9.5
+
+      - name: Compile
+        run: mvn -pl shaft-engine -am clean compile -DskipTests -Dgpg.skip -q
+
+      - name: Check for Dependency Updates
+        id: dep-updates
+        run: |
+          mvn -pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,shaft-mcp -am versions:display-dependency-updates -Dgpg.skip 2>&1 | tee /tmp/dep-updates-raw.txt || true
+          mvn -pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,shaft-mcp -am versions:display-plugin-updates -Dgpg.skip 2>&1 | tee -a /tmp/dep-updates-raw.txt || true
+
+          python3 <<'PY'
+          import re
+          from pathlib import Path
+
+          raw_updates_path = Path("/tmp/dep-updates-raw.txt")
+          filtered_updates_path = Path("/tmp/dep-updates-filtered.txt")
+
+          update_line_pattern = re.compile(r"^\[INFO\]\s+(.+?)\s+\.+\s+([^\s]+)\s+->\s+([^\s]+)\s*$")
+          stable_version_pattern = re.compile(r"^\d+(?:\.\d+)+$")
+          prerelease_pattern = re.compile(r"alpha|beta|rc|milestone|snapshot|cr|m\d+", re.IGNORECASE)
+
+          def parse_version(version: str) -> tuple[int, ...] | None:
+              try:
+                  return tuple(int(segment) for segment in version.split("."))
+              except ValueError:
+                  return None
+
+          best_updates: dict[tuple[str, str], str] = {}
+
+          for raw_line in raw_updates_path.read_text(encoding="utf-8", errors="replace").splitlines():
+              match = update_line_pattern.match(raw_line.strip())
+              if not match:
+                  continue
+
+              artifact, current_version, available_version = (group.strip() for group in match.groups())
+
+              if prerelease_pattern.search(available_version):
+                  continue
+              if not stable_version_pattern.fullmatch(current_version) or not stable_version_pattern.fullmatch(available_version):
+                  continue
+              parsed_current_version = parse_version(current_version)
+              parsed_available_version = parse_version(available_version)
+              if parsed_current_version is None or parsed_available_version is None:
+                  continue
+              if parsed_available_version <= parsed_current_version:
+                  continue
+
+              key = (artifact, current_version)
+              previous_best = best_updates.get(key)
+              if previous_best is None:
+                  best_updates[key] = available_version
+              else:
+                  parsed_previous_best = parse_version(previous_best)
+                  if parsed_previous_best is not None and parsed_available_version > parsed_previous_best:
+                      best_updates[key] = available_version
+
+          def update_sort_key(item: tuple[tuple[str, str], str]) -> tuple[str, str]:
+              (artifact_name, current_version), _ = item
+              return artifact_name.lower(), current_version
+
+          output_lines = [
+              f"[INFO]   {artifact} ... {current_version} -> {available_version}"
+              for (artifact, current_version), available_version in sorted(best_updates.items(), key=update_sort_key)
+          ]
+          filtered_updates_path.write_text("\n".join(output_lines), encoding="utf-8")
+          PY
+
+          UPDATES=$(cat /tmp/dep-updates-filtered.txt)
+
+          if [ -n "$UPDATES" ]; then
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+            {
+              echo "## Stable Dependency Updates Available"
+              echo ""
+              echo "The following dependencies have newer stable versions available."
+              echo "Pre-release versions are excluded."
+              echo ""
+              echo '```'
+              echo "$UPDATES"
+              echo '```'
+              echo ""
+              echo "_Triggered by the daily General Validations workflow._"
+            } > /tmp/dep-updates.txt
+          else
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+            echo "No stable dependency updates found."
+          fi
+
+      - name: Verify Sample Projects Compile
+        run: |
+          set -o pipefail
+          VALIDATION_FAILED=false
+          FAILED_POMS=""
+
+          while IFS= read -r -d '' POM; do
+            DIR=$(dirname "$POM")
+            echo "Checking $DIR ..."
+            if ! mvn validate -f "$POM" -q 2>&1 | tail -5; then
+              VALIDATION_FAILED=true
+              FAILED_POMS="${FAILED_POMS}\n- $POM"
+            fi
+          done < <(find shaft-engine/src/main/resources/examples -name "pom.xml" -print0)
+
+          if [ "$VALIDATION_FAILED" = true ]; then
+            echo "Sample project validation failed for the following pom.xml files:"
+            printf "%b\n" "$FAILED_POMS"
+            exit 1
+          fi
+
+      - name: Check Sample Projects Version Drift
+        id: version-drift
+        run: |
+          MAIN_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout 2>/dev/null)
+          DRIFT_FOUND=false
+          DRIFT_DETAILS=""
+
+          for POM in $(find shaft-engine/src/main/resources/examples -name "pom.xml"); do
+            SAMPLE_VERSION=$(grep '<shaft.version>' "$POM" | head -1 | sed 's/.*<shaft.version>\(.*\)<\/shaft.version>.*/\1/' | tr -d ' ')
+            if [ -n "$SAMPLE_VERSION" ] && [ "$SAMPLE_VERSION" != "$MAIN_VERSION" ]; then
+              DRIFT_FOUND=true
+              DRIFT_DETAILS="$DRIFT_DETAILS\n- $POM: $SAMPLE_VERSION (expected $MAIN_VERSION)"
+            fi
+          done
+
+          if [ "$DRIFT_FOUND" = true ]; then
+            echo "drift=true" >> $GITHUB_OUTPUT
+            printf "drift_details<<EOF\n%b\nEOF\n" "$DRIFT_DETAILS" >> $GITHUB_OUTPUT
+          else
+            echo "drift=false" >> $GITHUB_OUTPUT
+            echo "All sample projects match main version $MAIN_VERSION"
+          fi
+
+      - name: Open or Update Issue for Dependency Updates
+        if: steps.dep-updates.outputs.has_updates == 'true'
+        uses: actions/github-script@v9
+        continue-on-error: true
+        with:
+          script: |
+            const fs = require('fs');
+            const title = 'Stable Dependency Updates Available';
+            const labels = ['dependencies', 'automated'];
+            const body = fs.readFileSync('/tmp/dep-updates.txt', 'utf8');
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: labels.join(','),
+              per_page: 100
+            });
+
+            const existingIssue = issues.find((issue) =>
+              issue.title === title &&
+              labels.every((label) => issue.labels.some((issueLabel) => issueLabel.name === label))
+            );
+
+            if (existingIssue) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: `A scheduled scan detected that stable dependency updates are still available.\n\nLatest report:\n\n${body}`
+              });
+            } else {
+              await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body, labels });
+            }
+
+      - name: Open or Update Issue for Version Drift
+        if: steps.version-drift.outputs.drift == 'true'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const title = 'Sample Project Version Drift Detected';
+            const labels = ['dependencies', 'automated', 'examples'];
+            const body = `## Sample Projects Out of Sync\n\nThe following sample project \`pom.xml\` files have a \`shaft.version\` that does not match the current main \`pom.xml\` version.\n\n${{ steps.version-drift.outputs.drift_details }}\n\nRun the **Sync Sample Projects SHAFT Version** workflow to fix this automatically.`;
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: labels.join(','),
+              per_page: 100
+            });
+
+            const existingIssue = issues.find((issue) =>
+              issue.title === title &&
+              labels.every((label) => issue.labels.some((issueLabel) => issueLabel.name === label))
+            );
+
+            if (existingIssue) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: `A scheduled scan detected that sample project version drift still exists.\n\nLatest report:\n\n${body}`
+              });
+            } else {
+              await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body, labels });
+            }
