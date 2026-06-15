@@ -68,6 +68,10 @@ public interface Mobile extends EngineProperties<Mobile> {
     @DefaultValue("")
     String appActivity();
 
+    @Key("mobile_bundleId")
+    @DefaultValue("")
+    String bundleId();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -134,6 +138,11 @@ public interface Mobile extends EngineProperties<Mobile> {
 
         public SetProperty appActivity(String value) {
             setProperty("mobile_appActivity", value);
+            return this;
+        }
+
+        public SetProperty bundleId(String value) {
+            setProperty("mobile_bundleId", value);
             return this;
         }
     }

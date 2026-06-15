@@ -3,6 +3,7 @@ package com.shaft.mcp;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shaft.driver.SHAFT;
 import com.shaft.doctor.model.CauseCategory;
+import com.shaft.pilot.ai.AiResponseStatus;
 import com.shaft.pilot.ai.AiCapabilities;
 import com.shaft.pilot.ai.AiProvider;
 import com.shaft.pilot.ai.AiProviderAvailability;
@@ -52,17 +53,23 @@ class DoctorServiceTest {
                         "message", "TimeoutException: condition failed to be met",
                         "trace", "trace"))), StandardCharsets.UTF_8);
 
-        var analysis = new DoctorService().analyze(
+        var analysis = service(temp).analyzeFailedAllure(
                 List.of(input.toString()),
                 List.of(),
-                List.of(temp.toString()),
                 temp.resolve("doctor-output").toString(),
                 false,
                 false,
-                1);
+                1,
+                "",
+                List.of(),
+                false,
+                false,
+                false,
+                "driver");
 
         assertEquals(CauseCategory.TIMING_SYNCHRONIZATION, analysis.diagnosis().primaryCause());
-        assertEquals(2, analysis.evidenceItemCount());
+        assertEquals(McpAnalysisReport.Status.DETERMINISTIC, analysis.status());
+        assertTrue(analysis.codeBlocks().stream().anyMatch(block -> block.kind() == McpCodeBlock.Kind.WAIT));
         assertTrue(Files.isRegularFile(Path.of(analysis.markdownReportPath())));
     }
 
@@ -80,27 +87,31 @@ class DoctorServiceTest {
                 "statusDetails", Map.of(
                         "message", "NoSuchElementException: unable to locate element",
                         "trace", "trace"))), StandardCharsets.UTF_8);
-        registry.registerForCurrentThread(new DoctorProvider());
+        registry.registerForCurrentThread(new DoctorSnippetProvider());
         SHAFT.Properties.pilot.set()
                 .enabled(true)
                 .provider("doctor-test")
                 .remoteConsent(true)
                 .allowedEvidenceCategories("TEXT,LOG");
 
-        var analysis = new DoctorService().analyze(
+        var analysis = service(temp).analyzeFailedAllure(
                 List.of(input.toString()),
                 List.of(),
-                List.of(temp.toString()),
                 temp.resolve("provider-doctor-output").toString(),
                 false,
                 false,
-                1);
+                1,
+                "",
+                List.of(),
+                true,
+                false,
+                true,
+                "driver");
 
-        String report = Files.readString(Path.of(analysis.jsonReportPath()), StandardCharsets.UTF_8);
         assertEquals(CauseCategory.LOCATOR, analysis.diagnosis().primaryCause());
-        assertTrue(report.contains("\"advisory\""));
-        assertTrue(report.contains("\"provider\" : \"doctor-test\""));
-        assertTrue(report.contains("\"status\" : \"SUCCESS\""));
+        assertEquals(AiResponseStatus.SUCCESS, analysis.providerFallback().status());
+        assertTrue(analysis.providerFallback().used());
+        assertTrue(analysis.codeBlocks().stream().anyMatch(block -> block.id().startsWith("ai-")));
     }
 
     @Test
@@ -110,14 +121,38 @@ class DoctorServiceTest {
                 "shaft-mcp/src/test/resources/fixtures/shaft-pilot/mcp/doctor-analyze-invocations.json"));
         var fixture = new ObjectMapper().readTree(json);
 
-        assertEquals("doctor_analyze", fixture.path("tool").asText());
+        assertEquals("doctor_analyze_failed_allure", fixture.path("tool").asText());
         Set<String> clients = new java.util.LinkedHashSet<>();
         fixture.path("clients").forEach(client -> clients.add(client.path("name").asText()));
         assertEquals(Set.of("ChatGPT", "Codex", "Claude", "Gemini", "GitHub Copilot"), clients);
         assertTrue(fixture.path("arguments").path("includeScreenshots").isBoolean());
         assertTrue(fixture.path("arguments").path("includePageSnapshots").isBoolean());
+        assertTrue(fixture.path("arguments").path("useAi").isBoolean());
         assertTrue(!json.contains("API_KEY") && !json.contains("apiKey")
                 && !json.toLowerCase(java.util.Locale.ROOT).contains("authorization"));
+    }
+
+    @Test
+    void failedAllureAnalysisRejectsPathsOutsideWorkspace(@TempDir Path temp) throws Exception {
+        Path outside = Files.createTempDirectory("shaft-mcp-outside");
+        Files.writeString(outside.resolve("result.json"), "{}", StandardCharsets.UTF_8);
+
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> service(temp).analyzeFailedAllure(
+                        List.of(outside.toString()),
+                        List.of(),
+                        temp.resolve("doctor-output").toString(),
+                        false,
+                        false,
+                        1,
+                        "",
+                        List.of(),
+                        false,
+                        false,
+                        false,
+                        "driver"));
+
+        assertTrue(failure.getMessage().contains("workspace"));
     }
 
     @Test
@@ -192,7 +227,11 @@ class DoctorServiceTest {
         throw new IllegalStateException("Repository root could not be resolved.");
     }
 
-    private static final class DoctorProvider implements AiProvider {
+    private static DoctorService service(Path root) {
+        return new DoctorService(McpWorkspacePolicy.of(root), new McpDoctorRemediationService());
+    }
+
+    private static final class DoctorSnippetProvider implements AiProvider {
         @Override
         public String id() {
             return "doctor-test";
@@ -213,20 +252,15 @@ class DoctorServiceTest {
             String evidenceId = request.evidence().getFirst().id();
             var payload = new ObjectMapper().createObjectNode();
             payload.put("schemaVersion", "1.0");
-            payload.putArray("observations").addObject()
-                    .put("statement", "The exception reports a missing element.")
-                    .putArray("evidenceIds").add(evidenceId);
-            payload.putArray("hypotheses").addObject()
-                    .put("causeCategory", "LOCATOR")
-                    .put("statement", "The locator likely needs inspection.")
-                    .put("confidence", "HIGH")
-                    .putArray("evidenceIds").add(evidenceId);
-            payload.putArray("missingEvidence").add("Current DOM snapshot");
-            payload.putArray("recommendedActions").addObject()
-                    .put("title", "Inspect locator")
-                    .put("action", "Compare the locator with the current DOM.")
-                    .putArray("evidenceIds").add(evidenceId);
-            payload.putArray("limitations").add("Only submitted evidence was analyzed.");
+            var block = payload.putArray("codeBlocks").addObject();
+            block.put("title", "Provider wait advisory");
+            block.put("kind", "WAIT");
+            block.put("code", "driver.element().waitUntil(ExpectedConditions.elementToBeClickable(TARGET_ELEMENT), true);");
+            block.put("placement", "Paste before the failing click.");
+            block.put("copyPasteReady", false);
+            block.putArray("imports").add("org.openqa.selenium.support.ui.ExpectedConditions");
+            block.putArray("evidenceIds").add(evidenceId);
+            block.putArray("warnings").add("Review before applying.");
             return AiResponse.success(id(), "doctor-test-model", payload,
                     Duration.ofMillis(1), AiUsage.empty(), request.deterministicFallback());
         }

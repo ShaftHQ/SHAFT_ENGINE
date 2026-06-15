@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import sys
 import xml.etree.ElementTree as ET
+import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -104,6 +105,45 @@ def validate(root: Path = ROOT) -> list[str]:
     server_json = (root / "shaft-mcp/server.json").read_text(encoding="utf-8")
     if server_json.count("@project.version@") < 2:
         errors.append("MCP registry metadata must derive its version from the reactor")
+
+    manifest_path = root / "shaft-mcp/src/test/resources/fixtures/mcp-tool-manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    tools = {tool["name"] for tool in manifest.get("tools", [])}
+    required_tools = {
+        "doctor_analyze_failed_allure",
+        "doctor_suggest_fix",
+        "capture_checkpoint",
+        "capture_generate_replay",
+        "capture_code_blocks",
+        "browser_get_page_dom",
+        "browser_take_screenshot",
+        "mobile_initialize_web_emulation",
+        "mobile_initialize_native",
+        "mobile_get_contexts",
+        "mobile_get_accessibility_tree",
+        "mobile_take_screenshot",
+        "mobile_tap",
+        "mobile_type",
+        "mobile_record_start",
+        "mobile_recording_code_blocks",
+        "mobile_replay_recording",
+        "element_click_semantic",
+        "element_type_semantic",
+    }
+    missing_tools = required_tools - tools
+    if missing_tools:
+        errors.append(f"MCP tool manifest is missing lean remediation tools: {sorted(missing_tools)}")
+    removed_tools = {
+        "doctor_publish_draft_pr",
+        "browser_get_page_source",
+        "browser_get_cookie",
+        "browser_get_all_cookies",
+        "element_click_ai",
+        "element_type_ai",
+    }
+    present_removed_tools = removed_tools & tools
+    if present_removed_tools:
+        errors.append(f"MCP tool manifest still exposes removed/sensitive tools: {sorted(present_removed_tools)}")
 
     nested_workflows = list((root / "shaft-mcp/.github/workflows").glob("*.yml"))
     if nested_workflows:
