@@ -69,8 +69,15 @@ class ProviderConformanceTest {
     @MethodSource("providerIds")
     void allProvidersPassStructuredMockConformance(String providerId) throws Exception {
         AtomicReference<String> capturedBody = new AtomicReference<>("");
+        AtomicReference<String> capturedCredential = new AtomicReference<>("");
         server = server(exchange -> {
             capturedBody.set(readBody(exchange));
+            capturedCredential.set(switch (providerId) {
+                case "openai" -> exchange.getRequestHeaders().getFirst("Authorization");
+                case "anthropic" -> exchange.getRequestHeaders().getFirst("x-api-key");
+                case "gemini" -> exchange.getRequestHeaders().getFirst("x-goog-api-key");
+                default -> "";
+            });
             respond(exchange, 200, successfulResponse(providerId, "{\"answer\":\"ok\"}"));
         });
         configure(providerId, server.getAddress().getPort());
@@ -79,8 +86,12 @@ class ProviderConformanceTest {
         assertEquals(AiResponseStatus.SUCCESS, response.status());
         assertEquals("ok", response.structuredPayload().path("answer").asText());
         assertFalse(capturedBody.get().contains("do-not-transmit"));
+        assertFalse(capturedBody.get().contains("test-credential"));
         assertTrue(capturedBody.get().contains("[REDACTED]"));
         assertTrue(capturedBody.get().contains("answer"));
+        if (!"ollama".equals(providerId)) {
+            assertTrue(capturedCredential.get().contains("test-credential"));
+        }
     }
 
     @ParameterizedTest(name = "{0} accepts the Doctor advisory contract")
@@ -162,6 +173,46 @@ class ProviderConformanceTest {
         assertEquals(java.util.List.of("anthropic", "gemini", "ollama", "openai"), ids);
     }
 
+    @Test
+    void securedOnPremOllamaUsesOnlyNamedEnvironmentCredential() throws Exception {
+        AtomicReference<String> authorization = new AtomicReference<>("");
+        server = server(exchange -> {
+            authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            respond(exchange, 200, successfulResponse("ollama", "{\"answer\":\"ok\"}"));
+        });
+        SHAFT.Properties.pilot.set()
+                .enabled(true)
+                .provider("ollama")
+                .localConsent(false)
+                .onPremConsent(true)
+                .remoteConsent(false)
+                .allowedEvidenceCategories("TEXT")
+                .retryMaxAttempts(1)
+                .ollamaEndpoint("http://127.0.0.1:" + server.getAddress().getPort() + "/api/chat")
+                .ollamaModel("test-model")
+                .ollamaProcessingLocation("on-prem")
+                .ollamaApiKeyEnvironmentVariable("OLLAMA_GATEWAY_TOKEN")
+                .ollamaApiKeyHeader("Authorization")
+                .ollamaApiKeyPrefix("Bearer ");
+        AiProviderRegistry registry = new AiProviderRegistry();
+        registry.registerForCurrentThread(new OllamaProvider(
+                HttpClient.newHttpClient(),
+                name -> "OLLAMA_GATEWAY_TOKEN".equals(name) ? "gateway-secret" : ""));
+        try {
+            ApprovalPolicy approval = new ApprovalPolicy(
+                    false, true, false, EnumSet.of(EvidenceCategory.TEXT));
+            AiResponse response = new AiExecutionService(
+                    registry, PilotConfiguration::current, event -> {
+            }).execute(requestWithApproval(approval));
+
+            assertEquals(AiResponseStatus.SUCCESS, response.status());
+            assertEquals("Bearer gateway-secret", authorization.get());
+            assertFalse(response.toString().contains("gateway-secret"));
+        } finally {
+            registry.clearForCurrentThread();
+        }
+    }
+
     private AiResponse execute(String providerId, AiRequest request) {
         AiProviderRegistry registry = new AiProviderRegistry();
         registry.registerForCurrentThread(provider(providerId));
@@ -198,6 +249,21 @@ class ProviderConformanceTest {
                 .budget(new AiBudget(1_000, 100, java.math.BigDecimal.ONE))
                 .approvalPolicy(approval)
                 .timeout(timeout)
+                .deterministicFallback(JSON.createObjectNode().put("answer", "deterministic"))
+                .build();
+    }
+
+    private static AiRequest requestWithApproval(ApprovalPolicy approval) {
+        JsonNode schema = JSON.createObjectNode()
+                .put("type", "object")
+                .set("properties", JSON.createObjectNode()
+                        .set("answer", JSON.createObjectNode().put("type", "string")));
+        ((com.fasterxml.jackson.databind.node.ObjectNode) schema).putArray("required").add("answer");
+        return AiRequest.builder("provider-conformance", schema)
+                .text("bounded evidence")
+                .budget(new AiBudget(1_000, 100, java.math.BigDecimal.ONE))
+                .approvalPolicy(approval)
+                .timeout(Duration.ofSeconds(1))
                 .deterministicFallback(JSON.createObjectNode().put("answer", "deterministic"))
                 .build();
     }

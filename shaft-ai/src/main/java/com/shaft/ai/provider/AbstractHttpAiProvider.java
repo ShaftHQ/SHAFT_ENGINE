@@ -11,6 +11,7 @@ import com.shaft.pilot.ai.AiRequest;
 import com.shaft.pilot.ai.AiResponse;
 import com.shaft.pilot.ai.AiResponseStatus;
 import com.shaft.pilot.ai.AiUsage;
+import com.shaft.pilot.ai.ProcessingLocation;
 import com.shaft.pilot.config.PilotConfiguration;
 import com.shaft.pilot.config.ProviderConfiguration;
 
@@ -67,7 +68,7 @@ public abstract class AbstractHttpAiProvider implements AiProvider {
         if (configuration.model().isBlank()) {
             return AiProviderAvailability.unavailable("Provider model is not configured.");
         }
-        if (requiresCredential()) {
+        if (requiresCredential(configuration)) {
             String key = environment.apply(configuration.apiKeyEnvironmentVariable());
             if (key == null || key.isBlank()) {
                 return AiProviderAvailability.unavailable("Provider credential environment variable is not set.");
@@ -157,12 +158,21 @@ public abstract class AbstractHttpAiProvider implements AiProvider {
         return response.path("model").asText(configuration.model());
     }
 
-    protected boolean requiresCredential() {
-        return true;
+    protected boolean requiresCredential(ProviderConfiguration configuration) {
+        return !configuration.apiKeyEnvironmentVariable().isBlank();
     }
 
     protected String credential(ProviderConfiguration configuration) {
         return environment.apply(configuration.apiKeyEnvironmentVariable());
+    }
+
+    protected ProcessingLocation processingLocation(ProcessingLocation fallback) {
+        try {
+            ProcessingLocation configured = PilotConfiguration.current().provider(id()).processingLocation();
+            return configured == ProcessingLocation.NONE ? fallback : configured;
+        } catch (RuntimeException exception) {
+            return fallback;
+        }
     }
 
     protected static long outputTokenLimit(AiRequest request, PilotConfiguration configuration) {

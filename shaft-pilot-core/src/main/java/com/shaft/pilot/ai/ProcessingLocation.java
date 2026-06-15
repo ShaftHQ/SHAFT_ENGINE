@@ -5,6 +5,7 @@ package com.shaft.pilot.ai;
  */
 public enum ProcessingLocation {
     LOCAL,
+    ON_PREM,
     REMOTE,
     NONE
 }

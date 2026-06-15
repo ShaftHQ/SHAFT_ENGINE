@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shafthq.github.io/schema/shaft-heal-report-2.0.schema.json",
+  "title": "SHAFT Heal Report",
+  "type": "object",
+  "required": [
+    "schemaVersion", "attemptId", "timestamp", "originalLocator",
+    "failureCategory", "pageKey", "context", "contextMetadata",
+    "candidates", "decision", "provider", "privacy", "action"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "2.0"},
+    "attemptId": {"type": "string", "minLength": 1},
+    "timestamp": {"type": "string"},
+    "originalLocator": {"type": "string"},
+    "failureCategory": {"const": "LOCATOR_NOT_FOUND"},
+    "pageKey": {"type": "string"},
+    "context": {"type": "string"},
+    "contextMetadata": {
+      "type": "object",
+      "required": [
+        "schemaVersion", "platform", "applicationId", "screenId",
+        "automationContext", "windowHandle", "frameLocator",
+        "shadowHostLocator", "shadowContentLocator"
+      ]
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "candidateId", "proposedLocator", "fingerprint", "score",
+          "evidence", "unique", "visible", "interactable", "contextMatched"
+        ]
+      }
+    },
+    "decision": {
+      "type": "object",
+      "required": [
+        "status", "selectedCandidateId", "confidence", "reason",
+        "actionOnly", "sourcePatchProposed"
+      ]
+    },
+    "provider": {
+      "type": "object",
+      "required": [
+        "enabled", "provider", "model", "status", "fallbackReason",
+        "processingLocation", "endpointClass", "redactionSummary"
+      ]
+    },
+    "privacy": {
+      "type": "object",
+      "required": ["policy", "redactedFields", "remoteEvidenceSent"]
+    },
+    "action": {
+      "type": "object",
+      "required": [
+        "name", "recoveryUsed", "outcome", "postActionVerification", "failure"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

@@ -761,23 +761,27 @@ public class Actions extends ElementActions {
         By shadowDomLocator = ShadowLocatorBuilder.shadowDomLocator.get();
         By cssSelector = ShadowLocatorBuilder.cssSelector.get();
 
-        if (shadowDomLocator != null && cssSelector == locator) {
-            //reset to default content
-            driverFactoryHelper.getDriver().switchTo().defaultContent();
-            //switch to shadow root and find elements
-            foundElements = driverFactoryHelper.getDriver().findElement(shadowDomLocator)
-                    .getShadowRoot()
-                    .findElements(cssSelector);
-        } else if (LocatorBuilder.getIFrameLocator().get() != null) {
-            //reset to default content
-            driverFactoryHelper.getDriver().switchTo().defaultContent();
-            //switch to frame and find elements
-            foundElements = driverFactoryHelper.getDriver().switchTo()
-                    .frame(driverFactoryHelper.getDriver().findElement(LocatorBuilder.getIFrameLocator().get()))
-                    .findElements(locator);
-        } else {
-            //normal case, just find the elements
-            foundElements = ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), locator);
+        try {
+            if (shadowDomLocator != null && cssSelector == locator) {
+                //reset to default content
+                driverFactoryHelper.getDriver().switchTo().defaultContent();
+                //switch to shadow root and find elements
+                foundElements = driverFactoryHelper.getDriver().findElement(shadowDomLocator)
+                        .getShadowRoot()
+                        .findElements(cssSelector);
+            } else if (LocatorBuilder.getIFrameLocator().get() != null) {
+                //reset to default content
+                driverFactoryHelper.getDriver().switchTo().defaultContent();
+                //switch to frame and find elements
+                foundElements = driverFactoryHelper.getDriver().switchTo()
+                        .frame(driverFactoryHelper.getDriver().findElement(LocatorBuilder.getIFrameLocator().get()))
+                        .findElements(locator);
+            } else {
+                //normal case, just find the elements
+                foundElements = ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), locator);
+            }
+        } catch (NoSuchElementException | NoSuchFrameException | StaleElementReferenceException exception) {
+            foundElements = List.of();
         }
         if (!foundElements.isEmpty()) {
             return new ElementLookup(foundElements, null);

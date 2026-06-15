@@ -15,7 +15,9 @@ final class DeterministicScorer {
             "test-id", 0.20,
             "stable-id-name", 0.15,
             "semantic", 0.15,
-            "dom-fingerprint", 0.05);
+            "dom-fingerprint", 0.05,
+            "native-state", 0.05,
+            "ancestor-context", 0.05);
     private final HealingConfiguration configuration;
 
     DeterministicScorer(HealingConfiguration configuration) {
@@ -23,6 +25,9 @@ final class DeterministicScorer {
     }
 
     HealingScore score(LocatorFingerprint original, LocatorFingerprint candidate) {
+        if (original.platform() != candidate.platform()) {
+            return new HealingScore(0, null, null, 0, Map.of("platform", 0.0));
+        }
         Map<String, Double> evidence = new LinkedHashMap<>();
         add(evidence, "accessibility",
                 max(similarity(original.accessibleName(), candidate.accessibleName()),
@@ -41,6 +46,12 @@ final class DeterministicScorer {
         add(evidence, "dom-fingerprint",
                 exact(original.domPathChecksum(), candidate.domPathChecksum()),
                 present(original.domPathChecksum()));
+        add(evidence, "native-state",
+                nativeStateSimilarity(original, candidate),
+                original.platform().nativePlatform());
+        add(evidence, "ancestor-context",
+                exact(original.ancestorChecksum(), candidate.ancestorChecksum()),
+                present(original.ancestorChecksum()));
 
         double weightedScore = 0;
         double availableWeight = 0;
@@ -66,7 +77,8 @@ final class DeterministicScorer {
                 || present(fingerprint.placeholder())
                 || present(fingerprint.title())
                 || present(fingerprint.visibleText())
-                || !fingerprint.semanticAttributes().isEmpty();
+                || !fingerprint.semanticAttributes().isEmpty()
+                || !fingerprint.nativeAttributes().isEmpty();
     }
 
     private static double semanticSimilarity(LocatorFingerprint original, LocatorFingerprint candidate) {
@@ -79,13 +91,24 @@ final class DeterministicScorer {
                 similarity(original.placeholder(), candidate.placeholder()),
                 similarity(original.title(), candidate.title()),
                 similarity(original.visibleText(), candidate.visibleText()),
-                mapSimilarity(original.semanticAttributes(), candidate.semanticAttributes())}) {
+                mapSimilarity(original.semanticAttributes(), candidate.semanticAttributes()),
+                mapSimilarity(original.nativeAttributes(), candidate.nativeAttributes())}) {
             if (value >= 0) {
                 total += value;
                 count++;
             }
         }
         return count == 0 ? 0 : total / count;
+    }
+
+    private static double nativeStateSimilarity(
+            LocatorFingerprint original,
+            LocatorFingerprint candidate) {
+        int matched = 0;
+        matched += original.displayed() == candidate.displayed() ? 1 : 0;
+        matched += original.enabled() == candidate.enabled() ? 1 : 0;
+        matched += original.selected() == candidate.selected() ? 1 : 0;
+        return matched / 3.0;
     }
 
     private static double mapSimilarity(Map<String, String> original, Map<String, String> candidate) {

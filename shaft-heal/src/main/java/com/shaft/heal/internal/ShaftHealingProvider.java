@@ -8,6 +8,7 @@ import com.shaft.gui.internal.healing.HealingResolution;
 import com.shaft.heal.HealingConfiguration;
 import com.shaft.heal.ShaftHeal;
 import com.shaft.heal.model.HealingDecision;
+import com.shaft.heal.model.HealingContext;
 import com.shaft.heal.model.HealingReport;
 import com.shaft.heal.model.LocatorFingerprint;
 import org.openqa.selenium.WebDriver;
@@ -43,8 +44,12 @@ public class ShaftHealingProvider implements HealingProvider {
         String attemptId = UUID.randomUUID().toString();
         String pageKey = HealingSupport.pageKey(request.driver());
         String originalLocator = HealingSupport.locator(request.originalLocator());
-        String context = HealingSupport.contextKey(
-                request.frameLocator(), request.shadowHostLocator(), request.shadowContentLocator());
+        HealingContext contextMetadata = HealingSupport.context(
+                request.driver(),
+                request.frameLocator(),
+                request.shadowHostLocator(),
+                request.shadowContentLocator());
+        String context = contextMetadata.stableKey();
         Optional<HistoryRecord> retained = history.find(pageKey, originalLocator, context);
         if (retained.isEmpty()) {
             writer.publish(report(
@@ -52,6 +57,7 @@ public class ShaftHealingProvider implements HealingProvider {
                     request,
                     pageKey,
                     context,
+                    contextMetadata,
                     List.of(),
                     new HealingDecision(
                             HealingDecision.Status.NO_HISTORY,
@@ -67,7 +73,11 @@ public class ShaftHealingProvider implements HealingProvider {
         }
 
         List<RankedCandidate> candidates = new CandidateExtractor(configuration)
-                .extract(request.driver(), retained.get().fingerprint(), request.shadowHostLocator());
+                .extract(
+                        request.driver(),
+                        retained.get().fingerprint(),
+                        request.frameLocator(),
+                        request.shadowHostLocator());
         candidates = new VisualEvidenceService(configuration)
                 .apply(candidates, retained.get().visualReference());
         AiCandidateReranker.RerankResult reranked = new AiCandidateReranker(configuration).apply(candidates);
@@ -78,6 +88,7 @@ public class ShaftHealingProvider implements HealingProvider {
                 request,
                 pageKey,
                 context,
+                contextMetadata,
                 rankedReports(reranked.candidates()),
                 result.decision(),
                 reranked.metadata(),
@@ -104,10 +115,12 @@ public class ShaftHealingProvider implements HealingProvider {
         HealingConfiguration configuration = HealingConfiguration.current();
         String pageKey = HealingSupport.pageKey(observation.driver());
         String originalLocator = HealingSupport.locator(observation.originalLocator());
-        String context = HealingSupport.contextKey(
+        HealingContext contextMetadata = HealingSupport.context(
+                observation.driver(),
                 observation.frameLocator(),
                 observation.shadowHostLocator(),
                 observation.shadowContentLocator());
+        String context = contextMetadata.stableKey();
         String historyKey = HealingHistoryStore.key(pageKey, originalLocator, context);
         LocatorFingerprint fingerprint = new FingerprintExtractor(configuration)
                 .extract(observation.driver(), observation.element());
@@ -117,6 +130,7 @@ public class ShaftHealingProvider implements HealingProvider {
                 pageKey,
                 originalLocator,
                 context,
+                contextMetadata,
                 fingerprint,
                 visualReference);
     }
@@ -142,6 +156,7 @@ public class ShaftHealingProvider implements HealingProvider {
                 previous.failureCategory(),
                 previous.pageKey(),
                 previous.context(),
+                previous.contextMetadata(),
                 previous.candidates(),
                 previous.decision(),
                 previous.provider(),
@@ -155,6 +170,7 @@ public class ShaftHealingProvider implements HealingProvider {
                     pending.history().pageKey(),
                     pending.history().originalLocator(),
                     pending.history().context(),
+                    pending.history().contextMetadata(),
                     pending.selected().report().fingerprint(),
                     visualReference.isBlank() ? pending.history().visualReference() : visualReference);
         }
@@ -171,6 +187,7 @@ public class ShaftHealingProvider implements HealingProvider {
             HealingRequest request,
             String pageKey,
             String context,
+            HealingContext contextMetadata,
             List<com.shaft.heal.model.HealingCandidate> candidates,
             HealingDecision decision,
             HealingReport.ProviderMetadata provider,
@@ -190,6 +207,7 @@ public class ShaftHealingProvider implements HealingProvider {
                 "LOCATOR_NOT_FOUND",
                 pageKey,
                 context,
+                contextMetadata,
                 candidates,
                 decision,
                 provider,

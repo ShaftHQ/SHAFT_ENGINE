@@ -38,6 +38,11 @@ public interface Pilot extends EngineProperties<Pilot> {
     @DefaultValue("false")
     boolean localConsent();
 
+    /** @return whether explicitly classified on-prem inference is approved */
+    @Key("pilot.ai.consent.onPrem")
+    @DefaultValue("false")
+    boolean onPremConsent();
+
     /** @return whether remote inference is approved */
     @Key("pilot.ai.consent.remote")
     @DefaultValue("false")
@@ -128,6 +133,11 @@ public interface Pilot extends EngineProperties<Pilot> {
     @DefaultValue("OPENAI_API_KEY")
     String openAiApiKeyEnvironmentVariable();
 
+    /** @return explicit OpenAI endpoint processing location */
+    @Key("pilot.ai.openai.processingLocation")
+    @DefaultValue("remote")
+    String openAiProcessingLocation();
+
     /** @return Anthropic Messages endpoint */
     @Key("pilot.ai.anthropic.endpoint")
     @DefaultValue("https://api.anthropic.com/v1/messages")
@@ -142,6 +152,11 @@ public interface Pilot extends EngineProperties<Pilot> {
     @Key("pilot.ai.anthropic.apiKeyEnvironmentVariable")
     @DefaultValue("ANTHROPIC_API_KEY")
     String anthropicApiKeyEnvironmentVariable();
+
+    /** @return explicit Anthropic endpoint processing location */
+    @Key("pilot.ai.anthropic.processingLocation")
+    @DefaultValue("remote")
+    String anthropicProcessingLocation();
 
     /** @return Anthropic API contract version */
     @Key("pilot.ai.anthropic.version")
@@ -163,6 +178,11 @@ public interface Pilot extends EngineProperties<Pilot> {
     @DefaultValue("GEMINI_API_KEY")
     String geminiApiKeyEnvironmentVariable();
 
+    /** @return explicit Gemini endpoint processing location */
+    @Key("pilot.ai.gemini.processingLocation")
+    @DefaultValue("remote")
+    String geminiProcessingLocation();
+
     /** @return Ollama chat endpoint */
     @Key("pilot.ai.ollama.endpoint")
     @DefaultValue("http://127.0.0.1:11434/api/chat")
@@ -172,6 +192,26 @@ public interface Pilot extends EngineProperties<Pilot> {
     @Key("pilot.ai.ollama.model")
     @DefaultValue("")
     String ollamaModel();
+
+    /** @return explicit Ollama endpoint processing location */
+    @Key("pilot.ai.ollama.processingLocation")
+    @DefaultValue("local")
+    String ollamaProcessingLocation();
+
+    /** @return optional environment variable containing an on-prem Ollama gateway credential */
+    @Key("pilot.ai.ollama.apiKeyEnvironmentVariable")
+    @DefaultValue("")
+    String ollamaApiKeyEnvironmentVariable();
+
+    /** @return optional Ollama gateway credential header */
+    @Key("pilot.ai.ollama.apiKeyHeader")
+    @DefaultValue("Authorization")
+    String ollamaApiKeyHeader();
+
+    /** @return optional Ollama gateway credential prefix */
+    @Key("pilot.ai.ollama.apiKeyPrefix")
+    @DefaultValue("Bearer ")
+    String ollamaApiKeyPrefix();
 
     /**
      * Returns a fluent builder for current-thread overrides.
@@ -201,6 +241,12 @@ public interface Pilot extends EngineProperties<Pilot> {
         /** @param value local consent state @return this builder */
         public SetProperty localConsent(boolean value) {
             setProperty("pilot.ai.consent.local", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value on-prem consent state @return this builder */
+        public SetProperty onPremConsent(boolean value) {
+            setProperty("pilot.ai.consent.onPrem", String.valueOf(value));
             return this;
         }
 
@@ -312,6 +358,12 @@ public interface Pilot extends EngineProperties<Pilot> {
             return this;
         }
 
+        /** @param value processing location @return this builder */
+        public SetProperty openAiProcessingLocation(String value) {
+            setProperty("pilot.ai.openai.processingLocation", value);
+            return this;
+        }
+
         /** @param value endpoint URL @return this builder */
         public SetProperty anthropicEndpoint(String value) {
             setProperty("pilot.ai.anthropic.endpoint", value);
@@ -327,6 +379,12 @@ public interface Pilot extends EngineProperties<Pilot> {
         /** @param value environment variable name @return this builder */
         public SetProperty anthropicApiKeyEnvironmentVariable(String value) {
             setProperty("pilot.ai.anthropic.apiKeyEnvironmentVariable", value);
+            return this;
+        }
+
+        /** @param value processing location @return this builder */
+        public SetProperty anthropicProcessingLocation(String value) {
+            setProperty("pilot.ai.anthropic.processingLocation", value);
             return this;
         }
 
@@ -354,6 +412,12 @@ public interface Pilot extends EngineProperties<Pilot> {
             return this;
         }
 
+        /** @param value processing location @return this builder */
+        public SetProperty geminiProcessingLocation(String value) {
+            setProperty("pilot.ai.gemini.processingLocation", value);
+            return this;
+        }
+
         /** @param value endpoint URL @return this builder */
         public SetProperty ollamaEndpoint(String value) {
             setProperty("pilot.ai.ollama.endpoint", value);
@@ -363,6 +427,30 @@ public interface Pilot extends EngineProperties<Pilot> {
         /** @param value model identifier @return this builder */
         public SetProperty ollamaModel(String value) {
             setProperty("pilot.ai.ollama.model", value);
+            return this;
+        }
+
+        /** @param value processing location @return this builder */
+        public SetProperty ollamaProcessingLocation(String value) {
+            setProperty("pilot.ai.ollama.processingLocation", value);
+            return this;
+        }
+
+        /** @param value environment variable name @return this builder */
+        public SetProperty ollamaApiKeyEnvironmentVariable(String value) {
+            setProperty("pilot.ai.ollama.apiKeyEnvironmentVariable", value);
+            return this;
+        }
+
+        /** @param value credential header @return this builder */
+        public SetProperty ollamaApiKeyHeader(String value) {
+            setProperty("pilot.ai.ollama.apiKeyHeader", value);
+            return this;
+        }
+
+        /** @param value credential prefix @return this builder */
+        public SetProperty ollamaApiKeyPrefix(String value) {
+            setProperty("pilot.ai.ollama.apiKeyPrefix", value);
             return this;
         }
     }

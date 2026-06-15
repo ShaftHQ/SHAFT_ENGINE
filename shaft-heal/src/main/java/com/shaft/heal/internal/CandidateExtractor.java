@@ -2,8 +2,10 @@ package com.shaft.heal.internal;
 
 import com.shaft.heal.HealingConfiguration;
 import com.shaft.heal.model.HealingCandidate;
+import com.shaft.heal.model.HealingPlatform;
 import com.shaft.heal.model.HealingScore;
 import com.shaft.heal.model.LocatorFingerprint;
+import io.appium.java_client.AppiumBy;
 import org.openqa.selenium.By;
 import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.WebDriver;
@@ -34,8 +36,10 @@ final class CandidateExtractor {
     List<RankedCandidate> extract(
             WebDriver driver,
             LocatorFingerprint original,
+            By frameLocator,
             By shadowHostLocator) {
-        Optional<SearchContext> searchContext = searchContext(driver, shadowHostLocator);
+        Optional<SearchContext> searchContext = searchContext(
+                driver, original.platform(), frameLocator, shadowHostLocator);
         if (searchContext.isEmpty()) {
             return List.of();
         }
@@ -82,7 +86,7 @@ final class CandidateExtractor {
                     proposal.unique(),
                     visible,
                     interactable,
-                    true);
+                    fingerprint.platform() == original.platform());
             candidates.add(new RankedCandidate(element, proposal.locator(), report));
         }
         return candidates.stream()
@@ -97,7 +101,17 @@ final class CandidateExtractor {
                 .toList();
     }
 
+    List<RankedCandidate> extract(
+            WebDriver driver,
+            LocatorFingerprint original,
+            By shadowHostLocator) {
+        return extract(driver, original, null, shadowHostLocator);
+    }
+
     private List<By> discoveryLocators(LocatorFingerprint fingerprint, boolean shadowContext) {
+        if (fingerprint.platform().nativePlatform()) {
+            return nativeDiscoveryLocators(fingerprint);
+        }
         Set<By> locators = new LinkedHashSet<>();
         addAttribute(locators, "id", fingerprint.id());
         addAttribute(locators, "name", fingerprint.name());
@@ -125,6 +139,9 @@ final class CandidateExtractor {
             SearchContext context,
             WebElement element,
             LocatorFingerprint fingerprint) {
+        if (fingerprint.platform().nativePlatform()) {
+            return proposeNativeLocator(context, element, fingerprint);
+        }
         List<By> proposals = new ArrayList<>();
         fingerprint.testIds().forEach((attribute, value) -> proposals.add(attributeLocator(attribute, value)));
         if (!fingerprint.id().isBlank()) {
@@ -153,20 +170,111 @@ final class CandidateExtractor {
         return new LocatorProposal(fallback, false);
     }
 
-    private static Optional<SearchContext> searchContext(WebDriver driver, By shadowHostLocator) {
-        if (shadowHostLocator == null) {
+    private static Optional<SearchContext> searchContext(
+            WebDriver driver,
+            HealingPlatform platform,
+            By frameLocator,
+            By shadowHostLocator) {
+        if (platform.nativePlatform()) {
             return Optional.of(driver);
         }
         try {
-            return Optional.of(driver.findElement(shadowHostLocator).getShadowRoot());
+            driver.switchTo().defaultContent();
+            SearchContext context = driver;
+            if (frameLocator != null) {
+                List<WebElement> frames = driver.findElements(frameLocator);
+                if (frames.size() != 1) {
+                    return Optional.empty();
+                }
+                context = driver.switchTo().frame(frames.getFirst());
+            }
+            if (shadowHostLocator != null) {
+                List<WebElement> hosts = context.findElements(shadowHostLocator);
+                if (hosts.size() != 1) {
+                    return Optional.empty();
+                }
+                context = hosts.getFirst().getShadowRoot();
+            }
+            return Optional.of(context);
         } catch (RuntimeException exception) {
             return Optional.empty();
         }
     }
 
+    private static List<By> nativeDiscoveryLocators(LocatorFingerprint fingerprint) {
+        Set<By> locators = new LinkedHashSet<>();
+        addNativeAccessibilityId(locators, fingerprint.accessibleName());
+        addNativeAccessibilityId(locators, fingerprint.nativeAttributes().get("content-desc"));
+        addNativeAccessibilityId(locators, fingerprint.nativeAttributes().get("label"));
+        addNativeAccessibilityId(locators, fingerprint.name());
+        addNativeId(locators, fingerprint.id());
+        addNativeId(locators, fingerprint.nativeAttributes().get("resource-id"));
+        addNativeClass(locators, fingerprint.nativeAttributes().get("class"));
+        addNativeClass(locators, fingerprint.tagName());
+        addNativeXPath(locators, "content-desc", fingerprint.nativeAttributes().get("content-desc"));
+        addNativeXPath(locators, "name", fingerprint.nativeAttributes().get("name"));
+        addNativeXPath(locators, "label", fingerprint.nativeAttributes().get("label"));
+        addNativeXPath(locators, "resource-id", fingerprint.nativeAttributes().get("resource-id"));
+        addNativeXPath(locators, "text", fingerprint.visibleText());
+        return List.copyOf(locators);
+    }
+
+    private static LocatorProposal proposeNativeLocator(
+            SearchContext context,
+            WebElement element,
+            LocatorFingerprint fingerprint) {
+        List<By> proposals = new ArrayList<>();
+        addNativeAccessibilityId(proposals, fingerprint.accessibleName());
+        addNativeAccessibilityId(proposals, fingerprint.nativeAttributes().get("content-desc"));
+        addNativeAccessibilityId(proposals, fingerprint.nativeAttributes().get("label"));
+        addNativeId(proposals, fingerprint.id());
+        addNativeId(proposals, fingerprint.nativeAttributes().get("resource-id"));
+        addNativeXPath(proposals, "name", fingerprint.nativeAttributes().get("name"));
+        addNativeXPath(proposals, "label", fingerprint.nativeAttributes().get("label"));
+        addNativeXPath(proposals, "text", fingerprint.visibleText());
+        for (By proposal : proposals) {
+            try {
+                List<WebElement> matches = context.findElements(proposal);
+                if (matches.size() == 1 && matches.getFirst().equals(element)) {
+                    return new LocatorProposal(proposal, true);
+                }
+            } catch (WebDriverException ignored) {
+                // Try the next bounded accessibility locator.
+            }
+        }
+        By fallback = fingerprint.tagName().isBlank()
+                ? By.xpath("//*")
+                : By.className(fingerprint.tagName());
+        return new LocatorProposal(fallback, false);
+    }
+
     private static void addAttribute(Set<By> locators, String attribute, String value) {
         if (value != null && !value.isBlank()) {
             locators.add(attributeLocator(attribute, value));
+        }
+    }
+
+    private static void addNativeAccessibilityId(java.util.Collection<By> locators, String value) {
+        if (value != null && !value.isBlank()) {
+            locators.add(AppiumBy.accessibilityId(value));
+        }
+    }
+
+    private static void addNativeId(java.util.Collection<By> locators, String value) {
+        if (value != null && !value.isBlank()) {
+            locators.add(By.id(value));
+        }
+    }
+
+    private static void addNativeClass(java.util.Collection<By> locators, String value) {
+        if (value != null && !value.isBlank()) {
+            locators.add(By.className(value));
+        }
+    }
+
+    private static void addNativeXPath(java.util.Collection<By> locators, String attribute, String value) {
+        if (value != null && !value.isBlank()) {
+            locators.add(By.xpath("//*[@" + attribute + "=" + xpathLiteral(value) + "]"));
         }
     }
 

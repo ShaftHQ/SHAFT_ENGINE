@@ -14,6 +14,7 @@ import com.shaft.pilot.config.ProviderConfiguration;
 
 import java.net.http.HttpClient;
 import java.util.Base64;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -38,12 +39,25 @@ public final class OllamaProvider extends AbstractHttpAiProvider {
 
     @Override
     public AiCapabilities capabilities() {
-        return new AiCapabilities(true, true, true, 0, ProcessingLocation.LOCAL);
+        return new AiCapabilities(true, true, true, 0,
+                processingLocation(ProcessingLocation.LOCAL));
     }
 
     @Override
-    protected boolean requiresCredential() {
-        return false;
+    protected boolean requiresCredential(ProviderConfiguration configuration) {
+        return !configuration.apiKeyEnvironmentVariable().isBlank();
+    }
+
+    @Override
+    protected Map<String, String> headers(ProviderConfiguration configuration) {
+        if (!requiresCredential(configuration)) {
+            return Map.of();
+        }
+        String header = configuration.option("api-key-header");
+        String prefix = configuration.option("api-key-prefix");
+        return Map.of(
+                header.isBlank() ? "Authorization" : header,
+                prefix + credential(configuration));
     }
 
     @Override

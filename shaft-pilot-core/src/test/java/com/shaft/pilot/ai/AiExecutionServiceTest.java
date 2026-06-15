@@ -73,6 +73,39 @@ class AiExecutionServiceTest {
     }
 
     @Test
+    void onPremEvidenceRequiresIndependentConsent() {
+        StubProvider provider = new StubProvider(ProcessingLocation.ON_PREM);
+        AiProviderRegistry registry = new AiProviderRegistry();
+        registry.registerForCurrentThread(provider);
+        PilotConfiguration configured = PilotTestConfiguration.enabled("stub", ProcessingLocation.ON_PREM);
+        PilotConfiguration denied = new PilotConfiguration(
+                true,
+                configured.provider(),
+                new ApprovalPolicy(true, false, true, EnumSet.allOf(EvidenceCategory.class)),
+                false,
+                configured.timeout(),
+                configured.maxRequestBytes(),
+                configured.maxInputTokens(),
+                configured.maxOutputTokens(),
+                configured.maxCostUsd(),
+                configured.retryMaxAttempts(),
+                configured.maxConcurrency(),
+                configured.circuitBreakerFailureThreshold(),
+                configured.circuitBreakerCooldown(),
+                configured.redactionPolicy(),
+                configured.providers());
+        try {
+            AiResponse response = service(registry, denied)
+                    .execute(request(approved(ProcessingLocation.ON_PREM)));
+
+            assertEquals(AiResponseStatus.CONSENT_REQUIRED, response.status());
+            assertEquals(0, provider.calls.get());
+        } finally {
+            registry.clearForCurrentThread();
+        }
+    }
+
+    @Test
     void requestIsRedactedBeforeProviderExecution() {
         StubProvider provider = new StubProvider(ProcessingLocation.REMOTE);
         AiProviderRegistry registry = new AiProviderRegistry();
@@ -192,7 +225,10 @@ class AiExecutionServiceTest {
     }
 
     private static ApprovalPolicy approved(ProcessingLocation location) {
-        return new ApprovalPolicy(location == ProcessingLocation.LOCAL, location == ProcessingLocation.REMOTE,
+        return new ApprovalPolicy(
+                location == ProcessingLocation.LOCAL,
+                location == ProcessingLocation.ON_PREM,
+                location == ProcessingLocation.REMOTE,
                 EnumSet.allOf(EvidenceCategory.class));
     }
 

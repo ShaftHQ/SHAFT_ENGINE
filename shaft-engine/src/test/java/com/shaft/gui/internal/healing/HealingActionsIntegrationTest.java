@@ -5,18 +5,22 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.internal.Actions;
 import com.shaft.properties.internal.Properties;
+import io.appium.java_client.AppiumDriver;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -79,5 +83,68 @@ public class HealingActionsIntegrationTest {
                 driver, ORIGINAL, "CLICK", true, null, null, null);
 
         org.testng.Assert.assertTrue(resolution.isEmpty());
+    }
+
+    @Test
+    public void validationActionsShouldNeverInvokeHealingProvider() {
+        WebDriver driver = mock(WebDriver.class);
+        HealingProvider provider = mock(HealingProvider.class);
+        HealingProviderRegistry.setProviderForTesting(provider);
+
+        Optional<HealingResolution> resolution = HealingManager.resolve(
+                driver, ORIGINAL, "ASSERT_THAT_ELEMENT_EXISTS", true, null, null, null);
+
+        Assert.assertTrue(resolution.isEmpty());
+        verify(provider, never()).resolve(any());
+    }
+
+    @Test
+    public void nativeMobileActionsShouldUseTheConfiguredHealingProvider() {
+        AppiumDriver driver = mock(AppiumDriver.class);
+        WebElement recovered = mock(WebElement.class);
+        HealingProvider provider = mock(HealingProvider.class);
+        when(provider.resolve(any())).thenReturn(Optional.of(
+                new HealingResolution("attempt-mobile", List.of(recovered), By.id("new-id"))));
+        HealingProviderRegistry.setProviderForTesting(provider);
+
+        Optional<HealingResolution> resolution = HealingManager.resolve(
+                driver, ORIGINAL, "CLICK", true, null, null, null);
+
+        Assert.assertTrue(resolution.isPresent());
+        verify(provider, atLeastOnce()).resolve(any());
+    }
+
+    @Test(dataProvider = "postActionVerification")
+    public void recoveryShouldRecordExpectedPostActionVerification(
+            String action,
+            String expectedVerification) {
+        WebDriver driver = mock(WebDriver.class);
+        WebElement recovered = mock(WebElement.class);
+        when(recovered.isDisplayed()).thenReturn(true);
+        when(recovered.isEnabled()).thenReturn(true);
+        HealingProvider provider = mock(HealingProvider.class);
+        HealingProviderRegistry.setProviderForTesting(provider);
+        HealingResolution resolution =
+                new HealingResolution("attempt-type", List.of(recovered), By.id("new-id"));
+
+        HealingManager.recordOutcome(driver, resolution, ORIGINAL, action, true, "");
+
+        var outcome = org.mockito.ArgumentCaptor.forClass(HealingActionOutcome.class);
+        verify(provider).recordOutcome(outcome.capture());
+        Assert.assertEquals(outcome.getValue().verification(), expectedVerification);
+    }
+
+    @DataProvider
+    public Object[][] postActionVerification() {
+        return new Object[][]{
+                {"TYPE", "ELEMENT_INTERACTABLE"},
+                {"SELECT", "ELEMENT_INTERACTABLE"},
+                {"CLEAR", "ELEMENT_INTERACTABLE"},
+                {"ELEMENT_RESOLUTION", "ELEMENT_INTERACTABLE"},
+                {"WAIT", "ELEMENT_INTERACTABLE"},
+                {"CLICK", "UNVERIFIABLE"},
+                {"HOVER", "UNVERIFIABLE"},
+                {"DRAG_AND_DROP", "UNVERIFIABLE"}
+        };
     }
 }

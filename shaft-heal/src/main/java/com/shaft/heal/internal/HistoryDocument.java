@@ -10,7 +10,7 @@ import java.util.Objects;
  * @param records retained history records
  */
 public record HistoryDocument(String schemaVersion, List<HistoryRecord> records) {
-    public static final String CURRENT_SCHEMA_VERSION = "1.0";
+    public static final String CURRENT_SCHEMA_VERSION = "2.0";
 
     /**
      * Creates an immutable document.

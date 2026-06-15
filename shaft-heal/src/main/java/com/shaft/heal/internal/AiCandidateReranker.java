@@ -13,6 +13,7 @@ import com.shaft.pilot.ai.AiRequest;
 import com.shaft.pilot.ai.AiResponse;
 import com.shaft.pilot.ai.EvidenceCategory;
 import com.shaft.pilot.ai.EvidenceReference;
+import com.shaft.pilot.ai.ProcessingLocation;
 import com.shaft.pilot.config.PilotConfiguration;
 
 import java.time.Duration;
@@ -69,14 +70,18 @@ final class AiCandidateReranker {
         }
 
         AiResponse response = executionService.execute(builder.build());
+        ProcessingLocation location = processingLocation(pilotConfiguration, response.provider());
         HealingReport.ProviderMetadata metadata = new HealingReport.ProviderMetadata(
                 true,
                 response.provider(),
                 response.model(),
                 response.status().name(),
-                HealingSupport.sanitize(response.fallbackReason()));
+                HealingSupport.sanitize(response.fallbackReason()),
+                location.name(),
+                location.name().toLowerCase(java.util.Locale.ROOT).replace('_', '-'),
+                "Pilot redaction policy applied before provider execution.");
         if (!response.successful()) {
-            return new RerankResult(candidates, metadata, remoteProvider(response.provider()));
+            return new RerankResult(candidates, metadata, evidenceLeavesProcess(location));
         }
         Map<String, Double> providerScores;
         try {
@@ -87,8 +92,11 @@ final class AiCandidateReranker {
                     response.provider(),
                     response.model(),
                     "REJECTED",
-                    HealingSupport.sanitize(exception.getMessage()));
-            return new RerankResult(candidates, rejected, remoteProvider(response.provider()));
+                    HealingSupport.sanitize(exception.getMessage()),
+                    location.name(),
+                    location.name().toLowerCase(java.util.Locale.ROOT).replace('_', '-'),
+                    "Pilot redaction policy applied before provider execution.");
+            return new RerankResult(candidates, rejected, evidenceLeavesProcess(location));
         }
 
         List<RankedCandidate> updated = candidates.stream().map(candidate -> {
@@ -117,7 +125,7 @@ final class AiCandidateReranker {
                     oldReport.contextMatched());
             return new RankedCandidate(candidate.element(), candidate.locator(), updatedReport);
         }).toList();
-        return new RerankResult(updated, metadata, remoteProvider(response.provider()));
+        return new RerankResult(updated, metadata, evidenceLeavesProcess(location));
     }
 
     private static Map<String, Double> parse(JsonNode payload, List<RankedCandidate> candidates) {
@@ -187,8 +195,19 @@ final class AiCandidateReranker {
                 false);
     }
 
-    private static boolean remoteProvider(String provider) {
-        return Set.of("openai", "anthropic", "gemini").contains(provider);
+    private static ProcessingLocation processingLocation(
+            PilotConfiguration configuration,
+            String provider) {
+        try {
+            return configuration.provider(provider).processingLocation();
+        } catch (IllegalArgumentException exception) {
+            return ProcessingLocation.NONE;
+        }
+    }
+
+    private static boolean evidenceLeavesProcess(ProcessingLocation location) {
+        return location == ProcessingLocation.ON_PREM
+                || location == ProcessingLocation.REMOTE;
     }
 
     record RerankResult(

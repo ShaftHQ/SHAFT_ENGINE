@@ -8,6 +8,8 @@ import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.element.internal.ElementActionsHelper;
+import com.shaft.gui.internal.healing.HealingManager;
+import com.shaft.gui.internal.healing.HealingResolution;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
@@ -723,20 +725,42 @@ public class TouchActions extends FluentWebDriverAction {
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
         var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, targetElementLocator);
         AtomicBoolean canScrollMore = new AtomicBoolean(true);
+        try {
+            new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
+                // for the animated GIF:
+                elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
 
-        new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
-            // for the animated GIF:
-            elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
-
-            var elementExistsOnViewPort = !ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator).isEmpty();
-            if (elementExistsOnViewPort)
-                return true;
-            canScrollMore.set(performW3cCompliantScroll(scrollParameters));
-            elementExistsOnViewPort = !ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator).isEmpty();
-            if (!canScrollMore.get() && !elementExistsOnViewPort)
-                throw new RuntimeException("Element not found after scrolling to the end of the page.");
-            return elementExistsOnViewPort;
-        });
+                var elementExistsOnViewPort = !ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator).isEmpty();
+                if (elementExistsOnViewPort)
+                    return true;
+                canScrollMore.set(performW3cCompliantScroll(scrollParameters));
+                elementExistsOnViewPort = !ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator).isEmpty();
+                if (!canScrollMore.get() && !elementExistsOnViewPort)
+                    throw new RuntimeException("Element not found after scrolling to the end of the page.");
+                return elementExistsOnViewPort;
+            });
+        } catch (RuntimeException exception) {
+            HealingResolution resolution = targetElementLocator == null
+                    ? null
+                    : HealingManager.resolve(
+                    driverFactoryHelper.getDriver(),
+                    targetElementLocator,
+                    "SWIPE_ELEMENT_INTO_VIEW",
+                    true,
+                    null,
+                    null,
+                    null).orElse(null);
+            if (resolution == null) {
+                throw exception;
+            }
+            HealingManager.recordOutcome(
+                    driverFactoryHelper.getDriver(),
+                    resolution,
+                    targetElementLocator,
+                    "SWIPE_ELEMENT_INTO_VIEW",
+                    true,
+                    "");
+        }
         ReportManager.logDiscrete("Element found on screen.");
         return true;
     }
