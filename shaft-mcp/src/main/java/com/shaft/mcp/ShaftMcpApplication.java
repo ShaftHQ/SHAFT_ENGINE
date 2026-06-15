@@ -2,6 +2,7 @@ package com.shaft.mcp;
 
 import com.shaft.capture.cli.CaptureCli;
 import com.shaft.doctor.cli.DoctorCli;
+import com.shaft.mcp.install.ShaftMcpInstaller;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.boot.SpringApplication;
@@ -37,6 +38,13 @@ public class ShaftMcpApplication {
             int exitCode = CaptureCli.run(
                     Arrays.copyOfRange(args, 1, args.length),
                     captureLaunchPrefix());
+            if (exitCode != 0) {
+                System.exit(exitCode);
+            }
+            return;
+        }
+        if (args.length > 0 && "install".equalsIgnoreCase(args[0])) {
+            int exitCode = ShaftMcpInstaller.run(Arrays.copyOfRange(args, 1, args.length));
             if (exitCode != 0) {
                 System.exit(exitCode);
             }
