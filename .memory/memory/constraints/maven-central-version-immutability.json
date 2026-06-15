@@ -1,0 +1,46 @@
+{
+  "body_path": "memory/constraints/maven-central-version-immutability.md",
+  "content_hash": "sha256:3bb0b9f90e855414404bea035bffc664136a81b22ca8b1ac990313a46cab1edc",
+  "created_at": "2026-06-15T17:06:51+03:00",
+  "evidence": [
+    {
+      "id": "pom.xml",
+      "kind": "file"
+    },
+    {
+      "id": ".github/workflows/mavenCentral_cd.yml",
+      "kind": "file"
+    },
+    {
+      "id": "scripts/ci/verify_maven_central_release.py",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "pom.xml",
+      ".github/workflows/mavenCentral_cd.yml"
+    ],
+    "category": "business-rule"
+  },
+  "id": "constraint.maven-central-version-immutability",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Seed durable SHAFT project memory from the retired high-signal ledger"
+  },
+  "status": "active",
+  "tags": [
+    "release",
+    "maven-central",
+    "versioning"
+  ],
+  "title": "Maven Central coordinates are immutable",
+  "type": "constraint",
+  "updated_at": "2026-06-15T17:06:51+03:00"
+}

@@ -1,0 +1,1 @@
+A modular or relocation release cannot replace an existing coordinate version. Choose a version newer than the final monolithic release, wait for Central publication, and verify public artifacts plus canonical, combined-module, and legacy consumers before release announcements.

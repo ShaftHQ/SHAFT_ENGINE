@@ -1,9 +1,8 @@
 ---
 name: framework-source-rules
-description: Apply SHAFT production Java compatibility, API, properties, logging, Allure, and WebDriver rules when editing src/main Java files.
+description: Use when editing or reviewing any src/main Java file in SHAFT; apply production compatibility, public API, properties, logging, Allure, concurrency, and WebDriver rules.
 ---
 
 # Framework Source Rules
 
 Read and follow the [canonical production Java rules](../../../.github/instructions/framework-source.instructions.md).
-Load them only when production Java is in scope.

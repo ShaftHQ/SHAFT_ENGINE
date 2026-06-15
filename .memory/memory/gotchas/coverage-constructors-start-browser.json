@@ -1,0 +1,37 @@
+{
+  "body_path": "memory/gotchas/coverage-constructors-start-browser.md",
+  "content_hash": "sha256:2719439b098c4d95f96c68871cd432086d8817ec56c7b1600716d88ca56a1670",
+  "created_at": "2026-06-15T17:06:51+03:00",
+  "evidence": [
+    {
+      "id": "shaft-engine/src/test/java/testPackage/unitTests/ElementActionsCoverageUnitTest.java",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "shaft-engine/src/test/java/testPackage/unitTests/ElementActionsCoverageUnitTest.java"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.coverage-constructors-start-browser",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Seed durable SHAFT project memory from the retired high-signal ledger"
+  },
+  "status": "active",
+  "tags": [
+    "coverage",
+    "webdriver",
+    "unit-tests"
+  ],
+  "title": "Coverage constructors can start real browser sessions",
+  "type": "gotcha",
+  "updated_at": "2026-06-15T17:06:51+03:00"
+}

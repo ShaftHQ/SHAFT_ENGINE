@@ -1,0 +1,38 @@
+{
+  "body_path": "memory/gotchas/allure-result-population.md",
+  "content_hash": "sha256:d355e81badf55d66bc1a6758da2f809a3b33ae2b745746c232f10bc904463599",
+  "created_at": "2026-06-15T17:06:51+03:00",
+  "evidence": [
+    {
+      "id": ".github/skills/ci-failure-investigator/SKILL.md",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "allure-results/",
+      ".github/skills/ci-failure-investigator/SKILL.md"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.allure-result-population",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Seed durable SHAFT project memory from the retired high-signal ledger"
+  },
+  "status": "active",
+  "tags": [
+    "allure",
+    "ci",
+    "debugging"
+  ],
+  "title": "Verify Allure results are populated before trusting status",
+  "type": "gotcha",
+  "updated_at": "2026-06-15T17:06:51+03:00"
+}

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Framework Source Rules"
+  short_description: "Apply production Java framework rules"
+  default_prompt: "Use $framework-source-rules while implementing this production Java change."
+policy:
+  allow_implicit_invocation: true

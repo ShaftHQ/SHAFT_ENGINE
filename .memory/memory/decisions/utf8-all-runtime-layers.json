@@ -1,0 +1,51 @@
+{
+  "body_path": "memory/decisions/utf8-all-runtime-layers.md",
+  "content_hash": "sha256:1fd9ff7785003ca48296f72da34bd5826b3f98abb5052e47b46ba7edd9b5fffd",
+  "created_at": "2026-06-15T17:06:51+03:00",
+  "evidence": [
+    {
+      "id": "pom.xml",
+      "kind": "file"
+    },
+    {
+      "id": ".mvn/jvm.config",
+      "kind": "file"
+    },
+    {
+      "id": ".github/actions/setup-test-env/action.yml",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-engine/src/test/java/testPackage/properties/Log4jTests.java",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "pom.xml",
+      ".mvn/jvm.config",
+      ".github/actions/setup-test-env/action.yml"
+    ],
+    "category": "decision-rationale"
+  },
+  "id": "decision.utf8-all-runtime-layers",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Seed durable SHAFT project memory from the retired high-signal ledger"
+  },
+  "status": "active",
+  "tags": [
+    "encoding",
+    "ci",
+    "maven"
+  ],
+  "title": "Enforce UTF-8 at every runtime layer",
+  "type": "decision",
+  "updated_at": "2026-06-15T17:06:51+03:00"
+}

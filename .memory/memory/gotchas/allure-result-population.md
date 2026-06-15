@@ -1,0 +1,1 @@
+An empty or unexpectedly small Allure report invalidates verdict analysis. Count result JSON or executed tests first, and inspect failed, broken, retried, and skipped attempts when the final summary hides an intermittent failure.

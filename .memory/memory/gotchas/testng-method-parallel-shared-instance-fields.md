@@ -1,0 +1,1 @@
+Concurrent methods in one TestNG instance share ordinary fields. Per-method paths, files, mocks, and drivers must use locals or ThreadLocal, and cleanup must use the same thread-owned state.

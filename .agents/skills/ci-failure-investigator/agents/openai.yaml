@@ -1,0 +1,6 @@
+interface:
+  display_name: "CI Failure Investigator"
+  short_description: "Debug GitHub Actions and Allure failures"
+  default_prompt: "Use $ci-failure-investigator to identify and fix the root cause of this CI failure."
+policy:
+  allow_implicit_invocation: true

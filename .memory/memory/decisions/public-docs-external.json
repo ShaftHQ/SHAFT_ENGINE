@@ -1,0 +1,41 @@
+{
+  "body_path": "memory/decisions/public-docs-external.md",
+  "content_hash": "sha256:0a3bf097f1086ea09554798e1fab5ef634b6d443b8ef0cd72801ea66986ce86f",
+  "created_at": "2026-06-15T17:06:51+03:00",
+  "evidence": [
+    {
+      "id": "scripts/ci/validate_documentation_boundaries.py",
+      "kind": "file"
+    },
+    {
+      "id": "README.md",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "README.md",
+      "scripts/ci/validate_documentation_boundaries.py"
+    ],
+    "category": "decision-rationale"
+  },
+  "id": "decision.public-docs-external",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Seed durable SHAFT project memory from the retired high-signal ledger"
+  },
+  "status": "active",
+  "tags": [
+    "documentation",
+    "repository"
+  ],
+  "title": "Keep public documentation outside the engine repository",
+  "type": "decision",
+  "updated_at": "2026-06-15T17:09:35+03:00"
+}

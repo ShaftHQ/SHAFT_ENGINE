@@ -31,12 +31,10 @@ the explicit maintainer reason.
 Run:
 
 ```bash
-python3 scripts/ci/validate_agent_guidance.py
-python3 scripts/ci/validate_documentation_boundaries.py
-git diff --check
+python3 scripts/ci/validate_agent_setup.py
 ```
 
-If both already pass and the maintainer reason requires no durable change,
+If it already passes and the maintainer reason requires no durable change,
 leave the repository unchanged. In the final response, list changed guidance
 files, validation results, and any fact that remains uncertain. State that no
 product code was intentionally changed.

@@ -1,0 +1,1 @@
+Keep global guidance compact. Route task-specific rules through exactly five thin Codex bridge skills to canonical scoped rules or playbooks. Deterministic validators enforce budgets, routing, and duplicate-content limits.

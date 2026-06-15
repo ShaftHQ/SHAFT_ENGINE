@@ -1,0 +1,1 @@
+Never emit top-level enableVideo. Merge video settings into existing provider maps such as selenoid:options, moon:options, or se:recordVideo without overwriting unrelated provider keys.

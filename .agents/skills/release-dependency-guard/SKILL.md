@@ -1,6 +1,6 @@
 ---
 name: release-dependency-guard
-description: Prepare or review SHAFT releases and dependency updates without running deployment or publication commands.
+description: Use when preparing or reviewing a SHAFT release, version alignment, dependency or plugin updates, or Maven Central safeguards; validate metadata without deploying or publishing.
 ---
 
 # Release And Dependency Guard

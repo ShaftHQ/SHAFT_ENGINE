@@ -1,0 +1,38 @@
+{
+  "body_path": "memory/gotchas/testng-method-parallel-shared-instance-fields.md",
+  "content_hash": "sha256:04f6ba1f3c1948755d426e4e2e917efde8570a3cffc89e23b05e150145d823c2",
+  "created_at": "2026-06-15T17:06:51+03:00",
+  "evidence": [
+    {
+      "id": "shaft-visual/src/test/java/testPackage/unitTests/ImageProcessingActionsUnitTest.java",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "shaft-engine/src/test/java/",
+      "shaft-visual/src/test/java/"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.testng-method-parallel-shared-instance-fields",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Seed durable SHAFT project memory from the retired high-signal ledger"
+  },
+  "status": "active",
+  "tags": [
+    "testng",
+    "parallelism",
+    "isolation"
+  ],
+  "title": "TestNG method parallelism shares instance fields",
+  "type": "gotcha",
+  "updated_at": "2026-06-15T17:09:35+03:00"
+}

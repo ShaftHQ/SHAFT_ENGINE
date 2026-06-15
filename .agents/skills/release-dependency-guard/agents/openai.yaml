@@ -1,0 +1,6 @@
+interface:
+  display_name: "Release And Dependency Guard"
+  short_description: "Guard releases and dependency updates"
+  default_prompt: "Use $release-dependency-guard to prepare or review this release or dependency update."
+policy:
+  allow_implicit_invocation: true

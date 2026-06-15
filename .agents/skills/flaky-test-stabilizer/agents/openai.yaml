@@ -1,0 +1,6 @@
+interface:
+  display_name: "Flaky Test Stabilizer"
+  short_description: "Stabilize intermittent and parallel tests"
+  default_prompt: "Use $flaky-test-stabilizer to diagnose and remove the cause of this intermittent test failure."
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,1 @@
+Agent-instruction refresh is manual. Run deterministic validation first and invoke the paid Codex action only when validation finds drift or a maintainer explicitly forces review.

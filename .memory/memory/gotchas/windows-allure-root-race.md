@@ -1,0 +1,1 @@
+Deleting and recreating the live allure-results root can race with Allure writers on Windows and surface as FileAlreadyExistsException. Delete only its contents while preserving the directory.

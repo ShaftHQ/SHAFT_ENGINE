@@ -1,0 +1,74 @@
+{
+  "$id": "https://aictx.dev/schemas/v4/config.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "git": {
+      "additionalProperties": false,
+      "properties": {
+        "trackContextPacks": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "trackContextPacks"
+      ],
+      "type": "object"
+    },
+    "memory": {
+      "additionalProperties": false,
+      "properties": {
+        "autoIndex": {
+          "type": "boolean"
+        },
+        "defaultTokenBudget": {
+          "maximum": 50000,
+          "minimum": 501,
+          "type": "integer"
+        },
+        "saveContextPacks": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "defaultTokenBudget",
+        "autoIndex",
+        "saveContextPacks"
+      ],
+      "type": "object"
+    },
+    "project": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^project\\.[a-z0-9][a-z0-9-]*$",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "type": "object"
+    },
+    "version": {
+      "enum": [
+        1,
+        2,
+        3,
+        4
+      ]
+    }
+  },
+  "required": [
+    "version",
+    "project",
+    "memory",
+    "git"
+  ],
+  "type": "object"
+}

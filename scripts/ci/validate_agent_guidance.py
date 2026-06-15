@@ -140,6 +140,63 @@ def parse_frontmatter(content: str) -> dict[str, str] | None:
     return values
 
 
+def markdown_body(content: str) -> str:
+    """Return Markdown after optional frontmatter."""
+    if not content.startswith("---\n"):
+        return content.strip()
+    marker = content.find("\n---\n", 4)
+    return content[marker + 5 :].strip() if marker >= 0 else content.strip()
+
+
+def quoted_yaml_value(content: str, key: str) -> str | None:
+    """Read one quoted scalar from the small agents/openai.yaml interface."""
+    match = re.search(rf'(?m)^\s*{re.escape(key)}:\s*"([^"]*)"\s*$', content)
+    return match.group(1) if match else None
+
+
+def validate_skill_interface(
+    root: Path, directory: Path, skill_name: str
+) -> list[dict[str, str]]:
+    """Validate concise Codex UI metadata for a discoverable skill."""
+    metadata_path = directory / "agents/openai.yaml"
+    metadata_relative = relative(root, metadata_path)
+    if not metadata_path.is_file():
+        return [issue("skill-metadata", metadata_relative, "agents/openai.yaml is required")]
+
+    content = metadata_path.read_text(encoding="utf-8")
+    display_name = quoted_yaml_value(content, "display_name")
+    short_description = quoted_yaml_value(content, "short_description")
+    default_prompt = quoted_yaml_value(content, "default_prompt")
+    errors: list[dict[str, str]] = []
+    if not display_name:
+        errors.append(issue("skill-metadata", metadata_relative, "display_name is required"))
+    if not short_description or not 25 <= len(short_description) <= 64:
+        errors.append(
+            issue(
+                "skill-metadata",
+                metadata_relative,
+                "short_description must be 25 to 64 characters",
+            )
+        )
+    if not default_prompt or f"${skill_name}" not in default_prompt:
+        errors.append(
+            issue(
+                "skill-metadata",
+                metadata_relative,
+                f"default_prompt must mention ${skill_name}",
+            )
+        )
+    if not re.search(r"(?m)^\s*allow_implicit_invocation:\s*true\s*$", content):
+        errors.append(
+            issue(
+                "skill-metadata",
+                metadata_relative,
+                "allow_implicit_invocation must be true",
+            )
+        )
+    return errors
+
+
 def validate_skills(root: Path, budget: dict) -> list[dict[str, str]]:
     """Validate discoverable skill directories and required frontmatter."""
     errors: list[dict[str, str]] = []
@@ -153,7 +210,24 @@ def validate_skills(root: Path, budget: dict) -> list[dict[str, str]]:
                 issue("skill-root-missing", configured_root, "skills root is missing")
             )
             continue
-        for directory in sorted(path for path in skills_root.iterdir() if path.is_dir()):
+        directories = sorted(path for path in skills_root.iterdir() if path.is_dir())
+        actual_names = {
+            directory.name
+            for directory in directories
+            if any(path.is_file() for path in directory.rglob("*"))
+        }
+        expected_names = set(budget.get("expected_skill_names", {}).get(configured_root, []))
+        if expected_names:
+            for missing in sorted(expected_names - actual_names):
+                errors.append(
+                    issue("skill-set", configured_root, f"expected skill is missing: {missing}")
+                )
+            for unexpected in sorted(actual_names - expected_names):
+                errors.append(
+                    issue("skill-set", configured_root, f"unexpected skill is present: {unexpected}")
+                )
+        limits = budget.get("skill_budgets", {}).get(configured_root, {})
+        for directory in directories:
             if not any(path.is_file() for path in directory.rglob("*")):
                 continue
             skill_path = directory / "SKILL.md"
@@ -163,7 +237,8 @@ def validate_skills(root: Path, budget: dict) -> list[dict[str, str]]:
                     issue("skill-missing", skill_relative, "skill directory must contain SKILL.md")
                 )
                 continue
-            frontmatter = parse_frontmatter(skill_path.read_text(encoding="utf-8"))
+            content = skill_path.read_text(encoding="utf-8")
+            frontmatter = parse_frontmatter(content)
             if frontmatter is None:
                 errors.append(
                     issue("skill-frontmatter", skill_relative, "valid YAML frontmatter is required")
@@ -181,6 +256,29 @@ def validate_skills(root: Path, budget: dict) -> list[dict[str, str]]:
                 errors.append(
                     issue("skill-description", skill_relative, "frontmatter description is required")
                 )
+            maximum_description = limits.get("max_description_chars")
+            if (
+                maximum_description is not None
+                and len(frontmatter.get("description", "")) > maximum_description
+            ):
+                errors.append(
+                    issue(
+                        "skill-description-budget",
+                        skill_relative,
+                        f"description exceeds {maximum_description} characters",
+                    )
+                )
+            maximum_body = limits.get("max_body_chars")
+            if maximum_body is not None and len(markdown_body(content)) > maximum_body:
+                errors.append(
+                    issue(
+                        "skill-body-budget",
+                        skill_relative,
+                        f"body exceeds {maximum_body} characters",
+                    )
+                )
+            if limits.get("require_openai_yaml"):
+                errors.extend(validate_skill_interface(root, directory, directory.name))
     return errors
 
 
@@ -322,7 +420,7 @@ def validate_refresh_workflow(root: Path, budget: dict) -> list[dict[str, str]]:
         "workflow_dispatch:": "manual dispatch trigger is required",
         "reason:": "required reason input is missing",
         "force_ai:": "force_ai input is missing",
-        "python3 scripts/ci/validate_agent_guidance.py": "deterministic audit step is missing",
+        "python3 scripts/ci/validate_agent_setup.py": "deterministic audit step is missing",
         "if: steps.audit.outputs.needs_ai == 'true'": "paid action is not audit-gated",
     }
     errors: list[dict[str, str]] = []
